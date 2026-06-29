@@ -89,7 +89,7 @@ export default function AdminAnnouncementsScreen() {
   }
 
   function validateForm(value: AnnouncementFormState) {
-    if (!value.title.trim()) throw new Error('El titulo es obligatorio.');
+    if (!value.title.trim()) throw new Error('El título es obligatorio.');
     if (!value.content.trim()) throw new Error('El contenido es obligatorio.');
   }
 
@@ -129,7 +129,7 @@ export default function AdminAnnouncementsScreen() {
       await action();
       await loadData();
     } catch (err) {
-      Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo completar la accion.');
+      Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo completar la acción.');
     } finally {
       setSaving(false);
     }
@@ -191,7 +191,7 @@ export default function AdminAnnouncementsScreen() {
               label="Eliminar"
               danger
               onPress={() =>
-                Alert.alert('Eliminar anuncio', 'Esta accion no se puede deshacer.', [
+                Alert.alert('Eliminar anuncio', 'Esta acción no se puede deshacer.', [
                   { text: 'Cancelar', style: 'cancel' },
                   { text: 'Eliminar', style: 'destructive', onPress: () => runAction(() => deleteAnnouncement(announcement.id)) },
                 ])

@@ -14,9 +14,10 @@ export type MembershipAdminRow = {
   payments: Payment[];
 };
 
-function createQrToken(userId: string) {
-  const random = Math.random().toString(36).slice(2, 12);
-  return `ucapsa_${userId}_${Date.now()}_${random}`;
+function createQrToken() {
+  const randomA = Math.random().toString(36).slice(2, 12);
+  const randomB = Math.random().toString(36).slice(2, 12);
+  return `ucapsa_${Date.now()}_${randomA}${randomB}`;
 }
 
 export function getDisplayName(profile: Profile | null | undefined) {
@@ -25,7 +26,7 @@ export function getDisplayName(profile: Profile | null | undefined) {
 
 export function getMembershipStatusLabel(status: MembershipStatus) {
   const labels: Record<MembershipStatus, string> = {
-    none: 'Sin membresÃ­a',
+    none: 'Sin membresía',
     pending: 'Pendiente',
     active: 'Activo',
     expired: 'Vencido',
@@ -39,7 +40,8 @@ export function getMembershipStatusLabel(status: MembershipStatus) {
 export function getPaymentStatusLabel(status: MembershipPaymentStatus | null | undefined) {
   const labels: Record<MembershipPaymentStatus, string> = {
     
-    none: 'Sin pago',pending: 'Pendiente',
+    none: 'Sin pago',
+    pending: 'Pendiente',
     paid: 'Pagado',
     not_required: 'No aplica',
     overdue: 'Pago vencido',
@@ -90,7 +92,7 @@ export async function requestMembership(): Promise<Membership> {
   if (authError) throw authError;
 
   const userId = authData.user?.id;
-  if (!userId) throw new Error('No hay sesiÃ³n activa.');
+  if (!userId) throw new Error('No hay sesión activa.');
 
   const existing = await getMyMembership();
   if (existing && ['pending', 'active'].includes(existing.status)) {
@@ -102,7 +104,7 @@ export async function requestMembership(): Promise<Membership> {
     .insert({
       user_id: userId,
       status: 'pending',
-      qr_token: createQrToken(userId),
+      qr_token: createQrToken(),
       current_payment_status: 'pending',
     })
     .select('*')
@@ -227,10 +229,11 @@ export async function markMembershipPaidFast(row: MembershipAdminRow): Promise<v
     userId: row.membership.user_id,
     membershipId: row.membership.id,
     amount: 0,
-    notes: 'Pago registrado rÃ¡pido desde tabla de socios.',
+    notes: 'Pago registrado rápido desde tabla de socios.',
     periodLabel: 'Mensualidad',
     paymentMethod: 'manual',
   });
 }
+
 
 

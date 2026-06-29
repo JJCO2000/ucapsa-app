@@ -55,7 +55,7 @@ export default function ForgotPasswordScreen() {
           <Text style={styles.buttonText}>{loading ? 'Enviando...' : 'Enviar instrucciones'}</Text>
         </Pressable>
 
-        <Link href="/auth/login" style={styles.linkStrong}>Volver a iniciar sesion</Link>
+        <Link href="/auth/login" style={styles.linkStrong}>Volver a iniciar sesión</Link>
       </View>
     </KeyboardAwareScreen>
   );

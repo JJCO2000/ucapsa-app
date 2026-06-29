@@ -4,7 +4,7 @@ export default function RequestMembershipScreen() {
   return (
     <PlaceholderPage
       eyebrow="Solicitud"
-      title="Solicitar membresia"
+      title="Solicitar membresía"
       subtitle="Flujo para que un cliente pida convertirse en socio UCAPSA."
       cards={[
         {
@@ -14,8 +14,8 @@ export default function RequestMembershipScreen() {
         },
         {
           meta: 'Paso 2',
-          title: 'Revision admin',
-          body: 'El administrador revisara y aprobara la membresia en el panel.',
+          title: 'Revisión admin',
+          body: 'El administrador revisará y aprobara la membresía en el panel.',
         },
       ]}
       links={[

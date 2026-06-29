@@ -32,7 +32,7 @@ export default function HomeScreen() {
         <View style={styles.hero}>
           <Text style={styles.kicker}>UCAPSA App</Text>
           <Text style={styles.title}>{user ? `Hola${profile?.full_name ? `, ${profile.full_name}` : ''}` : 'Bienvenido a UCAPSA'}</Text>
-          <Text style={styles.subtitle}>Comunicacion oficial, calendario, socios y pagos manuales en una sola aplicacion.</Text>
+          <Text style={styles.subtitle}>Comunicación oficial, calendario, socios y pagos manuales en una sola aplicación.</Text>
 
           <View style={styles.statusRow}>
             <Text style={styles.statusPill}>{user ? `Rol: ${role ?? 'client'}` : 'Visitante'}</Text>
@@ -57,7 +57,7 @@ export default function HomeScreen() {
         {loading ? (
           <View style={styles.centerBox}>
             <ActivityIndicator />
-            <Text style={styles.muted}>Cargando informacion...</Text>
+            <Text style={styles.muted}>Cargando información...</Text>
           </View>
         ) : null}
 
@@ -87,7 +87,7 @@ export default function HomeScreen() {
             )}
 
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Proximos eventos</Text>
+              <Text style={styles.sectionTitle}>Próximos eventos</Text>
               <Pressable onPress={() => router.push('/calendar' as never)}>
                 <Text style={styles.sectionLink}>Ver calendario</Text>
               </Pressable>
@@ -95,7 +95,7 @@ export default function HomeScreen() {
 
             {events.length === 0 ? (
               <View style={styles.emptyBox}>
-                <Text style={styles.emptyTitle}>Sin eventos proximos</Text>
+                <Text style={styles.emptyTitle}>Sin eventos próximos</Text>
                 <Text style={styles.muted}>Cuando UCAPSA publique eventos, apareceran aqui.</Text>
               </View>
             ) : (

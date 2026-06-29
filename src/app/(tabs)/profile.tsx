@@ -15,7 +15,7 @@ import { useSession } from '../../hooks/useSession';
 const avatarColors = ['#0f766e', '#2563eb', '#7c3aed', '#db2777', '#ea580c', '#16a34a'];
 
 export default function ProfileScreen() {
-  const { loading, user, profile, role, isAdmin, signOut } = useSession();
+  const { loading, user, profile, role, isAdmin, signOut, refreshProfile } = useSession();
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [dogName, setDogName] = useState('');
@@ -49,8 +49,8 @@ export default function ProfileScreen() {
 
   function handleDeleteRequest() {
     Alert.alert(
-      'Solicitar eliminaciÃ³n de cuenta',
-      'Por seguridad, esta acciÃ³n crea una solicitud para administraciÃ³n. No borra tu cuenta automÃ¡ticamente.',
+      'Solicitar eliminación de cuenta',
+      'Por seguridad, esta acción crea una solicitud para administración. No borra tu cuenta automáticamente.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -59,7 +59,7 @@ export default function ProfileScreen() {
           onPress: async () => {
             try {
               await requestAccountDeletion('Solicitud desde Perfil.');
-              Alert.alert('Solicitud enviada', 'AdministraciÃ³n revisarÃ¡ la eliminaciÃ³n de tu cuenta.');
+              Alert.alert('Solicitud enviada', 'Administración revisará la eliminación de tu cuenta.');
             } catch (error) {
               Alert.alert('No se pudo solicitar', error instanceof Error ? error.message : 'Intenta de nuevo.');
             }
@@ -73,7 +73,7 @@ export default function ProfileScreen() {
     return (
       <KeyboardAwareScreen>
         <Text style={styles.title}>Perfil</Text>
-        <Text style={styles.muted}>Cargando sesiÃ³n...</Text>
+        <Text style={styles.muted}>Cargando sesión...</Text>
       </KeyboardAwareScreen>
     );
   }
@@ -83,11 +83,11 @@ export default function ProfileScreen() {
       <KeyboardAwareScreen>
         <Text style={styles.eyebrow}>UCAPSA</Text>
         <Text style={styles.title}>Perfil</Text>
-        <Text style={styles.muted}>Inicia sesiÃ³n para ver tu perfil, membresÃ­a y credencial digital.</Text>
+        <Text style={styles.muted}>Inicia sesión para ver tu perfil, membresía y credencial digital.</Text>
 
         <Link href="/auth/login" asChild>
           <Pressable style={styles.primaryButton}>
-            <Text style={styles.primaryButtonText}>Iniciar sesiÃ³n</Text>
+            <Text style={styles.primaryButtonText}>Iniciar sesión</Text>
           </Pressable>
         </Link>
 
@@ -126,11 +126,11 @@ export default function ProfileScreen() {
         autoCapitalize="words"
       />
 
-      <Text style={styles.label}>TelÃ©fono</Text>
+      <Text style={styles.label}>Teléfono</Text>
       <TextInput
         value={phone}
         onChangeText={setPhone}
-        placeholder="TelÃ©fono opcional"
+        placeholder="Teléfono opcional"
         style={styles.input}
         keyboardType="phone-pad"
       />
@@ -172,11 +172,11 @@ export default function ProfileScreen() {
       ) : null}
 
       <Pressable onPress={handleDeleteRequest} style={styles.dangerGhostButton}>
-        <Text style={styles.dangerGhostText}>Solicitar eliminaciÃ³n de cuenta</Text>
+        <Text style={styles.dangerGhostText}>Solicitar eliminación de cuenta</Text>
       </Pressable>
 
       <Pressable onPress={signOut} style={styles.secondaryButton}>
-        <Text style={styles.secondaryButtonText}>Cerrar sesiÃ³n</Text>
+        <Text style={styles.secondaryButtonText}>Cerrar sesión</Text>
       </Pressable>
     </KeyboardAwareScreen>
   );

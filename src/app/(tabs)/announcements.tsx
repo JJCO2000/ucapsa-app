@@ -50,7 +50,7 @@ export default function AnnouncementsScreen() {
             <MaterialIcons name="campaign" size={28} color="#0f766e" />
           </View>
           <View style={styles.heroText}>
-            <Text style={styles.kicker}>Comunicacion oficial</Text>
+            <Text style={styles.kicker}>Comunicación oficial</Text>
             <Text style={styles.title}>Anuncios UCAPSA</Text>
             <Text style={styles.subtitle}>Avisos importantes para visitantes, clientes, socios y administradores.</Text>
           </View>

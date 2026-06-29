@@ -25,7 +25,7 @@ type SessionProviderProps = {
 async function fetchProfile(userId: string): Promise<UserProfile | null> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id,user_id,full_name,email,phone,role,created_at,updated_at')
+    .select('*')
     .eq('user_id', userId)
     .maybeSingle();
 

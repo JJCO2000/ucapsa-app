@@ -50,7 +50,7 @@ export default function RegisterScreen() {
       <View style={styles.header}>
         <Text style={styles.kicker}>UCAPSA APP</Text>
         <Text style={styles.title}>Crear cuenta</Text>
-        <Text style={styles.subtitle}>Registrate para solicitar membresia y consultar informacion oficial.</Text>
+        <Text style={styles.subtitle}>Regístrate para solicitar membresía y consultar información oficial.</Text>
       </View>
 
       <View style={styles.card}>
@@ -82,7 +82,7 @@ export default function RegisterScreen() {
         <TextInput
           value={password}
           onChangeText={setPassword}
-          placeholder="Minimo 6 caracteres"
+          placeholder="Mínimo 6 caracteres"
           secureTextEntry
           textContentType="newPassword"
           style={styles.input}

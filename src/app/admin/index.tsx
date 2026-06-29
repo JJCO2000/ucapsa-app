@@ -8,7 +8,7 @@ const adminLinks = [
   { href: '/admin/events', title: 'Eventos', description: 'Gestionar calendario, recurrencias y agenda.', icon: 'event' },
   { href: '/admin/members', title: 'Socios', description: 'Solicitudes, credenciales, pagos manuales y estadisticas.', icon: 'badge' },
   { href: '/admin/payments', title: 'Pagos', description: 'Modulo formal de pagos manuales en una fase posterior.', icon: 'payments' },
-  { href: '/admin/users', title: 'Usuarios', description: 'Roles y usuarios de la aplicacion.', icon: 'people' },
+  { href: '/admin/users', title: 'Usuarios', description: 'Roles y usuarios de la aplicación.', icon: 'people' },
 ] as const;
 
 export default function AdminHomeScreen() {
@@ -17,7 +17,7 @@ export default function AdminHomeScreen() {
       <View style={styles.header}>
         <Text style={styles.kicker}>UCAPSA Admin</Text>
         <Text style={styles.title}>Panel administrativo</Text>
-        <Text style={styles.description}>Gestiona comunicacion, calendario y socios desde un solo lugar.</Text>
+        <Text style={styles.description}>Gestiona comunicación, calendario y socios desde un solo lugar.</Text>
       </View>
 
       <View style={styles.grid}>

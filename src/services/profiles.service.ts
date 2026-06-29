@@ -24,7 +24,7 @@ export async function updateMyProfile(input: ProfileUpdateInput): Promise<Profil
   if (authError) throw authError;
 
   const userId = authData.user?.id;
-  if (!userId) throw new Error('No hay sesiÃ³n activa.');
+  if (!userId) throw new Error('No hay sesión activa.');
 
   const payload: Record<string, string | null> = {
     updated_at: new Date().toISOString(),
@@ -51,7 +51,7 @@ export async function requestAccountDeletion(reason?: string): Promise<void> {
   if (authError) throw authError;
 
   const userId = authData.user?.id;
-  if (!userId) throw new Error('No hay sesiÃ³n activa.');
+  if (!userId) throw new Error('No hay sesión activa.');
 
   const { error } = await supabase
     .from('profiles')

@@ -25,7 +25,7 @@ export default function LoginScreen() {
     setLoading(false);
 
     if (error) {
-      Alert.alert('No se pudo iniciar sesion', error.message);
+      Alert.alert('No se pudo iniciar sesión', error.message);
       return;
     }
 
@@ -36,8 +36,8 @@ export default function LoginScreen() {
     <KeyboardAwareScreen contentContainerStyle={styles.container}>
       <View style={styles.header}>
         <Text style={styles.kicker}>UCAPSA APP</Text>
-        <Text style={styles.title}>Iniciar sesion</Text>
-        <Text style={styles.subtitle}>Accede para ver tu perfil, calendario y comunicacion oficial.</Text>
+        <Text style={styles.title}>Iniciar sesión</Text>
+        <Text style={styles.subtitle}>Accede para ver tu perfil, calendario y comunicación oficial.</Text>
       </View>
 
       <View style={styles.card}>
@@ -70,7 +70,7 @@ export default function LoginScreen() {
           <Text style={styles.buttonText}>{loading ? 'Entrando...' : 'Entrar'}</Text>
         </Pressable>
 
-        <Link href="/auth/forgot-password" style={styles.link}>Olvide mi contraseña</Link>
+        <Link href="/auth/forgot-password" style={styles.link}>Olvidé mi contraseña</Link>
         <Link href="/auth/register" style={styles.linkStrong}>Crear cuenta</Link>
       </View>
     </KeyboardAwareScreen>

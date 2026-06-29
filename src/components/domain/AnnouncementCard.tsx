@@ -11,7 +11,7 @@ type Props = {
 
 function audienceLabel(audience: Announcement['audience']): string {
   const labels = {
-    public: 'Publico',
+    public: 'Público',
     clients: 'Clientes',
     members: 'Socios',
     admins: 'Admins',

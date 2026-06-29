@@ -49,7 +49,7 @@ export default function MembershipScreen() {
     try {
       const data = await requestMembership();
       setMembership(data);
-      Alert.alert('Solicitud enviada', 'AdministraciÃ³n revisarÃ¡ tu solicitud de membresÃ­a.');
+      Alert.alert('Solicitud enviada', 'Administración revisará tu solicitud de membresía.');
     } catch (error) {
       Alert.alert('No se pudo solicitar', error instanceof Error ? error.message : 'Intenta de nuevo.');
     }
@@ -59,11 +59,11 @@ export default function MembershipScreen() {
     return (
       <KeyboardAwareScreen>
         <Text style={styles.eyebrow}>Mi UCAPSA</Text>
-        <Text style={styles.title}>Credencial y membresÃ­a</Text>
-        <Text style={styles.muted}>Inicia sesiÃ³n para solicitar membresÃ­a o ver tu credencial digital.</Text>
+        <Text style={styles.title}>Credencial y membresía</Text>
+        <Text style={styles.muted}>Inicia sesión para solicitar membresía o ver tu credencial digital.</Text>
         <Link href="/auth/login" asChild>
           <Pressable style={styles.primaryButton}>
-            <Text style={styles.primaryButtonText}>Iniciar sesiÃ³n</Text>
+            <Text style={styles.primaryButtonText}>Iniciar sesión</Text>
           </Pressable>
         </Link>
       </KeyboardAwareScreen>
@@ -73,16 +73,16 @@ export default function MembershipScreen() {
   if (isAdmin) {
     return (
       <KeyboardAwareScreen>
-        <Text style={styles.eyebrow}>AdministraciÃ³n</Text>
+        <Text style={styles.eyebrow}>Administración</Text>
         <Text style={styles.title}>Socios UCAPSA</Text>
-        <Text style={styles.muted}>Como {role}, aquÃ­ no necesitas solicitar membresÃ­a. Usa el panel administrativo para revisar solicitudes, tabla de socios y pagos.</Text>
+        <Text style={styles.muted}>Como {role}, aquí no necesitas solicitar membresía. Usa el panel administrativo para revisar solicitudes, tabla de socios y pagos.</Text>
 
         <View style={styles.adminCard}>
           <Text style={styles.cardTitle}>Panel de socios</Text>
           <Text style={styles.cardText}>Revisa pendientes, socios activos, pagos pendientes, historial y datos completos.</Text>
           <Link href="/admin/members" asChild>
             <Pressable style={styles.primaryButton}>
-              <Text style={styles.primaryButtonText}>Abrir Admin â†’ Socios</Text>
+              <Text style={styles.primaryButtonText}>Abrir Admin → Socios</Text>
             </Pressable>
           </Link>
         </View>
@@ -99,16 +99,16 @@ export default function MembershipScreen() {
     >
       <Text style={styles.eyebrow}>Mi UCAPSA</Text>
       <Text style={styles.title}>Credencial digital</Text>
-      <Text style={styles.muted}>Consulta tu estado de socio, pago y QR. Los cambios de membresÃ­a siempre los confirma administraciÃ³n.</Text>
+      <Text style={styles.muted}>Consulta tu estado de socio, pago y QR. Los cambios de membresía siempre los confirma administración.</Text>
 
-      {loading ? <Text style={styles.muted}>Cargando membresÃ­a...</Text> : null}
+      {loading ? <Text style={styles.muted}>Cargando membresía...</Text> : null}
 
       {!membership ? (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>AÃºn no tienes membresÃ­a</Text>
-          <Text style={styles.cardText}>Solicita tu membresÃ­a para que administraciÃ³n revise y active tu credencial.</Text>
+          <Text style={styles.cardTitle}>Aún no tienes membresía</Text>
+          <Text style={styles.cardText}>Solicita tu membresía para que administración revise y active tu credencial.</Text>
           <Pressable onPress={handleRequestMembership} style={styles.primaryButton}>
-            <Text style={styles.primaryButtonText}>Solicitar membresÃ­a</Text>
+            <Text style={styles.primaryButtonText}>Solicitar membresía</Text>
           </Pressable>
         </View>
       ) : null}
@@ -116,7 +116,7 @@ export default function MembershipScreen() {
       {membership?.status === 'pending' ? (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Solicitud pendiente</Text>
-          <Text style={styles.cardText}>Tu solicitud ya fue enviada. AdministraciÃ³n la revisarÃ¡ y activarÃ¡ tu nÃºmero de socio si corresponde.</Text>
+          <Text style={styles.cardText}>Tu solicitud ya fue enviada. Administración la revisará y activará tu número de socio si corresponde.</Text>
         </View>
       ) : null}
 
@@ -134,30 +134,30 @@ export default function MembershipScreen() {
           </View>
 
           <View style={styles.infoGrid}>
-            <Info label="NÃºmero" value={membership.member_number || 'Pendiente'} />
+            <Info label="Número" value={membership.member_number || 'Pendiente'} />
             <Info label="Estado" value={getMembershipStatusLabel(membership.status)} />
             <Info label="Inicio" value={formatDate(membership.start_date)} />
             <Info label="Vigencia" value={formatDate(membership.end_date)} />
             <Info label="Pago" value={getPaymentStatusLabel(membership.current_payment_status)} />
-            <Info label="Ãšltimo pago" value={formatDate(membership.last_payment_at)} />
+            <Info label="Ášltimo pago" value={formatDate(membership.last_payment_at)} />
           </View>
 
           {expiredByDate && membership.status === 'active' ? (
             <View style={styles.warningBox}>
-              <Text style={styles.warningText}>La fecha de vigencia ya pasÃ³. Esto no cancela automÃ¡ticamente tu membresÃ­a; administraciÃ³n debe confirmar el estado.</Text>
+              <Text style={styles.warningText}>La fecha de vigencia ya pasó. Esto no cancela automáticamente tu membresía; administración debe confirmar el estado.</Text>
             </View>
           ) : null}
 
           {membership.current_payment_status !== 'paid' ? (
             <View style={styles.warningBox}>
-              <Text style={styles.warningText}>Pago marcado como {getPaymentStatusLabel(membership.current_payment_status)}. Si ya pagaste, espera a que administraciÃ³n lo registre.</Text>
+              <Text style={styles.warningText}>Pago marcado como {getPaymentStatusLabel(membership.current_payment_status)}. Si ya pagaste, espera a que administración lo registre.</Text>
             </View>
           ) : null}
 
           <View style={styles.qrBox}>
-            <QRCode value={membership.qr_token} size={180} />
-            <Text style={styles.qrText}>QR de verificaciÃ³n</Text>
-            <Text style={styles.qrSubtext}>El QR no contiene tus datos personales, solo un token de verificaciÃ³n.</Text>
+            <QRCode value={`ucapsa-member:${membership.qr_token}`} size={180} />
+            <Text style={styles.qrText}>QR de verificación</Text>
+            <Text style={styles.qrSubtext}>El QR no contiene tus datos personales, solo un token de verificación.</Text>
           </View>
         </View>
       ) : null}

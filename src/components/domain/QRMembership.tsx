@@ -34,7 +34,7 @@ export function QRMembership({ membership, profile }: QRMembershipProps) {
 
       <View style={styles.infoGrid}>
         <View style={styles.infoBox}>
-          <Text style={styles.label}>Numero de socio</Text>
+          <Text style={styles.label}>Número de socio</Text>
           <Text style={styles.value}>{membership.member_number || 'Pendiente'}</Text>
         </View>
         <View style={styles.infoBox}>

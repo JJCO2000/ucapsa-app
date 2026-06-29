@@ -171,7 +171,7 @@ export default function AdminMembersScreen() {
 
   return (
     <KeyboardAwareScreen>
-      <Text style={styles.eyebrow}>AdministraciÃ³n</Text>
+      <Text style={styles.eyebrow}>Administración</Text>
       <Text style={styles.title}>Socios</Text>
       <Text style={styles.muted}>Tabla de socios, solicitudes, pagos manuales y detalle completo.</Text>
 
@@ -326,12 +326,12 @@ function MemberDetailModal({
       <View style={styles.modalBackdrop}>
         <KeyboardAwareScreen contentContainerStyle={styles.modalContent}>
           <Text style={styles.modalTitle}>{getDisplayName(row.profile)}</Text>
-          <Text style={styles.muted}>Detalle completo del socio y membresÃ­a.</Text>
+          <Text style={styles.muted}>Detalle completo del socio y membresía.</Text>
 
           <View style={styles.detailBox}>
             <Detail label="Nombre" value={getDisplayName(row.profile)} />
             <Detail label="Correo" value={row.profile?.email ?? 'Sin correo'} />
-            <Detail label="TelÃ©fono" value={row.profile?.phone ?? 'Sin telÃ©fono'} />
+            <Detail label="Teléfono" value={row.profile?.phone ?? 'Sin teléfono'} />
             <Detail label="Perro" value={row.profile?.dog_name ?? 'Sin registrar'} />
             <Detail label="Role" value={row.profile?.role ?? 'Sin perfil'} />
             <Detail label="Registro" value={formatDate(row.profile?.created_at)} />
@@ -342,7 +342,7 @@ function MemberDetailModal({
             <Detail label="Pago" value={getPaymentStatusLabel(row.membership.current_payment_status)} />
           </View>
 
-          <Text style={styles.label}>NÃºmero de socio</Text>
+          <Text style={styles.label}>Número de socio</Text>
           <TextInput value={memberNumber} onChangeText={setMemberNumber} placeholder="Ej. SOC-2026-001" style={styles.input} />
 
           <Text style={styles.label}>Fecha de inicio</Text>
@@ -366,7 +366,7 @@ function MemberDetailModal({
           <TextInput value={periodLabel} onChangeText={setPeriodLabel} placeholder="Mensualidad" style={styles.input} />
 
           <Text style={styles.label}>Nota de pago</Text>
-          <TextInput value={paymentNotes} onChangeText={setPaymentNotes} placeholder="Ej. PagÃ³ en efectivo" style={[styles.input, styles.multiline]} multiline />
+          <TextInput value={paymentNotes} onChangeText={setPaymentNotes} placeholder="Ej. Pagó en efectivo" style={[styles.input, styles.multiline]} multiline />
 
           <Pressable onPress={onRegisterPayment} style={styles.successFullButton}>
             <Text style={styles.buttonText}>Registrar pago</Text>
@@ -388,7 +388,7 @@ function MemberDetailModal({
 
           {row.profile?.deletion_requested_at ? (
             <View style={styles.warningBox}>
-              <Text style={styles.warningText}>Este usuario solicitÃ³ eliminaciÃ³n de cuenta el {formatDate(row.profile.deletion_requested_at)}.</Text>
+              <Text style={styles.warningText}>Este usuario solicitó eliminación de cuenta el {formatDate(row.profile.deletion_requested_at)}.</Text>
             </View>
           ) : null}
 

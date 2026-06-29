@@ -123,7 +123,7 @@ export default function CalendarScreen() {
           <View style={styles.heroText}>
             <Text style={styles.kicker}>Calendario UCAPSA</Text>
             <Text style={styles.title}>Eventos y comunicados por fecha</Text>
-            <Text style={styles.subtitle}>Selecciona un dia para ver eventos y anuncios oficiales.</Text>
+            <Text style={styles.subtitle}>Selecciona un día para ver eventos y anuncios oficiales.</Text>
           </View>
         </View>
 
@@ -189,7 +189,7 @@ export default function CalendarScreen() {
 
             <View style={styles.sectionHeader}>
               <View>
-                <Text style={styles.sectionTitle}>Agenda del dia</Text>
+                <Text style={styles.sectionTitle}>Agenda del día</Text>
                 <Text style={styles.sectionSubtitle}>{formatDateKey(selectedDate)}</Text>
               </View>
               <Text style={styles.sectionCount}>{selectedEvents.length + selectedAnnouncements.length}</Text>
@@ -197,7 +197,7 @@ export default function CalendarScreen() {
 
             {selectedEvents.length === 0 && selectedAnnouncements.length === 0 ? (
               <View style={styles.emptyBox}>
-                <Text style={styles.emptyTitle}>Sin actividad este dia</Text>
+                <Text style={styles.emptyTitle}>Sin actividad este día</Text>
                 <Text style={styles.muted}>Selecciona otro dia marcado en el calendario.</Text>
               </View>
             ) : null}
@@ -229,8 +229,8 @@ export default function CalendarScreen() {
               <>
                 <View style={styles.sectionHeader}>
                   <View>
-                    <Text style={styles.sectionTitle}>Proximos eventos</Text>
-                    <Text style={styles.sectionSubtitle}>Maximo 3 visibles aqui</Text>
+                    <Text style={styles.sectionTitle}>Próximos eventos</Text>
+                    <Text style={styles.sectionSubtitle}>Máximo 3 visibles aqui</Text>
                   </View>
                 </View>
                 {upcomingEvents.map((occurrence) => (
