@@ -1,16 +1,16 @@
-﻿export type AppRole = "client" | "member" | "admin" | "super_admin";
+﻿export type AppRole = 'client' | 'member' | 'admin' | 'super_admin';
 
 export type MembershipStatus =
-  | "none"
-  | "pending"
-  | "active"
-  | "expired"
-  | "rejected"
-  | "cancelled";
+  | 'none'
+  | 'pending'
+  | 'active'
+  | 'expired'
+  | 'rejected'
+  | 'cancelled';
 
-export type AudienceType = "public" | "clients" | "members" | "admins";
+export type AudienceType = 'public' | 'clients' | 'members' | 'admins';
 
-export type PaymentStatus = "pending" | "paid" | "cancelled";
+export type PaymentStatus = 'pending' | 'paid' | 'cancelled';
 
 export type Profile = {
   id: string;
@@ -22,6 +22,8 @@ export type Profile = {
   created_at: string;
   updated_at: string;
 };
+
+export type UserProfile = Profile;
 
 export type Membership = {
   id: string;
@@ -42,6 +44,8 @@ export type Announcement = {
   content: string;
   audience: AudienceType;
   is_pinned: boolean;
+  is_published: boolean;
+  archived_at: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -72,5 +76,3 @@ export type Payment = {
   created_at: string;
   updated_at: string;
 };
-
-export type UserProfile = Profile;
