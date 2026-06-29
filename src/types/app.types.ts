@@ -1,4 +1,4 @@
-﻿export type AppRole = 'client' | 'member' | 'admin' | 'super_admin';
+export type AppRole = 'client' | 'member' | 'admin' | 'super_admin';
 
 export type MembershipStatus =
   | 'none'
@@ -12,15 +12,34 @@ export type AudienceType = 'public' | 'clients' | 'members' | 'admins';
 
 export type PaymentStatus = 'pending' | 'paid' | 'cancelled';
 
-export type EventRepeatType = 'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'custom_days';
+export type MembershipPaymentStatus =
+  | 'none'
+  | 'pending'
+  | 'paid'
+  | 'not_required'
+  | 'overdue';
+
+export type ManualPaymentStatus = MembershipPaymentStatus;
+
+export type EventRepeatType =
+  | 'none'
+  | 'daily'
+  | 'weekly'
+  | 'biweekly'
+  | 'monthly'
+  | 'custom_days';
 
 export type Profile = {
   id: string;
-  user_id?: string | null;
+  user_id: string;
   full_name: string | null;
   email: string | null;
   phone: string | null;
   role: AppRole;
+  dog_name?: string | null;
+  avatar_color?: string | null;
+  deletion_requested_at?: string | null;
+  deletion_request_reason?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -36,8 +55,12 @@ export type Membership = {
   end_date: string | null;
   qr_token: string;
   approved_by: string | null;
+  current_payment_status?: MembershipPaymentStatus | null;
+  last_payment_at?: string | null;
+  payment_notes?: string | null;
   created_at: string;
   updated_at: string;
+  profile?: Profile | null;
 };
 
 export type UcapsaEvent = {
@@ -50,12 +73,12 @@ export type UcapsaEvent = {
   audience: AudienceType;
   is_published: boolean;
   archived_at: string | null;
-  has_time: boolean;
-  repeat_type: EventRepeatType;
-  repeat_interval_days: number | null;
-  repeat_limit: number;
-  recurrence_key: string | null;
-  recurrence_label: string | null;
+  repeat_type?: EventRepeatType | null;
+  repeat_interval_days?: number | null;
+  repeat_limit?: number | null;
+  has_time?: boolean | null;
+  recurrence_key?: string | null;
+  recurrence_label?: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -69,7 +92,14 @@ export type EventOccurrence = {
   start_date: string;
   end_date: string | null;
   is_recurring: boolean;
-  repeat_label: string | null;
+  repeat_label?: string | null;
+
+  occurrence_key?: string;
+  title?: string;
+  description?: string | null;
+  location?: string | null;
+  audience?: AudienceType;
+  source_event?: UcapsaEvent;
 };
 
 export type Announcement = {
@@ -81,21 +111,24 @@ export type Announcement = {
   is_published: boolean;
   archived_at: string | null;
   event_id: string | null;
+  event?: UcapsaEvent | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
-  event?: UcapsaEvent | null;
 };
 
 export type Payment = {
   id: string;
   user_id: string;
+  membership_id?: string | null;
   amount: number;
   concept: string;
   status: PaymentStatus;
   payment_method: string | null;
   paid_at: string | null;
   registered_by: string | null;
+  notes?: string | null;
+  period_label?: string | null;
   created_at: string;
   updated_at: string;
 };

@@ -1,37 +1,40 @@
-﻿import type { PropsWithChildren } from 'react';
+﻿import type { ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
   View,
+  type ScrollViewProps,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
-type ScreenProps = PropsWithChildren<{
+type ScreenProps = {
+  children: ReactNode;
   scroll?: boolean;
   keyboardAware?: boolean;
   style?: StyleProp<ViewStyle>;
   contentContainerStyle?: StyleProp<ViewStyle>;
   edges?: Edge[];
-}>;
+  refreshControl?: ScrollViewProps['refreshControl'];
+};
 
 export function Screen({
   children,
   scroll = true,
-  keyboardAware = true,
+  keyboardAware = false,
   style,
   contentContainerStyle,
   edges = ['top', 'left', 'right'],
+  refreshControl,
 }: ScreenProps) {
-  const body = scroll ? (
+  const content = scroll ? (
     <ScrollView
       keyboardShouldPersistTaps="handled"
-      keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={[styles.scrollContent, contentContainerStyle]}
+      refreshControl={refreshControl}
+      contentContainerStyle={[styles.content, contentContainerStyle]}
     >
       {children}
     </ScrollView>
@@ -39,47 +42,38 @@ export function Screen({
     <View style={[styles.content, contentContainerStyle]}>{children}</View>
   );
 
-  const safeBody = (
-    <SafeAreaView edges={edges} style={[styles.safeArea, style]}>
-      {body}
+  const safeContent = (
+    <SafeAreaView edges={edges} style={[styles.safe, style]}>
+      {content}
     </SafeAreaView>
   );
 
   if (!keyboardAware) {
-    return safeBody;
+    return safeContent;
   }
 
   return (
     <KeyboardAvoidingView
-      style={styles.keyboardAvoiding}
+      style={styles.keyboard}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
     >
-      {safeBody}
+      {safeContent}
     </KeyboardAvoidingView>
   );
 }
 
-export default Screen;
-
 const styles = StyleSheet.create({
-  keyboardAvoiding: {
+  keyboard: {
     flex: 1,
   },
-  safeArea: {
+  safe: {
     flex: 1,
     backgroundColor: '#f8fafc',
   },
   content: {
     flexGrow: 1,
     paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 120,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 120,
+    paddingTop: 16,
+    paddingBottom: 28,
   },
 });

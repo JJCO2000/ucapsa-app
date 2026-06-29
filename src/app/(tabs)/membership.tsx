@@ -1,77 +1,203 @@
-﻿import { MaterialIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+﻿import { useCallback, useState } from 'react';
+import { Alert, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { Link, useFocusEffect } from 'expo-router';
+import QRCode from 'react-native-qrcode-svg';
+import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
+import {
+  formatDate,
+  getMembershipStatusLabel,
+  getMyMembership,
+  getPaymentStatusLabel,
+  isMembershipDateExpired,
+  requestMembership,
+} from '../../services/memberships.service';
+import type { Membership } from '../../types/app.types';
 import { useSession } from '../../hooks/useSession';
 
 export default function MembershipScreen() {
-  const router = useRouter();
-  const { user, role, isAdmin } = useSession();
+  const { user, profile, role, isAdmin } = useSession();
+  const [membership, setMembership] = useState<Membership | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadMembership = useCallback(async () => {
+    if (!user || isAdmin) return;
+    setLoading(true);
+    try {
+      const data = await getMyMembership();
+      setMembership(data);
+    } catch (error) {
+      Alert.alert('No se pudo cargar', error instanceof Error ? error.message : 'Intenta de nuevo.');
+    } finally {
+      setLoading(false);
+    }
+  }, [user, isAdmin]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadMembership();
+    }, [loadMembership]),
+  );
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await loadMembership();
+    setRefreshing(false);
+  }
+
+  async function handleRequestMembership() {
+    try {
+      const data = await requestMembership();
+      setMembership(data);
+      Alert.alert('Solicitud enviada', 'AdministraciÃ³n revisarÃ¡ tu solicitud de membresÃ­a.');
+    } catch (error) {
+      Alert.alert('No se pudo solicitar', error instanceof Error ? error.message : 'Intenta de nuevo.');
+    }
+  }
+
+  if (!user) {
+    return (
+      <KeyboardAwareScreen>
+        <Text style={styles.eyebrow}>Mi UCAPSA</Text>
+        <Text style={styles.title}>Credencial y membresÃ­a</Text>
+        <Text style={styles.muted}>Inicia sesiÃ³n para solicitar membresÃ­a o ver tu credencial digital.</Text>
+        <Link href="/auth/login" asChild>
+          <Pressable style={styles.primaryButton}>
+            <Text style={styles.primaryButtonText}>Iniciar sesiÃ³n</Text>
+          </Pressable>
+        </Link>
+      </KeyboardAwareScreen>
+    );
+  }
+
+  if (isAdmin) {
+    return (
+      <KeyboardAwareScreen>
+        <Text style={styles.eyebrow}>AdministraciÃ³n</Text>
+        <Text style={styles.title}>Socios UCAPSA</Text>
+        <Text style={styles.muted}>Como {role}, aquÃ­ no necesitas solicitar membresÃ­a. Usa el panel administrativo para revisar solicitudes, tabla de socios y pagos.</Text>
+
+        <View style={styles.adminCard}>
+          <Text style={styles.cardTitle}>Panel de socios</Text>
+          <Text style={styles.cardText}>Revisa pendientes, socios activos, pagos pendientes, historial y datos completos.</Text>
+          <Link href="/admin/members" asChild>
+            <Pressable style={styles.primaryButton}>
+              <Text style={styles.primaryButtonText}>Abrir Admin â†’ Socios</Text>
+            </Pressable>
+          </Link>
+        </View>
+      </KeyboardAwareScreen>
+    );
+  }
+
+  const expiredByDate = isMembershipDateExpired(membership);
+  const displayName = profile?.full_name || profile?.email || user.email || 'Usuario';
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <View style={styles.hero}>
-          <View style={styles.heroIcon}>
-            <MaterialIcons name="badge" size={28} color="#0f766e" />
-          </View>
-          <View style={styles.heroText}>
-            <Text style={styles.kicker}>Mi UCAPSA</Text>
-            <Text style={styles.title}>Membresia y credencial</Text>
-            <Text style={styles.subtitle}>Aqui viviran tu credencial digital, QR, estado de membresia y pagos manuales.</Text>
-          </View>
-        </View>
+    <KeyboardAwareScreen
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+    >
+      <Text style={styles.eyebrow}>Mi UCAPSA</Text>
+      <Text style={styles.title}>Credencial digital</Text>
+      <Text style={styles.muted}>Consulta tu estado de socio, pago y QR. Los cambios de membresÃ­a siempre los confirma administraciÃ³n.</Text>
 
+      {loading ? <Text style={styles.muted}>Cargando membresÃ­a...</Text> : null}
+
+      {!membership ? (
         <View style={styles.card}>
-          <Text style={styles.cardLabel}>Estado actual</Text>
-          <Text style={styles.cardValue}>{user ? `Cuenta activa - ${role ?? 'client'}` : 'Visitante sin sesion'}</Text>
-          <Text style={styles.cardText}>La validacion real de socio y QR entrara en la siguiente fase de membresias.</Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>Credencial</Text>
-          <Text style={styles.cardValue}>QR de socio</Text>
-          <Text style={styles.cardText}>El QR no guardara datos personales. Usara un token consultado en Supabase.</Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>Pagos</Text>
-          <Text style={styles.cardValue}>Pagos manuales</Text>
-          <Text style={styles.cardText}>En el MVP no cobraremos en linea. El admin podra marcar pagos como pendientes o pagados.</Text>
-        </View>
-
-        {!user ? (
-          <Pressable onPress={() => router.push('/auth/login' as never)} style={styles.primaryButton}>
-            <Text style={styles.primaryButtonText}>Iniciar sesion</Text>
+          <Text style={styles.cardTitle}>AÃºn no tienes membresÃ­a</Text>
+          <Text style={styles.cardText}>Solicita tu membresÃ­a para que administraciÃ³n revise y active tu credencial.</Text>
+          <Pressable onPress={handleRequestMembership} style={styles.primaryButton}>
+            <Text style={styles.primaryButtonText}>Solicitar membresÃ­a</Text>
           </Pressable>
-        ) : null}
+        </View>
+      ) : null}
 
-        {isAdmin ? (
-          <Pressable onPress={() => router.push('/admin' as never)} style={styles.secondaryButton}>
-            <Text style={styles.secondaryButtonText}>Abrir panel admin</Text>
-          </Pressable>
-        ) : null}
-      </ScrollView>
-    </SafeAreaView>
+      {membership?.status === 'pending' ? (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Solicitud pendiente</Text>
+          <Text style={styles.cardText}>Tu solicitud ya fue enviada. AdministraciÃ³n la revisarÃ¡ y activarÃ¡ tu nÃºmero de socio si corresponde.</Text>
+        </View>
+      ) : null}
+
+      {membership ? (
+        <View style={styles.credential}>
+          <View style={styles.credentialHeader}>
+            <View style={[styles.avatar, { backgroundColor: profile?.avatar_color ?? '#0f766e' }]}>
+              <Text style={styles.avatarText}>{displayName.slice(0, 1).toUpperCase()}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.credentialLabel}>Socio UCAPSA</Text>
+              <Text style={styles.credentialName}>{displayName}</Text>
+              <Text style={styles.credentialDog}>Perro: {profile?.dog_name || 'Sin registrar'}</Text>
+            </View>
+          </View>
+
+          <View style={styles.infoGrid}>
+            <Info label="NÃºmero" value={membership.member_number || 'Pendiente'} />
+            <Info label="Estado" value={getMembershipStatusLabel(membership.status)} />
+            <Info label="Inicio" value={formatDate(membership.start_date)} />
+            <Info label="Vigencia" value={formatDate(membership.end_date)} />
+            <Info label="Pago" value={getPaymentStatusLabel(membership.current_payment_status)} />
+            <Info label="Ãšltimo pago" value={formatDate(membership.last_payment_at)} />
+          </View>
+
+          {expiredByDate && membership.status === 'active' ? (
+            <View style={styles.warningBox}>
+              <Text style={styles.warningText}>La fecha de vigencia ya pasÃ³. Esto no cancela automÃ¡ticamente tu membresÃ­a; administraciÃ³n debe confirmar el estado.</Text>
+            </View>
+          ) : null}
+
+          {membership.current_payment_status !== 'paid' ? (
+            <View style={styles.warningBox}>
+              <Text style={styles.warningText}>Pago marcado como {getPaymentStatusLabel(membership.current_payment_status)}. Si ya pagaste, espera a que administraciÃ³n lo registre.</Text>
+            </View>
+          ) : null}
+
+          <View style={styles.qrBox}>
+            <QRCode value={membership.qr_token} size={180} />
+            <Text style={styles.qrText}>QR de verificaciÃ³n</Text>
+            <Text style={styles.qrSubtext}>El QR no contiene tus datos personales, solo un token de verificaciÃ³n.</Text>
+          </View>
+        </View>
+      ) : null}
+    </KeyboardAwareScreen>
+  );
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.infoItem}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue}>{value}</Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f8fafc' },
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-  content: { gap: 16, paddingHorizontal: 20, paddingTop: 22, paddingBottom: 110 },
-  hero: { flexDirection: 'row', gap: 14, padding: 18, borderRadius: 24, backgroundColor: '#0f172a' },
-  heroIcon: { width: 54, height: 54, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ccfbf1' },
-  heroText: { flex: 1, gap: 6 },
-  kicker: { color: '#5eead4', fontSize: 12, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
-  title: { color: '#ffffff', fontSize: 22, fontWeight: '900' },
-  subtitle: { color: '#cbd5e1', fontSize: 14, lineHeight: 20 },
-  card: { gap: 8, padding: 18, borderRadius: 20, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e2e8f0' },
-  cardLabel: { color: '#0f766e', fontSize: 12, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
-  cardValue: { color: '#0f172a', fontSize: 20, fontWeight: '900' },
-  cardText: { color: '#64748b', fontSize: 14, lineHeight: 20 },
-  primaryButton: { alignItems: 'center', justifyContent: 'center', minHeight: 52, borderRadius: 16, backgroundColor: '#0f766e' },
-  primaryButtonText: { color: '#ffffff', fontSize: 16, fontWeight: '900' },
-  secondaryButton: { alignItems: 'center', justifyContent: 'center', minHeight: 52, borderRadius: 16, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cbd5e1' },
-  secondaryButtonText: { color: '#0f172a', fontSize: 16, fontWeight: '900' },
+  eyebrow: { color: '#0f766e', fontSize: 13, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase' },
+  title: { color: '#0f172a', fontSize: 30, fontWeight: '900', marginTop: 6 },
+  muted: { color: '#64748b', fontSize: 15, lineHeight: 22, marginTop: 8, marginBottom: 18 },
+  card: { backgroundColor: '#ffffff', borderRadius: 22, borderWidth: 1, borderColor: '#e2e8f0', padding: 18, marginBottom: 16 },
+  adminCard: { backgroundColor: '#ecfdf5', borderRadius: 22, borderWidth: 1, borderColor: '#99f6e4', padding: 18, marginTop: 10 },
+  cardTitle: { color: '#0f172a', fontSize: 20, fontWeight: '900', marginBottom: 8 },
+  cardText: { color: '#64748b', fontSize: 15, lineHeight: 22 },
+  primaryButton: { backgroundColor: '#0f766e', borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 16 },
+  primaryButtonText: { color: '#ffffff', fontWeight: '900', fontSize: 15 },
+  credential: { backgroundColor: '#ffffff', borderRadius: 28, padding: 18, borderWidth: 1, borderColor: '#e2e8f0' },
+  credentialHeader: { flexDirection: 'row', gap: 14, alignItems: 'center', marginBottom: 18 },
+  avatar: { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: '#ffffff', fontSize: 30, fontWeight: '900' },
+  credentialLabel: { color: '#0f766e', fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
+  credentialName: { color: '#0f172a', fontSize: 22, fontWeight: '900', marginTop: 2 },
+  credentialDog: { color: '#64748b', fontSize: 14, marginTop: 4, fontWeight: '700' },
+  infoGrid: { gap: 10 },
+  infoItem: { backgroundColor: '#f8fafc', borderRadius: 16, padding: 12 },
+  infoLabel: { color: '#64748b', fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
+  infoValue: { color: '#0f172a', fontSize: 16, fontWeight: '900', marginTop: 4 },
+  warningBox: { backgroundColor: '#fff7ed', borderColor: '#fed7aa', borderWidth: 1, borderRadius: 16, padding: 12, marginTop: 14 },
+  warningText: { color: '#9a3412', fontSize: 13, lineHeight: 19, fontWeight: '700' },
+  qrBox: { alignItems: 'center', marginTop: 20, paddingTop: 18, borderTopWidth: 1, borderTopColor: '#e2e8f0' },
+  qrText: { color: '#0f172a', fontSize: 15, fontWeight: '900', marginTop: 12 },
+  qrSubtext: { color: '#64748b', fontSize: 12, textAlign: 'center', marginTop: 4, lineHeight: 18 },
 });
