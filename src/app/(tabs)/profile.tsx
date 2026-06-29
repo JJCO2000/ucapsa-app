@@ -1,8 +1,9 @@
-﻿import { Link } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+﻿import { Link, useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
@@ -10,10 +11,18 @@ import {
 } from "react-native";
 import { KeyboardAwareScreen } from "../../components/ui/KeyboardAwareScreen";
 import { useSession } from "../../hooks/useSession";
+import { supabase } from "../../lib/supabase";
+import { getAdminAnnouncements } from "../../services/announcements.service";
+import { getAdminEvents } from "../../services/events.service";
+import {
+  getAdminMembershipRows,
+  isMembershipDateExpired,
+} from "../../services/memberships.service";
 import {
   requestAccountDeletion,
   updateMyProfile,
 } from "../../services/profiles.service";
+import type { Profile } from "../../types/app.types";
 
 const avatarColors = [
   "#0f766e",
@@ -24,7 +33,33 @@ const avatarColors = [
   "#16a34a",
 ];
 
-function hasCompleteProfile(value: {
+type AdminStats = {
+  clients: number;
+  members: number;
+  activeMembers: number;
+  pendingMemberships: number;
+  pendingPayments: number;
+  expiredByDate: number;
+  publishedAnnouncements: number;
+  upcomingEvents: number;
+  admins: number;
+  totalProfiles: number;
+};
+
+const emptyAdminStats: AdminStats = {
+  clients: 0,
+  members: 0,
+  activeMembers: 0,
+  pendingMemberships: 0,
+  pendingPayments: 0,
+  expiredByDate: 0,
+  publishedAnnouncements: 0,
+  upcomingEvents: 0,
+  admins: 0,
+  totalProfiles: 0,
+};
+
+function hasCompleteClientProfile(value: {
   full_name?: string | null;
   phone?: string | null;
   dog_name?: string | null;
@@ -32,6 +67,13 @@ function hasCompleteProfile(value: {
   return Boolean(
     value.full_name?.trim() && value.phone?.trim() && value.dog_name?.trim(),
   );
+}
+
+function isUpcomingDate(value: string | null | undefined) {
+  if (!value) return false;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  return date.getTime() >= Date.now();
 }
 
 export default function ProfileScreen() {
@@ -43,23 +85,111 @@ export default function ProfileScreen() {
   const [avatarColor, setAvatarColor] = useState("#0f766e");
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [adminEditing, setAdminEditing] = useState(false);
+  const [adminStats, setAdminStats] = useState<AdminStats>(emptyAdminStats);
+  const [adminStatsLoading, setAdminStatsLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const profileIsComplete = useMemo(
-    () => hasCompleteProfile(profile ?? {}),
+    () => hasCompleteClientProfile(profile ?? {}),
     [profile],
   );
-  const showForm = !profileIsComplete || editing;
+  const showClientForm = !profileIsComplete || editing;
+
+  const loadAdminStats = useCallback(async () => {
+    if (!isAdmin) return;
+
+    setAdminStatsLoading(true);
+    try {
+      const [membershipRows, announcements, events, profilesResult] =
+        await Promise.all([
+          getAdminMembershipRows(),
+          getAdminAnnouncements(),
+          getAdminEvents(),
+          supabase.from("profiles").select("id, role, deletion_requested_at"),
+        ]);
+
+      if (profilesResult.error) throw profilesResult.error;
+
+      const profiles = (profilesResult.data ?? []) as Array<
+        Pick<Profile, "id" | "role" | "deletion_requested_at">
+      >;
+
+      const pendingPayments = membershipRows.filter((row) => {
+        if (
+          row.membership.status === "cancelled" ||
+          row.membership.status === "rejected"
+        )
+          return false;
+        return (
+          row.membership.current_payment_status !== "paid" &&
+          row.membership.current_payment_status !== "not_required"
+        );
+      }).length;
+
+      setAdminStats({
+        clients: profiles.filter((item) => item.role === "client").length,
+        members: profiles.filter((item) => item.role === "member").length,
+        admins: profiles.filter(
+          (item) => item.role === "admin" || item.role === "super_admin",
+        ).length,
+        totalProfiles: profiles.length,
+        activeMembers: membershipRows.filter(
+          (row) => row.membership.status === "active",
+        ).length,
+        pendingMemberships: membershipRows.filter(
+          (row) => row.membership.status === "pending",
+        ).length,
+        pendingPayments,
+        expiredByDate: membershipRows.filter(
+          (row) =>
+            row.membership.status === "active" &&
+            isMembershipDateExpired(row.membership),
+        ).length,
+        publishedAnnouncements: announcements.filter(
+          (item) => item.is_published && !item.archived_at,
+        ).length,
+        upcomingEvents: events.filter(
+          (item) =>
+            item.is_published &&
+            !item.archived_at &&
+            isUpcomingDate(item.start_date),
+        ).length,
+      });
+    } catch (error) {
+      Alert.alert(
+        "No se pudieron cargar estadísticas",
+        error instanceof Error ? error.message : "Intenta de nuevo.",
+      );
+    } finally {
+      setAdminStatsLoading(false);
+    }
+  }, [isAdmin]);
 
   useEffect(() => {
     setFullName(profile?.full_name ?? "");
     setPhone(profile?.phone ?? "");
     setDogName(profile?.dog_name ?? "");
     setAvatarColor(profile?.avatar_color ?? "#0f766e");
-    setEditing(!hasCompleteProfile(profile ?? {}));
+    setEditing(!hasCompleteClientProfile(profile ?? {}));
+    setAdminEditing(false);
   }, [profile]);
 
-  async function handleSaveProfile() {
+  useFocusEffect(
+    useCallback(() => {
+      if (isAdmin) void loadAdminStats();
+    }, [isAdmin, loadAdminStats]),
+  );
+
+  async function handleRefreshAdminStats() {
+    setRefreshing(true);
+    await loadAdminStats();
+    setRefreshing(false);
+  }
+
+  async function handleSaveClientProfile() {
     if (!user) return;
+
     if (!fullName.trim()) {
       Alert.alert(
         "Falta nombre",
@@ -106,12 +236,45 @@ export default function ProfileScreen() {
     }
   }
 
-  function handleCancelEdit() {
+  async function handleSaveAdminProfile() {
+    if (!user) return;
+
+    try {
+      setSaving(true);
+      await updateMyProfile({
+        full_name: fullName,
+        phone,
+        avatar_color: avatarColor,
+      });
+      await refreshProfile();
+      setAdminEditing(false);
+      Alert.alert(
+        "Datos actualizados",
+        "Tu información administrativa se guardó correctamente.",
+      );
+    } catch (error) {
+      Alert.alert(
+        "No se pudo guardar",
+        error instanceof Error ? error.message : "Intenta de nuevo.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleCancelClientEdit() {
     setFullName(profile?.full_name ?? "");
     setPhone(profile?.phone ?? "");
     setDogName(profile?.dog_name ?? "");
     setAvatarColor(profile?.avatar_color ?? "#0f766e");
     setEditing(false);
+  }
+
+  function handleCancelAdminEdit() {
+    setFullName(profile?.full_name ?? "");
+    setPhone(profile?.phone ?? "");
+    setAvatarColor(profile?.avatar_color ?? "#0f766e");
+    setAdminEditing(false);
   }
 
   function handleDeleteRequest() {
@@ -176,33 +339,206 @@ export default function ProfileScreen() {
   }
 
   if (isAdmin) {
+    const adminDisplayName =
+      fullName || profile?.email || user.email || "Administrador";
+
     return (
-      <KeyboardAwareScreen>
-        <Text style={styles.eyebrow}>Cuenta administrativa</Text>
-        <Text style={styles.title}>Perfil</Text>
+      <KeyboardAwareScreen
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefreshAdminStats}
+          />
+        }
+      >
+        <Text style={styles.eyebrow}>Control general</Text>
+        <Text style={styles.title}>Perfil admin</Text>
         <Text style={styles.muted}>
-          Esta cuenta administra UCAPSA. No necesita registrar perro, teléfono
-          ni datos de credencial de socio.
+          Vista rápida de la app, accesos administrativos y datos opcionales del
+          administrador.
         </Text>
 
-        <View style={styles.adminAccountCard}>
-          <View style={styles.adminIcon}>
-            <Text style={styles.adminIconText}>A</Text>
+        <View style={styles.avatarRow}>
+          <View style={[styles.avatar, { backgroundColor: avatarColor }]}>
+            <Text style={styles.avatarText}>
+              {adminDisplayName.trim().slice(0, 1).toUpperCase()}
+            </Text>
           </View>
-          <View style={styles.adminInfo}>
-            <Text style={styles.name}>
-              {profile?.email ?? user.email ?? "Administrador"}
+          <View style={styles.avatarInfo}>
+            <Text style={styles.name}>{adminDisplayName}</Text>
+            <Text style={styles.mutedSmall}>
+              {profile?.email ?? user.email}
             </Text>
             <Text style={styles.role}>Rol: {role ?? "admin"}</Text>
           </View>
         </View>
 
-        <View style={styles.infoCard}>
-          <Text style={styles.cardTitle}>Qué se administra desde la app</Text>
-          <Text style={styles.cardText}>
-            Anuncios, calendario, socios, solicitudes de membresía y pagos
-            manuales. La tabla de socios vive en Mi UCAPSA.
-          </Text>
+        <View style={styles.sectionHeader}>
+          <View>
+            <Text style={styles.sectionTitle}>Estadísticas generales</Text>
+            <Text style={styles.sectionSubtitle}>
+              {adminStatsLoading
+                ? "Actualizando..."
+                : "Resumen operativo de UCAPSA"}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.metricsGrid}>
+          <Metric
+            label="Clientes"
+            value={adminStats.clients}
+            helper="Rol client"
+          />
+          <Metric
+            label="Socios"
+            value={adminStats.members}
+            helper="Rol member"
+          />
+          <Metric
+            label="Socios activos"
+            value={adminStats.activeMembers}
+            helper="Membresía activa"
+          />
+          <Metric
+            label="Solicitudes"
+            value={adminStats.pendingMemberships}
+            helper="Por aprobar"
+          />
+          <Metric
+            label="Pagos pendientes"
+            value={adminStats.pendingPayments}
+            helper="Revisión manual"
+          />
+          <Metric
+            label="Vigencias vencidas"
+            value={adminStats.expiredByDate}
+            helper="No cancela automático"
+          />
+          <Metric
+            label="Anuncios publicados"
+            value={adminStats.publishedAnnouncements}
+            helper="Visibles"
+          />
+          <Metric
+            label="Eventos próximos"
+            value={adminStats.upcomingEvents}
+            helper="Publicados"
+          />
+        </View>
+
+        <View style={styles.quickActionsCard}>
+          <Text style={styles.cardTitle}>Accesos rápidos</Text>
+
+          <Link href="/membership" asChild>
+            <Pressable style={styles.quickActionButton}>
+              <Text style={styles.quickActionTitle}>Mi UCAPSA → Socios</Text>
+              <Text style={styles.quickActionText}>
+                Estadísticas, tabla y control de membresías.
+              </Text>
+            </Pressable>
+          </Link>
+
+          <Link href="/admin/announcements" asChild>
+            <Pressable style={styles.quickActionButton}>
+              <Text style={styles.quickActionTitle}>Administrar anuncios</Text>
+              <Text style={styles.quickActionText}>
+                Crear, editar, publicar o archivar comunicados.
+              </Text>
+            </Pressable>
+          </Link>
+
+          <Link href="/admin/events" asChild>
+            <Pressable style={styles.quickActionButton}>
+              <Text style={styles.quickActionTitle}>
+                Administrar calendario
+              </Text>
+              <Text style={styles.quickActionText}>
+                Eventos, agenda y recurrencias.
+              </Text>
+            </Pressable>
+          </Link>
+        </View>
+
+        <View style={styles.formCard}>
+          <View style={styles.editHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.formTitle}>Datos del administrador</Text>
+              <Text style={styles.cardText}>
+                Opcional. No se pide nombre de perro para administradores.
+              </Text>
+            </View>
+
+            {!adminEditing ? (
+              <Pressable
+                style={styles.inlineButton}
+                onPress={() => setAdminEditing(true)}
+              >
+                <Text style={styles.inlineButtonText}>Editar</Text>
+              </Pressable>
+            ) : null}
+          </View>
+
+          {!adminEditing ? (
+            <>
+              <Info
+                label="Nombre"
+                value={profile?.full_name || "Sin registrar"}
+              />
+              <Info
+                label="Teléfono"
+                value={profile?.phone || "Sin registrar"}
+              />
+              <Info
+                label="Correo"
+                value={profile?.email || user.email || "Sin correo"}
+              />
+            </>
+          ) : (
+            <>
+              <Text style={styles.label}>Nombre</Text>
+              <TextInput
+                value={fullName}
+                onChangeText={setFullName}
+                placeholder="Nombre opcional"
+                style={styles.input}
+                autoCapitalize="words"
+              />
+
+              <Text style={styles.label}>Teléfono</Text>
+              <TextInput
+                value={phone}
+                onChangeText={setPhone}
+                placeholder="Teléfono opcional"
+                style={styles.input}
+                keyboardType="phone-pad"
+              />
+
+              <Text style={styles.label}>Color de avatar</Text>
+              <AvatarColorPicker
+                value={avatarColor}
+                onChange={setAvatarColor}
+              />
+
+              <Pressable
+                disabled={saving}
+                onPress={handleSaveAdminProfile}
+                style={styles.primaryButton}
+              >
+                <Text style={styles.primaryButtonText}>
+                  {saving ? "Guardando..." : "Guardar datos"}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                disabled={saving}
+                onPress={handleCancelAdminEdit}
+                style={styles.secondaryButton}
+              >
+                <Text style={styles.secondaryButtonText}>Cancelar edición</Text>
+              </Pressable>
+            </>
+          )}
         </View>
 
         <Pressable onPress={signOut} style={styles.secondaryButton}>
@@ -219,7 +555,7 @@ export default function ProfileScreen() {
       <Text style={styles.eyebrow}>Cuenta</Text>
       <Text style={styles.title}>Perfil</Text>
       <Text style={styles.muted}>
-        {showForm
+        {showClientForm
           ? "Completa los datos que se reflejan en Mi UCAPSA y tu credencial."
           : "Tus datos ya están guardados. Para cambiarlos, toca editar información."}
       </Text>
@@ -237,7 +573,7 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {!showForm ? (
+      {!showClientForm ? (
         <View style={styles.lockedCard}>
           <Text style={styles.lockedTitle}>Información guardada</Text>
           <Info
@@ -253,7 +589,7 @@ export default function ProfileScreen() {
         </View>
       ) : null}
 
-      {showForm ? (
+      {showClientForm ? (
         <View style={styles.formCard}>
           <Text style={styles.formTitle}>
             {profileIsComplete ? "Editar información" : "Completar perfil"}
@@ -287,23 +623,11 @@ export default function ProfileScreen() {
           />
 
           <Text style={styles.label}>Color de avatar</Text>
-          <View style={styles.colorRow}>
-            {avatarColors.map((color) => (
-              <Pressable
-                key={color}
-                onPress={() => setAvatarColor(color)}
-                style={[
-                  styles.colorDot,
-                  { backgroundColor: color },
-                  avatarColor === color && styles.colorDotActive,
-                ]}
-              />
-            ))}
-          </View>
+          <AvatarColorPicker value={avatarColor} onChange={setAvatarColor} />
 
           <Pressable
             disabled={saving}
-            onPress={handleSaveProfile}
+            onPress={handleSaveClientProfile}
             style={styles.primaryButton}
           >
             <Text style={styles.primaryButtonText}>
@@ -314,7 +638,7 @@ export default function ProfileScreen() {
           {profileIsComplete ? (
             <Pressable
               disabled={saving}
-              onPress={handleCancelEdit}
+              onPress={handleCancelClientEdit}
               style={styles.secondaryButton}
             >
               <Text style={styles.secondaryButtonText}>Cancelar edición</Text>
@@ -343,11 +667,53 @@ export default function ProfileScreen() {
   );
 }
 
+function Metric({
+  label,
+  value,
+  helper,
+}: {
+  label: string;
+  value: number;
+  helper?: string;
+}) {
+  return (
+    <View style={styles.metric}>
+      <Text style={styles.metricValue}>{value}</Text>
+      <Text style={styles.metricLabel}>{label}</Text>
+      {helper ? <Text style={styles.metricHelper}>{helper}</Text> : null}
+    </View>
+  );
+}
+
 function Info({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.infoRow}>
       <Text style={styles.infoLabel}>{label}</Text>
       <Text style={styles.infoValue}>{value}</Text>
+    </View>
+  );
+}
+
+function AvatarColorPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (color: string) => void;
+}) {
+  return (
+    <View style={styles.colorRow}>
+      {avatarColors.map((color) => (
+        <Pressable
+          key={color}
+          onPress={() => onChange(color)}
+          style={[
+            styles.colorDot,
+            { backgroundColor: color },
+            value === color && styles.colorDotActive,
+          ]}
+        />
+      ))}
     </View>
   );
 }
@@ -390,6 +756,69 @@ const styles = StyleSheet.create({
   avatarInfo: { flex: 1, marginLeft: 14 },
   name: { color: "#0f172a", fontSize: 18, fontWeight: "900" },
   role: { color: "#0f766e", fontSize: 13, fontWeight: "800", marginTop: 4 },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  sectionTitle: { color: "#0f172a", fontSize: 20, fontWeight: "900" },
+  sectionSubtitle: {
+    color: "#64748b",
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  metricsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 18,
+  },
+  metric: {
+    width: "48%",
+    minHeight: 104,
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    padding: 14,
+  },
+  metricValue: { color: "#0f766e", fontSize: 28, fontWeight: "900" },
+  metricLabel: {
+    color: "#0f172a",
+    fontSize: 13,
+    fontWeight: "900",
+    marginTop: 4,
+  },
+  metricHelper: {
+    color: "#64748b",
+    fontSize: 11,
+    fontWeight: "700",
+    marginTop: 3,
+  },
+  quickActionsCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    padding: 16,
+    marginBottom: 18,
+  },
+  quickActionButton: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+  },
+  quickActionTitle: { color: "#0f172a", fontSize: 16, fontWeight: "900" },
+  quickActionText: {
+    color: "#64748b",
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 18,
+    marginTop: 3,
+  },
   formCard: {
     backgroundColor: "#ffffff",
     borderRadius: 22,
@@ -418,40 +847,32 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     marginBottom: 10,
   },
-  infoCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    padding: 16,
-    marginTop: 10,
-  },
   cardTitle: {
     color: "#0f172a",
     fontSize: 18,
     fontWeight: "900",
     marginBottom: 8,
   },
-  cardText: { color: "#64748b", fontSize: 15, lineHeight: 22 },
-  adminAccountCard: {
+  cardText: {
+    color: "#64748b",
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: "700",
+  },
+  editHeader: {
     flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#ffffff",
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    padding: 16,
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 8,
   },
-  adminIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#0f172a",
+  inlineButton: {
+    backgroundColor: "#ccfbf1",
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
-  adminIconText: { color: "#ffffff", fontSize: 24, fontWeight: "900" },
-  adminInfo: { flex: 1, marginLeft: 14 },
+  inlineButtonText: { color: "#0f766e", fontSize: 13, fontWeight: "900" },
   infoRow: {
     paddingVertical: 10,
     borderBottomWidth: 1,
