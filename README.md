@@ -76,3 +76,11 @@ MVP en desarrollo. Antes de producción se debe validar:
 - Política de privacidad
 - Eliminación de cuenta
 - Build Android/iOS
+
+## Decisiones MVP
+
+- Pagos reales no están integrados todavía; los pagos se registran manualmente.
+- La membresía no se cancela automáticamente por fecha o pago. Administración confirma cambios.
+- El QR no debe contener datos personales.
+- Admin Pagos y Admin Usuarios no se muestran como módulos principales hasta que tengan flujo real.
+- La administración principal del MVP vive en Anuncios, Eventos y Socios.
