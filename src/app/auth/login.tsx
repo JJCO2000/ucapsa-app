@@ -13,7 +13,7 @@ export default function LoginScreen() {
     const cleanEmail = email.trim().toLowerCase();
 
     if (!cleanEmail || !password) {
-      Alert.alert('Faltan datos', 'Escribe tu correo y contraseÃ±a.');
+      Alert.alert('Faltan datos', 'Escribe tu correo y contraseña.');
       return;
     }
 
@@ -54,11 +54,11 @@ export default function LoginScreen() {
           returnKeyType="next"
         />
 
-        <Text style={styles.label}>ContraseÃ±a</Text>
+        <Text style={styles.label}>Contraseña</Text>
         <TextInput
           value={password}
           onChangeText={setPassword}
-          placeholder="Tu contraseÃ±a"
+          placeholder="Tu contraseña"
           secureTextEntry
           textContentType="password"
           style={styles.input}
@@ -70,7 +70,7 @@ export default function LoginScreen() {
           <Text style={styles.buttonText}>{loading ? 'Entrando...' : 'Entrar'}</Text>
         </Pressable>
 
-        <Link href="/auth/forgot-password" style={styles.link}>Olvide mi contraseÃ±a</Link>
+        <Link href="/auth/forgot-password" style={styles.link}>Olvide mi contraseña</Link>
         <Link href="/auth/register" style={styles.linkStrong}>Crear cuenta</Link>
       </View>
     </KeyboardAwareScreen>
@@ -159,3 +159,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+

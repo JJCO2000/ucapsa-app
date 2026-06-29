@@ -15,12 +15,12 @@ export default function RegisterScreen() {
     const cleanEmail = email.trim().toLowerCase();
 
     if (!cleanName || !cleanEmail || !password) {
-      Alert.alert('Faltan datos', 'Escribe nombre, correo y contraseÃ±a.');
+      Alert.alert('Faltan datos', 'Escribe nombre, correo y contraseña.');
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert('ContraseÃ±a muy corta', 'Usa al menos 6 caracteres.');
+      Alert.alert('Contraseña muy corta', 'Usa al menos 6 caracteres.');
       return;
     }
 
@@ -78,7 +78,7 @@ export default function RegisterScreen() {
           returnKeyType="next"
         />
 
-        <Text style={styles.label}>ContraseÃ±a</Text>
+        <Text style={styles.label}>Contraseña</Text>
         <TextInput
           value={password}
           onChangeText={setPassword}
@@ -176,3 +176,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+

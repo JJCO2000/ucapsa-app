@@ -198,7 +198,7 @@ export default function AdminEventsScreen() {
 
     Alert.alert(
       'Confirmar repeticion',
-      `Se guardara como una sola serie: ${getEventRepeatLabel(fakeEvent)}. No se crearan eventos separados. El calendario mostrara maximo 10 ocurrencias. Â¿Continuar?`,
+      `Se guardará como una sola serie: ${getEventRepeatLabel(fakeEvent)}. No se crearán eventos separados. El calendario mostrará máximo 10 ocurrencias. ¿Continuar?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Continuar', onPress: () => void saveNewEvent() },
@@ -547,7 +547,7 @@ function EventForm({ form, onChange, allowRepeat = false }: { form: EventFormSta
           ) : null}
 
           {form.repeat_type !== 'none' ? (
-            <Text style={styles.muted}>Se guardara como una sola serie. No se crean eventos separados. Maximo 10 ocurrencias visibles.</Text>
+            <Text style={styles.muted}>Se guardará como una sola serie. No se crean eventos separados. Maximo 10 ocurrencias visibles.</Text>
           ) : null}
         </View>
       ) : null}
@@ -616,3 +616,4 @@ const styles = StyleSheet.create({
   deniedTitle: { color: '#991b1b', fontSize: 22, fontWeight: '900' },
   deniedText: { color: '#64748b', textAlign: 'center' },
 });
+
