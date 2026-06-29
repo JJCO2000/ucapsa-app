@@ -1,14 +1,27 @@
-﻿import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '../../components/ui/Screen';
 
 const adminLinks = [
-  { href: '/admin/announcements', title: 'Anuncios', description: 'Crear, editar, publicar, archivar y eliminar avisos.', icon: 'campaign' },
-  { href: '/admin/events', title: 'Eventos', description: 'Gestionar calendario, recurrencias y agenda.', icon: 'event' },
-  { href: '/admin/members', title: 'Socios', description: 'Solicitudes, credenciales, pagos manuales y estadisticas.', icon: 'badge' },
-  { href: '/admin/payments', title: 'Pagos', description: 'Modulo formal de pagos manuales en una fase posterior.', icon: 'payments' },
-  { href: '/admin/users', title: 'Usuarios', description: 'Roles y usuarios de la aplicación.', icon: 'people' },
+  {
+    href: '/admin/announcements',
+    title: 'Anuncios',
+    description: 'Crear, editar, publicar, archivar y eliminar avisos.',
+    icon: 'campaign',
+  },
+  {
+    href: '/admin/events',
+    title: 'Eventos',
+    description: 'Gestionar calendario, recurrencias y agenda.',
+    icon: 'event',
+  },
+  {
+    href: '/admin/members',
+    title: 'Socios',
+    description: 'Solicitudes, credenciales, pagos manuales y estadísticas.',
+    icon: 'badge',
+  },
 ] as const;
 
 export default function AdminHomeScreen() {
@@ -17,7 +30,16 @@ export default function AdminHomeScreen() {
       <View style={styles.header}>
         <Text style={styles.kicker}>UCAPSA Admin</Text>
         <Text style={styles.title}>Panel administrativo</Text>
-        <Text style={styles.description}>Gestiona comunicación, calendario y socios desde un solo lugar.</Text>
+        <Text style={styles.description}>
+          Gestiona comunicación, calendario y socios desde un solo lugar.
+        </Text>
+      </View>
+
+      <View style={styles.noticeCard}>
+        <Text style={styles.noticeTitle}>MVP activo</Text>
+        <Text style={styles.noticeText}>
+          Pagos y usuarios se administran desde Socios por ahora. No se muestran módulos vacíos para evitar confusión.
+        </Text>
       </View>
 
       <View style={styles.grid}>
@@ -41,10 +63,21 @@ export default function AdminHomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { gap: 8, marginBottom: 18 },
+  header: { gap: 8, marginBottom: 14 },
   kicker: { color: '#0f766e', fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
   title: { color: '#0f172a', fontSize: 30, fontWeight: '900' },
   description: { color: '#475569', fontSize: 15, lineHeight: 22 },
+  noticeCard: {
+    gap: 6,
+    marginBottom: 18,
+    borderRadius: 18,
+    backgroundColor: '#ecfdf5',
+    borderWidth: 1,
+    borderColor: '#99f6e4',
+    padding: 14,
+  },
+  noticeTitle: { color: '#0f766e', fontSize: 14, fontWeight: '900' },
+  noticeText: { color: '#134e4a', fontSize: 13, lineHeight: 19, fontWeight: '700' },
   grid: { gap: 12 },
   card: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 22, backgroundColor: '#ffffff', padding: 16 },
   iconBox: { alignItems: 'center', justifyContent: 'center', width: 46, height: 46, borderRadius: 16, backgroundColor: '#ccfbf1' },
