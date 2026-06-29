@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
-type ScreenProps = PropsWithChildren<{
+type KeyboardAwareScreenProps = PropsWithChildren<{
   scroll?: boolean;
   keyboardAware?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -18,15 +18,15 @@ type ScreenProps = PropsWithChildren<{
   edges?: Edge[];
 }>;
 
-export function Screen({
+export function KeyboardAwareScreen({
   children,
   scroll = true,
   keyboardAware = true,
   style,
   contentContainerStyle,
   edges = ['top', 'left', 'right'],
-}: ScreenProps) {
-  const body = scroll ? (
+}: KeyboardAwareScreenProps) {
+  const content = scroll ? (
     <ScrollView
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
@@ -39,14 +39,14 @@ export function Screen({
     <View style={[styles.content, contentContainerStyle]}>{children}</View>
   );
 
-  const safeBody = (
+  const safeContent = (
     <SafeAreaView edges={edges} style={[styles.safeArea, style]}>
-      {body}
+      {content}
     </SafeAreaView>
   );
 
   if (!keyboardAware) {
-    return safeBody;
+    return safeContent;
   }
 
   return (
@@ -55,12 +55,10 @@ export function Screen({
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
     >
-      {safeBody}
+      {safeContent}
     </KeyboardAvoidingView>
   );
 }
-
-export default Screen;
 
 const styles = StyleSheet.create({
   keyboardAvoiding: {

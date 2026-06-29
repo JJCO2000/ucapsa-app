@@ -12,9 +12,11 @@ export type AudienceType = 'public' | 'clients' | 'members' | 'admins';
 
 export type PaymentStatus = 'pending' | 'paid' | 'cancelled';
 
+export type EventRepeatType = 'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'custom_days';
+
 export type Profile = {
   id: string;
-  user_id: string;
+  user_id?: string | null;
   full_name: string | null;
   email: string | null;
   phone: string | null;
@@ -38,19 +40,6 @@ export type Membership = {
   updated_at: string;
 };
 
-export type Announcement = {
-  id: string;
-  title: string;
-  content: string;
-  audience: AudienceType;
-  is_pinned: boolean;
-  is_published: boolean;
-  archived_at: string | null;
-  created_by: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
 export type UcapsaEvent = {
   id: string;
   title: string;
@@ -59,9 +48,43 @@ export type UcapsaEvent = {
   start_date: string;
   end_date: string | null;
   audience: AudienceType;
+  is_published: boolean;
+  archived_at: string | null;
+  has_time: boolean;
+  repeat_type: EventRepeatType;
+  repeat_interval_days: number | null;
+  repeat_limit: number;
+  recurrence_key: string | null;
+  recurrence_label: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type EventOccurrence = {
+  id: string;
+  event_id: string;
+  event: UcapsaEvent;
+  occurrence_index: number;
+  start_date: string;
+  end_date: string | null;
+  is_recurring: boolean;
+  repeat_label: string | null;
+};
+
+export type Announcement = {
+  id: string;
+  title: string;
+  content: string;
+  audience: AudienceType;
+  is_pinned: boolean;
+  is_published: boolean;
+  archived_at: string | null;
+  event_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  event?: UcapsaEvent | null;
 };
 
 export type Payment = {

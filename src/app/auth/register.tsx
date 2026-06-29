@@ -1,198 +1,178 @@
-﻿import { useRouter } from 'expo-router';
+﻿import { Link, router } from 'expo-router';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-
-import { signUpWithEmail } from '../../services/auth.service';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
+import { supabase } from '../../lib/supabase';
 
 export default function RegisterScreen() {
-  const router = useRouter();
-
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   async function handleRegister() {
-    if (!fullName.trim() || !email.trim() || password.length < 6) {
-      Alert.alert(
-        'Missing data',
-        'Write your full name, email and a password with at least 6 characters.'
-      );
+    const cleanName = fullName.trim();
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanName || !cleanEmail || !password) {
+      Alert.alert('Faltan datos', 'Escribe nombre, correo y contraseÃ±a.');
       return;
     }
 
-    setSubmitting(true);
-    const { data, error } = await signUpWithEmail({
-      fullName,
-      email,
+    if (password.length < 6) {
+      Alert.alert('ContraseÃ±a muy corta', 'Usa al menos 6 caracteres.');
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await supabase.auth.signUp({
+      email: cleanEmail,
       password,
+      options: {
+        data: {
+          full_name: cleanName,
+        },
+      },
     });
-    setSubmitting(false);
+    setLoading(false);
 
     if (error) {
-      Alert.alert('Register failed', error.message);
+      Alert.alert('No se pudo crear la cuenta', error.message);
       return;
     }
 
-    if (data.session) {
-      router.replace('/home' as never);
-      return;
-    }
-
-    Alert.alert(
-      'Account created',
-      'If email confirmation is enabled, check your inbox before logging in.'
-    );
-    router.replace('/auth/login' as never);
+    Alert.alert('Cuenta creada', 'Ya puedes entrar a UCAPSA App.');
+    router.replace('/auth/login');
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.select({ ios: 'padding', android: undefined })}
-      style={styles.container}
-    >
-      <View style={styles.card}>
-        <Text style={styles.eyebrow}>UCAPSA</Text>
+    <KeyboardAwareScreen contentContainerStyle={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.kicker}>UCAPSA APP</Text>
         <Text style={styles.title}>Crear cuenta</Text>
-        <Text style={styles.subtitle}>
-          Crea una cuenta como cliente. Despues podras solicitar membresia.
-        </Text>
+        <Text style={styles.subtitle}>Registrate para solicitar membresia y consultar informacion oficial.</Text>
+      </View>
 
+      <View style={styles.card}>
         <Text style={styles.label}>Nombre completo</Text>
         <TextInput
-          onChangeText={setFullName}
-          placeholder="Nombre completo"
-          placeholderTextColor="#94a3b8"
-          style={styles.input}
           value={fullName}
+          onChangeText={setFullName}
+          placeholder="Tu nombre"
+          autoCapitalize="words"
+          textContentType="name"
+          style={styles.input}
+          returnKeyType="next"
         />
 
         <Text style={styles.label}>Correo</Text>
         <TextInput
-          autoCapitalize="none"
-          keyboardType="email-address"
+          value={email}
           onChangeText={setEmail}
           placeholder="correo@ejemplo.com"
-          placeholderTextColor="#94a3b8"
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="email-address"
+          textContentType="emailAddress"
           style={styles.input}
-          value={email}
+          returnKeyType="next"
         />
 
-        <Text style={styles.label}>Contrasena</Text>
+        <Text style={styles.label}>ContraseÃ±a</Text>
         <TextInput
+          value={password}
           onChangeText={setPassword}
           placeholder="Minimo 6 caracteres"
-          placeholderTextColor="#94a3b8"
           secureTextEntry
+          textContentType="newPassword"
           style={styles.input}
-          value={password}
+          returnKeyType="done"
+          onSubmitEditing={handleRegister}
         />
 
-        <Pressable
-          disabled={submitting}
-          onPress={handleRegister}
-          style={({ pressed }) => [
-            styles.primaryButton,
-            pressed && styles.pressed,
-            submitting && styles.disabled,
-          ]}
-        >
-          {submitting ? (
-            <ActivityIndicator color="#ffffff" />
-          ) : (
-            <Text style={styles.primaryButtonText}>Crear cuenta</Text>
-          )}
+        <Pressable style={[styles.button, loading && styles.buttonDisabled]} onPress={handleRegister} disabled={loading}>
+          <Text style={styles.buttonText}>{loading ? 'Creando...' : 'Crear cuenta'}</Text>
         </Pressable>
 
-        <Pressable onPress={() => router.push('/auth/login' as never)}>
-          <Text style={styles.link}>Ya tengo cuenta</Text>
-        </Pressable>
+        <Link href="/auth/login" style={styles.linkStrong}>Ya tengo cuenta</Link>
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScreen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#0f172a',
     justifyContent: 'center',
-    padding: 24,
+    paddingTop: 36,
   },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 28,
-    padding: 24,
+  header: {
+    marginBottom: 20,
   },
-  eyebrow: {
+  kicker: {
     color: '#0f766e',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '900',
-    letterSpacing: 1,
-    marginBottom: 10,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
   title: {
+    marginTop: 10,
     color: '#0f172a',
-    fontSize: 30,
+    fontSize: 36,
     fontWeight: '900',
-    marginBottom: 8,
   },
   subtitle: {
-    color: '#475569',
-    fontSize: 15,
-    lineHeight: 22,
-    marginBottom: 24,
+    marginTop: 10,
+    color: '#64748b',
+    fontSize: 17,
+    fontWeight: '700',
+    lineHeight: 24,
+  },
+  card: {
+    gap: 12,
+    borderRadius: 28,
+    backgroundColor: '#ffffff',
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   label: {
     color: '#0f172a',
     fontSize: 14,
-    fontWeight: '800',
-    marginBottom: 8,
+    fontWeight: '900',
   },
   input: {
-    borderColor: '#cbd5e1',
-    borderRadius: 14,
+    minHeight: 52,
+    borderRadius: 16,
     borderWidth: 1,
+    borderColor: '#cbd5e1',
+    paddingHorizontal: 14,
     color: '#0f172a',
     fontSize: 16,
-    marginBottom: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    fontWeight: '700',
+    backgroundColor: '#f8fafc',
   },
-  primaryButton: {
-    alignItems: 'center',
-    backgroundColor: '#0f766e',
-    borderRadius: 16,
-    justifyContent: 'center',
-    minHeight: 52,
+  button: {
     marginTop: 8,
+    minHeight: 54,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 18,
+    backgroundColor: '#0f766e',
   },
-  primaryButtonText: {
+  buttonDisabled: {
+    opacity: 0.55,
+  },
+  buttonText: {
     color: '#ffffff',
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  linkStrong: {
+    marginTop: 8,
+    color: '#0f172a',
     fontSize: 16,
     fontWeight: '900',
-  },
-  pressed: {
-    opacity: 0.85,
-  },
-  disabled: {
-    opacity: 0.7,
-  },
-  link: {
-    color: '#0f766e',
-    fontSize: 15,
-    fontWeight: '900',
-    marginTop: 20,
     textAlign: 'center',
   },
 });

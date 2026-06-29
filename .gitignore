@@ -52,3 +52,11 @@ example
 .env.production
 .env.*
 !.env.example
+
+# Local generated packages and backups
+*.zip
+.ucapsa-backups/
+ucapsa-phase*/
+ucapsa-keyboard-global-fix/
+ucapsa-*package*/
+ucapsa-*shell*/

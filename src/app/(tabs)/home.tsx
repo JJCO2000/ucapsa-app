@@ -1,205 +1,141 @@
-﻿import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+﻿import { MaterialIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { AnnouncementCard } from '../../components/domain/AnnouncementCard';
+import { EventCard } from '../../components/domain/EventCard';
 import { useSession } from '../../hooks/useSession';
-import { listVisibleAnnouncements } from '../../services/announcements.service';
-import type { Announcement } from '../../types/app.types';
+import { getVisibleAnnouncements } from '../../services/announcements.service';
+import { getVisibleEvents } from '../../services/events.service';
+import type { Announcement, EventOccurrence } from '../../types/app.types';
+import { getUpcomingOccurrences } from '../../utils/events.utils';
 
 export default function HomeScreen() {
   const { user, profile, role, isAdmin } = useSession();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-
-  const loadAnnouncements = useCallback(async () => {
-    try {
-      const rows = await listVisibleAnnouncements();
-      setAnnouncements(rows.slice(0, 2));
-    } catch {
-      setAnnouncements([]);
-    }
-  }, []);
+  const [events, setEvents] = useState<EventOccurrence[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadAnnouncements();
-  }, [loadAnnouncements]);
-
-  const displayName = profile?.full_name || user?.email || 'Visitante';
+    Promise.all([getVisibleAnnouncements(3), getVisibleEvents()])
+      .then(([announcementResult, eventResult]) => {
+        setAnnouncements(announcementResult.slice(0, 3));
+        setEvents(getUpcomingOccurrences(eventResult, 3));
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <View style={styles.hero}>
-          <Text style={styles.eyebrow}>Universidad Canina</Text>
-          <Text style={styles.title}>Hola, {displayName}</Text>
-          <Text style={styles.subtitle}>
-            Accede a comunicados, calendario y tu informacion de UCAPSA desde un solo lugar.
-          </Text>
+          <Text style={styles.kicker}>UCAPSA App</Text>
+          <Text style={styles.title}>{user ? `Hola${profile?.full_name ? `, ${profile.full_name}` : ''}` : 'Bienvenido a UCAPSA'}</Text>
+          <Text style={styles.subtitle}>Comunicacion oficial, calendario, socios y pagos manuales en una sola aplicacion.</Text>
 
-          <View style={styles.rolePill}>
-            <Text style={styles.rolePillText}>Rol actual: {role ?? 'visitante'}</Text>
+          <View style={styles.statusRow}>
+            <Text style={styles.statusPill}>{user ? `Rol: ${role ?? 'client'}` : 'Visitante'}</Text>
+            {isAdmin ? <Text style={styles.adminPill}>Admin</Text> : null}
           </View>
         </View>
 
         <View style={styles.quickGrid}>
-          <Pressable style={styles.quickCard} onPress={() => router.push('/announcements' as never)}>
-            <Text style={styles.quickIcon}>ðŸ“£</Text>
+          <Pressable style={styles.quickButton} onPress={() => router.push('/announcements' as never)}>
+            <MaterialIcons name="campaign" size={24} color="#0f766e" />
             <Text style={styles.quickTitle}>Anuncios</Text>
-            <Text style={styles.quickText}>Avisos oficiales y novedades.</Text>
+            <Text style={styles.quickText}>Avisos oficiales</Text>
           </Pressable>
 
-          <Pressable style={styles.quickCard} onPress={() => router.push('/calendar' as never)}>
-            <Text style={styles.quickIcon}>ðŸ“…</Text>
+          <Pressable style={styles.quickButton} onPress={() => router.push('/calendar' as never)}>
+            <MaterialIcons name="event" size={24} color="#0f766e" />
             <Text style={styles.quickTitle}>Calendario</Text>
-            <Text style={styles.quickText}>Eventos y fechas relevantes.</Text>
-          </Pressable>
-
-          <Pressable style={styles.quickCard} onPress={() => router.push('/membership' as never)}>
-            <Text style={styles.quickIcon}>ðŸªª</Text>
-            <Text style={styles.quickTitle}>Mi UCAPSA</Text>
-            <Text style={styles.quickText}>Membresia, pagos y credencial.</Text>
-          </Pressable>
-
-          {isAdmin ? (
-            <Pressable style={styles.quickCard} onPress={() => router.push('/admin' as never)}>
-              <Text style={styles.quickIcon}>âš™ï¸</Text>
-              <Text style={styles.quickTitle}>Admin</Text>
-              <Text style={styles.quickText}>Gestion de contenido y socios.</Text>
-            </Pressable>
-          ) : null}
-        </View>
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Anuncios recientes</Text>
-          <Pressable onPress={() => router.push('/announcements' as never)}>
-            <Text style={styles.sectionLink}>Ver todos</Text>
+            <Text style={styles.quickText}>Vista mensual</Text>
           </Pressable>
         </View>
 
-        <View style={styles.list}>
-          {announcements.length > 0 ? (
-            announcements.map((announcement) => (
-              <AnnouncementCard key={announcement.id} announcement={announcement} />
-            ))
-          ) : (
-            <View style={styles.emptyBox}>
-              <Text style={styles.emptyTitle}>Sin anuncios por ahora</Text>
-              <Text style={styles.emptyText}>Cuando UCAPSA publique algo importante, lo veras aqui.</Text>
+        {loading ? (
+          <View style={styles.centerBox}>
+            <ActivityIndicator />
+            <Text style={styles.muted}>Cargando informacion...</Text>
+          </View>
+        ) : null}
+
+        {!loading ? (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Anuncios recientes</Text>
+              <Pressable onPress={() => router.push('/announcements' as never)}>
+                <Text style={styles.sectionLink}>Ver todos</Text>
+              </Pressable>
             </View>
-          )}
-        </View>
+
+            {announcements.length === 0 ? (
+              <View style={styles.emptyBox}>
+                <Text style={styles.emptyTitle}>Sin anuncios</Text>
+                <Text style={styles.muted}>Los comunicados publicados apareceran aqui.</Text>
+              </View>
+            ) : (
+              announcements.map((announcement) => (
+                <AnnouncementCard
+                  key={announcement.id}
+                  announcement={announcement}
+                  onPress={isAdmin ? () => router.push(`/admin/announcements?announcementId=${announcement.id}` as never) : () => router.push('/announcements' as never)}
+                  onOpenEvent={announcement.event ? () => router.push('/calendar' as never) : undefined}
+                />
+              ))
+            )}
+
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Proximos eventos</Text>
+              <Pressable onPress={() => router.push('/calendar' as never)}>
+                <Text style={styles.sectionLink}>Ver calendario</Text>
+              </Pressable>
+            </View>
+
+            {events.length === 0 ? (
+              <View style={styles.emptyBox}>
+                <Text style={styles.emptyTitle}>Sin eventos proximos</Text>
+                <Text style={styles.muted}>Cuando UCAPSA publique eventos, apareceran aqui.</Text>
+              </View>
+            ) : (
+              events.map((occurrence) => (
+                <EventCard
+                  key={occurrence.id}
+                  event={occurrence.event}
+                  startDateOverride={occurrence.start_date}
+                  occurrenceIndex={occurrence.is_recurring ? occurrence.occurrence_index : undefined}
+                  onPress={isAdmin ? () => router.push(`/admin/events?eventId=${occurrence.event.id}` as never) : () => router.push('/calendar' as never)}
+                />
+              ))
+            )}
+          </>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
-  container: {
-    gap: 18,
-    padding: 20,
-    paddingBottom: 36,
-  },
-  hero: {
-    gap: 10,
-    padding: 20,
-    borderRadius: 28,
-    backgroundColor: '#0f766e',
-  },
-  eyebrow: {
-    color: '#ccfbf1',
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-  },
-  title: {
-    color: '#ffffff',
-    fontSize: 28,
-    fontWeight: '900',
-  },
-  subtitle: {
-    color: '#e0f2f1',
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  rolePill: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-  },
-  rolePillText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  quickGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  quickCard: {
-    width: '47%',
-    minHeight: 132,
-    gap: 8,
-    padding: 16,
-    borderRadius: 22,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  quickIcon: {
-    fontSize: 24,
-  },
-  quickTitle: {
-    color: '#0f172a',
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  quickText: {
-    color: '#64748b',
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  sectionTitle: {
-    color: '#0f172a',
-    fontSize: 20,
-    fontWeight: '900',
-  },
-  sectionLink: {
-    color: '#0f766e',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  list: {
-    gap: 12,
-  },
-  emptyBox: {
-    gap: 8,
-    padding: 16,
-    borderRadius: 18,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  emptyTitle: {
-    color: '#0f172a',
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  emptyText: {
-    color: '#64748b',
-    fontSize: 14,
-    lineHeight: 20,
-  },
+  safeArea: { flex: 1, backgroundColor: '#f8fafc' },
+  container: { flex: 1, backgroundColor: '#f8fafc' },
+  content: { gap: 16, padding: 20, paddingBottom: 110 },
+  hero: { gap: 12, padding: 22, borderRadius: 26, backgroundColor: '#0f172a' },
+  kicker: { color: '#5eead4', fontSize: 12, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
+  title: { color: '#ffffff', fontSize: 28, fontWeight: '900' },
+  subtitle: { color: '#cbd5e1', fontSize: 15, lineHeight: 22 },
+  statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  statusPill: { overflow: 'hidden', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, color: '#ffffff', backgroundColor: '#334155', fontWeight: '800' },
+  adminPill: { overflow: 'hidden', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, color: '#134e4a', backgroundColor: '#99f6e4', fontWeight: '900' },
+  quickGrid: { flexDirection: 'row', gap: 12 },
+  quickButton: { flex: 1, gap: 8, padding: 16, borderRadius: 20, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e2e8f0' },
+  quickTitle: { color: '#0f172a', fontSize: 16, fontWeight: '900' },
+  quickText: { color: '#64748b', fontSize: 12, fontWeight: '700' },
+  centerBox: { gap: 10, alignItems: 'center', padding: 24 },
+  muted: { color: '#64748b', fontSize: 14, lineHeight: 20 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
+  sectionTitle: { color: '#0f172a', fontSize: 20, fontWeight: '900' },
+  sectionLink: { color: '#0f766e', fontSize: 13, fontWeight: '900' },
+  emptyBox: { gap: 6, padding: 18, borderRadius: 18, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e2e8f0' },
+  emptyTitle: { color: '#0f172a', fontSize: 16, fontWeight: '900' },
 });

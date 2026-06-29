@@ -1,197 +1,134 @@
-﻿import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+﻿import { MaterialIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSession } from '../../hooks/useSession';
 
-const adminItems = [
-  {
-    title: 'Anuncios',
-    description: 'Crear, editar, despublicar, archivar y eliminar comunicados.',
-    route: '/admin/announcements',
-    enabled: true,
-  },
-  {
-    title: 'Eventos',
-    description: 'Proxima fase: calendario oficial de UCAPSA.',
-    route: '/admin/events',
-    enabled: false,
-  },
-  {
-    title: 'Socios',
-    description: 'Proxima fase: altas, estatus y membresias.',
-    route: '/admin/members',
-    enabled: false,
-  },
-  {
-    title: 'Pagos',
-    description: 'Proxima fase: registro manual y seguimiento.',
-    route: '/admin/payments',
-    enabled: false,
-  },
-];
-
 export default function AdminHomeScreen() {
-  const { loading, isAdmin, role } = useSession();
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.centerBox}>
-          <Text style={styles.centerTitle}>Cargando permisos...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const { isAdmin, role } = useSession();
 
   if (!isAdmin) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.centerBox}>
-          <Text style={styles.centerTitle}>Acceso restringido</Text>
-          <Text style={styles.centerText}>Esta zona es solo para administradores de UCAPSA.</Text>
-          <Pressable style={styles.primaryButton} onPress={() => router.replace('/home' as never)}>
-            <Text style={styles.primaryButtonText}>Volver al inicio</Text>
-          </Pressable>
-        </View>
-      </SafeAreaView>
+      <View style={styles.deniedContainer}>
+        <MaterialIcons name="lock" size={42} color="#991b1b" />
+        <Text style={styles.deniedTitle}>Acceso restringido</Text>
+        <Text style={styles.deniedText}>Esta zona es solo para administradores UCAPSA.</Text>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.eyebrow}>Panel interno</Text>
-          <Text style={styles.title}>Administracion UCAPSA</Text>
-          <Text style={styles.subtitle}>Rol actual: {role}</Text>
-        </View>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <View style={styles.hero}>
+        <Text style={styles.kicker}>Panel administrativo</Text>
+        <Text style={styles.title}>Gestion UCAPSA</Text>
+        <Text style={styles.subtitle}>Rol activo: {role}</Text>
+      </View>
 
-        <View style={styles.list}>
-          {adminItems.map((item) => (
-            <Pressable
-              key={item.title}
-              style={[styles.card, !item.enabled && styles.disabledCard]}
-              disabled={!item.enabled}
-              onPress={() => router.push(item.route as never)}
-            >
-              <View style={styles.cardTopRow}>
-                <Text style={styles.cardTitle}>{item.title}</Text>
-                <Text style={[styles.status, item.enabled ? styles.readyStatus : styles.soonStatus]}>
-                  {item.enabled ? 'Listo' : 'Despues'}
-                </Text>
-              </View>
-              <Text style={styles.cardDescription}>{item.description}</Text>
-            </Pressable>
-          ))}
+      <Pressable style={styles.adminCard} onPress={() => router.push('/admin/announcements' as never)}>
+        <View style={styles.iconBox}>
+          <MaterialIcons name="campaign" size={24} color="#0f766e" />
         </View>
-      </ScrollView>
-    </SafeAreaView>
+        <View style={styles.cardText}>
+          <Text style={styles.cardTitle}>Anuncios</Text>
+          <Text style={styles.cardDescription}>Crear, editar, publicar, archivar y eliminar comunicados.</Text>
+        </View>
+        <MaterialIcons name="chevron-right" size={26} color="#64748b" />
+      </Pressable>
+
+      <Pressable style={styles.adminCard} onPress={() => router.push('/admin/events' as never)}>
+        <View style={styles.iconBox}>
+          <MaterialIcons name="event" size={24} color="#0f766e" />
+        </View>
+        <View style={styles.cardText}>
+          <Text style={styles.cardTitle}>Eventos</Text>
+          <Text style={styles.cardDescription}>Administrar calendario y vincular eventos con anuncios.</Text>
+        </View>
+        <MaterialIcons name="chevron-right" size={26} color="#64748b" />
+      </Pressable>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
     backgroundColor: '#f8fafc',
   },
-  container: {
-    gap: 16,
+  content: {
+    gap: 14,
     padding: 20,
-    paddingBottom: 36,
+    paddingBottom: 80,
   },
-  header: {
-    gap: 6,
+  hero: {
+    gap: 8,
+    padding: 22,
+    borderRadius: 26,
+    backgroundColor: '#0f172a',
   },
-  eyebrow: {
-    color: '#0f766e',
+  kicker: {
+    color: '#5eead4',
     fontSize: 12,
     fontWeight: '900',
-    letterSpacing: 0.6,
+    letterSpacing: 1,
     textTransform: 'uppercase',
   },
   title: {
-    color: '#0f172a',
-    fontSize: 30,
+    color: '#ffffff',
+    fontSize: 28,
     fontWeight: '900',
   },
   subtitle: {
-    color: '#475569',
-    fontSize: 15,
+    color: '#cbd5e1',
+    fontSize: 14,
+    fontWeight: '700',
   },
-  list: {
+  adminCard: {
+    flexDirection: 'row',
     gap: 12,
-  },
-  card: {
-    gap: 8,
+    alignItems: 'center',
     padding: 16,
     borderRadius: 20,
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
-  disabledCard: {
-    opacity: 0.62,
-  },
-  cardTopRow: {
-    flexDirection: 'row',
+  iconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 18,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
+    justifyContent: 'center',
+    backgroundColor: '#ccfbf1',
+  },
+  cardText: {
+    flex: 1,
+    gap: 3,
   },
   cardTitle: {
     color: '#0f172a',
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '900',
   },
   cardDescription: {
     color: '#64748b',
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 18,
   },
-  status: {
-    overflow: 'hidden',
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 999,
-    fontSize: 11,
-    fontWeight: '900',
-  },
-  readyStatus: {
-    backgroundColor: '#dcfce7',
-    color: '#166534',
-  },
-  soonStatus: {
-    backgroundColor: '#e2e8f0',
-    color: '#475569',
-  },
-  centerBox: {
+  deniedContainer: {
     flex: 1,
+    gap: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
     padding: 24,
+    backgroundColor: '#f8fafc',
   },
-  centerTitle: {
-    color: '#0f172a',
+  deniedTitle: {
+    color: '#991b1b',
     fontSize: 22,
     fontWeight: '900',
+  },
+  deniedText: {
+    color: '#64748b',
     textAlign: 'center',
-  },
-  centerText: {
-    color: '#475569',
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: 'center',
-  },
-  primaryButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 14,
-    backgroundColor: '#0f766e',
-  },
-  primaryButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '900',
   },
 });

@@ -1,186 +1,82 @@
-﻿import { useCallback, useEffect, useState } from 'react';
-import {
-  Alert,
-  Modal,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+﻿import { MaterialIcons } from '@expo/vector-icons';
+import { useLocalSearchParams } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { AnnouncementCard } from '../../components/domain/AnnouncementCard';
 import { useSession } from '../../hooks/useSession';
 import {
   archiveAnnouncement,
   createAnnouncement,
   deleteAnnouncement,
-  listAdminAnnouncements,
+  getAdminAnnouncements,
   restoreAnnouncement,
   setAnnouncementPublished,
   updateAnnouncement,
-  type AnnouncementInput,
 } from '../../services/announcements.service';
-import type { Announcement, AudienceType } from '../../types/app.types';
+import { getAdminEvents } from '../../services/events.service';
+import type { Announcement, AudienceType, UcapsaEvent } from '../../types/app.types';
 
-const audienceOptions: Array<{ value: AudienceType; label: string }> = [
-  { value: 'public', label: 'Publico' },
-  { value: 'clients', label: 'Clientes' },
-  { value: 'members', label: 'Socios' },
-  { value: 'admins', label: 'Admins' },
-];
+type AnnouncementFormState = {
+  title: string;
+  content: string;
+  audience: AudienceType;
+  is_pinned: boolean;
+  is_published: boolean;
+  event_id: string | null;
+};
 
-const emptyForm: AnnouncementInput = {
+const emptyForm: AnnouncementFormState = {
   title: '',
   content: '',
   audience: 'public',
   is_pinned: false,
   is_published: true,
+  event_id: null,
 };
-
-type AnnouncementFormProps = {
-  title: string;
-  form: AnnouncementInput;
-  saving: boolean;
-  error: string | null;
-  submitLabel: string;
-  onChange: (form: AnnouncementInput) => void;
-  onCancel?: () => void;
-  onSubmit: () => void;
-};
-
-function AnnouncementForm({
-  title,
-  form,
-  saving,
-  error,
-  submitLabel,
-  onChange,
-  onCancel,
-  onSubmit,
-}: AnnouncementFormProps) {
-  return (
-    <View style={styles.formCard}>
-      <Text style={styles.formTitle}>{title}</Text>
-
-      <View style={styles.field}>
-        <Text style={styles.label}>Titulo</Text>
-        <TextInput
-          value={form.title}
-          onChangeText={(nextTitle) => onChange({ ...form, title: nextTitle })}
-          placeholder="Ej. Cambio de horario"
-          placeholderTextColor="#94a3b8"
-          style={styles.input}
-        />
-      </View>
-
-      <View style={styles.field}>
-        <Text style={styles.label}>Contenido</Text>
-        <TextInput
-          value={form.content}
-          onChangeText={(content) => onChange({ ...form, content })}
-          placeholder="Escribe el comunicado oficial..."
-          placeholderTextColor="#94a3b8"
-          style={[styles.input, styles.textArea]}
-          multiline
-          textAlignVertical="top"
-        />
-      </View>
-
-      <View style={styles.field}>
-        <Text style={styles.label}>Audiencia</Text>
-        <View style={styles.segmentWrap}>
-          {audienceOptions.map((option) => {
-            const selected = form.audience === option.value;
-            return (
-              <Pressable
-                key={option.value}
-                style={[styles.segmentButton, selected && styles.segmentButtonActive]}
-                onPress={() => onChange({ ...form, audience: option.value })}
-              >
-                <Text style={[styles.segmentText, selected && styles.segmentTextActive]}>
-                  {option.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-
-      <View style={styles.switchRow}>
-        <View style={styles.switchTextBox}>
-          <Text style={styles.label}>Fijar arriba</Text>
-          <Text style={styles.helpText}>Los anuncios fijados aparecen primero.</Text>
-        </View>
-        <Switch
-          value={form.is_pinned}
-          onValueChange={(is_pinned) => onChange({ ...form, is_pinned })}
-        />
-      </View>
-
-      <View style={styles.switchRow}>
-        <View style={styles.switchTextBox}>
-          <Text style={styles.label}>Publicado</Text>
-          <Text style={styles.helpText}>Si esta apagado, usuarios normales no lo ven.</Text>
-        </View>
-        <Switch
-          value={form.is_published ?? true}
-          onValueChange={(is_published) => onChange({ ...form, is_published })}
-        />
-      </View>
-
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-      <View style={styles.formActions}>
-        {onCancel ? (
-          <Pressable style={styles.cancelButton} onPress={onCancel} disabled={saving}>
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
-          </Pressable>
-        ) : null}
-
-        <Pressable style={styles.saveButton} onPress={onSubmit} disabled={saving}>
-          <Text style={styles.saveButtonText}>{saving ? 'Guardando...' : submitLabel}</Text>
-        </Pressable>
-      </View>
-    </View>
-  );
-}
 
 export default function AdminAnnouncementsScreen() {
-  const { loading: sessionLoading, isAdmin } = useSession();
+  const { isAdmin } = useSession();
+  const params = useLocalSearchParams<{ announcementId?: string }>();
+  const openedAnnouncementParamRef = useRef<string | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [createForm, setCreateForm] = useState<AnnouncementInput>(emptyForm);
-  const [editForm, setEditForm] = useState<AnnouncementInput>(emptyForm);
+  const [events, setEvents] = useState<UcapsaEvent[]>([]);
+  const [form, setForm] = useState<AnnouncementFormState>(emptyForm);
+  const [editForm, setEditForm] = useState<AnnouncementFormState>(emptyForm);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [editError, setEditError] = useState<string | null>(null);
 
-  const loadAnnouncements = useCallback(async () => {
+  async function loadData() {
+    setLoading(true);
     try {
-      setError(null);
-      const rows = await listAdminAnnouncements();
-      setAnnouncements(rows);
+      const [announcementResult, eventResult] = await Promise.all([
+        getAdminAnnouncements(),
+        getAdminEvents(),
+      ]);
+      setAnnouncements(announcementResult);
+      setEvents(eventResult);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudieron cargar los anuncios.');
+      Alert.alert('Error', err instanceof Error ? err.message : 'No se pudieron cargar los anuncios.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }
 
   useEffect(() => {
-    if (isAdmin) {
-      loadAnnouncements();
-    }
-  }, [isAdmin, loadAnnouncements]);
+    if (isAdmin) void loadData();
+  }, [isAdmin]);
 
-  function openEditModal(announcement: Announcement) {
-    setEditError(null);
+  useEffect(() => {
+    if (!params.announcementId || openedAnnouncementParamRef.current === params.announcementId || announcements.length === 0) return;
+
+    const announcementToOpen = announcements.find((announcement) => announcement.id === params.announcementId);
+    if (!announcementToOpen) return;
+
+    openedAnnouncementParamRef.current = params.announcementId;
+    openEditor(announcementToOpen);
+  }, [announcements, params.announcementId]);
+
+  function openEditor(announcement: Announcement) {
     setSelectedAnnouncement(announcement);
     setEditForm({
       title: announcement.title,
@@ -188,42 +84,40 @@ export default function AdminAnnouncementsScreen() {
       audience: announcement.audience,
       is_pinned: announcement.is_pinned,
       is_published: announcement.is_published,
+      event_id: announcement.event_id,
     });
   }
 
-  function closeEditModal() {
-    setSelectedAnnouncement(null);
-    setEditForm(emptyForm);
-    setEditError(null);
+  function validateForm(value: AnnouncementFormState) {
+    if (!value.title.trim()) throw new Error('El titulo es obligatorio.');
+    if (!value.content.trim()) throw new Error('El contenido es obligatorio.');
   }
 
   async function handleCreate() {
     try {
+      validateForm(form);
       setSaving(true);
-      setError(null);
-      await createAnnouncement(createForm);
-      setCreateForm(emptyForm);
-      await loadAnnouncements();
+      await createAnnouncement(form);
+      setForm(emptyForm);
+      await loadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo guardar el anuncio.');
+      Alert.alert('No se pudo crear', err instanceof Error ? err.message : 'Error desconocido.');
     } finally {
       setSaving(false);
     }
   }
 
   async function handleUpdate() {
-    if (!selectedAnnouncement) {
-      return;
-    }
+    if (!selectedAnnouncement) return;
 
     try {
+      validateForm(editForm);
       setSaving(true);
-      setEditError(null);
       await updateAnnouncement(selectedAnnouncement.id, editForm);
-      closeEditModal();
-      await loadAnnouncements();
+      setSelectedAnnouncement(null);
+      await loadData();
     } catch (err) {
-      setEditError(err instanceof Error ? err.message : 'No se pudo actualizar el anuncio.');
+      Alert.alert('No se pudo actualizar', err instanceof Error ? err.message : 'Error desconocido.');
     } finally {
       setSaving(false);
     }
@@ -231,383 +125,214 @@ export default function AdminAnnouncementsScreen() {
 
   async function runAction(action: () => Promise<void>) {
     try {
-      setError(null);
+      setSaving(true);
       await action();
-      await loadAnnouncements();
+      await loadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo completar la accion.');
+      Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo completar la accion.');
+    } finally {
+      setSaving(false);
     }
-  }
-
-  function confirmDelete(announcement: Announcement) {
-    Alert.alert(
-      'Eliminar anuncio',
-      `Esta accion borrara definitivamente: ${announcement.title}`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: () => runAction(() => deleteAnnouncement(announcement.id)),
-        },
-      ],
-    );
-  }
-
-  if (sessionLoading) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.centerBox}>
-          <Text style={styles.centerTitle}>Cargando permisos...</Text>
-        </View>
-      </SafeAreaView>
-    );
   }
 
   if (!isAdmin) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.centerBox}>
-          <Text style={styles.centerTitle}>Acceso restringido</Text>
-          <Text style={styles.centerText}>Solo administradores pueden gestionar anuncios.</Text>
-          <Pressable style={styles.primaryButton} onPress={() => router.replace('/home' as never)}>
-            <Text style={styles.primaryButtonText}>Volver al inicio</Text>
-          </Pressable>
-        </View>
-      </SafeAreaView>
+      <View style={styles.deniedContainer}>
+        <MaterialIcons name="lock" size={42} color="#991b1b" />
+        <Text style={styles.deniedTitle}>Acceso restringido</Text>
+        <Text style={styles.deniedText}>Solo administradores pueden gestionar anuncios.</Text>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView
-        contentContainerStyle={styles.container}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadAnnouncements} />}
-      >
-        <View style={styles.header}>
-          <Text style={styles.eyebrow}>Admin</Text>
-          <Text style={styles.title}>Gestion de anuncios</Text>
-          <Text style={styles.subtitle}>
-            Toca un anuncio para abrirlo en modo edicion. Tambien puedes publicarlo,
-            despublicarlo, archivarlo, restaurarlo o eliminarlo.
-          </Text>
-        </View>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <View style={styles.hero}>
+        <Text style={styles.kicker}>Admin</Text>
+        <Text style={styles.title}>Anuncios</Text>
+        <Text style={styles.subtitle}>Gestiona comunicados y vinculos con eventos del calendario.</Text>
+      </View>
 
-        <AnnouncementForm
-          title="Nuevo anuncio"
-          form={createForm}
-          saving={saving}
-          error={error}
-          submitLabel="Crear anuncio"
-          onChange={setCreateForm}
-          onSubmit={handleCreate}
-        />
+      <View style={styles.formCard}>
+        <Text style={styles.formTitle}>Nuevo anuncio</Text>
+        <AnnouncementForm form={form} events={events} onChange={setForm} />
+        <Pressable disabled={saving} style={styles.primaryButton} onPress={handleCreate}>
+          <Text style={styles.primaryButtonText}>{saving ? 'Guardando...' : 'Crear anuncio'}</Text>
+        </Pressable>
+      </View>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Todos los anuncios</Text>
-          <Text style={styles.count}>{announcements.length}</Text>
-        </View>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Anuncios registrados</Text>
+        <Text style={styles.sectionCount}>{announcements.length}</Text>
+      </View>
 
-        <View style={styles.list}>
-          {announcements.map((announcement) => (
-            <AnnouncementCard
-              key={announcement.id}
-              announcement={announcement}
-              showAdminActions
-              onPress={() => openEditModal(announcement)}
-              onEdit={() => openEditModal(announcement)}
-              onTogglePublish={() =>
+      {loading ? <Text style={styles.muted}>Cargando anuncios...</Text> : null}
+
+      {announcements.map((announcement) => (
+        <View key={announcement.id} style={styles.adminItem}>
+          <AnnouncementCard announcement={announcement} onPress={() => openEditor(announcement)} showAdminStatus />
+
+          <View style={styles.actionsRow}>
+            <ActionButton
+              label={announcement.is_published ? 'Despublicar' : 'Publicar'}
+              onPress={() => runAction(() => setAnnouncementPublished(announcement.id, !announcement.is_published))}
+            />
+            <ActionButton
+              label={announcement.archived_at ? 'Restaurar' : 'Archivar'}
+              onPress={() =>
                 runAction(() =>
-                  setAnnouncementPublished(announcement.id, !announcement.is_published),
+                  announcement.archived_at
+                    ? restoreAnnouncement(announcement.id)
+                    : archiveAnnouncement(announcement.id),
                 )
               }
-              onArchive={() => runAction(() => archiveAnnouncement(announcement.id))}
-              onRestore={() => runAction(() => restoreAnnouncement(announcement.id))}
-              onDelete={() => confirmDelete(announcement)}
             />
-          ))}
+            <ActionButton
+              label="Eliminar"
+              danger
+              onPress={() =>
+                Alert.alert('Eliminar anuncio', 'Esta accion no se puede deshacer.', [
+                  { text: 'Cancelar', style: 'cancel' },
+                  { text: 'Eliminar', style: 'destructive', onPress: () => runAction(() => deleteAnnouncement(announcement.id)) },
+                ])
+              }
+            />
+          </View>
         </View>
-      </ScrollView>
+      ))}
 
       <Modal
         visible={Boolean(selectedAnnouncement)}
-        animationType="slide"
         transparent
-        onRequestClose={closeEditModal}
+        animationType="slide"
+        onRequestClose={() => setSelectedAnnouncement(null)}
       >
-        <View style={styles.modalOverlay}>
+        <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <View style={styles.modalTitleBox}>
-                <Text style={styles.modalEyebrow}>Editar anuncio</Text>
-                <Text style={styles.modalTitle}>{selectedAnnouncement?.title ?? 'Anuncio'}</Text>
-              </View>
-              <Pressable style={styles.modalCloseButton} onPress={closeEditModal}>
-                <Text style={styles.modalCloseText}>Cerrar</Text>
+              <Text style={styles.modalTitle}>Editar anuncio</Text>
+              <Pressable onPress={() => setSelectedAnnouncement(null)}>
+                <MaterialIcons name="close" size={26} color="#0f172a" />
               </Pressable>
             </View>
 
-            <ScrollView contentContainerStyle={styles.modalScrollContent}>
-              <AnnouncementForm
-                title="Datos del anuncio"
-                form={editForm}
-                saving={saving}
-                error={editError}
-                submitLabel="Guardar cambios"
-                onChange={setEditForm}
-                onCancel={closeEditModal}
-                onSubmit={handleUpdate}
-              />
+            <ScrollView contentContainerStyle={styles.modalContent}>
+              <AnnouncementForm form={editForm} events={events} onChange={setEditForm} />
+              <Pressable disabled={saving} style={styles.primaryButton} onPress={handleUpdate}>
+                <Text style={styles.primaryButtonText}>{saving ? 'Guardando...' : 'Guardar cambios'}</Text>
+              </Pressable>
             </ScrollView>
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </ScrollView>
+  );
+}
+
+function AnnouncementForm({
+  form,
+  events,
+  onChange,
+}: {
+  form: AnnouncementFormState;
+  events: UcapsaEvent[];
+  onChange: (form: AnnouncementFormState) => void;
+}) {
+  return (
+    <View style={styles.formFields}>
+      <TextInput value={form.title} onChangeText={(title) => onChange({ ...form, title })} placeholder="Titulo" style={styles.input} />
+      <TextInput
+        value={form.content}
+        onChangeText={(content) => onChange({ ...form, content })}
+        placeholder="Contenido"
+        multiline
+        style={[styles.input, styles.textArea]}
+      />
+
+      <Text style={styles.label}>Audiencia</Text>
+      <View style={styles.segmentRow}>
+        {(['public', 'clients', 'members', 'admins'] as AudienceType[]).map((audience) => (
+          <Pressable key={audience} onPress={() => onChange({ ...form, audience })} style={[styles.segment, form.audience === audience && styles.segmentActive]}>
+            <Text style={[styles.segmentText, form.audience === audience && styles.segmentTextActive]}>{audience}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      <Text style={styles.label}>Evento vinculado</Text>
+      <View style={styles.eventPicker}>
+        <Pressable onPress={() => onChange({ ...form, event_id: null })} style={[styles.eventOption, !form.event_id && styles.eventOptionActive]}>
+          <Text style={[styles.eventOptionText, !form.event_id && styles.eventOptionTextActive]}>Sin evento</Text>
+        </Pressable>
+        {events.map((event) => (
+          <Pressable key={event.id} onPress={() => onChange({ ...form, event_id: event.id })} style={[styles.eventOption, form.event_id === event.id && styles.eventOptionActive]}>
+            <Text style={[styles.eventOptionText, form.event_id === event.id && styles.eventOptionTextActive]}>{event.title}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      <View style={styles.switchRow}>
+        <Text style={styles.label}>Fijado</Text>
+        <Switch value={form.is_pinned} onValueChange={(is_pinned) => onChange({ ...form, is_pinned })} />
+      </View>
+
+      <View style={styles.switchRow}>
+        <Text style={styles.label}>Publicado</Text>
+        <Switch value={form.is_published} onValueChange={(is_published) => onChange({ ...form, is_published })} />
+      </View>
+    </View>
+  );
+}
+
+function ActionButton({ label, onPress, danger = false }: { label: string; onPress: () => void; danger?: boolean }) {
+  return (
+    <Pressable style={[styles.actionButton, danger && styles.dangerButton]} onPress={onPress}>
+      <Text style={[styles.actionButtonText, danger && styles.dangerButtonText]}>{label}</Text>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
-  container: {
-    gap: 16,
-    padding: 20,
-    paddingBottom: 36,
-  },
-  header: {
-    gap: 6,
-  },
-  eyebrow: {
-    color: '#0f766e',
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-  },
-  title: {
-    color: '#0f172a',
-    fontSize: 30,
-    fontWeight: '900',
-  },
-  subtitle: {
-    color: '#475569',
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  formCard: {
-    gap: 14,
-    padding: 16,
-    borderRadius: 22,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  formTitle: {
-    color: '#0f172a',
-    fontSize: 20,
-    fontWeight: '900',
-  },
-  field: {
-    gap: 7,
-  },
-  label: {
-    color: '#0f172a',
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  input: {
-    minHeight: 48,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 14,
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    color: '#0f172a',
-    fontSize: 15,
-  },
-  textArea: {
-    minHeight: 120,
-  },
-  segmentWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  segmentButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderRadius: 999,
-    backgroundColor: '#f1f5f9',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  segmentButtonActive: {
-    backgroundColor: '#0f766e',
-    borderColor: '#0f766e',
-  },
-  segmentText: {
-    color: '#334155',
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  segmentTextActive: {
-    color: '#ffffff',
-  },
-  switchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    paddingVertical: 4,
-  },
-  switchTextBox: {
-    flex: 1,
-    gap: 2,
-  },
-  helpText: {
-    color: '#64748b',
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  errorText: {
-    color: '#b91c1c',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  formActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  saveButton: {
-    flex: 1,
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 15,
-    backgroundColor: '#0f766e',
-  },
-  saveButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  cancelButton: {
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 15,
-    backgroundColor: '#f1f5f9',
-  },
-  cancelButtonText: {
-    color: '#0f172a',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  sectionTitle: {
-    color: '#0f172a',
-    fontSize: 20,
-    fontWeight: '900',
-  },
-  count: {
-    overflow: 'hidden',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: '#e2e8f0',
-    color: '#334155',
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  list: {
-    gap: 12,
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(15, 23, 42, 0.52)',
-  },
-  modalCard: {
-    maxHeight: '90%',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    backgroundColor: '#f8fafc',
-    overflow: 'hidden',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 12,
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    backgroundColor: '#ffffff',
-  },
-  modalTitleBox: {
-    flex: 1,
-    gap: 4,
-  },
-  modalEyebrow: {
-    color: '#0f766e',
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  modalTitle: {
-    color: '#0f172a',
-    fontSize: 20,
-    fontWeight: '900',
-  },
-  modalCloseButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    backgroundColor: '#f1f5f9',
-  },
-  modalCloseText: {
-    color: '#0f172a',
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  modalScrollContent: {
-    padding: 16,
-    paddingBottom: 28,
-  },
-  centerBox: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    padding: 24,
-  },
-  centerTitle: {
-    color: '#0f172a',
-    fontSize: 22,
-    fontWeight: '900',
-    textAlign: 'center',
-  },
-  centerText: {
-    color: '#475569',
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: 'center',
-  },
-  primaryButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 14,
-    backgroundColor: '#0f766e',
-  },
-  primaryButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '900',
-  },
+  container: { flex: 1, backgroundColor: '#f8fafc' },
+  content: { gap: 16, padding: 20, paddingBottom: 100 },
+  hero: { gap: 8, padding: 22, borderRadius: 26, backgroundColor: '#0f172a' },
+  kicker: { color: '#5eead4', fontSize: 12, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
+  title: { color: '#ffffff', fontSize: 28, fontWeight: '900' },
+  subtitle: { color: '#cbd5e1', fontSize: 14, lineHeight: 20 },
+  formCard: { gap: 14, padding: 16, borderRadius: 22, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e2e8f0' },
+  formTitle: { color: '#0f172a', fontSize: 18, fontWeight: '900' },
+  formFields: { gap: 10 },
+  input: { minHeight: 48, paddingHorizontal: 14, borderRadius: 14, backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#cbd5e1', color: '#0f172a' },
+  textArea: { minHeight: 110, paddingTop: 12, textAlignVertical: 'top' },
+  label: { color: '#0f172a', fontSize: 13, fontWeight: '900' },
+  segmentRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  segment: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 999, backgroundColor: '#f1f5f9' },
+  segmentActive: { backgroundColor: '#0f766e' },
+  segmentText: { color: '#64748b', fontSize: 12, fontWeight: '900' },
+  segmentTextActive: { color: '#ffffff' },
+  eventPicker: { gap: 8 },
+  eventOption: { padding: 12, borderRadius: 14, backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0' },
+  eventOptionActive: { backgroundColor: '#ccfbf1', borderColor: '#0f766e' },
+  eventOptionText: { color: '#64748b', fontSize: 13, fontWeight: '800' },
+  eventOptionTextActive: { color: '#0f766e' },
+  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  primaryButton: { alignItems: 'center', padding: 15, borderRadius: 16, backgroundColor: '#0f766e' },
+  primaryButtonText: { color: '#ffffff', fontSize: 15, fontWeight: '900' },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sectionTitle: { color: '#0f172a', fontSize: 20, fontWeight: '900' },
+  sectionCount: { overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, color: '#0f766e', backgroundColor: '#ccfbf1', fontSize: 12, fontWeight: '900' },
+  muted: { color: '#64748b', fontSize: 14 },
+  adminItem: { gap: 10 },
+  actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  actionButton: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 14, backgroundColor: '#e0f2fe' },
+  actionButtonText: { color: '#0369a1', fontSize: 12, fontWeight: '900' },
+  dangerButton: { backgroundColor: '#fee2e2' },
+  dangerButtonText: { color: '#991b1b' },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15,23,42,0.55)' },
+  modalCard: { maxHeight: '88%', borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: '#ffffff' },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
+  modalTitle: { color: '#0f172a', fontSize: 20, fontWeight: '900' },
+  modalContent: { gap: 14, padding: 20, paddingBottom: 40 },
+  deniedContainer: { flex: 1, gap: 10, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#f8fafc' },
+  deniedTitle: { color: '#991b1b', fontSize: 22, fontWeight: '900' },
+  deniedText: { color: '#64748b', textAlign: 'center' },
 });
