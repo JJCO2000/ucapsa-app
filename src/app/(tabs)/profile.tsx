@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
-import { Link, router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { Alert, Image, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Link, router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Image, Modal, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { SocialLinksRow } from '../../components/ui/SocialLinksRow';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -26,6 +26,7 @@ export default function ProfileScreen() {
   const [dogName, setDogName] = useState('');
   const [avatarColor, setAvatarColor] = useState(ucapsaBrand.colors.red);
   const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [profileModalEditing, setProfileModalEditing] = useState(false);
@@ -49,52 +50,72 @@ export default function ProfileScreen() {
     setAvatarColor(profile?.avatar_color ?? ucapsaBrand.colors.red);
   }, [profile, user?.email]);
 
-  useEffect(() => {
-    async function loadAdminData() {
-      if (!isAdmin) return;
+  const loadAdminData = useCallback(async () => {
+    if (!isAdmin) return;
 
-      const [rows, announcements, events, profilesResult] = await Promise.all([
-        getAdminMembershipRows(),
-        getVisibleAnnouncements(),
-        getVisibleEvents(),
-        supabase.from('profiles').select('role'),
-      ]);
+    const [rows, announcements, events, profilesResult] = await Promise.all([
+      getAdminMembershipRows(),
+      getVisibleAnnouncements(),
+      getVisibleEvents(),
+      supabase.from('profiles').select('role'),
+    ]);
 
-      const profiles = (profilesResult.data ?? []) as Pick<Profile, 'role'>[];
+    const profiles = (profilesResult.data ?? []) as Pick<Profile, 'role'>[];
 
-      setAdminStats({
-        clients: profiles.filter((item) => item.role === 'client' || item.role === 'member').length,
-        members: profiles.filter((item) => item.role === 'member').length,
-        activeMemberships: rows.filter((row) => row.membership.status === 'active').length,
-        pendingPayments: rows.filter((row) => row.membership.current_payment_status === 'pending').length,
-        pendingRequests: rows.filter((row) => row.membership.status === 'pending').length,
-        expiredMemberships: rows.filter((row) => isMembershipDateExpired(row.membership)).length,
-        announcements: announcements.length,
-        events: events.length,
-      });
-    }
-
-    void loadAdminData();
+    setAdminStats({
+      clients: profiles.filter((item) => item.role === 'client' || item.role === 'member').length,
+      members: profiles.filter((item) => item.role === 'member').length,
+      activeMemberships: rows.filter((row) => row.membership.status === 'active').length,
+      pendingPayments: rows.filter((row) => row.membership.current_payment_status === 'pending').length,
+      pendingRequests: rows.filter((row) => row.membership.status === 'pending').length,
+      expiredMemberships: rows.filter((row) => isMembershipDateExpired(row.membership)).length,
+      announcements: announcements.length,
+      events: events.length,
+    });
   }, [isAdmin]);
 
-  useEffect(() => {
-    async function loadClientMembership() {
-      if (isAdmin || !user) return;
-      try {
-        setClientMembership(await getMyMembership());
-      } catch {
-        setClientMembership(null);
-      }
+  const loadClientMembership = useCallback(async () => {
+    if (isAdmin || !user) return;
+    try {
+      setClientMembership(await getMyMembership());
+    } catch {
+      setClientMembership(null);
     }
-
-    void loadClientMembership();
   }, [isAdmin, user]);
+
+  useEffect(() => {
+    void loadAdminData();
+  }, [loadAdminData]);
+
+  useEffect(() => {
+    void loadClientMembership();
+  }, [loadClientMembership]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (isAdmin) void loadAdminData();
+      else void loadClientMembership();
+      return undefined;
+    }, [isAdmin, loadAdminData, loadClientMembership]),
+  );
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      await refreshProfile();
+      if (isAdmin) await loadAdminData();
+      else await loadClientMembership();
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   const clientProfileComplete = useMemo(
     () => Boolean((profile?.full_name ?? '').trim() && (profile?.phone ?? '').trim() && (profile?.dog_name ?? '').trim()),
     [profile],
   );
   const showReadonlyClientView = !isAdmin && clientProfileComplete && !editMode;
+  const deletionRequested = Boolean(profile?.deletion_requested_at);
 
   async function handleSaveProfile() {
     if (!user) return;
@@ -145,6 +166,7 @@ export default function ProfileScreen() {
           onPress: async () => {
             try {
               await requestAccountDeletion('Solicitud desde Perfil.');
+              await refreshProfile();
               Alert.alert('Solicitud enviada', 'Administracion revisara la eliminacion de tu cuenta.');
             } catch (error) {
               Alert.alert('No se pudo solicitar', error instanceof Error ? error.message : 'Intenta de nuevo.');
@@ -187,7 +209,7 @@ export default function ProfileScreen() {
   }
 
   return (
-    <KeyboardAwareScreen>
+    <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={ucapsaBrand.colors.red} />}>
       <View style={styles.heroCard}>
         <View style={styles.heroCardTop}>
           <View style={[styles.avatar, { backgroundColor: avatarColor }]}> 
@@ -221,11 +243,10 @@ export default function ProfileScreen() {
           {clientMembership && ['rejected', 'cancelled', 'expired'].includes(clientMembership.status) ? (
             <Text style={styles.clientMembershipWarning}>Membresia no aceptada, no reconocida o pendiente de contrato. Consulta con administracion.</Text>
           ) : null}
-          {clientMembership?.status !== 'active' ? (
-            <Pressable style={styles.primaryButton} onPress={() => router.push('/membership' as never)}>
-              <Text style={styles.primaryButtonText}>{clientMembership?.status === 'pending' ? 'Ver solicitud' : 'Solicitar membresia'}</Text>
-            </Pressable>
-          ) : null}
+          <Text style={styles.clientMembershipHint}>Las credenciales, QR, membresia y clases activas se consultan en Mi UCAPSA.</Text>
+          <Pressable style={styles.primaryButton} onPress={() => router.push('/membership' as never)}>
+            <Text style={styles.primaryButtonText}>{clientMembership?.status === 'pending' ? 'Ver solicitud' : clientMembership ? 'Abrir Mi UCAPSA' : 'Solicitar membresia'}</Text>
+          </Pressable>
         </View>
       ) : null}
 
@@ -302,11 +323,20 @@ export default function ProfileScreen() {
         </View>
       ) : null}
 
+      {!isAdmin && deletionRequested ? (
+        <View style={styles.noticeBox}>
+          <Text style={styles.noticeTitle}>Eliminacion solicitada</Text>
+          <Text style={styles.noticeText}>Tu solicitud ya fue registrada. Administracion revisara la cuenta antes de cualquier baja definitiva.</Text>
+        </View>
+      ) : null}
+
       <SocialLinksRow />
 
-      <Pressable onPress={handleDeleteRequest} style={styles.dangerGhostButton}>
-        <Text style={styles.dangerGhostText}>Solicitar eliminacion de cuenta</Text>
-      </Pressable>
+      {!isAdmin ? (
+        <Pressable disabled={deletionRequested} onPress={handleDeleteRequest} style={[styles.dangerGhostButton, deletionRequested && styles.disabledButton]}>
+          <Text style={styles.dangerGhostText}>{deletionRequested ? 'Eliminacion solicitada' : 'Solicitar eliminacion de cuenta'}</Text>
+        </Pressable>
+      ) : null}
 
       <Pressable onPress={signOut} style={styles.secondaryButton}>
         <Text style={styles.secondaryButtonText}>Cerrar sesion</Text>
@@ -430,6 +460,11 @@ const styles = StyleSheet.create({
   clientMembershipCard: { backgroundColor: '#fff', borderRadius: 26, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 18 },
   clientMembershipText: { color: ucapsaBrand.colors.text, fontSize: 15, fontWeight: '800', marginTop: 8, lineHeight: 21 },
   clientMembershipWarning: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '800', marginTop: 8, lineHeight: 19 },
+  clientMembershipHint: { color: ucapsaBrand.colors.muted, fontSize: 13, fontWeight: '700', marginTop: 10, lineHeight: 19 },
+  noticeBox: { backgroundColor: '#FFF7ED', borderWidth: 1, borderColor: '#FED7AA', borderRadius: 20, padding: 14 },
+  noticeTitle: { color: '#9A3412', fontSize: 15, fontWeight: '900' },
+  noticeText: { color: '#9A3412', fontSize: 13, fontWeight: '700', lineHeight: 19, marginTop: 4 },
+  disabledButton: { opacity: 0.55 },
   readonlyCard: { backgroundColor: '#fff', borderRadius: 26, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 18 },
   readonlyRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F5E5E8' },
   readonlyLabel: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
@@ -453,5 +488,6 @@ const styles = StyleSheet.create({
   profileModalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   profileModalTitle: { color: ucapsaBrand.colors.text, fontSize: 22, fontWeight: '900' },
 });
+
 
 
