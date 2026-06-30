@@ -87,6 +87,7 @@ export default function CalendarScreen() {
   const [programs, setPrograms] = useState<UcapsaProgram[]>([]);
   const [programSchedules, setProgramSchedules] = useState<ProgramSchedule[]>([]);
   const [selectedDate, setSelectedDate] = useState(todayKey());
+  const [classesExpanded, setClassesExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -111,6 +112,10 @@ export default function CalendarScreen() {
       .catch((err) => setError(err.message ?? 'No se pudo cargar el calendario.'))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    setClassesExpanded(false);
+  }, [selectedDate]);
 
   async function onRefresh() {
     setRefreshing(true);
@@ -171,7 +176,7 @@ export default function CalendarScreen() {
   }, [announcements, classOccurrences, occurrences, selectedDate]);
 
   const upcomingEvents: EventOccurrence[] = useMemo(() => getUpcomingOccurrences(events, 3), [events]);
-  const dayCount = selectedEvents.length + selectedClasses.length + selectedAnnouncements.length;
+  const dayCount = selectedEvents.length + (selectedClasses.length > 0 ? 1 : 0) + selectedAnnouncements.length;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -267,24 +272,49 @@ export default function CalendarScreen() {
               </View>
             ) : null}
 
-            {selectedClasses.map((occurrence) => (
-              <Pressable
-                key={`class-${occurrence.id}`}
-                style={styles.classCard}
-                onPress={isAdmin ? () => router.push(`/admin/classes?scheduleId=${occurrence.schedule.id}` as never) : undefined}
-              >
-                <View style={styles.classIcon}>
-                  <MaterialIcons name="school" size={22} color="#B51228" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.classKicker}>Clase UCAPSA</Text>
-                  <Text style={styles.classTitle}>{occurrence.program?.name ?? 'Clase'}</Text>
-                  <Text style={styles.classText}>{formatScheduleLabel(occurrence.schedule)}</Text>
-                  {isAdmin ? <Text style={styles.classHint}>Tocar para editar horario base</Text> : null}
-                </View>
-                {isAdmin ? <MaterialIcons name="chevron-right" size={24} color="#B51228" /> : null}
-              </Pressable>
-            ))}
+            {selectedClasses.length > 0 ? (
+              <View style={styles.classGroupCard}>
+                <Pressable style={styles.classGroupHeader} onPress={() => setClassesExpanded((value) => !value)}>
+                  <View style={styles.classGroupIcon}>
+                    <MaterialIcons name="school" size={22} color="#B51228" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.classKicker}>Clases</Text>
+                    <Text style={styles.classGroupTitle}>Clases UCAPSA</Text>
+                    <Text style={styles.classGroupText}>
+                      {selectedClasses.length} clase{selectedClasses.length === 1 ? '' : 's'} programada{selectedClasses.length === 1 ? '' : 's'} este dia.
+                    </Text>
+                  </View>
+                  <View style={styles.classGroupPill}>
+                    <Text style={styles.classGroupPillText}>{selectedClasses.length}</Text>
+                  </View>
+                  <MaterialIcons name={classesExpanded ? 'expand-less' : 'expand-more'} size={24} color="#B51228" />
+                </Pressable>
+
+                {classesExpanded ? (
+                  <View style={styles.classList}>
+                    {selectedClasses.map((occurrence) => (
+                      <Pressable
+                        key={`class-${occurrence.id}`}
+                        disabled={!isAdmin}
+                        style={styles.classChildCard}
+                        onPress={isAdmin ? () => router.push(`/admin/classes?scheduleId=${occurrence.schedule.id}` as never) : undefined}
+                      >
+                        <View style={styles.classIconSmall}>
+                          <MaterialIcons name="event-note" size={18} color="#B51228" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.classTitle}>{occurrence.program?.name ?? 'Clase'}</Text>
+                          <Text style={styles.classText}>{formatScheduleLabel(occurrence.schedule)}</Text>
+                          {isAdmin ? <Text style={styles.classHint}>Tocar para editar horario base</Text> : null}
+                        </View>
+                        {isAdmin ? <MaterialIcons name="chevron-right" size={22} color="#B51228" /> : null}
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
 
             {selectedEvents.map((occurrence) => (
               <EventCard
@@ -376,10 +406,20 @@ const styles = StyleSheet.create({
   sectionCount: { overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, color: '#0f766e', backgroundColor: '#ccfbf1', fontSize: 12, fontWeight: '900' },
   emptyBox: { gap: 6, padding: 18, borderRadius: 18, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e2e8f0' },
   emptyTitle: { color: '#0f172a', fontSize: 16, fontWeight: '900' },
-  classCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, borderRadius: 20, backgroundColor: '#fff1f2', borderWidth: 1, borderColor: '#fecdd3' },
+  classGroupCard: { gap: 10, padding: 14, borderRadius: 22, backgroundColor: '#fff1f2', borderWidth: 1, borderColor: '#fecdd3' },
+  classGroupHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  classGroupIcon: { width: 46, height: 46, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff' },
+  classGroupTitle: { color: '#25151A', fontSize: 18, fontWeight: '900', marginTop: 2 },
+  classGroupText: { color: '#6b4b55', fontSize: 13, fontWeight: '800', marginTop: 2, lineHeight: 18 },
+  classGroupPill: { minWidth: 30, height: 30, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: '#B51228' },
+  classGroupPillText: { color: '#ffffff', fontSize: 13, fontWeight: '900' },
+  classList: { gap: 9, paddingTop: 2 },
+  classChildCard: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 17, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#fecdd3' },
   classIcon: { width: 44, height: 44, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff' },
+  classIconSmall: { width: 34, height: 34, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff1f2' },
   classKicker: { color: '#B51228', fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.7 },
-  classTitle: { color: '#25151A', fontSize: 17, fontWeight: '900', marginTop: 2 },
+  classTitle: { color: '#25151A', fontSize: 16, fontWeight: '900', marginTop: 2 },
   classText: { color: '#6b4b55', fontSize: 13, fontWeight: '800', marginTop: 2 },
   classHint: { color: '#B51228', fontSize: 12, fontWeight: '900', marginTop: 5 },
 });
+

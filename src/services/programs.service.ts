@@ -125,8 +125,8 @@ export function formatScheduleLabel(schedule: ProgramSchedule | null | undefined
   if (!schedule) return 'Sin horario';
   const repeatLabel = schedule.repeat_type === 'biweekly' ? 'cada 2 semanas' : 'semanal';
   const time = String(schedule.start_time ?? '').slice(0, 5);
-  const section = schedule.sequence_order ? `Seccion ${schedule.sequence_order} · ` : '';
-  return `${section}${dayLabels[schedule.day_of_week] ?? 'Dia'} ${time || '--:--'} · ${repeatLabel}`;
+  const section = schedule.sequence_order ? `Seccion ${schedule.sequence_order} - ` : '';
+  return `${section}${dayLabels[schedule.day_of_week] ?? 'Dia'} ${time || '--:--'} - ${repeatLabel}`;
 }
 
 function startOfLocalDay(date: Date) {
@@ -485,3 +485,4 @@ export async function deleteProgramEnrollment(enrollmentId: string): Promise<voi
   const { error } = await supabase.from('program_enrollments').delete().eq('id', enrollmentId);
   if (error) throw error;
 }
+
