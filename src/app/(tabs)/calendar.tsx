@@ -80,6 +80,40 @@ function expandClassOccurrences(schedules: ProgramSchedule[], programs: UcapsaPr
   return items;
 }
 
+
+function getClassTheme(programCode: string | null | undefined) {
+  if (programCode === 'puppy') {
+    return {
+      background: '#FFF7CC',
+      border: '#FACC15',
+      iconBackground: '#FEF3C7',
+      accent: '#A16207',
+      title: '#3B2600',
+      text: '#6B4B00',
+    };
+  }
+
+  if (programCode === 'comandos') {
+    return {
+      background: '#EFF6FF',
+      border: '#93C5FD',
+      iconBackground: '#DBEAFE',
+      accent: '#1D4ED8',
+      title: '#0F2F6E',
+      text: '#1E3A8A',
+    };
+  }
+
+  return {
+    background: '#ffffff',
+    border: '#fecdd3',
+    iconBackground: '#fff1f2',
+    accent: '#B51228',
+    title: '#25151A',
+    text: '#6b4b55',
+  };
+}
+
 export default function CalendarScreen() {
   const { isAdmin } = useSession();
   const [events, setEvents] = useState<UcapsaEvent[]>([]);
@@ -293,24 +327,28 @@ export default function CalendarScreen() {
 
                 {classesExpanded ? (
                   <View style={styles.classList}>
-                    {selectedClasses.map((occurrence) => (
-                      <Pressable
-                        key={`class-${occurrence.id}`}
-                        disabled={!isAdmin}
-                        style={styles.classChildCard}
-                        onPress={isAdmin ? () => router.push(`/admin/classes?scheduleId=${occurrence.schedule.id}` as never) : undefined}
-                      >
-                        <View style={styles.classIconSmall}>
-                          <MaterialIcons name="event-note" size={18} color="#B51228" />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.classTitle}>{occurrence.program?.name ?? 'Clase'}</Text>
-                          <Text style={styles.classText}>{formatScheduleLabel(occurrence.schedule)}</Text>
-                          {isAdmin ? <Text style={styles.classHint}>Tocar para editar horario base</Text> : null}
-                        </View>
-                        {isAdmin ? <MaterialIcons name="chevron-right" size={22} color="#B51228" /> : null}
-                      </Pressable>
-                    ))}
+                    {selectedClasses.map((occurrence) => {
+                      const theme = getClassTheme(occurrence.program?.code);
+
+                      return (
+                        <Pressable
+                          key={`class-${occurrence.id}`}
+                          disabled={!isAdmin}
+                          style={[styles.classChildCard, { backgroundColor: theme.background, borderColor: theme.border }]}
+                          onPress={isAdmin ? () => router.push(`/admin/classes?scheduleId=${occurrence.schedule.id}` as never) : undefined}
+                        >
+                          <View style={[styles.classIconSmall, { backgroundColor: theme.iconBackground }]}>
+                            <MaterialIcons name="event-note" size={18} color={theme.accent} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.classTitle, { color: theme.title }]}>{occurrence.program?.name ?? 'Clase'}</Text>
+                            <Text style={[styles.classText, { color: theme.text }]}>{formatScheduleLabel(occurrence.schedule)}</Text>
+                            {isAdmin ? <Text style={[styles.classHint, { color: theme.accent }]}>Tocar para editar horario base</Text> : null}
+                          </View>
+                          {isAdmin ? <MaterialIcons name="chevron-right" size={22} color={theme.accent} /> : null}
+                        </Pressable>
+                      );
+                    })}
                   </View>
                 ) : null}
               </View>
@@ -422,4 +460,5 @@ const styles = StyleSheet.create({
   classText: { color: '#6b4b55', fontSize: 13, fontWeight: '800', marginTop: 2 },
   classHint: { color: '#B51228', fontSize: 12, fontWeight: '900', marginTop: 5 },
 });
+
 
