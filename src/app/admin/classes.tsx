@@ -43,6 +43,7 @@ import {
   updateProgramEnrollment,
   updateProgramSchedule,
 } from '../../services/programs.service';
+import { sendClassCancellationNotification } from '../../services/admin-class-cancellations.service';
 import type {
   Announcement,
   Profile,
@@ -547,6 +548,44 @@ export default function AdminClassesScreen() {
   }
 
 
+
+  async function notifyCancelledClasses(scheduleIds: string[], cancellationDate: string, reason: string) {
+    if (scheduleIds.length === 0) return;
+
+    try {
+      setSaving(true);
+      const result = await sendClassCancellationNotification({
+        scheduleIds,
+        cancellationDate,
+        reason,
+      });
+
+      Alert.alert(
+        result.status === 'no_targets' ? 'Sin destinatarios' : 'Notificacion procesada',
+        result.message ?? `Destinatarios: ${result.total_targets}. Enviadas: ${result.success_count}. Fallidas: ${result.failure_count}.`,
+      );
+    } catch (error) {
+      Alert.alert('No se pudo notificar', error instanceof Error ? error.message : 'Intenta de nuevo.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function askNotifyCancelledClasses(scheduleIds: string[], cancellationDate: string, reason: string) {
+    if (scheduleIds.length === 0) return;
+
+    Alert.alert('Notificar cancelacion', '¿Quieres avisar a los inscritos de esta cancelacion?', [
+      { text: 'No', style: 'cancel' },
+      {
+        text: 'Si, notificar',
+        onPress: () => {
+          void notifyCancelledClasses(scheduleIds, cancellationDate, reason);
+        },
+      },
+    ]);
+  }
+
+
   async function handleCancelClass() {
     if (!cancelScheduleId || !cancelDateSchedules.some((schedule) => schedule.id === cancelScheduleId)) {
       Alert.alert('Selecciona clase', 'Elige una clase programada para la fecha seleccionada.');
@@ -559,7 +598,8 @@ export default function AdminClassesScreen() {
 
     try {
       setSaving(true);
-      await createProgramClassCancellation({
+      const reasonToNotify = cancelReason;
+      const cancellation = await createProgramClassCancellation({
         scheduleId: cancelScheduleId,
         cancellationDate: cancelDate,
         reason: cancelReason,
@@ -567,7 +607,13 @@ export default function AdminClassesScreen() {
       });
       setCancelReason('');
       await loadData();
-      Alert.alert('Clase cancelada', 'Se creo un anuncio automatico y el calendario queda actualizado.');
+      Alert.alert('Clase cancelada', 'Se creo un anuncio automatico y el calendario queda actualizado.', [
+        { text: 'No notificar', style: 'cancel' },
+        {
+          text: 'Notificar inscritos',
+          onPress: () => askNotifyCancelledClasses([cancellation.schedule_id], cancellation.cancellation_date, reasonToNotify),
+        },
+      ]);
     } catch (error) {
       Alert.alert('No se pudo cancelar', error instanceof Error ? error.message : 'Intenta de nuevo.');
     } finally {
@@ -589,7 +635,8 @@ export default function AdminClassesScreen() {
         onPress: async () => {
           try {
             setSaving(true);
-            await createProgramDayCancellations({
+            const reasonToNotify = cancelReason;
+            const cancellations = await createProgramDayCancellations({
               scheduleIds: cancelDateSchedules.map((schedule) => schedule.id),
               cancellationDate: cancelDate,
               reason: cancelReason,
@@ -597,7 +644,17 @@ export default function AdminClassesScreen() {
             });
             setCancelReason('');
             await loadData();
-            Alert.alert('Clases canceladas', 'Se creo un anuncio general y el calendario queda actualizado.');
+            Alert.alert('Clases canceladas', 'Se creo un anuncio general y el calendario queda actualizado.', [
+              { text: 'No notificar', style: 'cancel' },
+              {
+                text: 'Notificar inscritos',
+                onPress: () => askNotifyCancelledClasses(
+                  cancellations.map((cancellation) => cancellation.schedule_id),
+                  cancelDate,
+                  reasonToNotify,
+                ),
+              },
+            ]);
           } catch (error) {
             Alert.alert('No se pudieron cancelar', error instanceof Error ? error.message : 'Intenta de nuevo.');
           } finally {
@@ -1601,6 +1658,7 @@ const styles = StyleSheet.create({
   disabledButton: { opacity: 0.5 },
   deniedBox: { gap: 10, alignItems: 'center', justifyContent: 'center', flex: 1 },
 });
+
 
 
 
