@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -30,66 +30,76 @@ export default function HomeScreen() {
   const [adminStats, setAdminStats] = useState({ active: 0, requests: 0, pendingPayments: 0 });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const [announcementResult, eventResult] = await Promise.all([getVisibleAnnouncements(3), getVisibleEvents()]);
-        setAnnouncements(announcementResult.slice(0, 3));
-        setEvents(getUpcomingOccurrences(eventResult, 3));
+  const loadData = useCallback(async () => {
+    try {
+      const [announcementResult, eventResult] = await Promise.all([getVisibleAnnouncements(3), getVisibleEvents()]);
+      setAnnouncements(announcementResult.slice(0, 3));
+      setEvents(getUpcomingOccurrences(eventResult, 3));
 
-        if (isAdmin) {
-          const rows = await getAdminMembershipRows();
-          setAdminStats({
-            active: rows.filter((row) => row.membership.status === 'active').length,
-            requests: rows.filter((row) => row.membership.status === 'pending').length,
-            pendingPayments: rows.filter((row) => row.membership.current_payment_status === 'pending').length,
-          });
-        } else if (user) {
-          const [membershipResult, programResult] = await Promise.all([getMyMembership(), getMyProgramEnrollments()]);
-          setMembership(membershipResult);
-          setProgramEnrollments(programResult);
-        } else {
-          setMembership(null);
-          setProgramEnrollments([]);
-        }
-      } finally {
-        setLoading(false);
+      if (isAdmin) {
+        const rows = await getAdminMembershipRows();
+        setAdminStats({
+          active: rows.filter((row) => row.membership.status === 'active').length,
+          requests: rows.filter((row) => row.membership.status === 'pending').length,
+          pendingPayments: rows.filter((row) => row.membership.current_payment_status === 'pending').length,
+        });
+      } else if (user) {
+        const [membershipResult, programResult] = await Promise.all([getMyMembership(), getMyProgramEnrollments()]);
+        setMembership(membershipResult);
+        setProgramEnrollments(programResult);
+      } else {
+        setMembership(null);
+        setProgramEnrollments([]);
       }
+    } finally {
+      setLoading(false);
     }
-
-    void loadData();
   }, [isAdmin, user]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadData();
+      return undefined;
+    }, [loadData]),
+  );
 
   const displayName = profile?.full_name || profile?.email || user?.email || 'Visitante';
   const membershipStatus = membership?.status ?? null;
   const isActiveMember = role === 'member' || membershipStatus === 'active';
-  const activeProgramEnrollment = isActiveMember ? null : programEnrollments.find((item) => item.enrollment.status === 'active') ?? null;
-  const isPendingMemberRequest = membershipStatus === 'pending' && !activeProgramEnrollment;
+  const activeProgramEnrollments = programEnrollments.filter((item) => item.enrollment.status === 'active');
+  const hasPuppy = activeProgramEnrollments.some((item) => item.program.code === 'puppy');
+  const hasComandos = activeProgramEnrollments.some((item) => item.program.code === 'comandos');
+  const activeModuleLabels = [
+    isActiveMember ? 'Socio' : null,
+    hasPuppy ? 'Puppy' : null,
+    hasComandos ? 'Comandos' : null,
+  ].filter(Boolean) as string[];
+  const isPendingMemberRequest = membershipStatus === 'pending' && activeModuleLabels.length === 0;
   const membershipIcon = isAdmin || isActiveMember
     ? 'crown'
-    : activeProgramEnrollment?.program.code === 'puppy'
+    : hasPuppy
       ? 'dog'
-      : activeProgramEnrollment?.program.code === 'comandos'
+      : hasComandos
         ? 'school'
         : 'paw';
   const membershipTitle = isAdmin
     ? 'Mi UCAPSA Admin'
-    : isActiveMember
-      ? 'Socio UCAPSA'
-      : activeProgramEnrollment
-        ? activeProgramEnrollment.program.name
-        : isPendingMemberRequest
-          ? 'Solicitud pendiente'
-          : 'Cliente UCAPSA';
+    : activeModuleLabels.length > 0
+      ? 'Tus modulos activos'
+      : isPendingMemberRequest
+        ? 'Solicitud pendiente'
+        : 'Cliente UCAPSA';
   const membershipText = isAdmin
     ? 'Socios, pagos y solicitudes.'
-    : isActiveMember
-      ? 'Credencial, membresia y QR.'
-      : activeProgramEnrollment
-        ? `Credencial, QR y horario de ${activeProgramEnrollment.program.name}.`
-        : isPendingMemberRequest
-          ? 'Administracion revisara tu solicitud.'
-          : 'Solicita membresia o consulta tu espacio.';
+    : activeModuleLabels.length > 0
+      ? `${activeModuleLabels.join(', ')}. Credenciales, QR y horarios disponibles.`
+      : isPendingMemberRequest
+        ? 'Administracion revisara tu solicitud.'
+        : 'Solicita membresia o consulta tu espacio.';
 
   const membershipHighlightStyle = isActiveMember && !isAdmin ? [styles.membershipHighlight, styles.membershipHighlightPremium] : styles.membershipHighlight;
   const membershipIconBoxStyle = isActiveMember && !isAdmin ? [styles.crownBox, styles.crownBoxPremium] : styles.crownBox;
@@ -296,5 +306,6 @@ const styles = StyleSheet.create({
   emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900' },
   emptyText: { color: ucapsaBrand.colors.muted, fontSize: 14, lineHeight: 20 },
 });
+
 
 

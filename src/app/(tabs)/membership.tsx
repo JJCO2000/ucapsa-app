@@ -1,4 +1,4 @@
-﻿import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Link, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -458,7 +458,7 @@ export default function MembershipScreen() {
     try {
       const data = await requestMembership();
       setMembership(data);
-      Alert.alert('Solicitud enviada', 'Administracion revisara tu solicitud de membres�a.');
+      Alert.alert('Solicitud enviada', 'Administracion revisara tu solicitud de membresia.');
     } catch (error) {
       Alert.alert('No se pudo solicitar', error instanceof Error ? error.message : 'Intenta de nuevo.');
     }
@@ -587,7 +587,7 @@ export default function MembershipScreen() {
   function handleDeletePayment(row: MembershipAdminRow, payment: Payment) {
     Alert.alert(
       'Eliminar pago',
-      'Esto eliminara este pago del historial y recalculara el �ltimo pago visible. �asalo solo para correcciones o pruebas.',
+      'Esto eliminara este pago del historial y recalculara el ultimo pago visible. Usalo solo para correcciones o pruebas.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -628,7 +628,7 @@ export default function MembershipScreen() {
   }
 
   function handleReactivateMembership(row: MembershipAdminRow) {
-    Alert.alert('Reactivar socio', 'La membres�a volvera a quedar activa y el pago se marcara como pendiente.', [
+    Alert.alert('Reactivar socio', 'La membresia volvera a quedar activa y el pago se marcara como pendiente.', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Reactivar',
@@ -646,7 +646,7 @@ export default function MembershipScreen() {
   function handleRequestPermanentDelete(row: MembershipAdminRow) {
     Alert.alert(
       'Solicitar eliminacion definitiva',
-      'Se desactivara la membres�a y se creara una solicitud para que super_admin apruebe o rechace la eliminacion definitiva.',
+      'Se desactivara la membresia y se creara una solicitud para que super_admin apruebe o rechace la eliminacion definitiva.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -658,7 +658,7 @@ export default function MembershipScreen() {
               await requestPermanentMembershipDeletion(row, 'Solicitud desde ficha de socio.');
               await loadAdminMembershipPanel();
               setSelectedRow(null);
-              Alert.alert('Solicitud enviada', 'La membres�a quedo desactivada mientras super_admin revisa la eliminacion definitiva.');
+              Alert.alert('Solicitud enviada', 'La membresia quedo desactivada mientras super_admin revisa la eliminacion definitiva.');
             } catch (error) {
               Alert.alert('No se pudo solicitar', error instanceof Error ? error.message : 'Intenta de nuevo.');
             } finally {
@@ -671,7 +671,7 @@ export default function MembershipScreen() {
   }
 
   function handleApproveDeleteRequest(row: MembershipDeleteRequestRow) {
-    Alert.alert('Aprobar eliminacion definitiva', 'Esto eliminara la membres�a y sus pagos relacionados. No elimina la cuenta de login.', [
+    Alert.alert('Aprobar eliminacion definitiva', 'Esto eliminara la membresia y sus pagos relacionados. No elimina la cuenta de login.', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Aprobar eliminacion',
@@ -692,7 +692,7 @@ export default function MembershipScreen() {
   }
 
   function handleRejectDeleteRequest(row: MembershipDeleteRequestRow) {
-    Alert.alert('Rechazar eliminacion definitiva', 'Se conservara la membres�a desactivada para revision manual.', [
+    Alert.alert('Rechazar eliminacion definitiva', 'Se conservara la membresia desactivada para revision manual.', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Rechazar',
@@ -936,19 +936,19 @@ export default function MembershipScreen() {
 
   const expiredByDate = isMembershipDateExpired(membership);
   const displayName = profile?.full_name || profile?.email || user.email || 'Usuario';
-  const activeProgramEnrollment = membership?.status === 'active'
-    ? null
-    : programEnrollments.find((item) => item.enrollment.status === 'active') ?? null;
-  const showMembershipRequest = !membership && !activeProgramEnrollment;
-  const showPendingMembership = membership?.status === 'pending' && !activeProgramEnrollment;
-  const showInactiveMembership = Boolean(membership && membership.status !== 'pending' && membership.status !== 'active' && !activeProgramEnrollment);
+  const activeProgramEnrollments = programEnrollments.filter((item) => item.enrollment.status === 'active');
+  const hasActiveMembership = membership?.status === 'active';
+  const hasActiveProgram = activeProgramEnrollments.length > 0;
+  const showMembershipRequest = !membership && !hasActiveProgram;
+  const showPendingMembership = membership?.status === 'pending' && !hasActiveMembership;
+  const showInactiveMembership = Boolean(membership && membership.status !== 'pending' && membership.status !== 'active' && !hasActiveProgram);
 
   return (
     <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={ucapsaBrand.colors.red} />}>
       <View style={styles.clientHero}>
         <View style={styles.heroIconBubble}><Image source={mark} style={styles.heroMark} resizeMode="contain" /></View>
         <Text style={styles.eyebrow}>Mi UCAPSA</Text>
-        <Text style={styles.title}>Credencial y membresia</Text>
+        <Text style={styles.title}>Credenciales y membresia</Text>
       </View>
 
       {loading ? <Text style={styles.muted}>Cargando membresia...</Text> : null}
@@ -964,30 +964,37 @@ export default function MembershipScreen() {
       {showPendingMembership ? (
         <View style={styles.noticeCard}>
           <Text style={styles.noticeTitle}>Solicitud pendiente</Text>
-          <Text style={styles.noticeText}>Administracion revisara tu solicitud. Cuando sea aprobada, aqu� apareceran tu credencial y QR.</Text>
+          <Text style={styles.noticeText}>Administracion revisara tu solicitud. Cuando sea aprobada, aqui apareceran tu credencial y QR.</Text>
         </View>
       ) : null}
 
       {membership && showInactiveMembership ? (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Membresia {getMembershipStatusLabel(membership.status).toLowerCase()}</Text>
-          <Text style={styles.cardText}>Tu membres�a no esta aceptada, no esta reconocida o falta revision de contrato. Si necesitas reactivarla, solicita revision a administracion.</Text>
+          <Text style={styles.cardText}>Tu membresia no esta aceptada, no esta reconocida o falta revision de contrato. Si necesitas reactivarla, solicita revision a administracion.</Text>
           <Pressable onPress={handleRequestMembership} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Solicitar revision</Text></Pressable>
         </View>
       ) : null}
 
-      {activeProgramEnrollment ? (
-        <ProgramCredentialCard item={activeProgramEnrollment} />
+      {membership?.status === 'active' ? (
+        <>
+          <Text style={styles.clientSectionTitle}>Membresia activa</Text>
+          <MemberCredentialCard
+            membership={membership}
+            profile={profile}
+            displayName={displayName}
+            expiredByDate={expiredByDate}
+          />
+        </>
       ) : null}
 
-
-      {membership?.status === 'active' ? (
-        <MemberCredentialCard
-          membership={membership}
-          profile={profile}
-          displayName={displayName}
-          expiredByDate={expiredByDate}
-        />
+      {activeProgramEnrollments.length > 0 ? (
+        <>
+          <Text style={styles.clientSectionTitle}>Clases activas</Text>
+          {activeProgramEnrollments.map((item) => (
+            <ProgramCredentialCard key={item.enrollment.id} item={item} />
+          ))}
+        </>
       ) : null}
     </KeyboardAwareScreen>
   );
@@ -1415,6 +1422,7 @@ const styles = StyleSheet.create({
   rejectText: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900' },
   tableTopCard: { flexDirection: 'row', alignItems: 'center', gap: 12, justifyContent: 'space-between' },
   sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 22, fontWeight: '900' },
+  clientSectionTitle: { color: ucapsaBrand.colors.text, fontSize: 19, fontWeight: '900', marginTop: 8, marginBottom: 8 },
   sectionSubtitle: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '700', marginTop: 2 },
   controlRow: { flexDirection: 'row', gap: 8 },
   controlButton: { flex: 1, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 18, paddingHorizontal: 10, paddingVertical: 12, alignItems: 'center' },
@@ -1528,6 +1536,7 @@ const styles = StyleSheet.create({
   dateModalCard: { backgroundColor: '#fff', borderRadius: 24, padding: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   dateModalTitle: { color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '900', marginBottom: 10 },
 });
+
 
 
 

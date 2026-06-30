@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -32,6 +32,15 @@ export default function AnnouncementsScreen() {
       .catch((err) => setError(err instanceof Error ? err.message : 'No se pudieron cargar los anuncios.'))
       .finally(() => setLoading(false));
   }, [loadAnnouncements]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadAnnouncements()
+        .catch((err) => setError(err instanceof Error ? err.message : 'No se pudieron cargar los anuncios.'))
+        .finally(() => setLoading(false));
+      return undefined;
+    }, [loadAnnouncements]),
+  );
 
   async function onRefresh() {
     setRefreshing(true);
@@ -151,3 +160,4 @@ const styles = StyleSheet.create({
   emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900' },
   announcementWrap: { position: 'relative' },
 });
+
