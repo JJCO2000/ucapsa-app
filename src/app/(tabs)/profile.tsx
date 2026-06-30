@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Modal, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AchievementBadgeGrid, AchievementDetailModal, AchievementSummary } from '../../components/domain/AchievementBadgeGrid';
+import { NotificationSettingsCard } from '../../components/domain/NotificationSettingsCard';
 import { SocialLinksRow } from '../../components/ui/SocialLinksRow';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
@@ -280,6 +281,7 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      <NotificationSettingsCard premium={isPremium} />
 
       {!isAdmin ? (
         <View style={[styles.clientMembershipCard, isPremium && styles.clientMembershipCardPremium]}>

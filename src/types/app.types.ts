@@ -256,3 +256,38 @@ export type ProgramClassCancellation = {
 };
 
 
+
+
+export type NotificationCategoryKey =
+  | 'announcements_events'
+  | 'classes'
+  | 'membership'
+  | 'achievements';
+
+export type NotificationPreferences = {
+  user_id: string;
+  enabled: boolean;
+  announcements_events: boolean;
+  classes: boolean;
+  membership: boolean;
+  achievements: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type NotificationToken = {
+  id: string;
+  user_id: string;
+  expo_push_token: string;
+  platform: string;
+  device_name: string | null;
+  device_id: string | null;
+  app_ownership: string | null;
+  app_version: string | null;
+  project_id: string | null;
+  is_active: boolean;
+  last_registered_at: string;
+  disabled_at: string | null;
+  created_at: string;
+  updated_at: string;
+};

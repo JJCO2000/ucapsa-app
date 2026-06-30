@@ -1,8 +1,9 @@
-﻿import type { Session, User } from '@supabase/supabase-js';
+import type { Session, User } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 
 import { supabase } from '../lib/supabase';
+import { disableStoredExpoPushToken } from '../services/notifications.service';
 import type { AppRole, UserProfile } from '../types/app.types';
 
 type SessionContextValue = {
@@ -57,6 +58,12 @@ export function SessionProvider({ children }: SessionProviderProps) {
   }
 
   async function signOut() {
+    try {
+      await disableStoredExpoPushToken();
+    } catch (error) {
+      console.warn('Could not disable push token before sign out:', error instanceof Error ? error.message : error);
+    }
+
     await supabase.auth.signOut();
     setSession(null);
     setProfile(null);
