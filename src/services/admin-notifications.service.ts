@@ -52,7 +52,27 @@ export async function sendAdminNotification(input: SendAdminNotificationInput): 
     },
   });
 
-  if (error) throw error;
+  if (error) {
+    let message = error.message ?? 'No se pudo enviar la notificacion.';
+
+    try {
+      const context = (error as { context?: Response }).context;
+      const details = context ? await context.json() : null;
+
+      console.log('send-notification details:', details);
+
+      if (details?.error) {
+        message = details.error;
+      } else if (details?.message) {
+        message = details.message;
+      }
+    } catch (parseError) {
+      console.log('No se pudo leer el detalle del error:', parseError);
+    }
+
+    throw new Error(message);
+  }
+
   return data as SendAdminNotificationResult;
 }
 
@@ -66,3 +86,4 @@ export async function getAdminNotificationCampaigns(limit = 12): Promise<Notific
   if (error) throw error;
   return (data ?? []) as NotificationCampaign[];
 }
+
