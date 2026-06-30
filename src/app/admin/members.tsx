@@ -1,4 +1,5 @@
-﻿import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -174,6 +175,10 @@ export default function AdminMembersScreen() {
       <Text style={styles.eyebrow}>Administracion</Text>
       <Text style={styles.title}>Socios</Text>
       <Text style={styles.muted}>Tabla de socios, solicitudes, pagos manuales y detalle completo.</Text>
+
+      <Pressable style={styles.scanButton} onPress={() => router.push('/admin/scanner?mode=member' as never)}>
+        <Text style={styles.scanButtonText}>Escanear QR de socio</Text>
+      </Pressable>
 
       <View style={styles.metricsGrid}>
         <Metric label="Total" value={stats.total} />
@@ -422,6 +427,8 @@ const styles = StyleSheet.create({
   eyebrow: { color: '#0f766e', fontSize: 13, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase' },
   title: { color: '#0f172a', fontSize: 30, fontWeight: '900', marginTop: 6 },
   muted: { color: '#64748b', fontSize: 14, lineHeight: 21, marginTop: 6, marginBottom: 14 },
+  scanButton: { alignItems: 'center', borderRadius: 16, paddingVertical: 13, backgroundColor: '#0f766e', marginBottom: 14 },
+  scanButtonText: { color: '#ffffff', fontSize: 14, fontWeight: '900' },
   metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
   metric: { width: '48%', backgroundColor: '#ffffff', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: '#e2e8f0' },
   metricValue: { color: '#0f172a', fontSize: 26, fontWeight: '900' },
@@ -469,3 +476,4 @@ const styles = StyleSheet.create({
   closeButton: { backgroundColor: '#0f172a', borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 18 },
   closeButtonText: { color: '#ffffff', fontWeight: '900' },
 });
+

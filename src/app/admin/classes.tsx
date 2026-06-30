@@ -1,5 +1,5 @@
-﻿import { MaterialIcons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
+import { MaterialIcons } from '@expo/vector-icons';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, RefreshControl, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
@@ -525,6 +525,10 @@ export default function AdminClassesScreen() {
         <Pressable style={styles.secondaryButtonInline} onPress={() => { setSelectedBaseScheduleId(''); setSchedulesOpen(true); }}>
           <MaterialIcons name="schedule" size={19} color={ucapsaBrand.colors.redDark} />
           <Text style={styles.secondaryButtonText}>Editar horarios</Text>
+        </Pressable>
+        <Pressable style={styles.secondaryButtonInline} onPress={() => router.push('/admin/scanner?mode=program' as never)}>
+          <MaterialIcons name="qr-code-scanner" size={19} color={ucapsaBrand.colors.redDark} />
+          <Text style={styles.secondaryButtonText}>Escanear QR</Text>
         </Pressable>
       </View>
 
@@ -1192,4 +1196,5 @@ const styles = StyleSheet.create({
   closeButtonText: { color: '#fff', fontSize: 14, fontWeight: '900' },
   deniedBox: { gap: 10, alignItems: 'center', justifyContent: 'center', flex: 1 },
 });
+
 

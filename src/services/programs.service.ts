@@ -486,3 +486,22 @@ export async function deleteProgramEnrollment(enrollmentId: string): Promise<voi
   if (error) throw error;
 }
 
+
+
+
+export async function getProgramEnrollmentByQrToken(qrToken: string): Promise<ProgramEnrollmentWithDetails | null> {
+  const cleanToken = qrToken.trim();
+  if (!cleanToken) return null;
+
+  const { data, error } = await supabase
+    .from('program_enrollments')
+    .select('*')
+    .eq('qr_token', cleanToken)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  const rows = await hydrateEnrollments([normalizeEnrollment(data)]);
+  return rows[0] ?? null;
+}

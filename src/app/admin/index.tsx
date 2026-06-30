@@ -1,4 +1,4 @@
-﻿import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '../../components/ui/Screen';
@@ -21,6 +21,12 @@ const adminLinks = [
     title: 'Socios',
     description: 'Solicitudes, credenciales, pagos manuales y estadisticas.',
     icon: 'badge',
+  },
+  {
+    href: '/admin/scanner',
+    title: 'Escaner UCAPSA',
+    description: 'Verificar socios y registrar asistencias de Puppy o Comandos.',
+    icon: 'qr-code-scanner',
   },
   {
     href: '/admin/classes',
@@ -90,6 +96,7 @@ const styles = StyleSheet.create({
   cardTitle: { color: '#0f172a', fontSize: 17, fontWeight: '900' },
   cardDescription: { marginTop: 3, color: '#64748b', fontSize: 13, lineHeight: 18, fontWeight: '700' },
 });
+
 
 
 

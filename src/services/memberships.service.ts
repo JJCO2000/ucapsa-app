@@ -515,3 +515,35 @@ export async function deactivateMembershipForProfile(profile: Profile): Promise<
   if (profileError) throw profileError;
 }
 
+
+
+
+export async function getMembershipByQrToken(qrToken: string): Promise<MembershipAdminRow | null> {
+  const cleanToken = qrToken.trim();
+  if (!cleanToken) return null;
+
+  const { data: membershipData, error: membershipError } = await supabase
+    .from('memberships')
+    .select('*')
+    .eq('qr_token', cleanToken)
+    .maybeSingle();
+
+  if (membershipError) throw membershipError;
+  if (!membershipData) return null;
+
+  const membership = membershipData as Membership;
+
+  const [profileResult, paymentsResult] = await Promise.all([
+    supabase.from('profiles').select('*').eq('user_id', membership.user_id).maybeSingle(),
+    supabase.from('payments').select('*').eq('membership_id', membership.id).order('paid_at', { ascending: false }),
+  ]);
+
+  if (profileResult.error) throw profileResult.error;
+  if (paymentsResult.error) throw paymentsResult.error;
+
+  return {
+    membership,
+    profile: (profileResult.data as Profile | null) ?? null,
+    payments: (paymentsResult.data ?? []) as Payment[],
+  };
+}
