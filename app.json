@@ -19,7 +19,8 @@
       },
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "resize",
-      "package": "com.jjcc2000.ucapsaapp"
+      "package": "com.jjcc2000.ucapsaapp",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",

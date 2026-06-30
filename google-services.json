@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "976008263712",
+    "project_id": "ucapsa-6d993",
+    "storage_bucket": "ucapsa-6d993.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:976008263712:android:51d1c26ab852b864262445",
+        "android_client_info": {
+          "package_name": "com.jjcc2000.ucapsaapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC1VfruvZI9_-WjvhzRLpCZugOh1DlDPHo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
