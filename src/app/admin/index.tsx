@@ -12,7 +12,7 @@ const adminLinks = [
   { href: '/admin/members', title: 'Socios', description: 'Solicitudes, credenciales, pagos manuales y estadisticas.', icon: 'badge' },
   { href: '/admin/scanner', title: 'Escaner UCAPSA', description: 'Verificar socios y registrar asistencias de Puppy o Comandos.', icon: 'qr-code-scanner' },
   { href: '/admin/classes', title: 'Clases UCAPSA', description: 'Puppy, Comandos, tarjetas fisicas y QR por perro.', icon: 'school' },
-  { href: '/admin/notifications', title: 'Notificaciones', description: 'Envio manual, audiencia, categoria e historial de entregas.', icon: 'notifications-active' },
+  { href: '/admin/notifications', title: 'Notificaciones', description: 'Envio manual, audiencia, categoria e historial de entregas.', icon: 'notifications-none' },
 ] as const;
 
 export default function AdminHomeScreen() {

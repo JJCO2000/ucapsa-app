@@ -143,7 +143,7 @@ export default function AdminNotificationsScreen() {
   if (loading) {
     return (
       <Screen backgroundColor={format.background}>
-        <Denied title="Revisando acceso" text="Cargando sesion administrativa..." icon="notifications-active" format={format} />
+        <Denied title="Revisando acceso" text="Cargando sesion administrativa..." icon="notifications-none" format={format} />
       </Screen>
     );
   }
@@ -174,7 +174,7 @@ export default function AdminNotificationsScreen() {
         eyebrow="UCAPSA Admin"
         title="Notificaciones"
         subtitle="Envia avisos manuales solo a usuarios que activaron notificaciones."
-        icon="notifications-active"
+        icon="notifications-none"
       />
 
       <UcapsaRoleCard
@@ -186,7 +186,7 @@ export default function AdminNotificationsScreen() {
 
       <View style={[styles.card, { backgroundColor: format.surface, borderColor: format.border }]}> 
         <Text style={[styles.sectionTitle, { color: format.text }]}>Nuevo envio</Text>
-        <Text style={[styles.sectionSubtitle, { color: format.muted }]}>Mantén el mensaje corto. Si notificas demasiado, la gente apaga permisos.</Text>
+        <Text style={[styles.sectionSubtitle, { color: format.muted }]}>MantÃ©n el mensaje corto. Si notificas demasiado, la gente apaga permisos.</Text>
 
         <Text style={[styles.label, { color: format.text }]}>Titulo</Text>
         <TextInput
@@ -270,8 +270,8 @@ export default function AdminNotificationsScreen() {
                   <Text style={[styles.statusPill, { color: format.accent, backgroundColor: format.accentSoft }]}>{statusLabels[campaign.status]}</Text>
                 </View>
                 <Text style={[styles.historyBody, { color: format.muted }]} numberOfLines={2}>{campaign.body}</Text>
-                <Text style={[styles.historyMeta, { color: format.muted }]}>Audiencia: {campaign.audience} · Categoria: {campaign.category}</Text>
-                <Text style={[styles.historyMeta, { color: format.muted }]}>Objetivo: {campaign.total_targets} · Enviadas: {campaign.success_count} · Fallidas: {campaign.failure_count}</Text>
+                <Text style={[styles.historyMeta, { color: format.muted }]}>Audiencia: {campaign.audience} Â· Categoria: {campaign.category}</Text>
+                <Text style={[styles.historyMeta, { color: format.muted }]}>Objetivo: {campaign.total_targets} Â· Enviadas: {campaign.success_count} Â· Fallidas: {campaign.failure_count}</Text>
                 <Text style={[styles.historyMeta, { color: format.muted }]}>Fecha: {formatDate(campaign.sent_at ?? campaign.created_at)}</Text>
               </View>
             ))}
