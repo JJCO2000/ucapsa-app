@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Tex
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
+import { useSession } from '../../hooks/useSession';
 import { supabase } from '../../lib/supabase';
 import { deactivateMembershipForProfile, forceMembershipForProfile } from '../../services/memberships.service';
 import type { AppRole, Profile } from '../../types/app.types';
@@ -37,6 +38,7 @@ function getFilterLabel(filter: UserFilter) {
 }
 
 export default function AdminUsersScreen() {
+  const { loading: sessionLoading, user, isAdmin } = useSession();
   const params = useLocalSearchParams<{ filter?: string }>();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [filter, setFilter] = useState<UserFilter>('clients_and_members');
@@ -51,6 +53,7 @@ export default function AdminUsersScreen() {
   }, [params.filter]);
 
   async function loadProfiles() {
+    if (!isAdmin) return;
     setLoading(true);
     const { data, error } = await supabase
       .from('profiles')
@@ -63,11 +66,16 @@ export default function AdminUsersScreen() {
   }
 
   useEffect(() => {
+    if (!isAdmin) {
+      setLoading(false);
+      return;
+    }
+
     loadProfiles().catch((error) => {
       setLoading(false);
       console.warn('No se pudieron cargar usuarios:', error instanceof Error ? error.message : error);
     });
-  }, []);
+  }, [isAdmin]);
 
   async function refreshSelectedProfile(userId: string) {
     const { data, error } = await supabase.from('profiles').select('*').eq('user_id', userId).maybeSingle();
@@ -133,6 +141,48 @@ export default function AdminUsersScreen() {
     admins: profiles.filter((profile) => profile.role === 'admin' || profile.role === 'super_admin').length,
   }), [profiles]);
 
+  if (sessionLoading) {
+    return (
+      <KeyboardAwareScreen>
+        <View style={styles.deniedBox}>
+          <MaterialCommunityIcons name="account-lock" size={42} color={ucapsaBrand.colors.redDark} />
+          <Text style={styles.deniedTitle}>Revisando acceso</Text>
+          <Text style={styles.deniedText}>Cargando sesion...</Text>
+        </View>
+      </KeyboardAwareScreen>
+    );
+  }
+
+  if (!user) {
+    return (
+      <KeyboardAwareScreen>
+        <View style={styles.deniedBox}>
+          <MaterialCommunityIcons name="lock" size={42} color={ucapsaBrand.colors.redDark} />
+          <Text style={styles.deniedTitle}>Acceso restringido</Text>
+          <Text style={styles.deniedText}>Inicia sesion con una cuenta administrativa para ver usuarios.</Text>
+          <Pressable style={styles.primaryButton} onPress={() => router.push('/auth/login' as never)}>
+            <Text style={styles.primaryButtonText}>Iniciar sesion</Text>
+          </Pressable>
+        </View>
+      </KeyboardAwareScreen>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <KeyboardAwareScreen>
+        <View style={styles.deniedBox}>
+          <MaterialCommunityIcons name="lock" size={42} color={ucapsaBrand.colors.redDark} />
+          <Text style={styles.deniedTitle}>Acceso restringido</Text>
+          <Text style={styles.deniedText}>Solo administradores pueden ver usuarios.</Text>
+          <Pressable style={styles.primaryButton} onPress={() => router.push('/home' as never)}>
+            <Text style={styles.primaryButtonText}>Volver a Inicio</Text>
+          </Pressable>
+        </View>
+      </KeyboardAwareScreen>
+    );
+  }
+
   return (
     <KeyboardAwareScreen>
       <View style={styles.hero}>
@@ -146,7 +196,7 @@ export default function AdminUsersScreen() {
         </View>
         <Text style={styles.eyebrow}>Panel administrativo</Text>
         <Text style={styles.title}>Usuarios</Text>
-        <Text style={styles.subtitle}>{getFilterLabel(filter)} · {filteredProfiles.length} registros</Text>
+        <Text style={styles.subtitle}>{getFilterLabel(filter)} - {filteredProfiles.length} registros</Text>
       </View>
 
       <View style={styles.summaryGrid}>
@@ -275,6 +325,9 @@ function Detail({ label, value }: { label: string; value?: string | null }) {
 }
 
 const styles = StyleSheet.create({
+  deniedBox: { flex: 1, minHeight: 420, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
+  deniedTitle: { color: ucapsaBrand.colors.redDark, fontSize: 24, fontWeight: '900', textAlign: 'center' },
+  deniedText: { color: ucapsaBrand.colors.muted, fontSize: 14, lineHeight: 20, textAlign: 'center', fontWeight: '700' },
   hero: { backgroundColor: '#fff', borderRadius: 30, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 20 },
   heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   iconBubble: { width: 46, height: 46, borderRadius: 23, backgroundColor: ucapsaBrand.colors.redSoft, alignItems: 'center', justifyContent: 'center' },
@@ -318,3 +371,4 @@ const styles = StyleSheet.create({
   closeButton: { backgroundColor: ucapsaBrand.colors.text, borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 12 },
   closeButtonText: { color: '#fff', fontSize: 14, fontWeight: '900' },
 });
+

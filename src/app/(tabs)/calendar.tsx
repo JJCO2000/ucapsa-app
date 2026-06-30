@@ -143,22 +143,36 @@ export default function CalendarScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [classLoadWarning, setClassLoadWarning] = useState<string | null>(null);
 
   async function loadCalendarData() {
     setError(null);
-    const [eventResult, announcementResult, programResult, scheduleResult, cancellationResult] = await Promise.all([
+    setClassLoadWarning(null);
+
+    const [eventResult, announcementResult] = await Promise.all([
       getVisibleEvents(),
       getVisibleAnnouncements(),
-      getPrograms(),
-      getProgramSchedules(),
-      getProgramClassCancellations(),
     ]);
 
     setEvents(eventResult);
     setAnnouncements(announcementResult);
-    setPrograms(programResult);
-    setProgramSchedules(scheduleResult);
-    setClassCancellations(cancellationResult);
+
+    try {
+      const [programResult, scheduleResult, cancellationResult] = await Promise.all([
+        getPrograms(),
+        getProgramSchedules(),
+        getProgramClassCancellations(),
+      ]);
+
+      setPrograms(programResult);
+      setProgramSchedules(scheduleResult);
+      setClassCancellations(cancellationResult);
+    } catch (err) {
+      setPrograms([]);
+      setProgramSchedules([]);
+      setClassCancellations([]);
+      setClassLoadWarning(err instanceof Error ? err.message : 'No se pudieron cargar las clases.');
+    }
   }
 
   useEffect(() => {
@@ -169,7 +183,6 @@ export default function CalendarScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
       loadCalendarData()
         .catch((err) => setError(err.message ?? 'No se pudo cargar el calendario.'))
         .finally(() => setLoading(false));
@@ -276,7 +289,7 @@ export default function CalendarScreen() {
           </View>
         ) : null}
 
-        {loading ? (
+        {loading && dayCount === 0 ? (
           <View style={styles.centerBox}>
             <ActivityIndicator />
             <Text style={styles.muted}>Cargando calendario...</Text>
@@ -293,7 +306,14 @@ export default function CalendarScreen() {
           </View>
         ) : null}
 
-        {!loading && !error ? (
+        {classLoadWarning && isAdmin ? (
+          <View style={styles.warningBox}>
+            <Text style={styles.warningTitle}>Clases no disponibles</Text>
+            <Text style={styles.warningText}>{classLoadWarning}</Text>
+          </View>
+        ) : null}
+
+        {!error ? (
           <>
             <View style={styles.calendarCard}>
               <Calendar
@@ -474,6 +494,9 @@ const styles = StyleSheet.create({
   classDot: { backgroundColor: '#B51228' },
   announcementDot: { backgroundColor: '#2563eb' },
   legendText: { color: '#64748b', fontSize: 12, fontWeight: '800' },
+  warningBox: { gap: 6, padding: 16, borderRadius: 18, backgroundColor: '#fff7ed', borderWidth: 1, borderColor: '#fed7aa' },
+  warningTitle: { color: '#9a3412', fontSize: 16, fontWeight: '900' },
+  warningText: { color: '#9a3412', fontSize: 13, lineHeight: 19, fontWeight: '700' },
   centerBox: { gap: 10, alignItems: 'center', padding: 24 },
   muted: { color: '#64748b', fontSize: 14, lineHeight: 20 },
   errorBox: { gap: 10, padding: 16, borderRadius: 18, backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fecaca' },
@@ -511,6 +534,7 @@ const styles = StyleSheet.create({
   cancelledText: { color: '#dc2626', fontSize: 12, fontWeight: '900', marginTop: 4 },
   dayCancelledText: { alignSelf: 'flex-start', overflow: 'hidden', marginTop: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: '#fee2e2', color: '#991b1b', fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
 });
+
 
 
 

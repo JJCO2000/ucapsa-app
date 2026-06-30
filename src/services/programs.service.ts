@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+﻿import { supabase } from '../lib/supabase';
 import type {
   Profile,
   ProgramAttendance,
@@ -659,7 +659,7 @@ export async function createProgramClassCancellation(input: CreateProgramClassCa
       .insert({
         title,
         content,
-        audience: 'clients',
+        audience: 'public',
         is_pinned: true,
         is_published: true,
         event_id: null,
@@ -744,7 +744,7 @@ export async function createProgramDayCancellations(input: CreateProgramDayCance
       .insert({
         title: 'Clases canceladas',
         content: `Las clases UCAPSA del ${input.cancellationDate} quedan canceladas. Clases: ${classList}. Motivo: ${reason}`,
-        audience: 'clients',
+        audience: 'public',
         is_pinned: true,
         is_published: true,
         event_id: null,
@@ -839,5 +839,6 @@ export async function deleteProgramClassCancellation(cancellationId: string): Pr
     if (announcementError) throw announcementError;
   }
 }
+
 
 
