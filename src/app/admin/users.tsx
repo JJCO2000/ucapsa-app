@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
@@ -9,6 +9,13 @@ import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import { supabase } from '../../lib/supabase';
 import { deactivateMembershipForProfile, forceMembershipForProfile } from '../../services/memberships.service';
+import {
+  awardAchievementToUser,
+  getAchievementsForUser,
+  revokeAchievementFromUser,
+  type AchievementWithState,
+} from '../../services/achievements.service';
+import { updateProfileDogName } from '../../services/profiles.service';
 import type { AppRole, Profile } from '../../types/app.types';
 
 type UserFilter = 'clients_and_members' | 'clients' | 'members' | 'admins';
@@ -47,6 +54,8 @@ export default function AdminUsersScreen() {
   const [loading, setLoading] = useState(true);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
+  const [selectedAchievements, setSelectedAchievements] = useState<AchievementWithState[]>([]);
+  const [loadingAchievements, setLoadingAchievements] = useState(false);
 
   useEffect(() => {
     if (typeof params.filter === 'string' && filterOptions.some((item) => item.value === params.filter)) {
@@ -86,6 +95,56 @@ export default function AdminUsersScreen() {
     if (nextProfile) setSelectedProfile(nextProfile);
   }
 
+
+  async function loadAchievementsForProfile(userId: string) {
+    setLoadingAchievements(true);
+    try {
+      const rows = await getAchievementsForUser(userId);
+      setSelectedAchievements(rows);
+    } catch (error) {
+      Alert.alert('No se pudieron cargar logros', error instanceof Error ? error.message : 'Intenta de nuevo.');
+    } finally {
+      setLoadingAchievements(false);
+    }
+  }
+
+  function openUserDetail(profile: Profile) {
+    setSelectedProfile(profile);
+    void loadAchievementsForProfile(profile.user_id);
+  }
+
+  function handleToggleAchievement(profile: Profile, item: AchievementWithState) {
+    const title = item.unlocked ? 'Quitar logro' : 'Marcar logro completado';
+    const message = item.unlocked
+      ? `Esto quitara ${item.definition.title} de los logros del usuario. Usalo solo si fue un error.`
+      : `Esto marcara como completado: ${item.definition.unlocked_title}.`;
+    const confirmLabel = item.unlocked ? 'Quitar' : 'Marcar completado';
+
+    Alert.alert(title, message, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: confirmLabel,
+        style: item.unlocked ? 'destructive' : 'default',
+        onPress: async () => {
+          try {
+            setSavingUserId(profile.user_id);
+            if (item.unlocked) {
+              await revokeAchievementFromUser(profile.user_id, item.definition.code);
+            } else {
+              await awardAchievementToUser(profile.user_id, item.definition.code);
+            }
+            await loadAchievementsForProfile(profile.user_id);
+            Alert.alert('Logros actualizados', item.unlocked ? 'El logro fue quitado.' : 'El logro fue marcado como completado.');
+          } catch (error) {
+            Alert.alert('No se pudo actualizar logro', error instanceof Error ? error.message : 'Intenta de nuevo.');
+          } finally {
+            setSavingUserId(null);
+          }
+        },
+      },
+    ]);
+  }
+
   function handleForceMember(profile: Profile) {
     Alert.alert('Forzar socio', 'Esto activa o crea una membresia de socio para este cliente. El pago quedara pendiente si no estaba pagado.', [
       { text: 'Cancelar', style: 'cancel' },
@@ -106,6 +165,20 @@ export default function AdminUsersScreen() {
         },
       },
     ]);
+  }
+
+  async function handleSaveDogName(profile: Profile, dogName: string) {
+    try {
+      setSavingUserId(profile.user_id);
+      await updateProfileDogName(profile.user_id, dogName);
+      await loadProfiles();
+      await refreshSelectedProfile(profile.user_id);
+      Alert.alert('Perro actualizado', 'El nombre del perro quedo guardado.');
+    } catch (error) {
+      Alert.alert('No se pudo guardar perro', error instanceof Error ? error.message : 'Intenta de nuevo.');
+    } finally {
+      setSavingUserId(null);
+    }
   }
 
   function handleBackToClient(profile: Profile) {
@@ -236,7 +309,7 @@ export default function AdminUsersScreen() {
 
       <View style={styles.listCard}>
         {filteredProfiles.map((item) => (
-          <Pressable key={item.id} style={styles.userRow} onPress={() => setSelectedProfile(item)}>
+          <Pressable key={item.id} style={styles.userRow} onPress={() => openUserDetail(item)}>
             <View style={[styles.avatar, { backgroundColor: item.avatar_color || ucapsaBrand.colors.red }]}> 
               <Text style={styles.avatarText}>{(item.full_name || item.email || 'U').slice(0, 1).toUpperCase()}</Text>
             </View>
@@ -256,6 +329,10 @@ export default function AdminUsersScreen() {
         onClose={() => setSelectedProfile(null)}
         onForceMember={handleForceMember}
         onBackToClient={handleBackToClient}
+        onSaveDogName={handleSaveDogName}
+        achievements={selectedAchievements}
+        loadingAchievements={loadingAchievements}
+        onToggleAchievement={handleToggleAchievement}
       />
     </KeyboardAwareScreen>
   );
@@ -270,7 +347,13 @@ function Summary({ label, value }: { label: string; value: number }) {
   );
 }
 
-function UserDetailModal({ profile, saving, onClose, onForceMember, onBackToClient }: { profile: Profile | null; saving: boolean; onClose: () => void; onForceMember: (profile: Profile) => void; onBackToClient: (profile: Profile) => void }) {
+function UserDetailModal({ profile, saving, onClose, onForceMember, onBackToClient, onSaveDogName, achievements, loadingAchievements, onToggleAchievement }: { profile: Profile | null; saving: boolean; onClose: () => void; onForceMember: (profile: Profile) => void; onBackToClient: (profile: Profile) => void; onSaveDogName: (profile: Profile, dogName: string) => void; achievements: AchievementWithState[]; loadingAchievements: boolean; onToggleAchievement: (profile: Profile, item: AchievementWithState) => void }) {
+  const [dogNameDraft, setDogNameDraft] = useState('');
+
+  useEffect(() => {
+    setDogNameDraft(profile?.dog_name ?? '');
+  }, [profile?.user_id, profile?.dog_name]);
+
   if (!profile) return null;
 
   return (
@@ -288,6 +371,47 @@ function UserDetailModal({ profile, saving, onClose, onForceMember, onBackToClie
             <Detail label="Perro" value={profile.dog_name} />
             <Detail label="Rol" value={getRoleLabel(profile.role)} />
             <Detail label="Solicitud eliminacion" value={profile.deletion_requested_at ? 'Si' : 'No'} />
+          </View>
+
+          <View style={styles.dogEditBox}>
+            <Text style={styles.detailLabel}>Editar perro</Text>
+            <TextInput
+              value={dogNameDraft}
+              onChangeText={setDogNameDraft}
+              placeholder="Nombre del perro"
+              style={styles.dogInput}
+            />
+            <Pressable disabled={saving} style={styles.dogSaveButton} onPress={() => onSaveDogName(profile, dogNameDraft)}>
+              <Text style={styles.dogSaveButtonText}>{saving ? 'Guardando...' : 'Guardar perro'}</Text>
+            </Pressable>
+          </View>
+
+
+          <View style={styles.achievementsAdminBox}>
+            <View style={styles.achievementsHeaderRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.detailLabel}>Logros del cliente</Text>
+                <Text style={styles.achievementsAdminHint}>Marca manualmente programas ya completados. Tambien se otorgan solos al completar Puppy o Comandos.</Text>
+              </View>
+              {loadingAchievements ? <ActivityIndicator color={ucapsaBrand.colors.red} /> : null}
+            </View>
+
+            <View style={styles.achievementAdminGrid}>
+              {achievements.map((item) => (
+                <Pressable
+                  key={item.definition.code}
+                  disabled={saving || loadingAchievements}
+                  style={[styles.achievementAdminChip, item.unlocked && styles.achievementAdminChipActive]}
+                  onPress={() => onToggleAchievement(profile, item)}
+                >
+                  <MaterialCommunityIcons name={item.definition.icon as never} size={22} color={item.unlocked ? '#7A1020' : ucapsaBrand.colors.muted} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.achievementAdminTitle, item.unlocked && styles.achievementAdminTitleActive]}>{item.definition.title}</Text>
+                    <Text style={[styles.achievementAdminStatus, item.unlocked && styles.achievementAdminStatusActive]}>{item.unlocked ? 'Completado' : 'Marcar completado'}</Text>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
           </View>
 
           {profile.role === 'member' ? (
@@ -366,6 +490,20 @@ const styles = StyleSheet.create({
   detailRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F7E6EA' },
   detailLabel: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
   detailValue: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '700', marginTop: 3 },
+  dogEditBox: { gap: 8, backgroundColor: '#fff', borderRadius: 22, padding: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginTop: 14 },
+  dogInput: { minHeight: 46, paddingHorizontal: 14, borderRadius: 16, backgroundColor: ucapsaBrand.colors.background, borderWidth: 1, borderColor: ucapsaBrand.colors.border, color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '800' },
+  dogSaveButton: { alignItems: 'center', borderRadius: 16, paddingVertical: 12, backgroundColor: ucapsaBrand.colors.red },
+  dogSaveButtonText: { color: '#fff', fontSize: 14, fontWeight: '900' },
+  achievementsAdminBox: { gap: 12, backgroundColor: '#fff', borderRadius: 22, padding: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginTop: 14 },
+  achievementsHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  achievementsAdminHint: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 4 },
+  achievementAdminGrid: { gap: 8 },
+  achievementAdminChip: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 18, backgroundColor: ucapsaBrand.colors.background, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  achievementAdminChipActive: { backgroundColor: '#FFF7CC', borderColor: '#FACC15' },
+  achievementAdminTitle: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
+  achievementAdminTitleActive: { color: '#7A1020' },
+  achievementAdminStatus: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '800', marginTop: 2 },
+  achievementAdminStatusActive: { color: '#92400E' },
   primaryButton: { backgroundColor: ucapsaBrand.colors.red, borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 16 },
   primaryButtonText: { color: '#fff', fontSize: 14, fontWeight: '900' },
   secondaryButton: { backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 12 },
@@ -373,3 +511,4 @@ const styles = StyleSheet.create({
   closeButton: { backgroundColor: ucapsaBrand.colors.text, borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 12 },
   closeButtonText: { color: '#fff', fontSize: 14, fontWeight: '900' },
 });
+

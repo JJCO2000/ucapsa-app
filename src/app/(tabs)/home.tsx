@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AchievementMiniRow } from '../../components/domain/AchievementBadgeGrid';
 import { AnnouncementCard } from '../../components/domain/AnnouncementCard';
 import { EventCard } from '../../components/domain/EventCard';
 import { UcapsaRoleCard, UcapsaRoleHero } from '../../components/layout/UcapsaRoleLayout';
@@ -11,6 +12,7 @@ import { UcapsaDetailModal } from '../../components/ui/UcapsaDetailModal';
 import { ucapsaBrand } from '../../constants/brand';
 import { getActiveModuleLabels, getFormatTitle, resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
+import { getMyAchievements, type AchievementWithState } from '../../services/achievements.service';
 import { getVisibleAnnouncements } from '../../services/announcements.service';
 import { getVisibleEvents } from '../../services/events.service';
 import { getAdminMembershipRows, getMyMembership } from '../../services/memberships.service';
@@ -42,6 +44,7 @@ export default function HomeScreen() {
   const [programEnrollments, setProgramEnrollments] = useState<ProgramEnrollmentWithDetails[]>([]);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<EventOccurrence | null>(null);
+  const [achievements, setAchievements] = useState<AchievementWithState[]>([]);
   const [adminStats, setAdminStats] = useState({ active: 0, requests: 0, pendingPayments: 0 });
   const [loading, setLoading] = useState(true);
 
@@ -60,14 +63,24 @@ export default function HomeScreen() {
         });
         setMembership(null);
         setProgramEnrollments([]);
-      } else if (user) {
+        setAchievements([]);
+        return;
+      }
+
+      if (user) {
         const [membershipResult, programResult] = await Promise.all([getMyMembership(), getMyProgramEnrollments()]);
         setMembership(membershipResult);
         setProgramEnrollments(programResult);
-      } else {
-        setMembership(null);
-        setProgramEnrollments([]);
+
+        void getMyAchievements()
+          .then(setAchievements)
+          .catch(() => setAchievements([]));
+        return;
       }
+
+      setMembership(null);
+      setProgramEnrollments([]);
+      setAchievements([]);
     } finally {
       setLoading(false);
     }
@@ -77,16 +90,23 @@ export default function HomeScreen() {
   useFocusEffect(useCallback(() => { void loadData(); return undefined; }, [loadData]));
 
   const displayName = profile?.full_name || profile?.email || user?.email || 'Visitante';
+  const effectiveRole = role ?? profile?.role ?? null;
   const membershipStatus = membership?.status ?? null;
-  const isActiveMember = role === 'member' || membershipStatus === 'active';
+  const isActiveMember = effectiveRole === 'member' || membershipStatus === 'active';
   const activeProgramEnrollments = programEnrollments.filter((item) => item.enrollment.status === 'active');
   const hasPuppy = activeProgramEnrollments.some((item) => item.program.code === 'puppy');
   const hasComandos = activeProgramEnrollments.some((item) => item.program.code === 'comandos');
   const activeModuleLabels = getActiveModuleLabels({ isMember: isActiveMember, hasPuppy, hasComandos });
   const isPendingMemberRequest = membershipStatus === 'pending' && activeModuleLabels.length === 0;
+  const hasDogName = Boolean((profile?.dog_name ?? '').trim());
+  const clientHeroSubtitle = !user
+    ? 'Inicia sesion para ver tu perfil UCAPSA.'
+    : !hasDogName && !isAdmin
+      ? 'Completa tu perfil.'
+      : 'Consulta tus avisos y logros.';
   const format = useMemo(
-    () => resolveUcapsaFormat({ user, role, isAdmin, membershipStatus, hasActivePrograms: activeProgramEnrollments.length > 0 }),
-    [user, role, isAdmin, membershipStatus, activeProgramEnrollments.length],
+    () => resolveUcapsaFormat({ user, role: effectiveRole, isAdmin, membershipStatus, hasActivePrograms: activeProgramEnrollments.length > 0 }),
+    [user, effectiveRole, isAdmin, membershipStatus, activeProgramEnrollments.length],
   );
 
   const membershipIcon = isAdmin || isActiveMember ? 'crown' : hasPuppy ? 'dog' : hasComandos ? 'school' : 'paw';
@@ -106,7 +126,7 @@ export default function HomeScreen() {
       : isPendingMemberRequest
         ? 'Administracion revisara tu solicitud.'
         : user
-          ? 'Solicita membresia o consulta tu espacio.'
+          ? hasDogName ? 'Consulta tus avisos y logros.' : 'Completa tu perfil.'
           : 'Inicia sesion para credencial, QR y membresia.';
 
   const isPremiumHome = format.key === 'member' && !isAdmin;
@@ -124,17 +144,28 @@ export default function HomeScreen() {
             activeModules={activeModuleLabels}
             programs={activeProgramEnrollments}
             upcomingEvents={events}
+            achievements={achievements}
           />
         ) : (
           <>
-            <UcapsaRoleHero
-              format={format}
-              eyebrow={format.shortLabel}
-              title={getFormatTitle(format, displayName)}
-              subtitle={isAdmin ? `Rol: ${role ?? 'admin'}` : format.subtitle}
-              icon={format.icon}
-              right={<Image source={mark} style={styles.heroMark} resizeMode="contain" />}
-            />
+            {isAdmin ? (
+              <UcapsaRoleHero
+                format={format}
+                eyebrow={format.shortLabel}
+                title={getFormatTitle(format, displayName)}
+                subtitle={`Rol: ${role ?? 'admin'}`}
+                icon={format.icon}
+              />
+            ) : (
+              <ClientHomeHero
+                format={format}
+                eyebrow={format.shortLabel}
+                title={getFormatTitle(format, displayName)}
+                subtitle={clientHeroSubtitle}
+                icon={format.icon}
+                achievements={achievements}
+              />
+            )}
 
             <View style={styles.wordmarkCard}>
               <Image source={wordmark} style={styles.wordmark} resizeMode="contain" />
@@ -209,7 +240,25 @@ export default function HomeScreen() {
   );
 }
 
-function PremiumMemberHome({ displayName, membership, activeModules, programs, upcomingEvents }: { displayName: string; membership: Membership | null; activeModules: string[]; programs: ProgramEnrollmentWithDetails[]; upcomingEvents: EventOccurrence[] }) {
+
+function ClientHomeHero({ format, eyebrow, title, subtitle, icon, achievements }: { format: ReturnType<typeof resolveUcapsaFormat>; eyebrow: string; title: string; subtitle: string; icon: string; achievements: AchievementWithState[] }) {
+  return (
+    <View style={[styles.clientHeroCard, { backgroundColor: format.surface, borderColor: format.border }]}> 
+      <View style={styles.clientHeroTopRow}>
+        <View style={[styles.clientHeroIcon, { backgroundColor: format.accentSoft }]}> 
+          <MaterialCommunityIcons name={icon as any} size={26} color={format.accent} />
+        </View>
+        <Image source={mark} style={styles.clientHeroMark} resizeMode="contain" />
+      </View>
+      <Text style={[styles.clientHeroEyebrow, { color: format.accentDark }]}>{eyebrow}</Text>
+      <Text style={[styles.clientHeroTitle, { color: format.text }]}>{title}</Text>
+      <Text style={[styles.clientHeroSubtitle, { color: format.muted }]}>{subtitle}</Text>
+      <AchievementMiniRow items={achievements} premium={false} onPress={() => router.push('/achievements' as never)} />
+    </View>
+  );
+}
+
+function PremiumMemberHome({ displayName, membership, activeModules, programs, upcomingEvents, achievements }: { displayName: string; membership: Membership | null; activeModules: string[]; programs: ProgramEnrollmentWithDetails[]; upcomingEvents: EventOccurrence[]; achievements: AchievementWithState[] }) {
   const memberNumber = membership?.member_number || 'Pendiente';
   const nextEvent = upcomingEvents[0] ?? null;
 
@@ -239,6 +288,8 @@ function PremiumMemberHome({ displayName, membership, activeModules, programs, u
             <Text key={label} style={styles.premiumModulePill}>{label}</Text>
           ))}
         </View>
+
+        <AchievementMiniRow items={achievements} premium onPress={() => router.push('/achievements' as never)} />
       </View>
 
       <View style={styles.premiumMainCard}>
@@ -249,7 +300,6 @@ function PremiumMemberHome({ displayName, membership, activeModules, programs, u
           <View style={{ flex: 1 }}>
             <Text style={styles.premiumCardKicker}>Credencial digital</Text>
             <Text style={styles.premiumCardTitle}>Tu acceso UCAPSA</Text>
-            <Text style={styles.premiumCardText}>QR, vigencia y modulos activos en Mi UCAPSA.</Text>
           </View>
         </View>
         <Pressable style={styles.premiumPrimaryButton} onPress={() => router.push('/membership' as never)}>
@@ -262,7 +312,6 @@ function PremiumMemberHome({ displayName, membership, activeModules, programs, u
         <PremiumAction icon="qrcode-scan" label="QR" text="Verificar" onPress={() => router.push('/membership' as never)} />
         <PremiumAction icon="calendar-month" label="Agenda" text={nextEvent ? formatDateShort(nextEvent.start_date) : 'Calendario'} onPress={() => router.push('/calendar' as never)} />
         <PremiumAction icon="dog" label="Clases" text={programs.length > 0 ? programs.map(getProgramLabel).join(', ') : 'Sin clases'} onPress={() => router.push('/membership' as never)} />
-        <PremiumAction icon="shield-check" label="Beneficios" text="Socio" onPress={() => router.push('/membership' as never)} />
       </View>
     </View>
   );
@@ -326,6 +375,14 @@ const styles = StyleSheet.create({
   content: { gap: 16, padding: 20, paddingBottom: 120 },
   premiumContent: { paddingTop: 18, gap: 18 },
   heroMark: { width: 42, height: 42 },
+  heroAccessory: { alignItems: 'flex-end', justifyContent: 'center', gap: 6, maxWidth: 138 },
+  clientHeroCard: { gap: 10, padding: 22, borderRadius: 30, borderWidth: 1 },
+  clientHeroTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  clientHeroIcon: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
+  clientHeroMark: { width: 52, height: 52 },
+  clientHeroEyebrow: { fontSize: 12, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase' },
+  clientHeroTitle: { fontSize: 32, lineHeight: 37, fontWeight: '900' },
+  clientHeroSubtitle: { fontSize: 16, lineHeight: 23, fontWeight: '800' },
   wordmarkCard: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 4 },
   wordmark: { width: 160, height: 40 },
   wordmarkText: { flex: 1, fontSize: 12, fontWeight: '800' },

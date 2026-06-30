@@ -53,28 +53,29 @@ export async function requestAccountDeletion(reason?: string): Promise<void> {
   const userId = authData.user?.id;
   if (!userId) throw new Error('No hay sesion activa.');
 
-  const { data: existingProfile, error: profileError } = await supabase
-    .from('profiles')
-    .select('deletion_requested_at')
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  if (profileError) throw profileError;
-
-  if ((existingProfile as Pick<Profile, 'deletion_requested_at'> | null)?.deletion_requested_at) {
-    return;
-  }
-
-  const now = new Date().toISOString();
   const { error } = await supabase
     .from('profiles')
     .update({
-      deletion_requested_at: now,
+      deletion_requested_at: new Date().toISOString(),
       deletion_request_reason: reason?.trim() || 'Solicitud desde la app.',
-      updated_at: now,
+      updated_at: new Date().toISOString(),
     })
     .eq('user_id', userId);
 
   if (error) throw error;
 }
 
+export async function updateProfileDogName(userId: string, dogName: string): Promise<Profile> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({
+      dog_name: dogName.trim() || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', userId)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data as Profile;
+}

@@ -32,11 +32,14 @@ import {
   type UpdateMembershipDetailsInput,
 } from '../../services/memberships.service';
 import { deleteMembershipPayment, registerMembershipPayment } from '../../services/payments.service';
+import { getMyAchievements, type AchievementWithState } from '../../services/achievements.service';
 import { getMyProgramEnrollments } from '../../services/programs.service';
 import type { Membership, MembershipPaymentStatus, MembershipStatus, Payment, ProgramEnrollmentWithDetails } from '../../types/app.types';
 
 const wordmark = require('../../../assets/images/brand/ucapsa-wordmark.png');
 const mark = require('../../../assets/images/brand/ucapsa-mark.png');
+
+const programAchievementCodes = new Set(['puppy_completed', 'comandos_basico_completed', 'comandos_medio_completed', 'comandos_avanzado_completed']);
 const TABLE_PREFS_KEY = 'ucapsa.miucapsa.membership.table.columns.v4';
 const TABLE_SORT_KEY = 'ucapsa.miucapsa.membership.table.sort.v1';
 const ACTION_MEMORY_KEY = 'ucapsa.miucapsa.membership.table.actions.v1';
@@ -320,6 +323,8 @@ export default function MembershipScreen() {
   const params = useLocalSearchParams<{ view?: string; filter?: string; sort?: string }>();
   const [membership, setMembership] = useState<Membership | null>(null);
   const [programEnrollments, setProgramEnrollments] = useState<ProgramEnrollmentWithDetails[]>([]);
+  const [achievements, setAchievements] = useState<AchievementWithState[]>([]);
+  const [achievementsLoading, setAchievementsLoading] = useState(false);
   const [adminRows, setAdminRows] = useState<MembershipAdminRow[]>([]);
   const [deleteRequests, setDeleteRequests] = useState<MembershipDeleteRequestRow[]>([]);
   const [perspective, setPerspective] = useState<AdminPerspective>('stats');
@@ -336,6 +341,7 @@ export default function MembershipScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const activeProgramEnrollmentsForFormat = programEnrollments.filter((item) => item.enrollment.status === 'active');
+  const eligibleProgramEnrollmentsForMembership = programEnrollments.filter((item) => item.enrollment.status === 'active' || item.enrollment.status === 'completed');
   const baseFormat = useMemo(
     () => resolveUcapsaFormat({
       user,
@@ -416,13 +422,21 @@ export default function MembershipScreen() {
   const loadClientMembership = useCallback(async () => {
     if (!user || isAdmin) return;
     setLoading(true);
+    setAchievementsLoading(true);
     try {
       const [membershipData, programData] = await Promise.all([getMyMembership(), getMyProgramEnrollments()]);
       setMembership(membershipData);
       setProgramEnrollments(programData);
+      setLoading(false);
+
+      void getMyAchievements()
+        .then(setAchievements)
+        .catch(() => setAchievements([]))
+        .finally(() => setAchievementsLoading(false));
     } catch (error) {
+      setAchievements([]);
+      setAchievementsLoading(false);
       Alert.alert('No se pudo cargar', error instanceof Error ? error.message : 'Intenta de nuevo.');
-    } finally {
       setLoading(false);
     }
   }, [user, isAdmin]);
@@ -469,6 +483,11 @@ export default function MembershipScreen() {
   }
 
   async function handleRequestMembership() {
+    if (eligibleProgramEnrollmentsForMembership.length === 0) {
+      Alert.alert('Membresia no disponible', 'Para solicitar membresia primero debes estar inscrito o haber completado Puppy o Comandos.');
+      return;
+    }
+
     try {
       const data = await requestMembership();
       setMembership(data);
@@ -952,10 +971,12 @@ export default function MembershipScreen() {
   const displayName = profile?.full_name || profile?.email || user.email || 'Usuario';
   const activeProgramEnrollments = activeProgramEnrollmentsForFormat;
   const hasActiveMembership = membership?.status === 'active';
-  const hasActiveProgram = activeProgramEnrollments.length > 0;
-  const showMembershipRequest = !membership && !hasActiveProgram;
+  const hasProgramAchievement = achievements.some((item) => item.unlocked && programAchievementCodes.has(item.definition.code));
+  const canRequestMembership = hasProgramAchievement || eligibleProgramEnrollmentsForMembership.length > 0;
+  const showMembershipRequest = !membership && canRequestMembership && !loading;
+  const showMembershipBlocked = !membership && !canRequestMembership && !loading && !achievementsLoading;
   const showPendingMembership = membership?.status === 'pending' && !hasActiveMembership;
-  const showInactiveMembership = Boolean(membership && membership.status !== 'pending' && membership.status !== 'active' && !hasActiveProgram);
+  const showInactiveMembership = Boolean(membership && membership.status !== 'pending' && membership.status !== 'active');
 
   return (
     <KeyboardAwareScreen style={{ backgroundColor: isPremium ? '#270711' : baseFormat.background }} contentContainerStyle={isPremium ? styles.premiumScreenContent : undefined} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={baseFormat.accent} />}>
@@ -968,6 +989,14 @@ export default function MembershipScreen() {
       </View>
 
       {loading ? <Text style={[styles.muted, { color: baseFormat.muted }]}>Cargando membresia...</Text> : null}
+      {!loading && achievementsLoading && !membership ? <Text style={[styles.muted, { color: baseFormat.muted }]}>Revisando logros y requisitos...</Text> : null}
+
+      {showMembershipBlocked ? (
+        <View style={[styles.card, isPremium && styles.premiumBodyCard]}>
+          <Text style={[styles.cardTitle, isPremium && styles.premiumBodyTitle]}>Membresia no disponible todavia</Text>
+          <Text style={[styles.cardText, isPremium && styles.premiumBodyText]}>Para solicitar membresia primero debes estar inscrito o haber completado Puppy o Comandos.</Text>
+        </View>
+      ) : null}
 
       {showMembershipRequest ? (
         <View style={[styles.card, isPremium && styles.premiumBodyCard]}>
@@ -987,8 +1016,10 @@ export default function MembershipScreen() {
       {membership && showInactiveMembership ? (
         <View style={[styles.card, isPremium && styles.premiumBodyCard]}>
           <Text style={[styles.cardTitle, isPremium && styles.premiumBodyTitle]}>Membresia {getMembershipStatusLabel(membership.status).toLowerCase()}</Text>
-          <Text style={[styles.cardText, isPremium && styles.premiumBodyText]}>Tu membresia no esta aceptada, no esta reconocida o falta revision de contrato. Si necesitas reactivarla, solicita revision a administracion.</Text>
-          <Pressable onPress={handleRequestMembership} style={[styles.primaryButton, isPremium && styles.premiumPrimaryButton]}><Text style={[styles.primaryButtonText, isPremium && styles.premiumPrimaryButtonText]}>Solicitar revision</Text></Pressable>
+          <Text style={[styles.cardText, isPremium && styles.premiumBodyText]}>{canRequestMembership ? 'Tu membresia no esta aceptada, no esta reconocida o falta revision de contrato. Si necesitas reactivarla, solicita revision a administracion.' : 'Tu membresia no esta activa. Para solicitar revision primero debes estar inscrito o haber completado Puppy o Comandos.'}</Text>
+          {canRequestMembership ? (
+            <Pressable onPress={handleRequestMembership} style={[styles.primaryButton, isPremium && styles.premiumPrimaryButton]}><Text style={[styles.primaryButtonText, isPremium && styles.premiumPrimaryButtonText]}>Solicitar revision</Text></Pressable>
+          ) : null}
         </View>
       ) : null}
 

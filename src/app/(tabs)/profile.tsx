@@ -1,8 +1,9 @@
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
-import { Link, router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Modal, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { AchievementBadgeGrid, AchievementDetailModal, AchievementSummary } from '../../components/domain/AchievementBadgeGrid';
 import { SocialLinksRow } from '../../components/ui/SocialLinksRow';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
@@ -12,12 +13,16 @@ import { supabase } from '../../lib/supabase';
 import { getVisibleAnnouncements } from '../../services/announcements.service';
 import { getVisibleEvents } from '../../services/events.service';
 import { getAdminMembershipRows, getMembershipStatusLabel, getMyMembership, isMembershipDateExpired } from '../../services/memberships.service';
+import { getMyProgramEnrollments } from '../../services/programs.service';
+import { getMyAchievements, type AchievementWithState } from '../../services/achievements.service';
 import { requestAccountDeletion, updateMyProfile } from '../../services/profiles.service';
-import type { Membership, Profile } from '../../types/app.types';
+import type { Membership, Profile, ProgramEnrollmentWithDetails } from '../../types/app.types';
 
 const avatarColors = ['#C91F37', '#8F1324', '#2563eb', '#7c3aed', '#db2777', '#0f766e'];
 const wordmark = require('../../../assets/images/brand/ucapsa-wordmark.png');
 const mark = require('../../../assets/images/brand/ucapsa-mark.png');
+
+const programAchievementCodes = new Set(['puppy_completed', 'comandos_basico_completed', 'comandos_medio_completed', 'comandos_avanzado_completed']);
 
 export default function ProfileScreen() {
   const { loading, user, profile, role, isAdmin, signOut, refreshProfile } = useSession();
@@ -28,10 +33,13 @@ export default function ProfileScreen() {
   const [avatarColor, setAvatarColor] = useState(ucapsaBrand.colors.red);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [editMode, setEditMode] = useState(false);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [profileModalEditing, setProfileModalEditing] = useState(false);
   const [clientMembership, setClientMembership] = useState<Membership | null>(null);
+  const [programEnrollments, setProgramEnrollments] = useState<ProgramEnrollmentWithDetails[]>([]);
+  const [achievements, setAchievements] = useState<AchievementWithState[]>([]);
+  const [achievementsLoading, setAchievementsLoading] = useState(false);
+  const [selectedAchievement, setSelectedAchievement] = useState<AchievementWithState | null>(null);
   const [adminStats, setAdminStats] = useState({
     clients: 0,
     members: 0,
@@ -52,7 +60,7 @@ export default function ProfileScreen() {
     }),
     [user, role, isAdmin, clientMembership?.status],
   );
-  const isPremium = baseFormat.key === 'member' && !isAdmin;
+  const isPremium = Boolean(user) && baseFormat.key === 'member' && !isAdmin;
 
   useEffect(() => {
     setFullName(profile?.full_name ?? '');
@@ -89,9 +97,30 @@ export default function ProfileScreen() {
   const loadClientMembership = useCallback(async () => {
     if (isAdmin || !user) return;
     try {
-      setClientMembership(await getMyMembership());
+      const [membershipResult, programResult] = await Promise.all([getMyMembership(), getMyProgramEnrollments()]);
+      setClientMembership(membershipResult);
+      setProgramEnrollments(programResult);
     } catch {
       setClientMembership(null);
+      setProgramEnrollments([]);
+    }
+  }, [isAdmin, user]);
+
+
+  const loadAchievements = useCallback(async () => {
+    if (isAdmin || !user) {
+      setAchievements([]);
+      setAchievementsLoading(false);
+      return;
+    }
+
+    setAchievementsLoading(true);
+    try {
+      setAchievements(await getMyAchievements());
+    } catch {
+      setAchievements([]);
+    } finally {
+      setAchievementsLoading(false);
     }
   }, [isAdmin, user]);
 
@@ -103,12 +132,19 @@ export default function ProfileScreen() {
     void loadClientMembership();
   }, [loadClientMembership]);
 
+  useEffect(() => {
+    void loadAchievements();
+  }, [loadAchievements]);
+
   useFocusEffect(
     useCallback(() => {
       if (isAdmin) void loadAdminData();
-      else void loadClientMembership();
+      else {
+        void loadClientMembership();
+        void loadAchievements();
+      }
       return undefined;
-    }, [isAdmin, loadAdminData, loadClientMembership]),
+    }, [isAdmin, loadAdminData, loadClientMembership, loadAchievements]),
   );
 
   async function handleRefresh() {
@@ -116,7 +152,10 @@ export default function ProfileScreen() {
     try {
       await refreshProfile();
       if (isAdmin) await loadAdminData();
-      else await loadClientMembership();
+      else {
+        await loadClientMembership();
+        await loadAchievements();
+      }
     } finally {
       setRefreshing(false);
     }
@@ -126,7 +165,8 @@ export default function ProfileScreen() {
     () => Boolean((profile?.full_name ?? '').trim() && (profile?.phone ?? '').trim() && (profile?.dog_name ?? '').trim()),
     [profile],
   );
-  const showReadonlyClientView = !isAdmin && clientProfileComplete && !editMode;
+  const hasProgramAchievement = achievements.some((item) => item.unlocked && programAchievementCodes.has(item.definition.code));
+  const canRequestMembership = hasProgramAchievement || programEnrollments.some((item) => item.enrollment.status === 'active' || item.enrollment.status === 'completed');
   const deletionRequested = Boolean(profile?.deletion_requested_at);
 
   async function handleSaveProfile() {
@@ -148,7 +188,8 @@ export default function ProfileScreen() {
       });
       await refreshProfile();
       Alert.alert('Perfil actualizado', 'Tus datos se guardaron correctamente.');
-      if (!isAdmin) setEditMode(false);
+      setProfileModalVisible(false);
+      setProfileModalEditing(false);
     } catch (error) {
       Alert.alert('No se pudo guardar', error instanceof Error ? error.message : 'Intenta de nuevo.');
     } finally {
@@ -200,22 +241,18 @@ export default function ProfileScreen() {
 
   if (!user) {
     return (
-      <KeyboardAwareScreen style={{ backgroundColor: baseFormat.background }}>
-        <View style={[styles.guestHero, { backgroundColor: baseFormat.surface, borderColor: baseFormat.border }]}>
+      <KeyboardAwareScreen style={{ backgroundColor: ucapsaBrand.colors.background }}>
+        <View style={styles.guestHero}>
           <Image source={wordmark} style={styles.wordmark} resizeMode="contain" />
           <Text style={styles.title}>Perfil</Text>
           <Text style={styles.muted}>Inicia sesion para ver tu perfil, membresia y credencial digital.</Text>
         </View>
 
-        <Link href="/auth/login" asChild>
-          <Pressable style={[styles.primaryButton, isPremium && styles.premiumPrimaryButton]}><Text style={[styles.primaryButtonText, isPremium && styles.premiumPrimaryButtonText]}>Iniciar sesion</Text></Pressable>
-        </Link>
+        <Pressable style={[styles.primaryButton, isPremium && styles.premiumPrimaryButton]} onPress={() => router.push('/auth/login' as never)}><Text style={[styles.primaryButtonText, isPremium && styles.premiumPrimaryButtonText]}>Iniciar sesion</Text></Pressable>
 
-        <Link href="/auth/register" asChild>
-          <Pressable style={[styles.secondaryButton, isPremium && styles.premiumSecondaryButton]}><Text style={[styles.secondaryButtonText, isPremium && styles.premiumSecondaryButtonText]}>Crear cuenta</Text></Pressable>
-        </Link>
+        <Pressable style={[styles.secondaryButton, isPremium && styles.premiumSecondaryButton]} onPress={() => router.push('/auth/register' as never)}><Text style={[styles.secondaryButtonText, isPremium && styles.premiumSecondaryButtonText]}>Crear cuenta</Text></Pressable>
 
-        <SocialLinksRow premium={isPremium} />
+        <SocialLinksRow premium={false} />
       </KeyboardAwareScreen>
     );
   }
@@ -249,7 +286,13 @@ export default function ProfileScreen() {
           <Text style={[styles.sectionEyebrow, isPremium && styles.sectionEyebrowPremium]}>Perfil de cliente</Text>
           <Text style={[styles.sectionTitle, isPremium && styles.sectionTitlePremium]}>Estado UCAPSA</Text>
           <Text style={[styles.clientMembershipText, isPremium && styles.clientMembershipTextPremium]}>
-            {!clientMembership ? 'Aun no tienes membresia registrada.' : `Membresia: ${getMembershipStatusLabel(clientMembership.status)}`}
+            {!clientMembership
+              ? achievementsLoading
+                ? 'Revisando tus logros y requisitos de membresia...'
+                : canRequestMembership
+                  ? 'Ya puedes solicitar membresia porque tienes Puppy o Comandos registrado o completado.'
+                  : 'Aun no puedes solicitar membresia. Primero debes estar inscrito o haber completado Puppy o Comandos.'
+              : `Membresia: ${getMembershipStatusLabel(clientMembership.status)}`}
           </Text>
           {clientMembership?.status === 'pending' ? (
             <Text style={[styles.clientMembershipWarning, isPremium && styles.clientMembershipWarningPremium]}>Tu solicitud esta pendiente de revision.</Text>
@@ -259,8 +302,24 @@ export default function ProfileScreen() {
           ) : null}
           <Text style={[styles.clientMembershipHint, isPremium && styles.clientMembershipHintPremium]}>Las credenciales, QR, membresia y clases activas se consultan en Mi UCAPSA.</Text>
           <Pressable style={[styles.primaryButton, isPremium && styles.premiumPrimaryButton]} onPress={() => router.push('/membership' as never)}>
-            <Text style={[styles.primaryButtonText, isPremium && styles.premiumPrimaryButtonText]}>{clientMembership?.status === 'pending' ? 'Ver solicitud' : clientMembership ? 'Abrir Mi UCAPSA' : 'Solicitar membresia'}</Text>
+            <Text style={[styles.primaryButtonText, isPremium && styles.premiumPrimaryButtonText]}>{clientMembership?.status === 'pending' ? 'Ver solicitud' : clientMembership ? 'Abrir Mi UCAPSA' : achievementsLoading ? 'Revisando...' : canRequestMembership ? 'Solicitar membresia' : 'Ver requisitos'}</Text>
           </Pressable>
+        </View>
+      ) : null}
+
+      {!isAdmin ? (
+        <View style={[styles.achievementsCard, isPremium && styles.achievementsCardPremium]}>
+          <View style={styles.achievementsHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.sectionEyebrow, isPremium && styles.sectionEyebrowPremium]}>Logros</Text>
+              <Text style={[styles.sectionTitle, isPremium && styles.sectionTitlePremium]}>Medallas UCAPSA</Text>
+            </View>
+            <Pressable style={[styles.achievementsLink, isPremium && styles.achievementsLinkPremium]} onPress={() => router.push('/achievements' as never)}>
+              <Text style={[styles.achievementsLinkText, isPremium && styles.achievementsLinkTextPremium]}>Ver todos</Text>
+            </Pressable>
+          </View>
+          <AchievementSummary items={achievements} premium={isPremium} onPress={() => router.push('/achievements' as never)} />
+          <AchievementBadgeGrid items={achievements} premium={isPremium} maxItems={4} onSelect={setSelectedAchievement} />
         </View>
       ) : null}
 
@@ -297,43 +356,19 @@ export default function ProfileScreen() {
         </>
       ) : null}
 
-      {!isAdmin && showReadonlyClientView ? (
+      {!isAdmin ? (
         <View style={[styles.readonlyCard, isPremium && styles.premiumBodyCard]}>
-          <ReadonlyRow label="Nombre" value={profile?.full_name ?? ''} premium={isPremium} />
-          <ReadonlyRow label="Telefono" value={profile?.phone ?? ''} premium={isPremium} />
-          <ReadonlyRow label="Perro" value={profile?.dog_name ?? ''} premium={isPremium} />
-          <Pressable style={[styles.secondaryButton, isPremium && styles.premiumSecondaryButton]} onPress={() => setEditMode(true)}>
-            <Text style={[styles.secondaryButtonText, isPremium && styles.premiumSecondaryButtonText]}>Editar informacion</Text>
-          </Pressable>
-        </View>
-      ) : !isAdmin ? (
-        <View style={[styles.formCard, isPremium && styles.premiumBodyCard]}>
           <Text style={[styles.formTitle, isPremium && styles.premiumBodyTitle]}>Mis datos</Text>
-          <Text style={[styles.label, isPremium && styles.premiumLabel]}>Nombre completo</Text>
-          <TextInput value={fullName} onChangeText={setFullName} placeholder="Tu nombre" style={[styles.input, isPremium && styles.premiumInput]} autoCapitalize="words" />
-
-          <Text style={[styles.label, isPremium && styles.premiumLabel]}>Telefono</Text>
-          <TextInput value={phone} onChangeText={setPhone} placeholder="Telefono" style={[styles.input, isPremium && styles.premiumInput]} keyboardType="phone-pad" />
-
-          <Text style={[styles.label, isPremium && styles.premiumLabel]}>Nombre de tu perro</Text>
-          <TextInput value={dogName} onChangeText={setDogName} placeholder="Ej. Max, Luna, Toby" style={[styles.input, isPremium && styles.premiumInput]} autoCapitalize="words" />
-
-          <Text style={[styles.label, isPremium && styles.premiumLabel]}>Color de avatar</Text>
-          <View style={styles.colorRow}>
-            {avatarColors.map((color) => (
-              <Pressable key={color} onPress={() => setAvatarColor(color)} style={[styles.colorDot, { backgroundColor: color }, avatarColor === color && styles.colorDotActive]} />
-            ))}
-          </View>
-
-          <Pressable disabled={saving} onPress={handleSaveProfile} style={[styles.primaryButton, isPremium && styles.premiumPrimaryButton]}>
-            <Text style={[styles.primaryButtonText, isPremium && styles.premiumPrimaryButtonText]}>{saving ? 'Guardando...' : 'Guardar perfil'}</Text>
+          {!clientProfileComplete ? <Text style={[styles.clientMembershipHint, isPremium && styles.clientMembershipHintPremium]}>Completa tu nombre, telefono y perro para que UCAPSA tenga tus datos correctos.</Text> : null}
+          <ReadonlyRow label="Nombre" value={profile?.full_name || 'Pendiente'} premium={isPremium} />
+          <ReadonlyRow label="Telefono" value={profile?.phone || 'Pendiente'} premium={isPremium} />
+          <ReadonlyRow label="Perro" value={profile?.dog_name || 'Pendiente'} premium={isPremium} />
+          <Pressable
+            style={[styles.secondaryButton, isPremium && styles.premiumSecondaryButton]}
+            onPress={() => { setProfileModalVisible(true); setProfileModalEditing(true); }}
+          >
+            <Text style={[styles.secondaryButtonText, isPremium && styles.premiumSecondaryButtonText]}>{clientProfileComplete ? 'Editar informacion' : 'Completar perfil'}</Text>
           </Pressable>
-
-          {clientProfileComplete ? (
-            <Pressable style={[styles.secondaryButton, isPremium && styles.premiumSecondaryButton]} onPress={() => setEditMode(false)}>
-              <Text style={[styles.secondaryButtonText, isPremium && styles.premiumSecondaryButtonText]}>Cancelar edicion</Text>
-            </Pressable>
-          ) : null}
         </View>
       ) : null}
 
@@ -356,13 +391,15 @@ export default function ProfileScreen() {
         <Text style={[styles.secondaryButtonText, isPremium && styles.premiumSecondaryButtonText]}>Cerrar sesion</Text>
       </Pressable>
 
+      <AchievementDetailModal item={selectedAchievement} premium={isPremium} onClose={() => setSelectedAchievement(null)} />
+
       <Modal visible={profileModalVisible} transparent animationType="slide" onRequestClose={() => setProfileModalVisible(false)}>
         <View style={styles.modalBackdrop}>
-          <View style={styles.profileModalCard}>
+          <View style={[styles.profileModalCard, isPremium && styles.premiumBodyCard]}>
             <View style={styles.profileModalHeader}>
-              <Text style={styles.profileModalTitle}>Mi perfil administrativo</Text>
+              <Text style={[styles.profileModalTitle, isPremium && styles.premiumBodyTitle]}>{isAdmin ? 'Mi perfil administrativo' : 'Mis datos'}</Text>
               <Pressable onPress={() => setProfileModalVisible(false)}>
-                <MaterialIcons name="close" size={24} color={ucapsaBrand.colors.text} />
+                <MaterialIcons name="close" size={24} color={isPremium ? '#FFE8B5' : ucapsaBrand.colors.text} />
               </Pressable>
             </View>
 
@@ -371,6 +408,7 @@ export default function ProfileScreen() {
                 <ReadonlyRow label="Nombre" value={fullName || 'Sin nombre'} />
                 <ReadonlyRow label="Correo de contacto" value={email || 'Sin correo'} />
                 <ReadonlyRow label="Telefono" value={phone || 'Sin telefono'} />
+                {!isAdmin ? <ReadonlyRow label="Perro" value={dogName || 'Sin registrar'} /> : null}
                 <ReadonlyRow label="Rol" value={role ?? 'client'} />
                 <Pressable style={[styles.primaryButton, isPremium && styles.premiumPrimaryButton]} onPress={() => setProfileModalEditing(true)}>
                   <Text style={[styles.primaryButtonText, isPremium && styles.premiumPrimaryButtonText]}>Editar perfil</Text>
@@ -380,10 +418,22 @@ export default function ProfileScreen() {
               <>
                 <Text style={[styles.label, isPremium && styles.premiumLabel]}>Nombre completo</Text>
                 <TextInput value={fullName} onChangeText={setFullName} placeholder="Nombre" style={[styles.input, isPremium && styles.premiumInput]} />
-                <Text style={styles.label}>Correo de contacto</Text>
-                <TextInput value={email} onChangeText={setEmail} placeholder="Correo" keyboardType="email-address" autoCapitalize="none" style={[styles.input, isPremium && styles.premiumInput]} />
+                {isAdmin ? (
+                  <>
+                    <Text style={[styles.label, isPremium && styles.premiumLabel]}>Correo de contacto</Text>
+                    <TextInput value={email} onChangeText={setEmail} placeholder="Correo" keyboardType="email-address" autoCapitalize="none" style={[styles.input, isPremium && styles.premiumInput]} />
+                  </>
+                ) : (
+                  <ReadonlyRow label="Correo" value={email || 'Sin correo'} premium={isPremium} />
+                )}
                 <Text style={[styles.label, isPremium && styles.premiumLabel]}>Telefono</Text>
                 <TextInput value={phone} onChangeText={setPhone} placeholder="Telefono" keyboardType="phone-pad" style={[styles.input, isPremium && styles.premiumInput]} />
+                {!isAdmin ? (
+                  <>
+                    <Text style={[styles.label, isPremium && styles.premiumLabel]}>Nombre de tu perro</Text>
+                    <TextInput value={dogName} onChangeText={setDogName} placeholder="Ej. Max, Luna, Toby" style={[styles.input, isPremium && styles.premiumInput]} autoCapitalize="words" />
+                  </>
+                ) : null}
                 <Text style={[styles.label, isPremium && styles.premiumLabel]}>Color de avatar</Text>
                 <View style={styles.colorRow}>
                   {avatarColors.map((color) => (
@@ -394,10 +444,7 @@ export default function ProfileScreen() {
                 <Pressable
                   disabled={saving}
                   style={[styles.primaryButton, isPremium && styles.premiumPrimaryButton]}
-                  onPress={async () => {
-                    await handleSaveProfile();
-                    setProfileModalEditing(false);
-                  }}
+                  onPress={handleSaveProfile}
                 >
                   <Text style={[styles.primaryButtonText, isPremium && styles.premiumPrimaryButtonText]}>{saving ? 'Guardando...' : 'Guardar perfil'}</Text>
                 </Pressable>
@@ -460,6 +507,13 @@ const styles = StyleSheet.create({
   premiumDangerGhostButton: { borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.05)' },
   premiumDangerGhostText: { color: '#FFE8B5' },
   premiumNoticeBox: { backgroundColor: '#38111B', borderColor: 'rgba(250,204,21,0.34)' },
+  achievementsCard: { gap: 12, padding: 16, borderRadius: 26, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  achievementsCardPremium: { backgroundColor: '#38111B', borderColor: 'rgba(250,204,21,0.34)' },
+  achievementsHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
+  achievementsLink: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 9, backgroundColor: ucapsaBrand.colors.redSoft },
+  achievementsLinkPremium: { backgroundColor: 'rgba(250,204,21,0.16)', borderWidth: 1, borderColor: 'rgba(250,204,21,0.28)' },
+  achievementsLinkText: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900' },
+  achievementsLinkTextPremium: { color: '#FFE8B5' },
   heroCardTop: { flexDirection: 'row', alignItems: 'center' },
   heroCardMeta: { flex: 1, marginLeft: 14 },
   avatar: { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center' },
