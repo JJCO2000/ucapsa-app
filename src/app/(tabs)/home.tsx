@@ -395,6 +395,12 @@ const styles = StyleSheet.create({
   clientHeroMark: { width: 52, height: 52 },
   clientHeroEyebrow: { fontSize: 12, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase' },
   clientHeroTitle: { fontSize: 32, lineHeight: 37, fontWeight: '900' },
+  clientHeroActionText: {
+  marginTop: 10,
+  fontSize: 13,
+  fontWeight: '800',
+  textDecorationLine: 'underline',
+  },
   clientHeroSubtitle: { fontSize: 16, lineHeight: 23, fontWeight: '800' },
   wordmarkCard: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 4 },
   wordmark: { width: 160, height: 40 },
