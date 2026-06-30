@@ -238,3 +238,21 @@ export type ProgramEnrollmentWithDetails = {
   profile: Profile | null;
   attendances: ProgramAttendance[];
 };
+
+
+
+export type ProgramClassCancellation = {
+  id: string;
+  schedule_id: string;
+  cancellation_date: string;
+  reason: string | null;
+  announcement_id: string | null;
+  created_by: string | null;
+  restored_at: string | null;
+  restored_by: string | null;
+  created_at: string;
+  updated_at: string;
+  schedule?: ProgramSchedule | null;
+};
+
+

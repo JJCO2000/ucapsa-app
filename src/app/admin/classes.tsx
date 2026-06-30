@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, RefreshControl, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 
@@ -8,39 +8,53 @@ import { ProgramCredentialCard } from '../../components/domain/ProgramCredential
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
+import { getVisibleAnnouncements } from '../../services/announcements.service';
+import { getVisibleEvents } from '../../services/events.service';
 import { useSession } from '../../hooks/useSession';
 import {
   createProgramEnrollment,
+  createProgramClassCancellation,
+  createProgramDayCancellations,
+  deleteProgramClassCancellation,
   deleteProgramAttendance,
   deleteProgramEnrollment,
   setProgramEnrollmentAttendanceCount,
   formatNextProgramClassLabel,
+  formatProgramScheduleDetailLabel,
+  formatProgramScheduleDisplayLabel,
+  formatProgramScheduleName,
   formatScheduleLabel,
+  getProgramSchedulesForDate,
   getAdminProgramRows,
   getDefaultProgramLevel,
   getNextProgramLevel,
   getProgramClientProfiles,
   getProgramCodeLabel,
   getProgramLevelLabel,
+  getProgramClassCancellations,
   getProgramSchedules,
   getProgramStatusLabel,
   getPrograms,
   getRecommendedScheduleId,
   programLevelOptions,
   registerProgramAttendance,
+  restoreProgramClassCancellation,
   setProgramEnrollmentStatus,
   sortProgramSchedules,
   updateProgramEnrollment,
   updateProgramSchedule,
 } from '../../services/programs.service';
 import type {
+  Announcement,
   Profile,
+  ProgramClassCancellation,
   ProgramCode,
   ProgramEnrollmentStatus,
   ProgramEnrollmentWithDetails,
   ProgramLevel,
   ProgramRepeatType,
   ProgramSchedule,
+  UcapsaEvent,
   UcapsaProgram,
 } from '../../types/app.types';
 
@@ -110,6 +124,27 @@ function formatDate(value: string | null | undefined) {
   return date.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+function toDateKey(value: string | null | undefined) {
+  if (!value) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 10);
+}
+
+function eventDateKey(event: UcapsaEvent) {
+  return toDateKey(event.start_date);
+}
+
+function announcementDateKey(announcement: Announcement) {
+  return toDateKey(announcement.announcement_date || announcement.event?.start_date || announcement.created_at);
+}
+
+function getProgramForSchedule(programs: UcapsaProgram[], schedule: ProgramSchedule | null | undefined) {
+  if (!schedule) return null;
+  return programs.find((program) => program.id === schedule.program_id) ?? null;
+}
+
 function getSchedulesForProgram(schedules: ProgramSchedule[], programId: string) {
   return sortProgramSchedules(schedules.filter((schedule) => schedule.program_id === programId && schedule.is_active));
 }
@@ -139,12 +174,15 @@ function nextScheduleForForm(form: EnrollmentFormState, schedules: ProgramSchedu
 
 export default function AdminClassesScreen() {
   const { isAdmin, role } = useSession();
-  const params = useLocalSearchParams<{ scheduleId?: string }>();
+  const params = useLocalSearchParams<{ scheduleId?: string; cancellations?: string; date?: string }>();
   const isSuperAdmin = role === 'super_admin';
   const [programs, setPrograms] = useState<UcapsaProgram[]>([]);
   const [schedules, setSchedules] = useState<ProgramSchedule[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [rows, setRows] = useState<ProgramEnrollmentWithDetails[]>([]);
+  const [calendarEvents, setCalendarEvents] = useState<UcapsaEvent[]>([]);
+  const [calendarAnnouncements, setCalendarAnnouncements] = useState<Announcement[]>([]);
+  const [classCancellations, setClassCancellations] = useState<ProgramClassCancellation[]>([]);
   const [form, setForm] = useState<EnrollmentFormState>(() => emptyForm());
   const [clientSearch, setClientSearch] = useState('');
   const [rowSearch, setRowSearch] = useState('');
@@ -154,6 +192,11 @@ export default function AdminClassesScreen() {
   const [createOpen, setCreateOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [schedulesOpen, setSchedulesOpen] = useState(false);
+  const [cancellationsOpen, setCancellationsOpen] = useState(false);
+  const [cancelScheduleId, setCancelScheduleId] = useState('');
+  const [cancelDate, setCancelDate] = useState(todayKey());
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelCalendarOpen, setCancelCalendarOpen] = useState(false);
   const [selectedBaseScheduleId, setSelectedBaseScheduleId] = useState('');
   const [selectedRow, setSelectedRow] = useState<ProgramEnrollmentWithDetails | null>(null);
   const [editForm, setEditForm] = useState<EditFormState>({ programId: '', scheduleId: '', attendancesCount: '0', attendanceAdjustmentDate: todayKey(), dogName: '', physicalCardNumber: '', programLevel: 'base', notes: '' });
@@ -168,16 +211,22 @@ export default function AdminClassesScreen() {
   async function loadData() {
     setLoading(true);
     try {
-      const [programResult, scheduleResult, profileResult, rowResult] = await Promise.all([
+      const [programResult, scheduleResult, profileResult, rowResult, cancellationResult, eventResult, announcementResult] = await Promise.all([
         getPrograms(),
         getProgramSchedules(),
         getProgramClientProfiles(),
         getAdminProgramRows(),
+        getProgramClassCancellations(),
+        getVisibleEvents(),
+        getVisibleAnnouncements(),
       ]);
       setPrograms(programResult);
       setSchedules(scheduleResult);
       setProfiles(profileResult);
       setRows(rowResult);
+      setClassCancellations(cancellationResult);
+      setCalendarEvents(eventResult);
+      setCalendarAnnouncements(announcementResult);
 
       setForm((current) => {
         const nextProgram = programResult.find((program) => program.id === current.programId) ?? programResult[0] ?? null;
@@ -193,6 +242,23 @@ export default function AdminClassesScreen() {
   useEffect(() => {
     if (isAdmin) void loadData();
   }, [isAdmin]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (isAdmin) void loadData();
+      return undefined;
+    }, [isAdmin]),
+  );
+
+  useEffect(() => {
+    const routeCancelDate = typeof params.date === 'string' ? params.date : '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(routeCancelDate)) {
+      setCancelDate(routeCancelDate);
+    }
+    if (params.cancellations === '1') {
+      setCancellationsOpen(true);
+    }
+  }, [params.cancellations, params.date]);
 
   useEffect(() => {
     const routeScheduleId = typeof params.scheduleId === 'string' ? params.scheduleId : '';
@@ -213,6 +279,32 @@ export default function AdminClassesScreen() {
   const selectedProfile = profiles.find((profile) => profile.user_id === form.userId) ?? null;
   const schedulesForSelectedProgram = selectedProgram ? getSchedulesForProgram(schedules, selectedProgram.id) : [];
   const activeSchedules = useMemo(() => schedules.filter((schedule) => schedule.is_active), [schedules]);
+
+  const activeCancellationKeys = useMemo(
+    () => new Set(classCancellations.filter((item) => !item.restored_at).map((item) => `${item.schedule_id}:${item.cancellation_date}`)),
+    [classCancellations],
+  );
+  const cancelDateSchedulesAll = useMemo(() => getProgramSchedulesForDate(activeSchedules, cancelDate), [activeSchedules, cancelDate]);
+  const cancelDateSchedules = useMemo(
+    () => cancelDateSchedulesAll.filter((schedule) => !activeCancellationKeys.has(`${schedule.id}:${cancelDate}`)),
+    [activeCancellationKeys, cancelDate, cancelDateSchedulesAll],
+  );
+  const cancelDateCancellations = useMemo(
+    () => classCancellations.filter((item) => !item.restored_at && item.cancellation_date === cancelDate),
+    [cancelDate, classCancellations],
+  );
+  const cancelDateEvents = useMemo(() => calendarEvents.filter((event) => eventDateKey(event) === cancelDate), [calendarEvents, cancelDate]);
+  const cancelDateAnnouncements = useMemo(() => calendarAnnouncements.filter((announcement) => announcementDateKey(announcement) === cancelDate), [calendarAnnouncements, cancelDate]);
+
+  useEffect(() => {
+    if (cancelDateSchedules.length === 0) {
+      setCancelScheduleId('');
+      return;
+    }
+    if (!cancelDateSchedules.some((schedule) => schedule.id === cancelScheduleId)) {
+      setCancelScheduleId(cancelDateSchedules[0].id);
+    }
+  }, [cancelDateSchedules, cancelScheduleId]);
 
   const filteredProfiles = useMemo(() => {
     const term = normalizeTerm(clientSearch);
@@ -435,6 +527,103 @@ export default function AdminClassesScreen() {
     }
   }
 
+
+  async function handleCancelClass() {
+    if (!cancelScheduleId || !cancelDateSchedules.some((schedule) => schedule.id === cancelScheduleId)) {
+      Alert.alert('Selecciona clase', 'Elige una clase programada para la fecha seleccionada.');
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(cancelDate)) {
+      Alert.alert('Fecha invalida', 'Usa formato AAAA-MM-DD.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await createProgramClassCancellation({
+        scheduleId: cancelScheduleId,
+        cancellationDate: cancelDate,
+        reason: cancelReason,
+        createAnnouncement: true,
+      });
+      setCancelReason('');
+      await loadData();
+      Alert.alert('Clase cancelada', 'Se creo un anuncio automatico y el calendario queda actualizado.');
+    } catch (error) {
+      Alert.alert('No se pudo cancelar', error instanceof Error ? error.message : 'Intenta de nuevo.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleCancelAllClassesForDay() {
+    if (cancelDateSchedules.length === 0) {
+      Alert.alert('Sin clases disponibles', 'No hay clases activas para cancelar en esta fecha.');
+      return;
+    }
+
+    Alert.alert('Cancelar todas las clases', `Se cancelaran ${cancelDateSchedules.length} clase(s) del ${formatDate(cancelDate)}.`, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Confirmar',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            setSaving(true);
+            await createProgramDayCancellations({
+              scheduleIds: cancelDateSchedules.map((schedule) => schedule.id),
+              cancellationDate: cancelDate,
+              reason: cancelReason,
+              createAnnouncement: true,
+            });
+            setCancelReason('');
+            await loadData();
+            Alert.alert('Clases canceladas', 'Se creo un anuncio general y el calendario queda actualizado.');
+          } catch (error) {
+            Alert.alert('No se pudieron cancelar', error instanceof Error ? error.message : 'Intenta de nuevo.');
+          } finally {
+            setSaving(false);
+          }
+        },
+      },
+    ]);
+  }
+
+  async function handleRestoreCancellation(cancellationId: string) {
+    try {
+      setSaving(true);
+      await restoreProgramClassCancellation(cancellationId);
+      await loadData();
+      Alert.alert('Clase reactivada', 'La clase vuelve a aparecer en el calendario.');
+    } catch (error) {
+      Alert.alert('No se pudo reactivar', error instanceof Error ? error.message : 'Intenta de nuevo.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleDeleteCancellation(cancellationId: string) {
+    Alert.alert('Eliminar cancelacion', 'Esto borra el registro de cancelacion y oculta el anuncio automatico relacionado.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            setSaving(true);
+            await deleteProgramClassCancellation(cancellationId);
+            await loadData();
+            Alert.alert('Cancelacion eliminada', 'La clase vuelve a estar disponible.');
+          } catch (error) {
+            Alert.alert('No se pudo eliminar', error instanceof Error ? error.message : 'Intenta de nuevo.');
+          } finally {
+            setSaving(false);
+          }
+        },
+      },
+    ]);
+  }
+
   function handleDeleteAttendance(row: ProgramEnrollmentWithDetails, attendanceId: string) {
     Alert.alert('Eliminar asistencia', 'Esto corrige el avance de la inscripcion.', [
       { text: 'Cancelar', style: 'cancel' },
@@ -526,6 +715,10 @@ export default function AdminClassesScreen() {
           <MaterialIcons name="schedule" size={19} color={ucapsaBrand.colors.redDark} />
           <Text style={styles.secondaryButtonText}>Editar horarios</Text>
         </Pressable>
+        <Pressable style={styles.secondaryButtonInline} onPress={() => setCancellationsOpen(true)}>
+          <MaterialIcons name="event-busy" size={19} color={ucapsaBrand.colors.redDark} />
+          <Text style={styles.secondaryButtonText}>Cancelar clase</Text>
+        </Pressable>
         <Pressable style={styles.secondaryButtonInline} onPress={() => router.push('/admin/scanner?mode=program' as never)}>
           <MaterialIcons name="qr-code-scanner" size={19} color={ucapsaBrand.colors.redDark} />
           <Text style={styles.secondaryButtonText}>Escanear QR</Text>
@@ -583,7 +776,7 @@ export default function AdminClassesScreen() {
             <Text style={[styles.statusPill, row.enrollment.status !== 'active' && styles.statusPillMuted]}>{getProgramStatusLabel(row.enrollment.status)}</Text>
           </View>
           <Text style={styles.rowMeta}>{row.program.name}{row.program.code === 'comandos' ? `  Nivel ${getProgramLevelLabel(row.enrollment.program_level)}` : ''}</Text>
-          <Text style={styles.rowMeta}>{formatScheduleLabel(row.schedule)}</Text>
+          <Text style={styles.rowMeta}>{formatProgramScheduleName(row.schedule, row.program)} - {formatProgramScheduleDetailLabel(row.schedule)}</Text>
           <Text style={styles.rowMeta}>{formatNextProgramClassLabel(row.schedule)}</Text>
           <Text style={styles.rowMeta}>Tarjeta: {row.enrollment.physical_card_number || 'Sin numero'}  Asistencias: {row.enrollment.attendances_count}/{row.program.required_attendances}</Text>
         </Pressable>
@@ -637,6 +830,31 @@ export default function AdminClassesScreen() {
         onNotesChange={setAttendanceNotes}
         onOpenDatePicker={() => setDatePickerOpen(true)}
         onCloseDatePicker={() => setDatePickerOpen(false)}
+      />
+
+
+      <ClassCancellationModal
+        visible={cancellationsOpen}
+        schedules={cancelDateSchedules}
+        programs={programs}
+        cancellations={cancelDateCancellations}
+        events={cancelDateEvents}
+        announcements={cancelDateAnnouncements}
+        selectedScheduleId={cancelScheduleId}
+        date={cancelDate}
+        reason={cancelReason}
+        saving={saving}
+        calendarOpen={cancelCalendarOpen}
+        onClose={() => setCancellationsOpen(false)}
+        onSelectSchedule={setCancelScheduleId}
+        onDateChange={setCancelDate}
+        onReasonChange={setCancelReason}
+        onToggleCalendar={() => setCancelCalendarOpen((value) => !value)}
+        onCloseCalendar={() => setCancelCalendarOpen(false)}
+        onSave={handleCancelClass}
+        onCancelAll={handleCancelAllClassesForDay}
+        onRestore={handleRestoreCancellation}
+        onDelete={handleDeleteCancellation}
       />
 
       <SchedulesModal
@@ -961,6 +1179,162 @@ function AttendanceModal({
   );
 }
 
+
+function ClassCancellationModal({
+  visible,
+  schedules,
+  programs,
+  cancellations,
+  events,
+  announcements,
+  selectedScheduleId,
+  date,
+  reason,
+  saving,
+  calendarOpen,
+  onClose,
+  onSelectSchedule,
+  onDateChange,
+  onReasonChange,
+  onToggleCalendar,
+  onCloseCalendar,
+  onSave,
+  onCancelAll,
+  onRestore,
+  onDelete,
+}: {
+  visible: boolean;
+  schedules: ProgramSchedule[];
+  programs: UcapsaProgram[];
+  cancellations: ProgramClassCancellation[];
+  events: UcapsaEvent[];
+  announcements: Announcement[];
+  selectedScheduleId: string;
+  date: string;
+  reason: string;
+  saving: boolean;
+  calendarOpen: boolean;
+  onClose: () => void;
+  onSelectSchedule: (value: string) => void;
+  onDateChange: (value: string) => void;
+  onReasonChange: (value: string) => void;
+  onToggleCalendar: () => void;
+  onCloseCalendar: () => void;
+  onSave: () => void;
+  onCancelAll: () => void;
+  onRestore: (cancellationId: string) => void;
+  onDelete: (cancellationId: string) => void;
+}) {
+  const scheduleOptions = schedules.map((schedule) => {
+    const program = getProgramForSchedule(programs, schedule);
+    return {
+      value: schedule.id,
+      label: formatProgramScheduleDisplayLabel(schedule, program),
+    };
+  });
+
+  return (
+    <KeyboardAwareModal visible={visible} onClose={onClose}>
+      <Text style={styles.kickerDark}>Cancelaciones</Text>
+      <Text style={styles.modalTitle}>Cancelar clase por fecha</Text>
+      <Text style={styles.muted}>Primero elige fecha. Solo aparecen clases reales de ese dia.</Text>
+
+      <Text style={styles.label}>Fecha</Text>
+      <Pressable style={styles.dateButton} onPress={onToggleCalendar}>
+        <Text style={styles.dateButtonText}>{formatDate(date)}</Text>
+        <MaterialIcons name="event-busy" size={20} color={ucapsaBrand.colors.redDark} />
+      </Pressable>
+
+      {calendarOpen ? (
+        <View style={styles.calendarBox}>
+          <Calendar
+            current={date}
+            markedDates={{ [date]: { selected: true, selectedColor: ucapsaBrand.colors.red } }}
+            onDayPress={(day) => { onDateChange(day.dateString); onCloseCalendar(); }}
+            theme={{ todayTextColor: ucapsaBrand.colors.red, arrowColor: ucapsaBrand.colors.red }}
+          />
+        </View>
+      ) : null}
+
+      <View style={styles.daySummaryBox}>
+        <Text style={styles.sectionTitle}>Actividad del dia</Text>
+        <Text style={styles.muted}>{events.length} evento(s), {announcements.length} anuncio(s), {schedules.length} clase(s) disponible(s), {cancellations.length} cancelada(s).</Text>
+
+        {events.map((event) => (
+          <View key={`event-${event.id}`} style={styles.daySummaryItem}>
+            <MaterialIcons name="event" size={17} color="#0f766e" />
+            <Text style={styles.daySummaryText}>{event.title}</Text>
+          </View>
+        ))}
+
+        {announcements.map((announcement) => (
+          <View key={`announcement-${announcement.id}`} style={styles.daySummaryItem}>
+            <MaterialIcons name="campaign" size={17} color="#2563eb" />
+            <Text style={styles.daySummaryText}>{announcement.title}</Text>
+          </View>
+        ))}
+
+        {schedules.length === 0 ? <Text style={styles.muted}>No hay clases programadas para esta fecha.</Text> : null}
+      </View>
+
+      <Text style={styles.label}>Clase</Text>
+      {schedules.length > 0 ? (
+        <SelectList selectedValue={selectedScheduleId} options={scheduleOptions} onSelect={onSelectSchedule} />
+      ) : (
+        <View style={styles.emptyBox}>
+          <Text style={styles.emptyTitle}>Sin clases este dia</Text>
+          <Text style={styles.muted}>Elige una fecha donde si exista Puppy o Comandos.</Text>
+        </View>
+      )}
+
+      <Text style={styles.label}>Motivo</Text>
+      <TextInput
+        value={reason}
+        onChangeText={onReasonChange}
+        placeholder="Ej. Clase suspendida por mantenimiento."
+        multiline
+        style={[styles.input, styles.textArea]}
+      />
+
+      <Pressable disabled={saving || !selectedScheduleId || schedules.length === 0} style={[styles.dangerSolidButton, (!selectedScheduleId || schedules.length === 0) && styles.disabledButton]} onPress={onSave}>
+        <Text style={styles.dangerSolidButtonText}>{saving ? 'Guardando...' : 'Cancelar clase y anunciar'}</Text>
+      </Pressable>
+
+      <Pressable disabled={saving || schedules.length === 0} style={[styles.dangerOutlineButton, schedules.length === 0 && styles.disabledButton]} onPress={onCancelAll}>
+        <Text style={styles.dangerOutlineButtonText}>{saving ? 'Guardando...' : 'Cancelar todas las clases del dia'}</Text>
+      </Pressable>
+
+      <Text style={styles.sectionTitle}>Cancelaciones activas</Text>
+      {cancellations.length === 0 ? <Text style={styles.muted}>Sin clases canceladas.</Text> : null}
+      {cancellations.map((item) => {
+        const schedule = item.schedule ?? schedules.find((scheduleItem) => scheduleItem.id === item.schedule_id) ?? null;
+        const program = getProgramForSchedule(programs, schedule);
+        return (
+          <View key={item.id} style={styles.cancellationRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.attendanceTitle}>{formatProgramScheduleName(schedule, program)} - {formatDate(item.cancellation_date)}</Text>
+              <Text style={styles.attendanceMeta}>{program?.name ?? 'Clase UCAPSA'} - {formatProgramScheduleDetailLabel(schedule)}</Text>
+              <Text style={styles.attendanceMeta}>{item.reason || 'Sin motivo'}</Text>
+            </View>
+            <View style={styles.cancellationActions}>
+              <Pressable disabled={saving} style={styles.secondaryMiniButton} onPress={() => onRestore(item.id)}>
+                <Text style={styles.secondaryMiniButtonText}>Reactivar</Text>
+              </Pressable>
+              <Pressable disabled={saving} style={styles.deleteMiniButton} onPress={() => onDelete(item.id)}>
+                <Text style={styles.deleteMiniButtonText}>Eliminar</Text>
+              </Pressable>
+            </View>
+          </View>
+        );
+      })}
+
+      <Pressable style={styles.closeButton} onPress={onClose}>
+        <Text style={styles.closeButtonText}>Cerrar</Text>
+      </Pressable>
+    </KeyboardAwareModal>
+  );
+}
+
 function SchedulesModal({ visible, programs, schedules, saving, initialScheduleId, onClose, onSave }: { visible: boolean; programs: UcapsaProgram[]; schedules: ProgramSchedule[]; saving: boolean; initialScheduleId?: string; onClose: () => void; onSave: (schedule: ProgramSchedule, input: { name: string; dayOfWeek: number; startTime: string; repeatType: ProgramRepeatType; cycleStartDate: string | null; sequenceOrder: number; isActive: boolean }) => void }) {
   const [programId, setProgramId] = useState('');
   const [scheduleId, setScheduleId] = useState('');
@@ -1001,7 +1375,7 @@ function SchedulesModal({ visible, programs, schedules, saving, initialScheduleI
         selectedValue={selectedSchedule?.id ?? ''}
         options={scheduleOptions.map((schedule) => ({
           value: schedule.id,
-          label: `${selectedProgram?.code === 'puppy' ? `Seccion ${schedule.sequence_order ?? 0}` : 'Horario unico'} - ${formatScheduleLabel(schedule)}`,
+          label: formatProgramScheduleDisplayLabel(schedule, selectedProgram),
         }))}
         onSelect={setScheduleId}
       />
@@ -1127,9 +1501,9 @@ const styles = StyleSheet.create({
   statCard: { width: '48%', gap: 5, padding: 14, borderRadius: 22, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   statValue: { color: ucapsaBrand.colors.text, fontSize: 24, fontWeight: '900' },
   statLabel: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '800' },
-  topActionsRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
-  primaryButtonInline: { flex: 1, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 18, paddingVertical: 14, backgroundColor: ucapsaBrand.colors.red },
-  secondaryButtonInline: { flex: 1, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 18, paddingVertical: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  topActionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 14 },
+  primaryButtonInline: { width: '48%', flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 18, paddingVertical: 14, backgroundColor: ucapsaBrand.colors.red },
+  secondaryButtonInline: { width: '48%', flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 18, paddingVertical: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   formCardFlat: { gap: 11, padding: 16, borderRadius: 24, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginBottom: 16 },
   filtersCard: { gap: 11, padding: 16, borderRadius: 24, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginBottom: 14 },
   sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 20, fontWeight: '900' },
@@ -1167,6 +1541,8 @@ const styles = StyleSheet.create({
   dangerButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900' },
   dangerSolidButton: { alignItems: 'center', borderRadius: 16, paddingVertical: 14, backgroundColor: ucapsaBrand.colors.redDark, marginBottom: 12 },
   dangerSolidButtonText: { color: '#fff', fontSize: 14, fontWeight: '900' },
+  dangerOutlineButton: { alignItems: 'center', borderRadius: 16, paddingVertical: 14, backgroundColor: '#FFF0F2', borderWidth: 1, borderColor: '#F3B8C2', marginBottom: 12 },
+  dangerOutlineButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 14, fontWeight: '900' },
   tableHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', gap: 10 },
   filterButton: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 9, backgroundColor: ucapsaBrand.colors.redSoft },
   filterButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900' },
@@ -1194,7 +1570,20 @@ const styles = StyleSheet.create({
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   closeButton: { alignItems: 'center', borderRadius: 16, paddingVertical: 14, backgroundColor: ucapsaBrand.colors.text },
   closeButtonText: { color: '#fff', fontSize: 14, fontWeight: '900' },
+  daySummaryBox: { gap: 8, padding: 12, borderRadius: 18, backgroundColor: ucapsaBrand.colors.background, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  daySummaryItem: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 3 },
+  daySummaryText: { flex: 1, color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '800' },
+  cancellationRow: { gap: 10, padding: 12, borderRadius: 16, backgroundColor: ucapsaBrand.colors.background, borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginTop: 8 },
+  cancellationActions: { flexDirection: 'row', gap: 8 },
+  secondaryMiniButton: { flex: 1, alignItems: 'center', borderRadius: 13, paddingVertical: 10, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  secondaryMiniButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900' },
+  deleteMiniButton: { flex: 1, alignItems: 'center', borderRadius: 13, paddingVertical: 10, backgroundColor: '#FFF0F2', borderWidth: 1, borderColor: '#F3B8C2' },
+  deleteMiniButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900' },
+  disabledButton: { opacity: 0.5 },
   deniedBox: { gap: 10, alignItems: 'center', justifyContent: 'center', flex: 1 },
 });
+
+
+
 
 

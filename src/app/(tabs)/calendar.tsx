@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Calendar, type DateData } from 'react-native-calendars';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,8 +10,8 @@ import { EventCard } from '../../components/domain/EventCard';
 import { useSession } from '../../hooks/useSession';
 import { getVisibleAnnouncements } from '../../services/announcements.service';
 import { getVisibleEvents } from '../../services/events.service';
-import { formatScheduleLabel, getProgramSchedules, getPrograms } from '../../services/programs.service';
-import type { Announcement, EventOccurrence, ProgramSchedule, UcapsaEvent, UcapsaProgram } from '../../types/app.types';
+import { formatProgramScheduleDetailLabel, formatProgramScheduleName, getProgramClassCancellations, getProgramSchedules, getPrograms } from '../../services/programs.service';
+import type { Announcement, EventOccurrence, ProgramClassCancellation, ProgramSchedule, UcapsaEvent, UcapsaProgram } from '../../types/app.types';
 import { expandEventOccurrences, formatDateKey, getUpcomingOccurrences, toDateKey, todayKey } from '../../utils/events.utils';
 
 type ClassOccurrence = {
@@ -19,6 +19,7 @@ type ClassOccurrence = {
   schedule: ProgramSchedule;
   program: UcapsaProgram | null;
   dateKey: string;
+  cancellation?: ProgramClassCancellation | null;
 };
 
 function announcementDateKey(announcement: Announcement): string | null {
@@ -57,8 +58,22 @@ function isScheduleActiveOnDate(schedule: ProgramSchedule, date: Date) {
   return diffWeeks % 2 === 0;
 }
 
-function expandClassOccurrences(schedules: ProgramSchedule[], programs: UcapsaProgram[], daysAhead = 120): ClassOccurrence[] {
+function getCancellationKey(scheduleId: string, dateKey: string) {
+  return `${scheduleId}:${dateKey}`;
+}
+
+function getActiveCancellationKeys(cancellations: ProgramClassCancellation[]) {
+  return new Set(
+    cancellations
+      .filter((item) => !item.restored_at)
+      .map((item) => getCancellationKey(item.schedule_id, item.cancellation_date)),
+  );
+}
+
+function expandClassOccurrences(schedules: ProgramSchedule[], programs: UcapsaProgram[], daysAhead = 120, cancellations: ProgramClassCancellation[] = []): ClassOccurrence[] {
   const programById = new Map(programs.map((program) => [program.id, program]));
+  const activeCancellations = cancellations.filter((item) => !item.restored_at);
+  const cancellationByKey = new Map(activeCancellations.map((item) => [getCancellationKey(item.schedule_id, item.cancellation_date), item]));
   const start = parseLocalDate(todayKey());
   const items: ClassOccurrence[] = [];
 
@@ -68,11 +83,13 @@ function expandClassOccurrences(schedules: ProgramSchedule[], programs: UcapsaPr
 
     for (const schedule of schedules) {
       if (!isScheduleActiveOnDate(schedule, current)) continue;
+      const cancellation = cancellationByKey.get(getCancellationKey(schedule.id, dateKey)) ?? null;
       items.push({
         id: `${schedule.id}-${dateKey}`,
         schedule,
         program: programById.get(schedule.program_id) ?? null,
         dateKey,
+        cancellation,
       });
     }
   }
@@ -120,6 +137,7 @@ export default function CalendarScreen() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [programs, setPrograms] = useState<UcapsaProgram[]>([]);
   const [programSchedules, setProgramSchedules] = useState<ProgramSchedule[]>([]);
+  const [classCancellations, setClassCancellations] = useState<ProgramClassCancellation[]>([]);
   const [selectedDate, setSelectedDate] = useState(todayKey());
   const [classesExpanded, setClassesExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -128,17 +146,19 @@ export default function CalendarScreen() {
 
   async function loadCalendarData() {
     setError(null);
-    const [eventResult, announcementResult, programResult, scheduleResult] = await Promise.all([
+    const [eventResult, announcementResult, programResult, scheduleResult, cancellationResult] = await Promise.all([
       getVisibleEvents(),
       getVisibleAnnouncements(),
       getPrograms(),
       getProgramSchedules(),
+      getProgramClassCancellations(),
     ]);
 
     setEvents(eventResult);
     setAnnouncements(announcementResult);
     setPrograms(programResult);
     setProgramSchedules(scheduleResult);
+    setClassCancellations(cancellationResult);
   }
 
   useEffect(() => {
@@ -146,6 +166,16 @@ export default function CalendarScreen() {
       .catch((err) => setError(err.message ?? 'No se pudo cargar el calendario.'))
       .finally(() => setLoading(false));
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      loadCalendarData()
+        .catch((err) => setError(err.message ?? 'No se pudo cargar el calendario.'))
+        .finally(() => setLoading(false));
+      return undefined;
+    }, []),
+  );
 
   useEffect(() => {
     setClassesExpanded(false);
@@ -163,7 +193,7 @@ export default function CalendarScreen() {
   }
 
   const occurrences = useMemo(() => expandEventOccurrences(events), [events]);
-  const classOccurrences = useMemo(() => expandClassOccurrences(programSchedules, programs), [programSchedules, programs]);
+  const classOccurrences = useMemo(() => expandClassOccurrences(programSchedules, programs, 120, classCancellations), [classCancellations, programSchedules, programs]);
 
   const selectedEvents = useMemo(
     () => occurrences.filter((occurrence) => toDateKey(occurrence.start_date) === selectedDate),
@@ -194,7 +224,7 @@ export default function CalendarScreen() {
     for (const occurrence of classOccurrences) {
       const existingDots = marks[occurrence.dateKey]?.dots ?? [];
       const hasClassDot = existingDots.some((dot: { key: string }) => dot.key === 'classes');
-      marks[occurrence.dateKey] = { ...marks[occurrence.dateKey], dots: hasClassDot ? existingDots : [...existingDots, { key: 'classes', color: '#B51228' }] };
+      marks[occurrence.dateKey] = { ...marks[occurrence.dateKey], dots: hasClassDot ? existingDots : [...existingDots, { key: 'classes', color: occurrence.cancellation ? '#dc2626' : '#B51228' }] };
     }
 
     for (const announcement of announcements) {
@@ -210,6 +240,9 @@ export default function CalendarScreen() {
   }, [announcements, classOccurrences, occurrences, selectedDate]);
 
   const upcomingEvents: EventOccurrence[] = useMemo(() => getUpcomingOccurrences(events, 3), [events]);
+  const allSelectedClassesCancelled = selectedClasses.length > 0 && selectedClasses.every((occurrence) => Boolean(occurrence.cancellation));
+  const cancelledClassesCount = selectedClasses.filter((occurrence) => Boolean(occurrence.cancellation)).length;
+  const activeClassesCount = selectedClasses.length - cancelledClassesCount;
   const dayCount = selectedEvents.length + (selectedClasses.length > 0 ? 1 : 0) + selectedAnnouncements.length;
 
   return (
@@ -307,45 +340,55 @@ export default function CalendarScreen() {
             ) : null}
 
             {selectedClasses.length > 0 ? (
-              <View style={styles.classGroupCard}>
+              <View style={[styles.classGroupCard, allSelectedClassesCancelled && styles.classGroupCardCancelled]}>
                 <Pressable style={styles.classGroupHeader} onPress={() => setClassesExpanded((value) => !value)}>
-                  <View style={styles.classGroupIcon}>
-                    <MaterialIcons name="school" size={22} color="#B51228" />
+                  <View style={[styles.classGroupIcon, allSelectedClassesCancelled && styles.classGroupIconCancelled]}>
+                    <MaterialIcons name={allSelectedClassesCancelled ? 'event-busy' : 'school'} size={22} color={allSelectedClassesCancelled ? '#dc2626' : '#B51228'} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.classKicker}>Clases</Text>
-                    <Text style={styles.classGroupTitle}>Clases UCAPSA</Text>
-                    <Text style={styles.classGroupText}>
-                      {selectedClasses.length} clase{selectedClasses.length === 1 ? '' : 's'} programada{selectedClasses.length === 1 ? '' : 's'} este dia.
+                    <Text style={[styles.classKicker, allSelectedClassesCancelled && styles.classKickerCancelled]}>Clases</Text>
+                    <Text style={[styles.classGroupTitle, allSelectedClassesCancelled && styles.classGroupTitleCancelled]}>Clases UCAPSA</Text>
+                    <Text style={[styles.classGroupText, allSelectedClassesCancelled && styles.classGroupTextCancelled]}>
+                      {allSelectedClassesCancelled
+                        ? `Dia cancelado - ${selectedClasses.length} clase${selectedClasses.length === 1 ? '' : 's'} cancelada${selectedClasses.length === 1 ? '' : 's'}.`
+                        : `${activeClassesCount} activa${activeClassesCount === 1 ? '' : 's'}${cancelledClassesCount > 0 ? `, ${cancelledClassesCount} cancelada${cancelledClassesCount === 1 ? '' : 's'}` : ''}.`}
                     </Text>
+                    {allSelectedClassesCancelled ? <Text style={styles.dayCancelledText}>Dia cancelado</Text> : null}
                   </View>
-                  <View style={styles.classGroupPill}>
+                  <View style={[styles.classGroupPill, allSelectedClassesCancelled && styles.classGroupPillCancelled]}>
                     <Text style={styles.classGroupPillText}>{selectedClasses.length}</Text>
                   </View>
-                  <MaterialIcons name={classesExpanded ? 'expand-less' : 'expand-more'} size={24} color="#B51228" />
+                  <MaterialIcons name={classesExpanded ? 'expand-less' : 'expand-more'} size={24} color={allSelectedClassesCancelled ? '#dc2626' : '#B51228'} />
                 </Pressable>
 
                 {classesExpanded ? (
                   <View style={styles.classList}>
                     {selectedClasses.map((occurrence) => {
                       const theme = getClassTheme(occurrence.program?.code);
+                      const isCancelled = Boolean(occurrence.cancellation);
+                      const title = formatProgramScheduleName(occurrence.schedule, occurrence.program);
+                      const detail = formatProgramScheduleDetailLabel(occurrence.schedule);
 
                       return (
                         <Pressable
                           key={`class-${occurrence.id}`}
                           disabled={!isAdmin}
-                          style={[styles.classChildCard, { backgroundColor: theme.background, borderColor: theme.border }]}
-                          onPress={isAdmin ? () => router.push(`/admin/classes?scheduleId=${occurrence.schedule.id}` as never) : undefined}
+                          style={[
+                            styles.classChildCard,
+                            { backgroundColor: isCancelled ? '#f1f5f9' : theme.background, borderColor: isCancelled ? '#fca5a5' : theme.border },
+                          ]}
+                          onPress={isAdmin ? () => router.push(`/admin/classes?cancellations=1&date=${occurrence.dateKey}` as never) : undefined}
                         >
-                          <View style={[styles.classIconSmall, { backgroundColor: theme.iconBackground }]}>
-                            <MaterialIcons name="event-note" size={18} color={theme.accent} />
+                          <View style={[styles.classIconSmall, { backgroundColor: isCancelled ? '#fee2e2' : theme.iconBackground }]}>
+                            <MaterialIcons name={isCancelled ? 'event-busy' : 'event-note'} size={18} color={isCancelled ? '#dc2626' : theme.accent} />
                           </View>
                           <View style={{ flex: 1 }}>
-                            <Text style={[styles.classTitle, { color: theme.title }]}>{occurrence.program?.name ?? 'Clase'}</Text>
-                            <Text style={[styles.classText, { color: theme.text }]}>{formatScheduleLabel(occurrence.schedule)}</Text>
-                            {isAdmin ? <Text style={[styles.classHint, { color: theme.accent }]}>Tocar para editar horario base</Text> : null}
+                            <Text style={[styles.classTitle, { color: isCancelled ? '#64748b' : theme.title, textDecorationLine: isCancelled ? 'line-through' : 'none' }]}>{title}</Text>
+                            <Text style={[styles.classText, { color: isCancelled ? '#64748b' : theme.text }]}>{occurrence.program?.name ?? 'Clase'} - {detail}</Text>
+                            {isCancelled ? <Text style={styles.cancelledText}>Clase cancelada{occurrence.cancellation?.reason ? ` - ${occurrence.cancellation.reason}` : ''}</Text> : null}
+                            {isAdmin ? <Text style={[styles.classHint, { color: isCancelled ? '#dc2626' : theme.accent }]}>{isCancelled ? 'Tocar para ver cancelaciones' : 'Tocar para cancelar o administrar esta fecha'}</Text> : null}
                           </View>
-                          {isAdmin ? <MaterialIcons name="chevron-right" size={22} color={theme.accent} /> : null}
+                          {isAdmin ? <MaterialIcons name="chevron-right" size={22} color={isCancelled ? '#dc2626' : theme.accent} /> : null}
                         </Pressable>
                       );
                     })}
@@ -445,11 +488,17 @@ const styles = StyleSheet.create({
   emptyBox: { gap: 6, padding: 18, borderRadius: 18, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e2e8f0' },
   emptyTitle: { color: '#0f172a', fontSize: 16, fontWeight: '900' },
   classGroupCard: { gap: 10, padding: 14, borderRadius: 22, backgroundColor: '#fff1f2', borderWidth: 1, borderColor: '#fecdd3' },
+  classGroupCardCancelled: { backgroundColor: '#f8fafc', borderColor: '#fca5a5' },
   classGroupHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   classGroupIcon: { width: 46, height: 46, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff' },
+  classGroupIconCancelled: { backgroundColor: '#fee2e2' },
   classGroupTitle: { color: '#25151A', fontSize: 18, fontWeight: '900', marginTop: 2 },
+  classGroupTitleCancelled: { color: '#64748b', textDecorationLine: 'line-through' },
   classGroupText: { color: '#6b4b55', fontSize: 13, fontWeight: '800', marginTop: 2, lineHeight: 18 },
+  classGroupTextCancelled: { color: '#991b1b' },
+  classKickerCancelled: { color: '#dc2626' },
   classGroupPill: { minWidth: 30, height: 30, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: '#B51228' },
+  classGroupPillCancelled: { backgroundColor: '#dc2626' },
   classGroupPillText: { color: '#ffffff', fontSize: 13, fontWeight: '900' },
   classList: { gap: 9, paddingTop: 2 },
   classChildCard: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 17, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#fecdd3' },
@@ -459,6 +508,13 @@ const styles = StyleSheet.create({
   classTitle: { color: '#25151A', fontSize: 16, fontWeight: '900', marginTop: 2 },
   classText: { color: '#6b4b55', fontSize: 13, fontWeight: '800', marginTop: 2 },
   classHint: { color: '#B51228', fontSize: 12, fontWeight: '900', marginTop: 5 },
+  cancelledText: { color: '#dc2626', fontSize: 12, fontWeight: '900', marginTop: 4 },
+  dayCancelledText: { alignSelf: 'flex-start', overflow: 'hidden', marginTop: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: '#fee2e2', color: '#991b1b', fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
 });
+
+
+
+
+
 
 

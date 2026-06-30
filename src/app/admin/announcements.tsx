@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 
@@ -16,6 +16,7 @@ import {
   updateAnnouncement,
 } from '../../services/announcements.service';
 import { getAdminEvents } from '../../services/events.service';
+import { getProgramClassCancellationByAnnouncementId } from '../../services/programs.service';
 import type { Announcement, AudienceType, UcapsaColorKey, UcapsaEvent, UcapsaPriority } from '../../types/app.types';
 
 type AnnouncementFormState = {
@@ -136,6 +137,13 @@ export default function AdminAnnouncementsScreen() {
     if (isAdmin) void loadData();
   }, [isAdmin]);
 
+  useFocusEffect(
+    useCallback(() => {
+      if (isAdmin) void loadData();
+      return undefined;
+    }, [isAdmin]),
+  );
+
   useEffect(() => {
     if (!params.announcementId || openedAnnouncementParamRef.current === params.announcementId || announcements.length === 0) return;
     const announcementToOpen = announcements.find((announcement) => announcement.id === params.announcementId);
@@ -195,6 +203,37 @@ export default function AdminAnnouncementsScreen() {
     }
   }
 
+  async function handleDeleteAnnouncement(announcement: Announcement) {
+    try {
+      setSaving(true);
+      const cancellation = await getProgramClassCancellationByAnnouncementId(announcement.id);
+      setSaving(false);
+
+      if (cancellation && !cancellation.restored_at) {
+        Alert.alert(
+          'Anuncio de clase cancelada',
+          'Este anuncio esta ligado a una clase cancelada. Para reactivar o eliminar la cancelacion, ve a Cancelaciones activas.',
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            {
+              text: 'Ir a cancelaciones',
+              onPress: () => router.push(`/admin/classes?cancellations=1&date=${cancellation.cancellation_date}` as never),
+            },
+          ],
+        );
+        return;
+      }
+
+      Alert.alert('Eliminar anuncio', 'Esta accion no se puede deshacer.', [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Eliminar', style: 'destructive', onPress: () => runAction(() => deleteAnnouncement(announcement.id)) },
+      ]);
+    } catch (err) {
+      setSaving(false);
+      Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo revisar el anuncio.');
+    }
+  }
+
   async function runAction(action: () => Promise<void>) {
     try {
       setSaving(true);
@@ -249,10 +288,7 @@ export default function AdminAnnouncementsScreen() {
             <ActionButton
               label="Eliminar"
               danger
-              onPress={() => Alert.alert('Eliminar anuncio', 'Esta accion no se puede deshacer.', [
-                { text: 'Cancelar', style: 'cancel' },
-                { text: 'Eliminar', style: 'destructive', onPress: () => runAction(() => deleteAnnouncement(announcement.id)) },
-              ])}
+              onPress={() => handleDeleteAnnouncement(announcement)}
             />
           </View>
         </View>
@@ -272,6 +308,24 @@ export default function AdminAnnouncementsScreen() {
               <Pressable disabled={saving} style={styles.primaryButton} onPress={handleUpdate}>
                 <Text style={styles.primaryButtonText}>{saving ? 'Guardando...' : 'Guardar cambios'}</Text>
               </Pressable>
+
+              {selectedAnnouncement ? (
+                <View style={styles.modalActionsGrid}>
+                  <ActionButton
+                    label={selectedAnnouncement.is_published ? 'Despublicar' : 'Publicar'}
+                    onPress={() => runAction(() => setAnnouncementPublished(selectedAnnouncement.id, !selectedAnnouncement.is_published))}
+                  />
+                  <ActionButton
+                    label={selectedAnnouncement.archived_at ? 'Restaurar' : 'Archivar'}
+                    onPress={() => runAction(() => selectedAnnouncement.archived_at ? restoreAnnouncement(selectedAnnouncement.id) : archiveAnnouncement(selectedAnnouncement.id))}
+                  />
+                  <ActionButton
+                    label="Eliminar"
+                    danger
+                    onPress={() => handleDeleteAnnouncement(selectedAnnouncement)}
+                  />
+                </View>
+              ) : null}
             </ScrollView>
           </View>
         </View>
@@ -466,10 +520,13 @@ const styles = StyleSheet.create({
   muted: { color: '#70545E', fontSize: 14 },
   adminItem: { gap: 10 },
   actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  modalActionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   actionButton: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 14, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#F0D4DA' },
   actionButtonText: { color: '#8F1324', fontSize: 12, fontWeight: '900' },
   dangerButton: { backgroundColor: '#FFF1F2', borderColor: '#F7CAD2' },
   dangerButtonText: { color: '#8F1324' },
+  dangerFullButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 15, borderRadius: 16, backgroundColor: '#FFF1F2', borderWidth: 1, borderColor: '#F7CAD2' },
+  dangerFullButtonText: { color: '#8F1324', fontSize: 15, fontWeight: '900' },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15,23,42,0.55)' },
   modalCard: { maxHeight: '88%', borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: '#ffffff' },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1, borderBottomColor: '#F0D4DA' },
@@ -487,3 +544,6 @@ const styles = StyleSheet.create({
   secondaryButtonFull: { alignItems: 'center', borderRadius: 16, paddingVertical: 13, backgroundColor: '#25151A', marginTop: 12 },
   secondaryButtonFullText: { color: '#fff', fontSize: 14, fontWeight: '900' },
 });
+
+
+

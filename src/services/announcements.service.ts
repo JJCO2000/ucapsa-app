@@ -17,6 +17,32 @@ function normalizeAnnouncement(announcement: unknown): Announcement {
   return announcement as Announcement;
 }
 
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function dateKeyFromValue(value: string | null | undefined) {
+  if (!value) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 10);
+}
+
+function announcementDateKey(announcement: Announcement) {
+  return dateKeyFromValue(announcement.announcement_date ?? announcement.event?.start_date ?? announcement.created_at);
+}
+
+function isCurrentAnnouncement(announcement: Announcement) {
+  const key = announcementDateKey(announcement);
+  if (!key) return true;
+  return key >= todayKey();
+}
+
+function filterCurrentAnnouncements(items: Announcement[]) {
+  return items.filter((announcement) => !announcement.archived_at && isCurrentAnnouncement(announcement));
+}
+
 function getPriorityRank(priority: UcapsaPriority | null | undefined) {
   const ranks: Record<UcapsaPriority, number> = { urgent: 0, high: 1, normal: 2, low: 3 };
   return ranks[priority ?? 'normal'] ?? ranks.normal;
@@ -41,25 +67,30 @@ export async function getVisibleAnnouncements(limit?: number): Promise<Announcem
   let query = supabase
     .from('announcements')
     .select('*, event:events(*)')
+    .eq('is_published', true)
+    .is('archived_at', null)
     .order('is_pinned', { ascending: false })
     .order('created_at', { ascending: false });
 
-  if (limit) query = query.limit(limit);
+  if (limit) query = query.limit(Math.max(limit * 3, limit));
 
   const { data, error } = await query;
 
   if (error) throw error;
-  return sortAnnouncements((data ?? []).map(normalizeAnnouncement));
+  const current = filterCurrentAnnouncements((data ?? []).map(normalizeAnnouncement));
+  const sorted = sortAnnouncements(current);
+  return limit ? sorted.slice(0, limit) : sorted;
 }
 
 export async function getAdminAnnouncements(): Promise<Announcement[]> {
   const { data, error } = await supabase
     .from('announcements')
     .select('*, event:events(*)')
+    .is('archived_at', null)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return sortAnnouncements((data ?? []).map(normalizeAnnouncement));
+  return sortAnnouncements(filterCurrentAnnouncements((data ?? []).map(normalizeAnnouncement)));
 }
 
 export async function createAnnouncement(input: AnnouncementFormInput): Promise<Announcement> {
@@ -153,6 +184,8 @@ export async function deleteAnnouncement(announcementId: string): Promise<void> 
 
   if (error) throw error;
 }
+
+
 
 
 
