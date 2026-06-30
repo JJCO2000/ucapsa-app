@@ -99,9 +99,10 @@ export default function HomeScreen() {
   const activeModuleLabels = getActiveModuleLabels({ isMember: isActiveMember, hasPuppy, hasComandos });
   const isPendingMemberRequest = membershipStatus === 'pending' && activeModuleLabels.length === 0;
   const hasDogName = Boolean((profile?.dog_name ?? '').trim());
+  const clientProfileComplete = Boolean((profile?.full_name ?? '').trim() && (profile?.phone ?? '').trim() && hasDogName);
   const clientHeroSubtitle = !user
     ? 'Inicia sesion para ver tu perfil UCAPSA.'
-    : !hasDogName && !isAdmin
+    : !clientProfileComplete && !isAdmin
       ? 'Completa tu perfil.'
       : 'Consulta tus avisos y logros.';
   const format = useMemo(
@@ -126,10 +127,20 @@ export default function HomeScreen() {
       : isPendingMemberRequest
         ? 'Administracion revisara tu solicitud.'
         : user
-          ? hasDogName ? 'Consulta tus avisos y logros.' : 'Completa tu perfil.'
+          ? clientProfileComplete ? 'Consulta tus avisos y logros.' : 'Completa tu perfil.'
           : 'Inicia sesion para credencial, QR y membresia.';
 
   const isPremiumHome = format.key === 'member' && !isAdmin;
+
+  const openProfileSettings = () => router.push('/account-settings?section=profile' as never);
+  const handleMembershipCardPress = () => {
+    if (user && !isAdmin && !clientProfileComplete) {
+      openProfileSettings();
+      return;
+    }
+
+    router.push('/membership' as never);
+  };
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: isPremiumHome ? '#270711' : format.background }]} edges={['top']}>
@@ -164,6 +175,7 @@ export default function HomeScreen() {
                 subtitle={clientHeroSubtitle}
                 icon={format.icon}
                 achievements={achievements}
+                onPress={user && !clientProfileComplete ? openProfileSettings : undefined}
               />
             )}
 
@@ -189,7 +201,7 @@ export default function HomeScreen() {
               </View>
             ) : null}
 
-            <UcapsaRoleCard format={format} title={membershipTitle} subtitle={membershipText} icon={membershipIcon} iconFamily="community" onPress={() => router.push('/membership' as never)} />
+            <UcapsaRoleCard format={format} title={membershipTitle} subtitle={membershipText} icon={membershipIcon} iconFamily="community" onPress={handleMembershipCardPress} />
 
             <View style={styles.quickGrid}>
               <Shortcut label="Perfil" icon="person" format={format} onPress={() => router.push('/profile' as never)} />
@@ -241,9 +253,9 @@ export default function HomeScreen() {
 }
 
 
-function ClientHomeHero({ format, eyebrow, title, subtitle, icon, achievements }: { format: ReturnType<typeof resolveUcapsaFormat>; eyebrow: string; title: string; subtitle: string; icon: string; achievements: AchievementWithState[] }) {
+function ClientHomeHero({ format, eyebrow, title, subtitle, icon, achievements, onPress }: { format: ReturnType<typeof resolveUcapsaFormat>; eyebrow: string; title: string; subtitle: string; icon: string; achievements: AchievementWithState[]; onPress?: () => void }) {
   return (
-    <View style={[styles.clientHeroCard, { backgroundColor: format.surface, borderColor: format.border }]}> 
+    <Pressable disabled={!onPress} onPress={onPress} style={[styles.clientHeroCard, { backgroundColor: format.surface, borderColor: format.border }]}> 
       <View style={styles.clientHeroTopRow}>
         <View style={[styles.clientHeroIcon, { backgroundColor: format.accentSoft }]}> 
           <MaterialCommunityIcons name={icon as any} size={26} color={format.accent} />
@@ -254,7 +266,8 @@ function ClientHomeHero({ format, eyebrow, title, subtitle, icon, achievements }
       <Text style={[styles.clientHeroTitle, { color: format.text }]}>{title}</Text>
       <Text style={[styles.clientHeroSubtitle, { color: format.muted }]}>{subtitle}</Text>
       <AchievementMiniRow items={achievements} premium={false} onPress={() => router.push('/achievements' as never)} />
-    </View>
+      {onPress ? <Text style={[styles.clientHeroActionText, { color: format.accentDark }]}>Toca aqui para completar tus datos</Text> : null}
+    </Pressable>
   );
 }
 

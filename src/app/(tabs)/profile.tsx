@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Modal, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AchievementBadgeGrid, AchievementDetailModal, AchievementSummary } from '../../components/domain/AchievementBadgeGrid';
-import { NotificationSettingsCard } from '../../components/domain/NotificationSettingsCard';
 import { SocialLinksRow } from '../../components/ui/SocialLinksRow';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
@@ -275,13 +274,11 @@ export default function ProfileScreen() {
               {isAdmin ? <Text style={styles.rolePillAlt}>Admin</Text> : null}
             </View>
           </View>
-          <Pressable style={styles.markBadge} onPress={() => { if (isAdmin) { setProfileModalVisible(true); setProfileModalEditing(false); } }}>
-            {isAdmin ? <MaterialIcons name="more-vert" size={24} color={ucapsaBrand.colors.redDark} /> : <Image source={mark} style={styles.markBadgeImage} resizeMode="contain" />}
+          <Pressable accessibilityRole="button" accessibilityLabel="Abrir ajustes de cuenta" style={[styles.markBadge, isPremium && styles.markBadgePremium]} onPress={() => router.push('/account-settings' as never)}>
+            <MaterialIcons name="settings" size={22} color={isPremium ? '#FFE8B5' : ucapsaBrand.colors.redDark} />
           </Pressable>
         </View>
       </View>
-
-      <NotificationSettingsCard premium={isPremium} />
 
       {!isAdmin ? (
         <View style={[styles.clientMembershipCard, isPremium && styles.clientMembershipCardPremium]}>
@@ -326,71 +323,24 @@ export default function ProfileScreen() {
       ) : null}
 
       {isAdmin ? (
-        <>
-          <View style={styles.sectionHeader}>
-            <View>
-              <Text style={styles.sectionEyebrow}>Panel general</Text>
-              <Text style={styles.sectionTitle}>Estadisticas</Text>
-            </View>
+        <View style={styles.adminSettingsHintCard}>
+          <View style={styles.adminSettingsHintIcon}>
+            <MaterialIcons name="admin-panel-settings" size={22} color={ucapsaBrand.colors.red} />
           </View>
-
-          <View style={styles.adminStatsGrid}>
-            <SmallStat label="Clientes" value={adminStats.clients} icon="account" onPress={() => openAdminUsers('clients_and_members')} />
-            <SmallStat label="Socios" value={adminStats.members} icon="badge-account" onPress={() => openAdminUsers('members')} />
-            <SmallStat label="Membresias activas" value={adminStats.activeMemberships} icon="check-decagram" onPress={() => openMembershipTable('active', 'name_asc')} />
-            <SmallStat label="Falta pago" value={adminStats.pendingPayments} icon="cash-remove" onPress={() => openMembershipTable('payment_pending_this_month', 'followup')} />
-            <SmallStat label="Solicitudes" value={adminStats.pendingRequests} icon="email-outline" onPress={() => openMembershipTable('pending_requests', 'name_asc')} />
-            <SmallStat label="Vigencia vencida" value={adminStats.expiredMemberships} icon="calendar-alert" onPress={() => openMembershipTable('expired_by_date', 'name_asc')} />
-            <SmallStat label="Anuncios" value={adminStats.announcements} icon="bullhorn" onPress={() => router.push('/admin/announcements' as never)} />
-            <SmallStat label="Eventos" value={adminStats.events} icon="calendar-month" onPress={() => router.push('/admin/events' as never)} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.quickActionsTitle}>Panel administrativo</Text>
+            <Text style={styles.adminSettingsHintText}>Las estadisticas, notificaciones y ajustes de cuenta ahora viven en el engrane superior para no saturar Perfil.</Text>
           </View>
-
-          <View style={styles.quickActionsCard}>
-            <Text style={styles.quickActionsTitle}>Accesos rapidos</Text>
-            <View style={styles.quickActionsGrid}>
-              <QuickAction label="Mi UCAPSA" icon="badge" onPress={() => router.push('/membership' as never)} />
-              <QuickAction label="Anuncios" icon="campaign" onPress={() => router.push('/announcements' as never)} />
-              <QuickAction label="Calendario" icon="event" onPress={() => router.push('/calendar' as never)} />
-              <QuickAction label="Clases" icon="school" onPress={() => router.push('/admin/classes' as never)} />
-              <QuickAction label="Admin socios" icon="groups" onPress={() => router.push('/admin/members' as never)} />
-            </View>
-          </View>
-        </>
-      ) : null}
-
-      {!isAdmin ? (
-        <View style={[styles.readonlyCard, isPremium && styles.premiumBodyCard]}>
-          <Text style={[styles.formTitle, isPremium && styles.premiumBodyTitle]}>Mis datos</Text>
-          {!clientProfileComplete ? <Text style={[styles.clientMembershipHint, isPremium && styles.clientMembershipHintPremium]}>Completa tu nombre, telefono y perro para que UCAPSA tenga tus datos correctos.</Text> : null}
-          <ReadonlyRow label="Nombre" value={profile?.full_name || 'Pendiente'} premium={isPremium} />
-          <ReadonlyRow label="Telefono" value={profile?.phone || 'Pendiente'} premium={isPremium} />
-          <ReadonlyRow label="Perro" value={profile?.dog_name || 'Pendiente'} premium={isPremium} />
-          <Pressable
-            style={[styles.secondaryButton, isPremium && styles.premiumSecondaryButton]}
-            onPress={() => { setProfileModalVisible(true); setProfileModalEditing(true); }}
-          >
-            <Text style={[styles.secondaryButtonText, isPremium && styles.premiumSecondaryButtonText]}>{clientProfileComplete ? 'Editar informacion' : 'Completar perfil'}</Text>
+          <Pressable style={styles.adminSettingsHintButton} onPress={() => router.push('/account-settings' as never)}>
+            <Text style={styles.adminSettingsHintButtonText}>Abrir</Text>
           </Pressable>
-        </View>
-      ) : null}
-
-      {!isAdmin && deletionRequested ? (
-        <View style={[styles.noticeBox, isPremium && styles.premiumNoticeBox]}>
-          <Text style={[styles.noticeTitle, isPremium && styles.premiumBodyTitle]}>Eliminacion solicitada</Text>
-          <Text style={[styles.noticeText, isPremium && styles.premiumBodyText]}>Tu solicitud ya fue registrada. Administracion revisara la cuenta antes de cualquier baja definitiva.</Text>
         </View>
       ) : null}
 
       <SocialLinksRow premium={isPremium} />
 
-      {!isAdmin ? (
-        <Pressable disabled={deletionRequested} onPress={handleDeleteRequest} style={[styles.dangerGhostButton, isPremium && styles.premiumDangerGhostButton, deletionRequested && styles.disabledButton]}>
-          <Text style={[styles.dangerGhostText, isPremium && styles.premiumDangerGhostText]}>{deletionRequested ? 'Eliminacion solicitada' : 'Solicitar eliminacion de cuenta'}</Text>
-        </Pressable>
-      ) : null}
-
-      <Pressable onPress={signOut} style={[styles.secondaryButton, isPremium && styles.premiumSecondaryButton]}>
-        <Text style={[styles.secondaryButtonText, isPremium && styles.premiumSecondaryButtonText]}>Cerrar sesion</Text>
+      <Pressable style={[styles.secondaryButton, isPremium && styles.premiumSecondaryButton]} onPress={() => router.push('/account-settings' as never)}>
+        <Text style={[styles.secondaryButtonText, isPremium && styles.premiumSecondaryButtonText]}>Ajustes, datos y notificaciones</Text>
       </Pressable>
 
       <AchievementDetailModal item={selectedAchievement} premium={isPremium} onClose={() => setSelectedAchievement(null)} />
@@ -528,6 +478,13 @@ const styles = StyleSheet.create({
   rolePillAlt: { overflow: 'hidden', backgroundColor: '#F4F4F5', color: ucapsaBrand.colors.muted, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, fontSize: 12, fontWeight: '800' },
   markBadge: { width: 40, height: 40, borderRadius: 20, backgroundColor: ucapsaBrand.colors.redSoft, alignItems: 'center', justifyContent: 'center' },
   markBadgeImage: { width: 22, height: 22 },
+
+  markBadgePremium: { backgroundColor: 'rgba(250,204,21,0.16)', borderWidth: 1, borderColor: 'rgba(250,204,21,0.34)' },
+  adminSettingsHintCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 24, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 14 },
+  adminSettingsHintIcon: { width: 42, height: 42, borderRadius: 21, backgroundColor: ucapsaBrand.colors.redSoft, alignItems: 'center', justifyContent: 'center' },
+  adminSettingsHintText: { color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 18, fontWeight: '700', marginTop: 4 },
+  adminSettingsHintButton: { borderRadius: 999, backgroundColor: ucapsaBrand.colors.redSoft, paddingHorizontal: 12, paddingVertical: 9 },
+  adminSettingsHintButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900' },
   title: { color: ucapsaBrand.colors.text, fontSize: 29, fontWeight: '900', marginTop: 6 },
   muted: { color: ucapsaBrand.colors.muted, fontSize: 15, lineHeight: 22, marginTop: 8, marginBottom: 20 },
   sectionHeader: { marginTop: 2 },

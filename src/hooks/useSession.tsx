@@ -96,16 +96,25 @@ export function SessionProvider({ children }: SessionProviderProps) {
     loadInitialSession();
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
-      setSession(nextSession);
+      setLoading(true);
 
       if (nextSession?.user) {
         const nextProfile = await fetchProfile(nextSession.user.id);
+
+        if (!isMounted) {
+          return;
+        }
+
+        setSession(nextSession);
         setProfile(nextProfile);
       } else {
+        setSession(null);
         setProfile(null);
       }
 
-      setLoading(false);
+      if (isMounted) {
+        setLoading(false);
+      }
     });
 
     return () => {
