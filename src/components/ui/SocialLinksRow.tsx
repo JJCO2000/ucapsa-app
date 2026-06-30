@@ -6,22 +6,23 @@ import { ucapsaBrand } from '../../constants/brand';
 type SocialLinksRowProps = {
   title?: string;
   subtitle?: string;
+  premium?: boolean;
 };
 
-export function SocialLinksRow({ title = 'Canales oficiales', subtitle = 'Sitio web y redes de UCAPSA.' }: SocialLinksRowProps) {
+export function SocialLinksRow({ title = 'Canales oficiales', subtitle = 'Sitio web y redes de UCAPSA.', premium = false }: SocialLinksRowProps) {
   async function openLink(url: string) {
     await Linking.openURL(url);
   }
 
   return (
-    <View style={styles.wrapper}>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.subtitle}>{subtitle}</Text>
+    <View style={[styles.wrapper, premium && styles.wrapperPremium]}>
+      <Text style={[styles.title, premium && styles.titlePremium]}>{title}</Text>
+      <Text style={[styles.subtitle, premium && styles.subtitlePremium]}>{subtitle}</Text>
       <View style={styles.row}>
         {ucapsaBrand.socialLinks.map((item) => (
-          <Pressable key={item.key} style={styles.item} onPress={() => openLink(item.url)}>
-            <MaterialCommunityIcons name={item.icon as any} size={20} color={ucapsaBrand.colors.red} />
-            <Text style={styles.label}>{item.label}</Text>
+          <Pressable key={item.key} style={[styles.item, premium && styles.itemPremium]} onPress={() => openLink(item.url)}>
+            <MaterialCommunityIcons name={item.icon as any} size={20} color={premium ? '#FACC15' : ucapsaBrand.colors.red} />
+            <Text style={[styles.label, premium && styles.labelPremium]}>{item.label}</Text>
           </Pressable>
         ))}
       </View>
@@ -51,4 +52,10 @@ const styles = StyleSheet.create({
     backgroundColor: ucapsaBrand.colors.redSoft,
   },
   label: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900' },
+  wrapperPremium: { backgroundColor: '#38111B', borderColor: 'rgba(250,204,21,0.34)' },
+  titlePremium: { color: '#FFE8B5' },
+  subtitlePremium: { color: '#FFE3E8' },
+  itemPremium: { backgroundColor: 'rgba(250,204,21,0.12)', borderWidth: 1, borderColor: 'rgba(250,204,21,0.22)' },
+  labelPremium: { color: '#FFE8B5' },
 });
+

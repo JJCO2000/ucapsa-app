@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Tex
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
+import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import { supabase } from '../../lib/supabase';
 import { deactivateMembershipForProfile, forceMembershipForProfile } from '../../services/memberships.service';
@@ -38,7 +39,8 @@ function getFilterLabel(filter: UserFilter) {
 }
 
 export default function AdminUsersScreen() {
-  const { loading: sessionLoading, user, isAdmin } = useSession();
+  const { loading: sessionLoading, user, role, isAdmin } = useSession();
+  const adminFormat = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin: true }), [user, role]);
   const params = useLocalSearchParams<{ filter?: string }>();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [filter, setFilter] = useState<UserFilter>('clients_and_members');
@@ -143,7 +145,7 @@ export default function AdminUsersScreen() {
 
   if (sessionLoading) {
     return (
-      <KeyboardAwareScreen>
+      <KeyboardAwareScreen style={{ backgroundColor: adminFormat.background }}>
         <View style={styles.deniedBox}>
           <MaterialCommunityIcons name="account-lock" size={42} color={ucapsaBrand.colors.redDark} />
           <Text style={styles.deniedTitle}>Revisando acceso</Text>
@@ -155,7 +157,7 @@ export default function AdminUsersScreen() {
 
   if (!user) {
     return (
-      <KeyboardAwareScreen>
+      <KeyboardAwareScreen style={{ backgroundColor: adminFormat.background }}>
         <View style={styles.deniedBox}>
           <MaterialCommunityIcons name="lock" size={42} color={ucapsaBrand.colors.redDark} />
           <Text style={styles.deniedTitle}>Acceso restringido</Text>
@@ -170,7 +172,7 @@ export default function AdminUsersScreen() {
 
   if (!isAdmin) {
     return (
-      <KeyboardAwareScreen>
+      <KeyboardAwareScreen style={{ backgroundColor: adminFormat.background }}>
         <View style={styles.deniedBox}>
           <MaterialCommunityIcons name="lock" size={42} color={ucapsaBrand.colors.redDark} />
           <Text style={styles.deniedTitle}>Acceso restringido</Text>
@@ -184,7 +186,7 @@ export default function AdminUsersScreen() {
   }
 
   return (
-    <KeyboardAwareScreen>
+    <KeyboardAwareScreen style={{ backgroundColor: adminFormat.background }}>
       <View style={styles.hero}>
         <View style={styles.heroTop}>
           <View style={styles.iconBubble}>
@@ -371,4 +373,3 @@ const styles = StyleSheet.create({
   closeButton: { backgroundColor: ucapsaBrand.colors.text, borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 12 },
   closeButtonText: { color: '#fff', fontSize: 14, fontWeight: '900' },
 });
-

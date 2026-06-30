@@ -1,4 +1,4 @@
-﻿import type { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -10,6 +10,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
+import { ucapsaBrand } from '../../constants/brand';
 
 type ScreenProps = {
   children: ReactNode;
@@ -19,6 +20,7 @@ type ScreenProps = {
   contentContainerStyle?: StyleProp<ViewStyle>;
   edges?: Edge[];
   refreshControl?: ScrollViewProps['refreshControl'];
+  backgroundColor?: string;
 };
 
 export function Screen({
@@ -29,28 +31,28 @@ export function Screen({
   contentContainerStyle,
   edges = ['top', 'left', 'right'],
   refreshControl,
+  backgroundColor = ucapsaBrand.colors.background,
 }: ScreenProps) {
   const content = scroll ? (
     <ScrollView
       keyboardShouldPersistTaps="handled"
       refreshControl={refreshControl}
+      style={{ backgroundColor }}
       contentContainerStyle={[styles.content, contentContainerStyle]}
     >
       {children}
     </ScrollView>
   ) : (
-    <View style={[styles.content, contentContainerStyle]}>{children}</View>
+    <View style={[styles.content, { backgroundColor }, contentContainerStyle]}>{children}</View>
   );
 
   const safeContent = (
-    <SafeAreaView edges={edges} style={[styles.safe, style]}>
+    <SafeAreaView edges={edges} style={[styles.safe, { backgroundColor }, style]}>
       {content}
     </SafeAreaView>
   );
 
-  if (!keyboardAware) {
-    return safeContent;
-  }
+  if (!keyboardAware) return safeContent;
 
   return (
     <KeyboardAvoidingView
@@ -63,17 +65,7 @@ export function Screen({
 }
 
 const styles = StyleSheet.create({
-  keyboard: {
-    flex: 1,
-  },
-  safe: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
-  content: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 28,
-  },
+  keyboard: { flex: 1 },
+  safe: { flex: 1 },
+  content: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 28 },
 });

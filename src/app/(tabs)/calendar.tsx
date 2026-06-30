@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AnnouncementCard } from '../../components/domain/AnnouncementCard';
 import { EventCard } from '../../components/domain/EventCard';
+import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import { getVisibleAnnouncements } from '../../services/announcements.service';
 import { getVisibleEvents } from '../../services/events.service';
@@ -132,7 +133,7 @@ function getClassTheme(programCode: string | null | undefined) {
 }
 
 export default function CalendarScreen() {
-  const { isAdmin } = useSession();
+  const { user, role, isAdmin } = useSession();
   const [events, setEvents] = useState<UcapsaEvent[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [programs, setPrograms] = useState<UcapsaProgram[]>([]);
@@ -144,6 +145,8 @@ export default function CalendarScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [classLoadWarning, setClassLoadWarning] = useState<string | null>(null);
+  const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [user, role, isAdmin]);
+  const isPremium = format.key === 'member';
 
   async function loadCalendarData() {
     setError(null);
@@ -259,31 +262,31 @@ export default function CalendarScreen() {
   const dayCount = selectedEvents.length + (selectedClasses.length > 0 ? 1 : 0) + selectedAnnouncements.length;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: format.background }]} edges={['top']}>
       <ScrollView
-        style={styles.container}
+        style={[styles.container, { backgroundColor: format.background }]}
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        <View style={styles.hero}>
-          <View style={styles.heroIcon}>
-            <MaterialIcons name="event" size={28} color="#0f766e" />
+        <View style={[styles.hero, { backgroundColor: format.heroBackground }]}>
+          <View style={[styles.heroIcon, { backgroundColor: format.pillBackground }]}>
+            <MaterialIcons name="event" size={28} color={format.pillText} />
           </View>
           <View style={styles.heroText}>
-            <Text style={styles.kicker}>Calendario UCAPSA</Text>
-            <Text style={styles.title}>Eventos, clases y comunicados</Text>
-            <Text style={styles.subtitle}>Selecciona un dia para ver la agenda oficial.</Text>
+            <Text style={[styles.kicker, { color: format.heroMuted }]}>Calendario UCAPSA</Text>
+            <Text style={[styles.title, { color: format.heroText }]}>Eventos, clases y comunicados</Text>
+            <Text style={[styles.subtitle, { color: format.heroMuted }]}>Selecciona un dia para ver la agenda oficial.</Text>
           </View>
         </View>
 
         {isAdmin ? (
           <View style={styles.adminRow}>
-            <Pressable style={styles.adminButton} onPress={() => router.push('/admin/events' as never)}>
+            <Pressable style={[styles.adminButton, { backgroundColor: format.primaryButton }]} onPress={() => router.push('/admin/events' as never)}>
               <MaterialIcons name="admin-panel-settings" size={20} color="#ffffff" />
               <Text style={styles.adminButtonText}>Administrar eventos</Text>
             </Pressable>
-            <Pressable style={styles.adminButtonAlt} onPress={() => router.push('/admin/classes' as never)}>
-              <MaterialIcons name="school" size={20} color="#0f766e" />
+            <Pressable style={[styles.adminButtonAlt, { backgroundColor: format.secondaryButton, borderColor: format.border }]} onPress={() => router.push('/admin/classes' as never)}>
+              <MaterialIcons name="school" size={20} color={format.accent} />
               <Text style={styles.adminButtonAltText}>Horarios base</Text>
             </Pressable>
           </View>
@@ -292,7 +295,7 @@ export default function CalendarScreen() {
         {loading && dayCount === 0 ? (
           <View style={styles.centerBox}>
             <ActivityIndicator />
-            <Text style={styles.muted}>Cargando calendario...</Text>
+            <Text style={[styles.muted, { color: format.muted }]}>Cargando calendario...</Text>
           </View>
         ) : null}
 
@@ -346,16 +349,16 @@ export default function CalendarScreen() {
 
             <View style={styles.sectionHeader}>
               <View>
-                <Text style={styles.sectionTitle}>Agenda del dia</Text>
-                <Text style={styles.sectionSubtitle}>{formatDateKey(selectedDate)}</Text>
+                <Text style={[styles.sectionTitle, { color: isPremium ? '#FFFFFF' : '#0f172a' }]}>Agenda del dia</Text>
+                <Text style={[styles.sectionSubtitle, { color: isPremium ? '#FFE3E8' : '#64748b' }]}>{formatDateKey(selectedDate)}</Text>
               </View>
               <Text style={styles.sectionCount}>{dayCount}</Text>
             </View>
 
             {dayCount === 0 ? (
-              <View style={styles.emptyBox}>
-                <Text style={styles.emptyTitle}>Sin actividad este dia</Text>
-                <Text style={styles.muted}>Selecciona otro dia marcado en el calendario.</Text>
+              <View style={[styles.emptyBox, { backgroundColor: isPremium ? 'rgba(255,255,255,0.08)' : '#ffffff', borderColor: isPremium ? 'rgba(250,204,21,0.24)' : '#e2e8f0' }]}> 
+                <Text style={[styles.emptyTitle, { color: isPremium ? '#FFFFFF' : '#0f172a' }]}>Sin actividad este dia</Text>
+                <Text style={[styles.muted, { color: isPremium ? '#FFE3E8' : '#64748b' }]}>Selecciona otro dia marcado en el calendario.</Text>
               </View>
             ) : null}
 
@@ -440,8 +443,8 @@ export default function CalendarScreen() {
               <>
                 <View style={styles.sectionHeader}>
                   <View>
-                    <Text style={styles.sectionTitle}>Proximos eventos</Text>
-                    <Text style={styles.sectionSubtitle}>Maximo 3 visibles aqui</Text>
+                    <Text style={[styles.sectionTitle, { color: isPremium ? '#FFFFFF' : '#0f172a' }]}>Proximos eventos</Text>
+                    <Text style={[styles.sectionSubtitle, { color: isPremium ? '#FFE3E8' : '#64748b' }]}>Maximo 3 visibles aqui</Text>
                   </View>
                 </View>
                 {upcomingEvents.map((occurrence) => (
@@ -534,11 +537,3 @@ const styles = StyleSheet.create({
   cancelledText: { color: '#dc2626', fontSize: 12, fontWeight: '900', marginTop: 4 },
   dayCancelledText: { alignSelf: 'flex-start', overflow: 'hidden', marginTop: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: '#fee2e2', color: '#991b1b', fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
 });
-
-
-
-
-
-
-
-

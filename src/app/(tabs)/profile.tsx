@@ -6,6 +6,7 @@ import { Alert, Image, Modal, Pressable, RefreshControl, StyleSheet, Text, TextI
 import { SocialLinksRow } from '../../components/ui/SocialLinksRow';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
+import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import { supabase } from '../../lib/supabase';
 import { getVisibleAnnouncements } from '../../services/announcements.service';
@@ -41,6 +42,17 @@ export default function ProfileScreen() {
     announcements: 0,
     events: 0,
   });
+
+  const baseFormat = useMemo(
+    () => resolveUcapsaFormat({
+      user,
+      role,
+      isAdmin,
+      membershipStatus: clientMembership?.status ?? null,
+    }),
+    [user, role, isAdmin, clientMembership?.status],
+  );
+  const isPremium = baseFormat.key === 'member' && !isAdmin;
 
   useEffect(() => {
     setFullName(profile?.full_name ?? '');
@@ -179,7 +191,7 @@ export default function ProfileScreen() {
 
   if (loading) {
     return (
-      <KeyboardAwareScreen>
+      <KeyboardAwareScreen style={{ backgroundColor: baseFormat.background }}>
         <Text style={styles.title}>Perfil</Text>
         <Text style={styles.muted}>Cargando sesion...</Text>
       </KeyboardAwareScreen>
@@ -188,38 +200,40 @@ export default function ProfileScreen() {
 
   if (!user) {
     return (
-      <KeyboardAwareScreen>
-        <View style={styles.guestHero}>
+      <KeyboardAwareScreen style={{ backgroundColor: baseFormat.background }}>
+        <View style={[styles.guestHero, { backgroundColor: baseFormat.surface, borderColor: baseFormat.border }]}>
           <Image source={wordmark} style={styles.wordmark} resizeMode="contain" />
           <Text style={styles.title}>Perfil</Text>
           <Text style={styles.muted}>Inicia sesion para ver tu perfil, membresia y credencial digital.</Text>
         </View>
 
         <Link href="/auth/login" asChild>
-          <Pressable style={styles.primaryButton}><Text style={styles.primaryButtonText}>Iniciar sesion</Text></Pressable>
+          <Pressable style={[styles.primaryButton, isPremium && styles.premiumPrimaryButton]}><Text style={[styles.primaryButtonText, isPremium && styles.premiumPrimaryButtonText]}>Iniciar sesion</Text></Pressable>
         </Link>
 
         <Link href="/auth/register" asChild>
-          <Pressable style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Crear cuenta</Text></Pressable>
+          <Pressable style={[styles.secondaryButton, isPremium && styles.premiumSecondaryButton]}><Text style={[styles.secondaryButtonText, isPremium && styles.premiumSecondaryButtonText]}>Crear cuenta</Text></Pressable>
         </Link>
 
-        <SocialLinksRow />
+        <SocialLinksRow premium={isPremium} />
       </KeyboardAwareScreen>
     );
   }
 
   return (
-    <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={ucapsaBrand.colors.red} />}>
-      <View style={styles.heroCard}>
+    <KeyboardAwareScreen style={{ backgroundColor: isPremium ? '#270711' : baseFormat.background }} contentContainerStyle={isPremium ? styles.premiumScreenContent : undefined} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={baseFormat.accent} />}>
+      <View style={[styles.heroCard, { backgroundColor: isPremium ? '#6D0817' : baseFormat.surface, borderColor: isPremium ? 'rgba(250,204,21,0.42)' : baseFormat.border, overflow: 'hidden' }]}>
+        {isPremium ? <View style={styles.premiumGlowA} /> : null}
+        {isPremium ? <View style={styles.premiumGlowB} /> : null}
         <View style={styles.heroCardTop}>
           <View style={[styles.avatar, { backgroundColor: avatarColor }]}> 
             <Text style={styles.avatarText}>{(fullName || profile?.email || 'U').trim().slice(0, 1).toUpperCase()}</Text>
           </View>
           <View style={styles.heroCardMeta}>
-            <Text style={styles.name}>{fullName || profile?.email || 'Usuario'}</Text>
-            <Text style={styles.email}>{profile?.email ?? user.email}</Text>
+            <Text style={[styles.name, { color: isPremium ? '#FFFFFF' : ucapsaBrand.colors.text }]}>{fullName || profile?.email || 'Usuario'}</Text>
+            <Text style={[styles.email, { color: isPremium ? '#FFE3E8' : ucapsaBrand.colors.muted }]}>{profile?.email ?? user.email}</Text>
             <View style={styles.badgeRow}>
-              <Text style={styles.rolePill}>Rol: {role ?? 'client'}</Text>
+              <Text style={[styles.rolePill, isPremium && styles.rolePillPremium]}>Rol: {role ?? 'client'}</Text>
               {isAdmin ? <Text style={styles.rolePillAlt}>Admin</Text> : null}
             </View>
           </View>
@@ -231,21 +245,21 @@ export default function ProfileScreen() {
 
 
       {!isAdmin ? (
-        <View style={styles.clientMembershipCard}>
-          <Text style={styles.sectionEyebrow}>Perfil de cliente</Text>
-          <Text style={styles.sectionTitle}>Estado UCAPSA</Text>
-          <Text style={styles.clientMembershipText}>
+        <View style={[styles.clientMembershipCard, isPremium && styles.clientMembershipCardPremium]}>
+          <Text style={[styles.sectionEyebrow, isPremium && styles.sectionEyebrowPremium]}>Perfil de cliente</Text>
+          <Text style={[styles.sectionTitle, isPremium && styles.sectionTitlePremium]}>Estado UCAPSA</Text>
+          <Text style={[styles.clientMembershipText, isPremium && styles.clientMembershipTextPremium]}>
             {!clientMembership ? 'Aun no tienes membresia registrada.' : `Membresia: ${getMembershipStatusLabel(clientMembership.status)}`}
           </Text>
           {clientMembership?.status === 'pending' ? (
-            <Text style={styles.clientMembershipWarning}>Tu solicitud esta pendiente de revision.</Text>
+            <Text style={[styles.clientMembershipWarning, isPremium && styles.clientMembershipWarningPremium]}>Tu solicitud esta pendiente de revision.</Text>
           ) : null}
           {clientMembership && ['rejected', 'cancelled', 'expired'].includes(clientMembership.status) ? (
-            <Text style={styles.clientMembershipWarning}>Membresia no aceptada, no reconocida o pendiente de contrato. Consulta con administracion.</Text>
+            <Text style={[styles.clientMembershipWarning, isPremium && styles.clientMembershipWarningPremium]}>Membresia no aceptada, no reconocida o pendiente de contrato. Consulta con administracion.</Text>
           ) : null}
-          <Text style={styles.clientMembershipHint}>Las credenciales, QR, membresia y clases activas se consultan en Mi UCAPSA.</Text>
-          <Pressable style={styles.primaryButton} onPress={() => router.push('/membership' as never)}>
-            <Text style={styles.primaryButtonText}>{clientMembership?.status === 'pending' ? 'Ver solicitud' : clientMembership ? 'Abrir Mi UCAPSA' : 'Solicitar membresia'}</Text>
+          <Text style={[styles.clientMembershipHint, isPremium && styles.clientMembershipHintPremium]}>Las credenciales, QR, membresia y clases activas se consultan en Mi UCAPSA.</Text>
+          <Pressable style={[styles.primaryButton, isPremium && styles.premiumPrimaryButton]} onPress={() => router.push('/membership' as never)}>
+            <Text style={[styles.primaryButtonText, isPremium && styles.premiumPrimaryButtonText]}>{clientMembership?.status === 'pending' ? 'Ver solicitud' : clientMembership ? 'Abrir Mi UCAPSA' : 'Solicitar membresia'}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -284,62 +298,62 @@ export default function ProfileScreen() {
       ) : null}
 
       {!isAdmin && showReadonlyClientView ? (
-        <View style={styles.readonlyCard}>
-          <ReadonlyRow label="Nombre" value={profile?.full_name ?? ''} />
-          <ReadonlyRow label="Telefono" value={profile?.phone ?? ''} />
-          <ReadonlyRow label="Perro" value={profile?.dog_name ?? ''} />
-          <Pressable style={styles.secondaryButton} onPress={() => setEditMode(true)}>
-            <Text style={styles.secondaryButtonText}>Editar informacion</Text>
+        <View style={[styles.readonlyCard, isPremium && styles.premiumBodyCard]}>
+          <ReadonlyRow label="Nombre" value={profile?.full_name ?? ''} premium={isPremium} />
+          <ReadonlyRow label="Telefono" value={profile?.phone ?? ''} premium={isPremium} />
+          <ReadonlyRow label="Perro" value={profile?.dog_name ?? ''} premium={isPremium} />
+          <Pressable style={[styles.secondaryButton, isPremium && styles.premiumSecondaryButton]} onPress={() => setEditMode(true)}>
+            <Text style={[styles.secondaryButtonText, isPremium && styles.premiumSecondaryButtonText]}>Editar informacion</Text>
           </Pressable>
         </View>
       ) : !isAdmin ? (
-        <View style={styles.formCard}>
-          <Text style={styles.formTitle}>Mis datos</Text>
-          <Text style={styles.label}>Nombre completo</Text>
-          <TextInput value={fullName} onChangeText={setFullName} placeholder="Tu nombre" style={styles.input} autoCapitalize="words" />
+        <View style={[styles.formCard, isPremium && styles.premiumBodyCard]}>
+          <Text style={[styles.formTitle, isPremium && styles.premiumBodyTitle]}>Mis datos</Text>
+          <Text style={[styles.label, isPremium && styles.premiumLabel]}>Nombre completo</Text>
+          <TextInput value={fullName} onChangeText={setFullName} placeholder="Tu nombre" style={[styles.input, isPremium && styles.premiumInput]} autoCapitalize="words" />
 
-          <Text style={styles.label}>Telefono</Text>
-          <TextInput value={phone} onChangeText={setPhone} placeholder="Telefono" style={styles.input} keyboardType="phone-pad" />
+          <Text style={[styles.label, isPremium && styles.premiumLabel]}>Telefono</Text>
+          <TextInput value={phone} onChangeText={setPhone} placeholder="Telefono" style={[styles.input, isPremium && styles.premiumInput]} keyboardType="phone-pad" />
 
-          <Text style={styles.label}>Nombre de tu perro</Text>
-          <TextInput value={dogName} onChangeText={setDogName} placeholder="Ej. Max, Luna, Toby" style={styles.input} autoCapitalize="words" />
+          <Text style={[styles.label, isPremium && styles.premiumLabel]}>Nombre de tu perro</Text>
+          <TextInput value={dogName} onChangeText={setDogName} placeholder="Ej. Max, Luna, Toby" style={[styles.input, isPremium && styles.premiumInput]} autoCapitalize="words" />
 
-          <Text style={styles.label}>Color de avatar</Text>
+          <Text style={[styles.label, isPremium && styles.premiumLabel]}>Color de avatar</Text>
           <View style={styles.colorRow}>
             {avatarColors.map((color) => (
               <Pressable key={color} onPress={() => setAvatarColor(color)} style={[styles.colorDot, { backgroundColor: color }, avatarColor === color && styles.colorDotActive]} />
             ))}
           </View>
 
-          <Pressable disabled={saving} onPress={handleSaveProfile} style={styles.primaryButton}>
-            <Text style={styles.primaryButtonText}>{saving ? 'Guardando...' : 'Guardar perfil'}</Text>
+          <Pressable disabled={saving} onPress={handleSaveProfile} style={[styles.primaryButton, isPremium && styles.premiumPrimaryButton]}>
+            <Text style={[styles.primaryButtonText, isPremium && styles.premiumPrimaryButtonText]}>{saving ? 'Guardando...' : 'Guardar perfil'}</Text>
           </Pressable>
 
           {clientProfileComplete ? (
-            <Pressable style={styles.secondaryButton} onPress={() => setEditMode(false)}>
-              <Text style={styles.secondaryButtonText}>Cancelar edicion</Text>
+            <Pressable style={[styles.secondaryButton, isPremium && styles.premiumSecondaryButton]} onPress={() => setEditMode(false)}>
+              <Text style={[styles.secondaryButtonText, isPremium && styles.premiumSecondaryButtonText]}>Cancelar edicion</Text>
             </Pressable>
           ) : null}
         </View>
       ) : null}
 
       {!isAdmin && deletionRequested ? (
-        <View style={styles.noticeBox}>
-          <Text style={styles.noticeTitle}>Eliminacion solicitada</Text>
-          <Text style={styles.noticeText}>Tu solicitud ya fue registrada. Administracion revisara la cuenta antes de cualquier baja definitiva.</Text>
+        <View style={[styles.noticeBox, isPremium && styles.premiumNoticeBox]}>
+          <Text style={[styles.noticeTitle, isPremium && styles.premiumBodyTitle]}>Eliminacion solicitada</Text>
+          <Text style={[styles.noticeText, isPremium && styles.premiumBodyText]}>Tu solicitud ya fue registrada. Administracion revisara la cuenta antes de cualquier baja definitiva.</Text>
         </View>
       ) : null}
 
-      <SocialLinksRow />
+      <SocialLinksRow premium={isPremium} />
 
       {!isAdmin ? (
-        <Pressable disabled={deletionRequested} onPress={handleDeleteRequest} style={[styles.dangerGhostButton, deletionRequested && styles.disabledButton]}>
-          <Text style={styles.dangerGhostText}>{deletionRequested ? 'Eliminacion solicitada' : 'Solicitar eliminacion de cuenta'}</Text>
+        <Pressable disabled={deletionRequested} onPress={handleDeleteRequest} style={[styles.dangerGhostButton, isPremium && styles.premiumDangerGhostButton, deletionRequested && styles.disabledButton]}>
+          <Text style={[styles.dangerGhostText, isPremium && styles.premiumDangerGhostText]}>{deletionRequested ? 'Eliminacion solicitada' : 'Solicitar eliminacion de cuenta'}</Text>
         </Pressable>
       ) : null}
 
-      <Pressable onPress={signOut} style={styles.secondaryButton}>
-        <Text style={styles.secondaryButtonText}>Cerrar sesion</Text>
+      <Pressable onPress={signOut} style={[styles.secondaryButton, isPremium && styles.premiumSecondaryButton]}>
+        <Text style={[styles.secondaryButtonText, isPremium && styles.premiumSecondaryButtonText]}>Cerrar sesion</Text>
       </Pressable>
 
       <Modal visible={profileModalVisible} transparent animationType="slide" onRequestClose={() => setProfileModalVisible(false)}>
@@ -358,19 +372,19 @@ export default function ProfileScreen() {
                 <ReadonlyRow label="Correo de contacto" value={email || 'Sin correo'} />
                 <ReadonlyRow label="Telefono" value={phone || 'Sin telefono'} />
                 <ReadonlyRow label="Rol" value={role ?? 'client'} />
-                <Pressable style={styles.primaryButton} onPress={() => setProfileModalEditing(true)}>
-                  <Text style={styles.primaryButtonText}>Editar perfil</Text>
+                <Pressable style={[styles.primaryButton, isPremium && styles.premiumPrimaryButton]} onPress={() => setProfileModalEditing(true)}>
+                  <Text style={[styles.primaryButtonText, isPremium && styles.premiumPrimaryButtonText]}>Editar perfil</Text>
                 </Pressable>
               </>
             ) : (
               <>
-                <Text style={styles.label}>Nombre completo</Text>
-                <TextInput value={fullName} onChangeText={setFullName} placeholder="Nombre" style={styles.input} />
+                <Text style={[styles.label, isPremium && styles.premiumLabel]}>Nombre completo</Text>
+                <TextInput value={fullName} onChangeText={setFullName} placeholder="Nombre" style={[styles.input, isPremium && styles.premiumInput]} />
                 <Text style={styles.label}>Correo de contacto</Text>
-                <TextInput value={email} onChangeText={setEmail} placeholder="Correo" keyboardType="email-address" autoCapitalize="none" style={styles.input} />
-                <Text style={styles.label}>Telefono</Text>
-                <TextInput value={phone} onChangeText={setPhone} placeholder="Telefono" keyboardType="phone-pad" style={styles.input} />
-                <Text style={styles.label}>Color de avatar</Text>
+                <TextInput value={email} onChangeText={setEmail} placeholder="Correo" keyboardType="email-address" autoCapitalize="none" style={[styles.input, isPremium && styles.premiumInput]} />
+                <Text style={[styles.label, isPremium && styles.premiumLabel]}>Telefono</Text>
+                <TextInput value={phone} onChangeText={setPhone} placeholder="Telefono" keyboardType="phone-pad" style={[styles.input, isPremium && styles.premiumInput]} />
+                <Text style={[styles.label, isPremium && styles.premiumLabel]}>Color de avatar</Text>
                 <View style={styles.colorRow}>
                   {avatarColors.map((color) => (
                     <Pressable key={color} onPress={() => setAvatarColor(color)} style={[styles.colorDot, { backgroundColor: color }, avatarColor === color && styles.colorDotActive]} />
@@ -379,13 +393,13 @@ export default function ProfileScreen() {
                 <ReadonlyRow label="Rol" value={role ?? 'client'} />
                 <Pressable
                   disabled={saving}
-                  style={styles.primaryButton}
+                  style={[styles.primaryButton, isPremium && styles.premiumPrimaryButton]}
                   onPress={async () => {
                     await handleSaveProfile();
                     setProfileModalEditing(false);
                   }}
                 >
-                  <Text style={styles.primaryButtonText}>{saving ? 'Guardando...' : 'Guardar perfil'}</Text>
+                  <Text style={[styles.primaryButtonText, isPremium && styles.premiumPrimaryButtonText]}>{saving ? 'Guardando...' : 'Guardar perfil'}</Text>
                 </Pressable>
               </>
             )}
@@ -416,19 +430,36 @@ function QuickAction({ label, icon, onPress }: { label: string; icon: keyof type
   );
 }
 
-function ReadonlyRow({ label, value }: { label: string; value: string }) {
+function ReadonlyRow({ label, value, premium = false }: { label: string; value: string; premium?: boolean }) {
   return (
     <View style={styles.readonlyRow}>
-      <Text style={styles.readonlyLabel}>{label}</Text>
-      <Text style={styles.readonlyValue}>{value}</Text>
+      <Text style={[styles.readonlyLabel, premium && styles.premiumReadonlyLabel]}>{label}</Text>
+      <Text style={[styles.readonlyValue, premium && styles.premiumReadonlyValue]}>{value}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  premiumScreenContent: { backgroundColor: '#270711' },
   guestHero: { backgroundColor: '#fff', borderRadius: 30, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 22, gap: 8 },
   wordmark: { width: 180, height: 42, marginBottom: 6 },
-  heroCard: { backgroundColor: '#fff', borderRadius: 30, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 18 },
+  heroCard: { position: 'relative', backgroundColor: '#fff', borderRadius: 30, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 18 },
+  premiumGlowA: { position: 'absolute', top: -56, right: -40, width: 150, height: 150, borderRadius: 75, backgroundColor: '#FACC15', opacity: 0.18 },
+  premiumGlowB: { position: 'absolute', bottom: -70, left: -48, width: 150, height: 150, borderRadius: 75, backgroundColor: '#12040A', opacity: 0.34 },
+  premiumBodyCard: { backgroundColor: '#38111B', borderColor: 'rgba(250,204,21,0.34)' },
+  premiumBodyTitle: { color: '#FFE8B5' },
+  premiumBodyText: { color: '#FFE3E8' },
+  premiumLabel: { color: '#FFE8B5' },
+  premiumInput: { backgroundColor: '#270711', borderColor: 'rgba(250,204,21,0.30)', color: '#FFFFFF' },
+  premiumReadonlyLabel: { color: '#FFE8B5' },
+  premiumReadonlyValue: { color: '#FFFFFF' },
+  premiumPrimaryButton: { backgroundColor: '#FACC15' },
+  premiumPrimaryButtonText: { color: '#4A0710' },
+  premiumSecondaryButton: { backgroundColor: 'rgba(255,255,255,0.08)', borderColor: 'rgba(250,204,21,0.34)' },
+  premiumSecondaryButtonText: { color: '#FFE8B5' },
+  premiumDangerGhostButton: { borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.05)' },
+  premiumDangerGhostText: { color: '#FFE8B5' },
+  premiumNoticeBox: { backgroundColor: '#38111B', borderColor: 'rgba(250,204,21,0.34)' },
   heroCardTop: { flexDirection: 'row', alignItems: 'center' },
   heroCardMeta: { flex: 1, marginLeft: 14 },
   avatar: { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center' },
@@ -437,6 +468,7 @@ const styles = StyleSheet.create({
   email: { color: ucapsaBrand.colors.muted, fontSize: 13, marginTop: 2 },
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
   rolePill: { overflow: 'hidden', backgroundColor: ucapsaBrand.colors.redSoft, color: ucapsaBrand.colors.redDark, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, fontSize: 12, fontWeight: '900' },
+  rolePillPremium: { backgroundColor: '#FFE8B5', color: '#7A1020' },
   rolePillAlt: { overflow: 'hidden', backgroundColor: '#F4F4F5', color: ucapsaBrand.colors.muted, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, fontSize: 12, fontWeight: '800' },
   markBadge: { width: 40, height: 40, borderRadius: 20, backgroundColor: ucapsaBrand.colors.redSoft, alignItems: 'center', justifyContent: 'center' },
   markBadgeImage: { width: 22, height: 22 },
@@ -445,6 +477,8 @@ const styles = StyleSheet.create({
   sectionHeader: { marginTop: 2 },
   sectionEyebrow: { color: ucapsaBrand.colors.red, fontSize: 12, fontWeight: '900', letterSpacing: 0.7, textTransform: 'uppercase' },
   sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 22, fontWeight: '900', marginTop: 4 },
+  sectionTitlePremium: { color: '#FFE8B5' },
+  sectionEyebrowPremium: { color: '#FFE8B5' },
   adminStatsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   statCard: { width: '48%', backgroundColor: '#fff', borderRadius: 22, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 14 },
   statIconWrap: { width: 34, height: 34, borderRadius: 17, backgroundColor: ucapsaBrand.colors.redSoft, alignItems: 'center', justifyContent: 'center' },
@@ -458,9 +492,13 @@ const styles = StyleSheet.create({
   quickActionIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   quickActionText: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
   clientMembershipCard: { backgroundColor: '#fff', borderRadius: 26, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 18 },
+  clientMembershipCardPremium: { backgroundColor: '#38111B', borderColor: 'rgba(250,204,21,0.34)' },
   clientMembershipText: { color: ucapsaBrand.colors.text, fontSize: 15, fontWeight: '800', marginTop: 8, lineHeight: 21 },
+  clientMembershipTextPremium: { color: '#FFE3E8' },
   clientMembershipWarning: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '800', marginTop: 8, lineHeight: 19 },
+  clientMembershipWarningPremium: { color: '#FFE8B5' },
   clientMembershipHint: { color: ucapsaBrand.colors.muted, fontSize: 13, fontWeight: '700', marginTop: 10, lineHeight: 19 },
+  clientMembershipHintPremium: { color: '#FFE3E8' },
   noticeBox: { backgroundColor: '#FFF7ED', borderWidth: 1, borderColor: '#FED7AA', borderRadius: 20, padding: 14 },
   noticeTitle: { color: '#9A3412', fontSize: 15, fontWeight: '900' },
   noticeText: { color: '#9A3412', fontSize: 13, fontWeight: '700', lineHeight: 19, marginTop: 4 },
@@ -488,6 +526,3 @@ const styles = StyleSheet.create({
   profileModalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   profileModalTitle: { color: ucapsaBrand.colors.text, fontSize: 22, fontWeight: '900' },
 });
-
-
-

@@ -1,12 +1,13 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AnnouncementCard } from '../../components/domain/AnnouncementCard';
 import { UcapsaDetailModal } from '../../components/ui/UcapsaDetailModal';
 import { ucapsaBrand } from '../../constants/brand';
+import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import { getVisibleAnnouncements } from '../../services/announcements.service';
 import type { Announcement } from '../../types/app.types';
@@ -14,12 +15,14 @@ import type { Announcement } from '../../types/app.types';
 const mark = require('../../../assets/images/brand/ucapsa-mark.png');
 
 export default function AnnouncementsScreen() {
-  const { isAdmin } = useSession();
+  const { user, role, isAdmin } = useSession();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [user, role, isAdmin]);
+  const isPremium = format.key === 'member';
 
   const loadAnnouncements = useCallback(async () => {
     setError(null);
@@ -54,24 +57,24 @@ export default function AnnouncementsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: format.background }]} edges={['top']}>
       <ScrollView
-        style={styles.container}
+        style={[styles.container, { backgroundColor: format.background }]}
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ucapsaBrand.colors.red} />}
       >
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: format.surface, borderColor: format.border }]}>
           <View style={styles.headerRow}>
             <View>
-              <Text style={styles.kicker}>Anuncios</Text>
-              <Text style={styles.title}>Comunicacion oficial</Text>
+              <Text style={[styles.kicker, { color: format.accentDark }]}>Anuncios</Text>
+              <Text style={[styles.title, { color: format.text }]}>Comunicacion oficial</Text>
             </View>
-            <View style={styles.markCircle}><Image source={mark} style={styles.mark} resizeMode="contain" /></View>
+            <View style={[styles.markCircle, { backgroundColor: format.accentSoft }]}><Image source={mark} style={styles.mark} resizeMode="contain" /></View>
           </View>
         </View>
 
         {isAdmin ? (
-          <Pressable style={styles.adminButton} onPress={() => router.push('/admin/announcements' as never)}>
+          <Pressable style={[styles.adminButton, { backgroundColor: format.primaryButton }]} onPress={() => router.push('/admin/announcements' as never)}>
             <MaterialIcons name="admin-panel-settings" size={18} color="#ffffff" />
             <Text style={styles.adminButtonText}>Administrar anuncios</Text>
           </Pressable>
@@ -79,16 +82,16 @@ export default function AnnouncementsScreen() {
 
         <View style={styles.sectionHeader}>
           <View>
-            <Text style={styles.sectionKicker}>Lista</Text>
-            <Text style={styles.sectionTitle}>Avisos publicados</Text>
+            <Text style={[styles.sectionKicker, { color: isPremium ? '#FFE8B5' : ucapsaBrand.colors.muted }]}>Lista</Text>
+            <Text style={[styles.sectionTitle, { color: isPremium ? '#FFFFFF' : ucapsaBrand.colors.text }]}>Avisos publicados</Text>
           </View>
-          <View style={styles.countPill}><Text style={styles.countText}>{announcements.length}</Text></View>
+          <View style={[styles.countPill, { backgroundColor: format.pillBackground }]}><Text style={[styles.countText, { color: format.pillText }]}>{announcements.length}</Text></View>
         </View>
 
         {loading ? (
           <View style={styles.centerBox}>
-            <ActivityIndicator color={ucapsaBrand.colors.red} />
-            <Text style={styles.muted}>Cargando anuncios...</Text>
+            <ActivityIndicator color={format.accent} />
+            <Text style={[styles.muted, { color: format.muted }]}>Cargando anuncios...</Text>
           </View>
         ) : null}
 
@@ -103,9 +106,9 @@ export default function AnnouncementsScreen() {
         ) : null}
 
         {!loading && !error && announcements.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyTitle}>Sin anuncios publicados</Text>
-            <Text style={styles.muted}>Cuando UCAPSA publique avisos, apareceran aqui.</Text>
+          <View style={[styles.emptyBox, { backgroundColor: isPremium ? 'rgba(255,255,255,0.08)' : '#fff', borderColor: isPremium ? 'rgba(250,204,21,0.24)' : ucapsaBrand.colors.border }]}> 
+            <Text style={[styles.emptyTitle, { color: isPremium ? '#FFFFFF' : ucapsaBrand.colors.text }]}>Sin anuncios publicados</Text>
+            <Text style={[styles.muted, { color: format.muted }]}>Cuando UCAPSA publique avisos, apareceran aqui.</Text>
           </View>
         ) : null}
 
@@ -160,4 +163,3 @@ const styles = StyleSheet.create({
   emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900' },
   announcementWrap: { position: 'relative' },
 });
-

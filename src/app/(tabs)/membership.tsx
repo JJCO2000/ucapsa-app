@@ -9,6 +9,7 @@ import { ProgramCredentialCard } from '../../components/domain/ProgramCredential
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
+import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import {
   formatDate,
@@ -333,6 +334,19 @@ export default function MembershipScreen() {
   const [savingPaymentId, setSavingPaymentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  const activeProgramEnrollmentsForFormat = programEnrollments.filter((item) => item.enrollment.status === 'active');
+  const baseFormat = useMemo(
+    () => resolveUcapsaFormat({
+      user,
+      role,
+      isAdmin,
+      membershipStatus: membership?.status ?? null,
+      hasActivePrograms: activeProgramEnrollmentsForFormat.length > 0,
+    }),
+    [user, role, isAdmin, membership?.status, activeProgramEnrollmentsForFormat.length],
+  );
+  const isPremium = baseFormat.key === 'member' && !isAdmin;
 
   useEffect(() => {
     async function loadPrefs() {
@@ -745,7 +759,7 @@ export default function MembershipScreen() {
 
   if (!user) {
     return (
-      <KeyboardAwareScreen>
+      <KeyboardAwareScreen style={{ backgroundColor: baseFormat.background }}>
         <View style={styles.publicHero}>
           <Image source={wordmark} style={styles.wordmark} resizeMode="contain" />
           <Text style={styles.publicTitle}>Mi UCAPSA</Text>
@@ -759,7 +773,7 @@ export default function MembershipScreen() {
 
   if (isAdmin) {
     return (
-      <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={ucapsaBrand.colors.red} />}>
+      <KeyboardAwareScreen style={{ backgroundColor: baseFormat.background }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={baseFormat.accent} />}>
         <View style={styles.adminHero}>
           <View style={styles.adminHeroTop}>
             <View style={styles.heroIconBubble}><Image source={mark} style={styles.heroMark} resizeMode="contain" /></View>
@@ -936,7 +950,7 @@ export default function MembershipScreen() {
 
   const expiredByDate = isMembershipDateExpired(membership);
   const displayName = profile?.full_name || profile?.email || user.email || 'Usuario';
-  const activeProgramEnrollments = programEnrollments.filter((item) => item.enrollment.status === 'active');
+  const activeProgramEnrollments = activeProgramEnrollmentsForFormat;
   const hasActiveMembership = membership?.status === 'active';
   const hasActiveProgram = activeProgramEnrollments.length > 0;
   const showMembershipRequest = !membership && !hasActiveProgram;
@@ -944,41 +958,43 @@ export default function MembershipScreen() {
   const showInactiveMembership = Boolean(membership && membership.status !== 'pending' && membership.status !== 'active' && !hasActiveProgram);
 
   return (
-    <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={ucapsaBrand.colors.red} />}>
-      <View style={styles.clientHero}>
+    <KeyboardAwareScreen style={{ backgroundColor: isPremium ? '#270711' : baseFormat.background }} contentContainerStyle={isPremium ? styles.premiumScreenContent : undefined} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={baseFormat.accent} />}>
+      <View style={[styles.clientHero, { backgroundColor: baseFormat.heroBackground, borderColor: baseFormat.cardBorder, overflow: 'hidden' }]}>
+        {isPremium ? <View style={styles.premiumGlowA} /> : null}
+        {isPremium ? <View style={styles.premiumGlowB} /> : null}
         <View style={styles.heroIconBubble}><Image source={mark} style={styles.heroMark} resizeMode="contain" /></View>
-        <Text style={styles.eyebrow}>Mi UCAPSA</Text>
-        <Text style={styles.title}>Credenciales y membresia</Text>
+        <Text style={[styles.eyebrow, { color: baseFormat.key === 'member' ? baseFormat.heroMuted : baseFormat.accent }]}>Mi UCAPSA</Text>
+        <Text style={[styles.title, { color: baseFormat.key === 'member' ? baseFormat.heroText : baseFormat.text }]}>Credenciales y membresia</Text>
       </View>
 
-      {loading ? <Text style={styles.muted}>Cargando membresia...</Text> : null}
+      {loading ? <Text style={[styles.muted, { color: baseFormat.muted }]}>Cargando membresia...</Text> : null}
 
       {showMembershipRequest ? (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Aun no tienes membresia</Text>
-          <Text style={styles.cardText}>Solicitala para que administracion revise y active tu credencial.</Text>
-          <Pressable onPress={handleRequestMembership} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Solicitar membresia</Text></Pressable>
+        <View style={[styles.card, isPremium && styles.premiumBodyCard]}>
+          <Text style={[styles.cardTitle, isPremium && styles.premiumBodyTitle]}>Aun no tienes membresia</Text>
+          <Text style={[styles.cardText, isPremium && styles.premiumBodyText]}>Solicitala para que administracion revise y active tu credencial.</Text>
+          <Pressable onPress={handleRequestMembership} style={[styles.primaryButton, isPremium && styles.premiumPrimaryButton]}><Text style={[styles.primaryButtonText, isPremium && styles.premiumPrimaryButtonText]}>Solicitar membresia</Text></Pressable>
         </View>
       ) : null}
 
       {showPendingMembership ? (
-        <View style={styles.noticeCard}>
-          <Text style={styles.noticeTitle}>Solicitud pendiente</Text>
-          <Text style={styles.noticeText}>Administracion revisara tu solicitud. Cuando sea aprobada, aqui apareceran tu credencial y QR.</Text>
+        <View style={[styles.noticeCard, isPremium && styles.premiumBodyCard]}>
+          <Text style={[styles.noticeTitle, isPremium && styles.premiumBodyTitle]}>Solicitud pendiente</Text>
+          <Text style={[styles.noticeText, isPremium && styles.premiumBodyText]}>Administracion revisara tu solicitud. Cuando sea aprobada, aqui apareceran tu credencial y QR.</Text>
         </View>
       ) : null}
 
       {membership && showInactiveMembership ? (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Membresia {getMembershipStatusLabel(membership.status).toLowerCase()}</Text>
-          <Text style={styles.cardText}>Tu membresia no esta aceptada, no esta reconocida o falta revision de contrato. Si necesitas reactivarla, solicita revision a administracion.</Text>
-          <Pressable onPress={handleRequestMembership} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Solicitar revision</Text></Pressable>
+        <View style={[styles.card, isPremium && styles.premiumBodyCard]}>
+          <Text style={[styles.cardTitle, isPremium && styles.premiumBodyTitle]}>Membresia {getMembershipStatusLabel(membership.status).toLowerCase()}</Text>
+          <Text style={[styles.cardText, isPremium && styles.premiumBodyText]}>Tu membresia no esta aceptada, no esta reconocida o falta revision de contrato. Si necesitas reactivarla, solicita revision a administracion.</Text>
+          <Pressable onPress={handleRequestMembership} style={[styles.primaryButton, isPremium && styles.premiumPrimaryButton]}><Text style={[styles.primaryButtonText, isPremium && styles.premiumPrimaryButtonText]}>Solicitar revision</Text></Pressable>
         </View>
       ) : null}
 
       {membership?.status === 'active' ? (
         <>
-          <Text style={styles.clientSectionTitle}>Membresia activa</Text>
+          <Text style={[styles.clientSectionTitle, { color: isPremium ? '#FFE8B5' : ucapsaBrand.colors.text }]}>Membresia activa</Text>
           <MemberCredentialCard
             membership={membership}
             profile={profile}
@@ -990,7 +1006,7 @@ export default function MembershipScreen() {
 
       {activeProgramEnrollments.length > 0 ? (
         <>
-          <Text style={styles.clientSectionTitle}>Clases activas</Text>
+          <Text style={[styles.clientSectionTitle, { color: isPremium ? '#FFE8B5' : ucapsaBrand.colors.text }]}>Clases activas</Text>
           {activeProgramEnrollments.map((item) => (
             <ProgramCredentialCard key={item.enrollment.id} item={item} />
           ))}
@@ -1384,12 +1400,20 @@ function Detail({ label, value }: { label: string; value?: string | null }) {
 }
 
 const styles = StyleSheet.create({
+  premiumScreenContent: { backgroundColor: '#270711' },
   publicHero: { backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 30, padding: 22, gap: 8 },
   wordmark: { width: 180, height: 42, marginBottom: 6 },
   publicTitle: { color: ucapsaBrand.colors.text, fontSize: 30, fontWeight: '900' },
   adminHero: { backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 30, padding: 20 },
   adminHeroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  clientHero: { backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 30, padding: 20, gap: 8 },
+  clientHero: { position: 'relative', backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 30, padding: 20, gap: 8 },
+  premiumGlowA: { position: 'absolute', top: -56, right: -38, width: 150, height: 150, borderRadius: 75, backgroundColor: '#FACC15', opacity: 0.20 },
+  premiumGlowB: { position: 'absolute', bottom: -68, left: -46, width: 150, height: 150, borderRadius: 75, backgroundColor: '#12040A', opacity: 0.34 },
+  premiumBodyCard: { backgroundColor: '#38111B', borderColor: 'rgba(250,204,21,0.34)' },
+  premiumBodyTitle: { color: '#FFE8B5' },
+  premiumBodyText: { color: '#FFE3E8' },
+  premiumPrimaryButton: { backgroundColor: '#FACC15' },
+  premiumPrimaryButtonText: { color: '#4A0710' },
   heroIconBubble: { width: 46, height: 46, borderRadius: 23, backgroundColor: ucapsaBrand.colors.redSoft, alignItems: 'center', justifyContent: 'center' },
   heroMark: { width: 26, height: 26 },
   eyebrow: { color: ucapsaBrand.colors.red, fontSize: 12, fontWeight: '900', letterSpacing: 0.7, textTransform: 'uppercase' },
@@ -1536,8 +1560,3 @@ const styles = StyleSheet.create({
   dateModalCard: { backgroundColor: '#fff', borderRadius: 24, padding: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   dateModalTitle: { color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '900', marginBottom: 10 },
 });
-
-
-
-
-

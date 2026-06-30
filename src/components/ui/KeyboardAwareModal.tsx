@@ -1,4 +1,5 @@
-﻿import type { PropsWithChildren } from 'react';
+import type { PropsWithChildren } from 'react';
+import { ucapsaBrand } from '../../constants/brand';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -45,13 +46,13 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    backgroundColor: 'rgba(37, 21, 26, 0.45)',
   },
   sheet: {
     maxHeight: '88%',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    backgroundColor: '#ffffff',
+    backgroundColor: ucapsaBrand.colors.surface,
     paddingTop: 10,
   },
   content: {
