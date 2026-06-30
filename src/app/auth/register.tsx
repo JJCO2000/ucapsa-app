@@ -15,12 +15,12 @@ export default function RegisterScreen() {
     const cleanEmail = email.trim().toLowerCase();
 
     if (!cleanName || !cleanEmail || !password) {
-      Alert.alert('Faltan datos', 'Escribe nombre, correo y contraseña.');
+      Alert.alert('Faltan datos', 'Escribe nombre, correo y contrasena.');
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert('Contraseña muy corta', 'Usa al menos 6 caracteres.');
+      Alert.alert('Contrasena muy corta', 'Usa al menos 6 caracteres.');
       return;
     }
 
@@ -50,7 +50,7 @@ export default function RegisterScreen() {
       <View style={styles.header}>
         <Text style={styles.kicker}>UCAPSA APP</Text>
         <Text style={styles.title}>Crear cuenta</Text>
-        <Text style={styles.subtitle}>Regístrate para solicitar membresía y consultar información oficial.</Text>
+        <Text style={styles.subtitle}>Registrate para solicitar membresia y consultar informacion oficial.</Text>
       </View>
 
       <View style={styles.card}>
@@ -78,11 +78,11 @@ export default function RegisterScreen() {
           returnKeyType="next"
         />
 
-        <Text style={styles.label}>Contraseña</Text>
+        <Text style={styles.label}>Contrasena</Text>
         <TextInput
           value={password}
           onChangeText={setPassword}
-          placeholder="Mínimo 6 caracteres"
+          placeholder="Minimo 6 caracteres"
           secureTextEntry
           textContentType="newPassword"
           style={styles.input}

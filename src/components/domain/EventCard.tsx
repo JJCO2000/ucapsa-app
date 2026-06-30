@@ -44,7 +44,7 @@ function formatDate(value: string | null, hasTime: boolean): string {
 
 function audienceLabel(audience: UcapsaEvent['audience']): string {
   const labels = {
-    public: 'Público',
+    public: 'Publico',
     clients: 'Clientes',
     members: 'Socios',
     admins: 'Admins',

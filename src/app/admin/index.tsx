@@ -1,4 +1,4 @@
-import { MaterialIcons } from '@expo/vector-icons';
+﻿import { MaterialIcons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '../../components/ui/Screen';
@@ -19,8 +19,14 @@ const adminLinks = [
   {
     href: '/admin/members',
     title: 'Socios',
-    description: 'Solicitudes, credenciales, pagos manuales y estadísticas.',
+    description: 'Solicitudes, credenciales, pagos manuales y estadisticas.',
     icon: 'badge',
+  },
+  {
+    href: '/admin/classes',
+    title: 'Clases UCAPSA',
+    description: 'Puppy, Comandos, tarjetas fisicas y QR por perro.',
+    icon: 'school',
   },
 ] as const;
 
@@ -31,20 +37,20 @@ export default function AdminHomeScreen() {
         <Text style={styles.kicker}>UCAPSA Admin</Text>
         <Text style={styles.title}>Panel administrativo</Text>
         <Text style={styles.description}>
-          Gestiona comunicación, calendario y socios desde un solo lugar.
+          Gestiona comunicacion, calendario, socios y clases desde un solo lugar.
         </Text>
       </View>
 
       <View style={styles.noticeCard}>
         <Text style={styles.noticeTitle}>MVP activo</Text>
         <Text style={styles.noticeText}>
-          Pagos y usuarios se administran desde Socios por ahora. No se muestran módulos vacíos para evitar confusión.
+          Pagos y usuarios se administran desde Socios por ahora. No se muestran modulos vacios para evitar confusion.
         </Text>
       </View>
 
       <View style={styles.grid}>
         {adminLinks.map((item) => (
-          <Link key={item.href} href={item.href} asChild>
+          <Link key={item.href} href={item.href as never} asChild>
             <Pressable style={styles.card}>
               <View style={styles.iconBox}>
                 <MaterialIcons name={item.icon} size={24} color="#0f766e" />
@@ -84,3 +90,6 @@ const styles = StyleSheet.create({
   cardTitle: { color: '#0f172a', fontSize: 17, fontWeight: '900' },
   cardDescription: { marginTop: 3, color: '#64748b', fontSize: 13, lineHeight: 18, fontWeight: '700' },
 });
+
+
+

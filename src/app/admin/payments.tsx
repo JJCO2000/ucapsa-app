@@ -11,7 +11,7 @@ export default function AdminDeferredScreen() {
         <Text style={styles.subtitle}>Los pagos manuales del MVP se registran desde el detalle de cada socio.</Text>
 
         <Text style={styles.note}>
-          Este módulo no se muestra en el panel principal del MVP para evitar pantallas vacías. Por ahora, la operación se concentra en Socios.
+          Este modulo no se muestra en el panel principal del MVP para evitar pantallas vacias. Por ahora, la operacion se concentra en Socios.
         </Text>
 
         <Link href="/admin/members" asChild>

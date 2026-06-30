@@ -12,7 +12,8 @@ import { useSession } from '../../hooks/useSession';
 import { getVisibleAnnouncements } from '../../services/announcements.service';
 import { getVisibleEvents } from '../../services/events.service';
 import { getAdminMembershipRows, getMyMembership } from '../../services/memberships.service';
-import type { Announcement, EventOccurrence, Membership } from '../../types/app.types';
+import { getMyProgramEnrollments } from '../../services/programs.service';
+import type { Announcement, EventOccurrence, Membership, ProgramEnrollmentWithDetails } from '../../types/app.types';
 import { getUpcomingOccurrences } from '../../utils/events.utils';
 
 const wordmark = require('../../../assets/images/brand/ucapsa-wordmark.png');
@@ -23,6 +24,7 @@ export default function HomeScreen() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [events, setEvents] = useState<EventOccurrence[]>([]);
   const [membership, setMembership] = useState<Membership | null>(null);
+  const [programEnrollments, setProgramEnrollments] = useState<ProgramEnrollmentWithDetails[]>([]);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<EventOccurrence | null>(null);
   const [adminStats, setAdminStats] = useState({ active: 0, requests: 0, pendingPayments: 0 });
@@ -43,9 +45,12 @@ export default function HomeScreen() {
             pendingPayments: rows.filter((row) => row.membership.current_payment_status === 'pending').length,
           });
         } else if (user) {
-          setMembership(await getMyMembership());
+          const [membershipResult, programResult] = await Promise.all([getMyMembership(), getMyProgramEnrollments()]);
+          setMembership(membershipResult);
+          setProgramEnrollments(programResult);
         } else {
           setMembership(null);
+          setProgramEnrollments([]);
         }
       } finally {
         setLoading(false);
@@ -58,22 +63,39 @@ export default function HomeScreen() {
   const displayName = profile?.full_name || profile?.email || user?.email || 'Visitante';
   const membershipStatus = membership?.status ?? null;
   const isActiveMember = role === 'member' || membershipStatus === 'active';
-  const isPendingMemberRequest = membershipStatus === 'pending';
-  const membershipIcon = isAdmin || isActiveMember ? 'crown' : 'paw';
+  const activeProgramEnrollment = isActiveMember ? null : programEnrollments.find((item) => item.enrollment.status === 'active') ?? null;
+  const isPendingMemberRequest = membershipStatus === 'pending' && !activeProgramEnrollment;
+  const membershipIcon = isAdmin || isActiveMember
+    ? 'crown'
+    : activeProgramEnrollment?.program.code === 'puppy'
+      ? 'dog'
+      : activeProgramEnrollment?.program.code === 'comandos'
+        ? 'school'
+        : 'paw';
   const membershipTitle = isAdmin
     ? 'Mi UCAPSA Admin'
     : isActiveMember
       ? 'Socio UCAPSA'
-      : isPendingMemberRequest
-        ? 'Solicitud pendiente'
-        : 'Cliente UCAPSA';
+      : activeProgramEnrollment
+        ? activeProgramEnrollment.program.name
+        : isPendingMemberRequest
+          ? 'Solicitud pendiente'
+          : 'Cliente UCAPSA';
   const membershipText = isAdmin
     ? 'Socios, pagos y solicitudes.'
     : isActiveMember
-      ? 'Credencial, membresía y QR.'
-      : isPendingMemberRequest
-        ? 'Administración revisará tu solicitud.'
-        : 'Solicita membresía o consulta tu espacio.';
+      ? 'Credencial, membresia y QR.'
+      : activeProgramEnrollment
+        ? `Credencial, QR y horario de ${activeProgramEnrollment.program.name}.`
+        : isPendingMemberRequest
+          ? 'Administracion revisara tu solicitud.'
+          : 'Solicita membresia o consulta tu espacio.';
+
+  const membershipHighlightStyle = isActiveMember && !isAdmin ? [styles.membershipHighlight, styles.membershipHighlightPremium] : styles.membershipHighlight;
+  const membershipIconBoxStyle = isActiveMember && !isAdmin ? [styles.crownBox, styles.crownBoxPremium] : styles.crownBox;
+  const membershipIconColor = isActiveMember && !isAdmin ? '#7A1020' : ucapsaBrand.colors.red;
+  const membershipTitleStyle = isActiveMember && !isAdmin ? [styles.membershipHighlightTitle, styles.membershipHighlightTitlePremium] : styles.membershipHighlightTitle;
+  const membershipTextStyle = isActiveMember && !isAdmin ? [styles.membershipHighlightText, styles.membershipHighlightTextPremium] : styles.membershipHighlightText;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -84,7 +106,7 @@ export default function HomeScreen() {
             <View style={styles.logoMarkBox}><Image source={mark} style={styles.logoMark} resizeMode="contain" /></View>
           </View>
           <Text style={styles.greeting}>{user ? `Hola, ${displayName}` : 'Bienvenido a UCAPSA'}</Text>
-          <Text style={styles.subtitle}>{isAdmin ? `Rol: ${role ?? 'admin'}` : 'Anuncios, calendario y membresía UCAPSA.'}</Text>
+          <Text style={styles.subtitle}>{isAdmin ? `Rol: ${role ?? 'admin'}` : 'Anuncios, calendario y membresia UCAPSA.'}</Text>
 
           <View style={styles.mainActions}>
             <Pressable style={styles.primaryAction} onPress={() => router.push('/announcements' as never)}>
@@ -104,29 +126,30 @@ export default function HomeScreen() {
           </View>
         ) : null}
 
-        <Pressable style={styles.membershipHighlight} onPress={() => router.push('/membership' as never)}>
-          <View style={styles.crownBox}>
-            <MaterialCommunityIcons name={membershipIcon} size={24} color={ucapsaBrand.colors.red} />
+        <Pressable style={membershipHighlightStyle} onPress={() => router.push('/membership' as never)}>
+          <View style={membershipIconBoxStyle}>
+            <MaterialCommunityIcons name={membershipIcon} size={24} color={membershipIconColor} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.membershipHighlightLabel}>Mi UCAPSA</Text>
-            <Text style={styles.membershipHighlightTitle}>{membershipTitle}</Text>
-            <Text style={styles.membershipHighlightText}>{membershipText}</Text>
+            <Text style={membershipTitleStyle}>{membershipTitle}</Text>
+            <Text style={membershipTextStyle}>{membershipText}</Text>
           </View>
-          <MaterialIcons name="chevron-right" size={26} color={ucapsaBrand.colors.red} />
+          <MaterialIcons name="chevron-right" size={26} color={membershipIconColor} />
         </Pressable>
 
         <View style={styles.quickGrid}>
           <Shortcut label="Perfil" icon="person" onPress={() => router.push('/profile' as never)} />
           <Shortcut label="Calendario" icon="event" onPress={() => router.push('/calendar' as never)} />
           {isAdmin ? <Shortcut label="Admin socios" icon="groups" onPress={() => router.push('/admin/members' as never)} /> : null}
+          {isAdmin ? <Shortcut label="Clases" icon="school" onPress={() => router.push('/admin/classes' as never)} /> : null}
           {isAdmin ? <Shortcut label="Eventos" icon="event" onPress={() => router.push('/admin/events' as never)} /> : null}
         </View>
 
         {loading ? (
           <View style={styles.loadingBox}>
             <ActivityIndicator color={ucapsaBrand.colors.red} />
-            <Text style={styles.muted}>Cargando información...</Text>
+            <Text style={styles.muted}>Cargando informacion...</Text>
           </View>
         ) : null}
 
@@ -139,7 +162,7 @@ export default function HomeScreen() {
         </View>
 
         {!loading && announcements.length === 0 ? (
-          <Empty title="Sin anuncios" text="Los comunicados publicados aparecerán aquí." />
+          <Empty title="Sin anuncios" text="Los comunicados publicados apareceran aqui." />
         ) : announcements.map((announcement) => (
           <AnnouncementCard
             key={announcement.id}
@@ -152,13 +175,13 @@ export default function HomeScreen() {
         <View style={styles.sectionHeaderRow}>
           <View>
             <Text style={styles.sectionLabelRed}>Eventos</Text>
-            <Text style={styles.sectionTitle}>Próximos</Text>
+            <Text style={styles.sectionTitle}>Proximos</Text>
           </View>
           <Pressable onPress={() => router.push('/calendar' as never)}><Text style={styles.sectionLink}>Ver agenda</Text></Pressable>
         </View>
 
         {!loading && events.length === 0 ? (
-          <Empty title="Sin eventos próximos" text="Los eventos publicados aparecerán aquí." />
+          <Empty title="Sin eventos proximos" text="Los eventos publicados apareceran aqui." />
         ) : events.map((occurrence) => (
           <EventCard
             key={occurrence.id}
@@ -251,10 +274,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: ucapsaBrand.colors.border,
   },
+  membershipHighlightPremium: { backgroundColor: '#B51228', borderColor: '#F59AAA' },
   crownBox: { width: 50, height: 50, borderRadius: 25, backgroundColor: ucapsaBrand.colors.redSoft, alignItems: 'center', justifyContent: 'center' },
+  crownBoxPremium: { backgroundColor: '#FFE8B5', borderWidth: 2, borderColor: '#FACC15' },
   membershipHighlightLabel: { color: ucapsaBrand.colors.red, fontSize: 12, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.6 },
   membershipHighlightTitle: { color: ucapsaBrand.colors.text, fontSize: 20, fontWeight: '900', marginTop: 2 },
+  membershipHighlightTitlePremium: { color: '#FFFFFF' },
   membershipHighlightText: { color: ucapsaBrand.colors.muted, fontSize: 13, fontWeight: '700', marginTop: 3 },
+  membershipHighlightTextPremium: { color: '#FFE3E8' },
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   shortcut: { width: '48%', flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 20, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   shortcutText: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
@@ -269,3 +296,5 @@ const styles = StyleSheet.create({
   emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900' },
   emptyText: { color: ucapsaBrand.colors.muted, fontSize: 14, lineHeight: 20 },
 });
+
+

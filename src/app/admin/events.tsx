@@ -44,7 +44,7 @@ type EventFormState = {
 };
 
 const audienceOptions: Array<{ value: AudienceType; label: string }> = [
-  { value: 'public', label: 'Público' },
+  { value: 'public', label: 'Publico' },
   { value: 'clients', label: 'Clientes' },
   { value: 'members', label: 'Socios' },
   { value: 'admins', label: 'Admins' },
@@ -56,7 +56,7 @@ const repeatOptions: Array<{ value: EventRepeatType; label: string }> = [
   { value: 'weekly', label: 'Semanal' },
   { value: 'biweekly', label: 'Cada 2 semanas' },
   { value: 'monthly', label: 'Mensual' },
-  { value: 'custom_days', label: 'Cada X días' },
+  { value: 'custom_days', label: 'Cada X dias' },
 ];
 
 const colorOptions: Array<{ value: UcapsaColorKey; label: string }> = [
@@ -133,16 +133,16 @@ function getColorHex(color: UcapsaColorKey | null | undefined) {
 }
 
 function validateForm(value: EventFormState) {
-  if (!value.title.trim()) throw new Error('El título es obligatorio.');
+  if (!value.title.trim()) throw new Error('El titulo es obligatorio.');
 
   const repeatInterval = Math.max(1, Math.min(365, Number.parseInt(value.repeat_interval_days || '1', 10)));
   if (value.repeat_type === 'custom_days' && Number.isNaN(repeatInterval)) {
-    throw new Error('Define cada cuántos días se repetirá.');
+    throw new Error('Define cada cuantos dias se repetira.');
   }
 
   const startDate = buildLocalIso(value.start_day, value.start_time, value.has_time);
   if (!startDate) {
-    throw new Error(value.has_time ? 'Selecciona dia y hora de inicio validos. Usa hora HH:mm.' : 'Selecciona un día de inicio valido.');
+    throw new Error(value.has_time ? 'Selecciona dia y hora de inicio validos. Usa hora HH:mm.' : 'Selecciona un dia de inicio valido.');
   }
 
   const endDate = value.has_end_date ? buildLocalIso(value.end_day, value.end_time, value.has_time) : null;
@@ -214,7 +214,7 @@ export default function AdminEventsScreen() {
       });
       setForm(buildEmptyForm());
       await loadEvents();
-      Alert.alert('Evento guardado', form.repeat_type === 'none' ? 'Se creó 1 evento.' : 'Se guardó como una serie. No se crearon eventos separados.');
+      Alert.alert('Evento guardado', form.repeat_type === 'none' ? 'Se creo 1 evento.' : 'Se guardo como una serie. No se crearon eventos separados.');
     } catch (err) {
       Alert.alert('No se pudo crear', err instanceof Error ? err.message : 'Error desconocido.');
     } finally {
@@ -235,7 +235,7 @@ export default function AdminEventsScreen() {
 
     Alert.alert(
       'Confirmar repeticion',
-      `Se guardará como una sola serie: ${getEventRepeatLabel(fakeEvent)}. No se crearán eventos separados. El calendario mostrará máximo 10 ocurrencias. ¿Continuar?`,
+      `Se guardara como una sola serie: ${getEventRepeatLabel(fakeEvent)}. No se crearan eventos separados. El calendario mostrara maximo 10 ocurrencias. Continuar?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Continuar', onPress: () => void saveNewEvent() },
@@ -280,7 +280,7 @@ export default function AdminEventsScreen() {
       if (closeModal) setSelectedEvent(null);
       await loadEvents();
     } catch (err) {
-      Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo completar la acción.');
+      Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo completar la accion.');
     } finally {
       setSaving(false);
     }
@@ -363,11 +363,11 @@ export default function AdminEventsScreen() {
               textDayHeaderFontWeight: '800',
             }}
           />
-          <Text style={styles.muted}>Toca un día para revisar sus eventos u ocurrencias.</Text>
+          <Text style={styles.muted}>Toca un dia para revisar sus eventos u ocurrencias.</Text>
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Eventos del día</Text>
+          <Text style={styles.sectionTitle}>Eventos del dia</Text>
           <Text style={styles.sectionCount}>{selectedAdminEvents.length}</Text>
         </View>
 
@@ -375,7 +375,7 @@ export default function AdminEventsScreen() {
 
         {selectedAdminEvents.length === 0 ? (
           <View style={styles.emptyBox}>
-            <Text style={styles.emptyTitle}>Sin eventos en este día</Text>
+            <Text style={styles.emptyTitle}>Sin eventos en este dia</Text>
             <Text style={styles.muted}>Puedes crear uno usando el formulario superior.</Text>
           </View>
         ) : null}
@@ -397,7 +397,7 @@ export default function AdminEventsScreen() {
                 label="Eliminar"
                 danger
                 onPress={() =>
-                  Alert.alert('Eliminar evento', 'Se eliminara el evento base y todas sus ocurrencias visibles. Esta acción no se puede deshacer.', [
+                  Alert.alert('Eliminar evento', 'Se eliminara el evento base y todas sus ocurrencias visibles. Esta accion no se puede deshacer.', [
                     { text: 'Cancelar', style: 'cancel' },
                     { text: 'Eliminar', style: 'destructive', onPress: () => runAction(() => deleteEvent(occurrence.event.id)) },
                   ])
@@ -440,7 +440,7 @@ export default function AdminEventsScreen() {
                       label="Eliminar"
                       danger
                       onPress={() =>
-                        Alert.alert('Eliminar evento', 'Esta acción eliminara la serie completa si el evento se repite.', [
+                        Alert.alert('Eliminar evento', 'Esta accion eliminara la serie completa si el evento se repite.', [
                           { text: 'Cancelar', style: 'cancel' },
                           { text: 'Eliminar', style: 'destructive', onPress: () => runAction(() => deleteEvent(selectedEvent.id), true) },
                         ])
@@ -479,7 +479,7 @@ function EventForm({ form, onChange, allowRepeat = false }: { form: EventFormSta
   return (
     <View style={styles.formFields}>
       <TextInput value={form.title} onChangeText={(title) => onChange({ ...form, title })} placeholder="Titulo" style={styles.input} />
-      <TextInput value={form.description} onChangeText={(description) => onChange({ ...form, description })} placeholder="Descripción" multiline style={[styles.input, styles.textArea]} />
+      <TextInput value={form.description} onChangeText={(description) => onChange({ ...form, description })} placeholder="Descripcion" multiline style={[styles.input, styles.textArea]} />
       <TextInput value={form.location} onChangeText={(location) => onChange({ ...form, location })} placeholder="Lugar" style={styles.input} />
 
       <Text style={styles.label}>Dia de inicio</Text>
@@ -620,7 +620,7 @@ function EventForm({ form, onChange, allowRepeat = false }: { form: EventFormSta
           ) : null}
 
           {form.repeat_type !== 'none' ? (
-            <Text style={styles.muted}>Se guardará como una sola serie. No se crean eventos separados. Máximo 10 ocurrencias visibles.</Text>
+            <Text style={styles.muted}>Se guardara como una sola serie. No se crean eventos separados. Maximo 10 ocurrencias visibles.</Text>
           ) : null}
         </View>
       ) : null}

@@ -78,7 +78,7 @@ export async function deleteMembershipPayment(paymentId: string, membershipId: s
     .update({
       current_payment_status: latestPaid ? 'paid' : 'pending',
       last_payment_at: latestPaid?.paid_at ?? null,
-      payment_notes: latestPaid ? latestPaid.notes ?? null : 'Pago eliminado del historial. Pendiente de revisión.',
+      payment_notes: latestPaid ? latestPaid.notes ?? null : 'Pago eliminado del historial. Pendiente de revision.',
       updated_at: now,
     })
     .eq('id', membershipId);

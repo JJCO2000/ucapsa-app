@@ -7,50 +7,103 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AnnouncementCard } from '../../components/domain/AnnouncementCard';
 import { EventCard } from '../../components/domain/EventCard';
-import { UcapsaDetailModal } from '../../components/ui/UcapsaDetailModal';
-import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import { getVisibleAnnouncements } from '../../services/announcements.service';
 import { getVisibleEvents } from '../../services/events.service';
-import type { Announcement, EventOccurrence, UcapsaColorKey, UcapsaEvent } from '../../types/app.types';
+import { formatScheduleLabel, getProgramSchedules, getPrograms } from '../../services/programs.service';
+import type { Announcement, EventOccurrence, ProgramSchedule, UcapsaEvent, UcapsaProgram } from '../../types/app.types';
 import { expandEventOccurrences, formatDateKey, getUpcomingOccurrences, toDateKey, todayKey } from '../../utils/events.utils';
 
-function getColorHex(color: UcapsaColorKey | null | undefined, fallback: string) {
-  const map: Record<UcapsaColorKey, string> = {
-    red: ucapsaBrand.colors.red,
-    blue: ucapsaBrand.colors.blue,
-    yellow: '#EAB308',
-    green: ucapsaBrand.colors.success,
-    purple: '#7C3AED',
-    gray: '#64748b',
-  };
-
-  return map[color ?? 'gray'] ?? fallback;
-}
+type ClassOccurrence = {
+  id: string;
+  schedule: ProgramSchedule;
+  program: UcapsaProgram | null;
+  dateKey: string;
+};
 
 function announcementDateKey(announcement: Announcement): string | null {
-  if (announcement.announcement_date) return toDateKey(announcement.announcement_date);
   if (announcement.event?.start_date) return toDateKey(announcement.event.start_date);
   return toDateKey(announcement.created_at);
+}
+
+function parseLocalDate(dateKey: string) {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  return new Date(year, month - 1, day, 12, 0, 0, 0);
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function toLocalDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function isScheduleActiveOnDate(schedule: ProgramSchedule, date: Date) {
+  if (!schedule.is_active) return false;
+  if (date.getDay() !== schedule.day_of_week) return false;
+
+  if (schedule.repeat_type !== 'biweekly') return true;
+
+  const base = parseLocalDate(schedule.cycle_start_date || todayKey());
+  const diffDays = Math.floor((date.getTime() - base.getTime()) / 86400000);
+  if (diffDays < 0) return false;
+  const diffWeeks = Math.floor(diffDays / 7);
+  return diffWeeks % 2 === 0;
+}
+
+function expandClassOccurrences(schedules: ProgramSchedule[], programs: UcapsaProgram[], daysAhead = 120): ClassOccurrence[] {
+  const programById = new Map(programs.map((program) => [program.id, program]));
+  const start = parseLocalDate(todayKey());
+  const items: ClassOccurrence[] = [];
+
+  for (let offset = 0; offset <= daysAhead; offset += 1) {
+    const current = addDays(start, offset);
+    const dateKey = toLocalDateKey(current);
+
+    for (const schedule of schedules) {
+      if (!isScheduleActiveOnDate(schedule, current)) continue;
+      items.push({
+        id: `${schedule.id}-${dateKey}`,
+        schedule,
+        program: programById.get(schedule.program_id) ?? null,
+        dateKey,
+      });
+    }
+  }
+
+  return items;
 }
 
 export default function CalendarScreen() {
   const { isAdmin } = useSession();
   const [events, setEvents] = useState<UcapsaEvent[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [programs, setPrograms] = useState<UcapsaProgram[]>([]);
+  const [programSchedules, setProgramSchedules] = useState<ProgramSchedule[]>([]);
   const [selectedDate, setSelectedDate] = useState(todayKey());
-  const [selectedEvent, setSelectedEvent] = useState<EventOccurrence | null>(null);
-  const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
-  const [showUpcomingEvents, setShowUpcomingEvents] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function loadCalendarData() {
     setError(null);
-    const [eventResult, announcementResult] = await Promise.all([getVisibleEvents(), getVisibleAnnouncements()]);
+    const [eventResult, announcementResult, programResult, scheduleResult] = await Promise.all([
+      getVisibleEvents(),
+      getVisibleAnnouncements(),
+      getPrograms(),
+      getProgramSchedules(),
+    ]);
+
     setEvents(eventResult);
     setAnnouncements(announcementResult);
+    setPrograms(programResult);
+    setProgramSchedules(scheduleResult);
   }
 
   useEffect(() => {
@@ -71,8 +124,22 @@ export default function CalendarScreen() {
   }
 
   const occurrences = useMemo(() => expandEventOccurrences(events), [events]);
-  const selectedEvents = useMemo(() => occurrences.filter((occurrence) => toDateKey(occurrence.start_date) === selectedDate), [occurrences, selectedDate]);
-  const selectedAnnouncements = useMemo(() => announcements.filter((announcement) => announcementDateKey(announcement) === selectedDate), [announcements, selectedDate]);
+  const classOccurrences = useMemo(() => expandClassOccurrences(programSchedules, programs), [programSchedules, programs]);
+
+  const selectedEvents = useMemo(
+    () => occurrences.filter((occurrence) => toDateKey(occurrence.start_date) === selectedDate),
+    [occurrences, selectedDate],
+  );
+
+  const selectedClasses = useMemo(
+    () => classOccurrences.filter((occurrence) => occurrence.dateKey === selectedDate),
+    [classOccurrences, selectedDate],
+  );
+
+  const selectedAnnouncements = useMemo(
+    () => announcements.filter((announcement) => announcementDateKey(announcement) === selectedDate),
+    [announcements, selectedDate],
+  );
 
   const markedDates = useMemo(() => {
     const marks: Record<string, any> = {};
@@ -82,7 +149,13 @@ export default function CalendarScreen() {
       if (!key) continue;
       const existingDots = marks[key]?.dots ?? [];
       const hasEventDot = existingDots.some((dot: { key: string }) => dot.key === 'events');
-      marks[key] = { ...marks[key], dots: hasEventDot ? existingDots : [...existingDots, { key: 'events', color: getColorHex(occurrence.event.color_key, ucapsaBrand.colors.red) }] };
+      marks[key] = { ...marks[key], dots: hasEventDot ? existingDots : [...existingDots, { key: 'events', color: '#0f766e' }] };
+    }
+
+    for (const occurrence of classOccurrences) {
+      const existingDots = marks[occurrence.dateKey]?.dots ?? [];
+      const hasClassDot = existingDots.some((dot: { key: string }) => dot.key === 'classes');
+      marks[occurrence.dateKey] = { ...marks[occurrence.dateKey], dots: hasClassDot ? existingDots : [...existingDots, { key: 'classes', color: '#B51228' }] };
     }
 
     for (const announcement of announcements) {
@@ -90,39 +163,50 @@ export default function CalendarScreen() {
       if (!key) continue;
       const existingDots = marks[key]?.dots ?? [];
       const hasAnnouncementDot = existingDots.some((dot: { key: string }) => dot.key === 'announcements');
-      marks[key] = { ...marks[key], dots: hasAnnouncementDot ? existingDots : [...existingDots, { key: 'announcements', color: getColorHex(announcement.color_key, ucapsaBrand.colors.blue) }] };
+      marks[key] = { ...marks[key], dots: hasAnnouncementDot ? existingDots : [...existingDots, { key: 'announcements', color: '#2563eb' }] };
     }
 
-    marks[selectedDate] = { ...(marks[selectedDate] ?? {}), selected: true, selectedColor: ucapsaBrand.colors.red, selectedTextColor: '#ffffff' };
+    marks[selectedDate] = { ...(marks[selectedDate] ?? {}), selected: true, selectedColor: '#0f766e', selectedTextColor: '#ffffff' };
     return marks;
-  }, [announcements, occurrences, selectedDate]);
+  }, [announcements, classOccurrences, occurrences, selectedDate]);
 
   const upcomingEvents: EventOccurrence[] = useMemo(() => getUpcomingOccurrences(events, 3), [events]);
+  const dayCount = selectedEvents.length + selectedClasses.length + selectedAnnouncements.length;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ucapsaBrand.colors.red} />}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.kicker}>Calendario</Text>
-            <Text style={styles.title}>Agenda UCAPSA</Text>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        <View style={styles.hero}>
+          <View style={styles.heroIcon}>
+            <MaterialIcons name="event" size={28} color="#0f766e" />
           </View>
-          <View style={styles.legendRow}>
-            <LegendDot color={ucapsaBrand.colors.red} label="Eventos" />
-            <LegendDot color={ucapsaBrand.colors.blue} label="Anuncios" />
+          <View style={styles.heroText}>
+            <Text style={styles.kicker}>Calendario UCAPSA</Text>
+            <Text style={styles.title}>Eventos, clases y comunicados</Text>
+            <Text style={styles.subtitle}>Selecciona un dia para ver la agenda oficial.</Text>
           </View>
         </View>
 
         {isAdmin ? (
-          <Pressable style={styles.adminButton} onPress={() => router.push('/admin/events' as never)}>
-            <MaterialIcons name="admin-panel-settings" size={18} color="#fff" />
-            <Text style={styles.adminButtonText}>Administrar eventos</Text>
-          </Pressable>
+          <View style={styles.adminRow}>
+            <Pressable style={styles.adminButton} onPress={() => router.push('/admin/events' as never)}>
+              <MaterialIcons name="admin-panel-settings" size={20} color="#ffffff" />
+              <Text style={styles.adminButtonText}>Administrar eventos</Text>
+            </Pressable>
+            <Pressable style={styles.adminButtonAlt} onPress={() => router.push('/admin/classes' as never)}>
+              <MaterialIcons name="school" size={20} color="#0f766e" />
+              <Text style={styles.adminButtonAltText}>Horarios base</Text>
+            </Pressable>
+          </View>
         ) : null}
 
         {loading ? (
           <View style={styles.centerBox}>
-            <ActivityIndicator color={ucapsaBrand.colors.red} />
+            <ActivityIndicator />
             <Text style={styles.muted}>Cargando calendario...</Text>
           </View>
         ) : null}
@@ -131,7 +215,9 @@ export default function CalendarScreen() {
           <View style={styles.errorBox}>
             <Text style={styles.errorTitle}>No se pudo cargar</Text>
             <Text style={styles.errorText}>{error}</Text>
-            <Pressable style={styles.secondaryButton} onPress={onRefresh}><Text style={styles.secondaryButtonText}>Intentar otra vez</Text></Pressable>
+            <Pressable style={styles.secondaryButton} onPress={onRefresh}>
+              <Text style={styles.secondaryButtonText}>Intentar otra vez</Text>
+            </Pressable>
           </View>
         ) : null}
 
@@ -147,149 +233,153 @@ export default function CalendarScreen() {
                 enableSwipeMonths
                 theme={{
                   calendarBackground: '#ffffff',
-                  textSectionTitleColor: ucapsaBrand.colors.muted,
-                  selectedDayBackgroundColor: ucapsaBrand.colors.red,
+                  textSectionTitleColor: '#64748b',
+                  selectedDayBackgroundColor: '#0f766e',
                   selectedDayTextColor: '#ffffff',
-                  todayTextColor: ucapsaBrand.colors.red,
-                  dayTextColor: ucapsaBrand.colors.text,
-                  monthTextColor: ucapsaBrand.colors.text,
-                  arrowColor: ucapsaBrand.colors.red,
+                  todayTextColor: '#0f766e',
+                  dayTextColor: '#0f172a',
+                  monthTextColor: '#0f172a',
+                  arrowColor: '#0f766e',
                   textDayFontWeight: '700',
                   textMonthFontWeight: '900',
                   textDayHeaderFontWeight: '800',
                 }}
               />
+              <View style={styles.legendRow}>
+                <Legend label="Eventos" style={styles.eventDot} />
+                <Legend label="Clases" style={styles.classDot} />
+                <Legend label="Anuncios" style={styles.announcementDot} />
+              </View>
             </View>
 
             <View style={styles.sectionHeader}>
               <View>
-                <Text style={styles.sectionKicker}>Día seleccionado</Text>
-                <Text style={styles.sectionTitle}>{formatDateKey(selectedDate)}</Text>
+                <Text style={styles.sectionTitle}>Agenda del dia</Text>
+                <Text style={styles.sectionSubtitle}>{formatDateKey(selectedDate)}</Text>
               </View>
-              <View style={styles.counterPill}><Text style={styles.counterPillText}>{selectedEvents.length + selectedAnnouncements.length}</Text></View>
+              <Text style={styles.sectionCount}>{dayCount}</Text>
             </View>
 
-            {selectedEvents.length === 0 && selectedAnnouncements.length === 0 ? (
+            {dayCount === 0 ? (
               <View style={styles.emptyBox}>
-                <Text style={styles.emptyTitle}>Sin actividad este día</Text>
-                <Text style={styles.muted}>Selecciona otro día marcado en el calendario.</Text>
+                <Text style={styles.emptyTitle}>Sin actividad este dia</Text>
+                <Text style={styles.muted}>Selecciona otro dia marcado en el calendario.</Text>
               </View>
             ) : null}
 
+            {selectedClasses.map((occurrence) => (
+              <Pressable
+                key={`class-${occurrence.id}`}
+                style={styles.classCard}
+                onPress={isAdmin ? () => router.push(`/admin/classes?scheduleId=${occurrence.schedule.id}` as never) : undefined}
+              >
+                <View style={styles.classIcon}>
+                  <MaterialIcons name="school" size={22} color="#B51228" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.classKicker}>Clase UCAPSA</Text>
+                  <Text style={styles.classTitle}>{occurrence.program?.name ?? 'Clase'}</Text>
+                  <Text style={styles.classText}>{formatScheduleLabel(occurrence.schedule)}</Text>
+                  {isAdmin ? <Text style={styles.classHint}>Tocar para editar horario base</Text> : null}
+                </View>
+                {isAdmin ? <MaterialIcons name="chevron-right" size={24} color="#B51228" /> : null}
+              </Pressable>
+            ))}
+
             {selectedEvents.map((occurrence) => (
-              <View key={`event-${occurrence.id}`} style={styles.typeWrap}>
-                <EventCard
-                  event={occurrence.event}
-                  startDateOverride={occurrence.start_date}
-                  occurrenceIndex={occurrence.is_recurring ? occurrence.occurrence_index : undefined}
-                  onPress={isAdmin ? () => router.push(`/admin/events?eventId=${occurrence.event.id}` as never) : () => setSelectedEvent(occurrence)}
-                />
-              </View>
+              <EventCard
+                key={`event-${occurrence.id}`}
+                event={occurrence.event}
+                startDateOverride={occurrence.start_date}
+                occurrenceIndex={occurrence.is_recurring ? occurrence.occurrence_index : undefined}
+                onPress={isAdmin ? () => router.push(`/admin/events?eventId=${occurrence.event.id}` as never) : undefined}
+              />
             ))}
 
             {selectedAnnouncements.map((announcement) => (
-              <View key={`announcement-${announcement.id}`} style={styles.typeWrap}>
-                <AnnouncementCard
-                  announcement={announcement}
-                  onPress={isAdmin ? () => router.push(`/admin/announcements?announcementId=${announcement.id}` as never) : () => setSelectedAnnouncement(announcement)}
-                  onOpenEvent={announcement.event?.start_date ? () => setSelectedDate(toDateKey(announcement.event?.start_date) ?? selectedDate) : undefined}
-                />
-              </View>
+              <AnnouncementCard
+                key={`announcement-${announcement.id}`}
+                announcement={announcement}
+                onPress={isAdmin ? () => router.push(`/admin/announcements?announcementId=${announcement.id}` as never) : undefined}
+                onOpenEvent={announcement.event?.start_date ? () => setSelectedDate(toDateKey(announcement.event?.start_date) ?? selectedDate) : undefined}
+              />
             ))}
 
             {upcomingEvents.length > 0 ? (
               <>
                 <View style={styles.sectionHeader}>
                   <View>
-                    <Text style={styles.sectionKicker}>Eventos</Text>
-                    <Text style={styles.sectionTitle}>Próximos</Text>
+                    <Text style={styles.sectionTitle}>Proximos eventos</Text>
+                    <Text style={styles.sectionSubtitle}>Maximo 3 visibles aqui</Text>
                   </View>
-                  <Pressable style={styles.toggleButton} onPress={() => setShowUpcomingEvents((current) => !current)}>
-                    <Text style={styles.toggleButtonText}>{showUpcomingEvents ? 'Ocultar' : `Mostrar ${upcomingEvents.length}`}</Text>
-                  </Pressable>
                 </View>
-                {showUpcomingEvents ? upcomingEvents.map((occurrence) => (
-                  <View key={`upcoming-${occurrence.id}`} style={styles.typeWrap}>
-                    <EventCard
-                      event={occurrence.event}
-                      startDateOverride={occurrence.start_date}
-                      occurrenceIndex={occurrence.is_recurring ? occurrence.occurrence_index : undefined}
-                      onPress={isAdmin ? () => router.push(`/admin/events?eventId=${occurrence.event.id}` as never) : () => setSelectedEvent(occurrence)}
-                    />
-                  </View>
-                )) : (
-                  <View style={styles.minimizedBox}>
-                    <Text style={styles.muted}>Ocultos para no saturar la agenda. Toca Mostrar para verlos.</Text>
-                  </View>
-                )}
+                {upcomingEvents.map((occurrence) => (
+                  <EventCard
+                    key={`upcoming-${occurrence.id}`}
+                    event={occurrence.event}
+                    startDateOverride={occurrence.start_date}
+                    occurrenceIndex={occurrence.is_recurring ? occurrence.occurrence_index : undefined}
+                    onPress={isAdmin ? () => router.push(`/admin/events?eventId=${occurrence.event.id}` as never) : () => setSelectedDate(toDateKey(occurrence.start_date) ?? selectedDate)}
+                  />
+                ))}
               </>
             ) : null}
           </>
         ) : null}
       </ScrollView>
-
-      <UcapsaDetailModal
-        visible={Boolean(selectedEvent)}
-        type="event"
-        title={selectedEvent?.event.title ?? ''}
-        body={selectedEvent?.event.description}
-        dateLabel={selectedEvent ? new Date(selectedEvent.start_date).toLocaleString('es-MX') : null}
-        location={selectedEvent?.event.location}
-        repeatLabel={selectedEvent?.repeat_label}
-        onClose={() => setSelectedEvent(null)}
-      />
-
-      <UcapsaDetailModal
-        visible={Boolean(selectedAnnouncement)}
-        type="announcement"
-        title={selectedAnnouncement?.title ?? ''}
-        body={selectedAnnouncement?.content}
-        dateLabel={selectedAnnouncement?.announcement_date ? new Date(selectedAnnouncement.announcement_date).toLocaleDateString('es-MX') : null}
-        onClose={() => setSelectedAnnouncement(null)}
-      />
     </SafeAreaView>
   );
 }
 
-function LegendDot({ color, label }: { color: string; label: string }) {
+function Legend({ label, style }: { label: string; style: object }) {
   return (
     <View style={styles.legendItem}>
-      <View style={[styles.legendDot, { backgroundColor: color }]} />
+      <View style={[styles.legendDot, style]} />
       <Text style={styles.legendText}>{label}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: ucapsaBrand.colors.background },
-  container: { flex: 1 },
-  content: { gap: 16, padding: 20, paddingBottom: 120 },
-  header: { gap: 12, padding: 20, borderRadius: 28, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
-  kicker: { color: ucapsaBrand.colors.red, fontSize: 12, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.7 },
-  title: { color: ucapsaBrand.colors.text, fontSize: 29, fontWeight: '900', marginTop: 4 },
-  legendRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: ucapsaBrand.colors.surfaceAlt },
-  legendDot: { width: 10, height: 10, borderRadius: 999 },
-  legendText: { color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '900' },
-  adminButton: { flexDirection: 'row', gap: 8, padding: 15, borderRadius: 18, backgroundColor: ucapsaBrand.colors.red, justifyContent: 'center', alignItems: 'center' },
-  adminButtonText: { color: '#fff', fontSize: 15, fontWeight: '900' },
-  calendarCard: { overflow: 'hidden', borderRadius: 26, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  safeArea: { flex: 1, backgroundColor: '#f8fafc' },
+  container: { flex: 1, backgroundColor: '#f8fafc' },
+  content: { gap: 16, padding: 20, paddingBottom: 110 },
+  hero: { flexDirection: 'row', gap: 14, padding: 18, borderRadius: 24, backgroundColor: '#0f172a' },
+  heroIcon: { width: 54, height: 54, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ccfbf1' },
+  heroText: { flex: 1, gap: 6 },
+  kicker: { color: '#5eead4', fontSize: 12, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
+  title: { color: '#ffffff', fontSize: 22, fontWeight: '900' },
+  subtitle: { color: '#cbd5e1', fontSize: 14, lineHeight: 20 },
+  adminRow: { flexDirection: 'row', gap: 10 },
+  adminButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 15, borderRadius: 18, backgroundColor: '#0f766e' },
+  adminButtonText: { color: '#ffffff', fontSize: 14, fontWeight: '900' },
+  adminButtonAlt: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 15, borderRadius: 18, backgroundColor: '#ccfbf1', borderWidth: 1, borderColor: '#99f6e4' },
+  adminButtonAltText: { color: '#0f766e', fontSize: 14, fontWeight: '900' },
+  calendarCard: { overflow: 'hidden', borderRadius: 22, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e2e8f0' },
+  legendRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, paddingHorizontal: 16, paddingBottom: 14, borderTopWidth: 1, borderTopColor: '#f1f5f9' },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingTop: 12 },
+  legendDot: { width: 9, height: 9, borderRadius: 999 },
+  eventDot: { backgroundColor: '#0f766e' },
+  classDot: { backgroundColor: '#B51228' },
+  announcementDot: { backgroundColor: '#2563eb' },
+  legendText: { color: '#64748b', fontSize: 12, fontWeight: '800' },
   centerBox: { gap: 10, alignItems: 'center', padding: 24 },
-  muted: { color: ucapsaBrand.colors.muted, fontSize: 14, lineHeight: 20 },
-  errorBox: { gap: 10, padding: 16, borderRadius: 18, backgroundColor: '#FFF3F5', borderWidth: 1, borderColor: '#F7CAD2' },
-  errorTitle: { color: ucapsaBrand.colors.redDark, fontSize: 16, fontWeight: '900' },
-  errorText: { color: ucapsaBrand.colors.redDark, fontSize: 14 },
-  secondaryButton: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, backgroundColor: '#fff' },
-  secondaryButtonText: { color: ucapsaBrand.colors.red, fontWeight: '900' },
-  sectionHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 2 },
-  sectionKicker: { color: ucapsaBrand.colors.red, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
-  sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 21, fontWeight: '900', marginTop: 4 },
-  counterPill: { minWidth: 38, borderRadius: 999, backgroundColor: ucapsaBrand.colors.redSoft, alignItems: 'center', paddingHorizontal: 10, paddingVertical: 8 },
-  counterPillText: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900' },
-  toggleButton: { alignItems: 'center', borderRadius: 999, backgroundColor: ucapsaBrand.colors.redSoft, paddingHorizontal: 12, paddingVertical: 8 },
-  toggleButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900' },
-  minimizedBox: { padding: 14, borderRadius: 18, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
-  emptyBox: { gap: 6, padding: 18, borderRadius: 22, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
-  emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900' },
-  typeWrap: { position: 'relative' },
+  muted: { color: '#64748b', fontSize: 14, lineHeight: 20 },
+  errorBox: { gap: 10, padding: 16, borderRadius: 18, backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fecaca' },
+  errorTitle: { color: '#991b1b', fontSize: 16, fontWeight: '900' },
+  errorText: { color: '#7f1d1d', fontSize: 14 },
+  secondaryButton: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, backgroundColor: '#ffffff' },
+  secondaryButtonText: { color: '#0f766e', fontWeight: '900' },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
+  sectionTitle: { color: '#0f172a', fontSize: 20, fontWeight: '900' },
+  sectionSubtitle: { color: '#64748b', fontSize: 12, fontWeight: '700', marginTop: 2 },
+  sectionCount: { overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, color: '#0f766e', backgroundColor: '#ccfbf1', fontSize: 12, fontWeight: '900' },
+  emptyBox: { gap: 6, padding: 18, borderRadius: 18, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e2e8f0' },
+  emptyTitle: { color: '#0f172a', fontSize: 16, fontWeight: '900' },
+  classCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, borderRadius: 20, backgroundColor: '#fff1f2', borderWidth: 1, borderColor: '#fecdd3' },
+  classIcon: { width: 44, height: 44, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff' },
+  classKicker: { color: '#B51228', fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.7 },
+  classTitle: { color: '#25151A', fontSize: 17, fontWeight: '900', marginTop: 2 },
+  classText: { color: '#6b4b55', fontSize: 13, fontWeight: '800', marginTop: 2 },
+  classHint: { color: '#B51228', fontSize: 12, fontWeight: '900', marginTop: 5 },
 });

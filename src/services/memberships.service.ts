@@ -42,7 +42,7 @@ export function getDisplayName(profile: Profile | null | undefined) {
 
 export function getMembershipStatusLabel(status: MembershipStatus) {
   const labels: Record<MembershipStatus, string> = {
-    none: 'Sin membresía',
+    none: 'Sin membresia',
     pending: 'Pendiente',
     active: 'Activo',
     expired: 'Vencido',
@@ -127,7 +127,7 @@ export async function requestMembership(): Promise<Membership> {
   if (authError) throw authError;
 
   const userId = authData.user?.id;
-  if (!userId) throw new Error('No hay sesión activa.');
+  if (!userId) throw new Error('No hay sesion activa.');
 
   const existing = await getMyMembership();
   if (existing && ['pending', 'active'].includes(existing.status)) return existing;
@@ -265,7 +265,7 @@ export async function markMembershipPaidFast(row: MembershipAdminRow): Promise<v
     userId: row.membership.user_id,
     membershipId: row.membership.id,
     amount: 0,
-    notes: 'Pago registrado rápido desde tabla de socios.',
+    notes: 'Pago registrado rapido desde tabla de socios.',
     periodLabel: 'Mensualidad',
     paymentMethod: 'manual',
   });
@@ -282,7 +282,7 @@ export async function requestPermanentMembershipDeletion(row: MembershipAdminRow
     user_id: row.membership.user_id,
     requested_by: authData.user?.id ?? null,
     status: 'pending',
-    reason: reason?.trim() || 'Solicitud de eliminación definitiva desde ficha de socio.',
+    reason: reason?.trim() || 'Solicitud de eliminacion definitiva desde ficha de socio.',
     snapshot_member_number: row.membership.member_number,
     snapshot_name: getDisplayName(row.profile),
     snapshot_email: row.profile?.email ?? null,
@@ -295,7 +295,7 @@ export async function requestPermanentMembershipDeletion(row: MembershipAdminRow
     .update({
       status: 'cancelled',
       current_payment_status: 'not_required',
-      payment_notes: 'Desactivado mientras super_admin revisa eliminación definitiva.',
+      payment_notes: 'Desactivado mientras super_admin revisa eliminacion definitiva.',
       updated_at: now,
     })
     .eq('id', row.membership.id);
@@ -390,3 +390,128 @@ export async function rejectMembershipDeleteRequest(row: MembershipDeleteRequest
 
   if (error) throw error;
 }
+
+
+function buildForcedMemberNumber(profile: Profile) {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const shortId = profile.user_id.replace(/-/g, '').slice(0, 5).toUpperCase();
+  return `SOC-${year}${month}-${shortId}`;
+}
+
+export async function forceMembershipForProfile(profile: Profile): Promise<Membership> {
+  if (profile.role === 'admin' || profile.role === 'super_admin') {
+    throw new Error('No se debe convertir una cuenta administrativa en socio desde esta ficha.');
+  }
+
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError) throw authError;
+
+  const adminUserId = authData.user?.id ?? null;
+  const now = new Date().toISOString();
+
+  const { data: existingData, error: existingError } = await supabase
+    .from('memberships')
+    .select('*')
+    .eq('user_id', profile.user_id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingError) throw existingError;
+
+  let membership: Membership;
+
+  if (existingData) {
+    const current = existingData as Membership;
+    const { data, error } = await supabase
+      .from('memberships')
+      .update({
+        status: 'active',
+        member_number: current.member_number || buildForcedMemberNumber(profile),
+        start_date: current.start_date || now,
+        current_payment_status: current.current_payment_status === 'paid' ? 'paid' : 'pending',
+        payment_notes: 'Socio activado manualmente desde ficha de usuario.',
+        approved_by: adminUserId,
+        updated_at: now,
+      })
+      .eq('id', current.id)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+    membership = data as Membership;
+  } else {
+    const { data, error } = await supabase
+      .from('memberships')
+      .insert({
+        user_id: profile.user_id,
+        member_number: buildForcedMemberNumber(profile),
+        status: 'active',
+        start_date: now,
+        end_date: null,
+        qr_token: createQrToken(),
+        approved_by: adminUserId,
+        current_payment_status: 'pending',
+        last_payment_at: null,
+        payment_notes: 'Socio creado manualmente desde ficha de usuario.',
+      })
+      .select('*')
+      .single();
+
+    if (error) throw error;
+    membership = data as Membership;
+  }
+
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .update({ role: 'member', updated_at: now })
+    .eq('user_id', profile.user_id)
+    .not('role', 'in', '(admin,super_admin)');
+
+  if (profileError) throw profileError;
+  return membership;
+}
+
+export async function deactivateMembershipForProfile(profile: Profile): Promise<void> {
+  if (profile.role === 'admin' || profile.role === 'super_admin') {
+    throw new Error('No se debe cambiar una cuenta administrativa desde esta accion.');
+  }
+
+  const now = new Date().toISOString();
+
+  const { data: existingData, error: existingError } = await supabase
+    .from('memberships')
+    .select('*')
+    .eq('user_id', profile.user_id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingError) throw existingError;
+
+  if (existingData) {
+    const membership = existingData as Membership;
+    const { error } = await supabase
+      .from('memberships')
+      .update({
+        status: 'cancelled',
+        current_payment_status: 'not_required',
+        payment_notes: 'Socio desactivado manualmente desde ficha de usuario.',
+        updated_at: now,
+      } as never)
+      .eq('id', membership.id);
+
+    if (error) throw error;
+  }
+
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .update({ role: 'client', updated_at: now })
+    .eq('user_id', profile.user_id)
+    .not('role', 'in', '(admin,super_admin)');
+
+  if (profileError) throw profileError;
+}
+

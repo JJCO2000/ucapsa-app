@@ -55,7 +55,7 @@ export default function AnnouncementsScreen() {
           <View style={styles.headerRow}>
             <View>
               <Text style={styles.kicker}>Anuncios</Text>
-              <Text style={styles.title}>Comunicación oficial</Text>
+              <Text style={styles.title}>Comunicacion oficial</Text>
             </View>
             <View style={styles.markCircle}><Image source={mark} style={styles.mark} resizeMode="contain" /></View>
           </View>
@@ -96,7 +96,7 @@ export default function AnnouncementsScreen() {
         {!loading && !error && announcements.length === 0 ? (
           <View style={styles.emptyBox}>
             <Text style={styles.emptyTitle}>Sin anuncios publicados</Text>
-            <Text style={styles.muted}>Cuando UCAPSA publique avisos, aparecerán aquí.</Text>
+            <Text style={styles.muted}>Cuando UCAPSA publique avisos, apareceran aqui.</Text>
           </View>
         ) : null}
 

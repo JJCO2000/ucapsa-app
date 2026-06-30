@@ -31,7 +31,7 @@ function getColor(color: UcapsaColorKey | null | undefined) {
 
 function audienceLabel(audience: Announcement['audience']): string {
   const labels = {
-    public: 'Público',
+    public: 'Publico',
     clients: 'Clientes',
     members: 'Socios',
     admins: 'Admins',

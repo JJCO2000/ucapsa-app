@@ -164,3 +164,77 @@ export type Payment = {
 
 
 
+
+
+
+export type ProgramCode = 'puppy' | 'comandos';
+
+export type ProgramRepeatType = 'weekly' | 'biweekly';
+
+export type ProgramEnrollmentStatus = 'active' | 'completed' | 'cancelled';
+
+export type ProgramLevel = 'base' | 'principiante' | 'medio' | 'avanzado';
+
+export type UcapsaProgram = {
+  id: string;
+  code: ProgramCode;
+  name: string;
+  description: string | null;
+  required_attendances: number;
+  color_key: UcapsaColorKey;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProgramSchedule = {
+  id: string;
+  program_id: string;
+  name: string;
+  day_of_week: number;
+  start_time: string;
+  repeat_type: ProgramRepeatType;
+  cycle_start_date: string | null;
+  sequence_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProgramEnrollment = {
+  id: string;
+  user_id: string;
+  program_id: string;
+  schedule_id: string;
+  dog_name: string | null;
+  physical_card_number: string | null;
+  qr_token: string;
+  status: ProgramEnrollmentStatus;
+  attendances_count: number;
+  program_level: ProgramLevel;
+  last_attendance_at: string | null;
+  notes: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  cancelled_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProgramAttendance = {
+  id: string;
+  enrollment_id: string;
+  attendance_date: string;
+  marked_by: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProgramEnrollmentWithDetails = {
+  enrollment: ProgramEnrollment;
+  program: UcapsaProgram;
+  schedule: ProgramSchedule;
+  profile: Profile | null;
+  attendances: ProgramAttendance[];
+};

@@ -12,7 +12,7 @@ export default function ForgotPasswordScreen() {
     const cleanEmail = email.trim().toLowerCase();
 
     if (!cleanEmail) {
-      Alert.alert('Falta correo', 'Escribe tu correo para recuperar tu contraseña.');
+      Alert.alert('Falta correo', 'Escribe tu correo para recuperar tu contrasena.');
       return;
     }
 
@@ -32,7 +32,7 @@ export default function ForgotPasswordScreen() {
     <KeyboardAwareScreen contentContainerStyle={styles.container}>
       <View style={styles.header}>
         <Text style={styles.kicker}>UCAPSA APP</Text>
-        <Text style={styles.title}>Recuperar contraseña</Text>
+        <Text style={styles.title}>Recuperar contrasena</Text>
         <Text style={styles.subtitle}>Te enviaremos instrucciones al correo registrado.</Text>
       </View>
 
@@ -55,7 +55,7 @@ export default function ForgotPasswordScreen() {
           <Text style={styles.buttonText}>{loading ? 'Enviando...' : 'Enviar instrucciones'}</Text>
         </Pressable>
 
-        <Link href="/auth/login" style={styles.linkStrong}>Volver a iniciar sesión</Link>
+        <Link href="/auth/login" style={styles.linkStrong}>Volver a iniciar sesion</Link>
       </View>
     </KeyboardAwareScreen>
   );

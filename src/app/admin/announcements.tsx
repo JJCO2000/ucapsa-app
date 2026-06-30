@@ -101,7 +101,7 @@ const priorityOptions: Array<{ value: UcapsaPriority; label: string }> = [
 ];
 
 const audienceLabels: Record<AudienceType, string> = {
-  public: 'Público',
+  public: 'Publico',
   clients: 'Clientes',
   members: 'Socios',
   admins: 'Admins',
@@ -161,7 +161,7 @@ export default function AdminAnnouncementsScreen() {
   }
 
   function validateForm(value: AnnouncementFormState) {
-    if (!value.title.trim()) throw new Error('El título es obligatorio.');
+    if (!value.title.trim()) throw new Error('El titulo es obligatorio.');
     if (!value.content.trim()) throw new Error('El contenido es obligatorio.');
     buildAnnouncementDateIso(value.announcement_date_day, value.has_announcement_date);
   }
@@ -201,7 +201,7 @@ export default function AdminAnnouncementsScreen() {
       await action();
       await loadData();
     } catch (err) {
-      Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo completar la acción.');
+      Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo completar la accion.');
     } finally {
       setSaving(false);
     }
@@ -222,7 +222,7 @@ export default function AdminAnnouncementsScreen() {
       <View style={styles.hero}>
         <Text style={styles.kicker}>Admin</Text>
         <Text style={styles.title}>Anuncios</Text>
-        <Text style={styles.subtitle}>Gestiona comunicados, fecha opcional y vínculo con calendario.</Text>
+        <Text style={styles.subtitle}>Gestiona comunicados, fecha opcional y vinculo con calendario.</Text>
       </View>
 
       <View style={styles.formCard}>
@@ -249,7 +249,7 @@ export default function AdminAnnouncementsScreen() {
             <ActionButton
               label="Eliminar"
               danger
-              onPress={() => Alert.alert('Eliminar anuncio', 'Esta acción no se puede deshacer.', [
+              onPress={() => Alert.alert('Eliminar anuncio', 'Esta accion no se puede deshacer.', [
                 { text: 'Cancelar', style: 'cancel' },
                 { text: 'Eliminar', style: 'destructive', onPress: () => runAction(() => deleteAnnouncement(announcement.id)) },
               ])}
@@ -299,7 +299,7 @@ function AnnouncementForm({ form, events, onChange }: { form: AnnouncementFormSt
 
   return (
     <View style={styles.formFields}>
-      <TextInput value={form.title} onChangeText={(title) => onChange({ ...form, title })} placeholder="Título" style={styles.input} />
+      <TextInput value={form.title} onChangeText={(title) => onChange({ ...form, title })} placeholder="Titulo" style={styles.input} />
       <TextInput value={form.content} onChangeText={(content) => onChange({ ...form, content })} placeholder="Contenido" multiline style={[styles.input, styles.textArea]} />
 
       <Text style={styles.label}>Audiencia</Text>
@@ -344,7 +344,7 @@ function AnnouncementForm({ form, events, onChange }: { form: AnnouncementFormSt
       <View style={styles.switchRow}>
         <View style={{ flex: 1 }}>
           <Text style={styles.label}>Fecha del anuncio</Text>
-          <Text style={styles.hint}>Opcional. Si la activas, aparecerá en la tarjeta.</Text>
+          <Text style={styles.hint}>Opcional. Si la activas, aparecera en la tarjeta.</Text>
         </View>
         <Switch value={form.has_announcement_date} onValueChange={(has_announcement_date) => { onChange({ ...form, has_announcement_date }); if (has_announcement_date) setDatePickerOpen(true); }} />
       </View>
@@ -383,7 +383,7 @@ function AnnouncementForm({ form, events, onChange }: { form: AnnouncementFormSt
               <Text numberOfLines={1} style={[styles.eventOptionText, form.event_id === event.id && styles.eventOptionTextActive]}>{event.title}</Text>
             </Pressable>
           ))}
-          {events.length > 5 ? <Text style={styles.hint}>Se muestran máximo 5 resultados. Usa búsqueda para encontrar otros.</Text> : null}
+          {events.length > 5 ? <Text style={styles.hint}>Se muestran maximo 5 resultados. Usa busqueda para encontrar otros.</Text> : null}
         </View>
       ) : null}
 

@@ -10,9 +10,9 @@ import { useSession } from '../../hooks/useSession';
 import { supabase } from '../../lib/supabase';
 import { getVisibleAnnouncements } from '../../services/announcements.service';
 import { getVisibleEvents } from '../../services/events.service';
-import { getAdminMembershipRows, isMembershipDateExpired } from '../../services/memberships.service';
+import { getAdminMembershipRows, getMembershipStatusLabel, getMyMembership, isMembershipDateExpired } from '../../services/memberships.service';
 import { requestAccountDeletion, updateMyProfile } from '../../services/profiles.service';
-import type { Profile } from '../../types/app.types';
+import type { Membership, Profile } from '../../types/app.types';
 
 const avatarColors = ['#C91F37', '#8F1324', '#2563eb', '#7c3aed', '#db2777', '#0f766e'];
 const wordmark = require('../../../assets/images/brand/ucapsa-wordmark.png');
@@ -29,6 +29,7 @@ export default function ProfileScreen() {
   const [editMode, setEditMode] = useState(false);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [profileModalEditing, setProfileModalEditing] = useState(false);
+  const [clientMembership, setClientMembership] = useState<Membership | null>(null);
   const [adminStats, setAdminStats] = useState({
     clients: 0,
     members: 0,
@@ -76,6 +77,19 @@ export default function ProfileScreen() {
     void loadAdminData();
   }, [isAdmin]);
 
+  useEffect(() => {
+    async function loadClientMembership() {
+      if (isAdmin || !user) return;
+      try {
+        setClientMembership(await getMyMembership());
+      } catch {
+        setClientMembership(null);
+      }
+    }
+
+    void loadClientMembership();
+  }, [isAdmin, user]);
+
   const clientProfileComplete = useMemo(
     () => Boolean((profile?.full_name ?? '').trim() && (profile?.phone ?? '').trim() && (profile?.dog_name ?? '').trim()),
     [profile],
@@ -121,8 +135,8 @@ export default function ProfileScreen() {
 
   function handleDeleteRequest() {
     Alert.alert(
-      'Solicitar eliminación de cuenta',
-      'Por seguridad, esta acción crea una solicitud para administración. No borra tu cuenta automáticamente.',
+      'Solicitar eliminacion de cuenta',
+      'Por seguridad, esta accion crea una solicitud para administracion. No borra tu cuenta automaticamente.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -131,7 +145,7 @@ export default function ProfileScreen() {
           onPress: async () => {
             try {
               await requestAccountDeletion('Solicitud desde Perfil.');
-              Alert.alert('Solicitud enviada', 'Administración revisará la eliminación de tu cuenta.');
+              Alert.alert('Solicitud enviada', 'Administracion revisara la eliminacion de tu cuenta.');
             } catch (error) {
               Alert.alert('No se pudo solicitar', error instanceof Error ? error.message : 'Intenta de nuevo.');
             }
@@ -145,7 +159,7 @@ export default function ProfileScreen() {
     return (
       <KeyboardAwareScreen>
         <Text style={styles.title}>Perfil</Text>
-        <Text style={styles.muted}>Cargando sesión...</Text>
+        <Text style={styles.muted}>Cargando sesion...</Text>
       </KeyboardAwareScreen>
     );
   }
@@ -156,11 +170,11 @@ export default function ProfileScreen() {
         <View style={styles.guestHero}>
           <Image source={wordmark} style={styles.wordmark} resizeMode="contain" />
           <Text style={styles.title}>Perfil</Text>
-          <Text style={styles.muted}>Inicia sesión para ver tu perfil, membresía y credencial digital.</Text>
+          <Text style={styles.muted}>Inicia sesion para ver tu perfil, membresia y credencial digital.</Text>
         </View>
 
         <Link href="/auth/login" asChild>
-          <Pressable style={styles.primaryButton}><Text style={styles.primaryButtonText}>Iniciar sesión</Text></Pressable>
+          <Pressable style={styles.primaryButton}><Text style={styles.primaryButtonText}>Iniciar sesion</Text></Pressable>
         </Link>
 
         <Link href="/auth/register" asChild>
@@ -193,19 +207,41 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+
+      {!isAdmin ? (
+        <View style={styles.clientMembershipCard}>
+          <Text style={styles.sectionEyebrow}>Perfil de cliente</Text>
+          <Text style={styles.sectionTitle}>Estado UCAPSA</Text>
+          <Text style={styles.clientMembershipText}>
+            {!clientMembership ? 'Aun no tienes membresia registrada.' : `Membresia: ${getMembershipStatusLabel(clientMembership.status)}`}
+          </Text>
+          {clientMembership?.status === 'pending' ? (
+            <Text style={styles.clientMembershipWarning}>Tu solicitud esta pendiente de revision.</Text>
+          ) : null}
+          {clientMembership && ['rejected', 'cancelled', 'expired'].includes(clientMembership.status) ? (
+            <Text style={styles.clientMembershipWarning}>Membresia no aceptada, no reconocida o pendiente de contrato. Consulta con administracion.</Text>
+          ) : null}
+          {clientMembership?.status !== 'active' ? (
+            <Pressable style={styles.primaryButton} onPress={() => router.push('/membership' as never)}>
+              <Text style={styles.primaryButtonText}>{clientMembership?.status === 'pending' ? 'Ver solicitud' : 'Solicitar membresia'}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
+
       {isAdmin ? (
         <>
           <View style={styles.sectionHeader}>
             <View>
               <Text style={styles.sectionEyebrow}>Panel general</Text>
-              <Text style={styles.sectionTitle}>Estadísticas</Text>
+              <Text style={styles.sectionTitle}>Estadisticas</Text>
             </View>
           </View>
 
           <View style={styles.adminStatsGrid}>
             <SmallStat label="Clientes" value={adminStats.clients} icon="account" onPress={() => openAdminUsers('clients_and_members')} />
             <SmallStat label="Socios" value={adminStats.members} icon="badge-account" onPress={() => openAdminUsers('members')} />
-            <SmallStat label="Membresías activas" value={adminStats.activeMemberships} icon="check-decagram" onPress={() => openMembershipTable('active', 'name_asc')} />
+            <SmallStat label="Membresias activas" value={adminStats.activeMemberships} icon="check-decagram" onPress={() => openMembershipTable('active', 'name_asc')} />
             <SmallStat label="Falta pago" value={adminStats.pendingPayments} icon="cash-remove" onPress={() => openMembershipTable('payment_pending_this_month', 'followup')} />
             <SmallStat label="Solicitudes" value={adminStats.pendingRequests} icon="email-outline" onPress={() => openMembershipTable('pending_requests', 'name_asc')} />
             <SmallStat label="Vigencia vencida" value={adminStats.expiredMemberships} icon="calendar-alert" onPress={() => openMembershipTable('expired_by_date', 'name_asc')} />
@@ -214,11 +250,12 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.quickActionsCard}>
-            <Text style={styles.quickActionsTitle}>Accesos rápidos</Text>
+            <Text style={styles.quickActionsTitle}>Accesos rapidos</Text>
             <View style={styles.quickActionsGrid}>
               <QuickAction label="Mi UCAPSA" icon="badge" onPress={() => router.push('/membership' as never)} />
               <QuickAction label="Anuncios" icon="campaign" onPress={() => router.push('/announcements' as never)} />
               <QuickAction label="Calendario" icon="event" onPress={() => router.push('/calendar' as never)} />
+              <QuickAction label="Clases" icon="school" onPress={() => router.push('/admin/classes' as never)} />
               <QuickAction label="Admin socios" icon="groups" onPress={() => router.push('/admin/members' as never)} />
             </View>
           </View>
@@ -228,10 +265,10 @@ export default function ProfileScreen() {
       {!isAdmin && showReadonlyClientView ? (
         <View style={styles.readonlyCard}>
           <ReadonlyRow label="Nombre" value={profile?.full_name ?? ''} />
-          <ReadonlyRow label="Teléfono" value={profile?.phone ?? ''} />
+          <ReadonlyRow label="Telefono" value={profile?.phone ?? ''} />
           <ReadonlyRow label="Perro" value={profile?.dog_name ?? ''} />
           <Pressable style={styles.secondaryButton} onPress={() => setEditMode(true)}>
-            <Text style={styles.secondaryButtonText}>Editar información</Text>
+            <Text style={styles.secondaryButtonText}>Editar informacion</Text>
           </Pressable>
         </View>
       ) : !isAdmin ? (
@@ -240,8 +277,8 @@ export default function ProfileScreen() {
           <Text style={styles.label}>Nombre completo</Text>
           <TextInput value={fullName} onChangeText={setFullName} placeholder="Tu nombre" style={styles.input} autoCapitalize="words" />
 
-          <Text style={styles.label}>Teléfono</Text>
-          <TextInput value={phone} onChangeText={setPhone} placeholder="Teléfono" style={styles.input} keyboardType="phone-pad" />
+          <Text style={styles.label}>Telefono</Text>
+          <TextInput value={phone} onChangeText={setPhone} placeholder="Telefono" style={styles.input} keyboardType="phone-pad" />
 
           <Text style={styles.label}>Nombre de tu perro</Text>
           <TextInput value={dogName} onChangeText={setDogName} placeholder="Ej. Max, Luna, Toby" style={styles.input} autoCapitalize="words" />
@@ -259,7 +296,7 @@ export default function ProfileScreen() {
 
           {clientProfileComplete ? (
             <Pressable style={styles.secondaryButton} onPress={() => setEditMode(false)}>
-              <Text style={styles.secondaryButtonText}>Cancelar edición</Text>
+              <Text style={styles.secondaryButtonText}>Cancelar edicion</Text>
             </Pressable>
           ) : null}
         </View>
@@ -268,11 +305,11 @@ export default function ProfileScreen() {
       <SocialLinksRow />
 
       <Pressable onPress={handleDeleteRequest} style={styles.dangerGhostButton}>
-        <Text style={styles.dangerGhostText}>Solicitar eliminación de cuenta</Text>
+        <Text style={styles.dangerGhostText}>Solicitar eliminacion de cuenta</Text>
       </Pressable>
 
       <Pressable onPress={signOut} style={styles.secondaryButton}>
-        <Text style={styles.secondaryButtonText}>Cerrar sesión</Text>
+        <Text style={styles.secondaryButtonText}>Cerrar sesion</Text>
       </Pressable>
 
       <Modal visible={profileModalVisible} transparent animationType="slide" onRequestClose={() => setProfileModalVisible(false)}>
@@ -289,7 +326,7 @@ export default function ProfileScreen() {
               <>
                 <ReadonlyRow label="Nombre" value={fullName || 'Sin nombre'} />
                 <ReadonlyRow label="Correo de contacto" value={email || 'Sin correo'} />
-                <ReadonlyRow label="Teléfono" value={phone || 'Sin teléfono'} />
+                <ReadonlyRow label="Telefono" value={phone || 'Sin telefono'} />
                 <ReadonlyRow label="Rol" value={role ?? 'client'} />
                 <Pressable style={styles.primaryButton} onPress={() => setProfileModalEditing(true)}>
                   <Text style={styles.primaryButtonText}>Editar perfil</Text>
@@ -301,8 +338,8 @@ export default function ProfileScreen() {
                 <TextInput value={fullName} onChangeText={setFullName} placeholder="Nombre" style={styles.input} />
                 <Text style={styles.label}>Correo de contacto</Text>
                 <TextInput value={email} onChangeText={setEmail} placeholder="Correo" keyboardType="email-address" autoCapitalize="none" style={styles.input} />
-                <Text style={styles.label}>Teléfono</Text>
-                <TextInput value={phone} onChangeText={setPhone} placeholder="Teléfono" keyboardType="phone-pad" style={styles.input} />
+                <Text style={styles.label}>Telefono</Text>
+                <TextInput value={phone} onChangeText={setPhone} placeholder="Telefono" keyboardType="phone-pad" style={styles.input} />
                 <Text style={styles.label}>Color de avatar</Text>
                 <View style={styles.colorRow}>
                   {avatarColors.map((color) => (
@@ -390,6 +427,9 @@ const styles = StyleSheet.create({
   quickAction: { width: '48%', flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: ucapsaBrand.colors.surfaceAlt, borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 18, paddingHorizontal: 12, paddingVertical: 12 },
   quickActionIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   quickActionText: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
+  clientMembershipCard: { backgroundColor: '#fff', borderRadius: 26, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 18 },
+  clientMembershipText: { color: ucapsaBrand.colors.text, fontSize: 15, fontWeight: '800', marginTop: 8, lineHeight: 21 },
+  clientMembershipWarning: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '800', marginTop: 8, lineHeight: 19 },
   readonlyCard: { backgroundColor: '#fff', borderRadius: 26, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 18 },
   readonlyRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F5E5E8' },
   readonlyLabel: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
@@ -413,3 +453,5 @@ const styles = StyleSheet.create({
   profileModalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   profileModalTitle: { color: ucapsaBrand.colors.text, fontSize: 22, fontWeight: '900' },
 });
+
+

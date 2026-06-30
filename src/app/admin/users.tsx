@@ -1,11 +1,12 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { supabase } from '../../lib/supabase';
+import { deactivateMembershipForProfile, forceMembershipForProfile } from '../../services/memberships.service';
 import type { AppRole, Profile } from '../../types/app.types';
 
 type UserFilter = 'clients_and_members' | 'clients' | 'members' | 'admins';
@@ -14,7 +15,7 @@ const filterOptions: Array<{ value: UserFilter; label: string; helper: string }>
   { value: 'clients_and_members', label: 'Clientes + socios', helper: 'Todos los usuarios operativos' },
   { value: 'clients', label: 'Clientes', helper: 'Sin rol de socio' },
   { value: 'members', label: 'Socios', helper: 'Usuarios con rol member' },
-  { value: 'admins', label: 'Admins', helper: 'Administración' },
+  { value: 'admins', label: 'Admins', helper: 'Administracion' },
 ];
 
 function getRoleLabel(role: AppRole) {
@@ -40,6 +41,7 @@ export default function AdminUsersScreen() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [filter, setFilter] = useState<UserFilter>('clients_and_members');
   const [loading, setLoading] = useState(true);
+  const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
 
   useEffect(() => {
@@ -48,24 +50,76 @@ export default function AdminUsersScreen() {
     }
   }, [params.filter]);
 
+  async function loadProfiles() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('full_name', { ascending: true, nullsFirst: false });
+
+    if (error) throw error;
+    setProfiles((data ?? []) as Profile[]);
+    setLoading(false);
+  }
+
   useEffect(() => {
-    async function loadProfiles() {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('full_name', { ascending: true, nullsFirst: false });
-
-      if (error) throw error;
-      setProfiles((data ?? []) as Profile[]);
-      setLoading(false);
-    }
-
     loadProfiles().catch((error) => {
       setLoading(false);
       console.warn('No se pudieron cargar usuarios:', error instanceof Error ? error.message : error);
     });
   }, []);
+
+  async function refreshSelectedProfile(userId: string) {
+    const { data, error } = await supabase.from('profiles').select('*').eq('user_id', userId).maybeSingle();
+    if (error) throw error;
+    const nextProfile = data as Profile | null;
+    if (nextProfile) setSelectedProfile(nextProfile);
+  }
+
+  function handleForceMember(profile: Profile) {
+    Alert.alert('Forzar socio', 'Esto activa o crea una membresia de socio para este cliente. El pago quedara pendiente si no estaba pagado.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Activar socio',
+        onPress: async () => {
+          try {
+            setSavingUserId(profile.user_id);
+            await forceMembershipForProfile(profile);
+            await loadProfiles();
+            await refreshSelectedProfile(profile.user_id);
+            Alert.alert('Socio activado', 'La persona ya aparece como socio.');
+          } catch (error) {
+            Alert.alert('No se pudo activar socio', error instanceof Error ? error.message : 'Intenta de nuevo.');
+          } finally {
+            setSavingUserId(null);
+          }
+        },
+      },
+    ]);
+  }
+
+  function handleBackToClient(profile: Profile) {
+    Alert.alert('Volver a cliente', 'Esto desactiva la membresia visible y cambia el rol a cliente. No borra historial.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Volver a cliente',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            setSavingUserId(profile.user_id);
+            await deactivateMembershipForProfile(profile);
+            await loadProfiles();
+            await refreshSelectedProfile(profile.user_id);
+            Alert.alert('Actualizado', 'La persona volvio a cliente.');
+          } catch (error) {
+            Alert.alert('No se pudo actualizar', error instanceof Error ? error.message : 'Intenta de nuevo.');
+          } finally {
+            setSavingUserId(null);
+          }
+        },
+      },
+    ]);
+  }
 
   const filteredProfiles = useMemo(
     () => profiles.filter((profile) => matchesFilter(profile, filter)),
@@ -144,7 +198,13 @@ export default function AdminUsersScreen() {
         ))}
       </View>
 
-      <UserDetailModal profile={selectedProfile} onClose={() => setSelectedProfile(null)} />
+      <UserDetailModal
+        profile={selectedProfile}
+        saving={selectedProfile ? savingUserId === selectedProfile.user_id : false}
+        onClose={() => setSelectedProfile(null)}
+        onForceMember={handleForceMember}
+        onBackToClient={handleBackToClient}
+      />
     </KeyboardAwareScreen>
   );
 }
@@ -158,7 +218,7 @@ function Summary({ label, value }: { label: string; value: number }) {
   );
 }
 
-function UserDetailModal({ profile, onClose }: { profile: Profile | null; onClose: () => void }) {
+function UserDetailModal({ profile, saving, onClose, onForceMember, onBackToClient }: { profile: Profile | null; saving: boolean; onClose: () => void; onForceMember: (profile: Profile) => void; onBackToClient: (profile: Profile) => void }) {
   if (!profile) return null;
 
   return (
@@ -172,15 +232,27 @@ function UserDetailModal({ profile, onClose }: { profile: Profile | null; onClos
           <View style={styles.detailBox}>
             <Detail label="Nombre" value={profile.full_name} />
             <Detail label="Correo" value={profile.email} />
-            <Detail label="Teléfono" value={profile.phone} />
+            <Detail label="Telefono" value={profile.phone} />
             <Detail label="Perro" value={profile.dog_name} />
             <Detail label="Rol" value={getRoleLabel(profile.role)} />
-            <Detail label="Solicitud eliminación" value={profile.deletion_requested_at ? 'Sí' : 'No'} />
+            <Detail label="Solicitud eliminacion" value={profile.deletion_requested_at ? 'Si' : 'No'} />
           </View>
 
           {profile.role === 'member' ? (
             <Pressable style={styles.primaryButton} onPress={() => router.push('/membership?view=table&filter=all' as never)}>
               <Text style={styles.primaryButtonText}>Ir a Mi UCAPSA</Text>
+            </Pressable>
+          ) : null}
+
+          {profile.role === 'client' ? (
+            <Pressable disabled={saving} style={styles.primaryButton} onPress={() => onForceMember(profile)}>
+              <Text style={styles.primaryButtonText}>{saving ? 'Guardando...' : 'Forzar socio'}</Text>
+            </Pressable>
+          ) : null}
+
+          {profile.role === 'member' ? (
+            <Pressable disabled={saving} style={styles.secondaryButton} onPress={() => onBackToClient(profile)}>
+              <Text style={styles.secondaryButtonText}>{saving ? 'Guardando...' : 'Volver a cliente'}</Text>
             </Pressable>
           ) : null}
 
@@ -241,6 +313,8 @@ const styles = StyleSheet.create({
   detailValue: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '700', marginTop: 3 },
   primaryButton: { backgroundColor: ucapsaBrand.colors.red, borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 16 },
   primaryButtonText: { color: '#fff', fontSize: 14, fontWeight: '900' },
+  secondaryButton: { backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 12 },
+  secondaryButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 14, fontWeight: '900' },
   closeButton: { backgroundColor: ucapsaBrand.colors.text, borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 12 },
   closeButtonText: { color: '#fff', fontSize: 14, fontWeight: '900' },
 });
