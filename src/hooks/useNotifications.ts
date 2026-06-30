@@ -1,6 +1,5 @@
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 
@@ -15,6 +14,37 @@ import type { NotificationCategoryKey, NotificationPreferences } from '../types/
 
 type NotificationRuntimeState = 'idle' | 'loading' | 'saving' | 'registering';
 
+type NotificationPermissionResult = {
+  status: string;
+};
+
+type ExpoNotificationsModule = {
+  AndroidImportance: {
+    MAX: number;
+  };
+  getPermissionsAsync: () => Promise<NotificationPermissionResult>;
+  requestPermissionsAsync: () => Promise<NotificationPermissionResult>;
+  getExpoPushTokenAsync: (options: { projectId: string }) => Promise<{ data: string }>;
+  setNotificationChannelAsync: (
+    channelId: string,
+    channel: {
+      name: string;
+      importance: number;
+    },
+  ) => Promise<unknown>;
+};
+
+let notificationsModule: ExpoNotificationsModule | null = null;
+
+async function loadNotificationsModule() {
+  if (notificationsModule) {
+    return notificationsModule;
+  }
+
+  notificationsModule = (await import('expo-notifications')) as unknown as ExpoNotificationsModule;
+  return notificationsModule;
+}
+
 function getExpoProjectId() {
   return Constants.expoConfig?.extra?.eas?.projectId ?? (Constants as any).easConfig?.projectId ?? null;
 }
@@ -27,6 +57,10 @@ function getAppOwnership() {
   return Constants.appOwnership ?? null;
 }
 
+function isRunningInExpoGo() {
+  return Constants.appOwnership === 'expo';
+}
+
 export function useNotifications() {
   const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
   const [permissionStatus, setPermissionStatus] = useState<string>('unknown');
@@ -35,7 +69,7 @@ export function useNotifications() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const projectId = useMemo(() => getExpoProjectId(), []);
-  const isExpoGo = Constants.appOwnership === 'expo';
+  const isExpoGo = isRunningInExpoGo();
   const canUsePush = Device.isDevice && !isExpoGo;
 
   const refresh = useCallback(async () => {
@@ -43,21 +77,25 @@ export function useNotifications() {
     setErrorMessage(null);
 
     try {
-      const [nextPreferences, permissions, storedToken] = await Promise.all([
-        getNotificationPreferences(),
-        Notifications.getPermissionsAsync().catch(() => null),
-        getStoredExpoPushToken(),
-      ]);
+      const [nextPreferences, storedToken] = await Promise.all([getNotificationPreferences(), getStoredExpoPushToken()]);
 
       setPreferences(nextPreferences);
-      setPermissionStatus(permissions?.status ?? 'unknown');
       setExpoPushToken(storedToken);
+
+      if (!canUsePush) {
+        setPermissionStatus(isExpoGo ? 'expo-go-unavailable' : 'unavailable');
+        return;
+      }
+
+      const Notifications = await loadNotificationsModule();
+      const permissions = await Notifications.getPermissionsAsync().catch(() => null);
+      setPermissionStatus(permissions?.status ?? 'unknown');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'No se pudieron cargar las notificaciones.');
     } finally {
       setRuntimeState('idle');
     }
-  }, []);
+  }, [canUsePush, isExpoGo]);
 
   const requestAndRegisterDevice = useCallback(async () => {
     if (!Device.isDevice) {
@@ -65,12 +103,14 @@ export function useNotifications() {
     }
 
     if (isExpoGo) {
-      throw new Error('Las push reales no se prueban bien en Expo Go. Usa un development build o APK de EAS.');
+      throw new Error('Expo Go no soporta push remotas en Android desde SDK 53. Usa development build o APK de EAS.');
     }
 
     if (!projectId) {
       throw new Error('Falta projectId de EAS en app.json. Revisa expo.extra.eas.projectId.');
     }
+
+    const Notifications = await loadNotificationsModule();
 
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {

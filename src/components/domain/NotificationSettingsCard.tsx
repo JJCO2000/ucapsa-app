@@ -63,12 +63,17 @@ export function NotificationSettingsCard({ premium = false }: NotificationSettin
   const hasToken = Boolean(expoPushToken);
   const statusLabel = loading
     ? 'Cargando'
-    : enabled && hasToken
-      ? 'Dispositivo registrado'
-      : enabled
-        ? 'Activo, falta token'
-        : 'Desactivadas';
+    : isExpoGo
+      ? 'Expo Go'
+      : !canUsePush
+        ? 'No disponible'
+        : enabled && hasToken
+          ? 'Dispositivo registrado'
+          : enabled
+            ? 'Activo, falta token'
+            : 'Desactivadas';
   const actionLabel = registering ? 'Activando...' : enabled ? 'Desactivar notificaciones' : 'Activar notificaciones';
+  const actionDisabled = busy || (!enabled && !canUsePush);
 
   return (
     <View style={[styles.card, premium && styles.cardPremium]}>
@@ -108,8 +113,13 @@ export function NotificationSettingsCard({ premium = false }: NotificationSettin
       {errorMessage ? <Text style={[styles.errorText, premium && styles.errorTextPremium]}>{errorMessage}</Text> : null}
 
       <Pressable
-        disabled={busy}
-        style={({ pressed }) => [styles.primaryButton, premium && styles.primaryButtonPremium, busy && styles.disabled, pressed && !busy && styles.pressed]}
+        disabled={actionDisabled}
+        style={({ pressed }) => [
+          styles.primaryButton,
+          premium && styles.primaryButtonPremium,
+          actionDisabled && styles.disabled,
+          pressed && !actionDisabled && styles.pressed,
+        ]}
         onPress={() => void setNotificationsEnabled(!enabled)}
       >
         <Text style={[styles.primaryButtonText, premium && styles.primaryButtonTextPremium]}>{actionLabel}</Text>
