@@ -1,4 +1,4 @@
-﻿import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import type { Payment } from '../types/app.types';
 
 export type RegisterMembershipPaymentInput = {
@@ -57,6 +57,31 @@ export async function registerMembershipPayment(input: RegisterMembershipPayment
     .eq('id', input.membershipId);
 
   if (membershipError) throw membershipError;
-
   return data as Payment;
+}
+
+export async function deleteMembershipPayment(paymentId: string, membershipId: string): Promise<void> {
+  const { error } = await supabase
+    .from('payments')
+    .delete()
+    .eq('id', paymentId)
+    .eq('membership_id', membershipId);
+
+  if (error) throw error;
+
+  const remaining = await getPaymentsByMembershipId(membershipId);
+  const latestPaid = remaining.find((payment) => payment.status === 'paid' && payment.paid_at);
+  const now = new Date().toISOString();
+
+  const { error: membershipError } = await supabase
+    .from('memberships')
+    .update({
+      current_payment_status: latestPaid ? 'paid' : 'pending',
+      last_payment_at: latestPaid?.paid_at ?? null,
+      payment_notes: latestPaid ? latestPaid.notes ?? null : 'Pago eliminado del historial. Pendiente de revisión.',
+      updated_at: now,
+    })
+    .eq('id', membershipId);
+
+  if (membershipError) throw membershipError;
 }

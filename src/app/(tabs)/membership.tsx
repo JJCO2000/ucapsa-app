@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Link, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Calendar } from 'react-native-calendars';
 import QRCode from 'react-native-qrcode-svg';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -16,11 +17,19 @@ import {
   getPaymentStatusLabel,
   isMembershipDateExpired,
   requestMembership,
+  updateMembershipDetails,
   updateMembershipPaymentStatus,
+  updateMembershipStatus,
+  requestPermanentMembershipDeletion,
+  getMembershipDeleteRequests,
+  approveMembershipDeleteRequest,
+  rejectMembershipDeleteRequest,
   type MembershipAdminRow,
+  type MembershipDeleteRequestRow,
+  type UpdateMembershipDetailsInput,
 } from '../../services/memberships.service';
-import { registerMembershipPayment } from '../../services/payments.service';
-import type { Membership, MembershipStatus, Payment } from '../../types/app.types';
+import { deleteMembershipPayment, registerMembershipPayment } from '../../services/payments.service';
+import type { Membership, MembershipPaymentStatus, MembershipStatus, Payment } from '../../types/app.types';
 
 const wordmark = require('../../../assets/images/brand/ucapsa-wordmark.png');
 const mark = require('../../../assets/images/brand/ucapsa-mark.png');
@@ -98,8 +107,8 @@ const adminFilterOptions: Array<{ value: AdminMembershipFilter; label: string }>
   { value: 'active', label: 'Activos' },
   { value: 'inactive', label: 'Inactivos' },
   { value: 'pending_requests', label: 'Solicitudes' },
-  { value: 'paid_this_month', label: 'Pagados este mes' },
-  { value: 'payment_pending_this_month', label: 'Pendientes de pago' },
+  { value: 'paid_this_month', label: 'Pagados' },
+  { value: 'payment_pending_this_month', label: 'Falta pago' },
   { value: 'expired_by_date', label: 'Vigencia vencida' },
 ];
 
@@ -144,6 +153,10 @@ function hasPaidThisMonth(row: MembershipAdminRow) {
   return row.membership.current_payment_status === 'paid' && isThisMonth(row.membership.last_payment_at);
 }
 
+function hasPaidStatus(row: MembershipAdminRow) {
+  return row.membership.current_payment_status === 'paid';
+}
+
 function shouldPayThisMonth(row: MembershipAdminRow) {
   if (row.membership.status !== 'active') return false;
   if (row.membership.current_payment_status === 'not_required') return false;
@@ -151,7 +164,7 @@ function shouldPayThisMonth(row: MembershipAdminRow) {
 }
 
 function hasPaymentPendingThisMonth(row: MembershipAdminRow) {
-  return shouldPayThisMonth(row) && !hasPaidThisMonth(row);
+  return shouldPayThisMonth(row) && row.membership.current_payment_status !== 'paid';
 }
 
 function getLastPaymentDate(row: MembershipAdminRow) {
@@ -179,13 +192,16 @@ function headerLabel(label: string, current: AdminSortMode, asc: AdminSortMode, 
 function actionSortLabel(row: MembershipAdminRow, actionMemory: ActionMemory) {
   const state = getActionState(row, actionMemory);
   if (state === 'paid') return '3 pagado';
+  if (state === 'not_required') return '4 no aplica';
   if (state === 'pending') return '2 pendiente marcado';
   if (hasPaymentPendingThisMonth(row)) return '0 requiere acción';
   return '1 abierto';
 }
 
-function getActionState(row: MembershipAdminRow, actionMemory: ActionMemory): 'open' | 'paid' | 'pending' {
-  if (hasPaidThisMonth(row)) return 'paid';
+function getActionState(row: MembershipAdminRow, actionMemory: ActionMemory): 'open' | 'paid' | 'pending' | 'not_required' {
+  if (row.membership.current_payment_status === 'paid') return 'paid';
+  if (row.membership.current_payment_status === 'not_required') return 'not_required';
+  if (row.membership.current_payment_status === 'pending' || row.membership.current_payment_status === 'overdue') return 'pending';
   const item = actionMemory[row.membership.id];
   if (item?.monthKey === getCurrentMonthKey()) return item.status;
   return 'open';
@@ -205,10 +221,63 @@ function getTime(value: string | null | undefined) {
   return Number.isNaN(time) ? 0 : time;
 }
 
+function getTodayDateKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+
+function dateKeyFromValue(value: string | null | undefined) {
+  if (!value) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toISOString().slice(0, 10);
+}
+
+function dateKeyToIso(value: string | null | undefined) {
+  if (!value) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  return `${value}T12:00:00.000Z`;
+}
+
+function isInactiveRow(row: MembershipAdminRow) {
+  return isInactiveStatus(row.membership.status);
+}
+
+function rowMatchesSearch(row: MembershipAdminRow, rawTerm: string) {
+  const term = rawTerm.trim().toLowerCase();
+  if (!term) return true;
+  const haystack = [
+    getDisplayName(row.profile),
+    row.profile?.email,
+    row.profile?.phone,
+    row.profile?.dog_name,
+    row.membership.member_number,
+    getMembershipStatusLabel(row.membership.status),
+    getPaymentStatusLabel(row.membership.current_payment_status),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return haystack.includes(term);
+}
+
+function buildAutomaticMemberNumber(row: MembershipAdminRow) {
+  if (row.membership.member_number?.trim()) return row.membership.member_number.trim();
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const shortId = row.membership.id.replace(/-/g, '').slice(0, 5).toUpperCase();
+  return `SOC-${year}${month}-${shortId}`;
+}
+
 function getSortedRows(rows: MembershipAdminRow[], sortMode: AdminSortMode, actionMemory: ActionMemory) {
   const next = [...rows];
 
   next.sort((a, b) => {
+    const inactiveDiff = Number(isInactiveRow(a)) - Number(isInactiveRow(b));
+    if (inactiveDiff !== 0) return inactiveDiff;
+
     const nameA = getDisplayName(a.profile);
     const nameB = getDisplayName(b.profile);
     const fallback = compareText(nameA, nameB);
@@ -242,15 +311,18 @@ function getSortedRows(rows: MembershipAdminRow[], sortMode: AdminSortMode, acti
 }
 
 export default function MembershipScreen() {
-  const { user, profile, isAdmin } = useSession();
+  const { user, profile, role, isAdmin } = useSession();
+  const isSuperAdmin = role === 'super_admin';
   const params = useLocalSearchParams<{ view?: string; filter?: string; sort?: string }>();
   const [membership, setMembership] = useState<Membership | null>(null);
   const [adminRows, setAdminRows] = useState<MembershipAdminRow[]>([]);
+  const [deleteRequests, setDeleteRequests] = useState<MembershipDeleteRequestRow[]>([]);
   const [perspective, setPerspective] = useState<AdminPerspective>('stats');
   const [filter, setFilter] = useState<AdminMembershipFilter>('all');
   const [sortMode, setSortMode] = useState<AdminSortMode>('followup');
   const [filterOpen, setFilterOpen] = useState(false);
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [columns, setColumns] = useState<VisibleColumns>(defaultColumns);
   const [actionMemory, setActionMemory] = useState<ActionMemory>({});
   const [selectedRow, setSelectedRow] = useState<MembershipAdminRow | null>(null);
@@ -340,14 +412,18 @@ export default function MembershipScreen() {
     if (!user || !isAdmin) return;
     setLoading(true);
     try {
-      const rows = await getAdminMembershipRows();
+      const [rows, requests] = await Promise.all([
+        getAdminMembershipRows(),
+        isSuperAdmin ? getMembershipDeleteRequests() : Promise.resolve([]),
+      ]);
       setAdminRows(rows);
+      setDeleteRequests(requests);
     } catch (error) {
       Alert.alert('No se pudo cargar socios', error instanceof Error ? error.message : 'Intenta de nuevo.');
     } finally {
       setLoading(false);
     }
-  }, [user, isAdmin]);
+  }, [user, isAdmin, isSuperAdmin]);
 
   useFocusEffect(
     useCallback(() => {
@@ -364,6 +440,13 @@ export default function MembershipScreen() {
     if (isAdmin) await loadAdminMembershipPanel();
     else await loadClientMembership();
     setRefreshing(false);
+  }
+
+  function openStatsFilter(nextFilter: AdminMembershipFilter) {
+    setFilter(nextFilter);
+    setPerspective('table');
+    setFilterOpen(false);
+    setColumnSettingsOpen(false);
   }
 
   async function handleRequestMembership() {
@@ -421,30 +504,237 @@ export default function MembershipScreen() {
     await handleMarkPaid(row);
   }
 
+  function handleApproveRequest(row: MembershipAdminRow) {
+    Alert.alert(
+      'Aceptar solicitud',
+      `¿Activar la membresía de ${getDisplayName(row.profile)}? Se asignará número de socio y el pago quedará pendiente.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Aceptar socio',
+          onPress: async () => {
+            setSavingPaymentId(row.membership.id);
+            try {
+              await updateMembershipStatus(row.membership, 'active', {
+                memberNumber: buildAutomaticMemberNumber(row),
+                startDate: getTodayDateKey(),
+                endDate: row.membership.end_date,
+                paymentNotes: 'Solicitud aprobada desde Mi UCAPSA.',
+              });
+              await updateMembershipPaymentStatus(row.membership.id, 'pending', 'Membresía aprobada. Pago pendiente de registrar.');
+              await loadAdminMembershipPanel();
+              setSelectedRow(null);
+            } catch (error) {
+              Alert.alert('No se pudo aceptar', error instanceof Error ? error.message : 'Intenta de nuevo.');
+            } finally {
+              setSavingPaymentId(null);
+            }
+          },
+        },
+      ],
+    );
+  }
+
+  function handleRejectRequest(row: MembershipAdminRow) {
+    Alert.alert(
+      'Rechazar solicitud',
+      `¿Rechazar la solicitud de ${getDisplayName(row.profile)}? La persona volverá a verse como cliente.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Rechazar',
+          style: 'destructive',
+          onPress: async () => {
+            setSavingPaymentId(row.membership.id);
+            try {
+              await updateMembershipStatus(row.membership, 'rejected', {
+                paymentNotes: 'Solicitud rechazada desde Mi UCAPSA.',
+              });
+              await updateMembershipPaymentStatus(row.membership.id, 'not_required', 'Solicitud rechazada.');
+              await loadAdminMembershipPanel();
+              setSelectedRow(null);
+            } catch (error) {
+              Alert.alert('No se pudo rechazar', error instanceof Error ? error.message : 'Intenta de nuevo.');
+            } finally {
+              setSavingPaymentId(null);
+            }
+          },
+        },
+      ],
+    );
+  }
+
+
+  async function handleSaveMembershipDetails(row: MembershipAdminRow, input: UpdateMembershipDetailsInput) {
+    setSavingPaymentId(row.membership.id);
+    try {
+      await updateMembershipDetails(row.membership, input);
+      await loadAdminMembershipPanel();
+      setSelectedRow(null);
+      Alert.alert('Ficha actualizada', 'Los datos del socio se guardaron correctamente.');
+    } catch (error) {
+      Alert.alert('No se pudo guardar', error instanceof Error ? error.message : 'Intenta de nuevo.');
+    } finally {
+      setSavingPaymentId(null);
+    }
+  }
+
+  function handleDeletePayment(row: MembershipAdminRow, payment: Payment) {
+    Alert.alert(
+      'Eliminar pago',
+      'Esto eliminará este pago del historial y recalculará el último pago visible. Úsalo solo para correcciones o pruebas.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar pago',
+          style: 'destructive',
+          onPress: async () => {
+            setSavingPaymentId(row.membership.id);
+            try {
+              await deleteMembershipPayment(payment.id, row.membership.id);
+              await loadAdminMembershipPanel();
+              setSelectedRow(null);
+            } catch (error) {
+              Alert.alert('No se pudo eliminar pago', error instanceof Error ? error.message : 'Intenta de nuevo.');
+            } finally {
+              setSavingPaymentId(null);
+            }
+          },
+        },
+      ],
+    );
+  }
+
+  function handleDeactivateMembership(row: MembershipAdminRow) {
+    Alert.alert('Desactivar socio', 'La persona dejará de aparecer como socio activo, pero se conservará su historial.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Desactivar',
+        style: 'destructive',
+        onPress: async () => {
+          await handleSaveMembershipDetails(row, {
+            status: 'cancelled',
+            currentPaymentStatus: 'not_required',
+            paymentNotes: 'Membresía desactivada desde ficha de socio.',
+          });
+        },
+      },
+    ]);
+  }
+
+  function handleReactivateMembership(row: MembershipAdminRow) {
+    Alert.alert('Reactivar socio', 'La membresía volverá a quedar activa y el pago se marcará como pendiente.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Reactivar',
+        onPress: async () => {
+          await handleSaveMembershipDetails(row, {
+            status: 'active',
+            currentPaymentStatus: 'pending',
+            paymentNotes: 'Membresía reactivada desde ficha de socio.',
+          });
+        },
+      },
+    ]);
+  }
+
+  function handleRequestPermanentDelete(row: MembershipAdminRow) {
+    Alert.alert(
+      'Solicitar eliminación definitiva',
+      'Se desactivará la membresía y se creará una solicitud para que super_admin apruebe o rechace la eliminación definitiva.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Solicitar',
+          style: 'destructive',
+          onPress: async () => {
+            setSavingPaymentId(row.membership.id);
+            try {
+              await requestPermanentMembershipDeletion(row, 'Solicitud desde ficha de socio.');
+              await loadAdminMembershipPanel();
+              setSelectedRow(null);
+              Alert.alert('Solicitud enviada', 'La membresía quedó desactivada mientras super_admin revisa la eliminación definitiva.');
+            } catch (error) {
+              Alert.alert('No se pudo solicitar', error instanceof Error ? error.message : 'Intenta de nuevo.');
+            } finally {
+              setSavingPaymentId(null);
+            }
+          },
+        },
+      ],
+    );
+  }
+
+  function handleApproveDeleteRequest(row: MembershipDeleteRequestRow) {
+    Alert.alert('Aprobar eliminación definitiva', 'Esto eliminará la membresía y sus pagos relacionados. No elimina la cuenta de login.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Aprobar eliminación',
+        style: 'destructive',
+        onPress: async () => {
+          setSavingPaymentId(row.request.membership_id);
+          try {
+            await approveMembershipDeleteRequest(row);
+            await loadAdminMembershipPanel();
+          } catch (error) {
+            Alert.alert('No se pudo aprobar', error instanceof Error ? error.message : 'Intenta de nuevo.');
+          } finally {
+            setSavingPaymentId(null);
+          }
+        },
+      },
+    ]);
+  }
+
+  function handleRejectDeleteRequest(row: MembershipDeleteRequestRow) {
+    Alert.alert('Rechazar eliminación definitiva', 'Se conservará la membresía desactivada para revisión manual.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Rechazar',
+        onPress: async () => {
+          setSavingPaymentId(row.request.membership_id);
+          try {
+            await rejectMembershipDeleteRequest(row);
+            await loadAdminMembershipPanel();
+          } catch (error) {
+            Alert.alert('No se pudo rechazar', error instanceof Error ? error.message : 'Intenta de nuevo.');
+          } finally {
+            setSavingPaymentId(null);
+          }
+        },
+      },
+    ]);
+  }
+
   const currentMonthLabel = useMemo(() => new Date().toLocaleDateString('es-MX', { month: 'long', year: 'numeric' }), []);
 
   const adminMembershipStats = useMemo(() => {
     const active = adminRows.filter((row) => row.membership.status === 'active').length;
     const inactive = adminRows.filter((row) => isInactiveStatus(row.membership.status)).length;
     const pendingRequests = adminRows.filter((row) => row.membership.status === 'pending').length;
-    const paidThisMonth = adminRows.filter(hasPaidThisMonth).length;
+    const paidThisMonth = adminRows.filter(hasPaidStatus).length;
     const pendingPaymentThisMonth = adminRows.filter(hasPaymentPendingThisMonth).length;
     const expiredByDate = adminRows.filter((row) => row.membership.status === 'active' && isMembershipDateExpired(row.membership)).length;
     return { active, inactive, pendingRequests, paidThisMonth, pendingPaymentThisMonth, expiredByDate, total: adminRows.length };
   }, [adminRows]);
 
+  const pendingRequestRows = useMemo(() => adminRows.filter((row) => row.membership.status === 'pending'), [adminRows]);
+
   const filteredAdminRows = useMemo(() => {
-    if (filter === 'all') return adminRows;
-    return adminRows.filter((row) => {
-      if (filter === 'active') return row.membership.status === 'active';
-      if (filter === 'inactive') return isInactiveStatus(row.membership.status);
-      if (filter === 'pending_requests') return row.membership.status === 'pending';
-      if (filter === 'paid_this_month') return hasPaidThisMonth(row);
-      if (filter === 'payment_pending_this_month') return hasPaymentPendingThisMonth(row);
-      if (filter === 'expired_by_date') return row.membership.status === 'active' && isMembershipDateExpired(row.membership);
-      return true;
-    });
-  }, [adminRows, filter]);
+    const byFilter = filter === 'all'
+      ? adminRows
+      : adminRows.filter((row) => {
+          if (filter === 'active') return row.membership.status === 'active';
+          if (filter === 'inactive') return isInactiveStatus(row.membership.status);
+          if (filter === 'pending_requests') return row.membership.status === 'pending';
+          if (filter === 'paid_this_month') return hasPaidStatus(row);
+          if (filter === 'payment_pending_this_month') return hasPaymentPendingThisMonth(row);
+          if (filter === 'expired_by_date') return row.membership.status === 'active' && isMembershipDateExpired(row.membership);
+          return true;
+        });
+
+    return byFilter.filter((row) => rowMatchesSearch(row, searchTerm));
+  }, [adminRows, filter, searchTerm]);
 
   const sortedAdminRows = useMemo(() => getSortedRows(filteredAdminRows, sortMode, actionMemory), [filteredAdminRows, sortMode, actionMemory]);
 
@@ -485,6 +775,25 @@ export default function MembershipScreen() {
 
         {loading ? <Text style={styles.muted}>Cargando socios...</Text> : null}
 
+        {pendingRequestRows.length > 0 ? (
+          <PendingRequestsPanel
+            rows={pendingRequestRows}
+            savingId={savingPaymentId}
+            onOpen={setSelectedRow}
+            onApprove={handleApproveRequest}
+            onReject={handleRejectRequest}
+          />
+        ) : null}
+
+        {isSuperAdmin && deleteRequests.length > 0 ? (
+          <DeleteRequestsPanel
+            rows={deleteRequests}
+            savingId={savingPaymentId}
+            onApprove={handleApproveDeleteRequest}
+            onReject={handleRejectDeleteRequest}
+          />
+        ) : null}
+
         {perspective === 'stats' ? (
           <>
             <View style={styles.monthSummaryCard}>
@@ -492,12 +801,12 @@ export default function MembershipScreen() {
             </View>
 
             <View style={styles.statsGrid}>
-              <StatBubble label="Activos" value={adminMembershipStats.active} helper="Membresía activa" />
-              <StatBubble label="Inactivos" value={adminMembershipStats.inactive} helper="Cancelados o vencidos" />
-              <StatBubble label="Solicitudes" value={adminMembershipStats.pendingRequests} helper="Pendientes" />
-              <StatBubble label="Pagados" value={adminMembershipStats.paidThisMonth} helper="Este mes" />
-              <StatBubble label="Falta pago" value={adminMembershipStats.pendingPaymentThisMonth} helper="Este mes" />
-              <StatBubble label="Vigencia vencida" value={adminMembershipStats.expiredByDate} helper="Revisar" />
+              <StatBubble label="Activos" value={adminMembershipStats.active} helper="Membresía activa" onPress={() => openStatsFilter('active')} />
+              <StatBubble label="Inactivos" value={adminMembershipStats.inactive} helper="Cancelados o vencidos" onPress={() => openStatsFilter('inactive')} />
+              <StatBubble label="Solicitudes" value={adminMembershipStats.pendingRequests} helper="Pendientes" onPress={() => openStatsFilter('pending_requests')} />
+              <StatBubble label="Pagados" value={adminMembershipStats.paidThisMonth} helper="Estado pagado" onPress={() => openStatsFilter('paid_this_month')} />
+              <StatBubble label="Falta pago" value={adminMembershipStats.pendingPaymentThisMonth} helper="Pendientes" onPress={() => openStatsFilter('payment_pending_this_month')} />
+              <StatBubble label="Vigencia vencida" value={adminMembershipStats.expiredByDate} helper="Revisar" onPress={() => openStatsFilter('expired_by_date')} />
             </View>
 
             <Pressable style={styles.primaryButton} onPress={() => setPerspective('table')}>
@@ -512,6 +821,13 @@ export default function MembershipScreen() {
                 <Text style={styles.sectionSubtitle}>{sortedAdminRows.length} de {adminRows.length} registros</Text>
               </View>
             </View>
+
+            <TextInput
+              value={searchTerm}
+              onChangeText={setSearchTerm}
+              placeholder="Buscar nombre, correo, teléfono, perro o número..."
+              style={styles.searchInput}
+            />
 
             <View style={styles.controlRow}>
               <Pressable style={styles.controlButton} onPress={() => { setFilterOpen((current) => !current); setColumnSettingsOpen(false); }}>
@@ -603,6 +919,11 @@ export default function MembershipScreen() {
           onClose={() => setSelectedRow(null)}
           onPaid={selectedRow ? () => handleMarkPaid(selectedRow) : undefined}
           onPending={selectedRow ? () => handleMarkPending(selectedRow) : undefined}
+          onSaveDetails={selectedRow ? (input) => handleSaveMembershipDetails(selectedRow, input) : undefined}
+          onDeletePayment={selectedRow ? (payment) => handleDeletePayment(selectedRow, payment) : undefined}
+          onDeactivate={selectedRow ? () => handleDeactivateMembership(selectedRow) : undefined}
+          onReactivate={selectedRow ? () => handleReactivateMembership(selectedRow) : undefined}
+          onRequestPermanentDelete={selectedRow ? () => handleRequestPermanentDelete(selectedRow) : undefined}
         />
       </KeyboardAwareScreen>
     );
@@ -632,11 +953,19 @@ export default function MembershipScreen() {
       {membership?.status === 'pending' ? (
         <View style={styles.noticeCard}>
           <Text style={styles.noticeTitle}>Solicitud pendiente</Text>
-          <Text style={styles.noticeText}>Administración revisará tu solicitud.</Text>
+          <Text style={styles.noticeText}>Administración revisará tu solicitud. Cuando sea aprobada, aquí aparecerán tu credencial y QR.</Text>
         </View>
       ) : null}
 
-      {membership ? (
+      {membership && membership.status !== 'pending' && membership.status !== 'active' ? (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Membresía {getMembershipStatusLabel(membership.status).toLowerCase()}</Text>
+          <Text style={styles.cardText}>Tu credencial no está activa. Si necesitas reactivarla, solicita revisión a administración.</Text>
+          <Pressable onPress={handleRequestMembership} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Solicitar revisión</Text></Pressable>
+        </View>
+      ) : null}
+
+      {membership?.status === 'active' ? (
         <View style={styles.credentialCard}>
           <View style={styles.credentialHeader}>
             <View style={[styles.avatar, { backgroundColor: profile?.avatar_color ?? ucapsaBrand.colors.red }]}> 
@@ -677,13 +1006,111 @@ export default function MembershipScreen() {
   );
 }
 
-function ActionCell({ row, actionState, saving, onPaid, onPending, onToggle }: { row: MembershipAdminRow; actionState: 'open' | 'paid' | 'pending'; saving: boolean; onPaid: () => void; onPending: () => void; onToggle: () => void }) {
+
+function PendingRequestsPanel({
+  rows,
+  savingId,
+  onOpen,
+  onApprove,
+  onReject,
+}: {
+  rows: MembershipAdminRow[];
+  savingId: string | null;
+  onOpen: (row: MembershipAdminRow) => void;
+  onApprove: (row: MembershipAdminRow) => void;
+  onReject: (row: MembershipAdminRow) => void;
+}) {
+  return (
+    <View style={styles.requestsPanel}>
+      <View style={styles.requestsHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.requestsEyebrow}>Solicitudes pendientes</Text>
+          <Text style={styles.requestsTitle}>Aceptar o rechazar socios</Text>
+        </View>
+        <Text style={styles.requestsCount}>{rows.length}</Text>
+      </View>
+
+      {rows.map((row) => {
+        const saving = savingId === row.membership.id;
+        return (
+          <View key={row.membership.id} style={styles.requestCard}>
+            <Pressable style={{ flex: 1 }} onPress={() => onOpen(row)}>
+              <Text style={styles.requestName}>{getDisplayName(row.profile)}</Text>
+              <Text style={styles.requestMeta}>{row.profile?.email ?? 'Sin correo'}</Text>
+              <Text style={styles.requestMeta}>Perro: {row.profile?.dog_name || 'Sin registrar'}</Text>
+            </Pressable>
+            <View style={styles.requestActions}>
+              <Pressable disabled={saving} style={styles.approveButton} onPress={() => onApprove(row)}>
+                <Text style={styles.approveText}>{saving ? '...' : 'Aceptar'}</Text>
+              </Pressable>
+              <Pressable disabled={saving} style={styles.rejectButton} onPress={() => onReject(row)}>
+                <Text style={styles.rejectText}>Rechazar</Text>
+              </Pressable>
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+
+function DeleteRequestsPanel({
+  rows,
+  savingId,
+  onApprove,
+  onReject,
+}: {
+  rows: MembershipDeleteRequestRow[];
+  savingId: string | null;
+  onApprove: (row: MembershipDeleteRequestRow) => void;
+  onReject: (row: MembershipDeleteRequestRow) => void;
+}) {
+  return (
+    <View style={styles.requestsPanel}>
+      <View style={styles.requestsHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.requestsEyebrow}>Super admin</Text>
+          <Text style={styles.requestsTitle}>Eliminaciones definitivas</Text>
+        </View>
+        <Text style={styles.requestsCount}>{rows.length}</Text>
+      </View>
+
+      {rows.map((row) => {
+        const saving = savingId === row.request.membership_id;
+        return (
+          <View key={row.request.id} style={styles.requestCard}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.requestName}>{row.request.snapshot_name || getDisplayName(row.profile)}</Text>
+              <Text style={styles.requestMeta}>{row.request.snapshot_email || row.profile?.email || 'Sin correo'}</Text>
+              <Text style={styles.requestMeta}>Número: {row.request.snapshot_member_number || row.membership?.member_number || 'Sin número'}</Text>
+            </View>
+            <View style={styles.requestActions}>
+              <Pressable disabled={saving} style={styles.rejectButton} onPress={() => onReject(row)}>
+                <Text style={styles.rejectText}>Rechazar</Text>
+              </Pressable>
+              <Pressable disabled={saving} style={styles.approveButton} onPress={() => onApprove(row)}>
+                <Text style={styles.approveText}>{saving ? '...' : 'Eliminar'}</Text>
+              </Pressable>
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+function ActionCell({ row, actionState, saving, onPaid, onPending, onToggle }: { row: MembershipAdminRow; actionState: 'open' | 'paid' | 'pending' | 'not_required'; saving: boolean; onPaid: () => void; onPending: () => void; onToggle: () => void }) {
   if (actionState === 'paid') {
-    return <StatusAction label={saving ? '...' : 'Pagado este mes'} tone="success" width={190} onPress={onToggle} disabled={saving} />;
+    return <StatusAction label={saving ? '...' : 'Pagado'} tone="success" width={190} onPress={onToggle} disabled={saving} />;
   }
 
   if (actionState === 'pending') {
     return <StatusAction label={saving ? '...' : 'Pendiente de pago'} tone="warning" width={190} onPress={onToggle} disabled={saving} />;
+  }
+
+  if (actionState === 'not_required') {
+    return <StatusAction label={saving ? '...' : 'No aplica'} tone="neutral" width={190} onPress={onToggle} disabled />;
   }
 
   return (
@@ -700,11 +1127,14 @@ function ActionCell({ row, actionState, saving, onPaid, onPending, onToggle }: {
   );
 }
 
-function StatusAction({ label, tone, width, onPress, disabled }: { label: string; tone: 'success' | 'warning'; width: number; onPress: () => void; disabled?: boolean }) {
+function StatusAction({ label, tone, width, onPress, disabled }: { label: string; tone: 'success' | 'warning' | 'neutral'; width: number; onPress: () => void; disabled?: boolean }) {
+  const pillStyle = tone === 'success' ? styles.statusActionSuccess : tone === 'warning' ? styles.statusActionWarning : styles.statusActionNeutral;
+  const textStyle = tone === 'success' ? styles.statusActionSuccessText : tone === 'warning' ? styles.statusActionWarningText : styles.statusActionNeutralText;
+
   return (
     <Pressable disabled={disabled} onPress={onPress} style={[styles.tableCell, styles.actionCell, { width }]}> 
-      <View style={[styles.statusActionPill, tone === 'success' ? styles.statusActionSuccess : styles.statusActionWarning]}>
-        <Text style={[styles.statusActionText, tone === 'success' ? styles.statusActionSuccessText : styles.statusActionWarningText]}>{label}</Text>
+      <View style={[styles.statusActionPill, pillStyle]}>
+        <Text style={[styles.statusActionText, textStyle]}>{label}</Text>
       </View>
     </Pressable>
   );
@@ -732,8 +1162,54 @@ function TableCell({ text, width, header, strong, onPress }: { text: string; wid
   );
 }
 
-function MemberDetailModal({ row, saving, onClose, onPaid, onPending }: { row: MembershipAdminRow | null; saving: boolean; onClose: () => void; onPaid?: () => void; onPending?: () => void }) {
+
+function MemberDetailModal({
+  row,
+  saving,
+  onClose,
+  onPaid,
+  onPending,
+  onSaveDetails,
+  onDeletePayment,
+  onDeactivate,
+  onReactivate,
+  onRequestPermanentDelete,
+}: {
+  row: MembershipAdminRow | null;
+  saving: boolean;
+  onClose: () => void;
+  onPaid?: () => void;
+  onPending?: () => void;
+  onSaveDetails?: (input: UpdateMembershipDetailsInput) => void;
+  onDeletePayment?: (payment: Payment) => void;
+  onDeactivate?: () => void;
+  onReactivate?: () => void;
+  onRequestPermanentDelete?: () => void;
+}) {
+  const [memberNumber, setMemberNumber] = useState('');
+  const [paymentStatus, setPaymentStatus] = useState<MembershipPaymentStatus>('pending');
+  const [lastPaymentDate, setLastPaymentDate] = useState('');
+  const [validUntilDate, setValidUntilDate] = useState('');
+  const [datePickerTarget, setDatePickerTarget] = useState<'lastPayment' | 'validity' | null>(null);
+
+  useEffect(() => {
+    setMemberNumber(row?.membership.member_number ?? '');
+    setPaymentStatus(row?.membership.current_payment_status ?? 'pending');
+    setLastPaymentDate(row ? dateKeyFromValue(getLastPaymentDate(row)) : '');
+    setValidUntilDate(dateKeyFromValue(row?.membership.end_date));
+  }, [row]);
+
   if (!row) return null;
+
+  function handleSave() {
+    onSaveDetails?.({
+      memberNumber,
+      currentPaymentStatus: paymentStatus,
+      lastPaymentAt: paymentStatus === 'paid' ? dateKeyToIso(lastPaymentDate || getTodayDateKey()) : null,
+      endDate: dateKeyToIso(validUntilDate),
+      paymentNotes: 'Datos editados desde ficha de socio.',
+    });
+  }
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
@@ -758,13 +1234,55 @@ function MemberDetailModal({ row, saving, onClose, onPaid, onPending }: { row: M
             <Detail label="Teléfono" value={row.profile?.phone} />
             <Detail label="Perro" value={row.profile?.dog_name} />
             <Detail label="Rol" value={row.profile?.role} />
-            <Detail label="Número de socio" value={row.membership.member_number} />
             <Detail label="Estado" value={getMembershipStatusLabel(row.membership.status)} />
-            <Detail label="Pago" value={getPaymentStatusLabel(row.membership.current_payment_status)} />
             <Detail label="Inicio" value={formatDate(row.membership.start_date)} />
-            <Detail label="Vigencia" value={formatDate(row.membership.end_date)} />
-            <Detail label="Último pago" value={formatDate(getLastPaymentDate(row))} />
             <Detail label="Token QR" value={row.membership.qr_token} />
+          </View>
+
+          <View style={styles.editorBox}>
+            <Text style={styles.paymentHistoryTitle}>Editar membresía</Text>
+            <Text style={styles.detailLabel}>Número de socio</Text>
+            <TextInput value={memberNumber} onChangeText={setMemberNumber} placeholder="Número de socio" style={styles.modalInput} />
+
+            <Text style={styles.detailLabel}>Estado de pago</Text>
+            <PaymentStatusSelector value={paymentStatus} onChange={setPaymentStatus} />
+
+            <Text style={styles.detailLabel}>Último pago</Text>
+            <Pressable style={styles.dateButton} onPress={() => setDatePickerTarget('lastPayment')}>
+              <Text style={styles.dateButtonText}>{lastPaymentDate || 'Sin fecha'}</Text>
+              <Text style={styles.dateButtonIcon}>📅</Text>
+            </Pressable>
+
+            <Text style={styles.detailLabel}>Vigencia</Text>
+            <View style={styles.dateChoiceRow}>
+              <Pressable style={[styles.dateButton, { flex: 1 }]} onPress={() => setDatePickerTarget('validity')}>
+                <Text style={styles.dateButtonText}>{validUntilDate || 'Sin fecha de vigencia'}</Text>
+                <Text style={styles.dateButtonIcon}>📅</Text>
+              </Pressable>
+              <Pressable style={styles.noDateButton} onPress={() => setValidUntilDate('')}>
+                <Text style={styles.noDateButtonText}>Sin fecha</Text>
+              </Pressable>
+            </View>
+
+            <Pressable disabled={saving || !onSaveDetails} onPress={handleSave} style={styles.modalPaidButton}>
+              <Text style={styles.modalPaidText}>{saving ? 'Guardando...' : 'Guardar cambios de socio'}</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.dangerBox}>
+            <Text style={styles.paymentHistoryTitle}>Estado de la membresía</Text>
+            {row.membership.status === 'active' ? (
+              <Pressable disabled={saving || !onDeactivate} onPress={onDeactivate} style={styles.dangerOutlineButton}>
+                <Text style={styles.dangerOutlineText}>Desactivar socio</Text>
+              </Pressable>
+            ) : (
+              <Pressable disabled={saving || !onReactivate} onPress={onReactivate} style={styles.modalPaidButton}>
+                <Text style={styles.modalPaidText}>Reactivar socio</Text>
+              </Pressable>
+            )}
+            <Pressable disabled={saving || !onRequestPermanentDelete} onPress={onRequestPermanentDelete} style={styles.dangerSolidButton}>
+              <Text style={styles.dangerSolidText}>Solicitar eliminación definitiva</Text>
+            </Pressable>
           </View>
 
           <Text style={styles.paymentHistoryTitle}>Historial de pagos</Text>
@@ -777,6 +1295,9 @@ function MemberDetailModal({ row, saving, onClose, onPaid, onPending }: { row: M
                 <Text style={styles.paymentText}>Fecha: {formatDate(payment.paid_at)}</Text>
                 <Text style={styles.paymentText}>Monto: ${payment.amount}</Text>
                 <Text style={styles.paymentText}>Nota: {payment.notes || 'Sin nota'}</Text>
+                <Pressable disabled={saving || !onDeletePayment} onPress={() => onDeletePayment?.(payment)} style={styles.deletePaymentButton}>
+                  <Text style={styles.deletePaymentText}>Eliminar pago</Text>
+                </Pressable>
               </View>
             ))
           )}
@@ -784,19 +1305,69 @@ function MemberDetailModal({ row, saving, onClose, onPaid, onPending }: { row: M
           <Pressable onPress={onClose} style={styles.closeButton}>
             <Text style={styles.closeButtonText}>Cerrar</Text>
           </Pressable>
+
+          <DatePickerModal
+            visible={Boolean(datePickerTarget)}
+            value={datePickerTarget === 'lastPayment' ? lastPaymentDate : validUntilDate}
+            onSelect={(value) => {
+              if (datePickerTarget === 'lastPayment') setLastPaymentDate(value);
+              if (datePickerTarget === 'validity') setValidUntilDate(value);
+              setDatePickerTarget(null);
+            }}
+            onClose={() => setDatePickerTarget(null)}
+          />
         </KeyboardAwareScreen>
       </View>
     </Modal>
   );
 }
 
-function StatBubble({ label, value, helper }: { label: string; value: number; helper: string }) {
+function PaymentStatusSelector({ value, onChange }: { value: MembershipPaymentStatus; onChange: (value: MembershipPaymentStatus) => void }) {
+  const options: Array<{ value: MembershipPaymentStatus; label: string }> = [
+    { value: 'pending', label: 'Pendiente' },
+    { value: 'paid', label: 'Pagado' },
+    { value: 'not_required', label: 'No aplica' },
+  ];
+
   return (
-    <View style={styles.statBubble}>
+    <View style={styles.statusSelectorRow}>
+      {options.map((option) => (
+        <Pressable key={option.value} onPress={() => onChange(option.value)} style={[styles.statusSelector, value === option.value && styles.statusSelectorActive]}>
+          <Text style={[styles.statusSelectorText, value === option.value && styles.statusSelectorTextActive]}>{option.label}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+function DatePickerModal({ visible, value, onSelect, onClose }: { visible: boolean; value: string; onSelect: (value: string) => void; onClose: () => void }) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.dateModalBackdrop}>
+        <View style={styles.dateModalCard}>
+          <Text style={styles.dateModalTitle}>Seleccionar fecha</Text>
+          <Calendar
+            current={value || getTodayDateKey()}
+            markedDates={value ? { [value]: { selected: true, selectedColor: ucapsaBrand.colors.red } } : {}}
+            onDayPress={(day) => onSelect(day.dateString)}
+            theme={{ todayTextColor: ucapsaBrand.colors.red, arrowColor: ucapsaBrand.colors.red }}
+          />
+          <Pressable onPress={onClose} style={styles.closeButton}>
+            <Text style={styles.closeButtonText}>Cancelar</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function StatBubble({ label, value, helper, onPress }: { label: string; value: number; helper: string; onPress?: () => void }) {
+  return (
+    <Pressable disabled={!onPress} onPress={onPress} style={({ pressed }) => [styles.statBubble, onPress && styles.statBubblePressable, pressed && styles.statBubblePressed]}>
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
       <Text style={styles.statHelper}>{helper}</Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -836,9 +1407,25 @@ const styles = StyleSheet.create({
   monthSummaryTitle: { color: ucapsaBrand.colors.redDark, fontSize: 17, fontWeight: '900' },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   statBubble: { width: '48%', backgroundColor: '#fff', borderRadius: 22, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 14 },
+  statBubblePressable: { borderColor: ucapsaBrand.colors.redSoft },
+  statBubblePressed: { opacity: 0.8, transform: [{ scale: 0.99 }] },
   statValue: { color: ucapsaBrand.colors.red, fontSize: 28, fontWeight: '900' },
   statLabel: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900', marginTop: 4 },
   statHelper: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 18, marginTop: 4 },
+
+  requestsPanel: { gap: 12, padding: 16, borderRadius: 24, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  requestsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  requestsEyebrow: { color: ucapsaBrand.colors.red, fontSize: 12, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.7 },
+  requestsTitle: { color: ucapsaBrand.colors.text, fontSize: 19, fontWeight: '900', marginTop: 2 },
+  requestsCount: { overflow: 'hidden', color: ucapsaBrand.colors.redDark, backgroundColor: ucapsaBrand.colors.redSoft, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, fontWeight: '900' },
+  requestCard: { flexDirection: 'row', gap: 12, alignItems: 'center', padding: 14, borderRadius: 18, backgroundColor: ucapsaBrand.colors.surfaceAlt, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  requestName: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900' },
+  requestMeta: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '700', marginTop: 3 },
+  requestActions: { gap: 8, minWidth: 92 },
+  approveButton: { alignItems: 'center', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: ucapsaBrand.colors.red },
+  approveText: { color: '#fff', fontSize: 12, fontWeight: '900' },
+  rejectButton: { alignItems: 'center', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  rejectText: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900' },
   tableTopCard: { flexDirection: 'row', alignItems: 'center', gap: 12, justifyContent: 'space-between' },
   sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 22, fontWeight: '900' },
   sectionSubtitle: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '700', marginTop: 2 },
@@ -876,9 +1463,11 @@ const styles = StyleSheet.create({
   statusActionPill: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 9 },
   statusActionSuccess: { backgroundColor: '#E8F5EE' },
   statusActionWarning: { backgroundColor: '#FFF5E6' },
+  statusActionNeutral: { backgroundColor: '#F1F5F9' },
   statusActionText: { fontSize: 12, fontWeight: '900' },
   statusActionSuccessText: { color: ucapsaBrand.colors.success },
   statusActionWarningText: { color: ucapsaBrand.colors.warning },
+  statusActionNeutralText: { color: '#334155' },
   emptyBox: { gap: 6, padding: 18, borderRadius: 22, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900' },
   emptyText: { color: ucapsaBrand.colors.muted, fontSize: 14, lineHeight: 20 },
@@ -926,4 +1515,29 @@ const styles = StyleSheet.create({
   paymentText: { color: ucapsaBrand.colors.muted, fontSize: 13, marginTop: 3 },
   closeButton: { backgroundColor: ucapsaBrand.colors.text, borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 18 },
   closeButtonText: { color: '#fff', fontWeight: '900' },
+
+  searchInput: { minHeight: 48, paddingHorizontal: 14, borderRadius: 16, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border, color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '700' },
+  editorBox: { backgroundColor: '#fff', borderRadius: 22, padding: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginBottom: 14, gap: 10 },
+  modalInput: { minHeight: 46, paddingHorizontal: 12, borderRadius: 14, backgroundColor: ucapsaBrand.colors.surfaceAlt, borderWidth: 1, borderColor: ucapsaBrand.colors.border, color: ucapsaBrand.colors.text, fontSize: 15, fontWeight: '700' },
+  statusSelectorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  statusSelector: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 999, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  statusSelectorActive: { backgroundColor: ucapsaBrand.colors.redSoft, borderColor: ucapsaBrand.colors.red },
+  statusSelectorText: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '900' },
+  statusSelectorTextActive: { color: ucapsaBrand.colors.redDark },
+  dateButton: { minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, borderRadius: 14, backgroundColor: ucapsaBrand.colors.surfaceAlt, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  dateChoiceRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  noDateButton: { minHeight: 46, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  noDateButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900' },
+  dateButtonText: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
+  dateButtonIcon: { fontSize: 18 },
+  dangerBox: { backgroundColor: '#FFF6F7', borderRadius: 22, padding: 14, borderWidth: 1, borderColor: '#F3B8C2', marginBottom: 14, gap: 10 },
+  dangerOutlineButton: { alignItems: 'center', paddingVertical: 13, borderRadius: 16, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.red },
+  dangerOutlineText: { color: ucapsaBrand.colors.redDark, fontSize: 14, fontWeight: '900' },
+  dangerSolidButton: { alignItems: 'center', paddingVertical: 13, borderRadius: 16, backgroundColor: ucapsaBrand.colors.redDark },
+  dangerSolidText: { color: '#fff', fontSize: 14, fontWeight: '900' },
+  deletePaymentButton: { alignSelf: 'flex-start', marginTop: 10, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12, backgroundColor: '#FFF0F2', borderWidth: 1, borderColor: '#F3B8C2' },
+  deletePaymentText: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900' },
+  dateModalBackdrop: { flex: 1, backgroundColor: 'rgba(37, 21, 26, 0.45)', justifyContent: 'center', padding: 18 },
+  dateModalCard: { backgroundColor: '#fff', borderRadius: 24, padding: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  dateModalTitle: { color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '900', marginBottom: 10 },
 });

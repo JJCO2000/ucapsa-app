@@ -1,5 +1,5 @@
-﻿import { supabase } from '../lib/supabase';
-import type { AudienceType, EventRepeatType, UcapsaEvent } from '../types/app.types';
+import { supabase } from '../lib/supabase';
+import type { AudienceType, EventRepeatType, UcapsaColorKey, UcapsaEvent, UcapsaPriority } from '../types/app.types';
 
 export type EventFormInput = {
   title: string;
@@ -13,6 +13,8 @@ export type EventFormInput = {
   repeat_type?: EventRepeatType;
   repeat_interval_days?: number | null;
   repeat_limit?: number;
+  color_key?: UcapsaColorKey | null;
+  priority?: UcapsaPriority | null;
 };
 
 function normalizeEvent(event: unknown): UcapsaEvent {
@@ -60,6 +62,8 @@ function buildPayload(input: EventFormInput, createdBy?: string | null) {
     repeat_limit: repeatType === 'none' ? 1 : Math.min(Math.max(input.repeat_limit ?? 10, 1), 10),
     recurrence_key: null,
     recurrence_label: null,
+    color_key: input.color_key ?? 'green',
+    priority: input.priority ?? 'normal',
     created_by: createdBy ?? null,
   };
 }
@@ -91,6 +95,8 @@ export async function updateEvent(eventId: string, input: Partial<EventFormInput
   if (input.repeat_type !== undefined) payload.repeat_type = input.repeat_type;
   if (input.repeat_interval_days !== undefined) payload.repeat_interval_days = input.repeat_type === 'custom_days' ? input.repeat_interval_days : null;
   if (input.repeat_limit !== undefined) payload.repeat_limit = Math.min(Math.max(input.repeat_limit, 1), 10);
+  if (input.color_key !== undefined) payload.color_key = input.color_key ?? 'green';
+  if (input.priority !== undefined) payload.priority = input.priority ?? 'normal';
 
   if (input.repeat_type === 'none') {
     payload.repeat_limit = 1;
@@ -143,3 +149,6 @@ export async function deleteEvent(eventId: string): Promise<void> {
 
   if (error) throw error;
 }
+
+
+

@@ -17,6 +17,7 @@ export const ucapsaBrand = {
     warning: '#A35A00',
   },
   socialLinks: [
+    { key: 'whatsapp', label: 'WhatsApp', url: 'https://wa.me/525522410679', icon: 'whatsapp' },
     { key: 'website', label: 'Sitio web', url: 'https://www.ucapsa.mx', icon: 'web' },
     { key: 'facebook', label: 'Facebook', url: 'https://www.facebook.com/UCAPSA/', icon: 'facebook' },
     { key: 'instagram', label: 'Instagram', url: 'https://www.instagram.com/byucapsa/', icon: 'instagram' },

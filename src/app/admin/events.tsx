@@ -15,7 +15,7 @@ import {
   setEventPublished,
   updateEvent,
 } from '../../services/events.service';
-import type { AudienceType, EventOccurrence, EventRepeatType, UcapsaEvent } from '../../types/app.types';
+import type { AudienceType, EventOccurrence, EventRepeatType, UcapsaColorKey, UcapsaEvent, UcapsaPriority } from '../../types/app.types';
 import {
   buildLocalIso,
   expandEventOccurrences,
@@ -39,6 +39,8 @@ type EventFormState = {
   is_published: boolean;
   repeat_type: EventRepeatType;
   repeat_interval_days: string;
+  color_key: UcapsaColorKey;
+  priority: UcapsaPriority;
 };
 
 const audienceOptions: Array<{ value: AudienceType; label: string }> = [
@@ -55,6 +57,22 @@ const repeatOptions: Array<{ value: EventRepeatType; label: string }> = [
   { value: 'biweekly', label: 'Cada 2 semanas' },
   { value: 'monthly', label: 'Mensual' },
   { value: 'custom_days', label: 'Cada X días' },
+];
+
+const colorOptions: Array<{ value: UcapsaColorKey; label: string }> = [
+  { value: 'red', label: 'Rojo' },
+  { value: 'blue', label: 'Azul' },
+  { value: 'yellow', label: 'Amarillo' },
+  { value: 'green', label: 'Verde' },
+  { value: 'purple', label: 'Morado' },
+  { value: 'gray', label: 'Gris' },
+];
+
+const priorityOptions: Array<{ value: UcapsaPriority; label: string }> = [
+  { value: 'low', label: 'Baja' },
+  { value: 'normal', label: 'Normal' },
+  { value: 'high', label: 'Alta' },
+  { value: 'urgent', label: 'Urgente' },
 ];
 
 function buildEmptyForm(): EventFormState {
@@ -74,6 +92,8 @@ function buildEmptyForm(): EventFormState {
     is_published: true,
     repeat_type: 'none',
     repeat_interval_days: '14',
+    color_key: 'green',
+    priority: 'normal',
   };
 }
 
@@ -94,7 +114,22 @@ function eventToForm(event: UcapsaEvent): EventFormState {
     is_published: event.is_published,
     repeat_type: event.repeat_type ?? 'none',
     repeat_interval_days: String(event.repeat_interval_days ?? 15),
+    color_key: event.color_key ?? 'green',
+    priority: event.priority ?? 'normal',
   };
+}
+
+function getColorHex(color: UcapsaColorKey | null | undefined) {
+  const colors: Record<UcapsaColorKey, string> = {
+    red: '#C91F37',
+    blue: '#2563EB',
+    yellow: '#EAB308',
+    green: '#0f766e',
+    purple: '#7C3AED',
+    gray: '#64748b',
+  };
+
+  return colors[color ?? 'green'] ?? colors.green;
 }
 
 function validateForm(value: EventFormState) {
@@ -174,6 +209,8 @@ export default function AdminEventsScreen() {
         repeat_type: form.repeat_type,
         repeat_interval_days: form.repeat_type === 'custom_days' ? repeatInterval : null,
         repeat_limit: form.repeat_type === 'none' ? 1 : 10,
+        color_key: form.color_key,
+        priority: form.priority,
       });
       setForm(buildEmptyForm());
       await loadEvents();
@@ -224,6 +261,8 @@ export default function AdminEventsScreen() {
         repeat_type: editForm.repeat_type,
         repeat_interval_days: editForm.repeat_type === 'custom_days' ? repeatInterval : null,
         repeat_limit: editForm.repeat_type === 'none' ? 1 : 10,
+        color_key: editForm.color_key,
+        priority: editForm.priority,
       });
       setSelectedEvent(null);
       await loadEvents();
@@ -259,14 +298,14 @@ export default function AdminEventsScreen() {
       marks[key] = {
         ...(marks[key] ?? {}),
         marked: true,
-        dotColor: occurrence.event.archived_at ? '#8F1324' : '#C91F37',
+        dotColor: occurrence.event.archived_at ? '#991b1b' : getColorHex(occurrence.event.color_key),
       };
     }
 
     marks[selectedAdminDay] = {
       ...(marks[selectedAdminDay] ?? {}),
       selected: true,
-      selectedColor: '#C91F37',
+      selectedColor: '#0f766e',
       selectedTextColor: '#ffffff',
     };
 
@@ -281,7 +320,7 @@ export default function AdminEventsScreen() {
   if (!isAdmin) {
     return (
       <View style={styles.deniedContainer}>
-        <MaterialIcons name="lock" size={42} color="#8F1324" />
+        <MaterialIcons name="lock" size={42} color="#991b1b" />
         <Text style={styles.deniedTitle}>Acceso restringido</Text>
         <Text style={styles.deniedText}>Solo administradores pueden gestionar eventos.</Text>
       </View>
@@ -315,10 +354,10 @@ export default function AdminEventsScreen() {
             enableSwipeMonths
             theme={{
               calendarBackground: '#ffffff',
-              selectedDayBackgroundColor: '#C91F37',
-              todayTextColor: '#C91F37',
-              arrowColor: '#C91F37',
-              monthTextColor: '#25151A',
+              selectedDayBackgroundColor: '#0f766e',
+              todayTextColor: '#0f766e',
+              arrowColor: '#0f766e',
+              monthTextColor: '#0f172a',
               textMonthFontWeight: '900',
               textDayFontWeight: '700',
               textDayHeaderFontWeight: '800',
@@ -383,7 +422,7 @@ export default function AdminEventsScreen() {
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Editar evento</Text>
                 <Pressable onPress={() => setSelectedEvent(null)}>
-                  <MaterialIcons name="close" size={26} color="#25151A" />
+                  <MaterialIcons name="close" size={26} color="#0f172a" />
                 </Pressable>
               </View>
 
@@ -422,16 +461,20 @@ function EventForm({ form, onChange, allowRepeat = false }: { form: EventFormSta
   const [showStartCalendar, setShowStartCalendar] = useState(false);
   const [showEndCalendar, setShowEndCalendar] = useState(false);
   const [showRepeatOptions, setShowRepeatOptions] = useState(false);
+  const [showColorOptions, setShowColorOptions] = useState(false);
+  const [showPriorityOptions, setShowPriorityOptions] = useState(false);
 
   const startMark = {
-    [form.start_day]: { selected: true, selectedColor: '#C91F37', selectedTextColor: '#ffffff' },
+    [form.start_day]: { selected: true, selectedColor: '#0f766e', selectedTextColor: '#ffffff' },
   };
 
   const endMark = {
-    [form.end_day]: { selected: true, selectedColor: '#C91F37', selectedTextColor: '#ffffff' },
+    [form.end_day]: { selected: true, selectedColor: '#0f766e', selectedTextColor: '#ffffff' },
   };
 
   const selectedRepeat = repeatOptions.find((option) => option.value === form.repeat_type)?.label ?? 'No se repite';
+  const selectedColor = colorOptions.find((option) => option.value === form.color_key)?.label ?? 'Verde';
+  const selectedPriority = priorityOptions.find((option) => option.value === form.priority)?.label ?? 'Normal';
 
   return (
     <View style={styles.formFields}>
@@ -442,7 +485,7 @@ function EventForm({ form, onChange, allowRepeat = false }: { form: EventFormSta
       <Text style={styles.label}>Dia de inicio</Text>
       <Pressable style={styles.dropdownButton} onPress={() => setShowStartCalendar((value) => !value)}>
         <Text style={styles.dropdownText}>{form.start_day}</Text>
-        <MaterialIcons name={showStartCalendar ? 'expand-less' : 'expand-more'} size={24} color="#C91F37" />
+        <MaterialIcons name={showStartCalendar ? 'expand-less' : 'expand-more'} size={24} color="#0f766e" />
       </Pressable>
       {showStartCalendar ? (
         <View style={styles.calendarMiniCard}>
@@ -455,7 +498,7 @@ function EventForm({ form, onChange, allowRepeat = false }: { form: EventFormSta
             }}
             firstDay={1}
             enableSwipeMonths
-            theme={{ calendarBackground: '#ffffff', selectedDayBackgroundColor: '#C91F37', todayTextColor: '#C91F37', arrowColor: '#C91F37', monthTextColor: '#25151A', textMonthFontWeight: '900', textDayFontWeight: '700' }}
+            theme={{ calendarBackground: '#ffffff', selectedDayBackgroundColor: '#0f766e', todayTextColor: '#0f766e', arrowColor: '#0f766e', monthTextColor: '#0f172a', textMonthFontWeight: '900', textDayFontWeight: '700' }}
           />
         </View>
       ) : null}
@@ -479,7 +522,7 @@ function EventForm({ form, onChange, allowRepeat = false }: { form: EventFormSta
           <Text style={styles.label}>Dia de fin</Text>
           <Pressable style={styles.dropdownButton} onPress={() => setShowEndCalendar((value) => !value)}>
             <Text style={styles.dropdownText}>{form.end_day}</Text>
-            <MaterialIcons name={showEndCalendar ? 'expand-less' : 'expand-more'} size={24} color="#C91F37" />
+            <MaterialIcons name={showEndCalendar ? 'expand-less' : 'expand-more'} size={24} color="#0f766e" />
           </Pressable>
           {showEndCalendar ? (
             <View style={styles.calendarMiniCard}>
@@ -492,7 +535,7 @@ function EventForm({ form, onChange, allowRepeat = false }: { form: EventFormSta
                 }}
                 firstDay={1}
                 enableSwipeMonths
-                theme={{ calendarBackground: '#ffffff', selectedDayBackgroundColor: '#C91F37', todayTextColor: '#C91F37', arrowColor: '#C91F37', monthTextColor: '#25151A', textMonthFontWeight: '900', textDayFontWeight: '700' }}
+                theme={{ calendarBackground: '#ffffff', selectedDayBackgroundColor: '#0f766e', todayTextColor: '#0f766e', arrowColor: '#0f766e', monthTextColor: '#0f172a', textMonthFontWeight: '900', textDayFontWeight: '700' }}
               />
             </View>
           ) : null}
@@ -512,6 +555,36 @@ function EventForm({ form, onChange, allowRepeat = false }: { form: EventFormSta
         ))}
       </View>
 
+      <Text style={styles.label}>Color del evento</Text>
+      <Pressable style={styles.dropdownButton} onPress={() => { setShowColorOptions((value) => !value); setShowPriorityOptions(false); setShowRepeatOptions(false); }}>
+        <Text style={styles.dropdownText}>{selectedColor}</Text>
+        <MaterialIcons name={showColorOptions ? 'expand-less' : 'expand-more'} size={24} color="#0f766e" />
+      </Pressable>
+      {showColorOptions ? (
+        <View style={styles.optionList}>
+          {colorOptions.map((option) => (
+            <Pressable key={option.value} style={[styles.optionItem, form.color_key === option.value && styles.optionItemActive]} onPress={() => { onChange({ ...form, color_key: option.value }); setShowColorOptions(false); }}>
+              <Text style={[styles.optionText, form.color_key === option.value && styles.optionTextActive]}>{option.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+
+      <Text style={styles.label}>Prioridad</Text>
+      <Pressable style={styles.dropdownButton} onPress={() => { setShowPriorityOptions((value) => !value); setShowColorOptions(false); setShowRepeatOptions(false); }}>
+        <Text style={styles.dropdownText}>{selectedPriority}</Text>
+        <MaterialIcons name={showPriorityOptions ? 'expand-less' : 'expand-more'} size={24} color="#0f766e" />
+      </Pressable>
+      {showPriorityOptions ? (
+        <View style={styles.optionList}>
+          {priorityOptions.map((option) => (
+            <Pressable key={option.value} style={[styles.optionItem, form.priority === option.value && styles.optionItemActive]} onPress={() => { onChange({ ...form, priority: option.value }); setShowPriorityOptions(false); }}>
+              <Text style={[styles.optionText, form.priority === option.value && styles.optionTextActive]}>{option.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+
       <View style={styles.switchRow}>
         <Text style={styles.label}>Publicado</Text>
         <Switch value={form.is_published} onValueChange={(is_published) => onChange({ ...form, is_published })} />
@@ -522,7 +595,7 @@ function EventForm({ form, onChange, allowRepeat = false }: { form: EventFormSta
           <Text style={styles.formTitle}>Repetir</Text>
           <Pressable style={styles.dropdownButton} onPress={() => setShowRepeatOptions((value) => !value)}>
             <Text style={styles.dropdownText}>{selectedRepeat}</Text>
-            <MaterialIcons name={showRepeatOptions ? 'expand-less' : 'expand-more'} size={24} color="#C91F37" />
+            <MaterialIcons name={showRepeatOptions ? 'expand-less' : 'expand-more'} size={24} color="#0f766e" />
           </Pressable>
 
           {showRepeatOptions ? (
@@ -564,58 +637,59 @@ function ActionButton({ label, onPress, danger = false }: { label: string; onPre
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FFF8F8' },
-  container: { flex: 1, backgroundColor: '#FFF8F8' },
+  safeArea: { flex: 1, backgroundColor: '#f8fafc' },
+  container: { flex: 1, backgroundColor: '#f8fafc' },
   content: { gap: 16, padding: 20, paddingBottom: 100 },
-  hero: { gap: 8, padding: 22, borderRadius: 26, backgroundColor: '#25151A' },
-  kicker: { color: '#FFE8EC', fontSize: 12, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
+  hero: { gap: 8, padding: 22, borderRadius: 26, backgroundColor: '#0f172a' },
+  kicker: { color: '#5eead4', fontSize: 12, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
   title: { color: '#ffffff', fontSize: 28, fontWeight: '900' },
-  subtitle: { color: '#F0D4DA', fontSize: 14, lineHeight: 20 },
-  formCard: { gap: 14, padding: 16, borderRadius: 22, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#F0D4DA' },
-  formTitle: { color: '#25151A', fontSize: 18, fontWeight: '900' },
+  subtitle: { color: '#cbd5e1', fontSize: 14, lineHeight: 20 },
+  formCard: { gap: 14, padding: 16, borderRadius: 22, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e2e8f0' },
+  formTitle: { color: '#0f172a', fontSize: 18, fontWeight: '900' },
   formFields: { gap: 10 },
-  calendarMiniCard: { overflow: 'hidden', borderRadius: 18, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#F0D4DA' },
-  dropdownButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, borderRadius: 14, backgroundColor: '#FFF8F8', borderWidth: 1, borderColor: '#F0D4DA' },
-  dropdownText: { color: '#25151A', fontSize: 14, fontWeight: '800' },
-  input: { minHeight: 48, paddingHorizontal: 14, borderRadius: 14, backgroundColor: '#FFF8F8', borderWidth: 1, borderColor: '#F0D4DA', color: '#25151A' },
+  calendarMiniCard: { overflow: 'hidden', borderRadius: 18, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e2e8f0' },
+  dropdownButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, borderRadius: 14, backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#cbd5e1' },
+  dropdownText: { color: '#0f172a', fontSize: 14, fontWeight: '800' },
+  input: { minHeight: 48, paddingHorizontal: 14, borderRadius: 14, backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#cbd5e1', color: '#0f172a' },
   textArea: { minHeight: 100, paddingTop: 12, textAlignVertical: 'top' },
-  label: { color: '#25151A', fontSize: 13, fontWeight: '900' },
+  label: { color: '#0f172a', fontSize: 13, fontWeight: '900' },
   segmentRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  segment: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 999, backgroundColor: '#F6E6E9' },
-  segmentActive: { backgroundColor: '#C91F37' },
-  segmentText: { color: '#70545E', fontSize: 12, fontWeight: '900' },
+  segment: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 999, backgroundColor: '#f1f5f9' },
+  segmentActive: { backgroundColor: '#0f766e' },
+  segmentText: { color: '#64748b', fontSize: 12, fontWeight: '900' },
   segmentTextActive: { color: '#ffffff' },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  repeatBox: { gap: 10, padding: 12, borderRadius: 16, backgroundColor: '#FFF8F8', borderWidth: 1, borderColor: '#F0D4DA' },
-  optionList: { overflow: 'hidden', borderRadius: 14, borderWidth: 1, borderColor: '#F0D4DA' },
-  optionItem: { padding: 12, backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#F6E6E9' },
-  optionItemActive: { backgroundColor: '#FFE8EC' },
-  optionText: { color: '#25151A', fontSize: 14, fontWeight: '800' },
-  optionTextActive: { color: '#C91F37' },
-  primaryButton: { alignItems: 'center', padding: 15, borderRadius: 16, backgroundColor: '#C91F37' },
+  repeatBox: { gap: 10, padding: 12, borderRadius: 16, backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0' },
+  optionList: { overflow: 'hidden', borderRadius: 14, borderWidth: 1, borderColor: '#e2e8f0' },
+  optionItem: { padding: 12, backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+  optionItemActive: { backgroundColor: '#ccfbf1' },
+  optionText: { color: '#334155', fontSize: 14, fontWeight: '800' },
+  optionTextActive: { color: '#0f766e' },
+  primaryButton: { alignItems: 'center', padding: 15, borderRadius: 16, backgroundColor: '#0f766e' },
   primaryButtonText: { color: '#ffffff', fontSize: 15, fontWeight: '900' },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { color: '#25151A', fontSize: 20, fontWeight: '900' },
-  sectionCount: { overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, color: '#C91F37', backgroundColor: '#FFE8EC', fontSize: 12, fontWeight: '900' },
-  muted: { color: '#70545E', fontSize: 14, lineHeight: 20 },
-  emptyBox: { gap: 6, padding: 18, borderRadius: 18, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#F0D4DA' },
-  emptyTitle: { color: '#25151A', fontSize: 16, fontWeight: '900' },
+  sectionTitle: { color: '#0f172a', fontSize: 20, fontWeight: '900' },
+  sectionCount: { overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, color: '#0f766e', backgroundColor: '#ccfbf1', fontSize: 12, fontWeight: '900' },
+  muted: { color: '#64748b', fontSize: 14, lineHeight: 20 },
+  emptyBox: { gap: 6, padding: 18, borderRadius: 18, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e2e8f0' },
+  emptyTitle: { color: '#0f172a', fontSize: 16, fontWeight: '900' },
   adminItem: { gap: 10 },
   actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   modalActionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   actionButton: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 14, backgroundColor: '#e0f2fe' },
   actionButtonText: { color: '#0369a1', fontSize: 12, fontWeight: '900' },
   dangerButton: { backgroundColor: '#fee2e2' },
-  dangerButtonText: { color: '#8F1324' },
+  dangerButtonText: { color: '#991b1b' },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15,23,42,0.55)' },
   modalCard: { maxHeight: '88%', borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: '#ffffff' },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1, borderBottomColor: '#F0D4DA' },
-  modalTitle: { color: '#25151A', fontSize: 20, fontWeight: '900' },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
+  modalTitle: { color: '#0f172a', fontSize: 20, fontWeight: '900' },
   modalContent: { gap: 14, padding: 20, paddingBottom: 40 },
-  deniedContainer: { flex: 1, gap: 10, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#FFF8F8' },
-  deniedTitle: { color: '#8F1324', fontSize: 22, fontWeight: '900' },
-  deniedText: { color: '#70545E', textAlign: 'center' },
+  deniedContainer: { flex: 1, gap: 10, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#f8fafc' },
+  deniedTitle: { color: '#991b1b', fontSize: 22, fontWeight: '900' },
+  deniedText: { color: '#64748b', textAlign: 'center' },
 });
+
 
 
 

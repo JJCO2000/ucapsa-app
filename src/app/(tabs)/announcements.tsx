@@ -102,7 +102,6 @@ export default function AnnouncementsScreen() {
 
         {!error ? announcements.map((announcement) => (
           <View key={announcement.id} style={styles.announcementWrap}>
-            <View style={styles.blueAccent} />
             <AnnouncementCard
               announcement={announcement}
               onPress={isAdmin ? () => router.push(`/admin/announcements?announcementId=${announcement.id}` as never) : () => setSelectedAnnouncement(announcement)}
@@ -117,7 +116,7 @@ export default function AnnouncementsScreen() {
         type="announcement"
         title={selectedAnnouncement?.title ?? ''}
         body={selectedAnnouncement?.content}
-        dateLabel={selectedAnnouncement ? new Date(selectedAnnouncement.created_at).toLocaleDateString('es-MX') : null}
+        dateLabel={selectedAnnouncement?.announcement_date ? new Date(selectedAnnouncement.announcement_date).toLocaleDateString('es-MX') : null}
         onClose={() => setSelectedAnnouncement(null)}
       />
     </SafeAreaView>
@@ -130,17 +129,17 @@ const styles = StyleSheet.create({
   content: { gap: 16, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 120 },
   header: { padding: 20, borderRadius: 28, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 16 },
-  kicker: { color: ucapsaBrand.colors.blue, fontSize: 12, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.7 },
+  kicker: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.7 },
   title: { color: ucapsaBrand.colors.text, fontSize: 29, fontWeight: '900', marginTop: 4 },
   markCircle: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
   mark: { width: 28, height: 28 },
   adminButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 15, borderRadius: 18, backgroundColor: ucapsaBrand.colors.red },
   adminButtonText: { color: '#fff', fontSize: 15, fontWeight: '900' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sectionKicker: { color: ucapsaBrand.colors.blue, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
+  sectionKicker: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
   sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 22, fontWeight: '900', marginTop: 3 },
-  countPill: { minWidth: 36, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 8, alignItems: 'center', backgroundColor: ucapsaBrand.colors.blueSoft },
-  countText: { color: ucapsaBrand.colors.blue, fontSize: 13, fontWeight: '900' },
+  countPill: { minWidth: 36, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 8, alignItems: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
+  countText: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900' },
   centerBox: { gap: 10, alignItems: 'center', padding: 24 },
   muted: { color: ucapsaBrand.colors.muted, fontSize: 14, lineHeight: 20 },
   errorBox: { gap: 10, padding: 16, borderRadius: 18, backgroundColor: '#FFF3F5', borderWidth: 1, borderColor: '#F7CAD2' },
@@ -151,5 +150,4 @@ const styles = StyleSheet.create({
   emptyBox: { gap: 6, padding: 18, borderRadius: 22, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900' },
   announcementWrap: { position: 'relative' },
-  blueAccent: { position: 'absolute', left: 0, top: 14, bottom: 14, width: 4, borderRadius: 999, backgroundColor: ucapsaBrand.colors.blue, zIndex: 1 },
 });

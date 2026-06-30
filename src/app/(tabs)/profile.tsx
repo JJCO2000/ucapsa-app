@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import { Link, router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { SocialLinksRow } from '../../components/ui/SocialLinksRow';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -21,11 +21,14 @@ const mark = require('../../../assets/images/brand/ucapsa-mark.png');
 export default function ProfileScreen() {
   const { loading, user, profile, role, isAdmin, signOut, refreshProfile } = useSession();
   const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [dogName, setDogName] = useState('');
   const [avatarColor, setAvatarColor] = useState(ucapsaBrand.colors.red);
   const [saving, setSaving] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [profileModalVisible, setProfileModalVisible] = useState(false);
+  const [profileModalEditing, setProfileModalEditing] = useState(false);
   const [adminStats, setAdminStats] = useState({
     clients: 0,
     members: 0,
@@ -39,10 +42,11 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     setFullName(profile?.full_name ?? '');
+    setEmail(profile?.email ?? user?.email ?? '');
     setPhone(profile?.phone ?? '');
     setDogName(profile?.dog_name ?? '');
     setAvatarColor(profile?.avatar_color ?? ucapsaBrand.colors.red);
-  }, [profile]);
+  }, [profile, user?.email]);
 
   useEffect(() => {
     async function loadAdminData() {
@@ -90,6 +94,7 @@ export default function ProfileScreen() {
       setSaving(true);
       await updateMyProfile({
         full_name: fullName,
+        email,
         phone,
         dog_name: isAdmin ? '' : dogName,
         avatar_color: avatarColor,
@@ -182,7 +187,9 @@ export default function ProfileScreen() {
               {isAdmin ? <Text style={styles.rolePillAlt}>Admin</Text> : null}
             </View>
           </View>
-          <View style={styles.markBadge}><Image source={mark} style={styles.markBadgeImage} resizeMode="contain" /></View>
+          <Pressable style={styles.markBadge} onPress={() => { if (isAdmin) { setProfileModalVisible(true); setProfileModalEditing(false); } }}>
+            {isAdmin ? <MaterialIcons name="more-vert" size={24} color={ucapsaBrand.colors.redDark} /> : <Image source={mark} style={styles.markBadgeImage} resizeMode="contain" />}
+          </Pressable>
         </View>
       </View>
 
@@ -218,7 +225,7 @@ export default function ProfileScreen() {
         </>
       ) : null}
 
-      {showReadonlyClientView ? (
+      {!isAdmin && showReadonlyClientView ? (
         <View style={styles.readonlyCard}>
           <ReadonlyRow label="Nombre" value={profile?.full_name ?? ''} />
           <ReadonlyRow label="Teléfono" value={profile?.phone ?? ''} />
@@ -227,21 +234,17 @@ export default function ProfileScreen() {
             <Text style={styles.secondaryButtonText}>Editar información</Text>
           </Pressable>
         </View>
-      ) : (
+      ) : !isAdmin ? (
         <View style={styles.formCard}>
-          <Text style={styles.formTitle}>{isAdmin ? 'Mi cuenta administrativa' : 'Mis datos'}</Text>
+          <Text style={styles.formTitle}>Mis datos</Text>
           <Text style={styles.label}>Nombre completo</Text>
           <TextInput value={fullName} onChangeText={setFullName} placeholder="Tu nombre" style={styles.input} autoCapitalize="words" />
 
           <Text style={styles.label}>Teléfono</Text>
           <TextInput value={phone} onChangeText={setPhone} placeholder="Teléfono" style={styles.input} keyboardType="phone-pad" />
 
-          {!isAdmin ? (
-            <>
-              <Text style={styles.label}>Nombre de tu perro</Text>
-              <TextInput value={dogName} onChangeText={setDogName} placeholder="Ej. Max, Luna, Toby" style={styles.input} autoCapitalize="words" />
-            </>
-          ) : null}
+          <Text style={styles.label}>Nombre de tu perro</Text>
+          <TextInput value={dogName} onChangeText={setDogName} placeholder="Ej. Max, Luna, Toby" style={styles.input} autoCapitalize="words" />
 
           <Text style={styles.label}>Color de avatar</Text>
           <View style={styles.colorRow}>
@@ -254,13 +257,13 @@ export default function ProfileScreen() {
             <Text style={styles.primaryButtonText}>{saving ? 'Guardando...' : 'Guardar perfil'}</Text>
           </Pressable>
 
-          {!isAdmin && clientProfileComplete ? (
+          {clientProfileComplete ? (
             <Pressable style={styles.secondaryButton} onPress={() => setEditMode(false)}>
               <Text style={styles.secondaryButtonText}>Cancelar edición</Text>
             </Pressable>
           ) : null}
         </View>
-      )}
+      ) : null}
 
       <SocialLinksRow />
 
@@ -271,6 +274,57 @@ export default function ProfileScreen() {
       <Pressable onPress={signOut} style={styles.secondaryButton}>
         <Text style={styles.secondaryButtonText}>Cerrar sesión</Text>
       </Pressable>
+
+      <Modal visible={profileModalVisible} transparent animationType="slide" onRequestClose={() => setProfileModalVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.profileModalCard}>
+            <View style={styles.profileModalHeader}>
+              <Text style={styles.profileModalTitle}>Mi perfil administrativo</Text>
+              <Pressable onPress={() => setProfileModalVisible(false)}>
+                <MaterialIcons name="close" size={24} color={ucapsaBrand.colors.text} />
+              </Pressable>
+            </View>
+
+            {!profileModalEditing ? (
+              <>
+                <ReadonlyRow label="Nombre" value={fullName || 'Sin nombre'} />
+                <ReadonlyRow label="Correo de contacto" value={email || 'Sin correo'} />
+                <ReadonlyRow label="Teléfono" value={phone || 'Sin teléfono'} />
+                <ReadonlyRow label="Rol" value={role ?? 'client'} />
+                <Pressable style={styles.primaryButton} onPress={() => setProfileModalEditing(true)}>
+                  <Text style={styles.primaryButtonText}>Editar perfil</Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Text style={styles.label}>Nombre completo</Text>
+                <TextInput value={fullName} onChangeText={setFullName} placeholder="Nombre" style={styles.input} />
+                <Text style={styles.label}>Correo de contacto</Text>
+                <TextInput value={email} onChangeText={setEmail} placeholder="Correo" keyboardType="email-address" autoCapitalize="none" style={styles.input} />
+                <Text style={styles.label}>Teléfono</Text>
+                <TextInput value={phone} onChangeText={setPhone} placeholder="Teléfono" keyboardType="phone-pad" style={styles.input} />
+                <Text style={styles.label}>Color de avatar</Text>
+                <View style={styles.colorRow}>
+                  {avatarColors.map((color) => (
+                    <Pressable key={color} onPress={() => setAvatarColor(color)} style={[styles.colorDot, { backgroundColor: color }, avatarColor === color && styles.colorDotActive]} />
+                  ))}
+                </View>
+                <ReadonlyRow label="Rol" value={role ?? 'client'} />
+                <Pressable
+                  disabled={saving}
+                  style={styles.primaryButton}
+                  onPress={async () => {
+                    await handleSaveProfile();
+                    setProfileModalEditing(false);
+                  }}
+                >
+                  <Text style={styles.primaryButtonText}>{saving ? 'Guardando...' : 'Guardar perfil'}</Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </KeyboardAwareScreen>
   );
 }
@@ -353,4 +407,9 @@ const styles = StyleSheet.create({
   secondaryButtonText: { color: ucapsaBrand.colors.text, fontSize: 15, fontWeight: '900' },
   dangerGhostButton: { paddingVertical: 14, alignItems: 'center', marginTop: 8 },
   dangerGhostText: { color: '#C43B4E', fontSize: 14, fontWeight: '800' },
+
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(37, 21, 26, 0.35)', justifyContent: 'flex-end' },
+  profileModalCard: { backgroundColor: ucapsaBrand.colors.background, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, gap: 10, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  profileModalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  profileModalTitle: { color: ucapsaBrand.colors.text, fontSize: 22, fontWeight: '900' },
 });

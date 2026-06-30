@@ -12,10 +12,24 @@ import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import { getVisibleAnnouncements } from '../../services/announcements.service';
 import { getVisibleEvents } from '../../services/events.service';
-import type { Announcement, EventOccurrence, UcapsaEvent } from '../../types/app.types';
+import type { Announcement, EventOccurrence, UcapsaColorKey, UcapsaEvent } from '../../types/app.types';
 import { expandEventOccurrences, formatDateKey, getUpcomingOccurrences, toDateKey, todayKey } from '../../utils/events.utils';
 
+function getColorHex(color: UcapsaColorKey | null | undefined, fallback: string) {
+  const map: Record<UcapsaColorKey, string> = {
+    red: ucapsaBrand.colors.red,
+    blue: ucapsaBrand.colors.blue,
+    yellow: '#EAB308',
+    green: ucapsaBrand.colors.success,
+    purple: '#7C3AED',
+    gray: '#64748b',
+  };
+
+  return map[color ?? 'gray'] ?? fallback;
+}
+
 function announcementDateKey(announcement: Announcement): string | null {
+  if (announcement.announcement_date) return toDateKey(announcement.announcement_date);
   if (announcement.event?.start_date) return toDateKey(announcement.event.start_date);
   return toDateKey(announcement.created_at);
 }
@@ -27,6 +41,7 @@ export default function CalendarScreen() {
   const [selectedDate, setSelectedDate] = useState(todayKey());
   const [selectedEvent, setSelectedEvent] = useState<EventOccurrence | null>(null);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
+  const [showUpcomingEvents, setShowUpcomingEvents] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +82,7 @@ export default function CalendarScreen() {
       if (!key) continue;
       const existingDots = marks[key]?.dots ?? [];
       const hasEventDot = existingDots.some((dot: { key: string }) => dot.key === 'events');
-      marks[key] = { ...marks[key], dots: hasEventDot ? existingDots : [...existingDots, { key: 'events', color: ucapsaBrand.colors.red }] };
+      marks[key] = { ...marks[key], dots: hasEventDot ? existingDots : [...existingDots, { key: 'events', color: getColorHex(occurrence.event.color_key, ucapsaBrand.colors.red) }] };
     }
 
     for (const announcement of announcements) {
@@ -75,7 +90,7 @@ export default function CalendarScreen() {
       if (!key) continue;
       const existingDots = marks[key]?.dots ?? [];
       const hasAnnouncementDot = existingDots.some((dot: { key: string }) => dot.key === 'announcements');
-      marks[key] = { ...marks[key], dots: hasAnnouncementDot ? existingDots : [...existingDots, { key: 'announcements', color: ucapsaBrand.colors.blue }] };
+      marks[key] = { ...marks[key], dots: hasAnnouncementDot ? existingDots : [...existingDots, { key: 'announcements', color: getColorHex(announcement.color_key, ucapsaBrand.colors.blue) }] };
     }
 
     marks[selectedDate] = { ...(marks[selectedDate] ?? {}), selected: true, selectedColor: ucapsaBrand.colors.red, selectedTextColor: '#ffffff' };
@@ -163,7 +178,6 @@ export default function CalendarScreen() {
 
             {selectedEvents.map((occurrence) => (
               <View key={`event-${occurrence.id}`} style={styles.typeWrap}>
-                <View style={styles.redAccent} />
                 <EventCard
                   event={occurrence.event}
                   startDateOverride={occurrence.start_date}
@@ -175,7 +189,6 @@ export default function CalendarScreen() {
 
             {selectedAnnouncements.map((announcement) => (
               <View key={`announcement-${announcement.id}`} style={styles.typeWrap}>
-                <View style={styles.blueAccent} />
                 <AnnouncementCard
                   announcement={announcement}
                   onPress={isAdmin ? () => router.push(`/admin/announcements?announcementId=${announcement.id}` as never) : () => setSelectedAnnouncement(announcement)}
@@ -191,10 +204,12 @@ export default function CalendarScreen() {
                     <Text style={styles.sectionKicker}>Eventos</Text>
                     <Text style={styles.sectionTitle}>Próximos</Text>
                   </View>
+                  <Pressable style={styles.toggleButton} onPress={() => setShowUpcomingEvents((current) => !current)}>
+                    <Text style={styles.toggleButtonText}>{showUpcomingEvents ? 'Ocultar' : `Mostrar ${upcomingEvents.length}`}</Text>
+                  </Pressable>
                 </View>
-                {upcomingEvents.map((occurrence) => (
+                {showUpcomingEvents ? upcomingEvents.map((occurrence) => (
                   <View key={`upcoming-${occurrence.id}`} style={styles.typeWrap}>
-                    <View style={styles.redAccent} />
                     <EventCard
                       event={occurrence.event}
                       startDateOverride={occurrence.start_date}
@@ -202,7 +217,11 @@ export default function CalendarScreen() {
                       onPress={isAdmin ? () => router.push(`/admin/events?eventId=${occurrence.event.id}` as never) : () => setSelectedEvent(occurrence)}
                     />
                   </View>
-                ))}
+                )) : (
+                  <View style={styles.minimizedBox}>
+                    <Text style={styles.muted}>Ocultos para no saturar la agenda. Toca Mostrar para verlos.</Text>
+                  </View>
+                )}
               </>
             ) : null}
           </>
@@ -225,7 +244,7 @@ export default function CalendarScreen() {
         type="announcement"
         title={selectedAnnouncement?.title ?? ''}
         body={selectedAnnouncement?.content}
-        dateLabel={selectedAnnouncement ? new Date(selectedAnnouncement.created_at).toLocaleDateString('es-MX') : null}
+        dateLabel={selectedAnnouncement?.announcement_date ? new Date(selectedAnnouncement.announcement_date).toLocaleDateString('es-MX') : null}
         onClose={() => setSelectedAnnouncement(null)}
       />
     </SafeAreaView>
@@ -267,9 +286,10 @@ const styles = StyleSheet.create({
   sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 21, fontWeight: '900', marginTop: 4 },
   counterPill: { minWidth: 38, borderRadius: 999, backgroundColor: ucapsaBrand.colors.redSoft, alignItems: 'center', paddingHorizontal: 10, paddingVertical: 8 },
   counterPillText: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900' },
+  toggleButton: { alignItems: 'center', borderRadius: 999, backgroundColor: ucapsaBrand.colors.redSoft, paddingHorizontal: 12, paddingVertical: 8 },
+  toggleButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900' },
+  minimizedBox: { padding: 14, borderRadius: 18, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   emptyBox: { gap: 6, padding: 18, borderRadius: 22, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900' },
   typeWrap: { position: 'relative' },
-  redAccent: { position: 'absolute', left: 0, top: 14, bottom: 14, width: 4, borderRadius: 999, backgroundColor: ucapsaBrand.colors.red, zIndex: 1 },
-  blueAccent: { position: 'absolute', left: 0, top: 14, bottom: 14, width: 4, borderRadius: 999, backgroundColor: ucapsaBrand.colors.blue, zIndex: 1 },
 });

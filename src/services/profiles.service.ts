@@ -1,8 +1,9 @@
-﻿import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import type { Profile } from '../types/app.types';
 
 export type ProfileUpdateInput = {
   full_name?: string | null;
+  email?: string | null;
   phone?: string | null;
   dog_name?: string | null;
   avatar_color?: string | null;
@@ -26,11 +27,10 @@ export async function updateMyProfile(input: ProfileUpdateInput): Promise<Profil
   const userId = authData.user?.id;
   if (!userId) throw new Error('No hay sesión activa.');
 
-  const payload: Record<string, string | null> = {
-    updated_at: new Date().toISOString(),
-  };
+  const payload: Record<string, string | null> = { updated_at: new Date().toISOString() };
 
   if ('full_name' in input) payload.full_name = input.full_name?.trim() || null;
+  if ('email' in input) payload.email = input.email?.trim() || null;
   if ('phone' in input) payload.phone = input.phone?.trim() || null;
   if ('dog_name' in input) payload.dog_name = input.dog_name?.trim() || null;
   if ('avatar_color' in input) payload.avatar_color = input.avatar_color || '#0f766e';

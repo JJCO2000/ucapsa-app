@@ -12,6 +12,10 @@ export type AudienceType = 'public' | 'clients' | 'members' | 'admins';
 
 export type PaymentStatus = 'pending' | 'paid' | 'cancelled';
 
+export type UcapsaColorKey = 'red' | 'blue' | 'yellow' | 'green' | 'purple' | 'gray';
+
+export type UcapsaPriority = 'low' | 'normal' | 'high' | 'urgent';
+
 export type MembershipPaymentStatus =
   | 'none'
   | 'pending'
@@ -46,6 +50,26 @@ export type Profile = {
 
 export type UserProfile = Profile;
 
+
+export type MembershipDeleteRequestStatus = 'pending' | 'approved' | 'rejected';
+
+export type MembershipDeleteRequest = {
+  id: string;
+  membership_id: string;
+  user_id: string;
+  requested_by: string | null;
+  resolved_by: string | null;
+  status: MembershipDeleteRequestStatus;
+  reason: string | null;
+  snapshot_member_number: string | null;
+  snapshot_name: string | null;
+  snapshot_email: string | null;
+  requested_at: string;
+  resolved_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Membership = {
   id: string;
   user_id: string;
@@ -79,6 +103,8 @@ export type UcapsaEvent = {
   has_time?: boolean | null;
   recurrence_key?: string | null;
   recurrence_label?: string | null;
+  color_key?: UcapsaColorKey | null;
+  priority?: UcapsaPriority | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -111,6 +137,9 @@ export type Announcement = {
   is_published: boolean;
   archived_at: string | null;
   event_id: string | null;
+  announcement_date?: string | null;
+  color_key?: UcapsaColorKey | null;
+  priority?: UcapsaPriority | null;
   event?: UcapsaEvent | null;
   created_by: string | null;
   created_at: string;
@@ -132,3 +161,6 @@ export type Payment = {
   created_at: string;
   updated_at: string;
 };
+
+
+

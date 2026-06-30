@@ -1,5 +1,5 @@
-﻿import { supabase } from '../lib/supabase';
-import type { Announcement, AudienceType } from '../types/app.types';
+import { supabase } from '../lib/supabase';
+import type { Announcement, AudienceType, UcapsaColorKey, UcapsaPriority } from '../types/app.types';
 
 export type AnnouncementFormInput = {
   title: string;
@@ -8,10 +8,33 @@ export type AnnouncementFormInput = {
   is_pinned?: boolean;
   is_published?: boolean;
   event_id?: string | null;
+  announcement_date?: string | null;
+  color_key?: UcapsaColorKey | null;
+  priority?: UcapsaPriority | null;
 };
 
 function normalizeAnnouncement(announcement: unknown): Announcement {
   return announcement as Announcement;
+}
+
+function getPriorityRank(priority: UcapsaPriority | null | undefined) {
+  const ranks: Record<UcapsaPriority, number> = { urgent: 0, high: 1, normal: 2, low: 3 };
+  return ranks[priority ?? 'normal'] ?? ranks.normal;
+}
+
+function getAnnouncementTime(announcement: Announcement) {
+  const value = announcement.announcement_date ?? announcement.created_at;
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? 0 : time;
+}
+
+function sortAnnouncements(items: Announcement[]) {
+  return [...items].sort((a, b) => {
+    if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
+    const priorityDiff = getPriorityRank(a.priority) - getPriorityRank(b.priority);
+    if (priorityDiff !== 0) return priorityDiff;
+    return getAnnouncementTime(b) - getAnnouncementTime(a);
+  });
 }
 
 export async function getVisibleAnnouncements(limit?: number): Promise<Announcement[]> {
@@ -26,7 +49,7 @@ export async function getVisibleAnnouncements(limit?: number): Promise<Announcem
   const { data, error } = await query;
 
   if (error) throw error;
-  return (data ?? []).map(normalizeAnnouncement);
+  return sortAnnouncements((data ?? []).map(normalizeAnnouncement));
 }
 
 export async function getAdminAnnouncements(): Promise<Announcement[]> {
@@ -36,7 +59,7 @@ export async function getAdminAnnouncements(): Promise<Announcement[]> {
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return (data ?? []).map(normalizeAnnouncement);
+  return sortAnnouncements((data ?? []).map(normalizeAnnouncement));
 }
 
 export async function createAnnouncement(input: AnnouncementFormInput): Promise<Announcement> {
@@ -49,6 +72,9 @@ export async function createAnnouncement(input: AnnouncementFormInput): Promise<
     is_pinned: input.is_pinned ?? false,
     is_published: input.is_published ?? true,
     event_id: input.event_id || null,
+    announcement_date: input.announcement_date || null,
+    color_key: input.color_key ?? 'red',
+    priority: input.priority ?? 'normal',
     created_by: userResult.user?.id ?? null,
   };
 
@@ -74,6 +100,9 @@ export async function updateAnnouncement(
   if (input.is_pinned !== undefined) payload.is_pinned = input.is_pinned;
   if (input.is_published !== undefined) payload.is_published = input.is_published;
   if (input.event_id !== undefined) payload.event_id = input.event_id || null;
+  if (input.announcement_date !== undefined) payload.announcement_date = input.announcement_date || null;
+  if (input.color_key !== undefined) payload.color_key = input.color_key ?? 'red';
+  if (input.priority !== undefined) payload.priority = input.priority ?? 'normal';
 
   const { data, error } = await supabase
     .from('announcements')
@@ -124,3 +153,6 @@ export async function deleteAnnouncement(announcementId: string): Promise<void> 
 
   if (error) throw error;
 }
+
+
+

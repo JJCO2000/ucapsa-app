@@ -11,8 +11,8 @@ import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import { getVisibleAnnouncements } from '../../services/announcements.service';
 import { getVisibleEvents } from '../../services/events.service';
-import { getAdminMembershipRows } from '../../services/memberships.service';
-import type { Announcement, EventOccurrence } from '../../types/app.types';
+import { getAdminMembershipRows, getMyMembership } from '../../services/memberships.service';
+import type { Announcement, EventOccurrence, Membership } from '../../types/app.types';
 import { getUpcomingOccurrences } from '../../utils/events.utils';
 
 const wordmark = require('../../../assets/images/brand/ucapsa-wordmark.png');
@@ -22,6 +22,7 @@ export default function HomeScreen() {
   const { user, profile, role, isAdmin } = useSession();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [events, setEvents] = useState<EventOccurrence[]>([]);
+  const [membership, setMembership] = useState<Membership | null>(null);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<EventOccurrence | null>(null);
   const [adminStats, setAdminStats] = useState({ active: 0, requests: 0, pendingPayments: 0 });
@@ -41,6 +42,10 @@ export default function HomeScreen() {
             requests: rows.filter((row) => row.membership.status === 'pending').length,
             pendingPayments: rows.filter((row) => row.membership.current_payment_status === 'pending').length,
           });
+        } else if (user) {
+          setMembership(await getMyMembership());
+        } else {
+          setMembership(null);
         }
       } finally {
         setLoading(false);
@@ -48,9 +53,27 @@ export default function HomeScreen() {
     }
 
     void loadData();
-  }, [isAdmin]);
+  }, [isAdmin, user]);
 
   const displayName = profile?.full_name || profile?.email || user?.email || 'Visitante';
+  const membershipStatus = membership?.status ?? null;
+  const isActiveMember = role === 'member' || membershipStatus === 'active';
+  const isPendingMemberRequest = membershipStatus === 'pending';
+  const membershipIcon = isAdmin || isActiveMember ? 'crown' : 'paw';
+  const membershipTitle = isAdmin
+    ? 'Mi UCAPSA Admin'
+    : isActiveMember
+      ? 'Socio UCAPSA'
+      : isPendingMemberRequest
+        ? 'Solicitud pendiente'
+        : 'Cliente UCAPSA';
+  const membershipText = isAdmin
+    ? 'Socios, pagos y solicitudes.'
+    : isActiveMember
+      ? 'Credencial, membresía y QR.'
+      : isPendingMemberRequest
+        ? 'Administración revisará tu solicitud.'
+        : 'Solicita membresía o consulta tu espacio.';
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -83,12 +106,12 @@ export default function HomeScreen() {
 
         <Pressable style={styles.membershipHighlight} onPress={() => router.push('/membership' as never)}>
           <View style={styles.crownBox}>
-            <MaterialCommunityIcons name={isAdmin || role === 'member' ? 'crown' : 'paw'} size={24} color={ucapsaBrand.colors.red} />
+            <MaterialCommunityIcons name={membershipIcon} size={24} color={ucapsaBrand.colors.red} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.membershipHighlightLabel}>Mi UCAPSA</Text>
-            <Text style={styles.membershipHighlightTitle}>{isAdmin ? 'Socios y clientes' : role === 'member' ? 'Socio UCAPSA' : 'Cliente UCAPSA'}</Text>
-            <Text style={styles.membershipHighlightText}>{isAdmin ? 'Tabla, pagos rápidos y fichas de socios.' : role === 'member' ? 'Credencial, membresía y QR.' : 'Solicita membresía o consulta tu espacio.'}</Text>
+            <Text style={styles.membershipHighlightTitle}>{membershipTitle}</Text>
+            <Text style={styles.membershipHighlightText}>{membershipText}</Text>
           </View>
           <MaterialIcons name="chevron-right" size={26} color={ucapsaBrand.colors.red} />
         </Pressable>
@@ -152,7 +175,7 @@ export default function HomeScreen() {
         type="announcement"
         title={selectedAnnouncement?.title ?? ''}
         body={selectedAnnouncement?.content}
-        dateLabel={selectedAnnouncement ? new Date(selectedAnnouncement.created_at).toLocaleDateString('es-MX') : null}
+        dateLabel={selectedAnnouncement?.announcement_date ? new Date(selectedAnnouncement.announcement_date).toLocaleDateString('es-MX') : null}
         onClose={() => setSelectedAnnouncement(null)}
       />
 
