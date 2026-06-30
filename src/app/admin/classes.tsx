@@ -23,7 +23,6 @@ import {
   formatProgramScheduleDetailLabel,
   formatProgramScheduleDisplayLabel,
   formatProgramScheduleName,
-  formatScheduleLabel,
   getProgramSchedulesForDate,
   getAdminProgramRows,
   getDefaultProgramLevel,
@@ -149,22 +148,42 @@ function getSchedulesForProgram(schedules: ProgramSchedule[], programId: string)
   return sortProgramSchedules(schedules.filter((schedule) => schedule.program_id === programId && schedule.is_active));
 }
 
-function getSectionOptions(program: UcapsaProgram | null | undefined, schedules: ProgramSchedule[]) {
-  if (!program) return [{ value: '0', label: 'Seccion 0  0 asistencias' }];
+function formatAttendanceCountLabel(count: number) {
+  return `${count} asistencia${count === 1 ? '' : 's'}`;
+}
+
+function getProgressOptions(program: UcapsaProgram | null | undefined, schedules: ProgramSchedule[]) {
+  if (!program) return [{ value: '0', label: 'Inicio - Empieza en Clase 1' }];
+
   const ordered = sortProgramSchedules(schedules.filter((schedule) => schedule.program_id === program.id && schedule.is_active));
   const max = Math.max(1, program.required_attendances || ordered.length || 1);
+
   return Array.from({ length: max }, (_, index) => {
-    const schedule = ordered[Math.min(index, Math.max(0, ordered.length - 1))];
-    const classLabel = schedule ? formatScheduleLabel(schedule) : 'Horario pendiente';
-    return { value: String(index), label: `Seccion ${index}  ${index} asistencia${index === 1 ? '' : 's'}  ${classLabel}` };
+    if (program.code === 'puppy') {
+      const schedule = ordered[Math.min(index, Math.max(0, ordered.length - 1))] ?? null;
+      const className = schedule ? formatProgramScheduleName(schedule, program) : `Clase ${Math.min(index + 1, max)}`;
+      const action = index === 0 ? 'Empieza en' : 'Siguiente';
+      return { value: String(index), label: `${formatAttendanceCountLabel(index)} - ${action}: ${className}` };
+    }
+
+    if (program.code === 'comandos') {
+      const action = index === 0 ? 'Inicio del nivel' : 'Avance registrado';
+      return { value: String(index), label: `${formatAttendanceCountLabel(index)} - ${action}` };
+    }
+
+    return { value: String(index), label: `${formatAttendanceCountLabel(index)} - Avance registrado` };
   });
 }
 
-function getScheduleSectionOptions(program: UcapsaProgram) {
+function getScheduleClassOptions(program: UcapsaProgram) {
   if (program.code === 'puppy') {
-    return [0, 1, 2, 3].map((section) => ({ value: String(section + 1), label: `Puppy seccion ${section}` }));
+    return [1, 2, 3, 4].map((classNumber) => ({ value: String(classNumber), label: `Clase ${classNumber}` }));
   }
-  return [{ value: '1', label: 'Comandos horario principal' }];
+  return [{ value: '1', label: 'Comandos' }];
+}
+
+function getScheduleProgram(schedules: ProgramSchedule[], programs: UcapsaProgram[], schedule: ProgramSchedule) {
+  return programs.find((program) => program.id === schedule.program_id) ?? getProgramForSchedule(programs, schedule);
 }
 
 function nextScheduleForForm(form: EnrollmentFormState, schedules: ProgramSchedule[]) {
@@ -321,7 +340,7 @@ export default function AdminClassesScreen() {
       if (statusFilter !== 'all' && row.enrollment.status !== statusFilter) return false;
       if (scheduleFilter !== 'all' && row.schedule.id !== scheduleFilter) return false;
       if (!term) return true;
-      const haystack = `${profileLabel(row.profile)} ${row.profile?.email ?? ''} ${row.enrollment.dog_name ?? ''} ${row.enrollment.physical_card_number ?? ''} ${row.program.name} ${formatScheduleLabel(row.schedule)} ${getProgramLevelLabel(row.enrollment.program_level)}`.toLowerCase();
+      const haystack = `${profileLabel(row.profile)} ${row.profile?.email ?? ''} ${row.enrollment.dog_name ?? ''} ${row.enrollment.physical_card_number ?? ''} ${row.program.name} ${formatProgramScheduleDisplayLabel(row.schedule, row.program)} ${getProgramLevelLabel(row.enrollment.program_level)}`.toLowerCase();
       return haystack.includes(term);
     });
 
@@ -412,7 +431,7 @@ export default function AdminClassesScreen() {
           createdEnrollment.id,
           initialAttendanceCount,
           form.attendanceAdjustmentDate || todayKey(),
-          `Ajuste inicial: seccion ${initialAttendanceCount}.`,
+          `Ajuste inicial de avance: ${initialAttendanceCount} asistencia${initialAttendanceCount === 1 ? '' : 's'}.`,
         );
       }
       setCreateOpen(false);
@@ -468,7 +487,7 @@ export default function AdminClassesScreen() {
           selectedRow.enrollment.id,
           targetAttendances,
           editForm.attendanceAdjustmentDate || todayKey(),
-          `Ajuste manual: seccion ${targetAttendances}.`,
+          `Ajuste manual de avance: ${targetAttendances} asistencia${targetAttendances === 1 ? '' : 's'}.`,
         );
       }
       await loadData();
@@ -750,7 +769,7 @@ export default function AdminClassesScreen() {
             <Text style={styles.label}>Horario</Text>
             <SelectList
               selectedValue={scheduleFilter}
-              options={[{ value: 'all', label: 'Todos los horarios' }, ...activeSchedules.filter((schedule) => programFilter === 'all' || programs.find((program) => program.id === schedule.program_id)?.code === programFilter).map((schedule) => ({ value: schedule.id, label: formatScheduleLabel(schedule) }))]}
+              options={[{ value: 'all', label: 'Todos los horarios' }, ...activeSchedules.filter((schedule) => programFilter === 'all' || programs.find((program) => program.id === schedule.program_id)?.code === programFilter).map((schedule) => ({ value: schedule.id, label: formatProgramScheduleDisplayLabel(schedule, getScheduleProgram(activeSchedules, programs, schedule)) }))]}
               onSelect={setScheduleFilter}
             />
           </View>
@@ -943,15 +962,15 @@ function CreateEnrollmentModal({
       <Text style={styles.label}>Horario</Text>
       <SelectList
         selectedValue={form.scheduleId}
-        options={[{ value: 'auto', label: 'Automatico por avance' }, ...schedules.map((schedule) => ({ value: schedule.id, label: formatScheduleLabel(schedule) }))]}
+        options={[{ value: 'auto', label: 'Automatico por avance' }, ...schedules.map((schedule) => ({ value: schedule.id, label: formatProgramScheduleDisplayLabel(schedule, selectedProgram) }))]}
         onSelect={(scheduleId) => onChange({ ...form, scheduleId })}
       />
-      <Text style={styles.hint}>Automatico usa la seccion que toca segun asistencias. Al inicio de Puppy empieza en sabado 10:00.</Text>
+      <Text style={styles.hint}>Automatico usa el avance registrado para elegir la siguiente clase. Al inicio de Puppy empieza en Clase 1.</Text>
 
-      <Text style={styles.label}>Seccion inicial</Text>
+      <Text style={styles.label}>Avance inicial</Text>
       <SelectList
         selectedValue={form.initialAttendanceCount}
-        options={getSectionOptions(selectedProgram, schedules)}
+        options={getProgressOptions(selectedProgram, schedules)}
         onSelect={(initialAttendanceCount) => onChange({ ...form, initialAttendanceCount, scheduleId: 'auto' })}
       />
       <Text style={styles.label}>Fecha del ultimo avance registrado</Text>
@@ -1013,7 +1032,7 @@ function EnrollmentDetailModal({
 
   const selectedProgram = programs.find((program) => program.id === editForm.programId) ?? row.program;
   const selectedSchedules = getSchedulesForProgram(schedules, selectedProgram.id);
-  const currentSectionOptions = getSectionOptions(selectedProgram, schedules);
+  const currentProgressOptions = getProgressOptions(selectedProgram, schedules);
 
   return (
     <KeyboardAwareModal visible={Boolean(row)} onClose={onClose}>
@@ -1042,11 +1061,11 @@ function EnrollmentDetailModal({
         />
 
         <Text style={styles.label}>Horario actual</Text>
-        <SelectList selectedValue={editForm.scheduleId} options={[{ value: 'auto', label: 'Automatico por seccion' }, ...selectedSchedules.map((schedule) => ({ value: schedule.id, label: formatScheduleLabel(schedule) }))]} onSelect={(scheduleId) => onChange({ ...editForm, scheduleId })} />
+        <SelectList selectedValue={editForm.scheduleId} options={[{ value: 'auto', label: 'Automatico por avance' }, ...selectedSchedules.map((schedule) => ({ value: schedule.id, label: formatProgramScheduleDisplayLabel(schedule, selectedProgram) }))]} onSelect={(scheduleId) => onChange({ ...editForm, scheduleId })} />
 
-        <Text style={styles.label}>Seccion / avance</Text>
-        <SelectList selectedValue={editForm.attendancesCount} options={currentSectionOptions} onSelect={(attendancesCount) => onChange({ ...editForm, attendancesCount, scheduleId: 'auto' })} />
-        <Text style={styles.hint}>Si eliges seccion 2, se crean/corrigen automaticamente 2 asistencias y se calcula el siguiente horario.</Text>
+        <Text style={styles.label}>Avance</Text>
+        <SelectList selectedValue={editForm.attendancesCount} options={currentProgressOptions} onSelect={(attendancesCount) => onChange({ ...editForm, attendancesCount, scheduleId: 'auto' })} />
+        <Text style={styles.hint}>Si eliges 2 asistencias, se crean/corrigen automaticamente 2 registros y se calcula la siguiente clase.</Text>
         <Text style={styles.label}>Fecha del ultimo avance registrado</Text>
         <TextInput value={editForm.attendanceAdjustmentDate} onChangeText={(attendanceAdjustmentDate) => onChange({ ...editForm, attendanceAdjustmentDate })} placeholder="AAAA-MM-DD" style={styles.input} />
 
@@ -1365,7 +1384,7 @@ function SchedulesModal({ visible, programs, schedules, saving, initialScheduleI
     <KeyboardAwareModal visible={visible} onClose={onClose}>
       <Text style={styles.kickerDark}>Horarios</Text>
       <Text style={styles.modalTitle}>Editar horarios base</Text>
-      <Text style={styles.muted}>Estos horarios afectan las proximas inscripciones y el calculo automatico por seccion.</Text>
+      <Text style={styles.muted}>Estos horarios afectan las proximas inscripciones y el calculo automatico por avance.</Text>
 
       <Text style={styles.label}>Programa</Text>
       <SelectList selectedValue={selectedProgram?.id ?? ''} options={programs.map((program) => ({ value: program.id, label: program.name }))} onSelect={selectProgram} />
@@ -1410,8 +1429,8 @@ function ScheduleEditor({ program, schedule, saving, onSave }: { program: Ucapsa
     <View style={styles.scheduleCard}>
       <Text style={styles.label}>Nombre</Text>
       <TextInput value={name} onChangeText={setName} style={styles.input} />
-      <Text style={styles.label}>Orden / seccion</Text>
-      <SelectList selectedValue={sequenceOrder} options={getScheduleSectionOptions(program)} onSelect={setSequenceOrder} />
+      <Text style={styles.label}>Orden / clase</Text>
+      <SelectList selectedValue={sequenceOrder} options={getScheduleClassOptions(program)} onSelect={setSequenceOrder} />
       <Text style={styles.label}>Dia</Text>
       <SelectList selectedValue={dayOfWeek} options={dayOptions.map((day) => ({ value: String(day.value), label: day.label }))} onSelect={setDayOfWeek} />
       <Text style={styles.label}>Hora</Text>
@@ -1582,6 +1601,7 @@ const styles = StyleSheet.create({
   disabledButton: { opacity: 0.5 },
   deniedBox: { gap: 10, alignItems: 'center', justifyContent: 'center', flex: 1 },
 });
+
 
 
 
