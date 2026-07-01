@@ -34,6 +34,7 @@ export type NotificationCampaign = {
   metadata: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
+  archived_at?: string | null;
 };
 
 export async function sendAdminNotification(input: SendAdminNotificationInput): Promise<SendAdminNotificationResult> {
@@ -76,14 +77,25 @@ export async function sendAdminNotification(input: SendAdminNotificationInput): 
   return data as SendAdminNotificationResult;
 }
 
-export async function getAdminNotificationCampaigns(limit = 12): Promise<NotificationCampaign[]> {
+export async function getAdminNotificationCampaigns(limit = 3): Promise<NotificationCampaign[]> {
   const { data, error } = await supabase
     .from('notification_campaigns')
     .select('*')
+    .is('archived_at', null)
     .order('created_at', { ascending: false })
     .limit(limit);
 
   if (error) throw error;
   return (data ?? []) as NotificationCampaign[];
 }
+
+export async function deleteAdminNotificationCampaign(campaignId: string): Promise<void> {
+  const { error } = await supabase
+    .from('notification_campaigns')
+    .update({ archived_at: new Date().toISOString() })
+    .eq('id', campaignId);
+
+  if (error) throw error;
+}
+
 

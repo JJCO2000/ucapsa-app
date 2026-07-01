@@ -328,10 +328,11 @@ export default function AdminClassesScreen() {
 
   const filteredProfiles = useMemo(() => {
     const term = normalizeTerm(clientSearch);
-    const base = term
-      ? profiles.filter((profile) => `${profile.full_name ?? ''} ${profile.email ?? ''} ${profile.phone ?? ''} ${profile.dog_name ?? ''}`.toLowerCase().includes(term))
-      : profiles;
-    return base.slice(0, 8);
+    if (!term) return [];
+
+    return profiles
+      .filter((profile) => `${profile.full_name ?? ''} ${profile.email ?? ''} ${profile.phone ?? ''} ${profile.dog_name ?? ''}`.toLowerCase().includes(term))
+      .slice(0, 8);
   }, [clientSearch, profiles]);
 
   const filteredRows = useMemo(() => {
@@ -998,12 +999,18 @@ function CreateEnrollmentModal({
       <Text style={styles.label}>Cliente</Text>
       <TextInput value={clientSearch} onChangeText={onClientSearch} placeholder="Buscar por nombre, correo o perro..." style={styles.input} />
       <View style={styles.optionsBox}>
-        {profiles.map((profile) => (
-          <Pressable key={profile.user_id} style={[styles.optionItem, form.userId === profile.user_id && styles.optionItemActive]} onPress={() => onChooseProfile(profile)}>
-            <Text style={[styles.optionTitle, form.userId === profile.user_id && styles.optionTitleActive]}>{profileLabel(profile)}</Text>
-            <Text style={styles.optionMeta}>{profile.email || 'Sin correo'}  Perro: {profile.dog_name || 'Sin registrar'}</Text>
-          </Pressable>
-        ))}
+        {clientSearch.trim().length === 0 ? (
+          <Text style={styles.optionHint}>Escribe para buscar clientes. La lista aparecera aqui cuando haya coincidencias.</Text>
+        ) : profiles.length === 0 ? (
+          <Text style={styles.optionHint}>No hay clientes que coincidan con esa busqueda.</Text>
+        ) : (
+          profiles.map((profile) => (
+            <Pressable key={profile.user_id} style={[styles.optionItem, form.userId === profile.user_id && styles.optionItemActive]} onPress={() => onChooseProfile(profile)}>
+              <Text style={[styles.optionTitle, form.userId === profile.user_id && styles.optionTitleActive]}>{profileLabel(profile)}</Text>
+              <Text style={styles.optionMeta}>{profile.email || 'Sin correo'}  Perro: {profile.dog_name || 'Sin registrar'}</Text>
+            </Pressable>
+          ))
+        )}
       </View>
 
       <Text style={styles.label}>Programa</Text>
@@ -1588,6 +1595,7 @@ const styles = StyleSheet.create({
   input: { minHeight: 48, paddingHorizontal: 14, borderRadius: 16, backgroundColor: ucapsaBrand.colors.background, borderWidth: 1, borderColor: ucapsaBrand.colors.border, color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '700' },
   textArea: { minHeight: 82, paddingTop: 12, textAlignVertical: 'top' },
   optionsBox: { gap: 8 },
+  optionHint: { color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 18, fontWeight: '700', padding: 12, borderRadius: 16, backgroundColor: ucapsaBrand.colors.background, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   optionItem: { gap: 3, padding: 12, borderRadius: 16, backgroundColor: ucapsaBrand.colors.background, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   optionItemActive: { backgroundColor: ucapsaBrand.colors.redSoft, borderColor: ucapsaBrand.colors.red },
   optionTitle: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
@@ -1658,6 +1666,7 @@ const styles = StyleSheet.create({
   disabledButton: { opacity: 0.5 },
   deniedBox: { gap: 10, alignItems: 'center', justifyContent: 'center', flex: 1 },
 });
+
 
 
 

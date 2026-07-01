@@ -9,6 +9,7 @@ import { Screen } from '../../components/ui/Screen';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import {
+  deleteAdminNotificationCampaign,
   getAdminNotificationCampaigns,
   sendAdminNotification,
   type AdminNotificationCategory,
@@ -63,6 +64,7 @@ export default function AdminNotificationsScreen() {
   const [campaigns, setCampaigns] = useState<NotificationCampaign[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [sending, setSending] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const selectedAudience = useMemo(() => audienceOptions.find((item) => item.value === audience) ?? audienceOptions[0], [audience]);
   const selectedCategory = useMemo(() => categoryOptions.find((item) => item.value === category) ?? categoryOptions[0], [category]);
@@ -72,7 +74,7 @@ export default function AdminNotificationsScreen() {
     if (!isAdmin) return;
     setLoadingHistory(true);
     try {
-      const nextCampaigns = await getAdminNotificationCampaigns();
+      const nextCampaigns = await getAdminNotificationCampaigns(3);
       setCampaigns(nextCampaigns);
     } catch (error) {
       Alert.alert('Error', error instanceof Error ? error.message : 'No se pudo cargar el historial.');
@@ -97,13 +99,13 @@ export default function AdminNotificationsScreen() {
 
   function handleSendPress() {
     if (!title.trim() || !body.trim()) {
-      Alert.alert('Faltan datos', 'Agrega titulo y mensaje antes de enviar.');
+      Alert.alert('Faltan datos', 'Agrega título y mensaje antes de enviar.');
       return;
     }
 
     Alert.alert(
-      'Enviar notificacion',
-      `Se enviara a: ${selectedAudience.label}\nCategoria: ${selectedCategory.label}\n\nTitulo:\n${title.trim()}\n\nMensaje:\n${body.trim()}`,
+      'Enviar notificación',
+      `Se enviara a: ${selectedAudience.label}\nCategoría: ${selectedCategory.label}\n\nTitulo:\n${title.trim()}\n\nMensaje:\n${body.trim()}`,
       [
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Enviar', style: 'destructive', onPress: () => void handleSendConfirmed() },
@@ -124,7 +126,7 @@ export default function AdminNotificationsScreen() {
       await loadHistory();
 
       if (result.status === 'no_targets') {
-        Alert.alert('Sin destinatarios', result.message ?? 'No hay dispositivos activos para esa audiencia/categoria.');
+        Alert.alert('Sin destinatarios', result.message ?? 'No hay dispositivos activos para esa audiencia/categoría.');
         return;
       }
 
@@ -140,10 +142,33 @@ export default function AdminNotificationsScreen() {
     }
   }
 
+  function handleDeleteCampaignPress(campaign: NotificationCampaign) {
+    Alert.alert(
+      'Eliminar del historial',
+      `Se ocultará esta notificación del historial administrativo:\n\n${campaign.title}`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Eliminar', style: 'destructive', onPress: () => void handleDeleteCampaignConfirmed(campaign.id) },
+      ],
+    );
+  }
+
+  async function handleDeleteCampaignConfirmed(campaignId: string) {
+    setDeletingId(campaignId);
+    try {
+      await deleteAdminNotificationCampaign(campaignId);
+      setCampaigns((current) => current.filter((campaign) => campaign.id !== campaignId));
+    } catch (error) {
+      Alert.alert('No se pudo eliminar', error instanceof Error ? error.message : 'Error desconocido.');
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   if (loading) {
     return (
       <Screen backgroundColor={format.background}>
-        <Denied title="Revisando acceso" text="Cargando sesion administrativa..." icon="notifications-none" format={format} />
+        <Denied title="Revisando acceso" text="Cargando sesión administrativa..." icon="notifications-none" format={format} />
       </Screen>
     );
   }
@@ -173,20 +198,20 @@ export default function AdminNotificationsScreen() {
         format={format}
         eyebrow="UCAPSA Admin"
         title="Notificaciones"
-        subtitle="Envia avisos manuales solo a usuarios que activaron notificaciones."
+        subtitle="Envía avisos manuales solo a usuarios que activaron notificaciones."
         icon="notifications-none"
       />
 
       <UcapsaRoleCard
         format={format}
         title="Control antes de automatizar"
-        subtitle="3.3 es envio manual. Recordatorios de clases y cancelaciones automaticas van en fases posteriores."
+        subtitle="3.3 es envío manual. Recordatorios de clases y cancelaciones automaticas van en fases posteriores."
         icon="verified"
       />
 
       <View style={[styles.card, { backgroundColor: format.surface, borderColor: format.border }]}> 
-        <Text style={[styles.sectionTitle, { color: format.text }]}>Nuevo envio</Text>
-        <Text style={[styles.sectionSubtitle, { color: format.muted }]}>MantÃ©n el mensaje corto. Si notificas demasiado, la gente apaga permisos.</Text>
+        <Text style={[styles.sectionTitle, { color: format.text }]}>Nuevo envío</Text>
+        <Text style={[styles.sectionSubtitle, { color: format.muted }]}>Mantén el mensaje corto. Si notificas demasiado, la gente apaga permisos.</Text>
 
         <Text style={[styles.label, { color: format.text }]}>Titulo</Text>
         <TextInput
@@ -203,7 +228,7 @@ export default function AdminNotificationsScreen() {
         <TextInput
           value={body}
           onChangeText={setBody}
-          placeholder="Escribe el aviso que vera el usuario."
+          placeholder="Escribe el aviso que verá el usuario."
           placeholderTextColor={format.muted}
           maxLength={180}
           multiline
@@ -224,7 +249,7 @@ export default function AdminNotificationsScreen() {
           ))}
         </View>
 
-        <Text style={[styles.label, { color: format.text }]}>Categoria</Text>
+        <Text style={[styles.label, { color: format.text }]}>Categoría</Text>
         <View style={styles.optionGrid}>
           {categoryOptions.map((item) => (
             <OptionButton
@@ -240,19 +265,19 @@ export default function AdminNotificationsScreen() {
         <View style={[styles.previewBox, { backgroundColor: format.accentSoft, borderColor: format.border }]}> 
           <MaterialIcons name="visibility" size={20} color={format.accent} />
           <View style={{ flex: 1 }}>
-            <Text style={[styles.previewTitle, { color: format.text }]}>{title.trim() || 'Vista previa del titulo'}</Text>
-            <Text style={[styles.previewBody, { color: format.muted }]}>{body.trim() || 'Aqui se vera el mensaje antes de enviarlo.'}</Text>
+            <Text style={[styles.previewTitle, { color: format.text }]}>{title.trim() || 'Vista previa del título'}</Text>
+            <Text style={[styles.previewBody, { color: format.muted }]}>{body.trim() || 'Aquí se verá el mensaje antes de enviarlo.'}</Text>
           </View>
         </View>
 
-        <AppButton label={sending ? 'Enviando...' : 'Enviar notificacion'} disabled={!canSend} variant="danger" onPress={handleSendPress} />
+        <AppButton label={sending ? 'Enviando...' : 'Enviar notificación'} disabled={!canSend} variant="danger" onPress={handleSendPress} />
       </View>
 
       <View style={[styles.card, { backgroundColor: format.surface, borderColor: format.border }]}> 
         <View style={styles.sectionHeaderRow}>
           <View style={{ flex: 1 }}>
             <Text style={[styles.sectionTitle, { color: format.text }]}>Historial reciente</Text>
-            <Text style={[styles.sectionSubtitle, { color: format.muted }]}>Ultimos envios manuales registrados.</Text>
+            <Text style={[styles.sectionSubtitle, { color: format.muted }]}>Últimos 3 envíos registrados. Elimina lo viejo para mantener limpio este panel.</Text>
           </View>
           <Pressable style={[styles.refreshButton, { backgroundColor: format.accentSoft }]} onPress={() => void loadHistory()}>
             <MaterialIcons name="refresh" size={20} color={format.accent} />
@@ -260,7 +285,7 @@ export default function AdminNotificationsScreen() {
         </View>
 
         {campaigns.length === 0 ? (
-          <Text style={[styles.emptyText, { color: format.muted }]}>Todavia no hay envios registrados.</Text>
+          <Text style={[styles.emptyText, { color: format.muted }]}>Todavía no hay envíos registrados.</Text>
         ) : (
           <View style={styles.historyList}>
             {campaigns.map((campaign) => (
@@ -268,10 +293,19 @@ export default function AdminNotificationsScreen() {
                 <View style={styles.historyTopRow}>
                   <Text style={[styles.historyTitle, { color: format.text }]} numberOfLines={1}>{campaign.title}</Text>
                   <Text style={[styles.statusPill, { color: format.accent, backgroundColor: format.accentSoft }]}>{statusLabels[campaign.status]}</Text>
+                  <Pressable
+                    disabled={deletingId === campaign.id}
+                    accessibilityRole="button"
+                    accessibilityLabel="Eliminar notificación del historial"
+                    style={[styles.deleteHistoryButton, { backgroundColor: format.background, borderColor: format.border }]}
+                    onPress={() => handleDeleteCampaignPress(campaign)}
+                  >
+                    <MaterialIcons name="delete-outline" size={18} color={format.muted} />
+                  </Pressable>
                 </View>
                 <Text style={[styles.historyBody, { color: format.muted }]} numberOfLines={2}>{campaign.body}</Text>
-                <Text style={[styles.historyMeta, { color: format.muted }]}>Audiencia: {campaign.audience} Â· Categoria: {campaign.category}</Text>
-                <Text style={[styles.historyMeta, { color: format.muted }]}>Objetivo: {campaign.total_targets} Â· Enviadas: {campaign.success_count} Â· Fallidas: {campaign.failure_count}</Text>
+                <Text style={[styles.historyMeta, { color: format.muted }]}>Audiencia: {campaign.audience} • Categoría: {campaign.category}</Text>
+                <Text style={[styles.historyMeta, { color: format.muted }]}>Objetivo: {campaign.total_targets} • Enviadas: {campaign.success_count} • Fallidas: {campaign.failure_count}</Text>
                 <Text style={[styles.historyMeta, { color: format.muted }]}>Fecha: {formatDate(campaign.sent_at ?? campaign.created_at)}</Text>
               </View>
             ))}
@@ -335,6 +369,7 @@ const styles = StyleSheet.create({
   historyList: { gap: 10 },
   historyItem: { borderWidth: 1, borderRadius: 18, padding: 12 },
   historyTopRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  deleteHistoryButton: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   historyTitle: { flex: 1, fontSize: 15, fontWeight: '900' },
   historyBody: { marginTop: 4, fontSize: 13, lineHeight: 18, fontWeight: '700' },
   historyMeta: { marginTop: 4, fontSize: 12, fontWeight: '800' },
@@ -343,3 +378,4 @@ const styles = StyleSheet.create({
   deniedTitle: { fontSize: 24, fontWeight: '900', textAlign: 'center' },
   deniedText: { fontSize: 14, lineHeight: 20, textAlign: 'center', fontWeight: '700' },
 });
+
