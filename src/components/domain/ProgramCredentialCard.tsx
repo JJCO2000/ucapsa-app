@@ -1,6 +1,5 @@
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import QRCode from 'react-native-qrcode-svg';
 
 import type { ProgramEnrollmentWithDetails } from '../../types/app.types';
 import {
@@ -53,7 +52,6 @@ export function ProgramCredentialCard({ item, onPress, compact = false }: Progra
   const currentAttendances = Math.max(0, item.enrollment.attendances_count || 0);
   const progressLabel = `${currentAttendances} / ${requiredAttendances}`;
   const progressPercent = Math.min(100, Math.round((currentAttendances / requiredAttendances) * 100));
-  const qrValue = `ucapsa-program:${item.program.code}:${item.enrollment.qr_token}`;
   const levelLabel = item.program.code === 'comandos' ? getProgramLevelLabel(item.enrollment.program_level) : null;
 
   const content = (
@@ -92,10 +90,12 @@ export function ProgramCredentialCard({ item, onPress, compact = false }: Progra
       </View>
 
       {!compact ? (
-        <View style={styles.qrPanel}>
-          <QRCode value={qrValue} size={158} />
-          <Text style={[styles.qrTitle, { color: theme.text }]}>QR de programa</Text>
-          <Text style={[styles.qrSubtitle, { color: theme.muted }]}>Sirve para verificar inscripcion y despues registrar asistencia.</Text>
+        <View style={[styles.attendancePanel, { backgroundColor: theme.soft }]}>
+          <MaterialCommunityIcons name="qrcode-scan" size={28} color={theme.accent} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.qrTitle, { color: theme.accent }]}>Asistencia con QR oficial</Text>
+            <Text style={[styles.qrSubtitle, { color: theme.accent }]}>Escanea el QR fisico de UCAPSA desde Registrar asistencia. Esta credencial ya no genera un QR personal por perro.</Text>
+          </View>
         </View>
       ) : null}
     </View>
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   infoValue: { fontSize: 12, fontWeight: '900', marginTop: 3, lineHeight: 17 },
   progressOuter: { height: 10, overflow: 'hidden', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.65)' },
   progressInner: { height: '100%', borderRadius: 999 },
-  qrPanel: { alignItems: 'center', gap: 7, paddingTop: 6 },
+  attendancePanel: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 18, padding: 14 },
   qrTitle: { fontSize: 15, fontWeight: '900' },
-  qrSubtitle: { maxWidth: 240, textAlign: 'center', fontSize: 12, lineHeight: 17, fontWeight: '800' },
+  qrSubtitle: { fontSize: 12, lineHeight: 17, fontWeight: '800' },
 });

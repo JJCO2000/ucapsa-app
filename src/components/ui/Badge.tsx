@@ -1,4 +1,4 @@
-﻿import { StyleSheet, Text, type StyleProp, type TextStyle } from 'react-native';
+import { StyleSheet, Text, type StyleProp, type TextStyle } from 'react-native';
 
 type BadgeVariant = 'success' | 'info' | 'warning' | 'danger' | 'neutral';
 

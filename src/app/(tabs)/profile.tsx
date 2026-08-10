@@ -9,14 +9,11 @@ import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
-import { supabase } from '../../lib/supabase';
-import { getVisibleAnnouncements } from '../../services/announcements.service';
-import { getVisibleEvents } from '../../services/events.service';
-import { getAdminMembershipRows, getMembershipStatusLabel, getMyMembership, isMembershipDateExpired } from '../../services/memberships.service';
+import { getMembershipStatusLabel, getMyMembership } from '../../services/memberships.service';
 import { getMyProgramEnrollments } from '../../services/programs.service';
 import { getMyAchievements, type AchievementWithState } from '../../services/achievements.service';
 import { requestAccountDeletion, updateMyProfile } from '../../services/profiles.service';
-import type { Membership, Profile, ProgramEnrollmentWithDetails } from '../../types/app.types';
+import type { Membership, ProgramEnrollmentWithDetails } from '../../types/app.types';
 
 const avatarColors = ['#C91F37', '#8F1324', '#2563eb', '#7c3aed', '#db2777', '#0f766e'];
 const wordmark = require('../../../assets/images/brand/ucapsa-wordmark.png');
@@ -40,16 +37,6 @@ export default function ProfileScreen() {
   const [achievements, setAchievements] = useState<AchievementWithState[]>([]);
   const [achievementsLoading, setAchievementsLoading] = useState(false);
   const [selectedAchievement, setSelectedAchievement] = useState<AchievementWithState | null>(null);
-  const [adminStats, setAdminStats] = useState({
-    clients: 0,
-    members: 0,
-    activeMemberships: 0,
-    pendingPayments: 0,
-    pendingRequests: 0,
-    expiredMemberships: 0,
-    announcements: 0,
-    events: 0,
-  });
 
   const baseFormat = useMemo(
     () => resolveUcapsaFormat({
@@ -70,29 +57,6 @@ export default function ProfileScreen() {
     setAvatarColor(profile?.avatar_color ?? ucapsaBrand.colors.red);
   }, [profile, user?.email]);
 
-  const loadAdminData = useCallback(async () => {
-    if (!isAdmin) return;
-
-    const [rows, announcements, events, profilesResult] = await Promise.all([
-      getAdminMembershipRows(),
-      getVisibleAnnouncements(),
-      getVisibleEvents(),
-      supabase.from('profiles').select('role'),
-    ]);
-
-    const profiles = (profilesResult.data ?? []) as Pick<Profile, 'role'>[];
-
-    setAdminStats({
-      clients: profiles.filter((item) => item.role === 'client' || item.role === 'member').length,
-      members: profiles.filter((item) => item.role === 'member').length,
-      activeMemberships: rows.filter((row) => row.membership.status === 'active').length,
-      pendingPayments: rows.filter((row) => row.membership.current_payment_status === 'pending').length,
-      pendingRequests: rows.filter((row) => row.membership.status === 'pending').length,
-      expiredMemberships: rows.filter((row) => isMembershipDateExpired(row.membership)).length,
-      announcements: announcements.length,
-      events: events.length,
-    });
-  }, [isAdmin]);
 
   const loadClientMembership = useCallback(async () => {
     if (isAdmin || !user) return;
@@ -125,10 +89,6 @@ export default function ProfileScreen() {
   }, [isAdmin, user]);
 
   useEffect(() => {
-    void loadAdminData();
-  }, [loadAdminData]);
-
-  useEffect(() => {
     void loadClientMembership();
   }, [loadClientMembership]);
 
@@ -138,21 +98,19 @@ export default function ProfileScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (isAdmin) void loadAdminData();
-      else {
+      if (!isAdmin) {
         void loadClientMembership();
         void loadAchievements();
       }
       return undefined;
-    }, [isAdmin, loadAdminData, loadClientMembership, loadAchievements]),
+    }, [isAdmin, loadClientMembership, loadAchievements]),
   );
 
   async function handleRefresh() {
     setRefreshing(true);
     try {
       await refreshProfile();
-      if (isAdmin) await loadAdminData();
-      else {
+      if (!isAdmin) {
         await loadClientMembership();
         await loadAchievements();
       }
@@ -325,14 +283,14 @@ export default function ProfileScreen() {
       {isAdmin ? (
         <View style={styles.adminSettingsHintCard}>
           <View style={styles.adminSettingsHintIcon}>
-            <MaterialIcons name="admin-panel-settings" size={22} color={ucapsaBrand.colors.red} />
+            <MaterialIcons name="person" size={22} color={ucapsaBrand.colors.red} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.quickActionsTitle}>Panel administrativo</Text>
-            <Text style={styles.adminSettingsHintText}>Las estadisticas, notificaciones y ajustes de cuenta ahora viven en el engrane superior para no saturar Perfil.</Text>
+            <Text style={styles.quickActionsTitle}>Cuenta administrativa</Text>
+            <Text style={styles.adminSettingsHintText}>Perfil, datos personales y preferencias de tu cuenta.</Text>
           </View>
           <Pressable style={styles.adminSettingsHintButton} onPress={() => router.push('/account-settings' as never)}>
-            <Text style={styles.adminSettingsHintButtonText}>Abrir</Text>
+            <Text style={styles.adminSettingsHintButtonText}>Ajustes</Text>
           </Pressable>
         </View>
       ) : null}
@@ -340,7 +298,7 @@ export default function ProfileScreen() {
       <SocialLinksRow premium={isPremium} />
 
       <Pressable style={[styles.secondaryButton, isPremium && styles.premiumSecondaryButton]} onPress={() => router.push('/account-settings' as never)}>
-        <Text style={[styles.secondaryButtonText, isPremium && styles.premiumSecondaryButtonText]}>Ajustes, datos y notificaciones</Text>
+        <Text style={[styles.secondaryButtonText, isPremium && styles.premiumSecondaryButtonText]}>Ajustes de cuenta</Text>
       </Pressable>
 
       <AchievementDetailModal item={selectedAchievement} premium={isPremium} onClose={() => setSelectedAchievement(null)} />
@@ -349,7 +307,7 @@ export default function ProfileScreen() {
         <View style={styles.modalBackdrop}>
           <View style={[styles.profileModalCard, isPremium && styles.premiumBodyCard]}>
             <View style={styles.profileModalHeader}>
-              <Text style={[styles.profileModalTitle, isPremium && styles.premiumBodyTitle]}>{isAdmin ? 'Mi perfil administrativo' : 'Mis datos'}</Text>
+              <Text style={[styles.profileModalTitle, isPremium && styles.premiumBodyTitle]}>{isAdmin ? 'Mi perfil' : 'Mis datos'}</Text>
               <Pressable onPress={() => setProfileModalVisible(false)}>
                 <MaterialIcons name="close" size={24} color={isPremium ? '#FFE8B5' : ucapsaBrand.colors.text} />
               </Pressable>

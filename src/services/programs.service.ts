@@ -1,4 +1,4 @@
-﻿import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import type {
   Profile,
   ProgramAttendance,
@@ -8,7 +8,10 @@ import type {
   ProgramLevel,
   ProgramClassCancellation,
   ProgramSchedule,
+  ProgramScheduleVersion,
   UcapsaProgram,
+  AttendanceQrCode,
+  ProgramCode,
 } from '../types/app.types';
 
 export type CreateProgramEnrollmentInput = {
@@ -45,8 +48,37 @@ export type UpdateProgramScheduleInput = {
 export type RegisterProgramAttendanceInput = {
   enrollmentId: string;
   attendanceDate: string;
+  scheduleId?: string | null;
   notes?: string | null;
 };
+
+export type CorrectProgramAttendanceInput = {
+  attendanceId: string;
+  attendanceDate: string;
+  scheduleId: string;
+  notes?: string | null;
+};
+
+export type RegisterAttendanceFromQrResult = {
+  attendance_id: string | null;
+  session_id: string | null;
+  result: 'registered' | 'already_registered' | 'invalid_qr' | 'not_owner' | 'inactive_enrollment' | 'card_dates_missing' | 'card_not_valid' | 'wrong_program' | 'schedule_not_found' | 'wrong_day' | 'wrong_cycle' | 'cancelled' | 'outside_window' | string;
+  message: string;
+};
+
+export function buildOfficialAttendanceQrValue(programCode: ProgramCode, token: string) {
+  return `ucapsa-attendance:${programCode}:${token.trim()}`;
+}
+
+export function parseOfficialAttendanceQrValue(value: string): { programCode: ProgramCode; token: string } | null {
+  const raw = value.trim();
+  const match = /^ucapsa-attendance:(puppy|comandos):(.+)$/i.exec(raw);
+  if (!match) return null;
+  const programCode = match[1].toLowerCase() as ProgramCode;
+  const token = match[2].trim();
+  if (!token) return null;
+  return { programCode, token };
+}
 
 export type CreateProgramClassCancellationInput = {
   scheduleId: string;
@@ -82,6 +114,68 @@ function normalizeProgram(row: unknown): UcapsaProgram {
 
 function normalizeSchedule(row: unknown): ProgramSchedule {
   return row as ProgramSchedule;
+}
+
+function normalizeScheduleVersion(row: unknown): ProgramScheduleVersion {
+  return row as ProgramScheduleVersion;
+}
+
+function localTodayKey() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function isVersionEffectiveOnDate(version: ProgramScheduleVersion, dateKey: string) {
+  if (version.retired_at) return false;
+  if (version.effective_from > dateKey) return false;
+  if (version.effective_to && version.effective_to < dateKey) return false;
+  return true;
+}
+
+function overlayScheduleVersion(schedule: ProgramSchedule, version: ProgramScheduleVersion | null): ProgramSchedule {
+  if (!version) return schedule;
+  return {
+    ...schedule,
+    name: version.name,
+    day_of_week: version.day_of_week,
+    start_time: version.start_time,
+    repeat_type: version.repeat_type,
+    cycle_start_date: version.cycle_start_date,
+    sequence_order: version.sequence_order,
+    is_active: version.is_active,
+    version_id: version.id,
+    effective_from: version.effective_from,
+    effective_to: version.effective_to,
+    change_note: version.change_note,
+  };
+}
+
+function effectiveVersionForDate(versions: ProgramScheduleVersion[], scheduleId: string, dateKey: string) {
+  return versions
+    .filter((version) => version.schedule_id === scheduleId && isVersionEffectiveOnDate(version, dateKey))
+    .sort((a, b) => b.effective_from.localeCompare(a.effective_from) || b.created_at.localeCompare(a.created_at))[0] ?? null;
+}
+
+async function loadScheduleBasesAndVersions(scheduleIds?: string[]): Promise<{ schedules: ProgramSchedule[]; versions: ProgramScheduleVersion[] }> {
+  let scheduleQuery = supabase.from('program_schedules').select('*');
+  let versionQuery = supabase.from('program_schedule_versions').select('*').is('retired_at', null);
+
+  if (scheduleIds && scheduleIds.length > 0) {
+    scheduleQuery = scheduleQuery.in('id', scheduleIds);
+    versionQuery = versionQuery.in('schedule_id', scheduleIds);
+  }
+
+  const [scheduleResult, versionResult] = await Promise.all([scheduleQuery, versionQuery]);
+  if (scheduleResult.error) throw scheduleResult.error;
+  if (versionResult.error) throw versionResult.error;
+
+  return {
+    schedules: (scheduleResult.data ?? []).map(normalizeSchedule),
+    versions: (versionResult.data ?? []).map(normalizeScheduleVersion),
+  };
 }
 
 function normalizeEnrollment(row: unknown): ProgramEnrollment {
@@ -175,6 +269,9 @@ export function getNextProgramScheduleDate(schedule: ProgramSchedule | null | un
   for (let offset = 0; offset <= 370; offset += 1) {
     const candidate = new Date(searchStart);
     candidate.setDate(searchStart.getDate() + offset);
+    const candidateKey = `${candidate.getFullYear()}-${String(candidate.getMonth() + 1).padStart(2, '0')}-${String(candidate.getDate()).padStart(2, '0')}`;
+    if (schedule.effective_from && candidateKey < schedule.effective_from) continue;
+    if (schedule.effective_to && candidateKey > schedule.effective_to) return null;
     if (candidate.getDay() !== schedule.day_of_week) continue;
 
     if (schedule.repeat_type === 'biweekly') {
@@ -213,6 +310,8 @@ function parseDateKeyAsLocalDate(dateKey: string) {
 export function isProgramScheduleActiveOnDate(schedule: ProgramSchedule, dateKey: string) {
   if (!schedule.is_active) return false;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return false;
+  if (schedule.effective_from && dateKey < schedule.effective_from) return false;
+  if (schedule.effective_to && dateKey > schedule.effective_to) return false;
 
   const date = parseDateKeyAsLocalDate(dateKey);
   if (Number.isNaN(date.getTime())) return false;
@@ -245,15 +344,14 @@ async function hydrateEnrollments(enrollments: ProgramEnrollment[]): Promise<Pro
   const userIds = [...new Set(enrollments.map((item) => item.user_id))];
   const enrollmentIds = enrollments.map((item) => item.id);
 
-  const [programsResult, schedulesResult, profilesResult, attendancesResult] = await Promise.all([
+  const [programsResult, scheduleBundle, profilesResult, attendancesResult] = await Promise.all([
     supabase.from('programs').select('*').in('id', programIds),
-    supabase.from('program_schedules').select('*').in('id', scheduleIds),
+    loadScheduleBasesAndVersions(scheduleIds),
     supabase.from('profiles').select('*').in('user_id', userIds),
     supabase.from('program_attendances').select('*').in('enrollment_id', enrollmentIds).order('attendance_date', { ascending: false }),
   ]);
 
   if (programsResult.error) throw programsResult.error;
-  if (schedulesResult.error) throw schedulesResult.error;
   if (profilesResult.error) throw profilesResult.error;
   if (attendancesResult.error) throw attendancesResult.error;
 
@@ -262,8 +360,9 @@ async function hydrateEnrollments(enrollments: ProgramEnrollment[]): Promise<Pro
     return acc;
   }, {});
 
-  const schedules = ((schedulesResult.data ?? []) as ProgramSchedule[]).reduce<Record<string, ProgramSchedule>>((acc, item) => {
-    acc[item.id] = item;
+  const today = localTodayKey();
+  const schedules = scheduleBundle.schedules.reduce<Record<string, ProgramSchedule>>((acc, item) => {
+    acc[item.id] = overlayScheduleVersion(item, effectiveVersionForDate(scheduleBundle.versions, item.id, today));
     return acc;
   }, {});
 
@@ -306,30 +405,103 @@ export async function getPrograms(): Promise<UcapsaProgram[]> {
     .sort((a, b) => (a.code === 'puppy' ? -1 : 1) - (b.code === 'puppy' ? -1 : 1));
 }
 
-export async function getProgramSchedules(): Promise<ProgramSchedule[]> {
-  const { data, error } = await supabase
-    .from('program_schedules')
-    .select('*')
-    .order('sequence_order', { ascending: true })
-    .order('day_of_week', { ascending: true })
-    .order('start_time', { ascending: true });
-
-  if (error) throw error;
-  return (data ?? []).map(normalizeSchedule);
+export async function getProgramSchedules(dateKey = localTodayKey()): Promise<ProgramSchedule[]> {
+  const bundle = await loadScheduleBasesAndVersions();
+  return sortProgramSchedules(
+    bundle.schedules.map((schedule) => overlayScheduleVersion(schedule, effectiveVersionForDate(bundle.versions, schedule.id, dateKey))),
+  );
 }
 
-export async function updateProgramSchedule(scheduleId: string, input: UpdateProgramScheduleInput): Promise<void> {
-  const payload: Record<string, string | number | boolean | null> = { updated_at: new Date().toISOString() };
-  if ('name' in input) payload.name = input.name?.trim() || 'Horario';
-  if ('dayOfWeek' in input) payload.day_of_week = Math.max(0, Math.min(6, Number(input.dayOfWeek ?? 0)));
-  if ('startTime' in input) payload.start_time = input.startTime || '10:00';
-  if ('repeatType' in input) payload.repeat_type = input.repeatType ?? 'weekly';
-  if ('cycleStartDate' in input) payload.cycle_start_date = input.cycleStartDate || null;
-  if ('sequenceOrder' in input) payload.sequence_order = Math.max(1, Number(input.sequenceOrder ?? 1));
-  if ('isActive' in input) payload.is_active = Boolean(input.isActive);
+export async function getProgramScheduleTimeline(): Promise<ProgramSchedule[]> {
+  const bundle = await loadScheduleBasesAndVersions();
+  const bySchedule = new Map(bundle.schedules.map((schedule) => [schedule.id, schedule]));
+  const rows = bundle.versions
+    .filter((version) => !version.retired_at)
+    .map((version) => {
+      const base = bySchedule.get(version.schedule_id);
+      return base ? overlayScheduleVersion(base, version) : null;
+    })
+    .filter(Boolean) as ProgramSchedule[];
 
-  const { error } = await supabase.from('program_schedules').update(payload).eq('id', scheduleId);
+  const versionedIds = new Set(rows.map((schedule) => schedule.id));
+  for (const base of bundle.schedules) {
+    if (!versionedIds.has(base.id)) rows.push(base);
+  }
+
+  return [...rows].sort((a, b) =>
+    a.program_id.localeCompare(b.program_id)
+    || a.sequence_order - b.sequence_order
+    || String(a.effective_from ?? '').localeCompare(String(b.effective_from ?? ''))
+    || a.start_time.localeCompare(b.start_time),
+  );
+}
+
+export function getProgramScheduleFromTimeline(timeline: ProgramSchedule[], scheduleId: string, dateKey: string) {
+  return timeline
+    .filter((schedule) => schedule.id === scheduleId)
+    .filter((schedule) => (!schedule.effective_from || schedule.effective_from <= dateKey) && (!schedule.effective_to || schedule.effective_to >= dateKey))
+    .sort((a, b) => String(b.effective_from ?? '').localeCompare(String(a.effective_from ?? '')))[0] ?? null;
+}
+
+export async function changeProgramScheduleFromDate(
+  scheduleId: string,
+  effectiveFrom: string,
+  input: UpdateProgramScheduleInput & { changeNote?: string | null },
+): Promise<string> {
+  const current = (await getProgramSchedules(effectiveFrom)).find((schedule) => schedule.id === scheduleId);
+  if (!current) throw new Error('Horario no encontrado para esa fecha.');
+
+  const dayOfWeek = 'dayOfWeek' in input ? Math.max(0, Math.min(6, Number(input.dayOfWeek ?? current.day_of_week))) : current.day_of_week;
+  const repeatType = input.repeatType ?? current.repeat_type;
+  const cycleStartDate = repeatType === 'biweekly' ? (input.cycleStartDate || effectiveFrom) : null;
+
+  const { data, error } = await supabase.rpc('admin_change_program_schedule_from_date', {
+    p_schedule_id: scheduleId,
+    p_effective_from: effectiveFrom,
+    p_name: input.name?.trim() || current.name,
+    p_day_of_week: dayOfWeek,
+    p_start_time: input.startTime || String(current.start_time).slice(0, 8),
+    p_repeat_type: repeatType,
+    p_cycle_start_date: cycleStartDate,
+    p_sequence_order: Math.max(1, Number(input.sequenceOrder ?? current.sequence_order)),
+    p_is_active: input.isActive ?? current.is_active,
+    p_change_note: input.changeNote?.trim() || null,
+  });
+
   if (error) throw error;
+  if (!data) throw new Error('Supabase no devolvio la nueva version del horario.');
+  return String(data);
+}
+
+export async function getOfficialAttendanceQrCodes(): Promise<AttendanceQrCode[]> {
+  const { data, error } = await supabase
+    .from('attendance_qr_codes')
+    .select('*')
+    .in('program_code', ['puppy', 'comandos'])
+    .order('program_code', { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []) as AttendanceQrCode[];
+}
+
+export async function registerMyProgramAttendanceFromQr(input: { token: string; enrollmentId: string }): Promise<RegisterAttendanceFromQrResult> {
+  const token = input.token.trim();
+  if (!token) throw new Error('QR de asistencia vacio.');
+
+  const { data, error } = await supabase.rpc('register_program_attendance_from_qr', {
+    p_qr_token: token,
+    p_enrollment_id: input.enrollmentId,
+  });
+
+  if (error) throw error;
+  const first = Array.isArray(data) ? data[0] : data;
+  if (!first) throw new Error('Supabase no devolvio resultado del registro de asistencia.');
+  return first as RegisterAttendanceFromQrResult;
+}
+
+
+export async function updateProgramSchedule(scheduleId: string, input: UpdateProgramScheduleInput): Promise<void> {
+  await changeProgramScheduleFromDate(scheduleId, localTodayKey(), input);
 }
 
 export async function getMyProgramEnrollments(): Promise<ProgramEnrollmentWithDetails[]> {
@@ -413,65 +585,35 @@ export async function updateProgramEnrollment(enrollmentId: string, input: Updat
   if (error) throw error;
 }
 
-async function recalculateEnrollmentProgress(enrollmentId: string): Promise<void> {
-  const enrollmentResult = await supabase.from('program_enrollments').select('*').eq('id', enrollmentId).single();
-  if (enrollmentResult.error) throw enrollmentResult.error;
-  const enrollment = normalizeEnrollment(enrollmentResult.data);
-
-  const [programResult, schedulesResult, countResult, latestResult] = await Promise.all([
-    supabase.from('programs').select('*').eq('id', enrollment.program_id).single(),
-    supabase.from('program_schedules').select('*').eq('program_id', enrollment.program_id).eq('is_active', true),
-    supabase.from('program_attendances').select('id', { count: 'exact', head: true }).eq('enrollment_id', enrollmentId),
-    supabase.from('program_attendances').select('*').eq('enrollment_id', enrollmentId).order('attendance_date', { ascending: false }).limit(1),
-  ]);
-
-  if (programResult.error) throw programResult.error;
-  if (schedulesResult.error) throw schedulesResult.error;
-  if (countResult.error) throw countResult.error;
-  if (latestResult.error) throw latestResult.error;
-
-  const program = normalizeProgram(programResult.data);
-  const schedules = (schedulesResult.data ?? []).map(normalizeSchedule);
-  const nextCount = countResult.count ?? 0;
-  const completed = nextCount >= Math.max(1, program.required_attendances);
-  const nextScheduleId = completed ? enrollment.schedule_id : getRecommendedScheduleId(program.id, schedules, nextCount) || enrollment.schedule_id;
-  const latestAttendance = (latestResult.data?.[0] ? normalizeAttendance(latestResult.data[0]) : null);
-
-  const { error } = await supabase
-    .from('program_enrollments')
-    .update({
-      attendances_count: nextCount,
-      schedule_id: nextScheduleId,
-      status: completed ? 'completed' : 'active',
-      completed_at: completed ? new Date().toISOString() : null,
-      cancelled_at: null,
-      last_attendance_at: latestAttendance?.attendance_date ?? null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', enrollmentId);
-
-  if (error) throw error;
-}
 
 export async function registerProgramAttendance(input: RegisterProgramAttendanceInput): Promise<void> {
-  const markedBy = await getCurrentUserId();
-  const { error } = await supabase
-    .from('program_attendances')
-    .insert({
-      enrollment_id: input.enrollmentId,
-      attendance_date: input.attendanceDate,
-      marked_by: markedBy,
-      notes: input.notes?.trim() || null,
-    });
+  // La asistencia manual de Admin pasa por una RPC de servidor.
+  // Asi se valida una sesion real y el progreso se refresca en Supabase.
+  const { error } = await supabase.rpc('register_program_attendance_admin', {
+    p_enrollment_id: input.enrollmentId,
+    p_attendance_date: input.attendanceDate,
+    p_schedule_id: input.scheduleId ?? null,
+    p_notes: input.notes?.trim() || null,
+  });
 
   if (error) throw error;
-  await recalculateEnrollmentProgress(input.enrollmentId);
 }
 
-export async function deleteProgramAttendance(attendanceId: string, enrollmentId: string): Promise<void> {
+export async function correctProgramAttendance(input: CorrectProgramAttendanceInput): Promise<void> {
+  const { error } = await supabase.rpc('correct_program_attendance_admin', {
+    p_attendance_id: input.attendanceId,
+    p_attendance_date: input.attendanceDate,
+    p_schedule_id: input.scheduleId,
+    p_notes: input.notes?.trim() || null,
+  });
+
+  if (error) throw error;
+}
+
+export async function deleteProgramAttendance(attendanceId: string, _enrollmentId: string): Promise<void> {
+  // El trigger de Supabase refresca el avance despues del DELETE.
   const { error } = await supabase.from('program_attendances').delete().eq('id', attendanceId);
   if (error) throw error;
-  await recalculateEnrollmentProgress(enrollmentId);
 }
 
 export async function setProgramEnrollmentStatus(enrollmentId: string, status: ProgramEnrollmentStatus): Promise<void> {
@@ -479,66 +621,28 @@ export async function setProgramEnrollmentStatus(enrollmentId: string, status: P
 }
 
 
-function addDaysToDateKey(dateKey: string, offsetDays: number) {
-  const base = /^\d{4}-\d{2}-\d{2}$/.test(dateKey) ? new Date(`${dateKey}T12:00:00`) : new Date();
-  if (Number.isNaN(base.getTime())) return new Date().toISOString().slice(0, 10);
-  base.setDate(base.getDate() + offsetDays);
-  return base.toISOString().slice(0, 10);
-}
-
 export async function setProgramEnrollmentAttendanceCount(
   enrollmentId: string,
   targetCount: number,
-  attendanceDate: string,
-  notes?: string | null,
+  _attendanceDate: string,
+  _notes?: string | null,
 ): Promise<void> {
-  const markedBy = await getCurrentUserId();
+  // Compatibilidad defensiva: ya no se fabrican asistencias para alcanzar un contador.
+  // El avance es derivado exclusivamente de program_attendances reales.
   const safeCount = Math.max(0, Math.floor(Number(targetCount) || 0));
-  const safeDate = /^\d{4}-\d{2}-\d{2}$/.test(attendanceDate) ? attendanceDate : new Date().toISOString().slice(0, 10);
-
-  const { data, error } = await supabase
+  const { count, error } = await supabase
     .from('program_attendances')
-    .select('*')
-    .eq('enrollment_id', enrollmentId)
-    .order('attendance_date', { ascending: true });
+    .select('id', { count: 'exact', head: true })
+    .eq('enrollment_id', enrollmentId);
 
   if (error) throw error;
 
-  const existing = (data ?? []).map(normalizeAttendance);
-
-  if (existing.length > safeCount) {
-    const extras = existing.slice(safeCount).map((item) => item.id);
-    if (extras.length > 0) {
-      const deleteResult = await supabase.from('program_attendances').delete().in('id', extras);
-      if (deleteResult.error) throw deleteResult.error;
-    }
+  const currentCount = count ?? 0;
+  if (safeCount !== currentCount) {
+    throw new Error(
+      `El avance ya no se modifica por contador. Hay ${currentCount} asistencia${currentCount === 1 ? '' : 's'} real${currentCount === 1 ? '' : 'es'}. Registra o elimina asistencias desde el historial.`,
+    );
   }
-
-  if (existing.length < safeCount) {
-    const usedDates = new Set(existing.map((item) => item.attendance_date));
-    const rowsToInsert: Array<{ enrollment_id: string; attendance_date: string; marked_by: string | null; notes: string | null }> = [];
-
-    for (let i = existing.length; i < safeCount; i += 1) {
-      let nextDate = addDaysToDateKey(safeDate, -(safeCount - i - 1));
-      while (usedDates.has(nextDate)) {
-        nextDate = addDaysToDateKey(nextDate, -1);
-      }
-      usedDates.add(nextDate);
-      rowsToInsert.push({
-        enrollment_id: enrollmentId,
-        attendance_date: nextDate,
-        marked_by: markedBy,
-        notes: notes?.trim() || 'Ajuste manual de avance.',
-      });
-    }
-
-    if (rowsToInsert.length > 0) {
-      const insertResult = await supabase.from('program_attendances').insert(rowsToInsert);
-      if (insertResult.error) throw insertResult.error;
-    }
-  }
-
-  await recalculateEnrollmentProgress(enrollmentId);
 }
 
 export async function deleteProgramEnrollment(enrollmentId: string): Promise<void> {
@@ -580,7 +684,14 @@ export async function getProgramClassCancellations(includeRestored = false): Pro
 
   const { data, error } = await query;
   if (error) throw error;
-  return (data ?? []).map(normalizeClassCancellation);
+  const items = (data ?? []).map(normalizeClassCancellation);
+  if (items.length === 0) return [];
+
+  const timeline = await getProgramScheduleTimeline();
+  return items.map((item) => ({
+    ...item,
+    schedule: getProgramScheduleFromTimeline(timeline, item.schedule_id, item.cancellation_date) ?? item.schedule ?? null,
+  }));
 }
 
 export async function getProgramClassCancellationByAnnouncementId(announcementId: string): Promise<ProgramClassCancellation | null> {
@@ -614,16 +725,13 @@ export async function createProgramClassCancellation(input: CreateProgramClassCa
   const userId = await getCurrentUserId();
   const reason = input.reason?.trim() || 'Clase cancelada por UCAPSA.';
 
-  const { data: scheduleData, error: scheduleError } = await supabase
-    .from('program_schedules')
-    .select('*, program:programs(*)')
-    .eq('id', input.scheduleId)
-    .single();
-
-  if (scheduleError) throw scheduleError;
-
-  const schedule = normalizeSchedule(scheduleData);
-  const program = (scheduleData as { program?: UcapsaProgram | null }).program ?? null;
+  const [effectiveSchedules, programs] = await Promise.all([
+    getProgramSchedules(input.cancellationDate),
+    getPrograms(),
+  ]);
+  const schedule = effectiveSchedules.find((item) => item.id === input.scheduleId) ?? null;
+  if (!schedule) throw new Error('Horario no encontrado para esa fecha.');
+  const program = programs.find((item) => item.id === schedule.program_id) ?? null;
 
   if (!isProgramScheduleActiveOnDate(schedule, input.cancellationDate)) {
     throw new Error('Este horario no tiene clase programada ese dia.');
@@ -702,14 +810,14 @@ export async function createProgramDayCancellations(input: CreateProgramDayCance
     throw new Error('La fecha debe tener formato AAAA-MM-DD.');
   }
 
-  const { data: scheduleData, error: scheduleError } = await supabase
-    .from('program_schedules')
-    .select('*, program:programs(*)')
-    .in('id', uniqueScheduleIds);
-
-  if (scheduleError) throw scheduleError;
-
-  const rows = (scheduleData ?? []) as Array<ProgramSchedule & { program?: UcapsaProgram | null }>;
+  const [effectiveSchedules, programs] = await Promise.all([
+    getProgramSchedules(input.cancellationDate),
+    getPrograms(),
+  ]);
+  const programById = new Map(programs.map((program) => [program.id, program]));
+  const rows = effectiveSchedules
+    .filter((schedule) => uniqueScheduleIds.includes(schedule.id))
+    .map((schedule) => ({ ...schedule, program: programById.get(schedule.program_id) ?? null }));
   const validRows = rows.filter((schedule) => isProgramScheduleActiveOnDate(schedule, input.cancellationDate));
 
   if (validRows.length === 0) {

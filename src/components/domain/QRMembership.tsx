@@ -1,4 +1,4 @@
-﻿import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import type { Membership, Profile } from '../../types/app.types';
 

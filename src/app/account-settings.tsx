@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import {
   useCallback,
   useEffect,
@@ -23,31 +23,13 @@ import { KeyboardAwareScreen } from "../components/ui/KeyboardAwareScreen";
 import { ucapsaBrand } from "../constants/brand";
 import { resolveUcapsaFormat } from "../constants/ucapsaFormats";
 import { useSession } from "../hooks/useSession";
-import { supabase } from "../lib/supabase";
-import { getVisibleAnnouncements } from "../services/announcements.service";
-import { getVisibleEvents } from "../services/events.service";
-import {
-  getAdminMembershipRows,
-  isMembershipDateExpired,
-} from "../services/memberships.service";
 import {
   requestAccountDeletion,
   updateMyProfile,
 } from "../services/profiles.service";
-import type { Profile } from "../types/app.types";
 
-type SettingsSection = "admin" | "notifications" | "profile" | "delete";
+type SettingsSection = "notifications" | "profile" | "delete";
 
-type AdminStats = {
-  clients: number;
-  members: number;
-  activeMemberships: number;
-  pendingPayments: number;
-  pendingRequests: number;
-  expiredMemberships: number;
-  announcements: number;
-  events: number;
-};
 
 const avatarColors = [
   "#C91F37",
@@ -58,16 +40,6 @@ const avatarColors = [
   "#0f766e",
 ];
 
-const emptyAdminStats: AdminStats = {
-  clients: 0,
-  members: 0,
-  activeMemberships: 0,
-  pendingPayments: 0,
-  pendingRequests: 0,
-  expiredMemberships: 0,
-  announcements: 0,
-  events: 0,
-};
 
 export default function AccountSettingsScreen() {
   const { loading, user, profile, role, isAdmin, signOut, refreshProfile } =
@@ -80,7 +52,6 @@ export default function AccountSettingsScreen() {
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [adminStats, setAdminStats] = useState<AdminStats>(emptyAdminStats);
   const [openSection, setOpenSection] = useState<SettingsSection | null>(null);
   const params = useLocalSearchParams<{ section?: string }>();
 
@@ -101,7 +72,6 @@ export default function AccountSettingsScreen() {
       typeof params.section === "string" ? params.section : undefined;
     if (!section) return;
 
-    if (section === "admin" && isAdmin) setOpenSection("admin");
     if (section === "notifications") setOpenSection("notifications");
     if (section === "profile") setOpenSection("profile");
     if (section === "delete" && !isAdmin) setOpenSection("delete");
@@ -115,53 +85,16 @@ export default function AccountSettingsScreen() {
     setAvatarColor(profile?.avatar_color ?? ucapsaBrand.colors.red);
   }, [profile, user?.email]);
 
-  const loadAdminData = useCallback(async () => {
-    if (!isAdmin) return;
-
-    const [rows, announcements, events, profilesResult] = await Promise.all([
-      getAdminMembershipRows(),
-      getVisibleAnnouncements(),
-      getVisibleEvents(),
-      supabase.from("profiles").select("role"),
-    ]);
-
-    const profiles = (profilesResult.data ?? []) as Pick<Profile, "role">[];
-
-    setAdminStats({
-      clients: profiles.filter(
-        (item) => item.role === "client" || item.role === "member",
-      ).length,
-      members: profiles.filter((item) => item.role === "member").length,
-      activeMemberships: rows.filter(
-        (row) => row.membership.status === "active",
-      ).length,
-      pendingPayments: rows.filter(
-        (row) => row.membership.current_payment_status === "pending",
-      ).length,
-      pendingRequests: rows.filter((row) => row.membership.status === "pending")
-        .length,
-      expiredMemberships: rows.filter((row) =>
-        isMembershipDateExpired(row.membership),
-      ).length,
-      announcements: announcements.length,
-      events: events.length,
-    });
-  }, [isAdmin]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([refreshProfile(), loadAdminData()]);
+      await refreshProfile();
     } finally {
       setRefreshing(false);
     }
-  }, [loadAdminData, refreshProfile]);
+  }, [refreshProfile]);
 
-  useFocusEffect(
-    useCallback(() => {
-      void loadAdminData();
-    }, [loadAdminData]),
-  );
 
   async function handleSaveProfile() {
     setSaving(true);
@@ -276,12 +209,8 @@ export default function AccountSettingsScreen() {
       }
     >
       <Header
-        title={isAdmin ? "Panel y ajustes" : "Ajustes de cuenta"}
-        subtitle={
-          isAdmin
-            ? "Estadisticas, datos y notificaciones sin saturar Perfil."
-            : "Tus datos, notificaciones y solicitud de cuenta."
-        }
+        title="Ajustes de cuenta"
+        subtitle={isAdmin ? "Datos personales y notificaciones de tu cuenta." : "Tus datos, notificaciones y solicitud de cuenta."}
         onBack={() => router.back()}
         premium={isPremium}
       />
@@ -307,82 +236,6 @@ export default function AccountSettingsScreen() {
           </Text>
         </View>
       </View>
-
-      {isAdmin ? (
-        <AccordionSection
-          title="Estadisticas"
-          subtitle="Resumen operativo y accesos rapidos."
-          icon="bar-chart"
-          open={openSection === "admin"}
-          premium={isPremium}
-          onPress={() => toggleSection("admin")}
-        >
-          <View style={styles.statsGrid}>
-            <AdminStat
-              label="Clientes"
-              value={adminStats.clients}
-              icon="account"
-              onPress={() =>
-                router.push("/admin/users?filter=clients_and_members" as never)
-              }
-            />
-            <AdminStat
-              label="Socios"
-              value={adminStats.members}
-              icon="badge-account"
-              onPress={() =>
-                router.push("/admin/users?filter=members" as never)
-              }
-            />
-            <AdminStat
-              label="Membresias activas"
-              value={adminStats.activeMemberships}
-              icon="check-decagram"
-              onPress={() =>
-                router.push("/admin/members?filter=active" as never)
-              }
-            />
-            <AdminStat
-              label="Falta pago"
-              value={adminStats.pendingPayments}
-              icon="cash-remove"
-              onPress={() =>
-                router.push(
-                  "/admin/members?filter=payment_pending_this_month" as never,
-                )
-              }
-            />
-            <AdminStat
-              label="Solicitudes"
-              value={adminStats.pendingRequests}
-              icon="email-outline"
-              onPress={() =>
-                router.push("/admin/members?filter=pending_requests" as never)
-              }
-            />
-            <AdminStat
-              label="Vigencia vencida"
-              value={adminStats.expiredMemberships}
-              icon="calendar-alert"
-              onPress={() =>
-                router.push("/admin/members?filter=expired_by_date" as never)
-              }
-            />
-            <AdminStat
-              label="Anuncios"
-              value={adminStats.announcements}
-              icon="bullhorn"
-              onPress={() => router.push("/admin/announcements" as never)}
-            />
-            <AdminStat
-              label="Eventos"
-              value={adminStats.events}
-              icon="calendar-month"
-              onPress={() => router.push("/admin/events" as never)}
-            />
-          </View>
-        </AccordionSection>
-      ) : null}
 
       <AccordionSection
         title="Notificaciones"
@@ -427,7 +280,7 @@ export default function AccountSettingsScreen() {
                   color: isPremium ? "#fff7dc" : "#241018",
                 }}
               >
-                Enviar notificación manual
+                Enviar notificacion manual
               </Text>
 
               <Text
@@ -830,31 +683,6 @@ function AccordionSection({
   );
 }
 
-function AdminStat({
-  label,
-  value,
-  icon,
-  onPress,
-}: {
-  label: string;
-  value: number;
-  icon: keyof typeof MaterialCommunityIcons.glyphMap;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable style={styles.statCard} onPress={onPress}>
-      <View style={styles.statIconWrap}>
-        <MaterialCommunityIcons
-          name={icon}
-          size={18}
-          color={ucapsaBrand.colors.red}
-        />
-      </View>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </Pressable>
-  );
-}
 
 function ReadonlyRow({
   label,

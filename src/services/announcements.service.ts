@@ -17,8 +17,12 @@ function normalizeAnnouncement(announcement: unknown): Announcement {
   return announcement as Announcement;
 }
 
+function localDateKey(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateKey();
 }
 
 function dateKeyFromValue(value: string | null | undefined) {
@@ -26,7 +30,7 @@ function dateKeyFromValue(value: string | null | undefined) {
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toISOString().slice(0, 10);
+  return localDateKey(date);
 }
 
 function announcementDateKey(announcement: Announcement) {
@@ -86,11 +90,10 @@ export async function getAdminAnnouncements(): Promise<Announcement[]> {
   const { data, error } = await supabase
     .from('announcements')
     .select('*, event:events(*)')
-    .is('archived_at', null)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return sortAnnouncements(filterCurrentAnnouncements((data ?? []).map(normalizeAnnouncement)));
+  return sortAnnouncements((data ?? []).map(normalizeAnnouncement));
 }
 
 export async function createAnnouncement(input: AnnouncementFormInput): Promise<Announcement> {

@@ -173,11 +173,7 @@ Deno.serve(async (req) => {
   if (!isValidDateKey(cancellationDate)) return jsonResponse({ error: 'Fecha de cancelacion invalida.' }, 400);
 
   const [schedulesResult, cancellationsResult, enrollmentsResult, tokenResult] = await Promise.all([
-    serviceClient
-      .from('program_schedules')
-      .select('id,program_id,name,start_time,sequence_order,is_active')
-      .in('id', scheduleIds)
-      .eq('is_active', true),
+    serviceClient.rpc('get_effective_program_schedules', { p_date: cancellationDate }),
     serviceClient
       .from('program_class_cancellations')
       .select('schedule_id,cancellation_date,restored_at')
@@ -200,7 +196,7 @@ Deno.serve(async (req) => {
   if (enrollmentsResult.error) return jsonResponse({ error: enrollmentsResult.error.message }, 500);
   if (tokenResult.error) return jsonResponse({ error: tokenResult.error.message }, 500);
 
-  const schedules = (schedulesResult.data ?? []) as ScheduleRow[];
+  const schedules = ((schedulesResult.data ?? []) as ScheduleRow[]).filter((schedule) => scheduleIds.includes(schedule.id) && schedule.is_active);
   const activeCancelledScheduleIds = new Set((cancellationsResult.data ?? []).map((item) => String(item.schedule_id)));
   const targetSchedules = schedules.filter((schedule) => activeCancelledScheduleIds.has(schedule.id));
 

@@ -1,4 +1,4 @@
-﻿import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -29,7 +29,8 @@ type ScanResult =
   | { type: 'program'; raw: string; token: string; row: ProgramEnrollmentWithDetails };
 
 function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
 function parseQrValue(value: string): { type: 'member' | 'program'; token: string; programCode?: string } | null {
@@ -72,7 +73,7 @@ export default function AdminScannerScreen() {
   const title = useMemo(() => {
     if (mode === 'member') return 'Escanear socio';
     if (mode === 'program') return 'Escanear clase';
-    return 'Escaner UCAPSA';
+    return 'Escanear';
   }, [mode]);
 
   async function resolveQr(value: string) {
@@ -129,7 +130,7 @@ export default function AdminScannerScreen() {
     setIsCameraActive(true);
   }
 
-  async function registerTodayAttendance(force = false) {
+  async function registerTodayAttendance() {
     if (!result || result.type !== 'program') return;
     const row = result.row;
     const today = todayKey();
@@ -140,11 +141,8 @@ export default function AdminScannerScreen() {
     }
 
     const alreadyToday = row.attendances.some((attendance) => attendance.attendance_date === today);
-    if (alreadyToday && !force) {
-      Alert.alert('Asistencia ya registrada', 'Ya existe asistencia de hoy. Quieres registrar otra?', [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Registrar otra', onPress: () => registerTodayAttendance(true) },
-      ]);
+    if (alreadyToday) {
+      Alert.alert('Asistencia ya registrada', 'Esta inscripcion ya tiene una asistencia registrada hoy.');
       return;
     }
 
@@ -153,7 +151,7 @@ export default function AdminScannerScreen() {
       await registerProgramAttendance({
         enrollmentId: row.enrollment.id,
         attendanceDate: today,
-        notes: force ? 'Asistencia adicional registrada por QR.' : 'Asistencia registrada por QR.',
+        notes: 'Asistencia registrada por QR de credencial durante la transicion.',
       });
       const refreshed = await getProgramEnrollmentByQrToken(result.token);
       if (refreshed) setResult({ ...result, row: refreshed });
@@ -171,7 +169,7 @@ export default function AdminScannerScreen() {
         <View style={styles.deniedBox}>
           <MaterialIcons name="lock" size={42} color={ucapsaBrand.colors.redDark} />
           <Text style={styles.title}>Acceso restringido</Text>
-          <Text style={styles.muted}>Solo administradores pueden usar el escaner UCAPSA.</Text>
+          <Text style={styles.muted}>Solo administradores pueden usar el escaner.</Text>
         </View>
       </KeyboardAwareScreen>
     );
@@ -228,7 +226,7 @@ export default function AdminScannerScreen() {
           />
           <View style={styles.scanFrame}>
             <MaterialIcons name="qr-code-scanner" size={54} color="#ffffff" />
-            <Text style={styles.scanText}>Apunta al QR UCAPSA</Text>
+            <Text style={styles.scanText}>Apunta al codigo QR</Text>
           </View>
         </View>
       ) : null}
@@ -268,8 +266,11 @@ export default function AdminScannerScreen() {
             <Detail label="Telefono" value={result.row.profile?.phone || 'Sin telefono'} />
             <Detail label="Vigencia" value={formatDate(result.row.membership.end_date)} />
           </View>
-          <Pressable style={styles.primaryButton} onPress={() => router.push('/admin/members' as never)}>
-            <Text style={styles.primaryButtonText}>Ir a socios</Text>
+          <Pressable style={styles.primaryButton} onPress={() => router.push(`/admin/customer?userId=${encodeURIComponent(result.row.membership.user_id)}` as never)}>
+            <Text style={styles.primaryButtonText}>Ver cliente</Text>
+          </Pressable>
+          <Pressable style={styles.secondaryButtonWide} onPress={() => router.push(`/admin/members?userId=${encodeURIComponent(result.row.membership.user_id)}` as never)}>
+            <Text style={styles.secondaryButtonText}>Membresia</Text>
           </Pressable>
         </View>
       ) : null}
@@ -290,12 +291,15 @@ export default function AdminScannerScreen() {
           <Pressable
             disabled={registering || result.row.enrollment.status !== 'active'}
             style={[styles.primaryButton, result.row.enrollment.status !== 'active' && styles.disabledButton]}
-            onPress={() => registerTodayAttendance(false)}
+            onPress={() => registerTodayAttendance()}
           >
             <Text style={styles.primaryButtonText}>{registering ? 'Registrando...' : 'Registrar asistencia de hoy'}</Text>
           </Pressable>
-          <Pressable style={styles.secondaryButtonWide} onPress={() => router.push(`/admin/classes?scheduleId=${result.row.schedule.id}` as never)}>
-            <Text style={styles.secondaryButtonText}>Ir a Clases UCAPSA</Text>
+          <Pressable style={styles.secondaryButtonWide} onPress={() => router.push(`/admin/customer?userId=${encodeURIComponent(result.row.enrollment.user_id)}` as never)}>
+            <Text style={styles.secondaryButtonText}>Ver cliente</Text>
+          </Pressable>
+          <Pressable style={styles.secondaryButtonWide} onPress={() => router.push(`/admin/classes?userId=${encodeURIComponent(result.row.enrollment.user_id)}` as never)}>
+            <Text style={styles.secondaryButtonText}>Clases</Text>
           </Pressable>
         </View>
       ) : null}

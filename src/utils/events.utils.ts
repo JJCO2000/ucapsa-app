@@ -1,4 +1,4 @@
-﻿import type { EventOccurrence, EventRepeatType, UcapsaEvent } from '../types/app.types';
+import type { EventOccurrence, EventRepeatType, UcapsaEvent } from '../types/app.types';
 
 export function toDateKey(value: string | null | undefined): string | null {
   if (!value) return null;

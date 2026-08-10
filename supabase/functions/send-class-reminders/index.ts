@@ -91,6 +91,17 @@ function dateKeyFromDate(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
+function mexicoDateKey(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Mexico_City',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
+
 function parseDateKey(dateKey: string) {
   const [year, month, day] = dateKey.split('-').map(Number);
   return new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
@@ -208,9 +219,10 @@ Deno.serve(async (req) => {
   const daysAhead = Number.isFinite(Number(payload.days_ahead))
     ? Math.max(0, Math.min(14, Number(payload.days_ahead)))
     : 1;
+  const mexicoToday = parseDateKey(mexicoDateKey());
   const classDateKey = isValidDateKey(payload.target_date)
     ? String(payload.target_date)
-    : dateKeyFromDate(addDays(new Date(), daysAhead));
+    : dateKeyFromDate(addDays(mexicoToday, daysAhead));
   const reminderType = typeof payload.reminder_type === 'string' && payload.reminder_type.trim()
     ? payload.reminder_type.trim().slice(0, 40)
     : 'class_24h';
@@ -218,7 +230,7 @@ Deno.serve(async (req) => {
 
   const [programsResult, schedulesResult, enrollmentsResult, cancellationsResult, tokenResult] = await Promise.all([
     serviceClient.from('programs').select('id,code,name,is_active').eq('is_active', true),
-    serviceClient.from('program_schedules').select('id,program_id,name,day_of_week,start_time,repeat_type,cycle_start_date,sequence_order,is_active').eq('is_active', true),
+    serviceClient.rpc('get_effective_program_schedules', { p_date: classDateKey }),
     serviceClient.from('program_enrollments').select('id,user_id,program_id,schedule_id,dog_name,status').eq('status', 'active'),
     serviceClient.from('program_class_cancellations').select('schedule_id,cancellation_date,restored_at').eq('cancellation_date', classDateKey).is('restored_at', null),
     serviceClient.from('notification_tokens').select('id,user_id,expo_push_token,is_active').eq('is_active', true),

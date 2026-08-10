@@ -1,4 +1,4 @@
-﻿import type { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import {
   type ScrollViewProps,
   type StyleProp,
@@ -14,6 +14,7 @@ type KeyboardAwareScreenProps = {
   contentContainerStyle?: StyleProp<ViewStyle>;
   edges?: Edge[];
   refreshControl?: ScrollViewProps['refreshControl'];
+  backgroundColor?: string;
 };
 
 export function KeyboardAwareScreen({
@@ -23,6 +24,7 @@ export function KeyboardAwareScreen({
   contentContainerStyle,
   edges,
   refreshControl,
+  backgroundColor,
 }: KeyboardAwareScreenProps) {
   return (
     <Screen
@@ -32,6 +34,7 @@ export function KeyboardAwareScreen({
       contentContainerStyle={contentContainerStyle}
       edges={edges}
       refreshControl={refreshControl}
+      backgroundColor={backgroundColor}
     >
       {children}
     </Screen>

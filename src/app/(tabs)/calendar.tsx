@@ -11,7 +11,7 @@ import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import { getVisibleAnnouncements } from '../../services/announcements.service';
 import { getVisibleEvents } from '../../services/events.service';
-import { formatProgramScheduleDetailLabel, formatProgramScheduleName, getProgramClassCancellations, getProgramSchedules, getPrograms } from '../../services/programs.service';
+import { formatProgramScheduleDetailLabel, formatProgramScheduleName, getProgramClassCancellations, getProgramScheduleTimeline, getPrograms, isProgramScheduleActiveOnDate } from '../../services/programs.service';
 import type { Announcement, EventOccurrence, ProgramClassCancellation, ProgramSchedule, UcapsaEvent, UcapsaProgram } from '../../types/app.types';
 import { expandEventOccurrences, formatDateKey, getUpcomingOccurrences, toDateKey, todayKey } from '../../utils/events.utils';
 
@@ -46,19 +46,6 @@ function toLocalDateKey(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function isScheduleActiveOnDate(schedule: ProgramSchedule, date: Date) {
-  if (!schedule.is_active) return false;
-  if (date.getDay() !== schedule.day_of_week) return false;
-
-  if (schedule.repeat_type !== 'biweekly') return true;
-
-  const base = parseLocalDate(schedule.cycle_start_date || todayKey());
-  const diffDays = Math.floor((date.getTime() - base.getTime()) / 86400000);
-  if (diffDays < 0) return false;
-  const diffWeeks = Math.floor(diffDays / 7);
-  return diffWeeks % 2 === 0;
-}
-
 function getCancellationKey(scheduleId: string, dateKey: string) {
   return `${scheduleId}:${dateKey}`;
 }
@@ -83,7 +70,7 @@ function expandClassOccurrences(schedules: ProgramSchedule[], programs: UcapsaPr
     const dateKey = toLocalDateKey(current);
 
     for (const schedule of schedules) {
-      if (!isScheduleActiveOnDate(schedule, current)) continue;
+      if (!isProgramScheduleActiveOnDate(schedule, dateKey)) continue;
       const cancellation = cancellationByKey.get(getCancellationKey(schedule.id, dateKey)) ?? null;
       items.push({
         id: `${schedule.id}-${dateKey}`,
@@ -163,7 +150,7 @@ export default function CalendarScreen() {
     try {
       const [programResult, scheduleResult, cancellationResult] = await Promise.all([
         getPrograms(),
-        getProgramSchedules(),
+        getProgramScheduleTimeline(),
         getProgramClassCancellations(),
       ]);
 
@@ -370,7 +357,7 @@ export default function CalendarScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.classKicker, allSelectedClassesCancelled && styles.classKickerCancelled]}>Clases</Text>
-                    <Text style={[styles.classGroupTitle, allSelectedClassesCancelled && styles.classGroupTitleCancelled]}>Clases UCAPSA</Text>
+                    <Text style={[styles.classGroupTitle, allSelectedClassesCancelled && styles.classGroupTitleCancelled]}>Clases</Text>
                     <Text style={[styles.classGroupText, allSelectedClassesCancelled && styles.classGroupTextCancelled]}>
                       {allSelectedClassesCancelled
                         ? `Dia cancelado - ${selectedClasses.length} clase${selectedClasses.length === 1 ? '' : 's'} cancelada${selectedClasses.length === 1 ? '' : 's'}.`
@@ -400,7 +387,7 @@ export default function CalendarScreen() {
                             styles.classChildCard,
                             { backgroundColor: isCancelled ? '#f1f5f9' : theme.background, borderColor: isCancelled ? '#fca5a5' : theme.border },
                           ]}
-                          onPress={isAdmin ? () => router.push(`/admin/classes?cancellations=1&date=${occurrence.dateKey}` as never) : undefined}
+                          onPress={isAdmin ? () => router.push(`/admin/class-cancellations?date=${occurrence.dateKey}` as never) : undefined}
                         >
                           <View style={[styles.classIconSmall, { backgroundColor: isCancelled ? '#fee2e2' : theme.iconBackground }]}>
                             <MaterialIcons name={isCancelled ? 'event-busy' : 'event-note'} size={18} color={isCancelled ? '#dc2626' : theme.accent} />

@@ -18,7 +18,6 @@ import {
   deleteProgramClassCancellation,
   deleteProgramAttendance,
   deleteProgramEnrollment,
-  setProgramEnrollmentAttendanceCount,
   formatNextProgramClassLabel,
   formatProgramScheduleDetailLabel,
   formatProgramScheduleDisplayLabel,
@@ -32,6 +31,7 @@ import {
   getProgramLevelLabel,
   getProgramClassCancellations,
   getProgramSchedules,
+  getProgramScheduleTimeline,
   getProgramStatusLabel,
   getPrograms,
   getRecommendedScheduleId,
@@ -113,8 +113,12 @@ function profileLabel(profile: Profile | null | undefined) {
   return profile?.full_name?.trim() || profile?.email?.trim() || 'Cliente';
 }
 
+function localDateKey(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateKey();
 }
 
 function formatDate(value: string | null | undefined) {
@@ -129,7 +133,7 @@ function toDateKey(value: string | null | undefined) {
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toISOString().slice(0, 10);
+  return localDateKey(date);
 }
 
 function eventDateKey(event: UcapsaEvent) {
@@ -153,29 +157,6 @@ function formatAttendanceCountLabel(count: number) {
   return `${count} asistencia${count === 1 ? '' : 's'}`;
 }
 
-function getProgressOptions(program: UcapsaProgram | null | undefined, schedules: ProgramSchedule[]) {
-  if (!program) return [{ value: '0', label: 'Inicio - Empieza en Clase 1' }];
-
-  const ordered = sortProgramSchedules(schedules.filter((schedule) => schedule.program_id === program.id && schedule.is_active));
-  const max = Math.max(1, program.required_attendances || ordered.length || 1);
-
-  return Array.from({ length: max }, (_, index) => {
-    if (program.code === 'puppy') {
-      const schedule = ordered[Math.min(index, Math.max(0, ordered.length - 1))] ?? null;
-      const className = schedule ? formatProgramScheduleName(schedule, program) : `Clase ${Math.min(index + 1, max)}`;
-      const action = index === 0 ? 'Empieza en' : 'Siguiente';
-      return { value: String(index), label: `${formatAttendanceCountLabel(index)} - ${action}: ${className}` };
-    }
-
-    if (program.code === 'comandos') {
-      const action = index === 0 ? 'Inicio del nivel' : 'Avance registrado';
-      return { value: String(index), label: `${formatAttendanceCountLabel(index)} - ${action}` };
-    }
-
-    return { value: String(index), label: `${formatAttendanceCountLabel(index)} - Avance registrado` };
-  });
-}
-
 function getScheduleClassOptions(program: UcapsaProgram) {
   if (program.code === 'puppy') {
     return [1, 2, 3, 4].map((classNumber) => ({ value: String(classNumber), label: `Clase ${classNumber}` }));
@@ -194,10 +175,11 @@ function nextScheduleForForm(form: EnrollmentFormState, schedules: ProgramSchedu
 
 export default function AdminClassesScreen() {
   const { isAdmin, role } = useSession();
-  const params = useLocalSearchParams<{ scheduleId?: string; cancellations?: string; date?: string }>();
+  const params = useLocalSearchParams<{ scheduleId?: string; cancellations?: string; date?: string; userId?: string; program?: string; status?: string }>();
   const isSuperAdmin = role === 'super_admin';
   const [programs, setPrograms] = useState<UcapsaProgram[]>([]);
   const [schedules, setSchedules] = useState<ProgramSchedule[]>([]);
+  const [scheduleTimeline, setScheduleTimeline] = useState<ProgramSchedule[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [rows, setRows] = useState<ProgramEnrollmentWithDetails[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<UcapsaEvent[]>([]);
@@ -222,6 +204,7 @@ export default function AdminClassesScreen() {
   const [editForm, setEditForm] = useState<EditFormState>({ programId: '', scheduleId: '', attendancesCount: '0', attendanceAdjustmentDate: todayKey(), dogName: '', physicalCardNumber: '', programLevel: 'base', notes: '' });
   const [attendanceOpen, setAttendanceOpen] = useState(false);
   const [attendanceDate, setAttendanceDate] = useState(todayKey());
+  const [attendanceScheduleId, setAttendanceScheduleId] = useState('');
   const [attendanceNotes, setAttendanceNotes] = useState('');
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -231,9 +214,10 @@ export default function AdminClassesScreen() {
   async function loadData() {
     setLoading(true);
     try {
-      const [programResult, scheduleResult, profileResult, rowResult, cancellationResult, eventResult, announcementResult] = await Promise.all([
+      const [programResult, scheduleResult, timelineResult, profileResult, rowResult, cancellationResult, eventResult, announcementResult] = await Promise.all([
         getPrograms(),
         getProgramSchedules(),
+        getProgramScheduleTimeline(),
         getProgramClientProfiles(),
         getAdminProgramRows(),
         getProgramClassCancellations(),
@@ -242,6 +226,7 @@ export default function AdminClassesScreen() {
       ]);
       setPrograms(programResult);
       setSchedules(scheduleResult);
+      setScheduleTimeline(timelineResult);
       setProfiles(profileResult);
       setRows(rowResult);
       setClassCancellations(cancellationResult);
@@ -253,7 +238,7 @@ export default function AdminClassesScreen() {
         return { ...current, programId: nextProgram?.id ?? '', programLevel: current.programLevel === 'base' && nextProgram?.code === 'comandos' ? 'principiante' : current.programLevel };
       });
     } catch (error) {
-      Alert.alert('No se pudo cargar Clases UCAPSA', error instanceof Error ? error.message : 'Intenta de nuevo.');
+      Alert.alert('No se pudo cargar Clases', error instanceof Error ? error.message : 'Intenta de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -279,6 +264,17 @@ export default function AdminClassesScreen() {
       setCancellationsOpen(true);
     }
   }, [params.cancellations, params.date]);
+
+  useEffect(() => {
+    if (params.program === 'puppy' || params.program === 'comandos') {
+      setProgramFilter(params.program);
+      setFiltersOpen(true);
+    }
+    if (params.status === 'active' || params.status === 'completed' || params.status === 'cancelled' || params.status === 'all') {
+      setStatusFilter(params.status);
+      setFiltersOpen(true);
+    }
+  }, [params.program, params.status]);
 
   useEffect(() => {
     const routeScheduleId = typeof params.scheduleId === 'string' ? params.scheduleId : '';
@@ -335,9 +331,12 @@ export default function AdminClassesScreen() {
       .slice(0, 8);
   }, [clientSearch, profiles]);
 
+  const routeUserId = typeof params.userId === 'string' ? params.userId.trim() : '';
+
   const filteredRows = useMemo(() => {
     const term = normalizeTerm(rowSearch);
     const base = rows.filter((row) => {
+      if (routeUserId && row.enrollment.user_id !== routeUserId) return false;
       if (programFilter !== 'all' && row.program.code !== programFilter) return false;
       if (statusFilter !== 'all' && row.enrollment.status !== statusFilter) return false;
       if (scheduleFilter !== 'all' && row.schedule.id !== scheduleFilter) return false;
@@ -355,7 +354,7 @@ export default function AdminClassesScreen() {
       if (scheduleDiff !== 0) return scheduleDiff;
       return profileLabel(a.profile).localeCompare(profileLabel(b.profile), 'es-MX', { sensitivity: 'base', numeric: true });
     });
-  }, [programFilter, rowSearch, rows, scheduleFilter, statusFilter]);
+  }, [programFilter, routeUserId, rowSearch, rows, scheduleFilter, statusFilter]);
 
   const stats = useMemo(() => {
     const active = rows.filter((row) => row.enrollment.status === 'active');
@@ -416,10 +415,17 @@ export default function AdminClassesScreen() {
       Alert.alert('Falta perro', 'Registra el nombre del perro.');
       return;
     }
+    if (initialAttendanceCount > 0) {
+      Alert.alert(
+        'Registra asistencias reales',
+        'El avance ya no se crea por contador. Guarda la inscripcion con 0 y agrega cada asistencia manualmente desde su historial.',
+      );
+      return;
+    }
 
     try {
       setSaving(true);
-      const createdEnrollment = await createProgramEnrollment({
+      await createProgramEnrollment({
         userId: form.userId,
         programId: form.programId,
         scheduleId: effectiveScheduleId,
@@ -428,14 +434,6 @@ export default function AdminClassesScreen() {
         programLevel: form.programLevel,
         notes: form.notes,
       });
-      if (initialAttendanceCount > 0) {
-        await setProgramEnrollmentAttendanceCount(
-          createdEnrollment.id,
-          initialAttendanceCount,
-          form.attendanceAdjustmentDate || todayKey(),
-          `Ajuste inicial de avance: ${initialAttendanceCount} asistencia${initialAttendanceCount === 1 ? '' : 's'}.`,
-        );
-      }
       setCreateOpen(false);
       setClientSearch('');
       await loadData();
@@ -473,6 +471,13 @@ export default function AdminClassesScreen() {
       Alert.alert('Falta horario', 'Selecciona un horario valido para esta inscripcion.');
       return;
     }
+    if (targetAttendances !== selectedRow.enrollment.attendances_count) {
+      Alert.alert(
+        'Avance protegido',
+        'El avance se calcula con asistencias reales. Para corregirlo, registra o elimina una asistencia desde el historial.',
+      );
+      return;
+    }
 
     try {
       setSaving(true);
@@ -484,14 +489,6 @@ export default function AdminClassesScreen() {
         programLevel: nextProgram.code === 'comandos' ? editForm.programLevel : 'base',
         notes: editForm.notes,
       });
-      if (targetAttendances !== selectedRow.enrollment.attendances_count) {
-        await setProgramEnrollmentAttendanceCount(
-          selectedRow.enrollment.id,
-          targetAttendances,
-          editForm.attendanceAdjustmentDate || todayKey(),
-          `Ajuste manual de avance: ${targetAttendances} asistencia${targetAttendances === 1 ? '' : 's'}.`,
-        );
-      }
       await loadData();
       const refreshedRows = await getAdminProgramRows();
       const refreshedRow = refreshedRows.find((row) => row.enrollment.id === selectedRow.enrollment.id) ?? selectedRow;
@@ -531,14 +528,34 @@ export default function AdminClassesScreen() {
     ]);
   }
 
+  const attendanceSchedules = useMemo(() => {
+    if (!selectedRow) return [] as ProgramSchedule[];
+    const sameProgram = scheduleTimeline
+      .filter((schedule) => schedule.program_id === selectedRow.enrollment.program_id)
+      .map((schedule) => ({ ...schedule, is_active: true }));
+    return getProgramSchedulesForDate(sameProgram, attendanceDate);
+  }, [attendanceDate, scheduleTimeline, selectedRow]);
+
+  useEffect(() => {
+    if (!attendanceOpen) return;
+    if (attendanceSchedules.some((schedule) => schedule.id === attendanceScheduleId)) return;
+    const preferred = attendanceSchedules.find((schedule) => schedule.id === selectedRow?.enrollment.schedule_id) ?? attendanceSchedules[0];
+    setAttendanceScheduleId(preferred?.id ?? '');
+  }, [attendanceOpen, attendanceScheduleId, attendanceSchedules, selectedRow]);
+
   async function handleRegisterAttendance() {
     if (!selectedRow) return;
+    if (!attendanceScheduleId) {
+      Alert.alert('Selecciona una clase', 'La fecha elegida no tiene un horario real disponible para este programa.');
+      return;
+    }
     try {
       setSaving(true);
-      await registerProgramAttendance({ enrollmentId: selectedRow.enrollment.id, attendanceDate, notes: attendanceNotes });
+      await registerProgramAttendance({ enrollmentId: selectedRow.enrollment.id, attendanceDate, scheduleId: attendanceScheduleId, notes: attendanceNotes });
       setAttendanceOpen(false);
       setAttendanceNotes('');
       setAttendanceDate(todayKey());
+      setAttendanceScheduleId('');
       await reloadAndCloseDetail();
       Alert.alert('Asistencia registrada', 'Se actualizo el avance y el siguiente horario.');
     } catch (error) {
@@ -575,7 +592,7 @@ export default function AdminClassesScreen() {
   function askNotifyCancelledClasses(scheduleIds: string[], cancellationDate: string, reason: string) {
     if (scheduleIds.length === 0) return;
 
-    Alert.alert('Notificar cancelacion', '¿Quieres avisar a los inscritos de esta cancelacion?', [
+    Alert.alert('Notificar cancelacion', 'Quieres avisar a los inscritos de esta cancelacion?', [
       { text: 'No', style: 'cancel' },
       {
         text: 'Si, notificar',
@@ -762,7 +779,7 @@ export default function AdminClassesScreen() {
         <View style={styles.deniedBox}>
           <MaterialIcons name="lock" size={42} color={ucapsaBrand.colors.redDark} />
           <Text style={styles.title}>Acceso restringido</Text>
-          <Text style={styles.muted}>Solo administradores pueden gestionar Clases UCAPSA.</Text>
+          <Text style={styles.muted}>Solo administradores pueden gestionar Clases.</Text>
         </View>
       </KeyboardAwareScreen>
     );
@@ -772,8 +789,8 @@ export default function AdminClassesScreen() {
     <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={ucapsaBrand.colors.red} />}>
       <View style={styles.hero}>
         <Text style={styles.kicker}>Admin</Text>
-        <Text style={styles.heroTitle}>Clases UCAPSA</Text>
-        <Text style={styles.subtitle}>Puppy y Comandos por perro, con tarjeta fisica, QR y avance por asistencia.</Text>
+        <Text style={styles.heroTitle}>Clases</Text>
+        <Text style={styles.subtitle}>Puppy y Comandos por perro, con tarjeta fisica, sesiones reales y avance por asistencia.</Text>
       </View>
 
       <View style={styles.statsGrid}>
@@ -788,17 +805,17 @@ export default function AdminClassesScreen() {
           <MaterialIcons name="add" size={20} color="#fff" />
           <Text style={styles.primaryButtonText}>Nueva inscripcion</Text>
         </Pressable>
-        <Pressable style={styles.secondaryButtonInline} onPress={() => { setSelectedBaseScheduleId(''); setSchedulesOpen(true); }}>
+        <Pressable style={styles.secondaryButtonInline} onPress={() => router.push('/admin/class-schedules?status=active' as never)}>
           <MaterialIcons name="schedule" size={19} color={ucapsaBrand.colors.redDark} />
           <Text style={styles.secondaryButtonText}>Editar horarios</Text>
         </Pressable>
-        <Pressable style={styles.secondaryButtonInline} onPress={() => setCancellationsOpen(true)}>
+        <Pressable style={styles.secondaryButtonInline} onPress={() => router.push('/admin/class-cancellations' as never)}>
           <MaterialIcons name="event-busy" size={19} color={ucapsaBrand.colors.redDark} />
           <Text style={styles.secondaryButtonText}>Cancelar clase</Text>
         </Pressable>
-        <Pressable style={styles.secondaryButtonInline} onPress={() => router.push('/admin/scanner?mode=program' as never)}>
-          <MaterialIcons name="qr-code-scanner" size={19} color={ucapsaBrand.colors.redDark} />
-          <Text style={styles.secondaryButtonText}>Escanear QR</Text>
+        <Pressable style={styles.secondaryButtonInline} onPress={() => router.push('/admin/attendance-qr' as never)}>
+          <MaterialIcons name="qr-code" size={19} color={ucapsaBrand.colors.redDark} />
+          <Text style={styles.secondaryButtonText}>QR de asistencia</Text>
         </Pressable>
       </View>
 
@@ -834,6 +851,13 @@ export default function AdminClassesScreen() {
         ) : null}
       </View>
 
+      {routeUserId ? (
+        <View style={styles.customerFilterBanner}>
+          <MaterialIcons name="person" size={18} color={ucapsaBrand.colors.redDark} />
+          <Text style={styles.customerFilterText}>Mostrando las clases del cliente seleccionado.</Text>
+        </View>
+      ) : null}
+
       {loading ? <Text style={styles.muted}>Cargando clases...</Text> : null}
 
       {filteredRows.length === 0 && !loading ? (
@@ -844,10 +868,18 @@ export default function AdminClassesScreen() {
       ) : null}
 
       {filteredRows.map((row) => (
-        <Pressable key={row.enrollment.id} style={styles.rowCard} onPress={() => openEditor(row)}>
+        <Pressable key={row.enrollment.id} style={styles.rowCard} onPress={() => router.push(`/admin/customer-class?userId=${encodeURIComponent(row.enrollment.user_id)}&enrollmentId=${encodeURIComponent(row.enrollment.id)}` as never)}>
           <View style={styles.rowTop}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.rowTitle}>{profileLabel(row.profile)}</Text>
+              <Pressable
+                onPress={(event) => {
+                  event.stopPropagation();
+                  router.push(`/admin/customer?userId=${encodeURIComponent(row.enrollment.user_id)}` as never);
+                }}
+              >
+                <Text style={styles.rowTitle}>{profileLabel(row.profile)}</Text>
+                <Text style={styles.customerLinkHint}>Ver cliente</Text>
+              </Pressable>
               <Text style={styles.rowMeta}>Perro: {row.enrollment.dog_name || row.profile?.dog_name || 'Sin registrar'}</Text>
             </View>
             <Text style={[styles.statusPill, row.enrollment.status !== 'active' && styles.statusPillMuted]}>{getProgramStatusLabel(row.enrollment.status)}</Text>
@@ -887,7 +919,7 @@ export default function AdminClassesScreen() {
         onChange={setEditForm}
         onClose={() => setSelectedRow(null)}
         onSave={handleUpdate}
-        onOpenAttendance={() => { setAttendanceDate(todayKey()); setAttendanceNotes(''); setAttendanceOpen(true); }}
+        onOpenAttendance={() => { setAttendanceDate(todayKey()); setAttendanceScheduleId(selectedRow?.enrollment.schedule_id ?? ''); setAttendanceNotes(''); setAttendanceOpen(true); }}
         onDeleteAttendance={handleDeleteAttendance}
         onStatus={changeStatus}
         onDelete={handleDeleteEnrollment}
@@ -899,11 +931,14 @@ export default function AdminClassesScreen() {
         visible={attendanceOpen}
         date={attendanceDate}
         notes={attendanceNotes}
+        schedules={attendanceSchedules}
+        selectedScheduleId={attendanceScheduleId}
         saving={saving}
         datePickerOpen={datePickerOpen}
         onClose={() => setAttendanceOpen(false)}
         onSave={handleRegisterAttendance}
         onDateChange={setAttendanceDate}
+        onScheduleChange={setAttendanceScheduleId}
         onNotesChange={setAttendanceNotes}
         onOpenDatePicker={() => setDatePickerOpen(true)}
         onCloseDatePicker={() => setDatePickerOpen(false)}
@@ -1032,13 +1067,7 @@ function CreateEnrollmentModal({
       <Text style={styles.hint}>Automatico usa el avance registrado para elegir la siguiente clase. Al inicio de Puppy empieza en Clase 1.</Text>
 
       <Text style={styles.label}>Avance inicial</Text>
-      <SelectList
-        selectedValue={form.initialAttendanceCount}
-        options={getProgressOptions(selectedProgram, schedules)}
-        onSelect={(initialAttendanceCount) => onChange({ ...form, initialAttendanceCount, scheduleId: 'auto' })}
-      />
-      <Text style={styles.label}>Fecha del ultimo avance registrado</Text>
-      <TextInput value={form.attendanceAdjustmentDate} onChangeText={(attendanceAdjustmentDate) => onChange({ ...form, attendanceAdjustmentDate })} placeholder="AAAA-MM-DD" style={styles.input} />
+      <Text style={styles.hint}>Las nuevas inscripciones empiezan en 0. Si el cliente ya tiene asistencias historicas, registralas manualmente con su fecha real desde la ficha de la inscripcion.</Text>
 
       <Text style={styles.label}>Perro</Text>
       <TextInput value={form.dogName} onChangeText={(dogName) => onChange({ ...form, dogName })} placeholder={selectedProfile?.dog_name || 'Nombre del perro'} style={styles.input} />
@@ -1096,7 +1125,6 @@ function EnrollmentDetailModal({
 
   const selectedProgram = programs.find((program) => program.id === editForm.programId) ?? row.program;
   const selectedSchedules = getSchedulesForProgram(schedules, selectedProgram.id);
-  const currentProgressOptions = getProgressOptions(selectedProgram, schedules);
 
   return (
     <KeyboardAwareModal visible={Boolean(row)} onClose={onClose}>
@@ -1128,10 +1156,7 @@ function EnrollmentDetailModal({
         <SelectList selectedValue={editForm.scheduleId} options={[{ value: 'auto', label: 'Automatico por avance' }, ...selectedSchedules.map((schedule) => ({ value: schedule.id, label: formatProgramScheduleDisplayLabel(schedule, selectedProgram) }))]} onSelect={(scheduleId) => onChange({ ...editForm, scheduleId })} />
 
         <Text style={styles.label}>Avance</Text>
-        <SelectList selectedValue={editForm.attendancesCount} options={currentProgressOptions} onSelect={(attendancesCount) => onChange({ ...editForm, attendancesCount, scheduleId: 'auto' })} />
-        <Text style={styles.hint}>Si eliges 2 asistencias, se crean/corrigen automaticamente 2 registros y se calcula la siguiente clase.</Text>
-        <Text style={styles.label}>Fecha del ultimo avance registrado</Text>
-        <TextInput value={editForm.attendanceAdjustmentDate} onChangeText={(attendanceAdjustmentDate) => onChange({ ...editForm, attendanceAdjustmentDate })} placeholder="AAAA-MM-DD" style={styles.input} />
+        <Text style={styles.hint}>{row.enrollment.attendances_count}/{row.program.required_attendances} asistencias reales. Para corregir el avance, registra o elimina asistencias desde el historial de abajo.</Text>
 
         {selectedProgram.code === 'comandos' ? (
           <>
@@ -1210,11 +1235,14 @@ function AttendanceModal({
   visible,
   date,
   notes,
+  schedules,
+  selectedScheduleId,
   saving,
   datePickerOpen,
   onClose,
   onSave,
   onDateChange,
+  onScheduleChange,
   onNotesChange,
   onOpenDatePicker,
   onCloseDatePicker,
@@ -1222,11 +1250,14 @@ function AttendanceModal({
   visible: boolean;
   date: string;
   notes: string;
+  schedules: ProgramSchedule[];
+  selectedScheduleId: string;
   saving: boolean;
   datePickerOpen: boolean;
   onClose: () => void;
   onSave: () => void;
   onDateChange: (value: string) => void;
+  onScheduleChange: (value: string) => void;
   onNotesChange: (value: string) => void;
   onOpenDatePicker: () => void;
   onCloseDatePicker: () => void;
@@ -1250,6 +1281,19 @@ function AttendanceModal({
           />
         </View>
       ) : null}
+      <Text style={styles.label}>Clase / horario real</Text>
+      {schedules.length > 0 ? (
+        <SelectList
+          selectedValue={selectedScheduleId}
+          options={schedules.map((schedule) => ({ value: schedule.id, label: formatProgramScheduleDisplayLabel(schedule) }))}
+          onSelect={onScheduleChange}
+        />
+      ) : (
+        <View style={styles.emptyBox}>
+          <Text style={styles.emptyTitle}>Sin clase programada ese dia</Text>
+          <Text style={styles.muted}>Elige una fecha que corresponda a un horario real del programa.</Text>
+        </View>
+      )}
       <Text style={styles.label}>Nota</Text>
       <TextInput value={notes} onChangeText={onNotesChange} placeholder="Ej. Asistio a clase completa" multiline style={[styles.input, styles.textArea]} />
       <Pressable disabled={saving} style={styles.primaryButton} onPress={onSave}>
@@ -1632,11 +1676,14 @@ const styles = StyleSheet.create({
   filterButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900' },
   dropdownPanel: { gap: 10, paddingTop: 8 },
   muted: { color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 19, fontWeight: '700' },
+  customerFilterBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 16, backgroundColor: ucapsaBrand.colors.redSoft, marginBottom: 10 },
+  customerFilterText: { flex: 1, color: ucapsaBrand.colors.redDark, fontSize: 12, lineHeight: 18, fontWeight: '800' },
   emptyBox: { gap: 6, padding: 18, borderRadius: 22, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900' },
   rowCard: { gap: 7, padding: 14, borderRadius: 20, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginTop: 10 },
   rowTop: { flexDirection: 'row', gap: 10, alignItems: 'center', justifyContent: 'space-between' },
   rowTitle: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900' },
+  customerLinkHint: { color: ucapsaBrand.colors.redDark, fontSize: 11, fontWeight: '900', marginTop: 2 },
   rowMeta: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 18, fontWeight: '700' },
   statusPill: { overflow: 'hidden', borderRadius: 999, backgroundColor: ucapsaBrand.colors.redSoft, color: ucapsaBrand.colors.redDark, paddingHorizontal: 10, paddingVertical: 6, fontSize: 12, fontWeight: '900' },
   statusPillMuted: { backgroundColor: '#F1F5F9', color: '#334155' },

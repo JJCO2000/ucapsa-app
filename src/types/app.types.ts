@@ -150,6 +150,7 @@ export type Payment = {
   id: string;
   user_id: string;
   membership_id?: string | null;
+  obligation_id?: string | null;
   amount: number;
   concept: string;
   status: PaymentStatus;
@@ -160,6 +161,54 @@ export type Payment = {
   period_label?: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type PaymentSettings = {
+  id: number;
+  bank_name: string | null;
+  account_holder: string | null;
+  clabe: string | null;
+  transfer_instructions: string | null;
+  clip_url: string | null;
+  is_active: boolean;
+  updated_at: string;
+  updated_by: string | null;
+};
+
+export type PaymentObligation = {
+  id: string;
+  user_id: string;
+  membership_id: string | null;
+  obligation_type: string;
+  concept: string;
+  period_start: string | null;
+  period_end: string | null;
+  due_date: string;
+  amount: number;
+  currency: string;
+  source: string;
+  cancelled_at: string | null;
+  cancelled_by: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PaymentObligationWithBalance = PaymentObligation & {
+  paid_amount: number;
+  remaining_amount: number;
+  display_status: 'pending' | 'partial' | 'overdue' | 'future' | 'paid';
+};
+
+export type MyPaymentOverview = {
+  obligations: PaymentObligationWithBalance[];
+  payments: Payment[];
+  outstanding_total: number;
+  attention_total: number;
+  future_total: number;
+  overdue_count: number;
+  legacy_membership_pending: boolean;
 };
 
 
@@ -199,6 +248,29 @@ export type ProgramSchedule = {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  version_id?: string | null;
+  effective_from?: string | null;
+  effective_to?: string | null;
+  change_note?: string | null;
+};
+
+export type ProgramScheduleVersion = {
+  id: string;
+  schedule_id: string;
+  effective_from: string;
+  effective_to: string | null;
+  name: string;
+  day_of_week: number;
+  start_time: string;
+  repeat_type: ProgramRepeatType;
+  cycle_start_date: string | null;
+  sequence_order: number;
+  is_active: boolean;
+  change_note: string | null;
+  created_by: string | null;
+  created_at: string;
+  retired_at: string | null;
+  retired_by: string | null;
 };
 
 export type ProgramEnrollment = {
@@ -215,6 +287,10 @@ export type ProgramEnrollment = {
   last_attendance_at: string | null;
   notes: string | null;
   started_at: string | null;
+  card_started_on?: string | null;
+  card_expires_on?: string | null;
+  requirements_met_at?: string | null;
+  dog_id?: string | null;
   completed_at: string | null;
   cancelled_at: string | null;
   created_at: string;
@@ -225,8 +301,35 @@ export type ProgramAttendance = {
   id: string;
   enrollment_id: string;
   attendance_date: string;
+  session_id?: string | null;
+  source?: 'legacy' | 'qr_client' | 'admin_manual' | string;
+  recorded_at?: string | null;
   marked_by: string | null;
   notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AttendanceQrCode = {
+  program_code: ProgramCode;
+  token: string;
+  is_active: boolean;
+  version: number;
+  window_before_minutes: number;
+  window_after_minutes: number;
+  rotated_at: string | null;
+  created_at: string;
+  updated_at: string;
+  updated_by: string | null;
+};
+
+export type ProgramSession = {
+  id: string;
+  schedule_id: string;
+  session_date: string;
+  scheduled_start_time: string;
+  status: 'scheduled' | 'completed' | 'cancelled';
+  created_by: string | null;
   created_at: string;
   updated_at: string;
 };

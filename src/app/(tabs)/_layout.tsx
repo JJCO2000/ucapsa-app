@@ -12,16 +12,19 @@ export default function TabsLayout() {
   const format = resolveUcapsaFormat({ user, role, isAdmin });
   const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 28 : 12);
   const isPremium = format.key === 'member';
-  const tabBackground = isPremium ? '#17060A' : format.surface;
-  const tabBorder = isPremium ? '#5A1824' : format.border;
-  const inactiveTint = isPremium ? '#D7A0A9' : '#B197A0';
+  const tabBackground = isAdmin ? '#FFFFFF' : isPremium ? '#17060A' : format.surface;
+  const tabBorder = isAdmin ? '#F0D4DA' : isPremium ? '#5A1824' : format.border;
+  const inactiveTint = isAdmin ? '#8A6973' : isPremium ? '#D7A0A9' : '#B197A0';
+  const activeTint = isAdmin ? '#C91F37' : format.accent;
+  const isClient = Boolean(user) && !isAdmin;
+  const isGuest = !user && !isAdmin;
 
   return (
     <Tabs
-      initialRouteName="home"
+      initialRouteName={isAdmin ? 'admin-home' : 'home'}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: format.accent,
+        tabBarActiveTintColor: activeTint,
         tabBarInactiveTintColor: inactiveTint,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '800', marginBottom: 0 },
         tabBarIconStyle: { marginTop: 4 },
@@ -33,14 +36,25 @@ export default function TabsLayout() {
           borderTopColor: tabBorder,
           borderTopWidth: 1,
         },
-        sceneStyle: { backgroundColor: format.background },
+        sceneStyle: { backgroundColor: isAdmin ? '#FFF8F8' : format.background },
       }}
     >
-      <Tabs.Screen name="home" options={{ title: 'Inicio', tabBarIcon: ({ color, size }) => <MaterialIcons name="home" size={size} color={color} /> }} />
-      <Tabs.Screen name="announcements" options={{ title: 'Anuncios', tabBarIcon: ({ color, size }) => <MaterialIcons name="campaign" size={size} color={color} /> }} />
-      <Tabs.Screen name="calendar" options={{ title: 'Calendario', tabBarIcon: ({ color, size }) => <MaterialIcons name="event" size={size} color={color} /> }} />
-      <Tabs.Screen name="membership" options={{ title: 'Mi UCAPSA', tabBarIcon: ({ color, size }) => <MaterialIcons name="badge" size={size} color={color} /> }} />
-      <Tabs.Screen name="profile" options={{ title: 'Perfil', tabBarIcon: ({ color, size }) => <MaterialIcons name="person" size={size} color={color} /> }} />
+      <Tabs.Screen name="home" options={{ href: isAdmin ? null : '/home', title: 'Inicio', tabBarIcon: ({ color, size }) => <MaterialIcons name="home" size={size} color={color} /> }} />
+      <Tabs.Screen name="services" options={{ href: isAdmin ? null : '/services', title: 'Servicios', tabBarIcon: ({ color, size }) => <MaterialIcons name="apps" size={size} color={color} /> }} />
+      <Tabs.Screen name="classes" options={{ href: isClient ? '/classes' : null, title: 'Clases', tabBarIcon: ({ color, size }) => <MaterialIcons name="school" size={size} color={color} /> }} />
+      <Tabs.Screen name="payments" options={{ href: isClient ? '/payments' : null, title: 'Pagos', tabBarIcon: ({ color, size }) => <MaterialIcons name="payments" size={size} color={color} /> }} />
+      <Tabs.Screen name="dog" options={{ href: isClient ? '/dog' : null, title: 'Mi perro', tabBarIcon: ({ color, size }) => <MaterialIcons name="pets" size={size} color={color} /> }} />
+
+      <Tabs.Screen name="announcements" options={{ href: isGuest ? '/announcements' : null, title: 'Anuncios', tabBarIcon: ({ color, size }) => <MaterialIcons name="campaign" size={size} color={color} /> }} />
+      <Tabs.Screen name="calendar" options={{ href: isGuest ? '/calendar' : null, title: 'Calendario', tabBarIcon: ({ color, size }) => <MaterialIcons name="event" size={size} color={color} /> }} />
+      <Tabs.Screen name="profile" options={{ href: isGuest ? '/profile' : null, title: 'Perfil', tabBarIcon: ({ color, size }) => <MaterialIcons name="person" size={size} color={color} /> }} />
+      <Tabs.Screen name="membership" options={{ href: null, title: 'Mi UCAPSA', tabBarIcon: ({ color, size }) => <MaterialIcons name="badge" size={size} color={color} /> }} />
+
+      <Tabs.Screen name="admin-home" options={{ href: isAdmin ? '/admin-home' : null, title: 'Inicio', tabBarIcon: ({ color, size }) => <MaterialIcons name="home" size={size} color={color} /> }} />
+      <Tabs.Screen name="admin-clients" options={{ href: isAdmin ? '/admin-clients' : null, title: 'Clientes', tabBarIcon: ({ color, size }) => <MaterialIcons name="person" size={size} color={color} /> }} />
+      <Tabs.Screen name="admin-classes" options={{ href: isAdmin ? '/admin-classes' : null, title: 'Clases', tabBarIcon: ({ color, size }) => <MaterialIcons name="school" size={size} color={color} /> }} />
+      <Tabs.Screen name="admin-payments" options={{ href: isAdmin ? '/admin-payments' : null, title: 'Pagos', tabBarIcon: ({ color, size }) => <MaterialIcons name="payments" size={size} color={color} /> }} />
+      <Tabs.Screen name="admin-more" options={{ href: isAdmin ? '/admin-more' : null, title: 'Mas', tabBarIcon: ({ color, size }) => <MaterialIcons name="settings" size={size} color={color} /> }} />
     </Tabs>
   );
 }

@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -21,9 +21,9 @@ import type { AppRole, Profile } from '../../types/app.types';
 type UserFilter = 'clients_and_members' | 'clients' | 'members' | 'admins';
 
 const filterOptions: Array<{ value: UserFilter; label: string; helper: string }> = [
-  { value: 'clients_and_members', label: 'Clientes + socios', helper: 'Todos los usuarios operativos' },
+  { value: 'clients_and_members', label: 'Todos', helper: 'Clientes y socios' },
   { value: 'clients', label: 'Clientes', helper: 'Sin rol de socio' },
-  { value: 'members', label: 'Socios', helper: 'Usuarios con rol member' },
+  { value: 'members', label: 'Socios', helper: 'Con membresia' },
   { value: 'admins', label: 'Admins', helper: 'Administracion' },
 ];
 
@@ -42,20 +42,22 @@ function matchesFilter(profile: Profile, filter: UserFilter) {
 }
 
 function getFilterLabel(filter: UserFilter) {
-  return filterOptions.find((item) => item.value === filter)?.label ?? 'Clientes + socios';
+  return filterOptions.find((item) => item.value === filter)?.label ?? 'Todos';
 }
 
 export default function AdminUsersScreen() {
   const { loading: sessionLoading, user, role, isAdmin } = useSession();
   const adminFormat = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin: true }), [user, role]);
-  const params = useLocalSearchParams<{ filter?: string }>();
+  const params = useLocalSearchParams<{ filter?: string; userId?: string }>();
+  const adminsOnly = params.filter === 'admins';
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [filter, setFilter] = useState<UserFilter>('clients_and_members');
+  const [filter, setFilter] = useState<UserFilter>(params.filter === 'admins' ? 'admins' : 'clients_and_members');
   const [loading, setLoading] = useState(true);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
   const [selectedAchievements, setSelectedAchievements] = useState<AchievementWithState[]>([]);
   const [loadingAchievements, setLoadingAchievements] = useState(false);
+  const handledRouteUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (typeof params.filter === 'string' && filterOptions.some((item) => item.value === params.filter)) {
@@ -110,7 +112,11 @@ export default function AdminUsersScreen() {
 
   function openUserDetail(profile: Profile) {
     setSelectedProfile(profile);
-    void loadAchievementsForProfile(profile.user_id);
+    if (profile.role === 'client' || profile.role === 'member') {
+      void loadAchievementsForProfile(profile.user_id);
+    } else {
+      setSelectedAchievements([]);
+    }
   }
 
   function handleToggleAchievement(profile: Profile, item: AchievementWithState) {
@@ -209,6 +215,15 @@ export default function AdminUsersScreen() {
     [profiles, filter],
   );
 
+  useEffect(() => {
+    const routeUserId = typeof params.userId === 'string' ? params.userId.trim() : '';
+    if (!routeUserId || profiles.length === 0 || handledRouteUserIdRef.current === routeUserId) return;
+    const profile = profiles.find((item) => item.user_id === routeUserId);
+    if (!profile) return;
+    handledRouteUserIdRef.current = routeUserId;
+    openUserDetail(profile);
+  }, [params.userId, profiles]);
+
   const counts = useMemo(() => ({
     clientsAndMembers: profiles.filter((profile) => profile.role === 'client' || profile.role === 'member').length,
     clients: profiles.filter((profile) => profile.role === 'client').length,
@@ -265,51 +280,65 @@ export default function AdminUsersScreen() {
           <View style={styles.iconBubble}>
             <MaterialCommunityIcons name="account-group" size={24} color={ucapsaBrand.colors.red} />
           </View>
-          <Pressable style={styles.backButton} onPress={() => router.push('/profile' as never)}>
-            <Text style={styles.backButtonText}>Perfil</Text>
+          <Pressable style={styles.backButton} onPress={() => router.push('/admin-more' as never)}>
+            <Text style={styles.backButtonText}>Mas</Text>
           </Pressable>
         </View>
-        <Text style={styles.eyebrow}>Panel administrativo</Text>
-        <Text style={styles.title}>Usuarios</Text>
-        <Text style={styles.subtitle}>{getFilterLabel(filter)} - {filteredProfiles.length} registros</Text>
+        <Text style={styles.eyebrow}>Administracion</Text>
+        <Text style={styles.title}>{filter === 'admins' ? 'Administradores' : 'Clientes'}</Text>
+        <Text style={styles.subtitle}>{adminsOnly ? `${filteredProfiles.length} cuentas administrativas` : `${getFilterLabel(filter)} - ${filteredProfiles.length} registros`}</Text>
       </View>
 
-      <View style={styles.summaryGrid}>
-        <Summary label="Clientes + socios" value={counts.clientsAndMembers} />
-        <Summary label="Clientes" value={counts.clients} />
-        <Summary label="Socios" value={counts.members} />
-        <Summary label="Admins" value={counts.admins} />
-      </View>
+      {!adminsOnly ? (
+        <>
+          <View style={styles.summaryGrid}>
+            <Summary label="Todos" value={counts.clientsAndMembers} />
+            <Summary label="Clientes" value={counts.clients} />
+            <Summary label="Socios" value={counts.members} />
+            <Summary label="Admins" value={counts.admins} />
+          </View>
 
-      <View style={styles.filterGrid}>
-        {filterOptions.map((option) => {
-          const active = filter === option.value;
-          return (
-            <Pressable key={option.value} style={[styles.filterChip, active && styles.filterChipActive]} onPress={() => setFilter(option.value)}>
-              <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>{option.label}</Text>
-              <Text style={[styles.filterChipHelper, active && styles.filterChipTextActive]}>{option.helper}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+          <View style={styles.filterGrid}>
+            {filterOptions.map((option) => {
+              const active = filter === option.value;
+              return (
+                <Pressable key={option.value} style={[styles.filterChip, active && styles.filterChipActive]} onPress={() => setFilter(option.value)}>
+                  <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>{option.label}</Text>
+                  <Text style={[styles.filterChipHelper, active && styles.filterChipTextActive]}>{option.helper}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </>
+      ) : null}
 
       {loading ? (
         <View style={styles.loadingBox}>
           <ActivityIndicator color={ucapsaBrand.colors.red} />
-          <Text style={styles.muted}>Cargando usuarios...</Text>
+          <Text style={styles.muted}>Cargando...</Text>
         </View>
       ) : null}
 
       {!loading && filteredProfiles.length === 0 ? (
         <View style={styles.emptyBox}>
-          <Text style={styles.emptyTitle}>Sin usuarios</Text>
+          <Text style={styles.emptyTitle}>Sin resultados</Text>
           <Text style={styles.muted}>Cambia el filtro para revisar otro grupo.</Text>
         </View>
       ) : null}
 
       <View style={styles.listCard}>
         {filteredProfiles.map((item) => (
-          <Pressable key={item.id} style={styles.userRow} onPress={() => openUserDetail(item)}>
+          <Pressable
+            key={item.id}
+            style={styles.userRow}
+            onPress={() => {
+              if (item.role === 'client' || item.role === 'member') {
+                router.push(`/admin/customer?userId=${encodeURIComponent(item.user_id)}` as never);
+                return;
+              }
+              openUserDetail(item);
+            }}
+          >
             <View style={[styles.avatar, { backgroundColor: item.avatar_color || ucapsaBrand.colors.red }]}> 
               <Text style={styles.avatarText}>{(item.full_name || item.email || 'U').slice(0, 1).toUpperCase()}</Text>
             </View>
@@ -368,51 +397,67 @@ function UserDetailModal({ profile, saving, onClose, onForceMember, onBackToClie
             <Detail label="Nombre" value={profile.full_name} />
             <Detail label="Correo" value={profile.email} />
             <Detail label="Telefono" value={profile.phone} />
-            <Detail label="Perro" value={profile.dog_name} />
+            {profile.role === 'client' || profile.role === 'member' ? <Detail label="Perro" value={profile.dog_name} /> : null}
             <Detail label="Rol" value={getRoleLabel(profile.role)} />
             <Detail label="Solicitud eliminacion" value={profile.deletion_requested_at ? 'Si' : 'No'} />
           </View>
 
-          <View style={styles.dogEditBox}>
-            <Text style={styles.detailLabel}>Editar perro</Text>
-            <TextInput
-              value={dogNameDraft}
-              onChangeText={setDogNameDraft}
-              placeholder="Nombre del perro"
-              style={styles.dogInput}
-            />
-            <Pressable disabled={saving} style={styles.dogSaveButton} onPress={() => onSaveDogName(profile, dogNameDraft)}>
-              <Text style={styles.dogSaveButtonText}>{saving ? 'Guardando...' : 'Guardar perro'}</Text>
-            </Pressable>
-          </View>
-
-
-          <View style={styles.achievementsAdminBox}>
-            <View style={styles.achievementsHeaderRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.detailLabel}>Logros del cliente</Text>
-                <Text style={styles.achievementsAdminHint}>Marca manualmente programas ya completados. Tambien se otorgan solos al completar Puppy o Comandos.</Text>
-              </View>
-              {loadingAchievements ? <ActivityIndicator color={ucapsaBrand.colors.red} /> : null}
-            </View>
-
-            <View style={styles.achievementAdminGrid}>
-              {achievements.map((item) => (
-                <Pressable
-                  key={item.definition.code}
-                  disabled={saving || loadingAchievements}
-                  style={[styles.achievementAdminChip, item.unlocked && styles.achievementAdminChipActive]}
-                  onPress={() => onToggleAchievement(profile, item)}
-                >
-                  <MaterialCommunityIcons name={item.definition.icon as never} size={22} color={item.unlocked ? '#7A1020' : ucapsaBrand.colors.muted} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.achievementAdminTitle, item.unlocked && styles.achievementAdminTitleActive]}>{item.definition.title}</Text>
-                    <Text style={[styles.achievementAdminStatus, item.unlocked && styles.achievementAdminStatusActive]}>{item.unlocked ? 'Completado' : 'Marcar completado'}</Text>
-                  </View>
+          {profile.role === 'client' || profile.role === 'member' ? (
+            <>
+              <View style={styles.dogEditBox}>
+                <Text style={styles.detailLabel}>Editar perro</Text>
+                <TextInput
+                  value={dogNameDraft}
+                  onChangeText={setDogNameDraft}
+                  placeholder="Nombre del perro"
+                  style={styles.dogInput}
+                />
+                <Pressable disabled={saving} style={styles.dogSaveButton} onPress={() => onSaveDogName(profile, dogNameDraft)}>
+                  <Text style={styles.dogSaveButtonText}>{saving ? 'Guardando...' : 'Guardar perro'}</Text>
                 </Pressable>
-              ))}
-            </View>
-          </View>
+              </View>
+
+
+              <View style={styles.achievementsAdminBox}>
+                <View style={styles.achievementsHeaderRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.detailLabel}>Logros del cliente</Text>
+                    <Text style={styles.achievementsAdminHint}>Marca manualmente programas ya completados. Tambien se otorgan solos al completar Puppy o Comandos.</Text>
+                  </View>
+                  {loadingAchievements ? <ActivityIndicator color={ucapsaBrand.colors.red} /> : null}
+                </View>
+
+                <View style={styles.achievementAdminGrid}>
+                  {achievements.map((item) => (
+                    <Pressable
+                      key={item.definition.code}
+                      disabled={saving || loadingAchievements}
+                      style={[styles.achievementAdminChip, item.unlocked && styles.achievementAdminChipActive]}
+                      onPress={() => onToggleAchievement(profile, item)}
+                    >
+                      <MaterialCommunityIcons name={item.definition.icon as never} size={22} color={item.unlocked ? '#7A1020' : ucapsaBrand.colors.muted} />
+                      <View style={{ flex: 1 }}>
+                            <Text style={[styles.achievementAdminTitle, item.unlocked && styles.achievementAdminTitleActive]}>{item.definition.title}</Text>
+                            <Text style={[styles.achievementAdminStatus, item.unlocked && styles.achievementAdminStatusActive]}>{item.unlocked ? 'Completado' : 'Marcar completado'}</Text>
+                      </View>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            </>
+          ) : null}
+
+          {profile.role === 'client' || profile.role === 'member' ? (
+            <Pressable
+              style={styles.primaryButton}
+              onPress={() => {
+                onClose();
+                router.push(`/admin/customer?userId=${encodeURIComponent(profile.user_id)}` as never);
+              }}
+            >
+              <Text style={styles.primaryButtonText}>Ver cliente</Text>
+            </Pressable>
+          ) : null}
 
           {profile.role === 'member' ? (
             <Pressable style={styles.primaryButton} onPress={() => router.push('/membership?view=table&filter=all' as never)}>

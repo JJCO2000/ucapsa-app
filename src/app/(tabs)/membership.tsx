@@ -807,7 +807,7 @@ export default function MembershipScreen() {
               <Text style={styles.switchButtonText}>{perspective === 'stats' ? 'Ver tabla' : 'Ver estadisticas'}</Text>
             </Pressable>
           </View>
-          <Text style={styles.eyebrow}>Mi UCAPSA Admin</Text>
+          <Text style={styles.eyebrow}>Membresias</Text>
           <Text style={styles.title}>Socios y membresias</Text>
         </View>
 
@@ -1038,6 +1038,11 @@ export default function MembershipScreen() {
       {activeProgramEnrollments.length > 0 ? (
         <>
           <Text style={[styles.clientSectionTitle, { color: isPremium ? '#FFE8B5' : ucapsaBrand.colors.text }]}>Clases activas</Text>
+          <Link href={'/attendance' as never} asChild>
+            <Pressable style={[styles.primaryButton, isPremium && styles.premiumPrimaryButton]}>
+              <Text style={[styles.primaryButtonText, isPremium && styles.premiumPrimaryButtonText]}>Registrar asistencia con QR</Text>
+            </Pressable>
+          </Link>
           {activeProgramEnrollments.map((item) => (
             <ProgramCredentialCard key={item.enrollment.id} item={item} />
           ))}

@@ -3,10 +3,8 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { UcapsaRoleCard, UcapsaRoleHero } from '../../components/layout/UcapsaRoleLayout';
-import { AppButton } from '../../components/ui/AppButton';
-import { Screen } from '../../components/ui/Screen';
-import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
+import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
+import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import {
   deleteAdminNotificationCampaign,
@@ -17,25 +15,22 @@ import {
 } from '../../services/admin-notifications.service';
 import type { AudienceType } from '../../types/app.types';
 
-type SelectOption<T extends string> = {
-  value: T;
-  label: string;
-  description: string;
-  icon: keyof typeof MaterialIcons.glyphMap;
-};
+type ViewMode = 'send' | 'history';
 
-const audienceOptions: SelectOption<AudienceType>[] = [
-  { value: 'public', label: 'Todos', description: 'Clientes, socios y admins con notificaciones activas.', icon: 'public' },
-  { value: 'clients', label: 'Clientes', description: 'Clientes y socios. Util para avisos generales de escuela.', icon: 'groups' },
-  { value: 'members', label: 'Socios', description: 'Solo usuarios con rol de socio.', icon: 'badge' },
-  { value: 'admins', label: 'Admins', description: 'Solo equipo administrativo.', icon: 'admin-panel-settings' },
+type Option<T extends string> = { value: T; label: string; description: string };
+
+const audienceOptions: Option<AudienceType>[] = [
+  { value: 'public', label: 'Todos', description: 'Todos los usuarios con notificaciones activas.' },
+  { value: 'clients', label: 'Clientes', description: 'Clientes y socios.' },
+  { value: 'members', label: 'Socios', description: 'Solo socios.' },
+  { value: 'admins', label: 'Admins', description: 'Solo equipo administrativo.' },
 ];
 
-const categoryOptions: SelectOption<AdminNotificationCategory>[] = [
-  { value: 'announcements_events', label: 'Anuncios y eventos', description: 'Avisos oficiales, calendario y comunicados.', icon: 'campaign' },
-  { value: 'classes', label: 'Clases', description: 'Puppy, Comandos y cambios operativos.', icon: 'school' },
-  { value: 'membership', label: 'Membresia', description: 'Pagos, vigencia y estado de socio.', icon: 'verified-user' },
-  { value: 'achievements', label: 'Logros', description: 'Medallas y avances del alumno/perro.', icon: 'emoji-events' },
+const categoryOptions: Option<AdminNotificationCategory>[] = [
+  { value: 'announcements_events', label: 'Anuncios', description: 'Avisos, eventos y comunicados.' },
+  { value: 'classes', label: 'Clases', description: 'Puppy, Comandos y cambios operativos.' },
+  { value: 'membership', label: 'Membresia', description: 'Pagos, vigencia y estado.' },
+  { value: 'achievements', label: 'Logros', description: 'Avances y reconocimientos.' },
 ];
 
 const statusLabels: Record<NotificationCampaign['status'], string> = {
@@ -47,7 +42,7 @@ const statusLabels: Record<NotificationCampaign['status'], string> = {
   no_targets: 'Sin destinatarios',
 };
 
-function formatDate(value: string | null) {
+function formatDate(value: string | null | undefined) {
   if (!value) return 'Sin fecha';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'Sin fecha';
@@ -55,327 +50,202 @@ function formatDate(value: string | null) {
 }
 
 export default function AdminNotificationsScreen() {
-  const { loading, user, role, isAdmin } = useSession();
-  const format = resolveUcapsaFormat({ user, role, isAdmin: true });
+  const { loading, user, isAdmin } = useSession();
+  const [mode, setMode] = useState<ViewMode>('send');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [audience, setAudience] = useState<AudienceType>('clients');
   const [category, setCategory] = useState<AdminNotificationCategory>('announcements_events');
   const [campaigns, setCampaigns] = useState<NotificationCampaign[]>([]);
+  const [visibleCount, setVisibleCount] = useState(8);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [sending, setSending] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const selectedAudience = useMemo(() => audienceOptions.find((item) => item.value === audience) ?? audienceOptions[0], [audience]);
   const selectedCategory = useMemo(() => categoryOptions.find((item) => item.value === category) ?? categoryOptions[0], [category]);
-  const canSend = title.trim().length > 0 && body.trim().length > 0 && !sending;
 
-  async function loadHistory() {
+  const loadHistory = useCallback(async () => {
     if (!isAdmin) return;
     setLoadingHistory(true);
     try {
-      const nextCampaigns = await getAdminNotificationCampaigns(3);
-      setCampaigns(nextCampaigns);
-    } catch (error) {
-      Alert.alert('Error', error instanceof Error ? error.message : 'No se pudo cargar el historial.');
+      setCampaigns(await getAdminNotificationCampaigns(30));
+    } catch (cause) {
+      Alert.alert('No se pudo cargar historial', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     } finally {
       setLoadingHistory(false);
     }
-  }
+  }, [isAdmin]);
 
-  useFocusEffect(
-    useCallback(() => {
-      void loadHistory();
-      return undefined;
-    }, [isAdmin]),
-  );
+  useFocusEffect(useCallback(() => { void loadHistory(); return undefined; }, [loadHistory]));
 
-  function resetForm() {
-    setTitle('');
-    setBody('');
-    setAudience('clients');
-    setCategory('announcements_events');
-  }
-
-  function handleSendPress() {
+  function askSend() {
     if (!title.trim() || !body.trim()) {
-      Alert.alert('Faltan datos', 'Agrega título y mensaje antes de enviar.');
+      Alert.alert('Faltan datos', 'Agrega titulo y mensaje.');
       return;
     }
-
     Alert.alert(
-      'Enviar notificación',
-      `Se enviara a: ${selectedAudience.label}\nCategoría: ${selectedCategory.label}\n\nTitulo:\n${title.trim()}\n\nMensaje:\n${body.trim()}`,
+      'Enviar notificacion',
+      `Audiencia: ${selectedAudience.label}\nCategoria: ${selectedCategory.label}\n\n${title.trim()}\n\n${body.trim()}`,
       [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Enviar', style: 'destructive', onPress: () => void handleSendConfirmed() },
+        { text: 'Volver', style: 'cancel' },
+        { text: 'Enviar', style: 'destructive', onPress: () => void send() },
       ],
     );
   }
 
-  async function handleSendConfirmed() {
-    setSending(true);
+  async function send() {
     try {
-      const result = await sendAdminNotification({
-        title,
-        body,
-        audience,
-        category,
-      });
-
+      setSending(true);
+      const result = await sendAdminNotification({ title, body, audience, category });
       await loadHistory();
-
       if (result.status === 'no_targets') {
-        Alert.alert('Sin destinatarios', result.message ?? 'No hay dispositivos activos para esa audiencia/categoría.');
+        Alert.alert('Sin destinatarios', result.message ?? 'No hay dispositivos activos para esa audiencia.');
         return;
       }
-
-      Alert.alert(
-        'Envio registrado',
-        `Destinatarios: ${result.total_targets}\nEnviadas: ${result.success_count}\nFallidas: ${result.failure_count}`,
-      );
-      resetForm();
-    } catch (error) {
-      Alert.alert('No se pudo enviar', error instanceof Error ? error.message : 'Error desconocido.');
+      Alert.alert('Envio registrado', `Destinatarios: ${result.total_targets}\nEnviadas: ${result.success_count}\nFallidas: ${result.failure_count}`);
+      setTitle('');
+      setBody('');
+      setMode('history');
+    } catch (cause) {
+      Alert.alert('No se pudo enviar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     } finally {
       setSending(false);
     }
   }
 
-  function handleDeleteCampaignPress(campaign: NotificationCampaign) {
-    Alert.alert(
-      'Eliminar del historial',
-      `Se ocultará esta notificación del historial administrativo:\n\n${campaign.title}`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Eliminar', style: 'destructive', onPress: () => void handleDeleteCampaignConfirmed(campaign.id) },
-      ],
-    );
+  function askDelete(campaign: NotificationCampaign) {
+    Alert.alert('Quitar del historial', campaign.title, [
+      { text: 'Volver', style: 'cancel' },
+      {
+        text: 'Quitar',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            setDeletingId(campaign.id);
+            await deleteAdminNotificationCampaign(campaign.id);
+            setCampaigns((current) => current.filter((item) => item.id !== campaign.id));
+          } catch (cause) {
+            Alert.alert('No se pudo quitar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+          } finally {
+            setDeletingId(null);
+          }
+        },
+      },
+    ]);
   }
 
-  async function handleDeleteCampaignConfirmed(campaignId: string) {
-    setDeletingId(campaignId);
-    try {
-      await deleteAdminNotificationCampaign(campaignId);
-      setCampaigns((current) => current.filter((campaign) => campaign.id !== campaignId));
-    } catch (error) {
-      Alert.alert('No se pudo eliminar', error instanceof Error ? error.message : 'Error desconocido.');
-    } finally {
-      setDeletingId(null);
-    }
-  }
-
-  if (loading) {
-    return (
-      <Screen backgroundColor={format.background}>
-        <Denied title="Revisando acceso" text="Cargando sesión administrativa..." icon="notifications-none" format={format} />
-      </Screen>
-    );
-  }
-
-  if (!user || !isAdmin) {
-    return (
-      <Screen backgroundColor={format.background}>
-        <Denied
-          title="Acceso restringido"
-          text="Solo administradores pueden enviar notificaciones."
-          icon="lock"
-          format={format}
-          actionLabel="Volver"
-          onAction={() => router.back()}
-        />
-      </Screen>
-    );
-  }
+  if (loading) return <KeyboardAwareScreen><Text style={styles.muted}>Revisando acceso...</Text></KeyboardAwareScreen>;
+  if (!user || !isAdmin) return <KeyboardAwareScreen><Text style={styles.title}>Acceso restringido</Text><Pressable style={styles.backButton} onPress={() => router.back()}><Text style={styles.backText}>Volver</Text></Pressable></KeyboardAwareScreen>;
 
   return (
-    <Screen
-      backgroundColor={format.background}
-      keyboardAware
-      refreshControl={<RefreshControl refreshing={loadingHistory} onRefresh={() => void loadHistory()} />}
-    >
-      <UcapsaRoleHero
-        format={format}
-        eyebrow="UCAPSA Admin"
-        title="Notificaciones"
-        subtitle="Envía avisos manuales solo a usuarios que activaron notificaciones."
-        icon="notifications-none"
-      />
-
-      <UcapsaRoleCard
-        format={format}
-        title="Control antes de automatizar"
-        subtitle="3.3 es envío manual. Recordatorios de clases y cancelaciones automaticas van en fases posteriores."
-        icon="verified"
-      />
-
-      <View style={[styles.card, { backgroundColor: format.surface, borderColor: format.border }]}> 
-        <Text style={[styles.sectionTitle, { color: format.text }]}>Nuevo envío</Text>
-        <Text style={[styles.sectionSubtitle, { color: format.muted }]}>Mantén el mensaje corto. Si notificas demasiado, la gente apaga permisos.</Text>
-
-        <Text style={[styles.label, { color: format.text }]}>Titulo</Text>
-        <TextInput
-          value={title}
-          onChangeText={setTitle}
-          placeholder="Ej. Clase Puppy de hoy"
-          placeholderTextColor={format.muted}
-          maxLength={80}
-          style={[styles.input, { borderColor: format.border, color: format.text, backgroundColor: format.background }]}
-        />
-        <Text style={[styles.counter, { color: format.muted }]}>{title.trim().length}/80</Text>
-
-        <Text style={[styles.label, { color: format.text }]}>Mensaje</Text>
-        <TextInput
-          value={body}
-          onChangeText={setBody}
-          placeholder="Escribe el aviso que verá el usuario."
-          placeholderTextColor={format.muted}
-          maxLength={180}
-          multiline
-          style={[styles.input, styles.messageInput, { borderColor: format.border, color: format.text, backgroundColor: format.background }]}
-        />
-        <Text style={[styles.counter, { color: format.muted }]}>{body.trim().length}/180</Text>
-
-        <Text style={[styles.label, { color: format.text }]}>Audiencia</Text>
-        <View style={styles.optionGrid}>
-          {audienceOptions.map((item) => (
-            <OptionButton
-              key={item.value}
-              item={item}
-              selected={audience === item.value}
-              onPress={() => setAudience(item.value)}
-              format={format}
-            />
-          ))}
-        </View>
-
-        <Text style={[styles.label, { color: format.text }]}>Categoría</Text>
-        <View style={styles.optionGrid}>
-          {categoryOptions.map((item) => (
-            <OptionButton
-              key={item.value}
-              item={item}
-              selected={category === item.value}
-              onPress={() => setCategory(item.value)}
-              format={format}
-            />
-          ))}
-        </View>
-
-        <View style={[styles.previewBox, { backgroundColor: format.accentSoft, borderColor: format.border }]}> 
-          <MaterialIcons name="visibility" size={20} color={format.accent} />
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.previewTitle, { color: format.text }]}>{title.trim() || 'Vista previa del título'}</Text>
-            <Text style={[styles.previewBody, { color: format.muted }]}>{body.trim() || 'Aquí se verá el mensaje antes de enviarlo.'}</Text>
-          </View>
-        </View>
-
-        <AppButton label={sending ? 'Enviando...' : 'Enviar notificación'} disabled={!canSend} variant="danger" onPress={handleSendPress} />
+    <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={loadingHistory} onRefresh={() => void loadHistory()} tintColor={ucapsaBrand.colors.red} />}>
+      <View style={styles.hero}>
+        <Text style={styles.kicker}>Comunicacion</Text>
+        <Text style={styles.title}>Notificaciones</Text>
+        <Text style={styles.subtitle}>Enviar e historial estan separados para no mezclar acciones con resultados.</Text>
       </View>
 
-      <View style={[styles.card, { backgroundColor: format.surface, borderColor: format.border }]}> 
-        <View style={styles.sectionHeaderRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.sectionTitle, { color: format.text }]}>Historial reciente</Text>
-            <Text style={[styles.sectionSubtitle, { color: format.muted }]}>Últimos 3 envíos registrados. Elimina lo viejo para mantener limpio este panel.</Text>
-          </View>
-          <Pressable style={[styles.refreshButton, { backgroundColor: format.accentSoft }]} onPress={() => void loadHistory()}>
-            <MaterialIcons name="refresh" size={20} color={format.accent} />
-          </Pressable>
-        </View>
+      <View style={styles.modeTabs}>
+        <Pressable style={[styles.modeTab, mode === 'send' && styles.modeTabActive]} onPress={() => setMode('send')}><MaterialIcons name="send" size={18} color={mode === 'send' ? '#fff' : ucapsaBrand.colors.redDark} /><Text style={[styles.modeText, mode === 'send' && styles.modeTextActive]}>Enviar</Text></Pressable>
+        <Pressable style={[styles.modeTab, mode === 'history' && styles.modeTabActive]} onPress={() => setMode('history')}><MaterialIcons name="history" size={18} color={mode === 'history' ? '#fff' : ucapsaBrand.colors.redDark} /><Text style={[styles.modeText, mode === 'history' && styles.modeTextActive]}>Historial</Text></Pressable>
+      </View>
 
-        {campaigns.length === 0 ? (
-          <Text style={[styles.emptyText, { color: format.muted }]}>Todavía no hay envíos registrados.</Text>
-        ) : (
-          <View style={styles.historyList}>
-            {campaigns.map((campaign) => (
-              <View key={campaign.id} style={[styles.historyItem, { borderColor: format.border }]}> 
-                <View style={styles.historyTopRow}>
-                  <Text style={[styles.historyTitle, { color: format.text }]} numberOfLines={1}>{campaign.title}</Text>
-                  <Text style={[styles.statusPill, { color: format.accent, backgroundColor: format.accentSoft }]}>{statusLabels[campaign.status]}</Text>
-                  <Pressable
-                    disabled={deletingId === campaign.id}
-                    accessibilityRole="button"
-                    accessibilityLabel="Eliminar notificación del historial"
-                    style={[styles.deleteHistoryButton, { backgroundColor: format.background, borderColor: format.border }]}
-                    onPress={() => handleDeleteCampaignPress(campaign)}
-                  >
-                    <MaterialIcons name="delete-outline" size={18} color={format.muted} />
-                  </Pressable>
+      {mode === 'send' ? (
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Nuevo envio</Text>
+          <Text style={styles.muted}>Usa mensajes cortos y solo cuando aporten valor.</Text>
+
+          <Text style={styles.label}>Titulo</Text>
+          <TextInput value={title} onChangeText={setTitle} placeholder="Ej. Cambio de clase" maxLength={120} style={styles.input} />
+          <Text style={styles.label}>Mensaje</Text>
+          <TextInput value={body} onChangeText={setBody} placeholder="Mensaje para el usuario" maxLength={500} multiline style={[styles.input, styles.textArea]} />
+
+          <Text style={styles.label}>Audiencia</Text>
+          <View style={styles.choiceGrid}>{audienceOptions.map((option) => <Choice key={option.value} label={option.label} active={audience === option.value} onPress={() => setAudience(option.value)} />)}</View>
+          <Text style={styles.help}>{selectedAudience.description}</Text>
+
+          <Text style={styles.label}>Categoria</Text>
+          <View style={styles.choiceGrid}>{categoryOptions.map((option) => <Choice key={option.value} label={option.label} active={category === option.value} onPress={() => setCategory(option.value)} />)}</View>
+          <Text style={styles.help}>{selectedCategory.description}</Text>
+
+          <View style={styles.preview}>
+            <Text style={styles.previewLabel}>Vista previa</Text>
+            <Text style={styles.previewTitle}>{title.trim() || 'Titulo de la notificacion'}</Text>
+            <Text style={styles.previewBody}>{body.trim() || 'El mensaje aparecera aqui.'}</Text>
+          </View>
+
+          <Pressable disabled={sending || !title.trim() || !body.trim()} style={[styles.primary, (sending || !title.trim() || !body.trim()) && styles.disabled]} onPress={askSend}><Text style={styles.primaryText}>{sending ? 'Enviando...' : 'Revisar y enviar'}</Text></Pressable>
+        </View>
+      ) : (
+        <View>
+          {loadingHistory && campaigns.length === 0 ? <Text style={styles.muted}>Cargando historial...</Text> : null}
+          {campaigns.length === 0 && !loadingHistory ? <View style={styles.empty}><Text style={styles.emptyTitle}>Sin envios</Text><Text style={styles.muted}>Los envios manuales apareceran aqui.</Text></View> : null}
+          <View style={styles.list}>
+            {campaigns.slice(0, visibleCount).map((campaign, index) => (
+              <View key={campaign.id} style={[styles.historyRow, index === Math.min(campaigns.length, visibleCount) - 1 && styles.rowLast]}>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.historyTitleLine}><Text numberOfLines={1} style={styles.historyTitle}>{campaign.title}</Text><Text style={styles.status}>{statusLabels[campaign.status]}</Text></View>
+                  <Text numberOfLines={2} style={styles.historyBody}>{campaign.body}</Text>
+                  <Text style={styles.historyMeta}>{formatDate(campaign.sent_at ?? campaign.created_at)} - {campaign.success_count}/{campaign.total_targets} enviadas</Text>
                 </View>
-                <Text style={[styles.historyBody, { color: format.muted }]} numberOfLines={2}>{campaign.body}</Text>
-                <Text style={[styles.historyMeta, { color: format.muted }]}>Audiencia: {campaign.audience} • Categoría: {campaign.category}</Text>
-                <Text style={[styles.historyMeta, { color: format.muted }]}>Objetivo: {campaign.total_targets} • Enviadas: {campaign.success_count} • Fallidas: {campaign.failure_count}</Text>
-                <Text style={[styles.historyMeta, { color: format.muted }]}>Fecha: {formatDate(campaign.sent_at ?? campaign.created_at)}</Text>
+                <Pressable disabled={deletingId === campaign.id} style={styles.deleteButton} onPress={() => askDelete(campaign)}><MaterialIcons name="delete-outline" size={19} color={ucapsaBrand.colors.redDark} /></Pressable>
               </View>
             ))}
           </View>
-        )}
-      </View>
-    </Screen>
+          {campaigns.length > visibleCount ? <Pressable style={styles.moreButton} onPress={() => setVisibleCount((count) => count + 8)}><Text style={styles.moreText}>Ver 8 mas</Text></Pressable> : null}
+        </View>
+      )}
+    </KeyboardAwareScreen>
   );
 }
 
-function OptionButton<T extends string>({ item, selected, onPress, format }: { item: SelectOption<T>; selected: boolean; onPress: () => void; format: ReturnType<typeof resolveUcapsaFormat> }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={[
-        styles.optionButton,
-        {
-          backgroundColor: selected ? format.accentSoft : format.background,
-          borderColor: selected ? format.accent : format.border,
-        },
-      ]}
-    >
-      <MaterialIcons name={item.icon} size={20} color={selected ? format.accent : format.muted} />
-      <View style={{ flex: 1 }}>
-        <Text style={[styles.optionTitle, { color: format.text }]}>{item.label}</Text>
-        <Text style={[styles.optionDescription, { color: format.muted }]}>{item.description}</Text>
-      </View>
-    </Pressable>
-  );
-}
-
-function Denied({ title, text, icon, actionLabel, onAction, format }: { title: string; text: string; icon: keyof typeof MaterialIcons.glyphMap; actionLabel?: string; onAction?: () => void; format: ReturnType<typeof resolveUcapsaFormat> }) {
-  return (
-    <View style={styles.deniedBox}>
-      <MaterialIcons name={icon} size={42} color={format.accent} />
-      <Text style={[styles.deniedTitle, { color: format.text }]}>{title}</Text>
-      <Text style={[styles.deniedText, { color: format.muted }]}>{text}</Text>
-      {actionLabel && onAction ? <AppButton label={actionLabel} variant="secondary" onPress={onAction} /> : null}
-    </View>
-  );
+function Choice({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  return <Pressable style={[styles.choice, active && styles.choiceActive]} onPress={onPress}><Text style={[styles.choiceText, active && styles.choiceTextActive]}>{label}</Text></Pressable>;
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: 24, padding: 16, gap: 12, marginBottom: 16 },
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  sectionTitle: { fontSize: 20, fontWeight: '900' },
-  sectionSubtitle: { fontSize: 13, lineHeight: 19, fontWeight: '700' },
-  label: { marginTop: 4, fontSize: 14, fontWeight: '900' },
-  input: { minHeight: 48, borderWidth: 1, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, fontWeight: '700' },
-  messageInput: { minHeight: 96, textAlignVertical: 'top' },
-  counter: { alignSelf: 'flex-end', fontSize: 12, fontWeight: '800' },
-  optionGrid: { gap: 10 },
-  optionButton: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', borderWidth: 1, borderRadius: 18, padding: 12 },
-  optionTitle: { fontSize: 14, fontWeight: '900' },
-  optionDescription: { marginTop: 2, fontSize: 12, lineHeight: 16, fontWeight: '700' },
-  previewBox: { flexDirection: 'row', gap: 10, borderWidth: 1, borderRadius: 18, padding: 13 },
-  previewTitle: { fontSize: 15, fontWeight: '900' },
-  previewBody: { marginTop: 3, fontSize: 13, lineHeight: 18, fontWeight: '700' },
-  refreshButton: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  emptyText: { fontSize: 13, lineHeight: 19, fontWeight: '700' },
-  historyList: { gap: 10 },
-  historyItem: { borderWidth: 1, borderRadius: 18, padding: 12 },
-  historyTopRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  deleteHistoryButton: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  historyTitle: { flex: 1, fontSize: 15, fontWeight: '900' },
-  historyBody: { marginTop: 4, fontSize: 13, lineHeight: 18, fontWeight: '700' },
-  historyMeta: { marginTop: 4, fontSize: 12, fontWeight: '800' },
-  statusPill: { overflow: 'hidden', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4, fontSize: 11, fontWeight: '900' },
-  deniedBox: { flex: 1, minHeight: 420, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
-  deniedTitle: { fontSize: 24, fontWeight: '900', textAlign: 'center' },
-  deniedText: { fontSize: 14, lineHeight: 20, textAlign: 'center', fontWeight: '700' },
+  hero: { marginBottom: 14 },
+  kicker: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
+  title: { color: ucapsaBrand.colors.text, fontSize: 28, fontWeight: '900' },
+  subtitle: { color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 19, fontWeight: '700', marginTop: 3 },
+  muted: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 17, fontWeight: '700' },
+  backButton: { alignSelf: 'flex-start', marginTop: 10, borderRadius: 12, backgroundColor: ucapsaBrand.colors.redSoft, paddingHorizontal: 12, paddingVertical: 9 },
+  backText: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900' },
+  modeTabs: { flexDirection: 'row', gap: 7, marginBottom: 12 },
+  modeTab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', paddingVertical: 10 },
+  modeTabActive: { backgroundColor: ucapsaBrand.colors.red, borderColor: ucapsaBrand.colors.red },
+  modeText: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900' },
+  modeTextActive: { color: '#fff' },
+  card: { borderRadius: 19, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', padding: 14 },
+  sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '900' },
+  label: { color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '900', marginTop: 12, marginBottom: 5 },
+  input: { borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#FFF8F8', paddingHorizontal: 12, paddingVertical: 11, color: ucapsaBrand.colors.text },
+  textArea: { minHeight: 92, textAlignVertical: 'top' },
+  choiceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  choice: { borderRadius: 999, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', paddingHorizontal: 10, paddingVertical: 8 },
+  choiceActive: { backgroundColor: ucapsaBrand.colors.redSoft, borderColor: ucapsaBrand.colors.red },
+  choiceText: { color: ucapsaBrand.colors.text, fontSize: 10, fontWeight: '900' },
+  choiceTextActive: { color: ucapsaBrand.colors.redDark },
+  help: { color: ucapsaBrand.colors.muted, fontSize: 10, lineHeight: 15, marginTop: 5 },
+  preview: { borderRadius: 15, backgroundColor: '#F8F2F3', padding: 12, marginTop: 13 },
+  previewLabel: { color: ucapsaBrand.colors.muted, fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
+  previewTitle: { color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '900', marginTop: 4 },
+  previewBody: { color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 16, marginTop: 3 },
+  primary: { alignItems: 'center', borderRadius: 14, backgroundColor: ucapsaBrand.colors.red, paddingVertical: 13, marginTop: 12 },
+  primaryText: { color: '#fff', fontSize: 13, fontWeight: '900' },
+  disabled: { opacity: 0.48 },
+  empty: { alignItems: 'center', gap: 5, padding: 28 },
+  emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 17, fontWeight: '900' },
+  list: { borderRadius: 19, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', overflow: 'hidden' },
+  historyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 13, borderBottomWidth: 1, borderBottomColor: '#F4E5E8' },
+  rowLast: { borderBottomWidth: 0 },
+  historyTitleLine: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  historyTitle: { flex: 1, color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '900' },
+  status: { color: ucapsaBrand.colors.redDark, fontSize: 9, fontWeight: '900', backgroundColor: ucapsaBrand.colors.redSoft, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 4 },
+  historyBody: { color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 16, marginTop: 3 },
+  historyMeta: { color: ucapsaBrand.colors.muted, fontSize: 10, lineHeight: 15, marginTop: 3, fontWeight: '700' },
+  deleteButton: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
+  moreButton: { alignItems: 'center', paddingVertical: 11 },
+  moreText: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900' },
 });
-

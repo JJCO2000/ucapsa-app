@@ -1,4 +1,4 @@
-﻿export const colors = {
+export const colors = {
   background: '#f8fafc',
   surface: '#ffffff',
   surfaceMuted: '#f1f5f9',
