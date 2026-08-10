@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import type { TableUpdate } from '../types/database.helpers';
 import type { Profile } from '../types/app.types';
 
 export type ProfileUpdateInput = {
@@ -37,7 +38,7 @@ export async function updateMyProfile(input: ProfileUpdateInput): Promise<Profil
 
   const { data, error } = await supabase
     .from('profiles')
-    .update(payload)
+    .update(payload as TableUpdate<'profiles'>)
     .eq('user_id', userId)
     .select('*')
     .single();
@@ -58,7 +59,7 @@ export async function updateAdminCustomerProfile(userId: string, input: ProfileU
 
   const { data, error } = await supabase
     .from('profiles')
-    .update(payload)
+    .update(payload as TableUpdate<'profiles'>)
     .eq('user_id', userId)
     .select('*')
     .single();

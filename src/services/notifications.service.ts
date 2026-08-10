@@ -91,11 +91,11 @@ export async function registerExpoPushToken(input: RegisterExpoPushTokenInput): 
   const { data, error } = await supabase.rpc('upsert_notification_token', {
     p_expo_push_token: input.expoPushToken,
     p_platform: input.platform,
-    p_device_name: input.deviceName ?? null,
-    p_device_id: input.deviceId ?? null,
-    p_app_ownership: input.appOwnership ?? null,
-    p_app_version: input.appVersion ?? null,
-    p_project_id: input.projectId ?? null,
+    p_device_name: input.deviceName ?? undefined,
+    p_device_id: input.deviceId ?? undefined,
+    p_app_ownership: input.appOwnership ?? undefined,
+    p_app_version: input.appVersion ?? undefined,
+    p_project_id: input.projectId ?? undefined,
   });
 
   if (error) throw error;

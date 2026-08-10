@@ -3,11 +3,13 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { AdminDogPicker, type AdminDogMode } from '../../components/domain/AdminDogPicker';
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import { getAdminCustomerRecord, type AdminCustomerRecord } from '../../services/admin-customer.service';
+import { getDogsForUser, type BasicDog } from '../../services/dogs.service';
 import {
   formatProgramScheduleDisplayLabel,
   getProgramLevelLabel,
@@ -28,6 +30,9 @@ export default function CustomerClassScreen() {
   const [schedules, setSchedules] = useState<ProgramSchedule[]>([]);
   const [scheduleId, setScheduleId] = useState('');
   const [level, setLevel] = useState<ProgramLevel>('base');
+  const [dogs, setDogs] = useState<BasicDog[]>([]);
+  const [dogMode, setDogMode] = useState<AdminDogMode>('existing');
+  const [dogId, setDogId] = useState('');
   const [dogName, setDogName] = useState('');
   const [cardNumber, setCardNumber] = useState('');
   const [notes, setNotes] = useState('');
@@ -38,14 +43,18 @@ export default function CustomerClassScreen() {
 
   const load = useCallback(async () => {
     if (!isAdmin || !userId) return;
-    const [nextRecord, nextSchedules] = await Promise.all([getAdminCustomerRecord(userId), getProgramSchedules()]);
+    const [nextRecord, nextSchedules, nextDogs] = await Promise.all([getAdminCustomerRecord(userId), getProgramSchedules(), getDogsForUser(userId)]);
     setRecord(nextRecord);
     setSchedules(nextSchedules);
+    setDogs(nextDogs);
     const row = nextRecord.enrollments.find((item) => item.enrollment.id === enrollmentId) ?? nextRecord.enrollments[0] ?? null;
     if (row) {
       setScheduleId(row.enrollment.schedule_id);
       setLevel(row.enrollment.program_level);
-      setDogName(row.enrollment.dog_name ?? row.profile?.dog_name ?? '');
+      const linkedDog = nextDogs.find((dog) => dog.id === row.enrollment.dog_id) ?? nextDogs.find((dog) => dog.name.trim().toLowerCase() === (row.enrollment.dog_name ?? '').trim().toLowerCase()) ?? null;
+      setDogMode(linkedDog ? 'existing' : 'new');
+      setDogId(linkedDog?.id ?? '');
+      setDogName(linkedDog?.name ?? row.enrollment.dog_name ?? '');
       setCardNumber(row.enrollment.physical_card_number ?? '');
       setNotes(row.enrollment.notes ?? '');
     }
@@ -72,9 +81,20 @@ export default function CustomerClassScreen() {
     }
     try {
       setSaving(true);
+      const selectedDog = dogMode === 'existing' ? dogs.find((dog) => dog.id === dogId) ?? null : null;
+      const resolvedDogName = selectedDog?.name ?? dogName.trim();
+      if (dogMode === 'existing' && !selectedDog) {
+        Alert.alert('Selecciona perro', 'Elige uno de los perros registrados.');
+        return;
+      }
+      if (!resolvedDogName) {
+        Alert.alert('Falta perro', 'Escribe el nombre del nuevo perro.');
+        return;
+      }
       await updateProgramEnrollment(row.enrollment.id, {
         scheduleId,
-        dogName,
+        dogId: selectedDog?.id ?? null,
+        dogName: resolvedDogName,
         physicalCardNumber: cardNumber,
         programLevel: row.program.code === 'comandos' ? level : 'base',
         notes,
@@ -152,7 +172,15 @@ export default function CustomerClassScreen() {
                 </View>
               </View>
 
-              <Field label="Perro" value={dogName} onChangeText={setDogName} placeholder="Nombre del perro" />
+              <AdminDogPicker
+                dogs={dogs}
+                mode={dogMode}
+                selectedDogId={dogId}
+                newDogName={dogName}
+                onModeChange={(mode) => { setDogMode(mode); if (mode === 'existing' && dogs[0]) { setDogId(dogs[0].id); setDogName(dogs[0].name); } else if (mode === 'new') { setDogId(''); setDogName(''); } }}
+                onSelectDog={(dog) => { setDogMode('existing'); setDogId(dog.id); setDogName(dog.name); }}
+                onNewDogNameChange={(value) => { setDogMode('new'); setDogId(''); setDogName(value); }}
+              />
               <Field label="Tarjeta" value={cardNumber} onChangeText={setCardNumber} placeholder="Numero de tarjeta" />
               <Field label="Notas" value={notes} onChangeText={setNotes} placeholder="Notas internas" multiline />
             </View>

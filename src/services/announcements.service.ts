@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import type { TableInsert, TableUpdate } from '../types/database.helpers';
 import type { Announcement, AudienceType, UcapsaColorKey, UcapsaPriority } from '../types/app.types';
 
 export type AnnouncementFormInput = {
@@ -114,7 +115,7 @@ export async function createAnnouncement(input: AnnouncementFormInput): Promise<
 
   const { data, error } = await supabase
     .from('announcements')
-    .insert(payload)
+    .insert(payload as TableInsert<'announcements'>)
     .select('*, event:events(*)')
     .single();
 
@@ -140,7 +141,7 @@ export async function updateAnnouncement(
 
   const { data, error } = await supabase
     .from('announcements')
-    .update(payload)
+    .update(payload as TableUpdate<'announcements'>)
     .eq('id', announcementId)
     .select('*, event:events(*)')
     .single();

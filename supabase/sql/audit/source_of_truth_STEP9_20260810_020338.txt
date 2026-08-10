@@ -1,0 +1,6 @@
+﻿UCAPSA STEP 9 SOURCE OF TRUTH
+Stamp: 20260810_020338
+Generated types: OK
+Migration list exit: 0
+DB lint exit: 0
+No db push, db pull, db reset or migration repair executed.

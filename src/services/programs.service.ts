@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import type { TableInsert, TableUpdate } from '../types/database.helpers';
 import type {
   Profile,
   ProgramAttendance,
@@ -18,6 +19,7 @@ export type CreateProgramEnrollmentInput = {
   userId: string;
   programId: string;
   scheduleId: string;
+  dogId?: string | null;
   dogName: string;
   physicalCardNumber?: string | null;
   programLevel?: ProgramLevel;
@@ -27,6 +29,7 @@ export type CreateProgramEnrollmentInput = {
 export type UpdateProgramEnrollmentInput = {
   programId?: string;
   scheduleId?: string;
+  dogId?: string | null;
   dogName?: string;
   physicalCardNumber?: string | null;
   attendancesCount?: number;
@@ -462,10 +465,10 @@ export async function changeProgramScheduleFromDate(
     p_day_of_week: dayOfWeek,
     p_start_time: input.startTime || String(current.start_time).slice(0, 8),
     p_repeat_type: repeatType,
-    p_cycle_start_date: cycleStartDate,
+    p_cycle_start_date: cycleStartDate ?? undefined,
     p_sequence_order: Math.max(1, Number(input.sequenceOrder ?? current.sequence_order)),
     p_is_active: input.isActive ?? current.is_active,
-    p_change_note: input.changeNote?.trim() || null,
+    p_change_note: input.changeNote?.trim() || undefined,
   });
 
   if (error) throw error;
@@ -547,6 +550,7 @@ export async function createProgramEnrollment(input: CreateProgramEnrollmentInpu
       user_id: input.userId,
       program_id: input.programId,
       schedule_id: input.scheduleId,
+      dog_id: input.dogId?.trim() || null,
       dog_name: input.dogName.trim(),
       physical_card_number: input.physicalCardNumber?.trim() || null,
       qr_token: createQrToken(),
@@ -570,6 +574,7 @@ export async function updateProgramEnrollment(enrollmentId: string, input: Updat
 
   if ('programId' in input) payload.program_id = input.programId ?? null;
   if ('scheduleId' in input) payload.schedule_id = input.scheduleId ?? null;
+  if ('dogId' in input) payload.dog_id = input.dogId?.trim() || null;
   if ('dogName' in input) payload.dog_name = input.dogName?.trim() || null;
   if ('physicalCardNumber' in input) payload.physical_card_number = input.physicalCardNumber?.trim() || null;
   if ('attendancesCount' in input) payload.attendances_count = Math.max(0, Number(input.attendancesCount ?? 0));
@@ -581,7 +586,7 @@ export async function updateProgramEnrollment(enrollmentId: string, input: Updat
   }
   if ('notes' in input) payload.notes = input.notes?.trim() || null;
 
-  const { error } = await supabase.from('program_enrollments').update(payload).eq('id', enrollmentId);
+  const { error } = await supabase.from('program_enrollments').update(payload as TableUpdate<'program_enrollments'>).eq('id', enrollmentId);
   if (error) throw error;
 }
 
@@ -592,8 +597,8 @@ export async function registerProgramAttendance(input: RegisterProgramAttendance
   const { error } = await supabase.rpc('register_program_attendance_admin', {
     p_enrollment_id: input.enrollmentId,
     p_attendance_date: input.attendanceDate,
-    p_schedule_id: input.scheduleId ?? null,
-    p_notes: input.notes?.trim() || null,
+    p_schedule_id: input.scheduleId ?? undefined,
+    p_notes: input.notes?.trim() || undefined,
   });
 
   if (error) throw error;
@@ -604,7 +609,7 @@ export async function correctProgramAttendance(input: CorrectProgramAttendanceIn
     p_attendance_id: input.attendanceId,
     p_attendance_date: input.attendanceDate,
     p_schedule_id: input.scheduleId,
-    p_notes: input.notes?.trim() || null,
+    p_notes: input.notes?.trim() || undefined,
   });
 
   if (error) throw error;
@@ -878,7 +883,7 @@ export async function createProgramDayCancellations(input: CreateProgramDayCance
 
   const { data, error } = await supabase
     .from('program_class_cancellations')
-    .insert(payload)
+    .insert(payload as TableInsert<'program_class_cancellations'>[])
     .select('*, schedule:program_schedules(*)');
 
   if (error) throw error;

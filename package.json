@@ -48,7 +48,12 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "typecheck": "tsc --noEmit",
+    "check:routes": "node scripts/check-routes.mjs",
+    "check:integrity": "node scripts/check-source-integrity.mjs",
+    "verify": "npm run typecheck && npm run check:routes && npm run check:integrity",
+    "audit:report": "npm audit --omit=dev"
   },
   "private": true
 }

@@ -4,12 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, RefreshControl, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 
+import { AdminDogPicker, type AdminDogMode } from '../../components/domain/AdminDogPicker';
 import { ProgramCredentialCard } from '../../components/domain/ProgramCredentialCard';
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { getVisibleAnnouncements } from '../../services/announcements.service';
 import { getVisibleEvents } from '../../services/events.service';
+import { getDogsForUser, type BasicDog } from '../../services/dogs.service';
 import { useSession } from '../../hooks/useSession';
 import {
   createProgramEnrollment,
@@ -64,6 +66,8 @@ type EnrollmentFormState = {
   scheduleId: string;
   initialAttendanceCount: string;
   attendanceAdjustmentDate: string;
+  dogId: string;
+  dogMode: AdminDogMode;
   dogName: string;
   physicalCardNumber: string;
   programLevel: ProgramLevel;
@@ -75,6 +79,8 @@ type EditFormState = {
   scheduleId: string;
   attendancesCount: string;
   attendanceAdjustmentDate: string;
+  dogId: string;
+  dogMode: AdminDogMode;
   dogName: string;
   physicalCardNumber: string;
   programLevel: ProgramLevel;
@@ -102,7 +108,7 @@ const statusOptions: Array<{ value: StatusFilter; label: string }> = [
 ];
 
 function emptyForm(): EnrollmentFormState {
-  return { userId: '', programId: '', scheduleId: 'auto', initialAttendanceCount: '0', attendanceAdjustmentDate: todayKey(), dogName: '', physicalCardNumber: '', programLevel: 'base', notes: '' };
+  return { userId: '', programId: '', scheduleId: 'auto', initialAttendanceCount: '0', attendanceAdjustmentDate: todayKey(), dogId: '', dogMode: 'new', dogName: '', physicalCardNumber: '', programLevel: 'base', notes: '' };
 }
 
 function normalizeTerm(value: string) {
@@ -182,6 +188,8 @@ export default function AdminClassesScreen() {
   const [scheduleTimeline, setScheduleTimeline] = useState<ProgramSchedule[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [rows, setRows] = useState<ProgramEnrollmentWithDetails[]>([]);
+  const [createDogs, setCreateDogs] = useState<BasicDog[]>([]);
+  const [editDogs, setEditDogs] = useState<BasicDog[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<UcapsaEvent[]>([]);
   const [calendarAnnouncements, setCalendarAnnouncements] = useState<Announcement[]>([]);
   const [classCancellations, setClassCancellations] = useState<ProgramClassCancellation[]>([]);
@@ -201,7 +209,7 @@ export default function AdminClassesScreen() {
   const [cancelCalendarOpen, setCancelCalendarOpen] = useState(false);
   const [selectedBaseScheduleId, setSelectedBaseScheduleId] = useState('');
   const [selectedRow, setSelectedRow] = useState<ProgramEnrollmentWithDetails | null>(null);
-  const [editForm, setEditForm] = useState<EditFormState>({ programId: '', scheduleId: '', attendancesCount: '0', attendanceAdjustmentDate: todayKey(), dogName: '', physicalCardNumber: '', programLevel: 'base', notes: '' });
+  const [editForm, setEditForm] = useState<EditFormState>({ programId: '', scheduleId: '', attendancesCount: '0', attendanceAdjustmentDate: todayKey(), dogId: '', dogMode: 'new', dogName: '', physicalCardNumber: '', programLevel: 'base', notes: '' });
   const [attendanceOpen, setAttendanceOpen] = useState(false);
   const [attendanceDate, setAttendanceDate] = useState(todayKey());
   const [attendanceScheduleId, setAttendanceScheduleId] = useState('');
@@ -378,9 +386,24 @@ export default function AdminClassesScreen() {
     }));
   }
 
-  function chooseProfile(profile: Profile) {
-    setForm((current) => ({ ...current, userId: profile.user_id, dogName: current.dogName || profile.dog_name || '' }));
+  async function chooseProfile(profile: Profile) {
     setClientSearch(profileLabel(profile));
+    setCreateDogs([]);
+    setForm((current) => ({ ...current, userId: profile.user_id, dogId: '', dogMode: 'new', dogName: '' }));
+    try {
+      const dogRows = await getDogsForUser(profile.user_id);
+      const firstDog = dogRows[0] ?? null;
+      setForm((current) => current.userId !== profile.user_id ? current : {
+        ...current,
+        dogId: firstDog?.id ?? '',
+        dogMode: firstDog ? 'existing' : 'new',
+        dogName: firstDog?.name ?? '',
+      });
+      setCreateDogs(dogRows);
+    } catch (error) {
+      setForm((current) => current.userId !== profile.user_id ? current : { ...current, dogId: '', dogMode: 'new', dogName: '' });
+      Alert.alert('No se pudieron cargar los perros', error instanceof Error ? error.message : 'Intenta de nuevo.');
+    }
   }
 
   function openCreate(prefill?: Partial<EnrollmentFormState>) {
@@ -392,9 +415,11 @@ export default function AdminClassesScreen() {
       ...prefill,
     };
     setForm(nextForm);
+    setCreateDogs([]);
     if (prefill?.userId) {
       const profile = profiles.find((item) => item.user_id === prefill.userId);
       setClientSearch(profileLabel(profile));
+      if (profile) void chooseProfile(profile);
     }
     setCreateOpen(true);
   }
@@ -411,8 +436,14 @@ export default function AdminClassesScreen() {
       Alert.alert('Falta programa u horario', 'Selecciona programa y horario.');
       return;
     }
-    if (!form.dogName.trim()) {
-      Alert.alert('Falta perro', 'Registra el nombre del perro.');
+    const selectedDog = form.dogMode === 'existing' ? createDogs.find((dog) => dog.id === form.dogId) ?? null : null;
+    const resolvedDogName = selectedDog?.name ?? form.dogName.trim();
+    if (form.dogMode === 'existing' && !selectedDog) {
+      Alert.alert('Selecciona perro', 'Elige uno de los perros registrados para este cliente.');
+      return;
+    }
+    if (!resolvedDogName) {
+      Alert.alert('Falta perro', 'Escribe el nombre del nuevo perro.');
       return;
     }
     if (initialAttendanceCount > 0) {
@@ -429,7 +460,8 @@ export default function AdminClassesScreen() {
         userId: form.userId,
         programId: form.programId,
         scheduleId: effectiveScheduleId,
-        dogName: form.dogName,
+        dogId: selectedDog?.id ?? null,
+        dogName: resolvedDogName,
         physicalCardNumber: form.physicalCardNumber,
         programLevel: form.programLevel,
         notes: form.notes,
@@ -452,11 +484,25 @@ export default function AdminClassesScreen() {
       scheduleId: row.enrollment.schedule_id,
       attendancesCount: String(row.enrollment.attendances_count || 0),
       attendanceAdjustmentDate: row.enrollment.last_attendance_at || todayKey(),
+      dogId: row.enrollment.dog_id ?? '',
+      dogMode: row.enrollment.dog_id ? 'existing' : 'new',
       dogName: row.enrollment.dog_name ?? row.profile?.dog_name ?? '',
       physicalCardNumber: row.enrollment.physical_card_number ?? '',
       programLevel: row.enrollment.program_level ?? getDefaultProgramLevel(row.program),
       notes: row.enrollment.notes ?? '',
     });
+    void getDogsForUser(row.enrollment.user_id)
+      .then((dogRows) => {
+        setEditDogs(dogRows);
+        if (!row.enrollment.dog_id && dogRows[0]) {
+          const matchingDog = dogRows.find((dog) => dog.name.trim().toLowerCase() === (row.enrollment.dog_name ?? '').trim().toLowerCase()) ?? dogRows[0];
+          setEditForm((current) => ({ ...current, dogId: matchingDog.id, dogMode: 'existing', dogName: matchingDog.name }));
+        }
+      })
+      .catch((error) => {
+        setEditDogs([]);
+        Alert.alert('No se pudieron cargar los perros', error instanceof Error ? error.message : 'Intenta de nuevo.');
+      });
   }
 
   async function handleUpdate() {
@@ -479,12 +525,24 @@ export default function AdminClassesScreen() {
       return;
     }
 
+    const selectedDog = editForm.dogMode === 'existing' ? editDogs.find((dog) => dog.id === editForm.dogId) ?? null : null;
+    const resolvedDogName = selectedDog?.name ?? editForm.dogName.trim();
+    if (editForm.dogMode === 'existing' && !selectedDog) {
+      Alert.alert('Selecciona perro', 'Elige uno de los perros registrados para este cliente.');
+      return;
+    }
+    if (!resolvedDogName) {
+      Alert.alert('Falta perro', 'Escribe el nombre del nuevo perro.');
+      return;
+    }
+
     try {
       setSaving(true);
       await updateProgramEnrollment(selectedRow.enrollment.id, {
         programId: nextProgram.id,
         scheduleId: nextScheduleId,
-        dogName: editForm.dogName,
+        dogId: selectedDog?.id ?? null,
+        dogName: resolvedDogName,
         physicalCardNumber: editForm.physicalCardNumber,
         programLevel: nextProgram.code === 'comandos' ? editForm.programLevel : 'base',
         notes: editForm.notes,
@@ -766,6 +824,8 @@ export default function AdminClassesScreen() {
       userId: row.enrollment.user_id,
       programId: row.program.id,
       scheduleId: 'auto',
+      dogId: row.enrollment.dog_id ?? '',
+      dogMode: row.enrollment.dog_id ? 'existing' : 'new',
       dogName: row.enrollment.dog_name ?? row.profile?.dog_name ?? '',
       physicalCardNumber: '',
       programLevel: useNextLevel ? getNextProgramLevel(row.enrollment.program_level) : row.enrollment.program_level,
@@ -900,6 +960,7 @@ export default function AdminClassesScreen() {
         selectedProfile={selectedProfile}
         selectedProgram={selectedProgram}
         schedules={schedulesForSelectedProgram}
+        dogs={createDogs}
         clientSearch={clientSearch}
         onClose={() => setCreateOpen(false)}
         onSave={handleCreate}
@@ -913,6 +974,7 @@ export default function AdminClassesScreen() {
         row={selectedRow}
         programs={programs}
         schedules={schedules}
+        dogs={editDogs}
         editForm={editForm}
         saving={saving}
         isSuperAdmin={isSuperAdmin}
@@ -1002,6 +1064,7 @@ function CreateEnrollmentModal({
   selectedProfile,
   selectedProgram,
   schedules,
+  dogs,
   clientSearch,
   onClose,
   onSave,
@@ -1018,6 +1081,7 @@ function CreateEnrollmentModal({
   selectedProfile: Profile | null;
   selectedProgram: UcapsaProgram | null;
   schedules: ProgramSchedule[];
+  dogs: BasicDog[];
   clientSearch: string;
   onClose: () => void;
   onSave: () => void;
@@ -1069,8 +1133,18 @@ function CreateEnrollmentModal({
       <Text style={styles.label}>Avance inicial</Text>
       <Text style={styles.hint}>Las nuevas inscripciones empiezan en 0. Si el cliente ya tiene asistencias historicas, registralas manualmente con su fecha real desde la ficha de la inscripcion.</Text>
 
-      <Text style={styles.label}>Perro</Text>
-      <TextInput value={form.dogName} onChangeText={(dogName) => onChange({ ...form, dogName })} placeholder={selectedProfile?.dog_name || 'Nombre del perro'} style={styles.input} />
+      <AdminDogPicker
+        dogs={dogs}
+        mode={form.dogMode}
+        selectedDogId={form.dogId}
+        newDogName={form.dogName}
+        onModeChange={(dogMode) => {
+          const firstDog = dogs[0] ?? null;
+          onChange({ ...form, dogMode, dogId: dogMode === 'existing' ? firstDog?.id ?? '' : '', dogName: dogMode === 'existing' ? firstDog?.name ?? '' : '' });
+        }}
+        onSelectDog={(dog) => onChange({ ...form, dogMode: 'existing', dogId: dog.id, dogName: dog.name })}
+        onNewDogNameChange={(dogName) => onChange({ ...form, dogMode: 'new', dogId: '', dogName })}
+      />
 
       <Text style={styles.label}>Numero de tarjeta fisica</Text>
       <TextInput value={form.physicalCardNumber} onChangeText={(physicalCardNumber) => onChange({ ...form, physicalCardNumber })} placeholder="Ej. P-0142" autoCapitalize="characters" style={styles.input} />
@@ -1092,6 +1166,7 @@ function EnrollmentDetailModal({
   row,
   programs,
   schedules,
+  dogs,
   editForm,
   saving,
   isSuperAdmin,
@@ -1108,6 +1183,7 @@ function EnrollmentDetailModal({
   row: ProgramEnrollmentWithDetails | null;
   programs: UcapsaProgram[];
   schedules: ProgramSchedule[];
+  dogs: BasicDog[];
   editForm: EditFormState;
   saving: boolean;
   isSuperAdmin: boolean;
@@ -1165,8 +1241,18 @@ function EnrollmentDetailModal({
           </>
         ) : null}
 
-        <Text style={styles.label}>Perro</Text>
-        <TextInput value={editForm.dogName} onChangeText={(dogName) => onChange({ ...editForm, dogName })} style={styles.input} />
+        <AdminDogPicker
+          dogs={dogs}
+          mode={editForm.dogMode}
+          selectedDogId={editForm.dogId}
+          newDogName={editForm.dogName}
+          onModeChange={(dogMode) => {
+            const firstDog = dogs[0] ?? null;
+            onChange({ ...editForm, dogMode, dogId: dogMode === 'existing' ? firstDog?.id ?? '' : '', dogName: dogMode === 'existing' ? firstDog?.name ?? '' : '' });
+          }}
+          onSelectDog={(dog) => onChange({ ...editForm, dogMode: 'existing', dogId: dog.id, dogName: dog.name })}
+          onNewDogNameChange={(dogName) => onChange({ ...editForm, dogMode: 'new', dogId: '', dogName })}
+        />
         <Text style={styles.label}>Tarjeta fisica</Text>
         <TextInput value={editForm.physicalCardNumber} onChangeText={(physicalCardNumber) => onChange({ ...editForm, physicalCardNumber })} autoCapitalize="characters" style={styles.input} />
         <Text style={styles.label}>Notas</Text>

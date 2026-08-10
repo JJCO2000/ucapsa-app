@@ -1,1 +1,1 @@
-export type Database = Record<string, never>;
+export type { Database } from './database.generated';

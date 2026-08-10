@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import { Redirect, useFocusEffect } from 'expo-router';
+import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -127,9 +127,9 @@ export default function DogTab() {
       <View style={styles.hero}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={selectedDog ? `Editar a ${selectedDog.name}` : 'Agregar perro'}
+          accessibilityLabel="Abrir mis datos"
           style={[styles.petIcon, { backgroundColor: format.surfaceAlt, borderColor: format.border }]}
-          onPress={openRename}
+          onPress={() => router.push('/account-settings?section=profile' as never)}
         >
           <MaterialIcons name="pets" size={32} color={premium ? '#FFE8B5' : format.accentDark} />
           <View style={[styles.editDot, premium && styles.editDotPremium]}><MaterialIcons name="edit" size={14} color={premium ? '#7A1020' : '#FFFFFF'} /></View>
@@ -138,7 +138,7 @@ export default function DogTab() {
           <Text style={[styles.kicker, { color: premium ? '#FFE8B5' : format.accentDark }]}>Mis perros</Text>
           <Text style={[styles.title, { color: format.text }]}>{selectedDog?.name || 'Agrega tu primer perro'}</Text>
           <Text style={[styles.subtitle, { color: format.muted }]}>
-            {dogs.length > 1 ? `${dogs.length} perros registrados. Elige uno para ver sus clases.` : dogs.length === 1 ? 'Toca la pata o el lapiz para editarlo.' : 'Puedes registrar mas de un perro en tu cuenta.'}
+            {dogs.length > 1 ? `${dogs.length} perros registrados. Elige uno para ver sus clases.` : dogs.length === 1 ? 'La pata con lapiz abre Mis datos. Edita al perro desde su tarjeta.' : 'La pata con lapiz abre Mis datos. Puedes registrar mas de un perro aqui.'}
           </Text>
         </View>
       </View>

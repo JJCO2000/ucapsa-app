@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import type { TableUpdate } from '../types/database.helpers';
 import type { AudienceType, EventRepeatType, UcapsaColorKey, UcapsaEvent, UcapsaPriority } from '../types/app.types';
 
 export type EventFormInput = {
@@ -105,7 +106,7 @@ export async function updateEvent(eventId: string, input: Partial<EventFormInput
 
   const { data, error } = await supabase
     .from('events')
-    .update(payload)
+    .update(payload as TableUpdate<'events'>)
     .eq('id', eventId)
     .select('*')
     .single();

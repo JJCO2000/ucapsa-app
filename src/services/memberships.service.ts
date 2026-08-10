@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import type { TableUpdate } from '../types/database.helpers';
 import type {
   Membership,
   MembershipDeleteRequest,
@@ -217,7 +218,7 @@ export async function updateMembershipStatus(
   if (options && 'paymentNotes' in options) payload.payment_notes = options.paymentNotes?.trim() || null;
   if (status === 'active') payload.approved_by = authData.user?.id ?? null;
 
-  const { error } = await supabase.from('memberships').update(payload).eq('id', membership.id);
+  const { error } = await supabase.from('memberships').update(payload as TableUpdate<'memberships'>).eq('id', membership.id);
   if (error) throw error;
 
   await syncProfileRoleForMembership(membership, status);
@@ -234,7 +235,7 @@ export async function updateMembershipDetails(membership: Membership, input: Upd
   if ('endDate' in input) payload.end_date = dateKeyToIso(input.endDate);
   if ('paymentNotes' in input) payload.payment_notes = input.paymentNotes?.trim() || null;
 
-  const { error } = await supabase.from('memberships').update(payload).eq('id', membership.id);
+  const { error } = await supabase.from('memberships').update(payload as TableUpdate<'memberships'>).eq('id', membership.id);
   if (error) throw error;
 
   if (input.status) await syncProfileRoleForMembership(membership, input.status);

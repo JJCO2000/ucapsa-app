@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import type { TableUpdate } from '../types/database.helpers';
 import type { MyPaymentOverview, Payment, PaymentObligation, PaymentObligationWithBalance, PaymentSettings } from '../types/app.types';
 
 export type RegisterCustomerPaymentInput = {
@@ -140,7 +141,7 @@ export async function updateCustomerPayment(paymentId: string, input: UpdateCust
   if ('paidAt' in input) payload.paid_at = input.paidAt || new Date().toISOString();
   if ('concept' in input) payload.concept = input.concept?.trim() || 'Pago manual';
 
-  const { data, error } = await supabase.from('payments').update(payload).eq('id', paymentId).select('*').single();
+  const { data, error } = await supabase.from('payments').update(payload as TableUpdate<'payments'>).eq('id', paymentId).select('*').single();
   if (error) throw error;
   const payment = data as Payment;
   if (payment.membership_id) await syncMembershipPaymentSummary(payment.membership_id);
@@ -215,7 +216,7 @@ export async function updatePaymentSettings(input: UpdatePaymentSettingsInput): 
 
   const { data, error } = await supabase
     .from('payment_settings')
-    .update(payload)
+    .update(payload as TableUpdate<'payment_settings'>)
     .eq('id', 1)
     .select('*')
     .single();
