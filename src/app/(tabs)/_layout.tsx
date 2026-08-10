@@ -43,7 +43,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="services" options={{ href: isAdmin ? null : '/services', title: 'Servicios', tabBarIcon: ({ color, size }) => <MaterialIcons name="apps" size={size} color={color} /> }} />
       <Tabs.Screen name="classes" options={{ href: isClient ? '/classes' : null, title: 'Clases', tabBarIcon: ({ color, size }) => <MaterialIcons name="school" size={size} color={color} /> }} />
       <Tabs.Screen name="payments" options={{ href: isClient ? '/payments' : null, title: 'Pagos', tabBarIcon: ({ color, size }) => <MaterialIcons name="payments" size={size} color={color} /> }} />
-      <Tabs.Screen name="dog" options={{ href: isClient ? '/dog' : null, title: 'Mi perro', tabBarIcon: ({ color, size }) => <MaterialIcons name="pets" size={size} color={color} /> }} />
+      <Tabs.Screen name="dog" options={{ href: isClient ? '/dog' : null, title: 'Mis perros', tabBarIcon: ({ color, size }) => <MaterialIcons name="pets" size={size} color={color} /> }} />
 
       <Tabs.Screen name="announcements" options={{ href: isGuest ? '/announcements' : null, title: 'Anuncios', tabBarIcon: ({ color, size }) => <MaterialIcons name="campaign" size={size} color={color} /> }} />
       <Tabs.Screen name="calendar" options={{ href: isGuest ? '/calendar' : null, title: 'Calendario', tabBarIcon: ({ color, size }) => <MaterialIcons name="event" size={size} color={color} /> }} />

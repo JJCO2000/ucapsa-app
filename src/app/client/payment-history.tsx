@@ -1,8 +1,9 @@
 import { Redirect, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
+import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import { getMyPaymentOverview } from '../../services/payments.service';
@@ -19,10 +20,12 @@ function dateLabel(value: string | null | undefined) {
 }
 
 export default function PaymentHistoryScreen() {
-  const { user, isAdmin } = useSession();
+  const { user, role, isAdmin } = useSession();
   const [overview, setOverview] = useState<MyPaymentOverview>(emptyOverview);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
+  const premium = format.key === 'member';
 
   const load = useCallback(async () => {
     if (!user || isAdmin) return;
@@ -36,20 +39,20 @@ export default function PaymentHistoryScreen() {
   if (isAdmin) return <Redirect href="/admin-payments" />;
 
   return (
-    <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={ucapsaBrand.colors.red} />}>
-      <Text style={styles.kicker}>Pagos</Text>
-      <Text style={styles.title}>Historial</Text>
-      <Text style={styles.subtitle}>Pagos que UCAPSA tiene registrados en tu cuenta.</Text>
-      {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando...</Text></View> : null}
-      {!loading && overview.payments.length === 0 ? <View style={styles.empty}><Text style={styles.muted}>Todavia no hay pagos registrados.</Text></View> : null}
+    <KeyboardAwareScreen backgroundColor={format.background} style={{ backgroundColor: format.background }} contentContainerStyle={premium ? styles.premiumContent : undefined} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={format.accent} />}>
+      <Text style={[styles.kicker, { color: premium ? '#FFE8B5' : format.accentDark }]}>Pagos</Text>
+      <Text style={[styles.title, { color: format.text }]}>Historial</Text>
+      <Text style={[styles.subtitle, { color: format.muted }]}>Pagos que UCAPSA tiene registrados en tu cuenta.</Text>
+      {loading ? <View style={styles.loading}><ActivityIndicator color={format.accent} /><Text style={[styles.muted, { color: format.muted }]}>Cargando...</Text></View> : null}
+      {!loading && overview.payments.length === 0 ? <View style={[styles.empty, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}><Text style={[styles.muted, { color: format.muted }]}>Todavia no hay pagos registrados.</Text></View> : null}
       {overview.payments.map((payment) => (
-        <View key={payment.id} style={styles.row}>
+        <View key={payment.id} style={[styles.row, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle}>{payment.period_label || payment.concept}</Text>
-            <Text style={styles.muted}>{dateLabel(payment.paid_at)} - {payment.payment_method || 'Metodo no indicado'}</Text>
-            {payment.notes ? <Text style={styles.note}>{payment.notes}</Text> : null}
+            <Text style={[styles.rowTitle, { color: format.cardText }]}>{payment.period_label || payment.concept}</Text>
+            <Text style={[styles.muted, { color: format.muted }]}>{dateLabel(payment.paid_at)} - {payment.payment_method || 'Metodo no indicado'}</Text>
+            {payment.notes ? <Text style={[styles.note, { color: format.cardText }]}>{payment.notes}</Text> : null}
           </View>
-          <Text style={styles.amount}>{money(Number(payment.amount ?? 0))}</Text>
+          <Text style={[styles.amount, premium && styles.amountPremium]}>{money(Number(payment.amount ?? 0))}</Text>
         </View>
       ))}
     </KeyboardAwareScreen>
@@ -57,14 +60,16 @@ export default function PaymentHistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  kicker: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
-  title: { color: ucapsaBrand.colors.text, fontSize: 28, fontWeight: '900' },
-  subtitle: { color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 19, fontWeight: '700', marginBottom: 16 },
+  premiumContent: { backgroundColor: '#270711' },
+  kicker: { fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
+  title: { fontSize: 28, fontWeight: '900' },
+  subtitle: { fontSize: 13, lineHeight: 19, fontWeight: '700', marginBottom: 16 },
   loading: { flexDirection: 'row', gap: 10, alignItems: 'center', paddingVertical: 16 },
-  muted: { color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 19, fontWeight: '700' },
-  empty: { borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', padding: 18 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', padding: 15, marginBottom: 10 },
-  rowTitle: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
-  note: { color: ucapsaBrand.colors.text, fontSize: 12, lineHeight: 18, marginTop: 4 },
+  muted: { fontSize: 13, lineHeight: 19, fontWeight: '700' },
+  empty: { borderRadius: 18, borderWidth: 1, padding: 18 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 18, borderWidth: 1, padding: 15, marginBottom: 10 },
+  rowTitle: { fontSize: 14, fontWeight: '900' },
+  note: { fontSize: 12, lineHeight: 18, marginTop: 4 },
   amount: { color: ucapsaBrand.colors.success, fontSize: 15, fontWeight: '900' },
+  amountPremium: { color: '#FACC15' },
 });

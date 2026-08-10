@@ -17,7 +17,6 @@ export default function CustomerProfileEditScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [dogName, setDogName] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -28,7 +27,6 @@ export default function CustomerProfileEditScreen() {
     setName(row?.full_name ?? '');
     setEmail(row?.email ?? '');
     setPhone(row?.phone ?? '');
-    setDogName(row?.dog_name ?? '');
   }, [isAdmin, userId]);
 
   useFocusEffect(useCallback(() => {
@@ -45,7 +43,6 @@ export default function CustomerProfileEditScreen() {
         full_name: name,
         email,
         phone,
-        dog_name: dogName,
       });
       Alert.alert('Datos guardados', 'La informacion del cliente se actualizo.');
       router.back();
@@ -63,7 +60,7 @@ export default function CustomerProfileEditScreen() {
       <View style={styles.header}>
         <Text style={styles.kicker}>Cliente</Text>
         <Text style={styles.title}>Editar datos</Text>
-        <Text style={styles.subtitle}>Solo informacion de contacto. Membresia, clases y pagos se administran por separado.</Text>
+        <Text style={styles.subtitle}>Solo informacion de contacto. Perros, membresia, clases y pagos se administran por separado.</Text>
       </View>
 
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando...</Text></View> : null}
@@ -80,7 +77,6 @@ export default function CustomerProfileEditScreen() {
           <Field label="Nombre" value={name} onChangeText={setName} placeholder="Nombre completo" />
           <Field label="Correo" value={email} onChangeText={setEmail} placeholder="correo@ejemplo.com" keyboardType="email-address" />
           <Field label="Telefono" value={phone} onChangeText={setPhone} placeholder="Telefono" keyboardType="phone-pad" />
-          <Field label="Perro" value={dogName} onChangeText={setDogName} placeholder="Nombre del perro" />
         </View>
       ) : null}
 

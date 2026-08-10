@@ -22,7 +22,7 @@ export default function AdminMoreTab() {
         <MenuRow icon="calendar-month" title="Calendario" subtitle="Agenda de eventos, anuncios y clases" onPress={() => router.push('/calendar' as never)} />
         <MenuRow icon="campaign" title="Comunicacion" subtitle="Anuncios, eventos y notificaciones" onPress={() => router.push('/admin/tools-communication' as never)} />
         <MenuRow icon="tune" title="Administracion" subtitle="Membresias, administradores y ajustes" onPress={() => router.push('/admin/tools-administration' as never)} />
-        <MenuRow icon="person" title="Mi perfil" subtitle="Datos personales y cuenta" onPress={() => router.push('/profile' as never)} last />
+        <MenuRow icon="person" title="Mi perfil" subtitle="Datos personales y cuenta" onPress={() => router.push('/account-settings' as never)} last />
       </View>
     </KeyboardAwareScreen>
   );

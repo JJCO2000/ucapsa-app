@@ -1,10 +1,12 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { Redirect, router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { MemberCredentialCard } from '../../components/domain/MemberCredentialCard';
+import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
+import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import { getMembershipStatusLabel, getMyMembership, isMembershipDateExpired, requestMembership } from '../../services/memberships.service';
@@ -12,7 +14,7 @@ import { getMyProgramEnrollments } from '../../services/programs.service';
 import type { Membership, ProgramEnrollmentWithDetails } from '../../types/app.types';
 
 export default function ClientMembershipScreen() {
-  const { user, profile, isAdmin, refreshProfile } = useSession();
+  const { user, profile, role, isAdmin, refreshProfile } = useSession();
   const [membership, setMembership] = useState<Membership | null>(null);
   const [programs, setPrograms] = useState<ProgramEnrollmentWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,6 +52,9 @@ export default function ClientMembershipScreen() {
     }
   }
 
+  const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin, membershipStatus: membership?.status ?? null, hasActivePrograms: programs.some((item) => item.enrollment.status === 'active') }), [isAdmin, membership?.status, programs, role, user]);
+  const premium = format.key === 'member';
+
   if (!user) return <Redirect href="/auth/login" />;
   if (isAdmin) return <Redirect href="/admin-home" />;
 
@@ -60,44 +65,50 @@ export default function ClientMembershipScreen() {
   const displayName = profile?.full_name || profile?.email || user.email || 'Usuario UCAPSA';
 
   return (
-    <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={ucapsaBrand.colors.red} />}>
+    <KeyboardAwareScreen
+      backgroundColor={format.background}
+      style={{ backgroundColor: format.background }}
+      contentContainerStyle={[styles.screenContent, premium && styles.premiumContent]}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={format.accent} />}
+    >
+      <UcapsaAmbientBackground format={format} variant="services" />
       <View style={styles.header}>
-        <Text style={styles.kicker}>Servicios</Text>
-        <Text style={styles.title}>Membresia</Text>
-        <Text style={styles.subtitle}>Estado, vigencia y credencial. Las clases y pagos estan en sus propias secciones.</Text>
+        <Text style={[styles.kicker, { color: premium ? '#FFE8B5' : format.accentDark }]}>Servicios</Text>
+        <Text style={[styles.title, { color: format.text }]}>Membresia</Text>
+        <Text style={[styles.subtitle, { color: format.muted }]}>Estado, vigencia y credencial. Las clases y pagos estan en sus propias secciones.</Text>
       </View>
 
-      {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando membresia...</Text></View> : null}
+      {loading ? <View style={styles.loading}><ActivityIndicator color={format.accent} /><Text style={[styles.muted, { color: format.muted }]}>Cargando membresia...</Text></View> : null}
 
       {!loading && !membership && !eligible ? (
-        <View style={styles.card}>
-          <MaterialIcons name="info-outline" size={28} color={ucapsaBrand.colors.redDark} />
-          <Text style={styles.cardTitle}>Todavia no disponible</Text>
-          <Text style={styles.muted}>Para solicitar membresia primero debes estar inscrito o haber completado Puppy o Comandos.</Text>
-          <Pressable style={styles.secondaryButton} onPress={() => router.push('/classes' as never)}><Text style={styles.secondaryButtonText}>Ver mis clases</Text></Pressable>
+        <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
+          <MaterialIcons name="info-outline" size={28} color={format.accent} />
+          <Text style={[styles.cardTitle, { color: format.cardText }]}>Todavia no disponible</Text>
+          <Text style={[styles.muted, { color: format.muted }]}>Para solicitar membresia primero debes estar inscrito o haber completado Puppy o Comandos.</Text>
+          <Pressable style={[styles.secondaryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={() => router.push('/classes' as never)}><Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>Ver mis clases</Text></Pressable>
         </View>
       ) : null}
 
       {!loading && !membership && eligible ? (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Puedes solicitar membresia</Text>
-          <Text style={styles.muted}>Envia la solicitud para que administracion la revise.</Text>
-          <Pressable style={styles.primaryButton} disabled={saving} onPress={() => void requestReview()}><Text style={styles.primaryButtonText}>{saving ? 'Enviando...' : 'Solicitar membresia'}</Text></Pressable>
+        <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
+          <Text style={[styles.cardTitle, { color: format.cardText }]}>Puedes solicitar membresia</Text>
+          <Text style={[styles.muted, { color: format.muted }]}>Envia la solicitud para que administracion la revise.</Text>
+          <Pressable style={[styles.primaryButton, { backgroundColor: format.primaryButton }]} disabled={saving} onPress={() => void requestReview()}><Text style={[styles.primaryButtonText, { color: format.primaryButtonText }]}>{saving ? 'Enviando...' : 'Solicitar membresia'}</Text></Pressable>
         </View>
       ) : null}
 
       {pending ? (
-        <View style={styles.noticeCard}>
-          <Text style={styles.cardTitle}>Solicitud pendiente</Text>
-          <Text style={styles.muted}>Administracion esta revisando tu solicitud. La credencial aparecera aqui cuando sea aprobada.</Text>
+        <View style={[styles.noticeCard, premium && styles.noticeCardPremium]}>
+          <Text style={[styles.cardTitle, { color: premium ? '#FFFFFF' : format.text }]}>Solicitud pendiente</Text>
+          <Text style={[styles.muted, { color: premium ? '#FFE3E8' : format.muted }]}>Administracion esta revisando tu solicitud. La credencial aparecera aqui cuando sea aprobada.</Text>
         </View>
       ) : null}
 
       {inactive ? (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Estado: {getMembershipStatusLabel(membership?.status ?? 'cancelled')}</Text>
-          <Text style={styles.muted}>Si necesitas revision, puedes solicitarla desde aqui.</Text>
-          {eligible ? <Pressable style={styles.primaryButton} disabled={saving} onPress={() => void requestReview()}><Text style={styles.primaryButtonText}>{saving ? 'Enviando...' : 'Solicitar revision'}</Text></Pressable> : null}
+        <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
+          <Text style={[styles.cardTitle, { color: format.cardText }]}>Estado: {getMembershipStatusLabel(membership?.status ?? 'cancelled')}</Text>
+          <Text style={[styles.muted, { color: format.muted }]}>Si necesitas revision, puedes solicitarla desde aqui.</Text>
+          {eligible ? <Pressable style={[styles.primaryButton, { backgroundColor: format.primaryButton }]} disabled={saving} onPress={() => void requestReview()}><Text style={[styles.primaryButtonText, { color: format.primaryButtonText }]}>{saving ? 'Enviando...' : 'Solicitar revision'}</Text></Pressable> : null}
         </View>
       ) : null}
 
@@ -105,8 +116,8 @@ export default function ClientMembershipScreen() {
         <>
           <MemberCredentialCard membership={membership} profile={profile} displayName={displayName} expiredByDate={isMembershipDateExpired(membership)} />
           <View style={styles.actions}>
-            <Pressable style={styles.secondaryButton} onPress={() => router.push('/payments' as never)}><Text style={styles.secondaryButtonText}>Ver pagos</Text></Pressable>
-            <Pressable style={styles.secondaryButton} onPress={() => router.push('/classes' as never)}><Text style={styles.secondaryButtonText}>Ver clases</Text></Pressable>
+            <Pressable style={[styles.secondaryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={() => router.push('/payments' as never)}><Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>Ver pagos</Text></Pressable>
+            <Pressable style={[styles.secondaryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={() => router.push('/classes' as never)}><Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>Ver clases</Text></Pressable>
           </View>
         </>
       ) : null}
@@ -115,18 +126,21 @@ export default function ClientMembershipScreen() {
 }
 
 const styles = StyleSheet.create({
+  screenContent: { position: 'relative' },
+  premiumContent: { backgroundColor: '#270711' },
   header: { gap: 4, marginBottom: 16 },
-  kicker: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
-  title: { color: ucapsaBrand.colors.text, fontSize: 29, fontWeight: '900' },
-  subtitle: { color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 19, fontWeight: '700' },
+  kicker: { fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
+  title: { fontSize: 29, fontWeight: '900' },
+  subtitle: { fontSize: 13, lineHeight: 19, fontWeight: '700' },
   loading: { flexDirection: 'row', gap: 10, alignItems: 'center', paddingVertical: 16 },
-  muted: { color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 19, fontWeight: '700' },
-  card: { gap: 9, borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', padding: 17, marginBottom: 14 },
+  muted: { fontSize: 13, lineHeight: 19, fontWeight: '700' },
+  card: { gap: 9, borderRadius: 20, borderWidth: 1, padding: 17, marginBottom: 14 },
   noticeCard: { gap: 8, borderRadius: 20, borderWidth: 1, borderColor: '#FDE68A', backgroundColor: '#FFFBEB', padding: 17, marginBottom: 14 },
-  cardTitle: { color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '900' },
-  primaryButton: { alignItems: 'center', borderRadius: 16, backgroundColor: ucapsaBrand.colors.red, paddingVertical: 12, marginTop: 2 },
-  primaryButtonText: { color: '#fff', fontSize: 13, fontWeight: '900' },
-  secondaryButton: { flex: 1, alignItems: 'center', borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', paddingVertical: 12 },
-  secondaryButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900' },
+  noticeCardPremium: { borderColor: 'rgba(250,204,21,0.42)', backgroundColor: '#38111B' },
+  cardTitle: { fontSize: 18, fontWeight: '900' },
+  primaryButton: { alignItems: 'center', borderRadius: 16, paddingVertical: 12, marginTop: 2 },
+  primaryButtonText: { fontSize: 13, fontWeight: '900' },
+  secondaryButton: { flex: 1, alignItems: 'center', borderRadius: 16, borderWidth: 1, paddingVertical: 12 },
+  secondaryButtonText: { fontSize: 13, fontWeight: '900' },
   actions: { flexDirection: 'row', gap: 10, marginTop: 12 },
 });

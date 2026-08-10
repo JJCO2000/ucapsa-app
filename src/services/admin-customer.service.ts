@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { getProgramSchedules } from './programs.service';
+import type { BasicDog } from './dogs.service';
 import type {
   Membership,
   Payment,
@@ -39,6 +40,7 @@ export type AdminCustomerRecord = {
   payments: AdminCustomerPayment[];
   obligations: AdminCustomerPaymentObligation[];
   enrollments: ProgramEnrollmentWithDetails[];
+  dogs: BasicDog[];
 };
 
 function unique(values: string[]) {
@@ -49,12 +51,13 @@ export async function getAdminCustomerRecord(userId: string): Promise<AdminCusto
   const normalizedUserId = userId.trim();
   if (!normalizedUserId) throw new Error('Falta el usuario de la ficha.');
 
-  const [profileResult, membershipResult, paymentsResult, enrollmentsResult, obligationsResult] = await Promise.all([
+  const [profileResult, membershipResult, paymentsResult, enrollmentsResult, obligationsResult, dogsResult] = await Promise.all([
     supabase.from('profiles').select('*').eq('user_id', normalizedUserId).maybeSingle(),
     supabase.from('memberships').select('*').eq('user_id', normalizedUserId).maybeSingle(),
     supabase.from('payments').select('*').eq('user_id', normalizedUserId).order('created_at', { ascending: false }),
     supabase.from('program_enrollments').select('*').eq('user_id', normalizedUserId).order('created_at', { ascending: false }),
     supabase.from('payment_obligations').select('*').eq('user_id', normalizedUserId).order('due_date', { ascending: false }),
+    supabase.from('dogs').select('id,name,is_active,created_at,updated_at').eq('user_id', normalizedUserId).eq('is_active', true).order('created_at', { ascending: true }),
   ]);
 
   if (profileResult.error) throw profileResult.error;
@@ -63,15 +66,23 @@ export async function getAdminCustomerRecord(userId: string): Promise<AdminCusto
   if (paymentsResult.error) throw paymentsResult.error;
   if (enrollmentsResult.error) throw enrollmentsResult.error;
   if (obligationsResult.error) throw obligationsResult.error;
+  if (dogsResult.error) throw dogsResult.error;
 
   const profile = profileResult.data as Profile;
   const membership = (membershipResult.data ?? null) as Membership | null;
   const payments = (paymentsResult.data ?? []) as AdminCustomerPayment[];
   const obligations = (obligationsResult.data ?? []) as AdminCustomerPaymentObligation[];
   const enrollments = (enrollmentsResult.data ?? []) as ProgramEnrollment[];
+  const dogs = ((dogsResult.data ?? []) as Array<Partial<BasicDog>>).map((item) => ({
+    id: String(item.id ?? ''),
+    name: String(item.name ?? ''),
+    is_active: item.is_active !== false,
+    created_at: String(item.created_at ?? ''),
+    updated_at: String(item.updated_at ?? ''),
+  })).filter((item) => item.id && item.name);
 
   if (enrollments.length === 0) {
-    return { profile, membership, payments, obligations, enrollments: [] };
+    return { profile, membership, payments, obligations, enrollments: [], dogs };
   }
 
   const programIds = unique(enrollments.map((item) => item.program_id));
@@ -123,5 +134,6 @@ export async function getAdminCustomerRecord(userId: string): Promise<AdminCusto
     payments,
     obligations,
     enrollments: detailedEnrollments,
+    dogs,
   };
 }

@@ -106,8 +106,8 @@ export default function AchievementsScreen() {
 
       {!error ? <AchievementBadgeGrid items={achievements} premium={premium} onSelect={setSelectedAchievement} /> : null}
 
-      <Pressable style={[styles.secondaryButton, premium && styles.secondaryButtonPremium]} onPress={() => router.push('/profile' as never)}>
-        <Text style={[styles.secondaryButtonText, premium && styles.secondaryButtonTextPremium]}>Volver a Perfil</Text>
+      <Pressable style={[styles.secondaryButton, premium && styles.secondaryButtonPremium]} onPress={() => router.push('/home' as never)}>
+        <Text style={[styles.secondaryButtonText, premium && styles.secondaryButtonTextPremium]}>Volver a Inicio</Text>
       </Pressable>
 
       <AchievementDetailModal item={selectedAchievement} premium={premium} onClose={() => setSelectedAchievement(null)} />

@@ -21,6 +21,7 @@ export default function AdminClientsTab() {
   const params = useLocalSearchParams<{ intent?: string }>();
   const intent: ClientIntent = params.intent === 'attendance' ? 'attendance' : params.intent === 'payments' ? 'payments' : 'default';
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [dogNamesByUser, setDogNamesByUser] = useState<Record<string, string[]>>({});
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<ClientFilter>('all');
   const [loading, setLoading] = useState(true);
@@ -34,7 +35,29 @@ export default function AdminClientsTab() {
       .in('role', ['client', 'member'])
       .order('full_name', { ascending: true, nullsFirst: false });
     if (error) throw error;
-    setProfiles((data ?? []) as Profile[]);
+    const profileRows = (data ?? []) as Profile[];
+    setProfiles(profileRows);
+
+    const userIds = profileRows.map((item) => item.user_id).filter(Boolean);
+    if (userIds.length === 0) {
+      setDogNamesByUser({});
+      return;
+    }
+
+    const { data: dogRows, error: dogError } = await supabase
+      .from('dogs')
+      .select('user_id,name')
+      .in('user_id', userIds)
+      .eq('is_active', true)
+      .order('created_at', { ascending: true });
+    if (dogError) throw dogError;
+
+    const nextDogNames: Record<string, string[]> = {};
+    for (const row of (dogRows ?? []) as Array<{ user_id: string; name: string }>) {
+      nextDogNames[row.user_id] = nextDogNames[row.user_id] ?? [];
+      if (!nextDogNames[row.user_id].includes(row.name)) nextDogNames[row.user_id].push(row.name);
+    }
+    setDogNamesByUser(nextDogNames);
   }, [isAdmin]);
 
   useFocusEffect(useCallback(() => {
@@ -50,9 +73,9 @@ export default function AdminClientsTab() {
       if (filter === 'members' && profile.role !== 'member') return false;
       if (filter === 'clients' && profile.role !== 'client') return false;
       if (!needle) return true;
-      return [profile.full_name, profile.email, profile.phone, profile.dog_name].filter(Boolean).some((value) => String(value).toLowerCase().includes(needle));
+      return [profile.full_name, profile.email, profile.phone, profile.dog_name, ...(dogNamesByUser[profile.user_id] ?? [])].filter(Boolean).some((value) => String(value).toLowerCase().includes(needle));
     });
-  }, [filter, profiles, search]);
+  }, [dogNamesByUser, filter, profiles, search]);
 
   async function refresh() {
     setRefreshing(true);
@@ -113,7 +136,7 @@ export default function AdminClientsTab() {
         {rows.map((profile, index) => (
           <Pressable key={profile.id} style={[styles.row, index === rows.length - 1 && styles.rowLast]} onPress={() => openClient(profile)}>
             <View style={[styles.avatar, { backgroundColor: profile.avatar_color || ucapsaBrand.colors.red }]}><Text style={styles.avatarText}>{(profile.full_name || profile.email || 'U').slice(0, 1).toUpperCase()}</Text></View>
-            <View style={{ flex: 1 }}><Text style={styles.name}>{profile.full_name || 'Sin nombre'}</Text><Text style={styles.meta}>{profile.email || profile.phone || 'Sin contacto'}</Text><Text style={styles.role}>{labelForRole(profile.role)}</Text></View>
+            <View style={{ flex: 1 }}><Text style={styles.name}>{profile.full_name || 'Sin nombre'}</Text><Text style={styles.meta}>{profile.email || profile.phone || 'Sin contacto'}</Text>{(dogNamesByUser[profile.user_id] ?? []).length > 0 ? <Text style={styles.dogs}>Perros: {(dogNamesByUser[profile.user_id] ?? []).join(', ')}</Text> : null}<Text style={styles.role}>{labelForRole(profile.role)}</Text></View>
             <MaterialIcons name="chevron-right" size={24} color={ucapsaBrand.colors.redDark} />
           </Pressable>
         ))}
@@ -152,5 +175,6 @@ const styles = StyleSheet.create({
   avatarText: { color: '#fff', fontSize: 16, fontWeight: '900' },
   name: { color: ucapsaBrand.colors.text, fontSize: 15, fontWeight: '900' },
   meta: { color: ucapsaBrand.colors.muted, fontSize: 12, marginTop: 2 },
+  dogs: { color: ucapsaBrand.colors.text, fontSize: 11, fontWeight: '800', marginTop: 3 },
   role: { color: ucapsaBrand.colors.redDark, fontSize: 11, fontWeight: '900', marginTop: 3 },
 });

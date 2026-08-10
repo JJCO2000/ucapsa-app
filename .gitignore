@@ -60,3 +60,5 @@ ucapsa-phase*/
 ucapsa-keyboard-global-fix/
 ucapsa-*package*/
 ucapsa-*shell*/
+supabase/.temp/
+*.log

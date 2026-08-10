@@ -15,7 +15,6 @@ import {
   revokeAchievementFromUser,
   type AchievementWithState,
 } from '../../services/achievements.service';
-import { updateProfileDogName } from '../../services/profiles.service';
 import type { AppRole, Profile } from '../../types/app.types';
 
 type UserFilter = 'clients_and_members' | 'clients' | 'members' | 'admins';
@@ -173,19 +172,6 @@ export default function AdminUsersScreen() {
     ]);
   }
 
-  async function handleSaveDogName(profile: Profile, dogName: string) {
-    try {
-      setSavingUserId(profile.user_id);
-      await updateProfileDogName(profile.user_id, dogName);
-      await loadProfiles();
-      await refreshSelectedProfile(profile.user_id);
-      Alert.alert('Perro actualizado', 'El nombre del perro quedo guardado.');
-    } catch (error) {
-      Alert.alert('No se pudo guardar perro', error instanceof Error ? error.message : 'Intenta de nuevo.');
-    } finally {
-      setSavingUserId(null);
-    }
-  }
 
   function handleBackToClient(profile: Profile) {
     Alert.alert('Volver a cliente', 'Esto desactiva la membresia visible y cambia el rol a cliente. No borra historial.', [
@@ -358,7 +344,6 @@ export default function AdminUsersScreen() {
         onClose={() => setSelectedProfile(null)}
         onForceMember={handleForceMember}
         onBackToClient={handleBackToClient}
-        onSaveDogName={handleSaveDogName}
         achievements={selectedAchievements}
         loadingAchievements={loadingAchievements}
         onToggleAchievement={handleToggleAchievement}
@@ -376,12 +361,7 @@ function Summary({ label, value }: { label: string; value: number }) {
   );
 }
 
-function UserDetailModal({ profile, saving, onClose, onForceMember, onBackToClient, onSaveDogName, achievements, loadingAchievements, onToggleAchievement }: { profile: Profile | null; saving: boolean; onClose: () => void; onForceMember: (profile: Profile) => void; onBackToClient: (profile: Profile) => void; onSaveDogName: (profile: Profile, dogName: string) => void; achievements: AchievementWithState[]; loadingAchievements: boolean; onToggleAchievement: (profile: Profile, item: AchievementWithState) => void }) {
-  const [dogNameDraft, setDogNameDraft] = useState('');
-
-  useEffect(() => {
-    setDogNameDraft(profile?.dog_name ?? '');
-  }, [profile?.user_id, profile?.dog_name]);
+function UserDetailModal({ profile, saving, onClose, onForceMember, onBackToClient, achievements, loadingAchievements, onToggleAchievement }: { profile: Profile | null; saving: boolean; onClose: () => void; onForceMember: (profile: Profile) => void; onBackToClient: (profile: Profile) => void; achievements: AchievementWithState[]; loadingAchievements: boolean; onToggleAchievement: (profile: Profile, item: AchievementWithState) => void }) {
 
   if (!profile) return null;
 
@@ -397,27 +377,12 @@ function UserDetailModal({ profile, saving, onClose, onForceMember, onBackToClie
             <Detail label="Nombre" value={profile.full_name} />
             <Detail label="Correo" value={profile.email} />
             <Detail label="Telefono" value={profile.phone} />
-            {profile.role === 'client' || profile.role === 'member' ? <Detail label="Perro" value={profile.dog_name} /> : null}
             <Detail label="Rol" value={getRoleLabel(profile.role)} />
             <Detail label="Solicitud eliminacion" value={profile.deletion_requested_at ? 'Si' : 'No'} />
           </View>
 
           {profile.role === 'client' || profile.role === 'member' ? (
             <>
-              <View style={styles.dogEditBox}>
-                <Text style={styles.detailLabel}>Editar perro</Text>
-                <TextInput
-                  value={dogNameDraft}
-                  onChangeText={setDogNameDraft}
-                  placeholder="Nombre del perro"
-                  style={styles.dogInput}
-                />
-                <Pressable disabled={saving} style={styles.dogSaveButton} onPress={() => onSaveDogName(profile, dogNameDraft)}>
-                  <Text style={styles.dogSaveButtonText}>{saving ? 'Guardando...' : 'Guardar perro'}</Text>
-                </Pressable>
-              </View>
-
-
               <View style={styles.achievementsAdminBox}>
                 <View style={styles.achievementsHeaderRow}>
                   <View style={{ flex: 1 }}>
@@ -460,8 +425,8 @@ function UserDetailModal({ profile, saving, onClose, onForceMember, onBackToClie
           ) : null}
 
           {profile.role === 'member' ? (
-            <Pressable style={styles.primaryButton} onPress={() => router.push('/membership?view=table&filter=all' as never)}>
-              <Text style={styles.primaryButtonText}>Ir a Mi UCAPSA</Text>
+            <Pressable style={styles.primaryButton} onPress={() => { onClose(); router.push(`/admin/customer-membership?userId=${encodeURIComponent(profile.user_id)}` as never); }}>
+              <Text style={styles.primaryButtonText}>Abrir membresia</Text>
             </Pressable>
           ) : null}
 
@@ -535,10 +500,6 @@ const styles = StyleSheet.create({
   detailRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F7E6EA' },
   detailLabel: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
   detailValue: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '700', marginTop: 3 },
-  dogEditBox: { gap: 8, backgroundColor: '#fff', borderRadius: 22, padding: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginTop: 14 },
-  dogInput: { minHeight: 46, paddingHorizontal: 14, borderRadius: 16, backgroundColor: ucapsaBrand.colors.background, borderWidth: 1, borderColor: ucapsaBrand.colors.border, color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '800' },
-  dogSaveButton: { alignItems: 'center', borderRadius: 16, paddingVertical: 12, backgroundColor: ucapsaBrand.colors.red },
-  dogSaveButtonText: { color: '#fff', fontSize: 14, fontWeight: '900' },
   achievementsAdminBox: { gap: 12, backgroundColor: '#fff', borderRadius: 22, padding: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginTop: 14 },
   achievementsHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   achievementsAdminHint: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 4 },

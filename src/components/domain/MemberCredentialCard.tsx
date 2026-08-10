@@ -13,7 +13,7 @@ type MemberCredentialCardProps = {
   expiredByDate: boolean;
 };
 
-export function MemberCredentialCard({ membership, profile, displayName, expiredByDate }: MemberCredentialCardProps) {
+export function MemberCredentialCard({ membership, profile: _profile, displayName, expiredByDate }: MemberCredentialCardProps) {
   return (
     <View style={styles.card}>
       <View style={styles.glowOne} />
@@ -24,10 +24,9 @@ export function MemberCredentialCard({ membership, profile, displayName, expired
           <MaterialCommunityIcons name="crown" size={30} color="#7A1020" />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.kicker}>Credencial premium</Text>
+          <Text style={styles.kicker}>Credencial UCAPSA</Text>
           <Text style={styles.title}>Socio UCAPSA</Text>
           <Text style={styles.name}>{displayName}</Text>
-          <Text style={styles.dog}>Perro: {profile?.dog_name || 'Sin registrar'}</Text>
         </View>
       </View>
 
@@ -53,7 +52,7 @@ export function MemberCredentialCard({ membership, profile, displayName, expired
           <QRCode value={`ucapsa-member:${membership.qr_token}`} size={176} />
         </View>
         <Text style={styles.qrTitle}>QR de verificacion</Text>
-        <Text style={styles.qrSubtitle}>Token interno de socio. No contiene datos personales.</Text>
+        <Text style={styles.qrSubtitle}>Usa este QR para identificar tu membresia.</Text>
       </View>
     </View>
   );
@@ -77,7 +76,6 @@ const styles = StyleSheet.create({
   kicker: { color: '#FFE3E8', fontSize: 11, fontWeight: '900', letterSpacing: 0.9, textTransform: 'uppercase' },
   title: { color: '#FFFFFF', fontSize: 28, fontWeight: '900', marginTop: 1 },
   name: { color: '#FFE8EC', fontSize: 16, fontWeight: '900', marginTop: 3 },
-  dog: { color: '#FFD0D9', fontSize: 13, fontWeight: '800', marginTop: 2 },
   memberNumberBox: { padding: 14, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.94)', borderWidth: 1, borderColor: '#FCD6DC' },
   memberNumberLabel: { color: ucapsaBrand.colors.redDark, fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.7 },
   memberNumber: { color: '#25151A', fontSize: 26, fontWeight: '900', marginTop: 2 },

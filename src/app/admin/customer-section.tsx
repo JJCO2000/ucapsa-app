@@ -105,7 +105,7 @@ export default function CustomerSectionScreen() {
             <Detail label="Nombre" value={record.profile.full_name || 'Sin nombre'} />
             <Detail label="Correo" value={record.profile.email || 'Sin correo'} />
             <Detail label="Telefono" value={record.profile.phone || 'Sin telefono'} />
-            <Detail label="Perro" value={record.profile.dog_name || record.enrollments.find((item) => item.enrollment.dog_name)?.enrollment.dog_name || 'Sin registrar'} last />
+            <Detail label="Perros" value={record.dogs.length > 0 ? record.dogs.map((dog) => dog.name).join(', ') : record.enrollments.map((item) => item.enrollment.dog_name).filter(Boolean).filter((value, index, list) => list.indexOf(value) === index).join(', ') || 'Sin registrar'} last />
           </View>
           <Action label="Editar datos" icon="edit" onPress={() => router.push(`/admin/customer-profile-edit?userId=${encodeURIComponent(userId)}` as never)} />
         </>
@@ -135,6 +135,7 @@ export default function CustomerSectionScreen() {
             <Pressable key={item.enrollment.id} style={styles.item} onPress={() => router.push(`/admin/customer-class?userId=${encodeURIComponent(userId)}&enrollmentId=${encodeURIComponent(item.enrollment.id)}` as never)}>
               <View style={styles.itemTop}><Text style={styles.itemTitle}>{item.program.name}</Text><Text style={styles.pill}>{getProgramStatusLabel(item.enrollment.status)}</Text></View>
               {item.program.code === 'comandos' ? <Text style={styles.itemMeta}>Nivel: {getProgramLevelLabel(item.enrollment.program_level)}</Text> : null}
+              <Text style={styles.itemMeta}>Perro: {item.enrollment.dog_name || 'Sin registrar'}</Text>
               <Text style={styles.itemMeta}>{formatProgramScheduleDisplayLabel(item.schedule, item.program)}</Text>
               <Text style={styles.itemMeta}>{item.attendances.length} de {item.program.required_attendances} asistencias</Text>
               <Text style={styles.openHint}>Abrir clase</Text>
