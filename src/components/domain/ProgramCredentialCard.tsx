@@ -1,4 +1,5 @@
-import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { ProgramEnrollmentWithDetails } from '../../types/app.types';

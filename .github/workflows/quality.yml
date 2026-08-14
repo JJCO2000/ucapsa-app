@@ -15,4 +15,6 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run verify
+      - run: npm run verify:release
+      - run: npm run audit:critical
+      - run: npx expo export --platform android --output-dir dist-ci --clear

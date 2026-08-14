@@ -1,4 +1,4 @@
-import { MaterialIcons } from '@expo/vector-icons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { UcapsaColorKey, UcapsaEvent, UcapsaPriority } from '../../types/app.types';
 import { getEventRepeatLabel } from '../../utils/events.utils';

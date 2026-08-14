@@ -1,4 +1,4 @@
-import { MaterialIcons } from '@expo/vector-icons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ucapsaBrand } from '../../constants/brand';

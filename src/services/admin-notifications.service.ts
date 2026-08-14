@@ -60,15 +60,14 @@ export async function sendAdminNotification(input: SendAdminNotificationInput): 
       const context = (error as { context?: Response }).context;
       const details = context ? await context.json() : null;
 
-      console.log('send-notification details:', details);
 
       if (details?.error) {
         message = details.error;
       } else if (details?.message) {
         message = details.message;
       }
-    } catch (parseError) {
-      console.log('No se pudo leer el detalle del error:', parseError);
+    } catch {
+      // Keep the original Edge Function error message when the response body cannot be parsed.
     }
 
     throw new Error(message);

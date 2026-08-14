@@ -20,7 +20,13 @@
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "resize",
       "package": "com.jjcc2000.ucapsaapp",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
+      "allowBackup": false
     },
     "web": {
       "output": "static",
@@ -39,7 +45,21 @@
         }
       ],
       "expo-status-bar",
-      "expo-notifications",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permitir que UCAPSA use la camara para escanear codigos QR",
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#C91F37",
+          "defaultChannel": "default"
+        }
+      ],
       "expo-sharing"
     ],
     "experiments": {
