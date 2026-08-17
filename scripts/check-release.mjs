@@ -65,13 +65,15 @@ const expectedOverrides = {
   'brace-expansion': '5.0.9',
   'js-yaml': '4.3.1',
   'postcss': '8.5.23',
-  'nanoid@<=3.3.11': '3.3.17',
   'nanoid@>=4.0.0 <=5.1.10': '5.1.16',
 };
 for (const [name, version] of Object.entries(expectedOverrides)) {
   if (overrides[name] !== version) {
     fail(`Override de seguridad incorrecto para ${name}: ${overrides[name] ?? 'missing'}; esperado ${version}`);
   }
+}
+if (Object.prototype.hasOwnProperty.call(overrides, 'nanoid@<=3.3.11')) {
+  fail('No debe existir el override nanoid@<=3.3.11: con npm 10 rompe npm ci; la seguridad 3.x se valida contra package-lock.json en check-nanoid-security.mjs.');
 }
 if (Object.prototype.hasOwnProperty.call(overrides, 'nanoid')) {
   fail('No debe existir un override global simple de nanoid: romperia innecesariamente la separacion 3.x/5.x.');
