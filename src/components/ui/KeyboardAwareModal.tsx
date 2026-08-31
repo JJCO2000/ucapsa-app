@@ -1,5 +1,6 @@
 import type { PropsWithChildren } from 'react';
-import { ucapsaBrand } from '../../constants/brand';
+import type { StyleProp, ViewStyle } from 'react-native';
+import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -13,9 +14,17 @@ import {
 type KeyboardAwareModalProps = PropsWithChildren<{
   visible: boolean;
   onClose: () => void;
+  sheetStyle?: StyleProp<ViewStyle>;
+  contentContainerStyle?: StyleProp<ViewStyle>;
 }>;
 
-export function KeyboardAwareModal({ visible, onClose, children }: KeyboardAwareModalProps) {
+export function KeyboardAwareModal({
+  visible,
+  onClose,
+  sheetStyle,
+  contentContainerStyle,
+  children,
+}: KeyboardAwareModalProps) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView
@@ -24,12 +33,12 @@ export function KeyboardAwareModal({ visible, onClose, children }: KeyboardAware
         keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
       >
         <Pressable style={styles.backdrop} onPress={onClose} />
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, sheetStyle]}>
           <ScrollView
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.content}
+            contentContainerStyle={[styles.content, contentContainerStyle]}
           >
             {children}
           </ScrollView>
@@ -46,7 +55,7 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(37, 21, 26, 0.45)',
+    backgroundColor: withAlpha(ucapsaBrand.colors.text, 0.45),
   },
   sheet: {
     maxHeight: '88%',

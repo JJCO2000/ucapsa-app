@@ -1,3 +1,4 @@
+import { ucapsaBrand } from '../../constants/brand';
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -25,24 +26,31 @@ export default function RegisterScreen() {
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
-      email: cleanEmail,
-      password,
-      options: {
-        data: {
-          full_name: cleanName,
+    try {
+      // Crear una cuenta no usa un timeout artificial: Promise.race no cancela
+      // una escritura ya enviada y podria reportar fallo aunque el alta termine despues.
+      const { error } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password,
+        options: {
+          data: {
+            full_name: cleanName,
+          },
         },
-      },
-    });
-    setLoading(false);
+      });
 
-    if (error) {
-      Alert.alert('No se pudo crear la cuenta', error.message);
-      return;
+      if (error) {
+        Alert.alert('No se pudo crear la cuenta', error.message);
+        return;
+      }
+
+      Alert.alert('Cuenta creada', 'Ya puedes entrar a UCAPSA App.');
+      router.replace('/auth/login');
+    } catch {
+      Alert.alert('No se pudo conectar', 'Revisa tu conexion e intenta de nuevo.');
+    } finally {
+      setLoading(false);
     }
-
-    Alert.alert('Cuenta creada', 'Ya puedes entrar a UCAPSA App.');
-    router.replace('/auth/login');
   }
 
   return (
@@ -50,7 +58,7 @@ export default function RegisterScreen() {
       <View style={styles.header}>
         <Text style={styles.kicker}>UCAPSA APP</Text>
         <Text style={styles.title}>Crear cuenta</Text>
-        <Text style={styles.subtitle}>Registrate para solicitar membresia y consultar informacion oficial.</Text>
+        <Text style={styles.subtitle}>Crea tu cuenta para llevar clases, asistencias, progreso, logros y pagos de tus perros en un solo lugar.</Text>
       </View>
 
       <View style={styles.card}>
@@ -95,6 +103,7 @@ export default function RegisterScreen() {
         </Pressable>
 
         <Link href="/auth/login" style={styles.linkStrong}>Ya tengo cuenta</Link>
+        <Link href="/services" style={styles.linkSoft}>Todavia no entreno con UCAPSA</Link>
       </View>
     </KeyboardAwareScreen>
   );
@@ -109,7 +118,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   kicker: {
-    color: '#0f766e',
+    color: ucapsaBrand.colors.red,
     fontSize: 14,
     fontWeight: '900',
     letterSpacing: 1.5,
@@ -117,13 +126,13 @@ const styles = StyleSheet.create({
   },
   title: {
     marginTop: 10,
-    color: '#0f172a',
+    color: ucapsaBrand.colors.text,
     fontSize: 36,
     fontWeight: '900',
   },
   subtitle: {
     marginTop: 10,
-    color: '#64748b',
+    color: ucapsaBrand.colors.muted,
     fontSize: 17,
     fontWeight: '700',
     lineHeight: 24,
@@ -131,13 +140,13 @@ const styles = StyleSheet.create({
   card: {
     gap: 12,
     borderRadius: 28,
-    backgroundColor: '#ffffff',
+    backgroundColor: ucapsaBrand.colors.surface,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: ucapsaBrand.colors.border,
   },
   label: {
-    color: '#0f172a',
+    color: ucapsaBrand.colors.text,
     fontSize: 14,
     fontWeight: '900',
   },
@@ -145,12 +154,12 @@ const styles = StyleSheet.create({
     minHeight: 52,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: ucapsaBrand.colors.border,
     paddingHorizontal: 14,
-    color: '#0f172a',
+    color: ucapsaBrand.colors.text,
     fontSize: 16,
     fontWeight: '700',
-    backgroundColor: '#f8fafc',
+    backgroundColor: ucapsaBrand.colors.redPale,
   },
   button: {
     marginTop: 8,
@@ -158,19 +167,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 18,
-    backgroundColor: '#0f766e',
+    backgroundColor: ucapsaBrand.colors.red,
   },
   buttonDisabled: {
     opacity: 0.55,
   },
   buttonText: {
-    color: '#ffffff',
+    color: ucapsaBrand.colors.surface,
     fontSize: 17,
     fontWeight: '900',
   },
+  linkSoft: {
+    color: ucapsaBrand.colors.muted,
+    fontSize: 14,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
   linkStrong: {
     marginTop: 8,
-    color: '#0f172a',
+    color: ucapsaBrand.colors.text,
     fontSize: 16,
     fontWeight: '900',
     textAlign: 'center',

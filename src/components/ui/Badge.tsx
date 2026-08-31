@@ -1,3 +1,4 @@
+import { ucapsaBrand } from '../../constants/brand';
 import { StyleSheet, Text, type StyleProp, type TextStyle } from 'react-native';
 
 type BadgeVariant = 'success' | 'info' | 'warning' | 'danger' | 'neutral';
@@ -23,24 +24,24 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   success: {
-    color: '#166534',
-    backgroundColor: '#dcfce7',
+    color: ucapsaBrand.colors.successDark,
+    backgroundColor: ucapsaBrand.colors.greenSoft,
   },
   info: {
-    color: '#0369a1',
-    backgroundColor: '#e0f2fe',
+    color: ucapsaBrand.colors.green,
+    backgroundColor: ucapsaBrand.colors.blueSoft,
   },
   warning: {
-    color: '#92400e',
-    backgroundColor: '#fef3c7',
+    color: ucapsaBrand.colors.warningDark,
+    backgroundColor: ucapsaBrand.colors.goldPale,
   },
   danger: {
-    color: '#991b1b',
-    backgroundColor: '#fee2e2',
+    color: ucapsaBrand.colors.danger,
+    backgroundColor: ucapsaBrand.colors.premiumMuted,
   },
   neutral: {
-    color: '#334155',
-    backgroundColor: '#f1f5f9',
+    color: ucapsaBrand.colors.grayDark,
+    backgroundColor: ucapsaBrand.colors.graySoft,
   },
 });
 

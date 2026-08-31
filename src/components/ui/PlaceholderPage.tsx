@@ -1,3 +1,4 @@
+import { ucapsaBrand } from '../../constants/brand';
 import { Link } from 'expo-router';
 import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -108,10 +109,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   safeLight: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: ucapsaBrand.colors.redPale,
   },
   safeDark: {
-    backgroundColor: '#0f172a',
+    backgroundColor: ucapsaBrand.colors.cameraDark,
   },
   scroll: {
     flex: 1,
@@ -127,12 +128,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   heroLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
+    backgroundColor: ucapsaBrand.colors.surface,
+    borderColor: ucapsaBrand.colors.borderNeutral,
   },
   heroDark: {
-    backgroundColor: '#111827',
-    borderColor: '#334155',
+    backgroundColor: ucapsaBrand.colors.cameraDark,
+    borderColor: ucapsaBrand.colors.grayDark,
   },
   eyebrow: {
     fontSize: 13,
@@ -142,10 +143,10 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   eyebrowLight: {
-    color: '#0f766e',
+    color: ucapsaBrand.colors.green,
   },
   eyebrowDark: {
-    color: '#38bdf8',
+    color: ucapsaBrand.colors.blue,
   },
   title: {
     fontSize: 34,
@@ -154,10 +155,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   titleLight: {
-    color: '#0f172a',
+    color: ucapsaBrand.colors.cameraDark,
   },
   titleDark: {
-    color: '#ffffff',
+    color: ucapsaBrand.colors.surface,
   },
   subtitle: {
     fontSize: 17,
@@ -165,10 +166,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   subtitleLight: {
-    color: '#475569',
+    color: ucapsaBrand.colors.grayDark,
   },
   subtitleDark: {
-    color: '#cbd5e1',
+    color: ucapsaBrand.colors.textLight,
   },
   section: {
     gap: 12,
@@ -179,15 +180,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   cardLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
+    backgroundColor: ucapsaBrand.colors.surface,
+    borderColor: ucapsaBrand.colors.borderNeutral,
   },
   cardDark: {
-    backgroundColor: '#111827',
-    borderColor: '#334155',
+    backgroundColor: ucapsaBrand.colors.cameraDark,
+    borderColor: ucapsaBrand.colors.grayDark,
   },
   meta: {
-    color: '#0f766e',
+    color: ucapsaBrand.colors.green,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 1,
@@ -200,20 +201,20 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   cardTitleLight: {
-    color: '#0f172a',
+    color: ucapsaBrand.colors.cameraDark,
   },
   cardTitleDark: {
-    color: '#f8fafc',
+    color: ucapsaBrand.colors.redPale,
   },
   cardBody: {
     fontSize: 15,
     lineHeight: 22,
   },
   cardBodyLight: {
-    color: '#64748b',
+    color: ucapsaBrand.colors.mutedNeutral,
   },
   cardBodyDark: {
-    color: '#cbd5e1',
+    color: ucapsaBrand.colors.textLight,
   },
   actions: {
     marginTop: 18,
@@ -229,11 +230,11 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   actionPrimary: {
-    backgroundColor: '#0f766e',
-    color: '#ffffff',
+    backgroundColor: ucapsaBrand.colors.green,
+    color: ucapsaBrand.colors.surface,
   },
   actionSecondary: {
-    backgroundColor: '#e0f2fe',
-    color: '#0369a1',
+    backgroundColor: ucapsaBrand.colors.blueSoft,
+    color: ucapsaBrand.colors.green,
   },
 });

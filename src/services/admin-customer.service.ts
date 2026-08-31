@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { getProgramSchedules } from './programs.service';
+import { getAdminMemberVisitsForUser } from './member-visits.service';
 import type { BasicDog } from './dogs.service';
 import type {
   Membership,
@@ -10,6 +11,7 @@ import type {
   ProgramEnrollmentWithDetails,
   ProgramSchedule,
   UcapsaProgram,
+  MemberVisit,
 } from '../types/app.types';
 
 export type AdminCustomerPayment = Payment & {
@@ -41,6 +43,7 @@ export type AdminCustomerRecord = {
   obligations: AdminCustomerPaymentObligation[];
   enrollments: ProgramEnrollmentWithDetails[];
   dogs: BasicDog[];
+  memberVisits: MemberVisit[];
 };
 
 function unique(values: string[]) {
@@ -51,13 +54,14 @@ export async function getAdminCustomerRecord(userId: string): Promise<AdminCusto
   const normalizedUserId = userId.trim();
   if (!normalizedUserId) throw new Error('Falta el usuario de la ficha.');
 
-  const [profileResult, membershipResult, paymentsResult, enrollmentsResult, obligationsResult, dogsResult] = await Promise.all([
+  const [profileResult, membershipResult, paymentsResult, enrollmentsResult, obligationsResult, dogsResult, memberVisits] = await Promise.all([
     supabase.from('profiles').select('*').eq('user_id', normalizedUserId).maybeSingle(),
     supabase.from('memberships').select('*').eq('user_id', normalizedUserId).maybeSingle(),
     supabase.from('payments').select('*').eq('user_id', normalizedUserId).order('created_at', { ascending: false }),
     supabase.from('program_enrollments').select('*').eq('user_id', normalizedUserId).order('created_at', { ascending: false }),
     supabase.from('payment_obligations').select('*').eq('user_id', normalizedUserId).order('due_date', { ascending: false }),
     supabase.from('dogs').select('id,name,is_active,created_at,updated_at').eq('user_id', normalizedUserId).eq('is_active', true).order('created_at', { ascending: true }),
+    getAdminMemberVisitsForUser(normalizedUserId),
   ]);
 
   if (profileResult.error) throw profileResult.error;
@@ -82,7 +86,7 @@ export async function getAdminCustomerRecord(userId: string): Promise<AdminCusto
   })).filter((item) => item.id && item.name);
 
   if (enrollments.length === 0) {
-    return { profile, membership, payments, obligations, enrollments: [], dogs };
+    return { profile, membership, payments, obligations, enrollments: [], dogs, memberVisits };
   }
 
   const programIds = unique(enrollments.map((item) => item.program_id));
@@ -124,6 +128,7 @@ export async function getAdminCustomerRecord(userId: string): Promise<AdminCusto
       program,
       schedule,
       profile,
+      dog: enrollment.dog_id ? dogs.find((dog) => dog.id === enrollment.dog_id) ?? null : null,
       attendances: attendancesByEnrollment[enrollment.id] ?? [],
     }];
   });
@@ -135,5 +140,6 @@ export async function getAdminCustomerRecord(userId: string): Promise<AdminCusto
     obligations,
     enrollments: detailedEnrollments,
     dogs,
+    memberVisits,
   };
 }

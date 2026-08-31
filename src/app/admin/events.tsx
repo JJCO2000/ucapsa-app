@@ -283,7 +283,7 @@ export default function AdminEventsScreen() {
         <View style={{ flex: 1 }}><Text style={styles.kicker}>Comunicacion</Text><Text style={styles.title}>Eventos</Text><Text style={styles.subtitle}>Gestiona la agenda sin duplicar el calendario completo en esta pantalla.</Text></View>
         <View style={styles.heroActions}>
           <Pressable style={styles.iconButton} onPress={() => router.push('/calendar' as never)}><MaterialIcons name="calendar-month" size={21} color={ucapsaBrand.colors.redDark} /></Pressable>
-          <Pressable style={styles.addButton} onPress={openNew}><MaterialIcons name="add" size={21} color="#fff" /></Pressable>
+          <Pressable style={styles.addButton} onPress={openNew}><MaterialIcons name="add" size={21} color={ucapsaBrand.colors.surface} /></Pressable>
         </View>
       </View>
 
@@ -362,7 +362,7 @@ export default function AdminEventsScreen() {
         {form.repeat_type === 'custom_days' ? <TextInput value={form.repeat_interval_days} onChangeText={(repeat_interval_days) => setForm((current) => ({ ...current, repeat_interval_days }))} placeholder="Cada cuantos dias" keyboardType="number-pad" style={styles.input} /> : null}
         {form.repeat_type !== 'none' ? <TextInput value={form.repeat_limit} onChangeText={(repeat_limit) => setForm((current) => ({ ...current, repeat_limit }))} placeholder="Numero de repeticiones, maximo 10" keyboardType="number-pad" style={styles.input} /> : null}
 
-        <Pressable style={styles.sectionToggle} onPress={() => setOptionsOpen((value) => !value)}><Text style={styles.sectionToggleText}>Opciones</Text><MaterialIcons name={optionsOpen ? 'expand-less' : 'expand-more'} size={21} color="#fff" /></Pressable>
+        <Pressable style={styles.sectionToggle} onPress={() => setOptionsOpen((value) => !value)}><Text style={styles.sectionToggleText}>Opciones</Text><MaterialIcons name={optionsOpen ? 'expand-less' : 'expand-more'} size={21} color={ucapsaBrand.colors.surface} /></Pressable>
         {optionsOpen ? (
           <View style={styles.optionsBox}>
             <Text style={styles.labelDark}>Ubicacion</Text>
@@ -413,15 +413,15 @@ const styles = StyleSheet.create({
   iconButton: { width: 42, height: 42, borderRadius: 14, backgroundColor: ucapsaBrand.colors.redSoft, alignItems: 'center', justifyContent: 'center' },
   addButton: { width: 42, height: 42, borderRadius: 14, backgroundColor: ucapsaBrand.colors.red, alignItems: 'center', justifyContent: 'center' },
   tabs: { flexDirection: 'row', gap: 7, marginBottom: 12 },
-  filterChip: { borderRadius: 999, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', paddingHorizontal: 11, paddingVertical: 8 },
+  filterChip: { borderRadius: 999, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 11, paddingVertical: 8 },
   filterChipActive: { backgroundColor: ucapsaBrand.colors.red, borderColor: ucapsaBrand.colors.red },
   filterChipText: { color: ucapsaBrand.colors.text, fontSize: 11, fontWeight: '900' },
-  filterChipTextActive: { color: '#fff' },
+  filterChipTextActive: { color: ucapsaBrand.colors.surface },
   muted: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 17, fontWeight: '700' },
   empty: { alignItems: 'center', gap: 5, padding: 28 },
   emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 17, fontWeight: '900' },
-  list: { borderRadius: 19, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', overflow: 'hidden' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 13, borderBottomWidth: 1, borderBottomColor: '#F4E5E8' },
+  list: { borderRadius: 19, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, overflow: 'hidden' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 13, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.premiumMuted },
   rowLast: { borderBottomWidth: 0 },
   rowIcon: { width: 38, height: 38, borderRadius: 13, backgroundColor: ucapsaBrand.colors.redSoft, alignItems: 'center', justifyContent: 'center' },
   rowTitleLine: { flexDirection: 'row', alignItems: 'center', gap: 7 },
@@ -430,41 +430,41 @@ const styles = StyleSheet.create({
   rowMeta: { color: ucapsaBrand.colors.muted, fontSize: 10, lineHeight: 15, marginTop: 2, fontWeight: '700' },
   moreButton: { alignItems: 'center', paddingVertical: 11 },
   moreText: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900' },
-  modalKicker: { color: '#F7B7C1', fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
-  modalTitle: { color: '#fff', fontSize: 23, fontWeight: '900', marginBottom: 5 },
-  label: { color: '#FDE7EA', fontSize: 12, fontWeight: '900', marginTop: 9, marginBottom: 5 },
-  modalHint: { color: '#F5CBD2', fontSize: 10, lineHeight: 15, fontWeight: '700' },
-  input: { borderRadius: 14, backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 11, color: ucapsaBrand.colors.text, marginBottom: 3 },
+  modalKicker: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
+  modalTitle: { color: ucapsaBrand.colors.text, fontSize: 23, fontWeight: '900', marginBottom: 5 },
+  label: { color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '900', marginTop: 9, marginBottom: 5 },
+  modalHint: { color: ucapsaBrand.colors.dangerBorder, fontSize: 10, lineHeight: 15, fontWeight: '700' },
+  input: { borderRadius: 14, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 12, paddingVertical: 11, color: ucapsaBrand.colors.text, marginBottom: 3 },
   textArea: { minHeight: 80, textAlignVertical: 'top' },
   dateTimeRow: { flexDirection: 'row', gap: 7 },
-  dateButton: { flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderRadius: 14, backgroundColor: '#fff', paddingHorizontal: 11, paddingVertical: 11 },
+  dateButton: { flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderRadius: 14, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 11, paddingVertical: 11 },
   dateText: { color: ucapsaBrand.colors.text, fontSize: 11, fontWeight: '900' },
-  timeInput: { width: 82, borderRadius: 14, backgroundColor: '#fff', paddingHorizontal: 10, color: ucapsaBrand.colors.text, fontWeight: '900' },
+  timeInput: { width: 82, borderRadius: 14, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 10, color: ucapsaBrand.colors.text, fontWeight: '900' },
   switchLine: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   calendarBox: { overflow: 'hidden', borderRadius: 16, marginTop: 7 },
   wrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  choice: { borderRadius: 999, borderWidth: 1, borderColor: '#F3B8C2', backgroundColor: '#fff', paddingHorizontal: 9, paddingVertical: 7 },
-  choiceActive: { backgroundColor: '#FDE7EA', borderColor: ucapsaBrand.colors.red },
+  choice: { borderRadius: 999, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 9, paddingVertical: 7 },
+  choiceActive: { backgroundColor: ucapsaBrand.colors.redSoft, borderColor: ucapsaBrand.colors.red },
   choiceText: { color: ucapsaBrand.colors.text, fontSize: 9, fontWeight: '900' },
   choiceTextActive: { color: ucapsaBrand.colors.redDark },
   sectionToggle: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 11, marginTop: 3 },
-  sectionToggleText: { color: '#fff', fontSize: 13, fontWeight: '900' },
-  optionsBox: { gap: 6, borderRadius: 16, backgroundColor: '#fff', padding: 12 },
+  sectionToggleText: { color: ucapsaBrand.colors.surface, fontSize: 13, fontWeight: '900' },
+  optionsBox: { gap: 6, borderRadius: 16, backgroundColor: ucapsaBrand.colors.surface, padding: 12 },
   labelDark: { color: ucapsaBrand.colors.text, fontSize: 11, fontWeight: '900', marginTop: 4 },
-  inputLight: { borderRadius: 11, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#FFF8F8', paddingHorizontal: 10, paddingVertical: 9, color: ucapsaBrand.colors.text },
-  choiceLight: { borderRadius: 999, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#FFF8F8', paddingHorizontal: 9, paddingVertical: 7 },
+  inputLight: { borderRadius: 11, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.background, paddingHorizontal: 10, paddingVertical: 9, color: ucapsaBrand.colors.text },
+  choiceLight: { borderRadius: 999, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.background, paddingHorizontal: 9, paddingVertical: 7 },
   choiceLightActive: { backgroundColor: ucapsaBrand.colors.redSoft, borderColor: ucapsaBrand.colors.red },
   choiceLightText: { color: ucapsaBrand.colors.text, fontSize: 9, fontWeight: '900' },
   choiceLightTextActive: { color: ucapsaBrand.colors.redDark },
   switchLineLight: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   primary: { alignItems: 'center', borderRadius: 14, backgroundColor: ucapsaBrand.colors.red, paddingVertical: 13, marginTop: 9 },
-  primaryText: { color: '#fff', fontSize: 13, fontWeight: '900' },
+  primaryText: { color: ucapsaBrand.colors.surface, fontSize: 13, fontWeight: '900' },
   actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
-  secondaryAction: { borderRadius: 11, backgroundColor: '#FDE7EA', paddingHorizontal: 10, paddingVertical: 8 },
+  secondaryAction: { borderRadius: 11, backgroundColor: ucapsaBrand.colors.redSoft, paddingHorizontal: 10, paddingVertical: 8 },
   secondaryActionText: { color: ucapsaBrand.colors.redDark, fontSize: 10, fontWeight: '900' },
-  dangerAction: { borderRadius: 11, borderWidth: 1, borderColor: '#E5A2AE', paddingHorizontal: 10, paddingVertical: 8 },
-  dangerActionText: { color: '#fff', fontSize: 10, fontWeight: '900' },
-  closeButton: { alignItems: 'center', borderRadius: 14, borderWidth: 1, borderColor: '#F3B8C2', paddingVertical: 11, marginTop: 7 },
-  closeText: { color: '#fff', fontSize: 12, fontWeight: '900' },
+  dangerAction: { borderRadius: 11, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, paddingHorizontal: 10, paddingVertical: 8 },
+  dangerActionText: { color: ucapsaBrand.colors.surface, fontSize: 10, fontWeight: '900' },
+  closeButton: { alignItems: 'center', borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, paddingVertical: 11, marginTop: 7 },
+  closeText: { color: ucapsaBrand.colors.surface, fontSize: 12, fontWeight: '900' },
   disabled: { opacity: 0.5 },
 });

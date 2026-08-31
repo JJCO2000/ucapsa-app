@@ -506,6 +506,90 @@ export type Database = {
         }
         Relationships: []
       }
+      member_visits: {
+        Row: {
+          created_at: string
+          id: string
+          membership_id: string | null
+          notes: string | null
+          recorded_by: string | null
+          source: string
+          updated_at: string
+          user_id: string
+          visit_date: string
+          visited_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          membership_id?: string | null
+          notes?: string | null
+          recorded_by?: string | null
+          source?: string
+          updated_at?: string
+          user_id: string
+          visit_date?: string
+          visited_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          membership_id?: string | null
+          notes?: string | null
+          recorded_by?: string | null
+          source?: string
+          updated_at?: string
+          user_id?: string
+          visit_date?: string
+          visited_at?: string
+        }
+        Relationships: []
+      }
+      practice_sessions: {
+        Row: {
+          client_event_id: string | null
+          completed_at: string
+          created_at: string
+          difficulty: string
+          dog_id: string | null
+          duration_seconds: number | null
+          enrollment_id: string | null
+          id: string
+          note: string | null
+          started_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_event_id?: string | null
+          completed_at?: string
+          created_at?: string
+          difficulty: string
+          dog_id?: string | null
+          duration_seconds?: number | null
+          enrollment_id?: string | null
+          id?: string
+          note?: string | null
+          started_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_event_id?: string | null
+          completed_at?: string
+          created_at?: string
+          difficulty?: string
+          dog_id?: string | null
+          duration_seconds?: number | null
+          enrollment_id?: string | null
+          id?: string
+          note?: string | null
+          started_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       memberships: {
         Row: {
           approved_by: string | null
@@ -1117,6 +1201,7 @@ export type Database = {
           id: string
           marked_by: string | null
           notes: string | null
+          outside_window: boolean
           recorded_at: string
           session_id: string | null
           source: string
@@ -1129,6 +1214,7 @@ export type Database = {
           id?: string
           marked_by?: string | null
           notes?: string | null
+          outside_window?: boolean
           recorded_at?: string
           session_id?: string | null
           source?: string
@@ -1141,6 +1227,7 @@ export type Database = {
           id?: string
           marked_by?: string | null
           notes?: string | null
+          outside_window?: boolean
           recorded_at?: string
           session_id?: string | null
           source?: string
@@ -1629,6 +1716,16 @@ export type Database = {
         }
         Returns: string
       }
+      admin_create_basic_dog: {
+        Args: { p_name: string; p_user_id: string }
+        Returns: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }[]
+      }
       create_my_basic_dog: {
         Args: { p_name: string }
         Returns: {
@@ -1726,6 +1823,18 @@ export type Database = {
         Args: { p_enrollment_id: string }
         Returns: undefined
       }
+      register_my_practice_session: {
+        Args: {
+          p_client_event_id: string
+          p_completed_at: string
+          p_difficulty: string
+          p_duration_seconds?: number
+          p_enrollment_id: string
+          p_note?: string
+          p_started_at: string
+        }
+        Returns: string
+      }
       register_program_attendance_admin: {
         Args: {
           p_attendance_date: string
@@ -1736,13 +1845,37 @@ export type Database = {
         Returns: string
       }
       register_program_attendance_from_qr: {
-        Args: { p_enrollment_id: string; p_qr_token: string }
+        Args: { p_confirm_outside_window: boolean; p_enrollment_id: string; p_qr_token: string }
         Returns: {
-          attendance_id: string
+          attendance_id: string | null
           message: string
           result: string
-          session_id: string
+          session_id: string | null
         }[]
+      }
+      register_member_visit_from_qr: {
+        Args: { p_qr_token: string }
+        Returns: { message: string; result: string; visit_id: string | null }[]
+      }
+      get_admin_member_visit_monthly_stats: {
+        Args: { p_months?: number }
+        Returns: { month_start: string; total_visits: number; unique_members: number }[]
+      }
+      register_member_visit_admin: {
+        Args: { p_notes?: string; p_user_id: string; p_visited_at?: string }
+        Returns: string
+      }
+      correct_member_visit_admin: {
+        Args: { p_notes?: string; p_visit_id: string; p_visited_at: string }
+        Returns: undefined
+      }
+      delete_member_visit_admin: {
+        Args: { p_visit_id: string }
+        Returns: undefined
+      }
+      delete_program_attendance_admin: {
+        Args: { p_attendance_id: string }
+        Returns: undefined
       }
       rename_my_basic_dog: {
         Args: { p_dog_id: string; p_name: string }

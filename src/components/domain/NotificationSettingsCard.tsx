@@ -1,7 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { ucapsaBrand } from '../../constants/brand';
+import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { useNotifications } from '../../hooks/useNotifications';
 import type { NotificationCategoryKey } from '../../types/app.types';
 
@@ -20,25 +20,25 @@ const categories: CategoryItem[] = [
   {
     key: 'announcements_events',
     label: 'Anuncios y eventos',
-    description: 'Avisos oficiales, agenda y cambios importantes.',
+    description: 'Novedades y cambios importantes.',
     icon: 'bullhorn-outline',
   },
   {
     key: 'classes',
     label: 'Clases',
-    description: 'Recordatorios de Puppy, Comandos y futuras cancelaciones.',
+    description: 'Recordatorios y cancelaciones de clases.',
     icon: 'school-outline',
   },
   {
     key: 'membership',
-    label: 'Membresia',
-    description: 'Pagos, vigencia y seguimiento de tu estado UCAPSA.',
+    label: 'Membresía',
+    description: 'Pagos, vigencia y cambios de tu membresía.',
     icon: 'badge-account-outline',
   },
   {
     key: 'achievements',
     label: 'Logros',
-    description: 'Medallas y reconocimientos desbloqueados.',
+    description: 'Medallas y reconocimientos que consigas.',
     icon: 'medal-outline',
   },
 ];
@@ -49,7 +49,6 @@ export function NotificationSettingsCard({ premium = false }: NotificationSettin
     permissionStatus,
     expoPushToken,
     canUsePush,
-    isExpoGo,
     loading,
     saving,
     registering,
@@ -61,53 +60,61 @@ export function NotificationSettingsCard({ premium = false }: NotificationSettin
   const enabled = Boolean(preferences?.enabled);
   const busy = loading || saving || registering;
   const hasToken = Boolean(expoPushToken);
+  const permissionBlocked = permissionStatus === 'denied';
   const statusLabel = loading
     ? 'Cargando'
-    : isExpoGo
-      ? 'Expo Go'
-      : !canUsePush
-        ? 'No disponible'
-        : enabled && hasToken
-          ? 'Dispositivo registrado'
-          : enabled
-            ? 'Activo, falta token'
+    : permissionBlocked
+      ? 'Bloqueadas'
+      : enabled && hasToken
+        ? 'Activadas'
+        : enabled
+          ? 'Activando'
+          : !canUsePush
+            ? 'No disponibles'
             : 'Desactivadas';
-  const actionLabel = registering ? 'Activando...' : enabled ? 'Desactivar notificaciones' : 'Activar notificaciones';
-  const actionDisabled = busy || (!enabled && !canUsePush);
+  const actionLabel = permissionBlocked
+    ? 'Abrir ajustes'
+    : registering
+      ? 'Activando...'
+      : enabled
+        ? 'Desactivar notificaciones'
+        : 'Activar notificaciones';
+  const actionDisabled = busy || (!permissionBlocked && !enabled && !canUsePush);
+
+  async function handlePrimaryAction() {
+    if (permissionBlocked) {
+      await Linking.openSettings();
+      return;
+    }
+    await setNotificationsEnabled(!enabled);
+  }
 
   return (
     <View style={[styles.card, premium && styles.cardPremium]}>
       <View style={styles.headerRow}>
         <View style={[styles.mainIcon, premium && styles.mainIconPremium]}>
-          <MaterialCommunityIcons name="bell-ring-outline" size={22} color={premium ? '#FFE8B5' : ucapsaBrand.colors.red} />
+          <MaterialCommunityIcons name="bell-ring-outline" size={22} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.red} />
         </View>
         <View style={styles.headerTextWrap}>
-          <Text style={[styles.eyebrow, premium && styles.eyebrowPremium]}>Notificaciones UCAPSA</Text>
-          <Text style={[styles.title, premium && styles.titlePremium]}>Avisos importantes en tu celular</Text>
-        </View>
-        <View style={[styles.statusPill, enabled && styles.statusPillEnabled, premium && styles.statusPillPremium]}>
-          <Text style={[styles.statusText, enabled && styles.statusTextEnabled, premium && styles.statusTextPremium]}>{statusLabel}</Text>
+          <Text style={[styles.title, premium && styles.titlePremium]}>Recordatorios</Text>
+          <Text style={[styles.description, premium && styles.descriptionPremium]}>Recibe recordatorios de clases y novedades importantes de UCAPSA.</Text>
         </View>
       </View>
 
-      <Text style={[styles.description, premium && styles.descriptionPremium]}>
-        Activalas solo si quieres recibir avisos oficiales de clases, eventos, membresia y logros. La app no enviara mensajes todavia; esto deja listo el registro del dispositivo para la siguiente fase.
-      </Text>
-
-      {!canUsePush ? (
-        <View style={[styles.warningBox, premium && styles.warningBoxPremium]}>
-          <MaterialCommunityIcons name="information-outline" size={18} color={premium ? '#FFE8B5' : ucapsaBrand.colors.warning} />
-          <Text style={[styles.warningText, premium && styles.warningTextPremium]}>
-            {isExpoGo ? 'Para probar push reales usa development build o APK de EAS, no Expo Go.' : 'Las push reales necesitan un dispositivo compatible.'}
-          </Text>
+      <View style={[styles.statusRow, premium && styles.statusRowPremium]}>
+        <Text style={[styles.statusLabel, premium && styles.statusLabelPremium]}>Estado</Text>
+        <View style={[styles.statusPill, enabled && hasToken && styles.statusPillEnabled, premium && styles.statusPillPremium]}>
+          <Text style={[styles.statusText, enabled && hasToken && styles.statusTextEnabled, premium && styles.statusTextPremium]}>{statusLabel}</Text>
         </View>
-      ) : null}
+      </View>
 
-      {permissionStatus === 'denied' ? (
+      {permissionBlocked ? (
         <View style={[styles.warningBox, premium && styles.warningBoxPremium]}>
-          <MaterialCommunityIcons name="bell-off-outline" size={18} color={premium ? '#FFE8B5' : ucapsaBrand.colors.danger} />
-          <Text style={[styles.warningText, premium && styles.warningTextPremium]}>El permiso del sistema esta bloqueado. Activalo desde ajustes del celular.</Text>
+          <MaterialCommunityIcons name="bell-off-outline" size={18} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.danger} />
+          <Text style={[styles.warningText, premium && styles.warningTextPremium]}>Las notificaciones están desactivadas en los ajustes de tu celular.</Text>
         </View>
+      ) : !canUsePush ? (
+        <Text style={[styles.helperText, premium && styles.descriptionPremium]}>Las notificaciones se activan desde la versión instalada de UCAPSA.</Text>
       ) : null}
 
       {errorMessage ? <Text style={[styles.errorText, premium && styles.errorTextPremium]}>{errorMessage}</Text> : null}
@@ -120,7 +127,7 @@ export function NotificationSettingsCard({ premium = false }: NotificationSettin
           actionDisabled && styles.disabled,
           pressed && !actionDisabled && styles.pressed,
         ]}
-        onPress={() => void setNotificationsEnabled(!enabled)}
+        onPress={() => void handlePrimaryAction()}
       >
         <Text style={[styles.primaryButtonText, premium && styles.primaryButtonTextPremium]}>{actionLabel}</Text>
       </Pressable>
@@ -132,7 +139,7 @@ export function NotificationSettingsCard({ premium = false }: NotificationSettin
           return (
             <View key={item.key} style={[styles.categoryRow, premium && styles.categoryRowPremium, !enabled && styles.categoryRowDisabled]}>
               <View style={[styles.categoryIcon, premium && styles.categoryIconPremium]}>
-                <MaterialCommunityIcons name={item.icon} size={19} color={premium ? '#FFE8B5' : ucapsaBrand.colors.red} />
+                <MaterialCommunityIcons name={item.icon} size={19} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.red} />
               </View>
               <View style={styles.categoryTextWrap}>
                 <Text style={[styles.categoryTitle, premium && styles.categoryTitlePremium]}>{item.label}</Text>
@@ -143,7 +150,7 @@ export function NotificationSettingsCard({ premium = false }: NotificationSettin
                 style={[styles.toggle, itemEnabled && styles.toggleEnabled, premium && styles.togglePremium, rowDisabled && styles.toggleDisabled]}
                 onPress={() => void setCategoryEnabled(item.key, !itemEnabled)}
               >
-                <Text style={[styles.toggleText, itemEnabled && styles.toggleTextEnabled, premium && styles.toggleTextPremium]}>{itemEnabled ? 'Si' : 'No'}</Text>
+                <Text style={[styles.toggleText, itemEnabled && styles.toggleTextEnabled, premium && styles.toggleTextPremium]}>{itemEnabled ? 'Sí' : 'No'}</Text>
               </Pressable>
             </View>
           );
@@ -154,225 +161,55 @@ export function NotificationSettingsCard({ premium = false }: NotificationSettin
 }
 
 const styles = StyleSheet.create({
-  card: {
-    gap: 14,
-    padding: 16,
-    borderRadius: 26,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: ucapsaBrand.colors.border,
-  },
-  cardPremium: {
-    backgroundColor: '#38111B',
-    borderColor: 'rgba(250,204,21,0.34)',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  mainIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: ucapsaBrand.colors.redSoft,
-  },
-  mainIconPremium: {
-    backgroundColor: 'rgba(250,204,21,0.16)',
-    borderWidth: 1,
-    borderColor: 'rgba(250,204,21,0.25)',
-  },
-  headerTextWrap: {
-    flex: 1,
-  },
-  eyebrow: {
-    color: ucapsaBrand.colors.red,
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  eyebrowPremium: {
-    color: '#FFE8B5',
-  },
-  title: {
-    color: ucapsaBrand.colors.text,
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  titlePremium: {
-    color: '#FFFFFF',
-  },
-  statusPill: {
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    backgroundColor: '#F1F5F9',
-  },
-  statusPillEnabled: {
-    backgroundColor: '#DCFCE7',
-  },
-  statusPillPremium: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(250,204,21,0.22)',
-  },
-  statusText: {
-    color: '#64748B',
-    fontSize: 11,
-    fontWeight: '900',
-  },
-  statusTextEnabled: {
-    color: '#166534',
-  },
-  statusTextPremium: {
-    color: '#FFE8B5',
-  },
-  description: {
-    color: ucapsaBrand.colors.muted,
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  descriptionPremium: {
-    color: '#FFE3E8',
-  },
-  warningBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    padding: 12,
-    borderRadius: 18,
-    backgroundColor: '#FFF7ED',
-    borderWidth: 1,
-    borderColor: '#FED7AA',
-  },
-  warningBoxPremium: {
-    backgroundColor: 'rgba(250,204,21,0.10)',
-    borderColor: 'rgba(250,204,21,0.24)',
-  },
-  warningText: {
-    flex: 1,
-    color: '#9A3412',
-    fontSize: 13,
-    lineHeight: 19,
-    fontWeight: '700',
-  },
-  warningTextPremium: {
-    color: '#FFE8B5',
-  },
-  errorText: {
-    color: ucapsaBrand.colors.danger,
-    fontSize: 13,
-    lineHeight: 19,
-    fontWeight: '800',
-  },
-  errorTextPremium: {
-    color: '#FFD1D8',
-  },
-  primaryButton: {
-    minHeight: 48,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    backgroundColor: ucapsaBrand.colors.red,
-  },
-  primaryButtonPremium: {
-    backgroundColor: '#FACC15',
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '900',
-  },
-  primaryButtonTextPremium: {
-    color: '#4A0710',
-  },
-  categoriesWrap: {
-    gap: 10,
-  },
-  categoryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    padding: 12,
-    borderRadius: 20,
-    backgroundColor: '#FFF8F8',
-    borderWidth: 1,
-    borderColor: ucapsaBrand.colors.border,
-  },
-  categoryRowPremium: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderColor: 'rgba(250,204,21,0.18)',
-  },
-  categoryRowDisabled: {
-    opacity: 0.58,
-  },
-  categoryIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-  },
-  categoryIconPremium: {
-    backgroundColor: 'rgba(250,204,21,0.10)',
-  },
-  categoryTextWrap: {
-    flex: 1,
-  },
-  categoryTitle: {
-    color: ucapsaBrand.colors.text,
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  categoryTitlePremium: {
-    color: '#FFFFFF',
-  },
-  categoryDescription: {
-    color: ucapsaBrand.colors.muted,
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  categoryDescriptionPremium: {
-    color: '#FFE3E8',
-  },
-  toggle: {
-    minWidth: 52,
-    borderRadius: 999,
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: '#E2E8F0',
-  },
-  toggleEnabled: {
-    backgroundColor: '#DCFCE7',
-  },
-  togglePremium: {
-    backgroundColor: 'rgba(255,255,255,0.10)',
-  },
-  toggleDisabled: {
-    opacity: 0.55,
-  },
-  toggleText: {
-    color: '#475569',
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  toggleTextEnabled: {
-    color: '#166534',
-  },
-  toggleTextPremium: {
-    color: '#FFE8B5',
-  },
-  disabled: {
-    opacity: 0.55,
-  },
-  pressed: {
-    opacity: 0.86,
-    transform: [{ scale: 0.995 }],
-  },
+  card: { gap: 14, padding: 16, borderRadius: 26, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  cardPremium: { backgroundColor: ucapsaBrand.colors.premiumSurface, borderColor: withAlpha(ucapsaBrand.colors.gold, 0.34) },
+  headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  mainIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
+  mainIconPremium: { backgroundColor: withAlpha(ucapsaBrand.colors.gold, 0.14), borderWidth: 1, borderColor: withAlpha(ucapsaBrand.colors.gold, 0.26) },
+  headerTextWrap: { flex: 1, minWidth: 0 },
+  title: { color: ucapsaBrand.colors.text, fontSize: 20, lineHeight: 25, fontWeight: '900' },
+  titlePremium: { color: ucapsaBrand.colors.surface },
+  description: { color: ucapsaBrand.colors.muted, fontSize: 14, lineHeight: 20, fontWeight: '700', marginTop: 3 },
+  descriptionPremium: { color: ucapsaBrand.colors.premiumMuted },
+  statusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderTopWidth: 1, borderTopColor: ucapsaBrand.colors.border, paddingTop: 12 },
+  statusRowPremium: { borderTopColor: withAlpha(ucapsaBrand.colors.gold, 0.18) },
+  statusLabel: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
+  statusLabelPremium: { color: ucapsaBrand.colors.premiumMuted },
+  statusPill: { flexShrink: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: ucapsaBrand.colors.surfaceAlt },
+  statusPillEnabled: { backgroundColor: ucapsaBrand.colors.successSoft },
+  statusPillPremium: { backgroundColor: withAlpha(ucapsaBrand.colors.gold, 0.13), borderWidth: 1, borderColor: withAlpha(ucapsaBrand.colors.gold, 0.25) },
+  statusText: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '900' },
+  statusTextEnabled: { color: ucapsaBrand.colors.successDark },
+  statusTextPremium: { color: ucapsaBrand.colors.premiumAction },
+  warningBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.warningBorder, backgroundColor: ucapsaBrand.colors.warningSoft, padding: 12 },
+  warningBoxPremium: { borderColor: withAlpha(ucapsaBrand.colors.gold, 0.3), backgroundColor: withAlpha(ucapsaBrand.colors.gold, 0.1) },
+  warningText: { flex: 1, color: ucapsaBrand.colors.text, fontSize: 13, lineHeight: 18, fontWeight: '800' },
+  warningTextPremium: { color: ucapsaBrand.colors.surface },
+  helperText: { fontSize: 12, lineHeight: 18, fontWeight: '700' },
+  errorText: { color: ucapsaBrand.colors.danger, fontSize: 13, lineHeight: 18, fontWeight: '800' },
+  errorTextPremium: { color: ucapsaBrand.colors.premiumAction },
+  primaryButton: { minHeight: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, backgroundColor: ucapsaBrand.colors.red },
+  primaryButtonPremium: { backgroundColor: ucapsaBrand.colors.premiumAction },
+  primaryButtonText: { color: ucapsaBrand.colors.surface, fontSize: 15, fontWeight: '900' },
+  primaryButtonTextPremium: { color: ucapsaBrand.colors.premiumActionText },
+  categoriesWrap: { gap: 10 },
+  categoryRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surfaceSubtle, padding: 11 },
+  categoryRowPremium: { borderColor: withAlpha(ucapsaBrand.colors.gold, 0.22), backgroundColor: withAlpha(ucapsaBrand.colors.surface, 0.05) },
+  categoryRowDisabled: { opacity: 0.62 },
+  categoryIcon: { width: 36, height: 36, borderRadius: 13, backgroundColor: ucapsaBrand.colors.redSoft, alignItems: 'center', justifyContent: 'center' },
+  categoryIconPremium: { backgroundColor: withAlpha(ucapsaBrand.colors.gold, 0.13) },
+  categoryTextWrap: { flex: 1, minWidth: 0 },
+  categoryTitle: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
+  categoryTitlePremium: { color: ucapsaBrand.colors.surface },
+  categoryDescription: { color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 16, marginTop: 2, fontWeight: '700' },
+  categoryDescriptionPremium: { color: ucapsaBrand.colors.premiumMuted },
+  toggle: { minWidth: 48, borderRadius: 999, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10, paddingVertical: 8, backgroundColor: ucapsaBrand.colors.surfaceAlt, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  toggleEnabled: { backgroundColor: ucapsaBrand.colors.redSoft, borderColor: ucapsaBrand.colors.redBorder },
+  togglePremium: { borderColor: withAlpha(ucapsaBrand.colors.gold, 0.25), backgroundColor: withAlpha(ucapsaBrand.colors.surface, 0.06) },
+  toggleDisabled: { opacity: 0.75 },
+  toggleText: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '900' },
+  toggleTextEnabled: { color: ucapsaBrand.colors.redDark },
+  toggleTextPremium: { color: ucapsaBrand.colors.premiumAction },
+  disabled: { opacity: 0.5 },
+  pressed: { opacity: 0.82 },
 });

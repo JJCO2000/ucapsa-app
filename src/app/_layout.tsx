@@ -5,10 +5,14 @@ import { LoadingScreen } from '../components/ui/LoadingScreen';
 import { SessionProvider, useSession } from '../hooks/useSession';
 
 function RootNavigator() {
-  const { loading } = useSession();
+  const { loading, startupError, retryStartup } = useSession();
 
   if (loading) {
     return <LoadingScreen message="Preparando UCAPSA..." />;
+  }
+
+  if (startupError) {
+    return <LoadingScreen message={startupError} onRetry={retryStartup} />;
   }
 
   return <Stack screenOptions={{ headerShown: false }} />;

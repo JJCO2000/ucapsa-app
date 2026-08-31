@@ -5,16 +5,20 @@ import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } 
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
+import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
-import { ucapsaBrand } from '../../constants/brand';
+import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import {
   getMyProgramEnrollments,
   getNextProgramScheduleDate,
   getProgramCodeLabel,
+  getProgramEnrollmentDogName,
   getProgramLevelLabel,
   getProgramStatusLabel,
 } from '../../services/programs.service';
+import { clientReadKeys, readClientResource, sanitizeProgramRowsForCache, writeClientResource } from '../../services/client-read-cache.service';
+import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
 import type { ProgramEnrollmentWithDetails } from '../../types/app.types';
 
 const dayNames = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
@@ -39,13 +43,33 @@ export default function ClassesTab() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [usingSavedData, setUsingSavedData] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!user || isAdmin) return;
     setError(null);
-    try { setRows(await getMyProgramEnrollments()); }
-    catch (err) { setError(err instanceof Error ? err.message : 'No se pudieron cargar tus clases.'); }
-    finally { setLoading(false); }
+    setUsingSavedData(false);
+
+    const cached = await readClientResource<ProgramEnrollmentWithDetails[]>(user.id, clientReadKeys.programs);
+    if (cached) {
+      setRows(cached.data);
+      setSavedAt(cached.saved_at);
+      setLoading(false);
+    }
+
+    try {
+      const fresh = await withOperationTimeout(getMyProgramEnrollments(), DEFAULT_READ_TIMEOUT_MS, 'programs');
+      setRows(fresh);
+      const stored = await writeClientResource(user.id, clientReadKeys.programs, sanitizeProgramRowsForCache(fresh));
+      setSavedAt(stored.saved_at);
+      setUsingSavedData(false);
+    } catch {
+      if (cached) setUsingSavedData(true);
+      else setError(friendlyReadError('No se pudieron cargar tus clases.'));
+    } finally {
+      setLoading(false);
+    }
   }, [isAdmin, user]);
 
   useFocusEffect(useCallback(() => { void load(); return undefined; }, [load]));
@@ -72,7 +96,7 @@ export default function ClassesTab() {
     >
       <UcapsaAmbientBackground format={format} variant="classes" />
       <View style={styles.header}>
-        <Text style={[styles.kicker, { color: premium ? '#FFE8B5' : format.accentDark }]}>Mi UCAPSA</Text>
+        <Text style={[styles.kicker, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Mi UCAPSA</Text>
         <Text style={[styles.title, { color: format.text }]}>Clases</Text>
         <Text style={[styles.subtitle, { color: format.muted }]}>Tus programas, horario, progreso y asistencias en un solo lugar.</Text>
       </View>
@@ -84,8 +108,10 @@ export default function ClassesTab() {
         </Pressable>
       ) : null}
 
+      {usingSavedData ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} /> : null}
+
       {loading ? <View style={styles.loading}><ActivityIndicator color={format.accent} /><Text style={[styles.muted, { color: format.muted }]}>Cargando clases...</Text></View> : null}
-      {error ? <View style={[styles.errorBox, premium && styles.errorBoxPremium]}><Text style={[styles.errorTitle, premium && styles.errorTitlePremium]}>No se pudieron cargar</Text><Text style={[styles.muted, { color: premium ? '#FFE3E8' : format.muted }]}>{error}</Text></View> : null}
+      {error ? <View style={[styles.errorBox, premium && styles.errorBoxPremium]}><Text style={[styles.errorTitle, premium && styles.errorTitlePremium]}>No se pudieron cargar</Text><Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{error}</Text><Pressable style={[styles.secondaryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={() => void refresh()}><Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>Reintentar</Text></Pressable></View> : null}
 
       {!loading && !error && active.length === 0 ? (
         <View style={[styles.emptyCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
@@ -120,18 +146,18 @@ function ClassCard({ item, compact = false, premium, format }: { item: ProgramEn
         <View style={[styles.programIcon, { backgroundColor: format.pillBackground }]}><MaterialIcons name="school" size={22} color={format.pillText} /></View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.cardTitle, { color: format.cardText }]}>{getProgramCodeLabel(item.program.code)}</Text>
-          <Text style={[styles.cardMeta, { color: premium ? '#FFE3E8' : format.muted }]}>{getProgramLevelLabel(item.enrollment.program_level)} - {getProgramStatusLabel(item.enrollment.status)}</Text>
-          <Text style={[styles.cardMeta, { color: premium ? '#FFE3E8' : format.muted }]}>Perro: {item.enrollment.dog_name || 'Sin registrar'}</Text>
+          <Text style={[styles.cardMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{getProgramLevelLabel(item.enrollment.program_level)} - {getProgramStatusLabel(item.enrollment.status)}</Text>
+          <Text style={[styles.cardMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Perro: {getProgramEnrollmentDogName(item)}</Text>
         </View>
-        <MaterialIcons name="chevron-right" size={24} color={premium ? '#FFE8B5' : format.accentDark} />
+        <MaterialIcons name="chevron-right" size={24} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
       </View>
       {!compact ? (
         <>
           <Text style={[styles.nextClass, { color: format.cardText }]}>{nextClassLabel(item)}</Text>
-          <Text style={[styles.muted, { color: premium ? '#FFE3E8' : format.muted }]}>{scheduleLabel(item)}</Text>
+          <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{scheduleLabel(item)}</Text>
           <View style={styles.progressRow}>
             <View style={[styles.progressTrack, premium && styles.progressTrackPremium]}><View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: format.accent }]} /></View>
-            <Text style={[styles.progressText, { color: premium ? '#FFE8B5' : format.accentDark }]}>{item.attendances.length}/{item.program.required_attendances}</Text>
+            <Text style={[styles.progressText, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>{item.attendances.length}/{item.program.required_attendances}</Text>
           </View>
         </>
       ) : null}
@@ -141,7 +167,7 @@ function ClassCard({ item, compact = false, premium, format }: { item: ProgramEn
 
 const styles = StyleSheet.create({
   screenContent: { position: 'relative' },
-  premiumContent: { backgroundColor: '#270711' },
+  premiumContent: { backgroundColor: ucapsaBrand.colors.premiumBackground },
   header: { gap: 4, marginBottom: 14 },
   kicker: { fontSize: 12, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.8 },
   title: { fontSize: 30, fontWeight: '900' },
@@ -150,10 +176,10 @@ const styles = StyleSheet.create({
   scanButtonText: { fontSize: 14, fontWeight: '900' },
   loading: { flexDirection: 'row', gap: 10, alignItems: 'center', paddingVertical: 12 },
   muted: { fontSize: 13, lineHeight: 19, fontWeight: '700' },
-  errorBox: { gap: 4, borderRadius: 18, borderWidth: 1, borderColor: '#FECACA', backgroundColor: '#FEF2F2', padding: 16 },
-  errorBoxPremium: { borderColor: 'rgba(250,204,21,0.35)', backgroundColor: '#38111B' },
+  errorBox: { gap: 4, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.dangerBorder, backgroundColor: ucapsaBrand.colors.dangerSoft, padding: 16 },
+  errorBoxPremium: { borderColor: withAlpha(ucapsaBrand.colors.gold, 0.35), backgroundColor: ucapsaBrand.colors.premiumSurface },
   errorTitle: { color: ucapsaBrand.colors.danger, fontSize: 16, fontWeight: '900' },
-  errorTitlePremium: { color: '#FFE8B5' },
+  errorTitlePremium: { color: ucapsaBrand.colors.premiumAction },
   emptyCard: { gap: 9, alignItems: 'flex-start', borderRadius: 20, borderWidth: 1, padding: 18 },
   sectionTitle: { fontSize: 19, fontWeight: '900', marginBottom: 9 },
   secondaryButton: { alignSelf: 'stretch', alignItems: 'center', borderRadius: 15, borderWidth: 1, paddingVertical: 11, marginTop: 3 },
@@ -165,8 +191,8 @@ const styles = StyleSheet.create({
   cardMeta: { fontSize: 12, fontWeight: '800', marginTop: 2 },
   nextClass: { fontSize: 14, fontWeight: '900' },
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  progressTrack: { flex: 1, height: 8, overflow: 'hidden', borderRadius: 999, backgroundColor: '#F3E2E5' },
-  progressTrackPremium: { backgroundColor: 'rgba(255,255,255,0.14)' },
+  progressTrack: { flex: 1, height: 8, overflow: 'hidden', borderRadius: 999, backgroundColor: ucapsaBrand.colors.premiumMuted },
+  progressTrackPremium: { backgroundColor: withAlpha(ucapsaBrand.colors.surface, 0.14) },
   progressFill: { height: '100%' },
   progressText: { fontSize: 12, fontWeight: '900' },
   historySection: { marginTop: 10 },

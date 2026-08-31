@@ -28,7 +28,7 @@ export default function ProfileScreen() {
       <View style={styles.hero}>
         <Image source={wordmark} style={styles.wordmark} resizeMode="contain" />
         <Text style={styles.title}>Perfil</Text>
-        <Text style={styles.muted}>Inicia sesion para entrar a tu cuenta UCAPSA.</Text>
+        <Text style={styles.muted}>Si ya entrenas con UCAPSA, entra para ver clases, progreso, logros, perros y pagos.</Text>
       </View>
 
       <Pressable style={styles.primaryButton} onPress={() => router.push('/auth/login' as never)}>
@@ -37,6 +37,10 @@ export default function ProfileScreen() {
 
       <Pressable style={styles.secondaryButton} onPress={() => router.push('/auth/register' as never)}>
         <Text style={styles.secondaryButtonText}>Crear cuenta</Text>
+      </Pressable>
+
+      <Pressable style={styles.tertiaryButton} onPress={() => router.push('/services' as never)}>
+        <Text style={styles.tertiaryButtonText}>Todavia no entreno con UCAPSA</Text>
       </Pressable>
 
       <SocialLinksRow premium={false} />
@@ -59,16 +63,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 18,
   },
-  primaryButtonText: { color: '#FFFFFF', fontWeight: '900', fontSize: 15 },
+  primaryButtonText: { color: ucapsaBrand.colors.surface, fontWeight: '900', fontSize: 15 },
   secondaryButton: {
     minHeight: 48,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: ucapsaBrand.colors.border,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: ucapsaBrand.colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 18,
   },
   secondaryButtonText: { color: ucapsaBrand.colors.redDark, fontWeight: '900', fontSize: 15 },
+  tertiaryButton: { minHeight: 42, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 },
+  tertiaryButtonText: { color: ucapsaBrand.colors.muted, fontWeight: '800', fontSize: 14, textAlign: 'center' },
 });

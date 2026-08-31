@@ -15,6 +15,7 @@ import {
   isMembershipDateExpired,
   type MembershipAdminRow,
 } from '../../services/memberships.service';
+import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
 
 type MemberFilter = 'all' | 'pending' | 'active' | 'payment' | 'expired';
 
@@ -27,12 +28,19 @@ export default function AdminMembersScreen() {
     params.filter === 'pending_requests' ? 'pending' : params.filter === 'active' ? 'active' : 'all',
   );
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [hasData, setHasData] = useState(false);
 
   const load = useCallback(async () => {
     if (!isAdmin) return;
     setLoading(true);
+    setError(null);
     try {
-      setRows(await getAdminMembershipRows());
+      const nextRows = await withOperationTimeout(getAdminMembershipRows(), DEFAULT_READ_TIMEOUT_MS, 'admin-members-load');
+      setRows(nextRows);
+      setHasData(true);
+    } catch {
+      setError(friendlyReadError('No se pudieron cargar las membresias.'));
     } finally {
       setLoading(false);
     }
@@ -100,7 +108,8 @@ export default function AdminMembersScreen() {
       </View>
 
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando membresias...</Text></View> : null}
-      {!loading && visibleRows.length === 0 ? <View style={styles.empty}><Text style={styles.emptyTitle}>Sin resultados</Text><Text style={styles.muted}>Cambia el filtro o la busqueda.</Text></View> : null}
+      {error ? <View style={styles.errorBox}><Text style={styles.errorTitle}>No se pudo actualizar</Text><Text style={styles.muted}>{error}</Text><Pressable style={styles.retryButton} onPress={() => void load()}><Text style={styles.retryText}>Reintentar</Text></Pressable></View> : null}
+      {!loading && hasData && visibleRows.length === 0 ? <View style={styles.empty}><Text style={styles.emptyTitle}>Sin resultados</Text><Text style={styles.muted}>Cambia el filtro o la busqueda.</Text></View> : null}
 
       <View style={styles.list}>
         {visibleRows.map((row, index) => (
@@ -158,20 +167,24 @@ const styles = StyleSheet.create({
   subtitle: { color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 19, fontWeight: '700', marginTop: 3 },
   scanButton: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
   metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 12 },
-  metric: { minWidth: 74, flexGrow: 1, borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', paddingHorizontal: 10, paddingVertical: 9 },
+  metric: { minWidth: 74, flexGrow: 1, borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 10, paddingVertical: 9 },
   metricActive: { backgroundColor: ucapsaBrand.colors.red, borderColor: ucapsaBrand.colors.red },
   metricValue: { color: ucapsaBrand.colors.text, fontSize: 17, fontWeight: '900' },
-  metricValueActive: { color: '#fff' },
+  metricValueActive: { color: ucapsaBrand.colors.surface },
   metricLabel: { color: ucapsaBrand.colors.muted, fontSize: 10, fontWeight: '900', marginTop: 2 },
-  metricLabelActive: { color: '#fff' },
-  searchBox: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', paddingHorizontal: 12, marginBottom: 12 },
+  metricLabelActive: { color: ucapsaBrand.colors.surface },
+  searchBox: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 12, marginBottom: 12 },
   searchInput: { flex: 1, minHeight: 46, color: ucapsaBrand.colors.text },
   loading: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 12 },
   muted: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 18, fontWeight: '700' },
+  errorBox: { borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.dangerBorder, backgroundColor: ucapsaBrand.colors.dangerSoft, padding: 14, gap: 6, marginBottom: 12 },
+  errorTitle: { color: ucapsaBrand.colors.danger, fontSize: 15, fontWeight: '900' },
+  retryButton: { alignSelf: 'flex-start', borderRadius: 12, backgroundColor: ucapsaBrand.colors.red, paddingHorizontal: 13, paddingVertical: 9 },
+  retryText: { color: ucapsaBrand.colors.surface, fontSize: 12, fontWeight: '900' },
   empty: { alignItems: 'center', gap: 4, paddingVertical: 30 },
   emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 17, fontWeight: '900' },
-  list: { borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', overflow: 'hidden' },
-  row: { borderBottomWidth: 1, borderBottomColor: '#F4E5E8', padding: 12 },
+  list: { borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, overflow: 'hidden' },
+  row: { borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.premiumMuted, padding: 12 },
   rowLast: { borderBottomWidth: 0 },
   rowMain: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   avatar: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },

@@ -1,3 +1,4 @@
+import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -6,6 +7,7 @@ import type { ProgramEnrollmentWithDetails } from '../../types/app.types';
 import {
   formatNextProgramClassLabel,
   formatScheduleLabel,
+  getProgramEnrollmentDogName,
   getProgramLevelLabel,
   getProgramStatusLabel,
 } from '../../services/programs.service';
@@ -19,30 +21,30 @@ type ProgramCredentialCardProps = {
 function getProgramTheme(code: string | null | undefined) {
   if (code === 'puppy') {
     return {
-      background: '#FACC15',
-      soft: '#FFF7CC',
-      border: '#EAB308',
-      text: '#3B2600',
-      muted: '#6B4B00',
-      accent: '#2A1A00',
-      qr: '#422006',
+      background: ucapsaBrand.colors.gold,
+      soft: ucapsaBrand.colors.goldPale,
+      border: ucapsaBrand.colors.gold,
+      text: ucapsaBrand.colors.premiumSurfaceAlt,
+      muted: ucapsaBrand.colors.goldDark,
+      accent: ucapsaBrand.colors.text,
+      qr: ucapsaBrand.colors.premiumSurfaceAlt,
       icon: 'dog' as const,
       label: 'Puppy',
-      glow: '#FFE58A',
+      glow: ucapsaBrand.colors.goldSoft,
     };
   }
 
   return {
-    background: '#1D4ED8',
-    soft: '#EFF6FF',
-    border: '#93C5FD',
-    text: '#FFFFFF',
-    muted: '#DBEAFE',
-    accent: '#1E3A8A',
-    qr: '#1D4ED8',
+    background: ucapsaBrand.colors.blueDark,
+    soft: ucapsaBrand.colors.graySoft,
+    border: ucapsaBrand.colors.textLight,
+    text: ucapsaBrand.colors.surface,
+    muted: ucapsaBrand.colors.borderNeutral,
+    accent: ucapsaBrand.colors.grayDark,
+    qr: ucapsaBrand.colors.blueDark,
     icon: 'school' as const,
     label: 'Comandos',
-    glow: '#60A5FA',
+    glow: ucapsaBrand.colors.gray,
   };
 }
 
@@ -56,16 +58,16 @@ export function ProgramCredentialCard({ item, onPress, compact = false }: Progra
   const levelLabel = item.program.code === 'comandos' ? getProgramLevelLabel(item.enrollment.program_level) : null;
 
   const content = (
-    <View style={[styles.card, { backgroundColor: theme.background, borderColor: theme.border }]}> 
+    <View style={[styles.card, { backgroundColor: theme.background, borderColor: theme.border }]}>
       <View style={[styles.decorCircle, { backgroundColor: theme.glow }]} />
       <View style={styles.headerRow}>
-        <View style={[styles.iconBox, { backgroundColor: theme.soft }]}> 
+        <View style={[styles.iconBox, { backgroundColor: theme.soft }]}>
           <MaterialCommunityIcons name={theme.icon} size={26} color={theme.qr} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.kicker, { color: theme.muted }]}>Credencial digital</Text>
           <Text style={[styles.title, { color: theme.text }]}>{theme.label}</Text>
-          <Text style={[styles.subtitle, { color: theme.muted }]}>Perro: {item.enrollment.dog_name || item.profile?.dog_name || 'Sin registrar'}</Text>
+          <Text style={[styles.subtitle, { color: theme.muted }]}>Perro: {getProgramEnrollmentDogName(item)}</Text>
         </View>
         {onPress ? <MaterialIcons name="chevron-right" size={26} color={theme.text} /> : null}
       </View>
@@ -108,7 +110,7 @@ export function ProgramCredentialCard({ item, onPress, compact = false }: Progra
 
 function InfoBox({ label, value, theme }: { label: string; value: string; theme: ReturnType<typeof getProgramTheme> }) {
   return (
-    <View style={[styles.infoBox, { backgroundColor: theme.soft }]}> 
+    <View style={[styles.infoBox, { backgroundColor: theme.soft }]}>
       <Text style={[styles.infoLabel, { color: theme.accent }]}>{label}</Text>
       <Text style={[styles.infoValue, { color: theme.accent }]}>{value}</Text>
     </View>
@@ -123,13 +125,13 @@ const styles = StyleSheet.create({
   kicker: { fontSize: 11, fontWeight: '900', letterSpacing: 0.7, textTransform: 'uppercase' },
   title: { fontSize: 26, fontWeight: '900', marginTop: 2 },
   subtitle: { fontSize: 13, fontWeight: '800', marginTop: 3 },
-  levelPill: { alignSelf: 'flex-start', flexDirection: 'row', gap: 6, alignItems: 'center', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.86)', paddingHorizontal: 12, paddingVertical: 7 },
+  levelPill: { alignSelf: 'flex-start', flexDirection: 'row', gap: 6, alignItems: 'center', borderRadius: 999, backgroundColor: withAlpha(ucapsaBrand.colors.surface, 0.86), paddingHorizontal: 12, paddingVertical: 7 },
   levelText: { fontSize: 12, fontWeight: '900' },
   infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
   infoBox: { width: '48%', borderRadius: 17, padding: 11 },
   infoLabel: { fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
   infoValue: { fontSize: 12, fontWeight: '900', marginTop: 3, lineHeight: 17 },
-  progressOuter: { height: 10, overflow: 'hidden', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.65)' },
+  progressOuter: { height: 10, overflow: 'hidden', borderRadius: 999, backgroundColor: withAlpha(ucapsaBrand.colors.surface, 0.65) },
   progressInner: { height: '100%', borderRadius: 999 },
   attendancePanel: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 18, padding: 14 },
   qrTitle: { fontSize: 15, fontWeight: '900' },

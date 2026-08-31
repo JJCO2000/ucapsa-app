@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
-import { ucapsaBrand } from '../../constants/brand';
+import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import { supabase } from '../../lib/supabase';
@@ -325,7 +325,7 @@ export default function AdminUsersScreen() {
               openUserDetail(item);
             }}
           >
-            <View style={[styles.avatar, { backgroundColor: item.avatar_color || ucapsaBrand.colors.red }]}> 
+            <View style={[styles.avatar, { backgroundColor: item.avatar_color || ucapsaBrand.colors.red }]}>
               <Text style={styles.avatarText}>{(item.full_name || item.email || 'U').slice(0, 1).toUpperCase()}</Text>
             </View>
             <View style={{ flex: 1 }}>
@@ -400,7 +400,7 @@ function UserDetailModal({ profile, saving, onClose, onForceMember, onBackToClie
                       style={[styles.achievementAdminChip, item.unlocked && styles.achievementAdminChipActive]}
                       onPress={() => onToggleAchievement(profile, item)}
                     >
-                      <MaterialCommunityIcons name={item.definition.icon as never} size={22} color={item.unlocked ? '#7A1020' : ucapsaBrand.colors.muted} />
+                      <MaterialCommunityIcons name={item.definition.icon as never} size={22} color={item.unlocked ? ucapsaBrand.colors.premiumActionText : ucapsaBrand.colors.muted} />
                       <View style={{ flex: 1 }}>
                             <Text style={[styles.achievementAdminTitle, item.unlocked && styles.achievementAdminTitleActive]}>{item.definition.title}</Text>
                             <Text style={[styles.achievementAdminStatus, item.unlocked && styles.achievementAdminStatusActive]}>{item.unlocked ? 'Completado' : 'Marcar completado'}</Text>
@@ -464,7 +464,7 @@ const styles = StyleSheet.create({
   deniedBox: { flex: 1, minHeight: 420, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
   deniedTitle: { color: ucapsaBrand.colors.redDark, fontSize: 24, fontWeight: '900', textAlign: 'center' },
   deniedText: { color: ucapsaBrand.colors.muted, fontSize: 14, lineHeight: 20, textAlign: 'center', fontWeight: '700' },
-  hero: { backgroundColor: '#fff', borderRadius: 30, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 20 },
+  hero: { backgroundColor: ucapsaBrand.colors.surface, borderRadius: 30, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 20 },
   heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   iconBubble: { width: 46, height: 46, borderRadius: 23, backgroundColor: ucapsaBrand.colors.redSoft, alignItems: 'center', justifyContent: 'center' },
   backButton: { backgroundColor: ucapsaBrand.colors.redSoft, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9 },
@@ -473,48 +473,48 @@ const styles = StyleSheet.create({
   title: { color: ucapsaBrand.colors.text, fontSize: 30, fontWeight: '900', marginTop: 4 },
   subtitle: { color: ucapsaBrand.colors.muted, fontSize: 14, fontWeight: '800', marginTop: 6 },
   summaryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  summaryCard: { width: '48%', backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 14 },
+  summaryCard: { width: '48%', backgroundColor: ucapsaBrand.colors.surface, borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 14 },
   summaryValue: { color: ucapsaBrand.colors.red, fontSize: 26, fontWeight: '900' },
   summaryLabel: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '900', marginTop: 4 },
   filterGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  filterChip: { width: '48%', backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 12 },
+  filterChip: { width: '48%', backgroundColor: ucapsaBrand.colors.surface, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 12 },
   filterChipActive: { backgroundColor: ucapsaBrand.colors.red, borderColor: ucapsaBrand.colors.red },
   filterChipText: { color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '900' },
   filterChipHelper: { color: ucapsaBrand.colors.muted, fontSize: 11, fontWeight: '700', marginTop: 3 },
-  filterChipTextActive: { color: '#fff' },
+  filterChipTextActive: { color: ucapsaBrand.colors.surface },
   loadingBox: { alignItems: 'center', gap: 8, padding: 20 },
   muted: { color: ucapsaBrand.colors.muted, fontSize: 14, lineHeight: 20 },
-  emptyBox: { backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 22, padding: 16 },
+  emptyBox: { backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 22, padding: 16 },
   emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900' },
-  listCard: { backgroundColor: '#fff', borderRadius: 24, borderWidth: 1, borderColor: ucapsaBrand.colors.border, overflow: 'hidden' },
-  userRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderBottomWidth: 1, borderBottomColor: '#F6E6E9' },
+  listCard: { backgroundColor: ucapsaBrand.colors.surface, borderRadius: 24, borderWidth: 1, borderColor: ucapsaBrand.colors.border, overflow: 'hidden' },
+  userRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.redSoft },
   avatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#fff', fontSize: 20, fontWeight: '900' },
+  avatarText: { color: ucapsaBrand.colors.surface, fontSize: 20, fontWeight: '900' },
   userName: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900' },
   userEmail: { color: ucapsaBrand.colors.muted, fontSize: 13, marginTop: 2 },
   userRole: { color: ucapsaBrand.colors.red, fontSize: 12, fontWeight: '900', marginTop: 4 },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(37, 21, 26, 0.35)' },
+  modalBackdrop: { flex: 1, backgroundColor: withAlpha(ucapsaBrand.colors.text, 0.35) },
   modalContent: { backgroundColor: ucapsaBrand.colors.background, marginTop: 40, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingBottom: 40 },
   modalTitle: { color: ucapsaBrand.colors.text, fontSize: 28, fontWeight: '900', marginTop: 4 },
-  detailBox: { backgroundColor: '#fff', borderRadius: 22, padding: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginTop: 14 },
-  detailRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F7E6EA' },
+  detailBox: { backgroundColor: ucapsaBrand.colors.surface, borderRadius: 22, padding: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginTop: 14 },
+  detailRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.redSoft },
   detailLabel: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
   detailValue: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '700', marginTop: 3 },
-  achievementsAdminBox: { gap: 12, backgroundColor: '#fff', borderRadius: 22, padding: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginTop: 14 },
+  achievementsAdminBox: { gap: 12, backgroundColor: ucapsaBrand.colors.surface, borderRadius: 22, padding: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginTop: 14 },
   achievementsHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   achievementsAdminHint: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 4 },
   achievementAdminGrid: { gap: 8 },
   achievementAdminChip: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 18, backgroundColor: ucapsaBrand.colors.background, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
-  achievementAdminChipActive: { backgroundColor: '#FFF7CC', borderColor: '#FACC15' },
+  achievementAdminChipActive: { backgroundColor: ucapsaBrand.colors.goldPale, borderColor: ucapsaBrand.colors.gold },
   achievementAdminTitle: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
-  achievementAdminTitleActive: { color: '#7A1020' },
+  achievementAdminTitleActive: { color: ucapsaBrand.colors.premiumActionText },
   achievementAdminStatus: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '800', marginTop: 2 },
-  achievementAdminStatusActive: { color: '#92400E' },
+  achievementAdminStatusActive: { color: ucapsaBrand.colors.warningDark },
   primaryButton: { backgroundColor: ucapsaBrand.colors.red, borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 16 },
-  primaryButtonText: { color: '#fff', fontSize: 14, fontWeight: '900' },
-  secondaryButton: { backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 12 },
+  primaryButtonText: { color: ucapsaBrand.colors.surface, fontSize: 14, fontWeight: '900' },
+  secondaryButton: { backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 12 },
   secondaryButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 14, fontWeight: '900' },
   closeButton: { backgroundColor: ucapsaBrand.colors.text, borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 12 },
-  closeButtonText: { color: '#fff', fontSize: 14, fontWeight: '900' },
+  closeButtonText: { color: ucapsaBrand.colors.surface, fontSize: 14, fontWeight: '900' },
 });
 

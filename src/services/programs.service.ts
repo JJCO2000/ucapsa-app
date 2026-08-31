@@ -12,7 +12,9 @@ import type {
   ProgramScheduleVersion,
   UcapsaProgram,
   AttendanceQrCode,
+  AttendanceQrProgramCode,
   ProgramCode,
+  ProgramDogLink,
 } from '../types/app.types';
 
 export type CreateProgramEnrollmentInput = {
@@ -65,19 +67,19 @@ export type CorrectProgramAttendanceInput = {
 export type RegisterAttendanceFromQrResult = {
   attendance_id: string | null;
   session_id: string | null;
-  result: 'registered' | 'already_registered' | 'invalid_qr' | 'not_owner' | 'inactive_enrollment' | 'card_dates_missing' | 'card_not_valid' | 'wrong_program' | 'schedule_not_found' | 'wrong_day' | 'wrong_cycle' | 'cancelled' | 'outside_window' | string;
+  result: 'registered' | 'already_registered' | 'invalid_qr' | 'not_owner' | 'inactive_enrollment' | 'card_dates_missing' | 'card_not_valid' | 'wrong_program' | 'schedule_not_found' | 'wrong_day' | 'wrong_cycle' | 'cancelled' | 'outside_window_confirmation_required' | string;
   message: string;
 };
 
-export function buildOfficialAttendanceQrValue(programCode: ProgramCode, token: string) {
+export function buildOfficialAttendanceQrValue(programCode: AttendanceQrProgramCode, token: string) {
   return `ucapsa-attendance:${programCode}:${token.trim()}`;
 }
 
-export function parseOfficialAttendanceQrValue(value: string): { programCode: ProgramCode; token: string } | null {
+export function parseOfficialAttendanceQrValue(value: string): { programCode: AttendanceQrProgramCode; token: string } | null {
   const raw = value.trim();
-  const match = /^ucapsa-attendance:(puppy|comandos):(.+)$/i.exec(raw);
+  const match = /^ucapsa-attendance:(puppy|comandos|member):(.+)$/i.exec(raw);
   if (!match) return null;
-  const programCode = match[1].toLowerCase() as ProgramCode;
+  const programCode = match[1].toLowerCase() as AttendanceQrProgramCode;
   const token = match[2].trim();
   if (!token) return null;
   return { programCode, token };
@@ -346,17 +348,20 @@ async function hydrateEnrollments(enrollments: ProgramEnrollment[]): Promise<Pro
   const scheduleIds = [...new Set(enrollments.map((item) => item.schedule_id))];
   const userIds = [...new Set(enrollments.map((item) => item.user_id))];
   const enrollmentIds = enrollments.map((item) => item.id);
+  const dogIds = [...new Set(enrollments.map((item) => item.dog_id).filter((value): value is string => Boolean(value)))];
 
-  const [programsResult, scheduleBundle, profilesResult, attendancesResult] = await Promise.all([
+  const [programsResult, scheduleBundle, profilesResult, attendancesResult, dogsResult] = await Promise.all([
     supabase.from('programs').select('*').in('id', programIds),
     loadScheduleBasesAndVersions(scheduleIds),
     supabase.from('profiles').select('*').in('user_id', userIds),
     supabase.from('program_attendances').select('*').in('enrollment_id', enrollmentIds).order('attendance_date', { ascending: false }),
+    dogIds.length > 0 ? supabase.from('dogs').select('id,name,is_active,created_at,updated_at').in('id', dogIds) : Promise.resolve({ data: [], error: null }),
   ]);
 
   if (programsResult.error) throw programsResult.error;
   if (profilesResult.error) throw profilesResult.error;
   if (attendancesResult.error) throw attendancesResult.error;
+  if (dogsResult.error) throw dogsResult.error;
 
   const programs = ((programsResult.data ?? []) as UcapsaProgram[]).reduce<Record<string, UcapsaProgram>>((acc, item) => {
     acc[item.id] = item;
@@ -371,6 +376,11 @@ async function hydrateEnrollments(enrollments: ProgramEnrollment[]): Promise<Pro
 
   const profiles = ((profilesResult.data ?? []) as Profile[]).reduce<Record<string, Profile>>((acc, item) => {
     acc[item.user_id] = item;
+    return acc;
+  }, {});
+
+  const dogs = ((dogsResult.data ?? []) as ProgramDogLink[]).reduce<Record<string, ProgramDogLink>>((acc, item) => {
+    acc[item.id] = item;
     return acc;
   }, {});
 
@@ -390,10 +400,15 @@ async function hydrateEnrollments(enrollments: ProgramEnrollment[]): Promise<Pro
         program,
         schedule,
         profile: profiles[enrollment.user_id] ?? null,
+        dog: enrollment.dog_id ? dogs[enrollment.dog_id] ?? null : null,
         attendances: attendances[enrollment.id] ?? [],
       } satisfies ProgramEnrollmentWithDetails;
     })
     .filter(Boolean) as ProgramEnrollmentWithDetails[];
+}
+
+export function getProgramEnrollmentDogName(item: ProgramEnrollmentWithDetails | null | undefined) {
+  return item?.dog?.name?.trim() || item?.enrollment.dog_name?.trim() || item?.profile?.dog_name?.trim() || 'Perro';
 }
 
 export async function getPrograms(): Promise<UcapsaProgram[]> {
@@ -480,20 +495,21 @@ export async function getOfficialAttendanceQrCodes(): Promise<AttendanceQrCode[]
   const { data, error } = await supabase
     .from('attendance_qr_codes')
     .select('*')
-    .in('program_code', ['puppy', 'comandos'])
+    .in('program_code', ['puppy', 'comandos', 'member'])
     .order('program_code', { ascending: false });
 
   if (error) throw error;
   return (data ?? []) as AttendanceQrCode[];
 }
 
-export async function registerMyProgramAttendanceFromQr(input: { token: string; enrollmentId: string }): Promise<RegisterAttendanceFromQrResult> {
+export async function registerMyProgramAttendanceFromQr(input: { token: string; enrollmentId: string; confirmOutsideWindow?: boolean }): Promise<RegisterAttendanceFromQrResult> {
   const token = input.token.trim();
   if (!token) throw new Error('QR de asistencia vacio.');
 
   const { data, error } = await supabase.rpc('register_program_attendance_from_qr', {
     p_qr_token: token,
     p_enrollment_id: input.enrollmentId,
+    p_confirm_outside_window: input.confirmOutsideWindow ?? false,
   });
 
   if (error) throw error;
@@ -616,8 +632,8 @@ export async function correctProgramAttendance(input: CorrectProgramAttendanceIn
 }
 
 export async function deleteProgramAttendance(attendanceId: string, _enrollmentId: string): Promise<void> {
-  // El trigger de Supabase refresca el avance despues del DELETE.
-  const { error } = await supabase.from('program_attendances').delete().eq('id', attendanceId);
+  // La RPC valida rol Admin y refresca el progreso derivado despues del DELETE.
+  const { error } = await supabase.rpc('delete_program_attendance_admin', { p_attendance_id: attendanceId });
   if (error) throw error;
 }
 

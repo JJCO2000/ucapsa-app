@@ -111,7 +111,7 @@ export default function AdminPaymentSettingsScreen() {
                 <Text style={styles.cardTitle}>Visible para clientes</Text>
                 <Text style={styles.muted}>Si se apaga, Pagos no mostrara instrucciones bancarias.</Text>
               </View>
-              <Switch value={isActive} onValueChange={setIsActive} trackColor={{ false: '#E5E7EB', true: '#F2A8B4' }} thumbColor={isActive ? ucapsaBrand.colors.red : '#fff'} />
+              <Switch value={isActive} onValueChange={setIsActive} trackColor={{ false: ucapsaBrand.colors.borderNeutral, true: ucapsaBrand.colors.redBorder }} thumbColor={isActive ? ucapsaBrand.colors.red : ucapsaBrand.colors.surface} />
             </View>
           </View>
 
@@ -150,15 +150,15 @@ const styles = StyleSheet.create({
   subtitle: { color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 19, fontWeight: '700' },
   loading: { flexDirection: 'row', gap: 10, alignItems: 'center', paddingVertical: 16 },
   muted: { color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 19, fontWeight: '700' },
-  card: { gap: 11, borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', padding: 16, marginBottom: 13 },
+  card: { gap: 11, borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 16, marginBottom: 13 },
   field: { gap: 6 },
   label: { color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '900' },
-  input: { borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', paddingHorizontal: 13, paddingVertical: 11, color: ucapsaBrand.colors.text, fontSize: 15 },
+  input: { borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 13, paddingVertical: 11, color: ucapsaBrand.colors.text, fontSize: 15 },
   multiline: { minHeight: 84, textAlignVertical: 'top' },
   helper: { color: ucapsaBrand.colors.muted, fontSize: 11, fontWeight: '700', marginTop: -6 },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   cardTitle: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900' },
-  extraHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', padding: 15, marginBottom: 13 },
+  extraHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 15, marginBottom: 13 },
   primaryButton: { alignItems: 'center', borderRadius: 17, backgroundColor: ucapsaBrand.colors.red, paddingVertical: 13 },
-  primaryButtonText: { color: '#fff', fontSize: 14, fontWeight: '900' },
+  primaryButtonText: { color: ucapsaBrand.colors.surface, fontSize: 14, fontWeight: '900' },
 });

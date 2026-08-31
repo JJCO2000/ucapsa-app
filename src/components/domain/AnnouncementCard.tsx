@@ -1,3 +1,4 @@
+import { ucapsaBrand } from '../../constants/brand';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Announcement, UcapsaColorKey, UcapsaPriority } from '../../types/app.types';
@@ -10,12 +11,12 @@ type Props = {
 };
 
 const colorMap: Record<UcapsaColorKey, { main: string; soft: string; text: string }> = {
-  red: { main: '#C91F37', soft: '#FFE8EC', text: '#8F1324' },
-  blue: { main: '#2563EB', soft: '#EAF1FF', text: '#1D4ED8' },
-  yellow: { main: '#EAB308', soft: '#FEF3C7', text: '#92400E' },
-  green: { main: '#0f766e', soft: '#ccfbf1', text: '#0f766e' },
-  purple: { main: '#7C3AED', soft: '#EDE9FE', text: '#5B21B6' },
-  gray: { main: '#64748b', soft: '#f1f5f9', text: '#334155' },
+  red: { main: ucapsaBrand.colors.red, soft: ucapsaBrand.colors.redSoft, text: ucapsaBrand.colors.redDark },
+  blue: { main: ucapsaBrand.colors.blue, soft: ucapsaBrand.colors.blueSoft, text: ucapsaBrand.colors.blueDark },
+  yellow: { main: ucapsaBrand.colors.gold, soft: ucapsaBrand.colors.goldPale, text: ucapsaBrand.colors.warningDark },
+  green: { main: ucapsaBrand.colors.green, soft: ucapsaBrand.colors.greenSoft, text: ucapsaBrand.colors.green },
+  purple: { main: ucapsaBrand.colors.purple, soft: ucapsaBrand.colors.purpleSoft, text: ucapsaBrand.colors.purpleDark },
+  gray: { main: ucapsaBrand.colors.mutedNeutral, soft: ucapsaBrand.colors.graySoft, text: ucapsaBrand.colors.grayDark },
 };
 
 const priorityLabels: Record<UcapsaPriority, string> = {
@@ -92,7 +93,7 @@ export function AnnouncementCard({
             <Text style={styles.eventLabel}>Evento vinculado</Text>
             <Text style={styles.eventTitle}>{announcement.event.title}</Text>
           </View>
-          {onOpenEvent ? <MaterialIcons name="chevron-right" size={22} color="#64748b" /> : null}
+          {onOpenEvent ? <MaterialIcons name="chevron-right" size={22} color={ucapsaBrand.colors.mutedNeutral} /> : null}
         </Pressable>
       ) : null}
 
@@ -115,10 +116,10 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 16,
     borderRadius: 18,
-    backgroundColor: '#ffffff',
+    backgroundColor: ucapsaBrand.colors.surface,
     borderWidth: 1,
     borderLeftWidth: 6,
-    borderColor: '#e2e8f0',
+    borderColor: ucapsaBrand.colors.borderNeutral,
   },
   pressed: {
     opacity: 0.86,
@@ -134,7 +135,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   title: {
-    color: '#0f172a',
+    color: ucapsaBrand.colors.cameraDark,
     fontSize: 17,
     fontWeight: '900',
   },
@@ -152,7 +153,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   content: {
-    color: '#334155',
+    color: ucapsaBrand.colors.grayDark,
     fontSize: 14,
     lineHeight: 20,
   },
@@ -174,20 +175,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 999,
-    color: '#475569',
-    backgroundColor: '#f1f5f9',
+    color: ucapsaBrand.colors.grayDark,
+    backgroundColor: ucapsaBrand.colors.graySoft,
     fontSize: 12,
     fontWeight: '800',
   },
-  priorityHigh: { color: '#92400e', backgroundColor: '#fef3c7' },
-  priorityUrgent: { color: '#991b1b', backgroundColor: '#fee2e2' },
+  priorityHigh: { color: ucapsaBrand.colors.warningDark, backgroundColor: ucapsaBrand.colors.goldPale },
+  priorityUrgent: { color: ucapsaBrand.colors.danger, backgroundColor: ucapsaBrand.colors.premiumMuted },
   pin: {
     overflow: 'hidden',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 999,
-    color: '#8F1324',
-    backgroundColor: '#FFE8EC',
+    color: ucapsaBrand.colors.redDark,
+    backgroundColor: ucapsaBrand.colors.redSoft,
     fontSize: 12,
     fontWeight: '800',
   },
@@ -197,21 +198,21 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 12,
     borderRadius: 16,
-    backgroundColor: '#f8fafc',
+    backgroundColor: ucapsaBrand.colors.redPale,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: ucapsaBrand.colors.borderNeutral,
   },
   eventTextBox: {
     flex: 1,
   },
   eventLabel: {
-    color: '#64748b',
+    color: ucapsaBrand.colors.mutedNeutral,
     fontSize: 11,
     fontWeight: '800',
     textTransform: 'uppercase',
   },
   eventTitle: {
-    color: '#0f172a',
+    color: ucapsaBrand.colors.cameraDark,
     fontSize: 14,
     fontWeight: '800',
   },
@@ -227,14 +228,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
   },
-  statusPublished: { color: '#8F1324', backgroundColor: '#FFE8EC' },
-  statusActive: { color: '#334155', backgroundColor: '#F1F5F9' },
+  statusPublished: { color: ucapsaBrand.colors.redDark, backgroundColor: ucapsaBrand.colors.redSoft },
+  statusActive: { color: ucapsaBrand.colors.grayDark, backgroundColor: ucapsaBrand.colors.graySoft },
   warning: {
-    color: '#92400e',
-    backgroundColor: '#fef3c7',
+    color: ucapsaBrand.colors.warningDark,
+    backgroundColor: ucapsaBrand.colors.goldPale,
   },
   danger: {
-    color: '#991b1b',
-    backgroundColor: '#fee2e2',
+    color: ucapsaBrand.colors.danger,
+    backgroundColor: ucapsaBrand.colors.premiumMuted,
   },
 });

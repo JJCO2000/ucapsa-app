@@ -1,3 +1,4 @@
+import { ucapsaBrand } from '../../constants/brand';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { ReactNode } from 'react';
@@ -27,9 +28,9 @@ export function UcapsaRoleHero({ format, eyebrow, title, subtitle, right, icon }
   const iconName = icon ?? format.icon;
 
   return (
-    <View style={[styles.hero, { backgroundColor: format.heroBackground, borderColor: format.cardBorder }]}> 
+    <View style={[styles.hero, { backgroundColor: format.heroBackground, borderColor: format.cardBorder }]}>
       <View style={styles.heroTop}>
-        <View style={[styles.iconBox, { backgroundColor: format.pillBackground }]}> 
+        <View style={[styles.iconBox, { backgroundColor: format.pillBackground }]}>
           <Icon family="community" name={iconName} size={26} color={format.pillText} />
         </View>
         {right}
@@ -54,19 +55,19 @@ type CardProps = {
 
 export function UcapsaRoleCard({ format, title, subtitle, icon, iconFamily = 'material', children, onPress, style }: CardProps) {
   const content = (
-    <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }, style]}> 
+    <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }, style]}>
       {icon || title || subtitle ? (
         <View style={styles.cardHeader}>
           {icon ? (
-            <View style={[styles.smallIconBox, { backgroundColor: format.pillBackground }]}> 
+            <View style={[styles.smallIconBox, { backgroundColor: format.pillBackground }]}>
               <Icon family={iconFamily} name={icon} size={20} color={format.pillText} />
             </View>
           ) : null}
           <View style={{ flex: 1 }}>
             {title ? <Text style={[styles.cardTitle, { color: format.cardText }]}>{title}</Text> : null}
-            {subtitle ? <Text style={[styles.cardSubtitle, { color: format.key === 'member' ? '#FFE3E8' : format.muted }]}>{subtitle}</Text> : null}
+            {subtitle ? <Text style={[styles.cardSubtitle, { color: format.key === 'member' ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{subtitle}</Text> : null}
           </View>
-          {onPress ? <MaterialIcons name="chevron-right" size={24} color={format.key === 'member' ? '#FFFFFF' : format.accent} /> : null}
+          {onPress ? <MaterialIcons name="chevron-right" size={24} color={format.key === 'member' ? ucapsaBrand.colors.surface : format.accent} /> : null}
         </View>
       ) : null}
       {children}

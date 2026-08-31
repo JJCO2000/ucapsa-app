@@ -7,7 +7,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ProgramCredentialCard } from '../../components/domain/ProgramCredentialCard';
 import { MemberCredentialCard } from '../../components/domain/MemberCredentialCard';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
-import { ucapsaBrand } from '../../constants/brand';
+import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import {
   formatDate,
@@ -18,6 +18,7 @@ import {
 } from '../../services/memberships.service';
 import {
   getProgramEnrollmentByQrToken,
+  getProgramEnrollmentDogName,
   registerProgramAttendance,
 } from '../../services/programs.service';
 import type { ProgramEnrollmentWithDetails } from '../../types/app.types';
@@ -225,7 +226,7 @@ export default function AdminScannerScreen() {
             onBarcodeScanned={(event: { data: string }) => resolveQr(event.data)}
           />
           <View style={styles.scanFrame}>
-            <MaterialIcons name="qr-code-scanner" size={54} color="#ffffff" />
+            <MaterialIcons name="qr-code-scanner" size={54} color={ucapsaBrand.colors.surface} />
             <Text style={styles.scanText}>Apunta al codigo QR</Text>
           </View>
         </View>
@@ -280,7 +281,7 @@ export default function AdminScannerScreen() {
           <Text style={styles.kickerDark}>Programa</Text>
           <Text style={styles.modalTitle}>{result.row.program.name}</Text>
           <Text style={styles.muted}>
-            {result.row.profile?.full_name || result.row.profile?.email || 'Cliente'} - Perro: {result.row.enrollment.dog_name || result.row.profile?.dog_name || 'Sin registrar'}
+            {result.row.profile?.full_name || result.row.profile?.email || 'Cliente'} - Perro: {getProgramEnrollmentDogName(result.row)}
           </Text>
           <ProgramCredentialCard item={result.row} compact />
           <View style={styles.detailBox}>
@@ -318,33 +319,33 @@ function Detail({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   hero: { gap: 8, padding: 22, borderRadius: 28, backgroundColor: ucapsaBrand.colors.text },
-  kicker: { color: '#FFE8EC', fontSize: 12, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase' },
+  kicker: { color: ucapsaBrand.colors.redSoft, fontSize: 12, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase' },
   kickerDark: { color: ucapsaBrand.colors.red, fontSize: 12, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase' },
-  heroTitle: { color: '#fff', fontSize: 29, fontWeight: '900' },
+  heroTitle: { color: ucapsaBrand.colors.surface, fontSize: 29, fontWeight: '900' },
   title: { color: ucapsaBrand.colors.text, fontSize: 29, fontWeight: '900' },
   modalTitle: { color: ucapsaBrand.colors.text, fontSize: 25, fontWeight: '900', marginTop: 4 },
-  subtitle: { color: '#F0D4DA', fontSize: 14, lineHeight: 20, fontWeight: '700' },
+  subtitle: { color: ucapsaBrand.colors.border, fontSize: 14, lineHeight: 20, fontWeight: '700' },
   muted: { color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 19, fontWeight: '700' },
   topActionsRow: { flexDirection: 'row', gap: 10, marginVertical: 14 },
-  cameraCard: { height: 420, overflow: 'hidden', borderRadius: 28, backgroundColor: '#000', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  cameraCard: { height: 420, overflow: 'hidden', borderRadius: 28, backgroundColor: ucapsaBrand.colors.black, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   camera: { flex: 1 },
-  scanFrame: { position: 'absolute', left: 30, right: 30, top: 96, bottom: 96, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#ffffff', borderRadius: 28, backgroundColor: 'rgba(0,0,0,0.18)' },
-  scanText: { color: '#ffffff', fontSize: 15, fontWeight: '900', marginTop: 10 },
-  infoBox: { gap: 6, padding: 16, borderRadius: 20, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  scanFrame: { position: 'absolute', left: 30, right: 30, top: 96, bottom: 96, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: ucapsaBrand.colors.surface, borderRadius: 28, backgroundColor: withAlpha(ucapsaBrand.colors.black, 0.18) },
+  scanText: { color: ucapsaBrand.colors.surface, fontSize: 15, fontWeight: '900', marginTop: 10 },
+  infoBox: { gap: 6, padding: 16, borderRadius: 20, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   infoTitle: { color: ucapsaBrand.colors.text, fontSize: 17, fontWeight: '900' },
-  errorBox: { gap: 10, padding: 16, borderRadius: 20, backgroundColor: '#FFF0F2', borderWidth: 1, borderColor: '#F3B8C2' },
+  errorBox: { gap: 10, padding: 16, borderRadius: 20, backgroundColor: ucapsaBrand.colors.redSoftMuted, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder },
   errorTitle: { color: ucapsaBrand.colors.redDark, fontSize: 17, fontWeight: '900' },
   errorText: { color: ucapsaBrand.colors.redDark, fontSize: 14, lineHeight: 20, fontWeight: '700' },
   rawText: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 18, fontWeight: '700' },
-  resultBox: { gap: 12, padding: 16, borderRadius: 24, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  resultBox: { gap: 12, padding: 16, borderRadius: 24, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   detailBox: { gap: 8, padding: 14, borderRadius: 18, backgroundColor: ucapsaBrand.colors.background, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   detailRow: { gap: 3, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.border },
   detailLabel: { color: ucapsaBrand.colors.muted, fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
   detailValue: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
   primaryButton: { alignItems: 'center', borderRadius: 18, paddingVertical: 14, backgroundColor: ucapsaBrand.colors.red, marginTop: 8 },
-  primaryButtonText: { color: '#fff', fontSize: 15, fontWeight: '900' },
-  secondaryButton: { flex: 1, alignItems: 'center', borderRadius: 16, paddingVertical: 13, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
-  secondaryButtonWide: { alignItems: 'center', borderRadius: 16, paddingVertical: 13, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  primaryButtonText: { color: ucapsaBrand.colors.surface, fontSize: 15, fontWeight: '900' },
+  secondaryButton: { flex: 1, alignItems: 'center', borderRadius: 16, paddingVertical: 13, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  secondaryButtonWide: { alignItems: 'center', borderRadius: 16, paddingVertical: 13, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   secondaryButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900' },
   disabledButton: { opacity: 0.48 },
   deniedBox: { gap: 10, alignItems: 'center', justifyContent: 'center', flex: 1 },

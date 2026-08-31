@@ -26,7 +26,7 @@ La captura actualiza tipos desde el remoto y guarda `migration list` y `db lint`
 
 ## Sistemas que deben conservarse
 
-- exactly 2 attendance QR codes: Puppy and Comandos
+- 3 QR oficiales permanentes: Puppy, Comandos y Socios; Socios registra visitas separadas de las asistencias de clase
 - program sessions and real attendance rows
 - versioned class schedules and cancellations
 - payment obligations separated from payments

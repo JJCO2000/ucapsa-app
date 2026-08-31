@@ -11,7 +11,7 @@ import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { getVisibleAnnouncements } from '../../services/announcements.service';
 import { getVisibleEvents } from '../../services/events.service';
-import { getDogsForUser, type BasicDog } from '../../services/dogs.service';
+import { createDogForUserAdmin, getDogsForUser, type BasicDog } from '../../services/dogs.service';
 import { useSession } from '../../hooks/useSession';
 import {
   createProgramEnrollment,
@@ -30,6 +30,7 @@ import {
   getNextProgramLevel,
   getProgramClientProfiles,
   getProgramCodeLabel,
+  getProgramEnrollmentDogName,
   getProgramLevelLabel,
   getProgramClassCancellations,
   getProgramSchedules,
@@ -335,7 +336,7 @@ export default function AdminClassesScreen() {
     if (!term) return [];
 
     return profiles
-      .filter((profile) => `${profile.full_name ?? ''} ${profile.email ?? ''} ${profile.phone ?? ''} ${profile.dog_name ?? ''}`.toLowerCase().includes(term))
+      .filter((profile) => `${profile.full_name ?? ''} ${profile.email ?? ''} ${profile.phone ?? ''}`.toLowerCase().includes(term))
       .slice(0, 8);
   }, [clientSearch, profiles]);
 
@@ -349,7 +350,7 @@ export default function AdminClassesScreen() {
       if (statusFilter !== 'all' && row.enrollment.status !== statusFilter) return false;
       if (scheduleFilter !== 'all' && row.schedule.id !== scheduleFilter) return false;
       if (!term) return true;
-      const haystack = `${profileLabel(row.profile)} ${row.profile?.email ?? ''} ${row.enrollment.dog_name ?? ''} ${row.enrollment.physical_card_number ?? ''} ${row.program.name} ${formatProgramScheduleDisplayLabel(row.schedule, row.program)} ${getProgramLevelLabel(row.enrollment.program_level)}`.toLowerCase();
+      const haystack = `${profileLabel(row.profile)} ${row.profile?.email ?? ''} ${getProgramEnrollmentDogName(row)} ${row.enrollment.physical_card_number ?? ''} ${row.program.name} ${formatProgramScheduleDisplayLabel(row.schedule, row.program)} ${getProgramLevelLabel(row.enrollment.program_level)}`.toLowerCase();
       return haystack.includes(term);
     });
 
@@ -456,12 +457,13 @@ export default function AdminClassesScreen() {
 
     try {
       setSaving(true);
+      const linkedDog = selectedDog ?? await createDogForUserAdmin(form.userId, resolvedDogName);
       await createProgramEnrollment({
         userId: form.userId,
         programId: form.programId,
         scheduleId: effectiveScheduleId,
-        dogId: selectedDog?.id ?? null,
-        dogName: resolvedDogName,
+        dogId: linkedDog.id,
+        dogName: linkedDog.name,
         physicalCardNumber: form.physicalCardNumber,
         programLevel: form.programLevel,
         notes: form.notes,
@@ -486,7 +488,7 @@ export default function AdminClassesScreen() {
       attendanceAdjustmentDate: row.enrollment.last_attendance_at || todayKey(),
       dogId: row.enrollment.dog_id ?? '',
       dogMode: row.enrollment.dog_id ? 'existing' : 'new',
-      dogName: row.enrollment.dog_name ?? row.profile?.dog_name ?? '',
+      dogName: getProgramEnrollmentDogName(row),
       physicalCardNumber: row.enrollment.physical_card_number ?? '',
       programLevel: row.enrollment.program_level ?? getDefaultProgramLevel(row.program),
       notes: row.enrollment.notes ?? '',
@@ -538,11 +540,12 @@ export default function AdminClassesScreen() {
 
     try {
       setSaving(true);
+      const linkedDog = selectedDog ?? await createDogForUserAdmin(selectedRow.enrollment.user_id, resolvedDogName);
       await updateProgramEnrollment(selectedRow.enrollment.id, {
         programId: nextProgram.id,
         scheduleId: nextScheduleId,
-        dogId: selectedDog?.id ?? null,
-        dogName: resolvedDogName,
+        dogId: linkedDog.id,
+        dogName: linkedDog.name,
         physicalCardNumber: editForm.physicalCardNumber,
         programLevel: nextProgram.code === 'comandos' ? editForm.programLevel : 'base',
         notes: editForm.notes,
@@ -826,7 +829,7 @@ export default function AdminClassesScreen() {
       scheduleId: 'auto',
       dogId: row.enrollment.dog_id ?? '',
       dogMode: row.enrollment.dog_id ? 'existing' : 'new',
-      dogName: row.enrollment.dog_name ?? row.profile?.dog_name ?? '',
+      dogName: getProgramEnrollmentDogName(row),
       physicalCardNumber: '',
       programLevel: useNextLevel ? getNextProgramLevel(row.enrollment.program_level) : row.enrollment.program_level,
       notes: useNextLevel ? `Reinscripcion desde ${getProgramLevelLabel(row.enrollment.program_level)}.` : 'Reinscripcion del mismo nivel.',
@@ -862,7 +865,7 @@ export default function AdminClassesScreen() {
 
       <View style={styles.topActionsRow}>
         <Pressable style={styles.primaryButtonInline} onPress={() => openCreate()}>
-          <MaterialIcons name="add" size={20} color="#fff" />
+          <MaterialIcons name="add" size={20} color={ucapsaBrand.colors.surface} />
           <Text style={styles.primaryButtonText}>Nueva inscripcion</Text>
         </Pressable>
         <Pressable style={styles.secondaryButtonInline} onPress={() => router.push('/admin/class-schedules?status=active' as never)}>
@@ -940,7 +943,7 @@ export default function AdminClassesScreen() {
                 <Text style={styles.rowTitle}>{profileLabel(row.profile)}</Text>
                 <Text style={styles.customerLinkHint}>Ver cliente</Text>
               </Pressable>
-              <Text style={styles.rowMeta}>Perro: {row.enrollment.dog_name || row.profile?.dog_name || 'Sin registrar'}</Text>
+              <Text style={styles.rowMeta}>Perro: {getProgramEnrollmentDogName(row)}</Text>
             </View>
             <Text style={[styles.statusPill, row.enrollment.status !== 'active' && styles.statusPillMuted]}>{getProgramStatusLabel(row.enrollment.status)}</Text>
           </View>
@@ -1106,7 +1109,7 @@ function CreateEnrollmentModal({
           profiles.map((profile) => (
             <Pressable key={profile.user_id} style={[styles.optionItem, form.userId === profile.user_id && styles.optionItemActive]} onPress={() => onChooseProfile(profile)}>
               <Text style={[styles.optionTitle, form.userId === profile.user_id && styles.optionTitleActive]}>{profileLabel(profile)}</Text>
-              <Text style={styles.optionMeta}>{profile.email || 'Sin correo'}  Perro: {profile.dog_name || 'Sin registrar'}</Text>
+              <Text style={styles.optionMeta}>{profile.email || 'Sin correo'}  Perros: se cargan al seleccionar</Text>
             </Pressable>
           ))
         )}
@@ -1475,14 +1478,14 @@ function ClassCancellationModal({
 
         {events.map((event) => (
           <View key={`event-${event.id}`} style={styles.daySummaryItem}>
-            <MaterialIcons name="event" size={17} color="#0f766e" />
+            <MaterialIcons name="event" size={17} color={ucapsaBrand.colors.green} />
             <Text style={styles.daySummaryText}>{event.title}</Text>
           </View>
         ))}
 
         {announcements.map((announcement) => (
           <View key={`announcement-${announcement.id}`} style={styles.daySummaryItem}>
-            <MaterialIcons name="campaign" size={17} color="#2563eb" />
+            <MaterialIcons name="campaign" size={17} color={ucapsaBrand.colors.blue} />
             <Text style={styles.daySummaryText}>{announcement.title}</Text>
           </View>
         ))}
@@ -1704,21 +1707,21 @@ function Stat({ label, value, icon, onPress }: { label: string; value: number; i
 
 const styles = StyleSheet.create({
   hero: { gap: 8, padding: 22, borderRadius: 28, backgroundColor: ucapsaBrand.colors.text },
-  kicker: { color: '#FFE8EC', fontSize: 12, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase' },
+  kicker: { color: ucapsaBrand.colors.redSoft, fontSize: 12, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase' },
   kickerDark: { color: ucapsaBrand.colors.red, fontSize: 12, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase' },
-  heroTitle: { color: '#fff', fontSize: 29, fontWeight: '900' },
+  heroTitle: { color: ucapsaBrand.colors.surface, fontSize: 29, fontWeight: '900' },
   title: { color: ucapsaBrand.colors.text, fontSize: 29, fontWeight: '900' },
   modalTitle: { color: ucapsaBrand.colors.text, fontSize: 26, fontWeight: '900', marginTop: 4, marginBottom: 8 },
-  subtitle: { color: '#F0D4DA', fontSize: 14, lineHeight: 20, fontWeight: '700' },
+  subtitle: { color: ucapsaBrand.colors.border, fontSize: 14, lineHeight: 20, fontWeight: '700' },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginVertical: 16 },
-  statCard: { width: '48%', gap: 5, padding: 14, borderRadius: 22, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  statCard: { width: '48%', gap: 5, padding: 14, borderRadius: 22, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   statValue: { color: ucapsaBrand.colors.text, fontSize: 24, fontWeight: '900' },
   statLabel: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '800' },
   topActionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 14 },
   primaryButtonInline: { width: '48%', flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 18, paddingVertical: 14, backgroundColor: ucapsaBrand.colors.red },
-  secondaryButtonInline: { width: '48%', flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 18, paddingVertical: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
-  formCardFlat: { gap: 11, padding: 16, borderRadius: 24, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginBottom: 16 },
-  filtersCard: { gap: 11, padding: 16, borderRadius: 24, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginBottom: 14 },
+  secondaryButtonInline: { width: '48%', flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 18, paddingVertical: 14, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  formCardFlat: { gap: 11, padding: 16, borderRadius: 24, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginBottom: 16 },
+  filtersCard: { gap: 11, padding: 16, borderRadius: 24, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginBottom: 14 },
   sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 20, fontWeight: '900' },
   label: { color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '900', marginTop: 3 },
   hint: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 18, fontWeight: '700' },
@@ -1732,30 +1735,30 @@ const styles = StyleSheet.create({
   optionTitleActive: { color: ucapsaBrand.colors.redDark },
   optionMeta: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '700' },
   segmentRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  programSegment: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 999, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  programSegment: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 999, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   programSegmentActive: { backgroundColor: ucapsaBrand.colors.red, borderColor: ucapsaBrand.colors.red },
   programSegmentText: { color: ucapsaBrand.colors.muted, fontSize: 13, fontWeight: '900' },
-  programSegmentTextActive: { color: '#fff' },
+  programSegmentTextActive: { color: ucapsaBrand.colors.surface },
   selectButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingHorizontal: 14, borderRadius: 16, backgroundColor: ucapsaBrand.colors.background, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   selectButtonText: { flex: 1, color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
-  selectOptions: { gap: 7, marginTop: 7, padding: 8, borderRadius: 18, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  selectOptions: { gap: 7, marginTop: 7, padding: 8, borderRadius: 18, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   selectOption: { padding: 11, borderRadius: 14, backgroundColor: ucapsaBrand.colors.background, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   selectOptionActive: { backgroundColor: ucapsaBrand.colors.redSoft, borderColor: ucapsaBrand.colors.red },
   selectOptionText: { color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '800' },
   selectOptionTextActive: { color: ucapsaBrand.colors.redDark, fontWeight: '900' },
   primaryButton: { alignItems: 'center', borderRadius: 18, paddingVertical: 14, backgroundColor: ucapsaBrand.colors.red, marginTop: 8 },
-  primaryButtonText: { color: '#fff', fontSize: 15, fontWeight: '900' },
+  primaryButtonText: { color: ucapsaBrand.colors.surface, fontSize: 15, fontWeight: '900' },
   primaryMiniButton: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 9, backgroundColor: ucapsaBrand.colors.red },
-  primaryMiniButtonText: { color: '#fff', fontSize: 12, fontWeight: '900' },
-  secondaryButton: { flex: 1, alignItems: 'center', borderRadius: 16, paddingVertical: 13, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  primaryMiniButtonText: { color: ucapsaBrand.colors.surface, fontSize: 12, fontWeight: '900' },
+  secondaryButton: { flex: 1, alignItems: 'center', borderRadius: 16, paddingVertical: 13, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   secondaryButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900' },
-  closeButtonLight: { alignItems: 'center', borderRadius: 16, paddingVertical: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginTop: 8 },
+  closeButtonLight: { alignItems: 'center', borderRadius: 16, paddingVertical: 14, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginTop: 8 },
   closeButtonLightText: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
-  dangerButton: { flex: 1, alignItems: 'center', borderRadius: 16, paddingVertical: 13, backgroundColor: '#FFF0F2', borderWidth: 1, borderColor: '#F3B8C2' },
+  dangerButton: { flex: 1, alignItems: 'center', borderRadius: 16, paddingVertical: 13, backgroundColor: ucapsaBrand.colors.redSoftMuted, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder },
   dangerButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900' },
   dangerSolidButton: { alignItems: 'center', borderRadius: 16, paddingVertical: 14, backgroundColor: ucapsaBrand.colors.redDark, marginBottom: 12 },
-  dangerSolidButtonText: { color: '#fff', fontSize: 14, fontWeight: '900' },
-  dangerOutlineButton: { alignItems: 'center', borderRadius: 16, paddingVertical: 14, backgroundColor: '#FFF0F2', borderWidth: 1, borderColor: '#F3B8C2', marginBottom: 12 },
+  dangerSolidButtonText: { color: ucapsaBrand.colors.surface, fontSize: 14, fontWeight: '900' },
+  dangerOutlineButton: { alignItems: 'center', borderRadius: 16, paddingVertical: 14, backgroundColor: ucapsaBrand.colors.redSoftMuted, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, marginBottom: 12 },
   dangerOutlineButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 14, fontWeight: '900' },
   tableHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', gap: 10 },
   filterButton: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 9, backgroundColor: ucapsaBrand.colors.redSoft },
@@ -1764,37 +1767,37 @@ const styles = StyleSheet.create({
   muted: { color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 19, fontWeight: '700' },
   customerFilterBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 16, backgroundColor: ucapsaBrand.colors.redSoft, marginBottom: 10 },
   customerFilterText: { flex: 1, color: ucapsaBrand.colors.redDark, fontSize: 12, lineHeight: 18, fontWeight: '800' },
-  emptyBox: { gap: 6, padding: 18, borderRadius: 22, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  emptyBox: { gap: 6, padding: 18, borderRadius: 22, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900' },
-  rowCard: { gap: 7, padding: 14, borderRadius: 20, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginTop: 10 },
+  rowCard: { gap: 7, padding: 14, borderRadius: 20, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginTop: 10 },
   rowTop: { flexDirection: 'row', gap: 10, alignItems: 'center', justifyContent: 'space-between' },
   rowTitle: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900' },
   customerLinkHint: { color: ucapsaBrand.colors.redDark, fontSize: 11, fontWeight: '900', marginTop: 2 },
   rowMeta: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 18, fontWeight: '700' },
   statusPill: { overflow: 'hidden', borderRadius: 999, backgroundColor: ucapsaBrand.colors.redSoft, color: ucapsaBrand.colors.redDark, paddingHorizontal: 10, paddingVertical: 6, fontSize: 12, fontWeight: '900' },
-  statusPillMuted: { backgroundColor: '#F1F5F9', color: '#334155' },
+  statusPillMuted: { backgroundColor: ucapsaBrand.colors.graySoft, color: ucapsaBrand.colors.grayDark },
   actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  rewardBox: { gap: 8, padding: 14, borderRadius: 20, backgroundColor: '#FFF7CC', borderWidth: 1, borderColor: '#FACC15', marginBottom: 14 },
+  rewardBox: { gap: 8, padding: 14, borderRadius: 20, backgroundColor: ucapsaBrand.colors.goldPale, borderWidth: 1, borderColor: ucapsaBrand.colors.gold, marginBottom: 14 },
   attendanceRow: { flexDirection: 'row', gap: 10, alignItems: 'center', padding: 11, borderRadius: 16, backgroundColor: ucapsaBrand.colors.background, borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginTop: 8 },
   attendanceTitle: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
   attendanceMeta: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '700', marginTop: 2 },
-  deleteSmallButton: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7, backgroundColor: '#FFF0F2', borderWidth: 1, borderColor: '#F3B8C2' },
+  deleteSmallButton: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7, backgroundColor: ucapsaBrand.colors.redSoftMuted, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder },
   deleteSmallButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 11, fontWeight: '900' },
   dateButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingHorizontal: 14, borderRadius: 16, backgroundColor: ucapsaBrand.colors.background, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   dateButtonText: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
-  calendarBox: { overflow: 'hidden', borderRadius: 20, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginTop: 8 },
+  calendarBox: { overflow: 'hidden', borderRadius: 20, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginTop: 8 },
   scheduleCard: { gap: 8, padding: 12, borderRadius: 18, backgroundColor: ucapsaBrand.colors.background, borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginTop: 10 },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   closeButton: { alignItems: 'center', borderRadius: 16, paddingVertical: 14, backgroundColor: ucapsaBrand.colors.text },
-  closeButtonText: { color: '#fff', fontSize: 14, fontWeight: '900' },
+  closeButtonText: { color: ucapsaBrand.colors.surface, fontSize: 14, fontWeight: '900' },
   daySummaryBox: { gap: 8, padding: 12, borderRadius: 18, backgroundColor: ucapsaBrand.colors.background, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   daySummaryItem: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 3 },
   daySummaryText: { flex: 1, color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '800' },
   cancellationRow: { gap: 10, padding: 12, borderRadius: 16, backgroundColor: ucapsaBrand.colors.background, borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginTop: 8 },
   cancellationActions: { flexDirection: 'row', gap: 8 },
-  secondaryMiniButton: { flex: 1, alignItems: 'center', borderRadius: 13, paddingVertical: 10, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  secondaryMiniButton: { flex: 1, alignItems: 'center', borderRadius: 13, paddingVertical: 10, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   secondaryMiniButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900' },
-  deleteMiniButton: { flex: 1, alignItems: 'center', borderRadius: 13, paddingVertical: 10, backgroundColor: '#FFF0F2', borderWidth: 1, borderColor: '#F3B8C2' },
+  deleteMiniButton: { flex: 1, alignItems: 'center', borderRadius: 13, paddingVertical: 10, backgroundColor: ucapsaBrand.colors.redSoftMuted, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder },
   deleteMiniButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900' },
   disabledButton: { opacity: 0.5 },
   deniedBox: { gap: 10, alignItems: 'center', justifyContent: 'center', flex: 1 },

@@ -4,16 +4,20 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
+import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
-import { ucapsaBrand } from '../../constants/brand';
+import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import {
   getMyProgramEnrollments,
   getNextProgramScheduleDate,
   getProgramCodeLabel,
+  getProgramEnrollmentDogName,
   getProgramLevelLabel,
   getProgramStatusLabel,
 } from '../../services/programs.service';
+import { clientReadKeys, readClientResource, sanitizeProgramRowsForCache, writeClientResource } from '../../services/client-read-cache.service';
+import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
 import type { ProgramEnrollmentWithDetails } from '../../types/app.types';
 
 const dayNames = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
@@ -46,15 +50,30 @@ export default function ClientClassDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [usingSavedData, setUsingSavedData] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!user || isAdmin || !enrollmentId) return;
     setError(null);
+    setUsingSavedData(false);
+
+    const cached = await readClientResource<ProgramEnrollmentWithDetails[]>(user.id, clientReadKeys.programs);
+    const cachedItem = cached?.data.find((row) => row.enrollment.id === enrollmentId) ?? null;
+    if (cachedItem) {
+      setItem(cachedItem);
+      setSavedAt(cached?.saved_at ?? null);
+      setLoading(false);
+    }
+
     try {
-      const rows = await getMyProgramEnrollments();
+      const rows = await withOperationTimeout(getMyProgramEnrollments(), DEFAULT_READ_TIMEOUT_MS, 'class-detail');
       setItem(rows.find((row) => row.enrollment.id === enrollmentId) ?? null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo cargar la clase.');
+      const stored = await writeClientResource(user.id, clientReadKeys.programs, sanitizeProgramRowsForCache(rows));
+      setSavedAt(stored.saved_at);
+    } catch {
+      if (cachedItem) setUsingSavedData(true);
+      else setError(friendlyReadError('No se pudo cargar la clase.'));
     } finally {
       setLoading(false);
     }
@@ -77,8 +96,9 @@ export default function ClientClassDetailScreen() {
       contentContainerStyle={premium ? styles.premiumContent : undefined}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={format.accent} />}
     >
+      {usingSavedData ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} /> : null}
       {loading ? <View style={styles.loading}><ActivityIndicator color={format.accent} /><Text style={[styles.muted, { color: format.muted }]}>Cargando clase...</Text></View> : null}
-      {error ? <View style={[styles.errorBox, premium && styles.errorBoxPremium]}><Text style={[styles.errorTitle, premium && styles.errorTitlePremium]}>No se pudo cargar</Text><Text style={[styles.muted, { color: premium ? '#FFE3E8' : format.muted }]}>{error}</Text></View> : null}
+      {error ? <View style={[styles.errorBox, premium && styles.errorBoxPremium]}><Text style={[styles.errorTitle, premium && styles.errorTitlePremium]}>No se pudo cargar</Text><Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{error}</Text><Pressable style={[styles.secondaryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={() => void refresh()}><Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>Reintentar</Text></Pressable></View> : null}
       {!loading && !error && !item ? <View style={styles.empty}><Text style={[styles.title, { color: format.text }]}>Clase no encontrada</Text><Text style={[styles.muted, { color: format.muted }]}>La inscripcion ya no esta disponible.</Text></View> : null}
 
       {item ? (
@@ -86,7 +106,7 @@ export default function ClientClassDetailScreen() {
           <View style={[styles.hero, premium && styles.heroPremium]}>
             <View style={[styles.heroIcon, { backgroundColor: format.pillBackground }]}><MaterialIcons name="school" size={28} color={format.pillText} /></View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.kicker, { color: premium ? '#FFE8B5' : format.accentDark }]}>Mi clase</Text>
+              <Text style={[styles.kicker, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Mi clase</Text>
               <Text style={[styles.title, { color: format.text }]}>{getProgramCodeLabel(item.program.code)}</Text>
               <Text style={[styles.subtitle, { color: format.muted }]}>{getProgramLevelLabel(item.enrollment.program_level)} - {getProgramStatusLabel(item.enrollment.status)}</Text>
             </View>
@@ -95,7 +115,7 @@ export default function ClientClassDetailScreen() {
           <View style={styles.summaryGrid}>
             <Info label="Proxima clase" value={nextClassLabel(item)} premium={premium} format={format} />
             <Info label="Horario" value={scheduleLabel(item)} premium={premium} format={format} />
-            <Info label="Perro" value={item.enrollment.dog_name || item.profile?.dog_name || 'Sin registrar'} premium={premium} format={format} />
+            <Info label="Perro" value={getProgramEnrollmentDogName(item)} premium={premium} format={format} />
             <Info label="Asistencias" value={`${item.attendances.length} de ${item.program.required_attendances}`} premium={premium} format={format} />
           </View>
 
@@ -120,12 +140,12 @@ export default function ClientClassDetailScreen() {
                 <Text style={[styles.muted, { color: format.muted }]}>{item.attendances.length} registradas</Text>
               </View>
               {item.attendances.length > 5 ? (
-                <Pressable onPress={() => router.push(`/client/attendance-history?enrollmentId=${encodeURIComponent(item.enrollment.id)}` as never)}><Text style={[styles.link, { color: premium ? '#FFE8B5' : format.accentDark }]}>Ver todas</Text></Pressable>
+                <Pressable onPress={() => router.push(`/client/attendance-history?enrollmentId=${encodeURIComponent(item.enrollment.id)}` as never)}><Text style={[styles.link, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Ver todas</Text></Pressable>
               ) : null}
             </View>
             {recent.length === 0 ? <Text style={[styles.muted, { color: format.muted }]}>Todavia no hay asistencias.</Text> : recent.map((attendance) => (
               <View key={attendance.id} style={[styles.attendanceRow, premium && styles.rowPremium]}>
-                <MaterialIcons name="check-circle" size={19} color={premium ? '#FACC15' : ucapsaBrand.colors.success} />
+                <MaterialIcons name="check-circle" size={19} color={premium ? ucapsaBrand.colors.gold : ucapsaBrand.colors.success} />
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.attendanceDate, { color: format.cardText }]}>{dateLabel(attendance.attendance_date)}</Text>
                   <Text style={[styles.muted, { color: format.muted }]}>{attendance.source === 'qr_client' ? 'Registrada con QR' : 'Registro UCAPSA'}</Text>
@@ -148,16 +168,16 @@ function InfoRow({ label, value, premium, format }: { label: string; value: stri
 }
 
 const styles = StyleSheet.create({
-  premiumContent: { backgroundColor: '#270711' },
+  premiumContent: { backgroundColor: ucapsaBrand.colors.premiumBackground },
   loading: { flexDirection: 'row', gap: 10, alignItems: 'center', paddingVertical: 20 },
   muted: { fontSize: 13, lineHeight: 19, fontWeight: '700' },
-  errorBox: { gap: 5, borderRadius: 18, borderWidth: 1, borderColor: '#FECACA', backgroundColor: '#FEF2F2', padding: 16 },
-  errorBoxPremium: { borderColor: 'rgba(250,204,21,0.35)', backgroundColor: '#38111B' },
+  errorBox: { gap: 5, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.dangerBorder, backgroundColor: ucapsaBrand.colors.dangerSoft, padding: 16 },
+  errorBoxPremium: { borderColor: withAlpha(ucapsaBrand.colors.gold, 0.35), backgroundColor: ucapsaBrand.colors.premiumSurface },
   errorTitle: { color: ucapsaBrand.colors.danger, fontSize: 17, fontWeight: '900' },
-  errorTitlePremium: { color: '#FFE8B5' },
+  errorTitlePremium: { color: ucapsaBrand.colors.premiumAction },
   empty: { gap: 6, paddingVertical: 24 },
   hero: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
-  heroPremium: { borderRadius: 22, borderWidth: 1, borderColor: 'rgba(250,204,21,0.35)', backgroundColor: '#6D0817', padding: 14 },
+  heroPremium: { borderRadius: 22, borderWidth: 1, borderColor: withAlpha(ucapsaBrand.colors.gold, 0.35), backgroundColor: ucapsaBrand.colors.premiumHero, padding: 14 },
   heroIcon: { width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   kicker: { fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
   title: { fontSize: 28, fontWeight: '900' },
@@ -168,13 +188,15 @@ const styles = StyleSheet.create({
   infoValue: { fontSize: 14, lineHeight: 19, fontWeight: '900' },
   card: { gap: 10, borderRadius: 20, borderWidth: 1, padding: 16, marginBottom: 14 },
   sectionTitle: { fontSize: 18, fontWeight: '900' },
-  infoRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, borderTopWidth: 1, borderTopColor: '#F4E5E8', paddingTop: 10 },
-  rowPremium: { borderTopColor: 'rgba(250,204,21,0.16)' },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, borderTopWidth: 1, borderTopColor: ucapsaBrand.colors.premiumMuted, paddingTop: 10 },
+  rowPremium: { borderTopColor: withAlpha(ucapsaBrand.colors.gold, 0.16) },
   infoRowValue: { flex: 1, fontSize: 13, fontWeight: '900', textAlign: 'right' },
   primaryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 17, paddingVertical: 13, marginBottom: 14 },
   primaryButtonText: { fontSize: 14, fontWeight: '900' },
+  secondaryButton: { alignSelf: 'flex-start', borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 9, marginTop: 6 },
+  secondaryButtonText: { fontSize: 13, fontWeight: '900' },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   link: { fontSize: 13, fontWeight: '900' },
-  attendanceRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: '#F4E5E8', paddingTop: 10 },
+  attendanceRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: ucapsaBrand.colors.premiumMuted, paddingTop: 10 },
   attendanceDate: { fontSize: 14, fontWeight: '900' },
 });

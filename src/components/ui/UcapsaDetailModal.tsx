@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { ucapsaBrand } from '../../constants/brand';
+import { ucapsaBrand, withAlpha } from '../../constants/brand';
 
 type UcapsaDetailModalProps = {
   visible: boolean;
@@ -33,7 +33,7 @@ export function UcapsaDetailModal({
       <View style={styles.backdrop}>
         <View style={styles.card}>
           <View style={styles.header}>
-            <View style={[styles.typePill, { backgroundColor: soft }]}> 
+            <View style={[styles.typePill, { backgroundColor: soft }]}>
               <Text style={[styles.typeText, { color: accent }]}>{label}</Text>
             </View>
             <Pressable onPress={onClose} style={styles.closeButton}>
@@ -74,7 +74,7 @@ export function UcapsaDetailModal({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(20, 10, 12, 0.4)' },
+  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: withAlpha(ucapsaBrand.colors.premiumBackground, 0.4) },
   card: {
     maxHeight: '82%',
     paddingTop: 16,

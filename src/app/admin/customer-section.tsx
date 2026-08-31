@@ -3,6 +3,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
+import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../components/domain/AdminCustomerContextHeader';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
@@ -91,10 +92,7 @@ export default function CustomerSectionScreen() {
 
   return (
     <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={ucapsaBrand.colors.red} />}>
-      <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}><MaterialIcons name="arrow-back" size={21} color={ucapsaBrand.colors.redDark} /></Pressable>
-        <View style={{ flex: 1 }}><Text style={styles.kicker}>Cliente</Text><Text style={styles.title}>{titles[section]}</Text></View>
-      </View>
+      <AdminCustomerContextHeader customerName={adminCustomerDisplayName(record?.profile)} section={titles[section]} member={record?.membership?.status === 'active'} onBack={() => router.back()} />
 
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando...</Text></View> : null}
       {error ? <View style={styles.error}><Text style={styles.errorTitle}>No se pudo cargar</Text><Text style={styles.muted}>{error}</Text></View> : null}
@@ -105,7 +103,7 @@ export default function CustomerSectionScreen() {
             <Detail label="Nombre" value={record.profile.full_name || 'Sin nombre'} />
             <Detail label="Correo" value={record.profile.email || 'Sin correo'} />
             <Detail label="Telefono" value={record.profile.phone || 'Sin telefono'} />
-            <Detail label="Perros" value={record.dogs.length > 0 ? record.dogs.map((dog) => dog.name).join(', ') : record.enrollments.map((item) => item.enrollment.dog_name).filter(Boolean).filter((value, index, list) => list.indexOf(value) === index).join(', ') || 'Sin registrar'} last />
+            <Detail label="Perros" value={record.dogs.length > 0 ? record.dogs.map((dog) => dog.name).join(', ') : record.enrollments.map((item) => item.dog?.name).filter(Boolean).filter((value, index, list) => list.indexOf(value) === index).join(', ') || 'Sin registrar'} last />
           </View>
           <Action label="Editar datos" icon="edit" onPress={() => router.push(`/admin/customer-profile-edit?userId=${encodeURIComponent(userId)}` as never)} />
         </>
@@ -135,7 +133,7 @@ export default function CustomerSectionScreen() {
             <Pressable key={item.enrollment.id} style={styles.item} onPress={() => router.push(`/admin/customer-class?userId=${encodeURIComponent(userId)}&enrollmentId=${encodeURIComponent(item.enrollment.id)}` as never)}>
               <View style={styles.itemTop}><Text style={styles.itemTitle}>{item.program.name}</Text><Text style={styles.pill}>{getProgramStatusLabel(item.enrollment.status)}</Text></View>
               {item.program.code === 'comandos' ? <Text style={styles.itemMeta}>Nivel: {getProgramLevelLabel(item.enrollment.program_level)}</Text> : null}
-              <Text style={styles.itemMeta}>Perro: {item.enrollment.dog_name || 'Sin registrar'}</Text>
+              <Text style={styles.itemMeta}>Perro: {item.dog?.name || 'Sin registrar'}</Text>
               <Text style={styles.itemMeta}>{formatProgramScheduleDisplayLabel(item.schedule, item.program)}</Text>
               <Text style={styles.itemMeta}>{item.attendances.length} de {item.program.required_attendances} asistencias</Text>
               <Text style={styles.openHint}>Abrir clase</Text>
@@ -193,30 +191,30 @@ const styles = StyleSheet.create({
   title: { color: ucapsaBrand.colors.text, fontSize: 28, fontWeight: '900' },
   loading: { flexDirection: 'row', gap: 10, alignItems: 'center', paddingVertical: 12 },
   muted: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 18, fontWeight: '700' },
-  error: { borderRadius: 18, borderWidth: 1, borderColor: '#FECACA', backgroundColor: '#FEF2F2', padding: 14, gap: 4 },
+  error: { borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.dangerBorder, backgroundColor: ucapsaBrand.colors.dangerSoft, padding: 14, gap: 4 },
   errorTitle: { color: ucapsaBrand.colors.danger, fontSize: 15, fontWeight: '900' },
   primary: { borderRadius: 15, backgroundColor: ucapsaBrand.colors.red, paddingHorizontal: 16, paddingVertical: 12 },
-  primaryText: { color: '#fff', fontSize: 13, fontWeight: '900' },
-  card: { borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', padding: 14, gap: 10 },
-  detail: { borderBottomWidth: 1, borderBottomColor: '#F4E5E8', paddingBottom: 10 },
+  primaryText: { color: ucapsaBrand.colors.surface, fontSize: 13, fontWeight: '900' },
+  card: { borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 14, gap: 10 },
+  detail: { borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.premiumMuted, paddingBottom: 10 },
   detailLast: { borderBottomWidth: 0, paddingBottom: 0 },
   detailLabel: { color: ucapsaBrand.colors.muted, fontSize: 11, fontWeight: '800' },
   detailValue: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900', marginTop: 2 },
   action: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 15, backgroundColor: ucapsaBrand.colors.redSoft, padding: 12, marginTop: 9 },
   actionText: { flex: 1, color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900' },
-  item: { borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', padding: 14, marginBottom: 9 },
+  item: { borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 14, marginBottom: 9 },
   itemTop: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   itemTitle: { flex: 1, color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
   itemMeta: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 17, marginTop: 2 },
   openHint: { color: ucapsaBrand.colors.redDark, fontSize: 11, fontWeight: '900', marginTop: 7 },
   pill: { color: ucapsaBrand.colors.redDark, backgroundColor: ucapsaBrand.colors.redSoft, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4, fontSize: 10, fontWeight: '900' },
-  listCard: { borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', overflow: 'hidden', marginBottom: 8 },
-  listRow: { flexDirection: 'row', gap: 10, alignItems: 'center', padding: 13, borderBottomWidth: 1, borderBottomColor: '#F4E5E8' },
+  listCard: { borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, overflow: 'hidden', marginBottom: 8 },
+  listRow: { flexDirection: 'row', gap: 10, alignItems: 'center', padding: 13, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.premiumMuted },
   listRowLast: { borderBottomWidth: 0 },
   balanceCard: { borderRadius: 18, backgroundColor: ucapsaBrand.colors.red, padding: 16, marginBottom: 12 },
-  balanceLabel: { color: '#FFE4E8', fontSize: 11, fontWeight: '800' },
-  balanceValue: { color: '#fff', fontSize: 23, fontWeight: '900', marginTop: 3 },
+  balanceLabel: { color: ucapsaBrand.colors.premiumMuted, fontSize: 11, fontWeight: '800' },
+  balanceValue: { color: ucapsaBrand.colors.surface, fontSize: 23, fontWeight: '900', marginTop: 3 },
   amount: { color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '900', marginTop: 4 },
-  empty: { borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', padding: 15, marginBottom: 9 },
+  empty: { borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 15, marginBottom: 9 },
   sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900', marginTop: 6, marginBottom: 8 },
 });

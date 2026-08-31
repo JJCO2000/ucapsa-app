@@ -1,3 +1,4 @@
+import { ucapsaBrand } from '../../constants/brand';
 import { Stack } from 'expo-router';
 
 export default function AdminLayout() {
@@ -6,8 +7,8 @@ export default function AdminLayout() {
       screenOptions={{
         headerShown: true,
         headerTitle: 'Administracion',
-        headerStyle: { backgroundColor: '#C91F37' },
-        headerTintColor: '#ffffff',
+        headerStyle: { backgroundColor: ucapsaBrand.colors.red },
+        headerTintColor: ucapsaBrand.colors.surface,
         headerTitleStyle: { fontWeight: '900' },
       }}
     >

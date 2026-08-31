@@ -1,3 +1,4 @@
+import { ucapsaBrand } from '../../constants/brand';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
 
@@ -49,15 +50,15 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   primary: {
-    backgroundColor: '#0f766e',
+    backgroundColor: ucapsaBrand.colors.green,
   },
   secondary: {
-    backgroundColor: '#ffffff',
+    backgroundColor: ucapsaBrand.colors.surface,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: ucapsaBrand.colors.textLight,
   },
   danger: {
-    backgroundColor: '#dc2626',
+    backgroundColor: ucapsaBrand.colors.red,
   },
   ghost: {
     backgroundColor: 'transparent',
@@ -74,15 +75,15 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   primaryText: {
-    color: '#ffffff',
+    color: ucapsaBrand.colors.surface,
   },
   secondaryText: {
-    color: '#0f172a',
+    color: ucapsaBrand.colors.cameraDark,
   },
   dangerText: {
-    color: '#ffffff',
+    color: ucapsaBrand.colors.surface,
   },
   ghostText: {
-    color: '#0f766e',
+    color: ucapsaBrand.colors.green,
   },
 });

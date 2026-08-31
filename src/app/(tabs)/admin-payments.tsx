@@ -9,6 +9,7 @@ import { useSession } from '../../hooks/useSession';
 import { supabase } from '../../lib/supabase';
 import { getAdminMembershipRows } from '../../services/memberships.service';
 import type { Profile } from '../../types/app.types';
+import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
 
 type PaymentView = 'attention' | 'overdue' | 'partial';
 
@@ -44,15 +45,18 @@ export default function AdminPaymentsTab() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hasData, setHasData] = useState(false);
 
   const load = useCallback(async () => {
     if (!isAdmin) return;
-    const [obligationsResult, paymentsResult, profilesResult, memberships] = await Promise.all([
+    setError(null);
+    const [obligationsResult, paymentsResult, profilesResult, memberships] = await withOperationTimeout(Promise.all([
       supabase.from('payment_obligations').select('id, user_id, concept, due_date, amount, cancelled_at').is('cancelled_at', null),
       supabase.from('payments').select('obligation_id, amount, status').eq('status', 'paid').not('obligation_id', 'is', null),
       supabase.from('profiles').select('*').in('role', ['client', 'member']),
       getAdminMembershipRows(),
-    ]);
+    ]), DEFAULT_READ_TIMEOUT_MS, 'admin-payments-load');
     if (obligationsResult.error) throw obligationsResult.error;
     if (paymentsResult.error) throw paymentsResult.error;
     if (profilesResult.error) throw profilesResult.error;
@@ -111,12 +115,13 @@ export default function AdminPaymentsTab() {
     }
 
     setRows([...byUser.values()].sort((a, b) => Number(b.overdue) - Number(a.overdue) || (b.balance ?? 0) - (a.balance ?? 0)));
+    setHasData(true);
   }, [isAdmin]);
 
   useFocusEffect(useCallback(() => {
     if (!isAdmin) return undefined;
     setLoading(true);
-    void load().finally(() => setLoading(false));
+    void load().catch(() => setError(friendlyReadError('No se pudieron actualizar los pagos.'))).finally(() => setLoading(false));
     return undefined;
   }, [isAdmin, load]));
 
@@ -135,7 +140,7 @@ export default function AdminPaymentsTab() {
 
   async function refresh() {
     setRefreshing(true);
-    try { await load(); } finally { setRefreshing(false); }
+    try { await load(); } catch { setError(friendlyReadError('No se pudieron actualizar los pagos.')); } finally { setRefreshing(false); }
   }
 
   if (!isAdmin) return <Redirect href="/home" />;
@@ -148,11 +153,12 @@ export default function AdminPaymentsTab() {
         <Text style={styles.subtitle}>Primero lo que requiere atencion. El detalle vive dentro de cada cliente.</Text>
       </View>
 
-      <View style={styles.metrics}>
+      {error ? <View style={styles.errorBox}><Text style={styles.errorTitle}>No se pudo actualizar</Text><Text style={styles.muted}>{error}</Text><Pressable style={styles.retryButton} onPress={() => void refresh()}><Text style={styles.retryText}>Reintentar</Text></Pressable></View> : null}
+      {hasData ? <View style={styles.metrics}>
         <Metric label="Con saldo" value={rows.length} />
         <Metric label="Vencidos" value={rows.filter((row) => row.overdue).length} />
         <Metric label="Parciales" value={rows.filter((row) => row.partial).length} />
-      </View>
+      </View> : null}
 
       <Pressable style={styles.bankSettings} onPress={() => router.push('/admin/payment-settings' as never)}>
         <View style={styles.bankSettingsIcon}><MaterialIcons name="account-balance" size={21} color={ucapsaBrand.colors.redDark} /></View>
@@ -172,7 +178,7 @@ export default function AdminPaymentsTab() {
 
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Calculando saldos...</Text></View> : null}
 
-      {!loading && filtered.length === 0 ? <View style={styles.empty}><MaterialIcons name="check-circle" size={34} color={ucapsaBrand.colors.success} /><Text style={styles.emptyTitle}>Sin resultados</Text><Text style={styles.muted}>No hay clientes en este filtro.</Text></View> : null}
+      {!loading && hasData && filtered.length === 0 ? <View style={styles.empty}><MaterialIcons name="check-circle" size={34} color={ucapsaBrand.colors.success} /><Text style={styles.emptyTitle}>Sin resultados</Text><Text style={styles.muted}>No hay clientes en este filtro.</Text></View> : null}
 
       <View style={styles.list}>
         {filtered.map((row, index) => (
@@ -223,37 +229,41 @@ const styles = StyleSheet.create({
   title: { color: ucapsaBrand.colors.text, fontSize: 30, fontWeight: '900' },
   subtitle: { color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 19, fontWeight: '700', marginTop: 3 },
   metrics: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  bankSettings: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', padding: 14, marginBottom: 12 },
+  bankSettings: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 14, marginBottom: 12 },
   bankSettingsIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
   bankSettingsTitle: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
   bankSettingsText: { color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 16, fontWeight: '700', marginTop: 2 },
-  metric: { flex: 1, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', padding: 12 },
+  metric: { flex: 1, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 12 },
   metricValue: { color: ucapsaBrand.colors.text, fontSize: 22, fontWeight: '900' },
   metricLabel: { color: ucapsaBrand.colors.muted, fontSize: 11, fontWeight: '800', marginTop: 2 },
-  search: { backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12, color: ucapsaBrand.colors.text, fontSize: 14, marginBottom: 10 },
+  search: { backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12, color: ucapsaBrand.colors.text, fontSize: 14, marginBottom: 10 },
   filters: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  filter: { flex: 1, alignItems: 'center', borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', paddingVertical: 9 },
+  filter: { flex: 1, alignItems: 'center', borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingVertical: 9 },
   filterActive: { backgroundColor: ucapsaBrand.colors.red, borderColor: ucapsaBrand.colors.red },
   filterText: { color: ucapsaBrand.colors.text, fontSize: 11, fontWeight: '900' },
-  filterTextActive: { color: '#fff' },
+  filterTextActive: { color: ucapsaBrand.colors.surface },
   loading: { flexDirection: 'row', gap: 10, alignItems: 'center', paddingVertical: 12 },
   muted: { color: ucapsaBrand.colors.muted, fontSize: 13, fontWeight: '700' },
+  errorBox: { borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.dangerBorder, backgroundColor: ucapsaBrand.colors.dangerSoft, padding: 14, gap: 6, marginBottom: 12 },
+  errorTitle: { color: ucapsaBrand.colors.danger, fontSize: 15, fontWeight: '900' },
+  retryButton: { alignSelf: 'flex-start', borderRadius: 12, backgroundColor: ucapsaBrand.colors.red, paddingHorizontal: 13, paddingVertical: 9 },
+  retryText: { color: ucapsaBrand.colors.surface, fontSize: 12, fontWeight: '900' },
   empty: { alignItems: 'center', gap: 7, paddingVertical: 32 },
   emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '900' },
-  list: { borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', overflow: 'hidden' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderBottomWidth: 1, borderBottomColor: '#F4E5E8' },
+  list: { borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, overflow: 'hidden' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.premiumMuted },
   rowLast: { borderBottomWidth: 0 },
   name: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
   meta: { color: ucapsaBrand.colors.muted, fontSize: 11, marginTop: 2 },
   statusRow: { flexDirection: 'row', gap: 6, marginTop: 7 },
   badge: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 },
-  badgeDanger: { backgroundColor: '#FEE2E2' },
-  badgeWarning: { backgroundColor: '#FEF3C7' },
-  badgeInfo: { backgroundColor: '#DBEAFE' },
-  badgeText: { color: '#3F1D24', fontSize: 10, fontWeight: '900' },
+  badgeDanger: { backgroundColor: ucapsaBrand.colors.premiumMuted },
+  badgeWarning: { backgroundColor: ucapsaBrand.colors.goldPale },
+  badgeInfo: { backgroundColor: ucapsaBrand.colors.borderNeutral },
+  badgeText: { color: ucapsaBrand.colors.premiumSurfaceAlt, fontSize: 10, fontWeight: '900' },
   balanceBox: { alignItems: 'flex-end' },
   balanceLabel: { color: ucapsaBrand.colors.muted, fontSize: 10, fontWeight: '800' },
   balance: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900', marginTop: 2 },
-  secondary: { marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', paddingVertical: 13 },
+  secondary: { marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingVertical: 13 },
   secondaryText: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900' },
 });

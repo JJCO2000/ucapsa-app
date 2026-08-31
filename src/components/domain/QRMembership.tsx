@@ -1,3 +1,4 @@
+import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { StyleSheet, Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import type { Membership, Profile } from '../../types/app.types';
@@ -55,32 +56,32 @@ const styles = StyleSheet.create({
   card: {
     gap: 18,
     borderRadius: 28,
-    backgroundColor: '#0f766e',
+    backgroundColor: ucapsaBrand.colors.green,
     padding: 20,
-    shadowColor: '#0f172a',
+    shadowColor: ucapsaBrand.colors.cameraDark,
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.12,
     shadowRadius: 20,
     elevation: 4,
   },
   header: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
-  kicker: { color: '#ccfbf1', fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
-  name: { marginTop: 4, color: '#ffffff', fontSize: 23, fontWeight: '900' },
+  kicker: { color: ucapsaBrand.colors.greenSoft, fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
+  name: { marginTop: 4, color: ucapsaBrand.colors.surface, fontSize: 23, fontWeight: '900' },
   status: {
     alignSelf: 'flex-start',
     overflow: 'hidden',
     borderRadius: 999,
-    backgroundColor: '#ccfbf1',
-    color: '#0f766e',
+    backgroundColor: ucapsaBrand.colors.greenSoft,
+    color: ucapsaBrand.colors.green,
     paddingHorizontal: 12,
     paddingVertical: 6,
     fontSize: 12,
     fontWeight: '900',
   },
   infoGrid: { flexDirection: 'row', gap: 12 },
-  infoBox: { flex: 1, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.14)', padding: 14 },
-  label: { color: '#ccfbf1', fontSize: 11, fontWeight: '800' },
-  value: { marginTop: 4, color: '#ffffff', fontSize: 14, fontWeight: '900' },
-  qrBox: { alignItems: 'center', gap: 10, borderRadius: 22, backgroundColor: '#ffffff', padding: 18 },
-  qrHelp: { color: '#64748b', fontSize: 12, fontWeight: '700', textAlign: 'center' },
+  infoBox: { flex: 1, borderRadius: 18, backgroundColor: withAlpha(ucapsaBrand.colors.surface, 0.14), padding: 14 },
+  label: { color: ucapsaBrand.colors.greenSoft, fontSize: 11, fontWeight: '800' },
+  value: { marginTop: 4, color: ucapsaBrand.colors.surface, fontSize: 14, fontWeight: '900' },
+  qrBox: { alignItems: 'center', gap: 10, borderRadius: 22, backgroundColor: ucapsaBrand.colors.surface, padding: 18 },
+  qrHelp: { color: ucapsaBrand.colors.mutedNeutral, fontSize: 12, fontWeight: '700', textAlign: 'center' },
 });

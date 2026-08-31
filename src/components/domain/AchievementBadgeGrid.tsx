@@ -1,16 +1,16 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { ucapsaBrand } from '../../constants/brand';
+import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { formatAchievementDate, type AchievementWithState } from '../../services/achievements.service';
 
 const colorMap = {
-  red: { main: '#C91F37', soft: '#FFE8EC', dark: '#8F1324' },
-  blue: { main: '#2563EB', soft: '#EAF1FF', dark: '#1D4ED8' },
-  yellow: { main: '#FACC15', soft: '#FFF7CC', dark: '#7A3B00' },
-  green: { main: '#0f766e', soft: '#ccfbf1', dark: '#134e4a' },
-  purple: { main: '#7C3AED', soft: '#EDE9FE', dark: '#5B21B6' },
-  gray: { main: '#64748b', soft: '#f1f5f9', dark: '#334155' },
+  red: { main: ucapsaBrand.colors.red, soft: ucapsaBrand.colors.redSoft, dark: ucapsaBrand.colors.redDark },
+  blue: { main: ucapsaBrand.colors.blue, soft: ucapsaBrand.colors.blueSoft, dark: ucapsaBrand.colors.blueDark },
+  yellow: { main: ucapsaBrand.colors.gold, soft: ucapsaBrand.colors.goldPale, dark: ucapsaBrand.colors.goldDark },
+  green: { main: ucapsaBrand.colors.green, soft: ucapsaBrand.colors.greenSoft, dark: ucapsaBrand.colors.greenDark },
+  purple: { main: ucapsaBrand.colors.purple, soft: ucapsaBrand.colors.purpleSoft, dark: ucapsaBrand.colors.purpleDark },
+  gray: { main: ucapsaBrand.colors.mutedNeutral, soft: ucapsaBrand.colors.graySoft, dark: ucapsaBrand.colors.grayDark },
 } as const;
 
 function getTone(item: AchievementWithState) {
@@ -23,6 +23,37 @@ function getAchievementRank(item: AchievementWithState) {
 
 function sortAchievementsByLevel(items: AchievementWithState[]) {
   return [...items].sort((a, b) => getAchievementRank(a) - getAchievementRank(b));
+}
+
+const homeProgramProgressionRank: Record<string, number> = {
+  puppy_completed: 0,
+  comandos_basico_completed: 1,
+  comandos_medio_completed: 2,
+  comandos_avanzado_completed: 3,
+};
+
+function sortAchievementsForHome(items: AchievementWithState[]) {
+  return [...items].sort((a, b) => {
+    // En Inicio, primero se conserva la historia real ya conseguida.
+    // El nivel mas alto completado va delante del anterior:
+    // Avanzado > Intermedio > Basico > Puppy.
+    if (a.unlocked !== b.unlocked) return a.unlocked ? -1 : 1;
+
+    const programRankA = homeProgramProgressionRank[a.definition.code];
+    const programRankB = homeProgramProgressionRank[b.definition.code];
+    const aIsProgram = programRankA !== undefined;
+    const bIsProgram = programRankB !== undefined;
+
+    if (aIsProgram && bIsProgram) {
+      return a.unlocked ? programRankB - programRankA : programRankA - programRankB;
+    }
+
+    // Los hitos de Puppy/Comandos tienen prioridad en el resumen de Inicio.
+    if (aIsProgram !== bIsProgram) return aIsProgram ? -1 : 1;
+
+    // Para futuros logros no ligados al programa, mantener el orden configurado.
+    return getAchievementRank(a) - getAchievementRank(b);
+  });
 }
 
 export function AchievementBadgeGrid({
@@ -43,7 +74,7 @@ export function AchievementBadgeGrid({
     return (
       <View style={[styles.emptyBox, premium && styles.emptyBoxPremium]}>
         <Text style={[styles.emptyTitle, premium && styles.emptyTitlePremium]}>Sin medallas configuradas</Text>
-        <Text style={[styles.emptyText, premium && styles.emptyTextPremium]}>Ejecuta el SQL de logros para activar las medallas UCAPSA.</Text>
+        <Text style={[styles.emptyText, premium && styles.emptyTextPremium]}>Los logros todavia no estan disponibles.</Text>
       </View>
     );
   }
@@ -63,8 +94,8 @@ export function AchievementBadgeGrid({
             ]}
             onPress={() => onSelect(item)}
           >
-            <View style={[styles.iconSeal, { backgroundColor: item.unlocked ? tone.soft : '#F1F5F9' }]}>
-              <MaterialCommunityIcons name={(item.unlocked ? item.definition.icon : 'lock') as any} size={28} color={item.unlocked ? tone.dark : '#94A3B8'} />
+            <View style={[styles.iconSeal, { backgroundColor: item.unlocked ? tone.soft : ucapsaBrand.colors.graySoft }]}>
+              <MaterialCommunityIcons name={item.definition.icon as any} size={28} color={item.unlocked ? tone.dark : ucapsaBrand.colors.gray} />
             </View>
             <Text numberOfLines={2} style={[styles.badgeTitle, premium && styles.badgeTitlePremium, !item.unlocked && styles.badgeTitleLocked]}>
               {item.definition.title}
@@ -83,15 +114,17 @@ export function AchievementBadgeGrid({
 export function AchievementMiniRow({
   items,
   premium = false,
-  maxItems = 3,
+  maxItems = 4,
+  label = 'Tus logros',
   onPress,
 }: {
   items: AchievementWithState[];
   premium?: boolean;
   maxItems?: number;
+  label?: string;
   onPress: () => void;
 }) {
-  const visibleItems = sortAchievementsByLevel(items).slice(0, maxItems);
+  const visibleItems = sortAchievementsForHome(items).slice(0, maxItems);
 
   if (visibleItems.length === 0) return null;
 
@@ -108,11 +141,12 @@ export function AchievementMiniRow({
               item.unlocked ? { backgroundColor: tone.soft, borderColor: tone.main } : styles.miniSealLocked,
             ]}
           >
-            <MaterialCommunityIcons name={(item.unlocked ? item.definition.icon : 'lock') as any} size={18} color={item.unlocked ? tone.dark : '#94A3B8'} />
+            <MaterialCommunityIcons name={item.definition.icon as any} size={18} color={item.unlocked ? tone.dark : ucapsaBrand.colors.gray} />
           </View>
         );
       })}
-      <MaterialCommunityIcons name="chevron-right" size={18} color={premium ? '#FFE8B5' : ucapsaBrand.colors.red} />
+      <Text style={[styles.miniLabel, premium && styles.miniLabelPremium]}>{label}</Text>
+      <MaterialCommunityIcons name="chevron-right" size={18} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.red} />
     </Pressable>
   );
 }
@@ -135,8 +169,8 @@ export function AchievementDetailModal({
     <Modal visible={Boolean(item)} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalBackdrop}>
         <View style={[styles.modalCard, premium && styles.modalCardPremium]}>
-          <View style={[styles.modalIcon, { backgroundColor: item.unlocked ? tone.soft : '#F1F5F9', borderColor: item.unlocked ? tone.main : '#CBD5E1' }]}>
-            <MaterialCommunityIcons name={(item.unlocked ? item.definition.icon : 'lock') as any} size={44} color={item.unlocked ? tone.dark : '#94A3B8'} />
+          <View style={[styles.modalIcon, { backgroundColor: item.unlocked ? tone.soft : ucapsaBrand.colors.graySoft, borderColor: item.unlocked ? tone.main : ucapsaBrand.colors.textLight }]}>
+            <MaterialCommunityIcons name={item.definition.icon as any} size={44} color={item.unlocked ? tone.dark : ucapsaBrand.colors.gray} />
           </View>
 
           <Text style={[styles.modalKicker, premium && styles.modalKickerPremium]}>{item.unlocked ? 'Logro desbloqueado' : 'Logro pendiente'}</Text>
@@ -160,68 +194,76 @@ export function AchievementDetailModal({
   );
 }
 
-export function AchievementSummary({ items, premium = false, onPress }: { items: AchievementWithState[]; premium?: boolean; onPress: () => void }) {
+export function AchievementSummary({ items, premium = false, onPress }: { items: AchievementWithState[]; premium?: boolean; onPress?: () => void }) {
   const unlocked = items.filter((item) => item.unlocked).length;
   const total = items.length;
-  return (
-    <Pressable style={[styles.summaryCard, premium && styles.summaryCardPremium]} onPress={onPress}>
+  const content = (
+    <>
       <View style={[styles.summaryIcon, premium && styles.summaryIconPremium]}>
-        <MaterialCommunityIcons name="medal" size={24} color={premium ? '#7A1020' : ucapsaBrand.colors.red} />
+        <MaterialCommunityIcons name="medal" size={24} color={premium ? ucapsaBrand.colors.premiumActionText : ucapsaBrand.colors.red} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={[styles.summaryTitle, premium && styles.summaryTitlePremium]}>Logros UCAPSA</Text>
-        <Text style={[styles.summaryText, premium && styles.summaryTextPremium]}>{unlocked} de {total || 4} medallas desbloqueadas</Text>
+        <Text style={[styles.summaryText, premium && styles.summaryTextPremium]}>{unlocked} de {total} medallas desbloqueadas</Text>
       </View>
-      <MaterialCommunityIcons name="chevron-right" size={24} color={premium ? '#FFE8B5' : ucapsaBrand.colors.red} />
-    </Pressable>
+      {onPress ? <MaterialCommunityIcons name="chevron-right" size={24} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.red} /> : null}
+    </>
   );
+
+  if (onPress) {
+    return <Pressable style={[styles.summaryCard, premium && styles.summaryCardPremium]} onPress={onPress}>{content}</Pressable>;
+  }
+
+  return <View style={[styles.summaryCard, premium && styles.summaryCardPremium]}>{content}</View>;
 }
 
 const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  badgeCard: { width: '48%', minHeight: 142, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 13, borderRadius: 24, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#E2E8F0' },
-  badgeCardPremium: { backgroundColor: 'rgba(255,255,255,0.08)', borderColor: 'rgba(250,204,21,0.26)' },
+  badgeCard: { width: '48%', minHeight: 142, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 13, borderRadius: 24, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.borderNeutral },
+  badgeCardPremium: { backgroundColor: withAlpha(ucapsaBrand.colors.surface, 0.08), borderColor: withAlpha(ucapsaBrand.colors.gold, 0.26) },
   badgeCardLocked: { opacity: 0.72 },
-  iconSeal: { width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)' },
-  badgeTitle: { color: '#0F172A', fontSize: 14, fontWeight: '900', textAlign: 'center' },
-  badgeTitlePremium: { color: '#FFFFFF' },
-  badgeTitleLocked: { color: '#64748B' },
+  iconSeal: { width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: withAlpha(ucapsaBrand.colors.surface, 0.6) },
+  badgeTitle: { color: ucapsaBrand.colors.cameraDark, fontSize: 14, fontWeight: '900', textAlign: 'center' },
+  badgeTitlePremium: { color: ucapsaBrand.colors.surface },
+  badgeTitleLocked: { color: ucapsaBrand.colors.mutedNeutral },
   badgeState: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
-  badgeStateLocked: { color: '#94A3B8' },
+  badgeStateLocked: { color: ucapsaBrand.colors.gray },
   pressed: { opacity: 0.86, transform: [{ scale: 0.99 }] },
-  emptyBox: { gap: 5, padding: 16, borderRadius: 20, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
-  emptyBoxPremium: { backgroundColor: 'rgba(255,255,255,0.08)', borderColor: 'rgba(250,204,21,0.26)' },
+  emptyBox: { gap: 5, padding: 16, borderRadius: 20, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  emptyBoxPremium: { backgroundColor: withAlpha(ucapsaBrand.colors.surface, 0.08), borderColor: withAlpha(ucapsaBrand.colors.gold, 0.26) },
   emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 15, fontWeight: '900' },
-  emptyTitlePremium: { color: '#FFFFFF' },
+  emptyTitlePremium: { color: ucapsaBrand.colors.surface },
   emptyText: { color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 18, fontWeight: '700' },
-  emptyTextPremium: { color: '#FFE3E8' },
-  miniRow: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 12, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 999, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
-  miniRowPremium: { backgroundColor: 'rgba(255,255,255,0.10)', borderColor: 'rgba(250,204,21,0.28)' },
+  emptyTextPremium: { color: ucapsaBrand.colors.premiumMuted },
+  miniRow: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 12, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 999, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  miniRowPremium: { backgroundColor: withAlpha(ucapsaBrand.colors.surface, 0.1), borderColor: withAlpha(ucapsaBrand.colors.gold, 0.28) },
   miniSeal: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
-  miniSealPremium: { borderColor: 'rgba(250,204,21,0.34)' },
-  miniSealLocked: { backgroundColor: '#F1F5F9', borderColor: '#CBD5E1', opacity: 0.72 },
-  modalBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: 'rgba(15, 23, 42, 0.48)' },
-  modalCard: { width: '100%', gap: 10, alignItems: 'center', padding: 22, borderRadius: 30, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
-  modalCardPremium: { backgroundColor: '#38111B', borderColor: 'rgba(250,204,21,0.34)' },
+  miniSealPremium: { borderColor: withAlpha(ucapsaBrand.colors.gold, 0.34) },
+  miniSealLocked: { backgroundColor: ucapsaBrand.colors.graySoft, borderColor: ucapsaBrand.colors.textLight, opacity: 0.72 },
+  miniLabel: { color: ucapsaBrand.colors.muted, fontSize: 13, fontWeight: '900', marginLeft: 1 },
+  miniLabelPremium: { color: ucapsaBrand.colors.premiumMuted },
+  modalBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: withAlpha(ucapsaBrand.colors.cameraDark, 0.48) },
+  modalCard: { width: '100%', gap: 10, alignItems: 'center', padding: 22, borderRadius: 30, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  modalCardPremium: { backgroundColor: ucapsaBrand.colors.premiumSurface, borderColor: withAlpha(ucapsaBrand.colors.gold, 0.34) },
   modalIcon: { width: 82, height: 82, borderRadius: 41, alignItems: 'center', justifyContent: 'center', borderWidth: 2, marginBottom: 6 },
   modalKicker: { color: ucapsaBrand.colors.red, fontSize: 12, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.8 },
-  modalKickerPremium: { color: '#FFE8B5' },
+  modalKickerPremium: { color: ucapsaBrand.colors.premiumAction },
   modalTitle: { color: ucapsaBrand.colors.text, fontSize: 25, fontWeight: '900', textAlign: 'center' },
-  modalTitlePremium: { color: '#FFFFFF' },
+  modalTitlePremium: { color: ucapsaBrand.colors.surface },
   modalText: { color: ucapsaBrand.colors.muted, fontSize: 14, lineHeight: 20, fontWeight: '700', textAlign: 'center' },
-  modalTextPremium: { color: '#FFE3E8' },
+  modalTextPremium: { color: ucapsaBrand.colors.premiumMuted },
   modalDate: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900', marginTop: 4 },
-  modalDatePremium: { color: '#FFE8B5' },
+  modalDatePremium: { color: ucapsaBrand.colors.premiumAction },
   closeButton: { width: '100%', alignItems: 'center', borderRadius: 18, paddingVertical: 14, backgroundColor: ucapsaBrand.colors.red, marginTop: 8 },
-  closeButtonPremium: { backgroundColor: '#FACC15' },
-  closeButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
-  closeButtonTextPremium: { color: '#4A0710' },
-  summaryCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, borderRadius: 22, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border },
-  summaryCardPremium: { backgroundColor: 'rgba(255,255,255,0.08)', borderColor: 'rgba(250,204,21,0.26)' },
+  closeButtonPremium: { backgroundColor: ucapsaBrand.colors.gold },
+  closeButtonText: { color: ucapsaBrand.colors.surface, fontSize: 15, fontWeight: '900' },
+  closeButtonTextPremium: { color: ucapsaBrand.colors.redDeeper },
+  summaryCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, borderRadius: 22, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  summaryCardPremium: { backgroundColor: withAlpha(ucapsaBrand.colors.surface, 0.08), borderColor: withAlpha(ucapsaBrand.colors.gold, 0.26) },
   summaryIcon: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
-  summaryIconPremium: { backgroundColor: '#FFE8B5' },
+  summaryIconPremium: { backgroundColor: ucapsaBrand.colors.premiumAction },
   summaryTitle: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900' },
-  summaryTitlePremium: { color: '#FFFFFF' },
+  summaryTitlePremium: { color: ucapsaBrand.colors.surface },
   summaryText: { color: ucapsaBrand.colors.muted, fontSize: 13, fontWeight: '800', marginTop: 2 },
-  summaryTextPremium: { color: '#FFE3E8' },
+  summaryTextPremium: { color: ucapsaBrand.colors.premiumMuted },
 });

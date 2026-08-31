@@ -1,3 +1,4 @@
+import { ucapsaBrand } from '../../constants/brand';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 type MemberCardProps = {
@@ -46,9 +47,9 @@ const styles = StyleSheet.create({
   card: {
     gap: 12,
     borderRadius: 18,
-    backgroundColor: '#ffffff',
+    backgroundColor: ucapsaBrand.colors.surface,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: ucapsaBrand.colors.borderNeutral,
     padding: 16,
   },
   pressed: {
@@ -66,10 +67,10 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0f766e',
+    backgroundColor: ucapsaBrand.colors.green,
   },
   avatarText: {
-    color: '#ffffff',
+    color: ucapsaBrand.colors.surface,
     fontSize: 20,
     fontWeight: '900',
   },
@@ -77,19 +78,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   name: {
-    color: '#0f172a',
+    color: ucapsaBrand.colors.cameraDark,
     fontSize: 16,
     fontWeight: '900',
   },
   email: {
     marginTop: 2,
-    color: '#64748b',
+    color: ucapsaBrand.colors.mutedNeutral,
     fontSize: 13,
     fontWeight: '700',
   },
   meta: {
     marginTop: 4,
-    color: '#0f766e',
+    color: ucapsaBrand.colors.green,
     fontSize: 12,
     fontWeight: '900',
   },
@@ -101,8 +102,8 @@ const styles = StyleSheet.create({
   badge: {
     overflow: 'hidden',
     borderRadius: 999,
-    backgroundColor: '#ccfbf1',
-    color: '#0f766e',
+    backgroundColor: ucapsaBrand.colors.greenSoft,
+    color: ucapsaBrand.colors.green,
     paddingHorizontal: 10,
     paddingVertical: 5,
     fontSize: 12,

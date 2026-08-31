@@ -1,10 +1,11 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
+import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../components/domain/AdminCustomerContextHeader';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
@@ -182,11 +183,7 @@ export default function CustomerPaymentsScreen() {
 
   return (
     <KeyboardAwareScreen>
-      <View style={styles.header}>
-        <Text style={styles.kicker}>Cliente</Text>
-        <Text style={styles.title}>Pagos</Text>
-        <Text style={styles.subtitle}>Registra y corrige pagos aqui. La membresia ya no mezcla esta tarea.</Text>
-      </View>
+      <AdminCustomerContextHeader customerName={adminCustomerDisplayName(record?.profile)} section="Pagos" subtitle="Pagos, obligaciones y correcciones del cliente seleccionado." member={record?.membership?.status === 'active'} onBack={() => router.back()} />
 
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando...</Text></View> : null}
 
@@ -194,7 +191,7 @@ export default function CustomerPaymentsScreen() {
         <>
           <View style={styles.summaryCard}>
             <View><Text style={styles.summaryLabel}>Saldo pendiente</Text><Text style={styles.summaryValue}>{money(totalBalance)}</Text></View>
-            <Pressable style={styles.addButton} onPress={() => openNew()}><MaterialIcons name="add" size={19} color="#fff" /><Text style={styles.addText}>Registrar</Text></Pressable>
+            <Pressable style={styles.addButton} onPress={() => openNew()}><MaterialIcons name="add" size={19} color={ucapsaBrand.colors.surface} /><Text style={styles.addText}>Registrar</Text></Pressable>
           </View>
 
           <Text style={styles.sectionTitle}>Pendientes</Text>
@@ -222,6 +219,7 @@ export default function CustomerPaymentsScreen() {
       ) : null}
 
       <KeyboardAwareModal visible={modalOpen} onClose={() => setModalOpen(false)}>
+        <Text style={styles.modalCustomerName}>{adminCustomerDisplayName(record?.profile)}</Text>
         <Text style={styles.modalKicker}>Pago</Text>
         <Text style={styles.modalTitle}>{form.payment ? 'Corregir pago' : 'Registrar pago'}</Text>
 
@@ -267,43 +265,44 @@ const styles = StyleSheet.create({
   subtitle: { color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 19, marginTop: 4, fontWeight: '700' },
   loading: { flexDirection: 'row', gap: 10, alignItems: 'center', paddingVertical: 12 },
   muted: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 18, fontWeight: '700' },
-  summaryCard: { flexDirection: 'row', alignItems: 'center', borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', padding: 14, marginBottom: 16 },
+  summaryCard: { flexDirection: 'row', alignItems: 'center', borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 14, marginBottom: 16 },
   summaryLabel: { color: ucapsaBrand.colors.muted, fontSize: 11, fontWeight: '800' },
   summaryValue: { color: ucapsaBrand.colors.text, fontSize: 22, fontWeight: '900', marginTop: 2 },
   addButton: { marginLeft: 'auto', flexDirection: 'row', gap: 5, alignItems: 'center', borderRadius: 14, backgroundColor: ucapsaBrand.colors.red, paddingHorizontal: 12, paddingVertical: 10 },
-  addText: { color: '#fff', fontSize: 12, fontWeight: '900' },
+  addText: { color: ucapsaBrand.colors.surface, fontSize: 12, fontWeight: '900' },
   sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 17, fontWeight: '900', marginTop: 4, marginBottom: 8 },
-  empty: { borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', padding: 16, marginBottom: 10 },
+  empty: { borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 16, marginBottom: 10 },
   emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900', marginBottom: 3 },
-  obligation: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', padding: 13, marginBottom: 8 },
+  obligation: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 13, marginBottom: 8 },
   rowTitle: { color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '900' },
   rowMeta: { color: ucapsaBrand.colors.muted, fontSize: 11, marginTop: 2 },
   balanceBox: { alignItems: 'flex-end' },
   balance: { color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '900' },
   linkText: { color: ucapsaBrand.colors.redDark, fontSize: 10, fontWeight: '900', marginTop: 2 },
   moreHint: { color: ucapsaBrand.colors.muted, fontSize: 11, marginBottom: 8 },
-  list: { borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', overflow: 'hidden' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 13, borderBottomWidth: 1, borderBottomColor: '#F4E5E8' },
+  list: { borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, overflow: 'hidden' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 13, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.premiumMuted },
   rowLast: { borderBottomWidth: 0 },
   moreButton: { alignItems: 'center', paddingVertical: 12 },
   moreText: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900' },
-  modalKicker: { color: '#F7B7C1', fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
-  modalTitle: { color: '#fff', fontSize: 24, fontWeight: '900', marginBottom: 10 },
-  label: { color: '#FDE7EA', fontSize: 12, fontWeight: '900', marginTop: 8, marginBottom: 5 },
+  modalKicker: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
+  modalTitle: { color: ucapsaBrand.colors.text, fontSize: 24, fontWeight: '900', marginBottom: 10 },
+  label: { color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '900', marginTop: 8, marginBottom: 5 },
   obligationChoices: { gap: 7 },
   choiceRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  choice: { alignSelf: 'flex-start', borderRadius: 12, borderWidth: 1, borderColor: '#F3B8C2', backgroundColor: '#fff', paddingHorizontal: 10, paddingVertical: 8 },
-  choiceActive: { backgroundColor: '#FDE7EA', borderColor: ucapsaBrand.colors.red },
+  choice: { alignSelf: 'flex-start', borderRadius: 12, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 10, paddingVertical: 8 },
+  choiceActive: { backgroundColor: ucapsaBrand.colors.redSoft, borderColor: ucapsaBrand.colors.red },
   choiceText: { color: ucapsaBrand.colors.text, fontSize: 11, fontWeight: '900' },
   choiceTextActive: { color: ucapsaBrand.colors.redDark },
-  input: { borderRadius: 14, backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 11, color: ucapsaBrand.colors.text },
+  input: { borderRadius: 14, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 12, paddingVertical: 11, color: ucapsaBrand.colors.text },
   textArea: { minHeight: 82, textAlignVertical: 'top' },
-  dateButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 14, backgroundColor: '#fff', padding: 12 },
+  dateButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 14, backgroundColor: ucapsaBrand.colors.surface, padding: 12 },
   dateText: { color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '900' },
   primary: { marginTop: 12, borderRadius: 14, backgroundColor: ucapsaBrand.colors.red, alignItems: 'center', paddingVertical: 13 },
-  primaryText: { color: '#fff', fontSize: 13, fontWeight: '900' },
-  deleteFull: { marginTop: 8, borderRadius: 14, borderWidth: 1, borderColor: '#F3B8C2', alignItems: 'center', paddingVertical: 12 },
-  deleteFullText: { color: '#fff', fontSize: 13, fontWeight: '900' },
-  secondary: { marginTop: 8, borderRadius: 14, borderWidth: 1, borderColor: '#F3B8C2', alignItems: 'center', paddingVertical: 12 },
-  secondaryText: { color: '#fff', fontSize: 13, fontWeight: '900' },
+  primaryText: { color: ucapsaBrand.colors.surface, fontSize: 13, fontWeight: '900' },
+  deleteFull: { marginTop: 8, borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, alignItems: 'center', paddingVertical: 12 },
+  deleteFullText: { color: ucapsaBrand.colors.danger, fontSize: 13, fontWeight: '900' },
+  secondary: { marginTop: 8, borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, alignItems: 'center', paddingVertical: 12 },
+  secondaryText: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900' },
+  modalCustomerName: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900', marginBottom: 6 },
 });

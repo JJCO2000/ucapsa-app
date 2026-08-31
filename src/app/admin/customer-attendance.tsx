@@ -1,10 +1,11 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
+import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../components/domain/AdminCustomerContextHeader';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
@@ -164,11 +165,7 @@ export default function CustomerAttendanceScreen() {
 
   return (
     <KeyboardAwareScreen>
-      <View style={styles.header}>
-        <Text style={styles.kicker}>Cliente</Text>
-        <Text style={styles.title}>Asistencias</Text>
-        <Text style={styles.subtitle}>Registra, corrige o elimina asistencias reales sin tocar contadores.</Text>
-      </View>
+      <AdminCustomerContextHeader customerName={adminCustomerDisplayName(record?.profile)} section="Asistencias" subtitle="Registra, corrige o elimina asistencias reales sin tocar contadores." member={record?.membership?.status === 'active'} onBack={() => router.back()} />
 
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando...</Text></View> : null}
 
@@ -185,7 +182,7 @@ export default function CustomerAttendanceScreen() {
       {selectedEnrollment ? (
         <View style={styles.summary}>
           <View><Text style={styles.summaryTitle}>{selectedEnrollment.program.name}</Text><Text style={styles.muted}>{attendanceRows.length} de {selectedEnrollment.program.required_attendances} registradas</Text></View>
-          <Pressable style={styles.addButton} onPress={openNew}><MaterialIcons name="add" size={19} color="#fff" /><Text style={styles.addText}>Registrar</Text></Pressable>
+          <Pressable style={styles.addButton} onPress={openNew}><MaterialIcons name="add" size={19} color={ucapsaBrand.colors.surface} /><Text style={styles.addText}>Registrar</Text></Pressable>
         </View>
       ) : null}
 
@@ -199,7 +196,7 @@ export default function CustomerAttendanceScreen() {
             <View key={attendance.id} style={[styles.row, index === Math.min(attendanceRows.length, visibleCount) - 1 && styles.rowLast]}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.rowTitle}>{formatDate(attendance.attendance_date)}</Text>
-                <Text style={styles.rowMeta}>{attendance.source === 'qr_client' ? 'QR cliente' : attendance.source === 'admin_manual' ? 'Manual admin' : 'Historico'}</Text>
+                <Text style={styles.rowMeta}>{attendance.source === 'qr_client' ? `QR cliente${attendance.outside_window ? ' - Fuera de horario' : ''}` : attendance.source === 'admin_manual' ? 'Manual admin' : 'Historico'}</Text>
                 {attendance.notes ? <Text style={styles.rowMeta}>{attendance.notes}</Text> : null}
               </View>
               <View style={styles.rowActions}>
@@ -214,6 +211,7 @@ export default function CustomerAttendanceScreen() {
       {attendanceRows.length > visibleCount ? <Pressable style={styles.moreButton} onPress={() => setVisibleCount((value) => value + 8)}><Text style={styles.moreText}>Ver 8 mas</Text></Pressable> : null}
 
       <KeyboardAwareModal visible={modalOpen} onClose={() => setModalOpen(false)}>
+        <Text style={styles.modalCustomerName}>{adminCustomerDisplayName(record?.profile)}</Text>
         <Text style={styles.modalKicker}>Asistencia manual</Text>
         <Text style={styles.modalTitle}>{edit.attendance ? 'Corregir asistencia' : 'Registrar asistencia'}</Text>
 
@@ -245,43 +243,44 @@ const styles = StyleSheet.create({
   loading: { flexDirection: 'row', gap: 10, alignItems: 'center', paddingVertical: 12 },
   muted: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 18, fontWeight: '700' },
   programChooser: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  programButton: { borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 9 },
+  programButton: { borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 12, paddingVertical: 9 },
   programButtonActive: { backgroundColor: ucapsaBrand.colors.red, borderColor: ucapsaBrand.colors.red },
   programText: { color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '900' },
-  programTextActive: { color: '#fff' },
-  summary: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', padding: 14, marginBottom: 12 },
+  programTextActive: { color: ucapsaBrand.colors.surface },
+  summary: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 14, marginBottom: 12 },
   summaryTitle: { color: ucapsaBrand.colors.text, fontSize: 17, fontWeight: '900' },
   addButton: { marginLeft: 'auto', flexDirection: 'row', gap: 5, alignItems: 'center', borderRadius: 14, backgroundColor: ucapsaBrand.colors.red, paddingHorizontal: 12, paddingVertical: 10 },
-  addText: { color: '#fff', fontSize: 12, fontWeight: '900' },
+  addText: { color: ucapsaBrand.colors.surface, fontSize: 12, fontWeight: '900' },
   empty: { alignItems: 'center', gap: 7, paddingVertical: 30 },
   emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '900' },
-  list: { borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', overflow: 'hidden' },
-  row: { flexDirection: 'row', gap: 10, alignItems: 'center', padding: 13, borderBottomWidth: 1, borderBottomColor: '#F4E5E8' },
+  list: { borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, overflow: 'hidden' },
+  row: { flexDirection: 'row', gap: 10, alignItems: 'center', padding: 13, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.premiumMuted },
   rowLast: { borderBottomWidth: 0 },
   rowTitle: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
   rowMeta: { color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 16, marginTop: 2 },
   rowActions: { gap: 6 },
   smallButton: { borderRadius: 11, backgroundColor: ucapsaBrand.colors.redSoft, paddingHorizontal: 10, paddingVertical: 7 },
   smallButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 11, fontWeight: '900' },
-  deleteButton: { borderRadius: 11, borderWidth: 1, borderColor: '#F3B8C2', paddingHorizontal: 10, paddingVertical: 7 },
+  deleteButton: { borderRadius: 11, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, paddingHorizontal: 10, paddingVertical: 7 },
   deleteText: { color: ucapsaBrand.colors.redDark, fontSize: 11, fontWeight: '900' },
   moreButton: { alignItems: 'center', paddingVertical: 12 },
   moreText: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900' },
-  modalKicker: { color: '#F7B7C1', fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
-  modalTitle: { color: '#fff', fontSize: 24, fontWeight: '900', marginBottom: 12 },
-  label: { color: '#FDE7EA', fontSize: 12, fontWeight: '900', marginTop: 8, marginBottom: 5 },
-  dateButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 14, backgroundColor: '#fff', padding: 12 },
+  modalKicker: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
+  modalTitle: { color: ucapsaBrand.colors.text, fontSize: 24, fontWeight: '900', marginBottom: 12 },
+  label: { color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '900', marginTop: 8, marginBottom: 5 },
+  dateButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 14, backgroundColor: ucapsaBrand.colors.surface, padding: 12 },
   dateText: { color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '900' },
   scheduleList: { gap: 7 },
-  scheduleButton: { borderRadius: 13, backgroundColor: '#fff', borderWidth: 1, borderColor: '#F3B8C2', padding: 11 },
-  scheduleButtonActive: { backgroundColor: '#FDE7EA', borderColor: ucapsaBrand.colors.red },
+  scheduleButton: { borderRadius: 13, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, padding: 11 },
+  scheduleButtonActive: { backgroundColor: ucapsaBrand.colors.redSoft, borderColor: ucapsaBrand.colors.red },
   scheduleText: { color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '800' },
   scheduleTextActive: { color: ucapsaBrand.colors.redDark },
-  input: { borderRadius: 14, backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 11, color: ucapsaBrand.colors.text },
+  input: { borderRadius: 14, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 12, paddingVertical: 11, color: ucapsaBrand.colors.text },
   textArea: { minHeight: 84, textAlignVertical: 'top' },
   primary: { marginTop: 12, borderRadius: 14, backgroundColor: ucapsaBrand.colors.red, alignItems: 'center', paddingVertical: 13 },
-  primaryText: { color: '#fff', fontSize: 13, fontWeight: '900' },
-  secondary: { marginTop: 8, borderRadius: 14, borderWidth: 1, borderColor: '#F3B8C2', alignItems: 'center', paddingVertical: 12 },
-  secondaryText: { color: '#fff', fontSize: 13, fontWeight: '900' },
+  primaryText: { color: ucapsaBrand.colors.surface, fontSize: 13, fontWeight: '900' },
+  secondary: { marginTop: 8, borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, alignItems: 'center', paddingVertical: 12 },
+  secondaryText: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900' },
   disabled: { opacity: 0.5 },
+  modalCustomerName: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900', marginBottom: 6 },
 });

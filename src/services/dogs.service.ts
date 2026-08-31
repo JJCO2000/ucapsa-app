@@ -53,6 +53,24 @@ export async function renameMyDog(dogId: string, name: string): Promise<BasicDog
   return rows[0];
 }
 
+
+export async function createDogForUserAdmin(userId: string, name: string): Promise<BasicDog> {
+  const cleanUserId = userId.trim();
+  const cleanName = name.trim();
+  if (!cleanUserId) throw new Error('No se encontro el cliente.');
+  if (!cleanName) throw new Error('Escribe el nombre del perro.');
+
+  const { data, error } = await supabase.rpc('admin_create_basic_dog', {
+    p_user_id: cleanUserId,
+    p_name: cleanName,
+  });
+  if (error) throw error;
+
+  const rows = normalizeRows(data);
+  if (!rows[0]) throw new Error('No se pudo registrar el perro en la cuenta del cliente.');
+  return rows[0];
+}
+
 export async function getDogsForUser(userId: string): Promise<BasicDog[]> {
   const cleanUserId = userId.trim();
   if (!cleanUserId) return [];

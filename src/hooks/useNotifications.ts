@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
 import {
   disableStoredExpoPushToken,
@@ -11,6 +11,7 @@ import {
   updateNotificationPreferences,
 } from '../services/notifications.service';
 import type { NotificationCategoryKey, NotificationPreferences } from '../types/app.types';
+import { DEFAULT_READ_TIMEOUT_MS, withOperationTimeout } from '../utils/async.utils';
 
 type NotificationRuntimeState = 'idle' | 'loading' | 'saving' | 'registering';
 
@@ -77,7 +78,10 @@ export function useNotifications() {
     setErrorMessage(null);
 
     try {
-      const [nextPreferences, storedToken] = await Promise.all([getNotificationPreferences(), getStoredExpoPushToken()]);
+      const [nextPreferences, storedToken] = await Promise.all([
+        withOperationTimeout(getNotificationPreferences(), DEFAULT_READ_TIMEOUT_MS, 'notification-preferences'),
+        getStoredExpoPushToken(),
+      ]);
 
       setPreferences(nextPreferences);
       setExpoPushToken(storedToken);
@@ -99,15 +103,15 @@ export function useNotifications() {
 
   const requestAndRegisterDevice = useCallback(async () => {
     if (!Device.isDevice) {
-      throw new Error('Las notificaciones push reales se prueban en un celular fisico o build compatible, no en web.');
+      throw new Error('Las notificaciones no están disponibles en este dispositivo.');
     }
 
     if (isExpoGo) {
-      throw new Error('Expo Go no soporta push remotas en Android desde SDK 53. Usa development build o APK de EAS.');
+      throw new Error('Las notificaciones se activan desde la versión instalada de UCAPSA.');
     }
 
     if (!projectId) {
-      throw new Error('Falta projectId de EAS en app.json. Revisa expo.extra.eas.projectId.');
+      throw new Error('No se pudieron preparar las notificaciones. Intenta de nuevo más tarde.');
     }
 
     const Notifications = await loadNotificationsModule();
@@ -130,7 +134,7 @@ export function useNotifications() {
     setPermissionStatus(finalStatus);
 
     if (finalStatus !== 'granted') {
-      throw new Error('El permiso de notificaciones no fue concedido. Activalo desde ajustes del sistema o intenta de nuevo.');
+      throw new Error('El permiso de notificaciones no fue concedido. Actívalo desde los ajustes de tu celular.');
     }
 
     const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
@@ -167,7 +171,7 @@ export function useNotifications() {
         await disableStoredExpoPushToken();
         setExpoPushToken(null);
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : 'No se pudo actualizar la configuracion.');
+        setErrorMessage(error instanceof Error ? error.message : 'No se pudo actualizar la configuración.');
       } finally {
         setRuntimeState('idle');
       }
@@ -183,7 +187,7 @@ export function useNotifications() {
       const nextPreferences = await updateNotificationPreferences({ [key]: enabled });
       setPreferences(nextPreferences);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'No se pudo actualizar la categoria.');
+      setErrorMessage(error instanceof Error ? error.message : 'No se pudo actualizar la categoría.');
     } finally {
       setRuntimeState('idle');
     }
@@ -191,6 +195,13 @@ export function useNotifications() {
 
   useEffect(() => {
     void refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void refresh();
+    });
+    return () => subscription.remove();
   }, [refresh]);
 
   return {

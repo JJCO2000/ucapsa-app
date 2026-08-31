@@ -1,3 +1,4 @@
+import { ucapsaBrand } from '../../constants/brand';
 import type { ReactNode } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
@@ -13,9 +14,9 @@ export function AppCard({ children, style }: AppCardProps) {
 const styles = StyleSheet.create({
   card: {
     borderRadius: 22,
-    backgroundColor: '#ffffff',
+    backgroundColor: ucapsaBrand.colors.surface,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: ucapsaBrand.colors.borderNeutral,
     padding: 16,
   },
 });

@@ -35,11 +35,11 @@ export function AdminDogPicker({
       {hasDogs ? (
         <View style={styles.modeRow}>
           <Pressable style={[styles.modeButton, mode === 'existing' && styles.modeButtonActive]} onPress={() => onModeChange('existing')}>
-            <MaterialIcons name="pets" size={18} color={mode === 'existing' ? '#FFFFFF' : ucapsaBrand.colors.redDark} />
+            <MaterialIcons name="pets" size={18} color={mode === 'existing' ? ucapsaBrand.colors.surface : ucapsaBrand.colors.redDark} />
             <Text style={[styles.modeText, mode === 'existing' && styles.modeTextActive]}>Registrado</Text>
           </Pressable>
           <Pressable style={[styles.modeButton, mode === 'new' && styles.modeButtonActive]} onPress={() => onModeChange('new')}>
-            <MaterialIcons name="add" size={18} color={mode === 'new' ? '#FFFFFF' : ucapsaBrand.colors.redDark} />
+            <MaterialIcons name="add" size={18} color={mode === 'new' ? ucapsaBrand.colors.surface : ucapsaBrand.colors.redDark} />
             <Text style={[styles.modeText, mode === 'new' && styles.modeTextActive]}>Nuevo perro</Text>
           </Pressable>
         </View>
@@ -51,9 +51,9 @@ export function AdminDogPicker({
             const active = dog.id === selectedDogId;
             return (
               <Pressable key={dog.id} style={[styles.dogButton, active && styles.dogButtonActive]} onPress={() => onSelectDog(dog)}>
-                <MaterialIcons name="pets" size={18} color={active ? '#FFFFFF' : ucapsaBrand.colors.redDark} />
+                <MaterialIcons name="pets" size={18} color={active ? ucapsaBrand.colors.surface : ucapsaBrand.colors.redDark} />
                 <Text style={[styles.dogText, active && styles.dogTextActive]} numberOfLines={1}>{dog.name}</Text>
-                {active ? <MaterialIcons name="check-circle" size={18} color="#FFFFFF" /> : null}
+                {active ? <MaterialIcons name="check-circle" size={18} color={ucapsaBrand.colors.surface} /> : null}
               </Pressable>
             );
           })}
@@ -80,17 +80,17 @@ const styles = StyleSheet.create({
   label: { color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '900' },
   hint: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 17, fontWeight: '600' },
   modeRow: { flexDirection: 'row', gap: 8 },
-  modeButton: { flex: 1, minHeight: 42, borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#FFFFFF', paddingHorizontal: 12, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center' },
+  modeButton: { flex: 1, minHeight: 42, borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 12, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center' },
   modeButtonActive: { backgroundColor: ucapsaBrand.colors.redDark, borderColor: ucapsaBrand.colors.redDark },
   modeText: { color: ucapsaBrand.colors.redDark, fontWeight: '900', fontSize: 13 },
-  modeTextActive: { color: '#FFFFFF' },
+  modeTextActive: { color: ucapsaBrand.colors.surface },
   dogList: { gap: 8 },
-  dogButton: { minHeight: 44, borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#FFFFFF', paddingHorizontal: 13, flexDirection: 'row', gap: 9, alignItems: 'center' },
+  dogButton: { minHeight: 44, borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 13, flexDirection: 'row', gap: 9, alignItems: 'center' },
   dogButtonActive: { backgroundColor: ucapsaBrand.colors.redDark, borderColor: ucapsaBrand.colors.redDark },
   dogText: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '800', flex: 1 },
-  dogTextActive: { color: '#FFFFFF' },
+  dogTextActive: { color: ucapsaBrand.colors.surface },
   newDogBox: { gap: 7 },
   emptyText: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '700' },
-  input: { minHeight: 46, borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 14, paddingHorizontal: 13, backgroundColor: '#FFFFFF', color: ucapsaBrand.colors.text, fontWeight: '700' },
+  input: { minHeight: 46, borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 14, paddingHorizontal: 13, backgroundColor: ucapsaBrand.colors.surface, color: ucapsaBrand.colors.text, fontWeight: '700' },
   warning: { color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 16, fontWeight: '700' },
 });

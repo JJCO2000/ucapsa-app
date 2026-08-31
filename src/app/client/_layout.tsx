@@ -1,3 +1,4 @@
+import { ucapsaBrand } from '../../constants/brand';
 import { Stack } from 'expo-router';
 
 export default function ClientLayout() {
@@ -5,8 +6,8 @@ export default function ClientLayout() {
     <Stack
       screenOptions={{
         headerShown: true,
-        headerStyle: { backgroundColor: '#C91F37' },
-        headerTintColor: '#ffffff',
+        headerStyle: { backgroundColor: ucapsaBrand.colors.red },
+        headerTintColor: ucapsaBrand.colors.surface,
         headerTitleStyle: { fontWeight: '900' },
       }}
     >

@@ -3,6 +3,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../components/domain/AdminCustomerContextHeader';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
@@ -17,6 +18,13 @@ const statusOptions: Array<{ value: MembershipStatus; label: string }> = [
   { value: 'expired', label: 'Vencida' },
   { value: 'cancelled', label: 'Cancelada' },
 ];
+
+function mexicoCurrentMonthKey() {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit' }).formatToParts(new Date());
+  const year = parts.find((part) => part.type === 'year')?.value ?? '';
+  const month = parts.find((part) => part.type === 'month')?.value ?? '';
+  return year && month ? `${year}-${month}` : new Date().toISOString().slice(0, 7);
+}
 
 export default function CustomerMembershipScreen() {
   const { isAdmin } = useSession();
@@ -92,13 +100,14 @@ export default function CustomerMembershipScreen() {
 
   if (!isAdmin) return <KeyboardAwareScreen><Text style={styles.title}>Acceso restringido</Text></KeyboardAwareScreen>;
 
+  const visitMonths = new Set((record?.memberVisits ?? []).map((visit) => visit.visit_date.slice(0, 7)));
+  const currentMonth = mexicoCurrentMonthKey();
+  const visitsThisMonth = (record?.memberVisits ?? []).filter((visit) => visit.visit_date.startsWith(currentMonth)).length;
+  const visitsPerActiveMonth = visitMonths.size > 0 ? (record?.memberVisits.length ?? 0) / visitMonths.size : 0;
+
   return (
     <KeyboardAwareScreen>
-      <View style={styles.header}>
-        <Text style={styles.kicker}>Cliente</Text>
-        <Text style={styles.title}>Membresia</Text>
-        <Text style={styles.subtitle}>Solo estado, numero y vigencia. Los pagos viven en su propia pantalla.</Text>
-      </View>
+      <AdminCustomerContextHeader customerName={adminCustomerDisplayName(record?.profile)} section="Membresia" subtitle="Estado, numero, vigencia y visitas del socio seleccionado." member={record?.membership?.status === 'active'} onBack={() => router.back()} />
 
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando...</Text></View> : null}
 
@@ -118,7 +127,11 @@ export default function CustomerMembershipScreen() {
               <Detail label="Estado" value={getMembershipStatusLabel(record.membership.status)} />
               <Detail label="Numero de socio" value={record.membership.member_number || 'Pendiente'} />
               <Detail label="Inicio" value={record.membership.start_date?.slice(0, 10) || 'Sin fecha'} />
-              <Detail label="Vigencia" value={record.membership.end_date?.slice(0, 10) || 'Sin fecha'} last />
+              <Detail label="Vigencia" value={record.membership.end_date?.slice(0, 10) || 'Sin fecha'} />
+              <Detail label="Visitas registradas" value={String(record.memberVisits.length)} />
+              <Detail label="Visitas este mes" value={String(visitsThisMonth)} />
+              <Detail label="Promedio por mes con actividad" value={visitsPerActiveMonth.toFixed(1)} />
+              <Detail label="Ultima visita" value={record.memberVisits[0]?.visited_at ? new Date(record.memberVisits[0].visited_at).toLocaleString('es-MX') : 'Sin visitas'} last />
             </View>
           ) : (
             <View style={styles.card}>
@@ -146,6 +159,7 @@ export default function CustomerMembershipScreen() {
               <>
                 <Pressable style={styles.primary} onPress={() => setEditing(true)}><Text style={styles.primaryText}>Editar membresia</Text></Pressable>
                 <Pressable style={styles.secondary} onPress={() => router.push(`/admin/customer-payments?userId=${encodeURIComponent(userId)}` as never)}><Text style={styles.secondaryText}>Ir a pagos</Text></Pressable>
+                <Pressable style={styles.secondary} onPress={() => router.push('/admin/member-visits' as never)}><Text style={styles.secondaryText}>Ver visitas de socios</Text></Pressable>
               </>
             )}
           </View>
@@ -172,22 +186,22 @@ const styles = StyleSheet.create({
   muted: { color: ucapsaBrand.colors.muted, fontSize: 13, fontWeight: '700', lineHeight: 19, textAlign: 'center' },
   empty: { alignItems: 'center', gap: 9, paddingVertical: 36 },
   emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 19, fontWeight: '900' },
-  card: { borderRadius: 20, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 14, gap: 12 },
-  detail: { borderBottomWidth: 1, borderBottomColor: '#F4E5E8', paddingBottom: 11 },
+  card: { borderRadius: 20, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 14, gap: 12 },
+  detail: { borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.premiumMuted, paddingBottom: 11 },
   detailLast: { borderBottomWidth: 0, paddingBottom: 0 },
   detailLabel: { color: ucapsaBrand.colors.muted, fontSize: 11, fontWeight: '800' },
   detailValue: { color: ucapsaBrand.colors.text, fontSize: 15, fontWeight: '900', marginTop: 3 },
   label: { color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '900' },
   field: { gap: 6 },
-  input: { borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 11, color: ucapsaBrand.colors.text, backgroundColor: '#FFFDFD' },
+  input: { borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 11, color: ucapsaBrand.colors.text, backgroundColor: ucapsaBrand.colors.surfaceSubtle },
   statusGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  statusButton: { width: '48%', borderRadius: 13, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', alignItems: 'center', paddingVertical: 9 },
+  statusButton: { width: '48%', borderRadius: 13, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, alignItems: 'center', paddingVertical: 9 },
   statusButtonActive: { backgroundColor: ucapsaBrand.colors.red, borderColor: ucapsaBrand.colors.red },
   statusText: { color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '900' },
-  statusTextActive: { color: '#fff' },
+  statusTextActive: { color: ucapsaBrand.colors.surface },
   actions: { marginTop: 14, gap: 9 },
   primary: { borderRadius: 15, backgroundColor: ucapsaBrand.colors.red, alignItems: 'center', paddingHorizontal: 16, paddingVertical: 13 },
-  primaryText: { color: '#fff', fontSize: 14, fontWeight: '900' },
-  secondary: { borderRadius: 15, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', alignItems: 'center', paddingVertical: 13 },
+  primaryText: { color: ucapsaBrand.colors.surface, fontSize: 14, fontWeight: '900' },
+  secondary: { borderRadius: 15, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, alignItems: 'center', paddingVertical: 13 },
   secondaryText: { color: ucapsaBrand.colors.redDark, fontSize: 14, fontWeight: '900' },
 });

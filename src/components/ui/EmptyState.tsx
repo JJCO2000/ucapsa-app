@@ -1,3 +1,4 @@
+import { ucapsaBrand } from '../../constants/brand';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 type EmptyStateProps = {
@@ -25,18 +26,18 @@ const styles = StyleSheet.create({
   box: {
     gap: 8,
     borderRadius: 18,
-    backgroundColor: '#ffffff',
+    backgroundColor: ucapsaBrand.colors.surface,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: ucapsaBrand.colors.borderNeutral,
     padding: 18,
   },
   title: {
-    color: '#0f172a',
+    color: ucapsaBrand.colors.cameraDark,
     fontSize: 16,
     fontWeight: '900',
   },
   message: {
-    color: '#64748b',
+    color: ucapsaBrand.colors.mutedNeutral,
     fontSize: 14,
     lineHeight: 20,
   },
@@ -44,12 +45,12 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     marginTop: 4,
     borderRadius: 14,
-    backgroundColor: '#0f766e',
+    backgroundColor: ucapsaBrand.colors.green,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
   buttonText: {
-    color: '#ffffff',
+    color: ucapsaBrand.colors.surface,
     fontWeight: '900',
   },
 });

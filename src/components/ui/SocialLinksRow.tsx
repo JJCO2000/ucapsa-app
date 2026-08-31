@@ -1,7 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { ucapsaBrand } from '../../constants/brand';
+import { ucapsaBrand, withAlpha } from '../../constants/brand';
 
 type SocialLinksRowProps = {
   title?: string;
@@ -11,7 +11,11 @@ type SocialLinksRowProps = {
 
 export function SocialLinksRow({ title = 'Canales oficiales', subtitle = 'Sitio web y redes de UCAPSA.', premium = false }: SocialLinksRowProps) {
   async function openLink(url: string) {
-    await Linking.openURL(url);
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('No se pudo abrir', 'Revisa tu conexion e intenta de nuevo.');
+    }
   }
 
   return (
@@ -20,8 +24,8 @@ export function SocialLinksRow({ title = 'Canales oficiales', subtitle = 'Sitio 
       <Text style={[styles.subtitle, premium && styles.subtitlePremium]}>{subtitle}</Text>
       <View style={styles.row}>
         {ucapsaBrand.socialLinks.map((item) => (
-          <Pressable key={item.key} style={[styles.item, premium && styles.itemPremium]} onPress={() => openLink(item.url)}>
-            <MaterialCommunityIcons name={item.icon as any} size={20} color={premium ? '#FACC15' : ucapsaBrand.colors.red} />
+          <Pressable accessibilityRole="link" accessibilityLabel={`Abrir ${item.label}`} key={item.key} style={[styles.item, premium && styles.itemPremium]} onPress={() => void openLink(item.url)}>
+            <MaterialCommunityIcons name={item.icon as any} size={20} color={premium ? ucapsaBrand.colors.gold : ucapsaBrand.colors.red} />
             <Text style={[styles.label, premium && styles.labelPremium]}>{item.label}</Text>
           </Pressable>
         ))}
@@ -52,10 +56,10 @@ const styles = StyleSheet.create({
     backgroundColor: ucapsaBrand.colors.redSoft,
   },
   label: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900' },
-  wrapperPremium: { backgroundColor: '#38111B', borderColor: 'rgba(250,204,21,0.34)' },
-  titlePremium: { color: '#FFE8B5' },
-  subtitlePremium: { color: '#FFE3E8' },
-  itemPremium: { backgroundColor: 'rgba(250,204,21,0.12)', borderWidth: 1, borderColor: 'rgba(250,204,21,0.22)' },
-  labelPremium: { color: '#FFE8B5' },
+  wrapperPremium: { backgroundColor: ucapsaBrand.colors.premiumSurface, borderColor: withAlpha(ucapsaBrand.colors.gold, 0.34) },
+  titlePremium: { color: ucapsaBrand.colors.premiumAction },
+  subtitlePremium: { color: ucapsaBrand.colors.premiumMuted },
+  itemPremium: { backgroundColor: withAlpha(ucapsaBrand.colors.gold, 0.12), borderWidth: 1, borderColor: withAlpha(ucapsaBrand.colors.gold, 0.22) },
+  labelPremium: { color: ucapsaBrand.colors.premiumAction },
 });
 

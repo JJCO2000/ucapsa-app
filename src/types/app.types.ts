@@ -217,6 +217,7 @@ export type MyPaymentOverview = {
 
 
 export type ProgramCode = 'puppy' | 'comandos';
+export type AttendanceQrProgramCode = ProgramCode | 'member';
 
 export type ProgramRepeatType = 'weekly' | 'biweekly';
 
@@ -306,12 +307,13 @@ export type ProgramAttendance = {
   recorded_at?: string | null;
   marked_by: string | null;
   notes: string | null;
+  outside_window?: boolean;
   created_at: string;
   updated_at: string;
 };
 
 export type AttendanceQrCode = {
-  program_code: ProgramCode;
+  program_code: AttendanceQrProgramCode;
   token: string;
   is_active: boolean;
   version: number;
@@ -334,12 +336,53 @@ export type ProgramSession = {
   updated_at: string;
 };
 
+export type ProgramDogLink = {
+  id: string;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 export type ProgramEnrollmentWithDetails = {
   enrollment: ProgramEnrollment;
   program: UcapsaProgram;
   schedule: ProgramSchedule;
   profile: Profile | null;
+  dog: ProgramDogLink | null;
   attendances: ProgramAttendance[];
+};
+
+export type PracticeDifficulty = 'easy' | 'good' | 'hard';
+
+export type PracticeSession = {
+  id: string;
+  client_event_id: string | null;
+  user_id: string;
+  dog_id: string | null;
+  enrollment_id: string | null;
+  started_at: string;
+  completed_at: string;
+  difficulty: PracticeDifficulty;
+  note: string | null;
+  duration_seconds: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MemberVisitSource = 'qr_member' | 'admin_manual' | string;
+
+export type MemberVisit = {
+  id: string;
+  user_id: string;
+  membership_id: string | null;
+  visited_at: string;
+  visit_date: string;
+  source: MemberVisitSource;
+  recorded_by: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 

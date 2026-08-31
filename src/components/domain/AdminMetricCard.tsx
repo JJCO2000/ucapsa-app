@@ -1,3 +1,4 @@
+import { ucapsaBrand } from '../../constants/brand';
 import { StyleSheet, Text, View } from 'react-native';
 
 type AdminMetricCardProps = {
@@ -19,26 +20,26 @@ export function AdminMetricCard({ label, value, helper }: AdminMetricCardProps) 
 const styles = StyleSheet.create({
   card: {
     borderRadius: 18,
-    backgroundColor: '#ffffff',
+    backgroundColor: ucapsaBrand.colors.surface,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: ucapsaBrand.colors.borderNeutral,
     padding: 14,
   },
   value: {
-    color: '#0f172a',
+    color: ucapsaBrand.colors.cameraDark,
     fontSize: 26,
     fontWeight: '900',
   },
   label: {
     marginTop: 2,
-    color: '#64748b',
+    color: ucapsaBrand.colors.mutedNeutral,
     fontSize: 12,
     fontWeight: '900',
     textTransform: 'uppercase',
   },
   helper: {
     marginTop: 6,
-    color: '#94a3b8',
+    color: ucapsaBrand.colors.gray,
     fontSize: 12,
     lineHeight: 17,
   },

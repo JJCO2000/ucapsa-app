@@ -147,8 +147,8 @@ export default function AdminNotificationsScreen() {
       </View>
 
       <View style={styles.modeTabs}>
-        <Pressable style={[styles.modeTab, mode === 'send' && styles.modeTabActive]} onPress={() => setMode('send')}><MaterialIcons name="send" size={18} color={mode === 'send' ? '#fff' : ucapsaBrand.colors.redDark} /><Text style={[styles.modeText, mode === 'send' && styles.modeTextActive]}>Enviar</Text></Pressable>
-        <Pressable style={[styles.modeTab, mode === 'history' && styles.modeTabActive]} onPress={() => setMode('history')}><MaterialIcons name="history" size={18} color={mode === 'history' ? '#fff' : ucapsaBrand.colors.redDark} /><Text style={[styles.modeText, mode === 'history' && styles.modeTextActive]}>Historial</Text></Pressable>
+        <Pressable style={[styles.modeTab, mode === 'send' && styles.modeTabActive]} onPress={() => setMode('send')}><MaterialIcons name="send" size={18} color={mode === 'send' ? ucapsaBrand.colors.surface : ucapsaBrand.colors.redDark} /><Text style={[styles.modeText, mode === 'send' && styles.modeTextActive]}>Enviar</Text></Pressable>
+        <Pressable style={[styles.modeTab, mode === 'history' && styles.modeTabActive]} onPress={() => setMode('history')}><MaterialIcons name="history" size={18} color={mode === 'history' ? ucapsaBrand.colors.surface : ucapsaBrand.colors.redDark} /><Text style={[styles.modeText, mode === 'history' && styles.modeTextActive]}>Historial</Text></Pressable>
       </View>
 
       {mode === 'send' ? (
@@ -213,32 +213,32 @@ const styles = StyleSheet.create({
   backButton: { alignSelf: 'flex-start', marginTop: 10, borderRadius: 12, backgroundColor: ucapsaBrand.colors.redSoft, paddingHorizontal: 12, paddingVertical: 9 },
   backText: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900' },
   modeTabs: { flexDirection: 'row', gap: 7, marginBottom: 12 },
-  modeTab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', paddingVertical: 10 },
+  modeTab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingVertical: 10 },
   modeTabActive: { backgroundColor: ucapsaBrand.colors.red, borderColor: ucapsaBrand.colors.red },
   modeText: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900' },
-  modeTextActive: { color: '#fff' },
-  card: { borderRadius: 19, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', padding: 14 },
+  modeTextActive: { color: ucapsaBrand.colors.surface },
+  card: { borderRadius: 19, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 14 },
   sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '900' },
   label: { color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '900', marginTop: 12, marginBottom: 5 },
-  input: { borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#FFF8F8', paddingHorizontal: 12, paddingVertical: 11, color: ucapsaBrand.colors.text },
+  input: { borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.background, paddingHorizontal: 12, paddingVertical: 11, color: ucapsaBrand.colors.text },
   textArea: { minHeight: 92, textAlignVertical: 'top' },
   choiceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  choice: { borderRadius: 999, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', paddingHorizontal: 10, paddingVertical: 8 },
+  choice: { borderRadius: 999, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 10, paddingVertical: 8 },
   choiceActive: { backgroundColor: ucapsaBrand.colors.redSoft, borderColor: ucapsaBrand.colors.red },
   choiceText: { color: ucapsaBrand.colors.text, fontSize: 10, fontWeight: '900' },
   choiceTextActive: { color: ucapsaBrand.colors.redDark },
   help: { color: ucapsaBrand.colors.muted, fontSize: 10, lineHeight: 15, marginTop: 5 },
-  preview: { borderRadius: 15, backgroundColor: '#F8F2F3', padding: 12, marginTop: 13 },
+  preview: { borderRadius: 15, backgroundColor: ucapsaBrand.colors.dangerSoft, padding: 12, marginTop: 13 },
   previewLabel: { color: ucapsaBrand.colors.muted, fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
   previewTitle: { color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '900', marginTop: 4 },
   previewBody: { color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 16, marginTop: 3 },
   primary: { alignItems: 'center', borderRadius: 14, backgroundColor: ucapsaBrand.colors.red, paddingVertical: 13, marginTop: 12 },
-  primaryText: { color: '#fff', fontSize: 13, fontWeight: '900' },
+  primaryText: { color: ucapsaBrand.colors.surface, fontSize: 13, fontWeight: '900' },
   disabled: { opacity: 0.48 },
   empty: { alignItems: 'center', gap: 5, padding: 28 },
   emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 17, fontWeight: '900' },
-  list: { borderRadius: 19, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', overflow: 'hidden' },
-  historyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 13, borderBottomWidth: 1, borderBottomColor: '#F4E5E8' },
+  list: { borderRadius: 19, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, overflow: 'hidden' },
+  historyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 13, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.premiumMuted },
   rowLast: { borderBottomWidth: 0 },
   historyTitleLine: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   historyTitle: { flex: 1, color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '900' },

@@ -9,6 +9,7 @@ import { useSession } from '../../hooks/useSession';
 import { supabase } from '../../lib/supabase';
 import { getAdminMembershipRows } from '../../services/memberships.service';
 import { getAdminProgramRows } from '../../services/programs.service';
+import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
 
 type DashboardStats = {
   clients: number;
@@ -24,19 +25,22 @@ export default function AdminHomeTab() {
   const [stats, setStats] = useState<DashboardStats>(emptyStats);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hasData, setHasData] = useState(false);
 
   const displayName = useMemo(() => profile?.full_name?.trim() || user?.email || 'Administrador', [profile?.full_name, user?.email]);
 
   const load = useCallback(async () => {
     if (!isAdmin) return;
 
-    const [profilesResult, memberships, programs, obligationsResult, paymentsResult] = await Promise.all([
+    setError(null);
+    const [profilesResult, memberships, programs, obligationsResult, paymentsResult] = await withOperationTimeout(Promise.all([
       supabase.from('profiles').select('user_id, role'),
       getAdminMembershipRows(),
       getAdminProgramRows(),
       supabase.from('payment_obligations').select('id, user_id, amount, due_date, cancelled_at').is('cancelled_at', null),
       supabase.from('payments').select('obligation_id, amount, status').eq('status', 'paid').not('obligation_id', 'is', null),
-    ]);
+    ]), DEFAULT_READ_TIMEOUT_MS, 'admin-home-load');
 
     if (profilesResult.error) throw profilesResult.error;
     if (obligationsResult.error) throw obligationsResult.error;
@@ -60,23 +64,30 @@ export default function AdminHomeTab() {
     const paymentAttention = attentionUsers.size;
 
     setStats({
-      clients: (profilesResult.data ?? []).filter((item) => item.role === 'client' || item.role === 'member').length,
+      clients: (profilesResult.data ?? []).filter((item: { role: string }) => item.role === 'client' || item.role === 'member').length,
       activePrograms: programs.filter((item) => item.enrollment.status === 'active').length,
       pendingRequests: memberships.filter((item) => item.membership.status === 'pending').length,
       paymentAttention,
     });
+    setHasData(true);
   }, [isAdmin]);
 
   useFocusEffect(useCallback(() => {
     if (!isAdmin) return undefined;
     setLoading(true);
-    void load().finally(() => setLoading(false));
+    void load().catch(() => setError(friendlyReadError('No se pudo actualizar el resumen administrativo.'))).finally(() => setLoading(false));
     return undefined;
   }, [isAdmin, load]));
 
   async function refresh() {
     setRefreshing(true);
-    try { await load(); } finally { setRefreshing(false); }
+    try {
+      await load();
+    } catch {
+      setError(friendlyReadError('No se pudo actualizar el resumen administrativo.'));
+    } finally {
+      setRefreshing(false);
+    }
   }
 
   if (!isAdmin) return <Redirect href="/home" />;
@@ -90,14 +101,15 @@ export default function AdminHomeTab() {
       </View>
 
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Actualizando resumen...</Text></View> : null}
+      {error ? <View style={styles.errorBox}><Text style={styles.errorTitle}>No se pudo actualizar</Text><Text style={styles.muted}>{error}</Text><Pressable style={styles.retryButton} onPress={() => void refresh()}><Text style={styles.retryText}>Reintentar</Text></Pressable></View> : null}
 
       <Text style={styles.sectionTitle}>Atencion</Text>
-      <View style={styles.metricsGrid}>
+      {hasData ? <View style={styles.metricsGrid}>
         <Metric label="Solicitudes" value={stats.pendingRequests} icon="event-note" onPress={() => router.push('/admin/members?filter=pending_requests' as never)} />
         <Metric label="Pagos pendientes" value={stats.paymentAttention} icon="payments" onPress={() => router.push('/admin-payments' as never)} />
         <Metric label="Clases activas" value={stats.activePrograms} icon="school" onPress={() => router.push('/admin-classes' as never)} />
         <Metric label="Clientes" value={stats.clients} icon="people" onPress={() => router.push('/admin-clients' as never)} />
-      </View>
+      </View> : !loading && !error ? <Text style={styles.muted}>Aun no hay un resumen confirmado.</Text> : null}
 
       <Text style={styles.sectionTitle}>Acciones rapidas</Text>
       <View style={styles.actionCard}>
@@ -133,18 +145,22 @@ function MenuRow({ icon, title, subtitle, onPress, last = false }: { icon: keyof
 
 const styles = StyleSheet.create({
   hero: { backgroundColor: ucapsaBrand.colors.red, borderRadius: 26, padding: 20, gap: 4, marginBottom: 20 },
-  kicker: { color: '#FFDCE2', fontSize: 12, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.8 },
-  title: { color: '#fff', fontSize: 28, fontWeight: '900' },
-  subtitle: { color: '#FFE8EC', fontSize: 14, lineHeight: 20, fontWeight: '700' },
+  kicker: { color: ucapsaBrand.colors.redSoftStrong, fontSize: 12, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.8 },
+  title: { color: ucapsaBrand.colors.surface, fontSize: 28, fontWeight: '900' },
+  subtitle: { color: ucapsaBrand.colors.redSoft, fontSize: 14, lineHeight: 20, fontWeight: '700' },
   loading: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
   muted: { color: ucapsaBrand.colors.muted, fontSize: 13, fontWeight: '700' },
+  errorBox: { borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.dangerBorder, backgroundColor: ucapsaBrand.colors.dangerSoft, padding: 14, gap: 6, marginBottom: 14 },
+  errorTitle: { color: ucapsaBrand.colors.danger, fontSize: 15, fontWeight: '900' },
+  retryButton: { alignSelf: 'flex-start', borderRadius: 12, backgroundColor: ucapsaBrand.colors.red, paddingHorizontal: 13, paddingVertical: 9 },
+  retryText: { color: ucapsaBrand.colors.surface, fontSize: 12, fontWeight: '900' },
   sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 19, fontWeight: '900', marginBottom: 10 },
   metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 22 },
-  metric: { width: '48%', minHeight: 112, borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', padding: 14, gap: 5 },
+  metric: { width: '48%', minHeight: 112, borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 14, gap: 5 },
   metricValue: { color: ucapsaBrand.colors.text, fontSize: 25, fontWeight: '900' },
   metricLabel: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 16, fontWeight: '800' },
-  actionCard: { borderRadius: 22, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', overflow: 'hidden' },
-  menuRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, borderBottomWidth: 1, borderBottomColor: '#F4E5E8' },
+  actionCard: { borderRadius: 22, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, overflow: 'hidden' },
+  menuRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.premiumMuted },
   menuRowLast: { borderBottomWidth: 0 },
   menuIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
   menuTitle: { color: ucapsaBrand.colors.text, fontSize: 15, fontWeight: '900' },

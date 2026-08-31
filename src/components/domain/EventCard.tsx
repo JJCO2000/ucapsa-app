@@ -1,3 +1,4 @@
+import { ucapsaBrand } from '../../constants/brand';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { UcapsaColorKey, UcapsaEvent, UcapsaPriority } from '../../types/app.types';
@@ -12,12 +13,12 @@ type Props = {
 };
 
 const colorMap: Record<UcapsaColorKey, { main: string; soft: string; text: string }> = {
-  red: { main: '#C91F37', soft: '#FFE8EC', text: '#8F1324' },
-  blue: { main: '#2563EB', soft: '#EAF1FF', text: '#1D4ED8' },
-  yellow: { main: '#EAB308', soft: '#FEF3C7', text: '#92400E' },
-  green: { main: '#0f766e', soft: '#ccfbf1', text: '#0f766e' },
-  purple: { main: '#7C3AED', soft: '#EDE9FE', text: '#5B21B6' },
-  gray: { main: '#64748b', soft: '#f1f5f9', text: '#334155' },
+  red: { main: ucapsaBrand.colors.red, soft: ucapsaBrand.colors.redSoft, text: ucapsaBrand.colors.redDark },
+  blue: { main: ucapsaBrand.colors.blue, soft: ucapsaBrand.colors.blueSoft, text: ucapsaBrand.colors.blueDark },
+  yellow: { main: ucapsaBrand.colors.gold, soft: ucapsaBrand.colors.goldPale, text: ucapsaBrand.colors.warningDark },
+  green: { main: ucapsaBrand.colors.green, soft: ucapsaBrand.colors.greenSoft, text: ucapsaBrand.colors.green },
+  purple: { main: ucapsaBrand.colors.purple, soft: ucapsaBrand.colors.purpleSoft, text: ucapsaBrand.colors.purpleDark },
+  gray: { main: ucapsaBrand.colors.mutedNeutral, soft: ucapsaBrand.colors.graySoft, text: ucapsaBrand.colors.grayDark },
 };
 
 const priorityLabels: Record<UcapsaPriority, string> = {
@@ -108,10 +109,10 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 16,
     borderRadius: 18,
-    backgroundColor: '#ffffff',
+    backgroundColor: ucapsaBrand.colors.surface,
     borderWidth: 1,
     borderLeftWidth: 6,
-    borderColor: '#e2e8f0',
+    borderColor: ucapsaBrand.colors.borderNeutral,
   },
   pressed: { opacity: 0.86, transform: [{ scale: 0.995 }] },
   header: { flexDirection: 'row', gap: 12, alignItems: 'center' },
@@ -123,9 +124,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   titleBox: { flex: 1, gap: 2 },
-  title: { color: '#0f172a', fontSize: 17, fontWeight: '800' },
-  date: { color: '#64748b', fontSize: 13, fontWeight: '700' },
-  description: { color: '#334155', fontSize: 14, lineHeight: 20 },
+  title: { color: ucapsaBrand.colors.cameraDark, fontSize: 17, fontWeight: '800' },
+  date: { color: ucapsaBrand.colors.mutedNeutral, fontSize: 13, fontWeight: '700' },
+  description: { color: ucapsaBrand.colors.grayDark, fontSize: 14, lineHeight: 20 },
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
   badge: {
     overflow: 'hidden',
@@ -140,24 +141,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 999,
-    color: '#475569',
-    backgroundColor: '#f1f5f9',
+    color: ucapsaBrand.colors.grayDark,
+    backgroundColor: ucapsaBrand.colors.graySoft,
     fontSize: 12,
     fontWeight: '800',
   },
-  priorityHigh: { color: '#92400e', backgroundColor: '#fef3c7' },
-  priorityUrgent: { color: '#991b1b', backgroundColor: '#fee2e2' },
+  priorityHigh: { color: ucapsaBrand.colors.warningDark, backgroundColor: ucapsaBrand.colors.goldPale },
+  priorityUrgent: { color: ucapsaBrand.colors.danger, backgroundColor: ucapsaBrand.colors.premiumMuted },
   repeatBadge: {
     overflow: 'hidden',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 999,
-    color: '#334155',
-    backgroundColor: '#f1f5f9',
+    color: ucapsaBrand.colors.grayDark,
+    backgroundColor: ucapsaBrand.colors.graySoft,
     fontSize: 12,
     fontWeight: '800',
   },
-  location: { color: '#64748b', fontSize: 12, fontWeight: '700' },
+  location: { color: ucapsaBrand.colors.mutedNeutral, fontSize: 12, fontWeight: '700' },
   statusRow: { flexDirection: 'row', gap: 8 },
   status: {
     overflow: 'hidden',
@@ -167,8 +168,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
   },
-  statusPublished: { color: '#8F1324', backgroundColor: '#FFE8EC' },
-  statusActive: { color: '#334155', backgroundColor: '#F1F5F9' },
-  warning: { color: '#92400e', backgroundColor: '#fef3c7' },
-  danger: { color: '#991b1b', backgroundColor: '#fee2e2' },
+  statusPublished: { color: ucapsaBrand.colors.redDark, backgroundColor: ucapsaBrand.colors.redSoft },
+  statusActive: { color: ucapsaBrand.colors.grayDark, backgroundColor: ucapsaBrand.colors.graySoft },
+  warning: { color: ucapsaBrand.colors.warningDark, backgroundColor: ucapsaBrand.colors.goldPale },
+  danger: { color: ucapsaBrand.colors.danger, backgroundColor: ucapsaBrand.colors.premiumMuted },
 });

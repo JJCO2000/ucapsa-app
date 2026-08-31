@@ -1,3 +1,5 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { supabase } from '../lib/supabase';
 
 export type AchievementDefinition = {
@@ -31,6 +33,15 @@ export type AchievementWithState = {
   unlocked: boolean;
 };
 
+type AchievementCachePayload = {
+  version: 1;
+  user_id: string;
+  saved_at: string;
+  items: AchievementWithState[];
+};
+
+const ACHIEVEMENT_CACHE_PREFIX = 'ucapsa:achievements:v1:';
+const ACHIEVEMENT_QUERY_TIMEOUT_MS = 6000;
 let cachedAchievementsUserId: string | null = null;
 let cachedAchievements: AchievementWithState[] | null = null;
 
@@ -42,10 +53,40 @@ function normalizeAchievement(row: unknown): UserAchievement {
   return row as UserAchievement;
 }
 
+function achievementCacheKey(userId: string) {
+  return `${ACHIEVEMENT_CACHE_PREFIX}${userId}`;
+}
+
+function withAchievementTimeout<T>(promise: Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<T>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('achievement_query_timeout')), ACHIEVEMENT_QUERY_TIMEOUT_MS);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
+
+function isCachedAchievementArray(value: unknown): value is AchievementWithState[] {
+  if (!Array.isArray(value)) return false;
+  return value.every((item) => {
+    if (!item || typeof item !== 'object') return false;
+    const candidate = item as Partial<AchievementWithState>;
+    return Boolean(
+      candidate.definition &&
+      typeof candidate.definition.code === 'string' &&
+      typeof candidate.definition.title === 'string' &&
+      typeof candidate.definition.icon === 'string' &&
+      typeof candidate.unlocked === 'boolean',
+    );
+  });
+}
+
 async function getCurrentUserId() {
-  const { data, error } = await supabase.auth.getUser();
+  const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
-  const userId = data.user?.id;
+  const userId = data.session?.user?.id;
   if (!userId) throw new Error('No hay sesion activa.');
   return userId;
 }
@@ -59,6 +100,45 @@ async function getAchievementDefinitions(): Promise<AchievementDefinition[]> {
 
   if (error) throw error;
   return (data ?? []).map(normalizeDefinition);
+}
+
+async function persistAchievementCache(userId: string, items: AchievementWithState[]) {
+  cachedAchievementsUserId = userId;
+  cachedAchievements = items;
+
+  const payload: AchievementCachePayload = {
+    version: 1,
+    user_id: userId,
+    saved_at: new Date().toISOString(),
+    items,
+  };
+
+  try {
+    await AsyncStorage.setItem(achievementCacheKey(userId), JSON.stringify(payload));
+  } catch {
+    // La cache local es una mejora offline; nunca debe romper la consulta remota.
+  }
+}
+
+export async function getCachedAchievementsForUser(userId: string): Promise<AchievementWithState[] | null> {
+  if (cachedAchievementsUserId === userId && cachedAchievements) return cachedAchievements;
+
+  try {
+    const raw = await AsyncStorage.getItem(achievementCacheKey(userId));
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Partial<AchievementCachePayload>;
+    if (parsed.version !== 1 || parsed.user_id !== userId || !isCachedAchievementArray(parsed.items)) {
+      await AsyncStorage.removeItem(achievementCacheKey(userId));
+      return null;
+    }
+
+    cachedAchievementsUserId = userId;
+    cachedAchievements = parsed.items;
+    return parsed.items;
+  } catch {
+    return null;
+  }
 }
 
 export async function getAchievementsForUser(userId: string): Promise<AchievementWithState[]> {
@@ -86,19 +166,54 @@ export async function getAchievementsForUser(userId: string): Promise<Achievemen
   });
 }
 
-export async function getMyAchievements(): Promise<AchievementWithState[]> {
-  const userId = await getCurrentUserId();
-  if (cachedAchievementsUserId === userId && cachedAchievements) return cachedAchievements;
-
-  const rows = await getAchievementsForUser(userId);
-  cachedAchievementsUserId = userId;
-  cachedAchievements = rows;
+export async function refreshAchievementsForUser(userId: string): Promise<AchievementWithState[]> {
+  const rows = await withAchievementTimeout(getAchievementsForUser(userId));
+  await persistAchievementCache(userId, rows);
   return rows;
 }
 
+export async function getMyAchievements(options?: {
+  userId?: string;
+  forceRefresh?: boolean;
+  allowCachedOnError?: boolean;
+}): Promise<AchievementWithState[]> {
+  const userId = options?.userId ?? await getCurrentUserId();
+  const forceRefresh = options?.forceRefresh ?? false;
+  const allowCachedOnError = options?.allowCachedOnError ?? true;
+
+  if (!forceRefresh) {
+    const cached = await getCachedAchievementsForUser(userId);
+    if (cached) return cached;
+  }
+
+  try {
+    return await refreshAchievementsForUser(userId);
+  } catch (error) {
+    if (allowCachedOnError) {
+      const cached = await getCachedAchievementsForUser(userId);
+      if (cached) return cached;
+    }
+    throw error;
+  }
+}
+
 export function clearAchievementCache() {
+  const userId = cachedAchievementsUserId;
   cachedAchievementsUserId = null;
   cachedAchievements = null;
+  if (userId) void AsyncStorage.removeItem(achievementCacheKey(userId));
+}
+
+export async function clearAchievementCacheForUser(userId: string) {
+  if (cachedAchievementsUserId === userId) {
+    cachedAchievementsUserId = null;
+    cachedAchievements = null;
+  }
+  try {
+    await AsyncStorage.removeItem(achievementCacheKey(userId));
+  } catch {
+    // No bloquear una accion remota correcta por un fallo del almacenamiento local.
+  }
 }
 
 export function countUnlockedAchievements(items: AchievementWithState[]) {
@@ -121,7 +236,7 @@ export async function awardAchievementToUser(userId: string, achievementCode: st
     );
 
   if (error) throw error;
-  clearAchievementCache();
+  await clearAchievementCacheForUser(userId);
 }
 
 export async function revokeAchievementFromUser(userId: string, achievementCode: string): Promise<void> {
@@ -132,7 +247,7 @@ export async function revokeAchievementFromUser(userId: string, achievementCode:
     .eq('achievement_code', achievementCode);
 
   if (error) throw error;
-  clearAchievementCache();
+  await clearAchievementCacheForUser(userId);
 }
 
 export function formatAchievementDate(value: string | null | undefined) {

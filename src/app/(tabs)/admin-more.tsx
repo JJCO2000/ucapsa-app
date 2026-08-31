@@ -15,10 +15,12 @@ export default function AdminMoreTab() {
       <View style={styles.header}>
         <Text style={styles.kicker}>Admin</Text>
         <Text style={styles.title}>Mas</Text>
-        <Text style={styles.subtitle}>Solo cuatro caminos. Cada uno abre una tarea concreta.</Text>
+        <Text style={styles.subtitle}>Accesos directos a tareas administrativas concretas.</Text>
       </View>
 
       <View style={styles.card}>
+        <MenuRow icon="groups" title="Visitas de socios" subtitle="QR, registros y tendencia mensual" onPress={() => router.push('/admin/member-visits' as never)} />
+        <MenuRow icon="qr-code" title="QR oficiales" subtitle="Puppy, Comandos y Socios" onPress={() => router.push('/admin/attendance-qr' as never)} />
         <MenuRow icon="calendar-month" title="Calendario" subtitle="Agenda de eventos, anuncios y clases" onPress={() => router.push('/calendar' as never)} />
         <MenuRow icon="campaign" title="Comunicacion" subtitle="Anuncios, eventos y notificaciones" onPress={() => router.push('/admin/tools-communication' as never)} />
         <MenuRow icon="tune" title="Administracion" subtitle="Membresias, administradores y ajustes" onPress={() => router.push('/admin/tools-administration' as never)} />
@@ -43,8 +45,8 @@ const styles = StyleSheet.create({
   kicker: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
   title: { color: ucapsaBrand.colors.text, fontSize: 30, fontWeight: '900' },
   subtitle: { color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 19, fontWeight: '700', marginTop: 3 },
-  card: { borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', overflow: 'hidden' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 68, padding: 14, borderBottomWidth: 1, borderBottomColor: '#F4E5E8' },
+  card: { borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, overflow: 'hidden' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 68, padding: 14, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.premiumMuted },
   rowLast: { borderBottomWidth: 0 },
   iconBox: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
   rowTitle: { color: ucapsaBrand.colors.text, fontSize: 15, fontWeight: '900' },

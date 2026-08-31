@@ -5,13 +5,15 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View 
 
 import { AdminDogPicker, type AdminDogMode } from '../../components/domain/AdminDogPicker';
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
+import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../components/domain/AdminCustomerContextHeader';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import { getAdminCustomerRecord, type AdminCustomerRecord } from '../../services/admin-customer.service';
-import { getDogsForUser, type BasicDog } from '../../services/dogs.service';
+import { createDogForUserAdmin, getDogsForUser, type BasicDog } from '../../services/dogs.service';
 import {
   formatProgramScheduleDisplayLabel,
+  getProgramEnrollmentDogName,
   getProgramLevelLabel,
   getProgramSchedules,
   getProgramStatusLabel,
@@ -91,10 +93,11 @@ export default function CustomerClassScreen() {
         Alert.alert('Falta perro', 'Escribe el nombre del nuevo perro.');
         return;
       }
+      const linkedDog = selectedDog ?? await createDogForUserAdmin(row.enrollment.user_id, resolvedDogName);
       await updateProgramEnrollment(row.enrollment.id, {
         scheduleId,
-        dogId: selectedDog?.id ?? null,
-        dogName: resolvedDogName,
+        dogId: linkedDog.id,
+        dogName: linkedDog.name,
         physicalCardNumber: cardNumber,
         programLevel: row.program.code === 'comandos' ? level : 'base',
         notes,
@@ -131,11 +134,7 @@ export default function CustomerClassScreen() {
 
   return (
     <KeyboardAwareScreen>
-      <View style={styles.header}>
-        <Text style={styles.kicker}>Cliente</Text>
-        <Text style={styles.title}>{row?.program.name || 'Clase'}</Text>
-        <Text style={styles.subtitle}>Una inscripcion, sus datos y acciones. Las asistencias se manejan aparte.</Text>
-      </View>
+      <AdminCustomerContextHeader customerName={adminCustomerDisplayName(record?.profile)} section={row?.program.name || 'Clase'} subtitle="Inscripcion, perro, horario y progreso del cliente seleccionado." member={record?.membership?.status === 'active'} onBack={() => router.back()} />
 
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando...</Text></View> : null}
 
@@ -148,7 +147,7 @@ export default function CustomerClassScreen() {
               <Detail label="Estado" value={getProgramStatusLabel(row.enrollment.status)} />
               {row.program.code === 'comandos' ? <Detail label="Nivel" value={getProgramLevelLabel(row.enrollment.program_level)} /> : null}
               <Detail label="Horario" value={formatProgramScheduleDisplayLabel(row.schedule, row.program)} />
-              <Detail label="Perro" value={row.enrollment.dog_name || row.profile?.dog_name || 'Sin registrar'} />
+              <Detail label="Perro" value={getProgramEnrollmentDogName(row)} />
               <Detail label="Tarjeta" value={row.enrollment.physical_card_number || 'Sin numero'} />
               <Detail label="Asistencias" value={`${row.attendances.length} de ${row.program.required_attendances}`} last />
             </View>
@@ -211,6 +210,7 @@ export default function CustomerClassScreen() {
           ) : null}
 
           <KeyboardAwareModal visible={statusModalOpen} onClose={() => setStatusModalOpen(false)}>
+            <Text style={styles.modalCustomerName}>{adminCustomerDisplayName(record?.profile)}</Text>
             <Text style={styles.modalKicker}>Clase</Text>
             <Text style={styles.modalTitle}>Cambiar estado</Text>
             <Text style={styles.modalText}>Completar es una decision administrativa. No depende del contador de asistencias.</Text>
@@ -248,36 +248,37 @@ const styles = StyleSheet.create({
   muted: { color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 19, fontWeight: '700' },
   empty: { alignItems: 'center', gap: 8, paddingVertical: 36 },
   emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '900' },
-  card: { borderRadius: 20, backgroundColor: '#fff', borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 14, gap: 12 },
-  detail: { borderBottomWidth: 1, borderBottomColor: '#F4E5E8', paddingBottom: 10 },
+  card: { borderRadius: 20, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 14, gap: 12 },
+  detail: { borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.premiumMuted, paddingBottom: 10 },
   detailLast: { borderBottomWidth: 0, paddingBottom: 0 },
   detailLabel: { color: ucapsaBrand.colors.muted, fontSize: 11, fontWeight: '800' },
   detailValue: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900', marginTop: 3 },
   field: { gap: 6 },
   label: { color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '900' },
-  input: { borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 11, color: ucapsaBrand.colors.text, backgroundColor: '#FFFDFD' },
+  input: { borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 11, color: ucapsaBrand.colors.text, backgroundColor: ucapsaBrand.colors.surfaceSubtle },
   textArea: { minHeight: 86, textAlignVertical: 'top' },
   choiceWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  choice: { borderRadius: 13, borderWidth: 1, borderColor: ucapsaBrand.colors.border, paddingHorizontal: 13, paddingVertical: 9, backgroundColor: '#fff' },
+  choice: { borderRadius: 13, borderWidth: 1, borderColor: ucapsaBrand.colors.border, paddingHorizontal: 13, paddingVertical: 9, backgroundColor: ucapsaBrand.colors.surface },
   choiceActive: { backgroundColor: ucapsaBrand.colors.red, borderColor: ucapsaBrand.colors.red },
   choiceText: { color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '900' },
-  choiceTextActive: { color: '#fff' },
+  choiceTextActive: { color: ucapsaBrand.colors.surface },
   scheduleList: { gap: 8 },
-  scheduleButton: { borderRadius: 13, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 11, backgroundColor: '#fff' },
+  scheduleButton: { borderRadius: 13, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 11, backgroundColor: ucapsaBrand.colors.surface },
   scheduleButtonActive: { backgroundColor: ucapsaBrand.colors.redSoft, borderColor: ucapsaBrand.colors.red },
   scheduleText: { color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '800' },
   scheduleTextActive: { color: ucapsaBrand.colors.redDark },
   actions: { marginTop: 14, gap: 9 },
   primary: { borderRadius: 15, backgroundColor: ucapsaBrand.colors.red, alignItems: 'center', paddingVertical: 13 },
-  primaryText: { color: '#fff', fontSize: 14, fontWeight: '900' },
-  secondary: { borderRadius: 15, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', alignItems: 'center', paddingVertical: 13 },
+  primaryText: { color: ucapsaBrand.colors.surface, fontSize: 14, fontWeight: '900' },
+  secondary: { borderRadius: 15, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, alignItems: 'center', paddingVertical: 13 },
   secondaryText: { color: ucapsaBrand.colors.redDark, fontSize: 14, fontWeight: '900' },
-  statusAction: { marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: '#fff', padding: 13 },
+  statusAction: { marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 13 },
   statusActionTitle: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
-  modalKicker: { color: '#F7B7C1', fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
-  modalTitle: { color: '#fff', fontSize: 24, fontWeight: '900', marginTop: 2 },
-  modalText: { color: '#FDE7EA', fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 6, marginBottom: 10 },
+  modalKicker: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
+  modalTitle: { color: ucapsaBrand.colors.text, fontSize: 24, fontWeight: '900', marginTop: 2 },
+  modalText: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 6, marginBottom: 10 },
   modalChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  modalClose: { marginTop: 12, borderRadius: 14, borderWidth: 1, borderColor: '#F3B8C2', alignItems: 'center', paddingVertical: 12 },
-  modalCloseText: { color: '#fff', fontSize: 13, fontWeight: '900' },
+  modalClose: { marginTop: 12, borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, alignItems: 'center', paddingVertical: 12 },
+  modalCloseText: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900' },
+  modalCustomerName: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900', marginBottom: 6 },
 });

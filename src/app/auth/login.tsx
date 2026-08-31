@@ -1,8 +1,10 @@
+import { ucapsaBrand } from '../../constants/brand';
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { supabase } from '../../lib/supabase';
+import { DEFAULT_WRITE_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -18,18 +20,27 @@ export default function LoginScreen() {
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: cleanEmail,
-      password,
-    });
-    setLoading(false);
+    try {
+      const { error } = await withOperationTimeout(
+        supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password,
+        }),
+        DEFAULT_WRITE_TIMEOUT_MS,
+        'auth-login',
+      );
 
-    if (error) {
-      Alert.alert('No se pudo iniciar sesion', error.message);
-      return;
+      if (error) {
+        Alert.alert('No se pudo iniciar sesion', error.message);
+        return;
+      }
+
+      router.replace('/home');
+    } catch {
+      Alert.alert('No se pudo conectar', 'Revisa tu conexion e intenta de nuevo.');
+    } finally {
+      setLoading(false);
     }
-
-    router.replace('/home');
   }
 
   return (
@@ -86,7 +97,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   kicker: {
-    color: '#0f766e',
+    color: ucapsaBrand.colors.red,
     fontSize: 14,
     fontWeight: '900',
     letterSpacing: 1.5,
@@ -94,13 +105,13 @@ const styles = StyleSheet.create({
   },
   title: {
     marginTop: 10,
-    color: '#0f172a',
+    color: ucapsaBrand.colors.text,
     fontSize: 36,
     fontWeight: '900',
   },
   subtitle: {
     marginTop: 10,
-    color: '#64748b',
+    color: ucapsaBrand.colors.muted,
     fontSize: 17,
     fontWeight: '700',
     lineHeight: 24,
@@ -108,13 +119,13 @@ const styles = StyleSheet.create({
   card: {
     gap: 12,
     borderRadius: 28,
-    backgroundColor: '#ffffff',
+    backgroundColor: ucapsaBrand.colors.surface,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: ucapsaBrand.colors.border,
   },
   label: {
-    color: '#0f172a',
+    color: ucapsaBrand.colors.text,
     fontSize: 14,
     fontWeight: '900',
   },
@@ -122,12 +133,12 @@ const styles = StyleSheet.create({
     minHeight: 52,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: ucapsaBrand.colors.border,
     paddingHorizontal: 14,
-    color: '#0f172a',
+    color: ucapsaBrand.colors.text,
     fontSize: 16,
     fontWeight: '700',
-    backgroundColor: '#f8fafc',
+    backgroundColor: ucapsaBrand.colors.redPale,
   },
   button: {
     marginTop: 8,
@@ -135,25 +146,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 18,
-    backgroundColor: '#0f766e',
+    backgroundColor: ucapsaBrand.colors.red,
   },
   buttonDisabled: {
     opacity: 0.55,
   },
   buttonText: {
-    color: '#ffffff',
+    color: ucapsaBrand.colors.surface,
     fontSize: 17,
     fontWeight: '900',
   },
   link: {
     marginTop: 8,
-    color: '#0f766e',
+    color: ucapsaBrand.colors.red,
     fontSize: 15,
     fontWeight: '800',
     textAlign: 'center',
   },
   linkStrong: {
-    color: '#0f172a',
+    color: ucapsaBrand.colors.text,
     fontSize: 16,
     fontWeight: '900',
     textAlign: 'center',

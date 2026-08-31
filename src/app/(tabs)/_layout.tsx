@@ -1,3 +1,4 @@
+import { ucapsaBrand } from '../../constants/brand';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
@@ -12,10 +13,10 @@ export default function TabsLayout() {
   const format = resolveUcapsaFormat({ user, role, isAdmin });
   const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 28 : 12);
   const isPremium = format.key === 'member';
-  const tabBackground = isAdmin ? '#FFFFFF' : isPremium ? '#17060A' : format.surface;
-  const tabBorder = isAdmin ? '#F0D4DA' : isPremium ? '#5A1824' : format.border;
-  const inactiveTint = isAdmin ? '#8A6973' : isPremium ? '#D7A0A9' : '#B197A0';
-  const activeTint = isAdmin ? '#C91F37' : format.accent;
+  const tabBackground = isAdmin ? ucapsaBrand.colors.surface : isPremium ? ucapsaBrand.colors.premiumBackground : format.surface;
+  const tabBorder = isAdmin ? ucapsaBrand.colors.border : isPremium ? ucapsaBrand.colors.premiumSurfaceAlt : format.border;
+  const inactiveTint = isAdmin ? ucapsaBrand.colors.muted : isPremium ? ucapsaBrand.colors.redBorder : ucapsaBrand.colors.redBorder;
+  const activeTint = isAdmin ? ucapsaBrand.colors.red : format.accent;
   const isClient = Boolean(user) && !isAdmin;
   const isGuest = !user && !isAdmin;
 
@@ -36,7 +37,7 @@ export default function TabsLayout() {
           borderTopColor: tabBorder,
           borderTopWidth: 1,
         },
-        sceneStyle: { backgroundColor: isAdmin ? '#FFF8F8' : format.background },
+        sceneStyle: { backgroundColor: isAdmin ? ucapsaBrand.colors.background : format.background },
       }}
     >
       <Tabs.Screen name="home" options={{ href: isAdmin ? null : '/home', title: 'Inicio', tabBarIcon: ({ color, size }) => <MaterialIcons name="home" size={size} color={color} /> }} />
