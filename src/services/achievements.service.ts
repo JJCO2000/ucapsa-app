@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { getProgramCompletionAchievementCode } from '../constants/programCompletion';
 import { supabase } from '../lib/supabase';
+import type { TableRow } from '../types/database.helpers';
 
 export type AchievementDefinition = {
   code: string;
@@ -31,6 +33,7 @@ export type AchievementWithState = {
   definition: AchievementDefinition;
   achievement: UserAchievement | null;
   unlocked: boolean;
+  unlockSource?: 'stored' | 'program_completion' | null;
 };
 
 type AchievementCachePayload = {
@@ -102,6 +105,61 @@ async function getAchievementDefinitions(): Promise<AchievementDefinition[]> {
   return (data ?? []).map(normalizeDefinition);
 }
 
+type CompletedProgramEvidence = {
+  id: string;
+  program_id: string;
+  program_level: string;
+  completed_at: string | null;
+  updated_at: string;
+  created_at: string;
+};
+
+async function getCompletedProgramAchievementEvidence(userId: string): Promise<Map<string, UserAchievement>> {
+  const { data: completedRows, error: completedError } = await supabase
+    .from('program_enrollments')
+    .select('id, program_id, program_level, completed_at, updated_at, created_at')
+    .eq('user_id', userId)
+    .eq('status', 'completed');
+
+  if (completedError) throw completedError;
+
+  const completed = (completedRows ?? []) as CompletedProgramEvidence[];
+  const programIds = [...new Set(completed.map((item) => item.program_id))];
+  if (programIds.length === 0) return new Map();
+
+  const { data: programs, error: programsError } = await supabase
+    .from('programs')
+    .select('id, code')
+    .in('id', programIds);
+
+  if (programsError) throw programsError;
+
+  const programRows = (programs ?? []) as Array<Pick<TableRow<'programs'>, 'id' | 'code'>>;
+  const codeByProgramId = new Map<string, string>(programRows.map((item) => [item.id, item.code]));
+  const evidenceByCode = new Map<string, UserAchievement>();
+
+  for (const enrollment of completed) {
+    const programCode = codeByProgramId.get(enrollment.program_id);
+    if (!programCode) continue;
+    const achievementCode = getProgramCompletionAchievementCode(programCode, enrollment.program_level);
+    if (!achievementCode || evidenceByCode.has(achievementCode)) continue;
+
+    const awardedAt = enrollment.completed_at || enrollment.updated_at || enrollment.created_at;
+    evidenceByCode.set(achievementCode, {
+      id: `derived:${enrollment.id}`,
+      user_id: userId,
+      achievement_code: achievementCode,
+      source_type: 'program_enrollment_derived',
+      source_id: enrollment.id,
+      awarded_at: awardedAt,
+      awarded_by: null,
+      created_at: awardedAt,
+    });
+  }
+
+  return evidenceByCode;
+}
+
 async function persistAchievementCache(userId: string, items: AchievementWithState[]) {
   cachedAchievementsUserId = userId;
   cachedAchievements = items;
@@ -142,26 +200,30 @@ export async function getCachedAchievementsForUser(userId: string): Promise<Achi
 }
 
 export async function getAchievementsForUser(userId: string): Promise<AchievementWithState[]> {
-  const [definitions, achievementResult] = await Promise.all([
+  const [definitions, achievementResult, completionEvidence] = await Promise.all([
     getAchievementDefinitions(),
     supabase
       .from('user_achievements')
       .select('*')
       .eq('user_id', userId)
       .order('awarded_at', { ascending: false }),
+    getCompletedProgramAchievementEvidence(userId),
   ]);
 
   if (achievementResult.error) throw achievementResult.error;
 
-  const achievements = (achievementResult.data ?? []).map(normalizeAchievement);
+  const achievements = (achievementResult.data ?? []).map(normalizeAchievement) as UserAchievement[];
   const achievementByCode = new Map(achievements.map((item) => [item.achievement_code, item]));
 
   return definitions.map((definition) => {
-    const achievement = achievementByCode.get(definition.code) ?? null;
+    const storedAchievement = achievementByCode.get(definition.code) ?? null;
+    const derivedAchievement = completionEvidence.get(definition.code) ?? null;
+    const achievement = storedAchievement ?? derivedAchievement;
     return {
       definition,
       achievement,
       unlocked: Boolean(achievement),
+      unlockSource: storedAchievement ? 'stored' : derivedAchievement ? 'program_completion' : null,
     };
   });
 }

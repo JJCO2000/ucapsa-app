@@ -10,9 +10,8 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
-import { getMembershipStatusLabel, getMyMembership } from '../../services/memberships.service';
+import { getMembershipEffectiveStatus, getMembershipEffectiveStatusLabel, getMyMembership, type MembershipEffectiveStatus } from '../../services/memberships.service';
 import { clientReadKeys, createMembershipOfflineSummary, readClientResource, writeClientResource, type MembershipOfflineSummary } from '../../services/client-read-cache.service';
-import type { MembershipStatus } from '../../types/app.types';
 import { DEFAULT_READ_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
 
 const whatsappUrl = ucapsaBrand.socialLinks.find((item) => item.key === 'whatsapp')?.url ?? 'https://wa.me/525522410679';
@@ -31,7 +30,7 @@ async function openExternal(url: string) {
 
 export default function ServicesTab() {
   const { user, role, isAdmin } = useSession();
-  const [membershipStatus, setMembershipStatus] = useState<MembershipStatus | null>(null);
+  const [membershipStatus, setMembershipStatus] = useState<MembershipEffectiveStatus | null>(null);
   const [loading, setLoading] = useState(Boolean(user));
   const [refreshing, setRefreshing] = useState(false);
   const [usingSavedData, setUsingSavedData] = useState(false);
@@ -49,14 +48,14 @@ export default function ServicesTab() {
     setMembershipLoadFailed(false);
     const cached = await readClientResource<MembershipOfflineSummary>(user.id, clientReadKeys.membership);
     if (cached) {
-      setMembershipStatus(cached.data.status);
+      setMembershipStatus(getMembershipEffectiveStatus(cached.data.status ? { status: cached.data.status, start_date: cached.data.start_date, end_date: cached.data.end_date } : null));
       setSavedAt(cached.saved_at);
       setLoading(false);
     }
 
     try {
       const membership = await withOperationTimeout(getMyMembership(), DEFAULT_READ_TIMEOUT_MS, 'services-membership');
-      setMembershipStatus(membership?.status ?? null);
+      setMembershipStatus(getMembershipEffectiveStatus(membership));
       const stored = await writeClientResource(user.id, clientReadKeys.membership, createMembershipOfflineSummary(membership));
       setSavedAt(stored.saved_at);
     } catch {
@@ -74,9 +73,10 @@ export default function ServicesTab() {
     try { await load(); } finally { setRefreshing(false); }
   }
 
+  const membershipFormatStatus = membershipStatus === 'scheduled' ? 'none' : membershipStatus;
   const format = useMemo(
-    () => resolveUcapsaFormat({ user, role, isAdmin, membershipStatus }),
-    [isAdmin, membershipStatus, role, user],
+    () => resolveUcapsaFormat({ user, role, isAdmin, membershipStatus: membershipFormatStatus }),
+    [isAdmin, membershipFormatStatus, role, user],
   );
   const premium = format.key === 'member';
 
@@ -93,13 +93,13 @@ export default function ServicesTab() {
         <View style={styles.header}>
           <Text style={[styles.kicker, { color: format.accentDark }]}>MÉTODO UCAPSA</Text>
           <Text style={[styles.title, { color: format.text }]}>Empieza con tu perro</Text>
-          <Text style={[styles.subtitle, { color: format.muted }]}>La app acompaña un entrenamiento real: capacitación para ti, trabajo con tu perro y seguimiento del avance.</Text>
+          <Text style={[styles.subtitle, { color: format.muted }]}>La app acompaña un entrenamiento real: capacitación para ti, trabajo con tu perro y un historial claro de tu experiencia UCAPSA.</Text>
         </View>
 
         <View style={styles.guestProofCard}>
           <GuestProof icon="history" title="40+ años" text="Experiencia en entrenamiento canino." />
           <GuestProof icon="favorite" title="Métodos positivos" text="Comunicación, confianza y convivencia." />
-          <GuestProof icon="trending-up" title="Progreso real" text="Programas y niveles que puedes seguir en UCAPSA." />
+          <GuestProof icon="trending-up" title="Ruta de entrenamiento" text="Programas y niveles que puedes recorrer en UCAPSA." />
         </View>
 
         <ServiceCard premium={false} icon="chat" title="1. Cuéntanos qué quieres mejorar" subtitle="Edad, paseo, obediencia, hábitos o convivencia: empieza con orientación directa de UCAPSA." onPress={() => void openExternal(guestWhatsAppUrl)} />
@@ -121,7 +121,7 @@ export default function ServicesTab() {
     : membershipLoadFailed
       ? 'No se pudo actualizar tu membresía. Puedes seguir usando los demás servicios.'
       : membershipStatus
-        ? `Estado: ${getMembershipStatusLabel(membershipStatus)}`
+        ? `Estado: ${getMembershipEffectiveStatusLabel(membershipStatus)}`
         : 'Consulta requisitos y solicita revisión cuando corresponda.';
 
   return (

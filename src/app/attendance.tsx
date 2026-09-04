@@ -11,7 +11,7 @@ import { resolveUcapsaFormat } from '../constants/ucapsaFormats';
 import { useSession } from '../hooks/useSession';
 import { clientReadKeys, sanitizeProgramRowsForCache, writeClientResource } from '../services/client-read-cache.service';
 import { registerMyMemberVisitFromQr } from '../services/member-visits.service';
-import { getMyMembership } from '../services/memberships.service';
+import { getMyMembership, isMembershipActiveToday } from '../services/memberships.service';
 import {
   formatProgramScheduleDisplayLabel,
   getMyProgramEnrollments,
@@ -48,6 +48,7 @@ export default function AttendanceScanScreen() {
   const [cameraActive, setCameraActive] = useState(true);
   const [enrollments, setEnrollments] = useState<ProgramEnrollmentWithDetails[]>([]);
   const [membershipStatus, setMembershipStatus] = useState<MembershipStatus | null>(null);
+  const [membershipActiveToday, setMembershipActiveToday] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [registering, setRegistering] = useState(false);
   const [pendingToken, setPendingToken] = useState<string | null>(null);
@@ -57,7 +58,7 @@ export default function AttendanceScanScreen() {
   const [feedback, setFeedback] = useState<Feedback>(null);
 
   const activeEnrollments = useMemo(() => enrollments.filter((item) => item.enrollment.status === 'active'), [enrollments]);
-  const canScanMemberVisits = membershipStatus === 'active';
+  const canScanMemberVisits = membershipActiveToday;
   const canScanAnything = activeEnrollments.length > 0 || canScanMemberVisits;
   const format = useMemo(
     () => resolveUcapsaFormat({ user, role, isAdmin, membershipStatus, hasActivePrograms: activeEnrollments.length > 0 }),
@@ -69,6 +70,7 @@ export default function AttendanceScanScreen() {
     if (!user || isAdmin) return;
     setLoadingData(true);
     setFeedback(null);
+    setMembershipActiveToday(false);
     const [programResult, membershipResult] = await Promise.allSettled([
       withOperationTimeout(getMyProgramEnrollments(), DEFAULT_READ_TIMEOUT_MS, 'attendance-enrollments'),
       withOperationTimeout(getMyMembership(), DEFAULT_READ_TIMEOUT_MS, 'attendance-membership'),
@@ -78,7 +80,10 @@ export default function AttendanceScanScreen() {
       setEnrollments(programResult.value);
       await writeClientResource(user.id, clientReadKeys.programs, sanitizeProgramRowsForCache(programResult.value));
     }
-    if (membershipResult.status === 'fulfilled') setMembershipStatus(membershipResult.value?.status ?? null);
+    if (membershipResult.status === 'fulfilled') {
+      setMembershipStatus(membershipResult.value?.status ?? null);
+      setMembershipActiveToday(isMembershipActiveToday(membershipResult.value));
+    }
 
     if (programResult.status === 'rejected' && membershipResult.status === 'rejected') {
       setFeedback({ kind: 'connection', title: 'No pudimos verificar tu cuenta', message: 'Registrar asistencia o visita necesita conexion para confirmar tus datos con UCAPSA.' });

@@ -102,7 +102,7 @@ export type CreateProgramDayCancellationsInput = {
 const dayLabels = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'];
 
 export const programLevelOptions: Array<{ value: ProgramLevel; label: string }> = [
-  { value: 'principiante', label: 'Principiante' },
+  { value: 'principiante', label: 'Básico' },
   { value: 'medio', label: 'Medio' },
   { value: 'avanzado', label: 'Avanzado' },
 ];
@@ -212,10 +212,18 @@ export function getProgramCodeLabel(code: string | null | undefined) {
 }
 
 export function getProgramLevelLabel(level: ProgramLevel | null | undefined) {
-  if (level === 'principiante') return 'Principiante';
+  if (level === 'principiante') return 'Básico';
   if (level === 'medio') return 'Medio';
   if (level === 'avanzado') return 'Avanzado';
   return 'Base';
+}
+
+export function getProgramLevelDisplayLabel(
+  programCode: ProgramCode | string | null | undefined,
+  level: ProgramLevel | null | undefined,
+) {
+  if (programCode !== 'comandos') return null;
+  return getProgramLevelLabel(level);
 }
 
 export function getDefaultProgramLevel(program: Pick<UcapsaProgram, 'code'> | null | undefined): ProgramLevel {

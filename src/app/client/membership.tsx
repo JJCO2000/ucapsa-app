@@ -10,7 +10,7 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
-import { getMembershipStatusLabel, getMyMembership, isMembershipDateExpired, requestMembership } from '../../services/memberships.service';
+import { getMembershipEffectiveStatus, getMembershipStatusLabel, getMyMembership, getMyMembershipEligibility, isMembershipDateExpired, requestMembership, type MembershipEligibility } from '../../services/memberships.service';
 import { clientReadKeys, createMembershipOfflineSummary, readClientResource, sanitizeProgramRowsForCache, writeClientResource, type MembershipOfflineSummary } from '../../services/client-read-cache.service';
 import { getMyProgramEnrollments } from '../../services/programs.service';
 import type { Membership, ProgramEnrollmentWithDetails } from '../../types/app.types';
@@ -35,17 +35,21 @@ export default function ClientMembershipScreen() {
   const [error, setError] = useState<string | null>(null);
   const [usingSavedData, setUsingSavedData] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
-  const [programDataAvailable, setProgramDataAvailable] = useState(false);
   const [membershipDataAvailable, setMembershipDataAvailable] = useState(false);
   const [membershipFresh, setMembershipFresh] = useState(false);
+  const [eligibility, setEligibility] = useState<MembershipEligibility | null>(null);
+  const [eligibilityFresh, setEligibilityFresh] = useState(false);
+  const [eligibilityChecking, setEligibilityChecking] = useState(true);
 
   const load = useCallback(async () => {
     if (!user || isAdmin) return;
     setError(null);
     setUsingSavedData(false);
-    setProgramDataAvailable(false);
     setMembershipDataAvailable(false);
     setMembershipFresh(false);
+    setEligibility(null);
+    setEligibilityFresh(false);
+    setEligibilityChecking(true);
 
     const [membershipCache, programCache] = await Promise.all([
       readClientResource<MembershipOfflineSummary>(user.id, clientReadKeys.membership),
@@ -60,14 +64,14 @@ export default function ClientMembershipScreen() {
     }
     if (programCache) {
       setPrograms(programCache.data);
-      setProgramDataAvailable(true);
       setSavedAt((current) => current ?? programCache.saved_at);
       setLoading(false);
     }
 
-    const [membershipResult, programResult] = await Promise.allSettled([
+    const [membershipResult, programResult, eligibilityResult] = await Promise.allSettled([
       withOperationTimeout(getMyMembership(), DEFAULT_READ_TIMEOUT_MS, 'membership'),
       withOperationTimeout(getMyProgramEnrollments(), DEFAULT_READ_TIMEOUT_MS, 'membership-programs'),
+      withOperationTimeout(getMyMembershipEligibility(), DEFAULT_READ_TIMEOUT_MS, 'membership-eligibility'),
     ]);
 
     if (membershipResult.status === 'fulfilled') {
@@ -87,21 +91,24 @@ export default function ClientMembershipScreen() {
 
     if (programResult.status === 'fulfilled') {
       setPrograms(programResult.value);
-      setProgramDataAvailable(true);
       await writeClientResource(user.id, clientReadKeys.programs, sanitizeProgramRowsForCache(programResult.value));
     }
 
-    const membershipMissing = membershipResult.status === 'rejected' && !membershipCache;
-    const programsMissing = programResult.status === 'rejected' && !programCache;
-    if (membershipMissing && programsMissing) {
-      setError(friendlyReadError('No se pudo cargar tu membresia.'));
-    } else if (membershipResult.status === 'rejected' || programResult.status === 'rejected') {
-      setUsingSavedData(Boolean(
-        (membershipResult.status === 'rejected' && membershipCache) ||
-        (programResult.status === 'rejected' && programCache),
-      ));
+    if (eligibilityResult.status === 'fulfilled') {
+      setEligibility(eligibilityResult.value);
+      setEligibilityFresh(true);
     }
 
+    const membershipMissing = membershipResult.status === 'rejected' && !membershipCache;
+    if (membershipMissing) {
+      setError(friendlyReadError('No se pudo cargar tu membresia.'));
+    } else if (membershipResult.status === 'rejected' && membershipCache) {
+      // Solo una membresia en cache debe bloquear una escritura. Un fallo al hidratar
+      // la pantalla de clases no invalida una elegibilidad remota ya confirmada.
+      setUsingSavedData(true);
+    }
+
+    setEligibilityChecking(false);
     setLoading(false);
   }, [isAdmin, user]);
 
@@ -145,16 +152,36 @@ export default function ClientMembershipScreen() {
   }
 
   const membershipStatus = membershipDataAvailable ? (membership?.status ?? cachedMembership?.status ?? null) : null;
-  const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin, membershipStatus, hasActivePrograms: programs.some((item) => item.enrollment.status === 'active') }), [isAdmin, membershipStatus, programs, role, user]);
+  const validitySource = membership
+    ? membership
+    : cachedMembership?.status
+      ? { status: cachedMembership.status, start_date: cachedMembership.start_date, end_date: cachedMembership.end_date }
+      : null;
+  const effectiveMembershipStatus = getMembershipEffectiveStatus(validitySource);
+  const membershipFormatStatus = effectiveMembershipStatus === 'active'
+    ? 'active'
+    : membershipStatus === 'pending'
+      ? 'pending'
+      : effectiveMembershipStatus === 'expired'
+        ? 'expired'
+        : membershipStatus;
+  const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin, membershipStatus: membershipFormatStatus, hasActivePrograms: programs.some((item) => item.enrollment.status === 'active') }), [isAdmin, membershipFormatStatus, programs, role, user]);
   const premium = format.key === 'member';
 
   if (!user) return <Redirect href="/auth/login" />;
   if (isAdmin) return <Redirect href="/admin-home" />;
 
-  const eligible = programs.some((item) => item.enrollment.status === 'active' || item.enrollment.status === 'completed');
-  const active = membershipStatus === 'active';
+  const eligibilityVerified = membershipFresh && eligibilityFresh;
+  const eligible = eligibilityVerified ? eligibility?.eligible ?? false : null;
+  const active = effectiveMembershipStatus === 'active';
   const pending = membershipStatus === 'pending';
-  const inactive = Boolean(membershipStatus && !active && !pending);
+  const scheduled = effectiveMembershipStatus === 'scheduled';
+  const inactive = Boolean(membershipStatus && !active && !pending) || scheduled;
+  const inactiveLabel = scheduled
+    ? 'Programada'
+    : effectiveMembershipStatus === 'expired'
+      ? 'Vencida'
+      : getMembershipStatusLabel((membershipStatus ?? 'cancelled') as Exclude<typeof membershipStatus, null>);
   const displayName = profile?.full_name || profile?.email || user.email || 'Usuario UCAPSA';
 
   return (
@@ -173,11 +200,22 @@ export default function ClientMembershipScreen() {
 
       {usingSavedData ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} /> : null}
       {error ? <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}><Text style={[styles.cardTitle, { color: format.cardText }]}>No se pudo actualizar</Text><Text style={[styles.muted, { color: format.muted }]}>{error}</Text><Pressable style={[styles.secondaryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={() => void refresh()}><Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>Reintentar</Text></Pressable></View> : null}
-      {!loading && (!programDataAvailable || !membershipDataAvailable) && !error ? <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}><Text style={[styles.cardTitle, { color: format.cardText }]}>Falta verificar tu informacion</Text><Text style={[styles.muted, { color: format.muted }]}>Conectate para confirmar tu membresia y si ya puedes solicitarla.</Text><Pressable style={[styles.secondaryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={() => void refresh()}><Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>Reintentar</Text></Pressable></View> : null}
+      {!loading && !membershipStatus && (!membershipFresh || !eligibilityFresh) && !error ? (
+        <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
+          {eligibilityChecking ? <ActivityIndicator color={format.accent} /> : <MaterialIcons name="info-outline" size={28} color={format.accent} />}
+          <Text style={[styles.cardTitle, { color: format.cardText }]}>{eligibilityChecking ? 'Verificando elegibilidad' : 'Falta verificar tu informacion'}</Text>
+          <Text style={[styles.muted, { color: format.muted }]}>
+            {eligibilityChecking
+              ? 'Estamos confirmando tus programas y tu membresia.'
+              : 'Conectate para confirmar tu membresia y si ya puedes solicitarla. Los datos guardados no se usan para negarte elegibilidad.'}
+          </Text>
+          {!eligibilityChecking ? <Pressable style={[styles.secondaryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={() => void refresh()}><Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>Reintentar</Text></Pressable> : null}
+        </View>
+      ) : null}
 
       {loading ? <View style={styles.loading}><ActivityIndicator color={format.accent} /><Text style={[styles.muted, { color: format.muted }]}>Cargando membresia...</Text></View> : null}
 
-      {!loading && !error && programDataAvailable && membershipDataAvailable && !membershipStatus && !eligible ? (
+      {!loading && !error && membershipFresh && eligibilityFresh && !membershipStatus && eligible === false ? (
         <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
           <MaterialIcons name="info-outline" size={28} color={format.accent} />
           <Text style={[styles.cardTitle, { color: format.cardText }]}>Todavia no disponible</Text>
@@ -186,10 +224,10 @@ export default function ClientMembershipScreen() {
         </View>
       ) : null}
 
-      {!loading && !error && programDataAvailable && membershipDataAvailable && !membershipStatus && eligible ? (
+      {!loading && !error && membershipFresh && eligibilityFresh && !membershipStatus && eligible === true ? (
         <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
           <Text style={[styles.cardTitle, { color: format.cardText }]}>Puedes solicitar membresia</Text>
-          <Text style={[styles.muted, { color: format.muted }]}>Envia la solicitud para que administracion la revise.</Text>
+          <Text style={[styles.muted, { color: format.muted }]}>{eligibility?.source === 'program_completion_achievement' ? 'Tu historial UCAPSA confirma que completaste un programa elegible. Envia la solicitud para que administracion la revise.' : 'Cumples el requisito de acceso. Envia la solicitud para que administracion la revise.'}</Text>
           <Pressable style={[styles.primaryButton, { backgroundColor: format.primaryButton }]} disabled={saving || usingSavedData} onPress={() => void requestReview()}><Text style={[styles.primaryButtonText, { color: format.primaryButtonText }]}>{saving ? 'Enviando...' : usingSavedData ? 'Conectate para solicitar' : 'Solicitar membresia'}</Text></Pressable>
         </View>
       ) : null}
@@ -203,9 +241,15 @@ export default function ClientMembershipScreen() {
 
       {inactive ? (
         <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
-          <Text style={[styles.cardTitle, { color: format.cardText }]}>Estado: {getMembershipStatusLabel(membershipStatus ?? 'cancelled')}</Text>
-          <Text style={[styles.muted, { color: format.muted }]}>Si necesitas revision, puedes solicitarla desde aqui.</Text>
-          {eligible ? <Pressable style={[styles.primaryButton, { backgroundColor: format.primaryButton }]} disabled={saving || usingSavedData} onPress={() => void requestReview()}><Text style={[styles.primaryButtonText, { color: format.primaryButtonText }]}>{saving ? 'Enviando...' : usingSavedData ? 'Conectate para solicitar' : 'Solicitar revision'}</Text></Pressable> : null}
+          <Text style={[styles.cardTitle, { color: format.cardText }]}>Estado: {inactiveLabel}</Text>
+          <Text style={[styles.muted, { color: format.muted }]}>
+            {scheduled
+              ? `Tu membresia inicia el ${offlineDateLabel(membership?.start_date ?? cachedMembership?.start_date)}. El QR estara disponible cuando entre en vigencia.`
+              : effectiveMembershipStatus === 'expired'
+                ? `La vigencia termino el ${offlineDateLabel(membership?.end_date ?? cachedMembership?.end_date)}. Administracion debe revisar las fechas antes de reactivarla.`
+                : 'Si necesitas revision, puedes solicitarla desde aqui.'}
+          </Text>
+          {eligible === true && membershipStatus !== 'active' ? <Pressable style={[styles.primaryButton, { backgroundColor: format.primaryButton }]} disabled={saving || usingSavedData} onPress={() => void requestReview()}><Text style={[styles.primaryButtonText, { color: format.primaryButtonText }]}>{saving ? 'Enviando...' : usingSavedData ? 'Conectate para solicitar' : 'Solicitar revision'}</Text></Pressable> : null}
         </View>
       ) : null}
 
@@ -220,7 +264,7 @@ export default function ClientMembershipScreen() {
       ) : active && cachedMembership ? (
         <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
           <MaterialIcons name="verified" size={28} color={format.accent} />
-          <Text style={[styles.cardTitle, { color: format.cardText }]}>Membresia activa</Text>
+          <Text style={[styles.cardTitle, { color: format.cardText }]}>Membresia vigente</Text>
           <Text style={[styles.muted, { color: format.muted }]}>Socio: {cachedMembership.member_number || 'Sin numero'}</Text>
           <Text style={[styles.muted, { color: format.muted }]}>Vigencia: {offlineDateLabel(cachedMembership.start_date)} - {offlineDateLabel(cachedMembership.end_date)}</Text>
           <Text style={[styles.muted, { color: format.muted }]}>La credencial QR requiere conexion para mostrar un token vigente.</Text>

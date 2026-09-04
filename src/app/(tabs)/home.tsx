@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Linking, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AchievementMiniRow } from '../../components/domain/AchievementBadgeGrid';
+import { CustomerValueSnapshotCard } from '../../components/domain/CustomerValueSnapshotCard';
 import { AnnouncementCard } from '../../components/domain/AnnouncementCard';
 import { EventCard } from '../../components/domain/EventCard';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -13,6 +14,7 @@ import { UcapsaDetailModal } from '../../components/ui/UcapsaDetailModal';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { WEEKLY_PRACTICE_GOAL } from '../../constants/practice';
+import { customerValueFeatures } from '../../constants/customerValue';
 import { useSession } from '../../hooks/useSession';
 import { getCachedAchievementsForUser, refreshAchievementsForUser, type AchievementWithState } from '../../services/achievements.service';
 import { getVisibleAnnouncements } from '../../services/announcements.service';
@@ -27,7 +29,9 @@ import {
   type HomeProgramSummary,
   type HomeReadCache,
 } from '../../services/home-cache.service';
-import { getMyMembership } from '../../services/memberships.service';
+import { readCustomerValueSnapshotCache, writeCustomerValueSnapshotCache } from '../../services/customer-value-cache.service';
+import { getCustomerValuePrimaryNextAction, getMyCustomerValueSnapshot, type CustomerValueSnapshot } from '../../services/customer-value.service';
+import { getMyMembership, isMembershipActiveToday } from '../../services/memberships.service';
 import { getMyPaymentOverview } from '../../services/payments.service';
 import { getMyProgramEnrollments, getNextProgramScheduleDate, getProgramCodeLabel, getProgramEnrollmentDogName } from '../../services/programs.service';
 import { buildPracticeEngagementStats, getCachedMyPracticeActivity, getMyPracticeActivity, getMyWeeklyPracticeSummary, getPendingPracticeCounts, saveMyPracticeSession, type PracticeActivityEntry, type PracticeEngagementStats } from '../../services/practice.service';
@@ -54,6 +58,7 @@ const GUEST_WHATSAPP_MESSAGE = 'Hola UCAPSA, vi la app y quiero saber que progra
 const GUEST_WHATSAPP_URL = `https://wa.me/525522410679?text=${encodeURIComponent(GUEST_WHATSAPP_MESSAGE)}`;
 
 type HomeSourceStatus = 'idle' | 'ok' | 'cached' | 'error';
+type CustomerValueHomeStatus = 'idle' | 'ok' | 'cached' | 'partial' | 'error';
 type HomeStatuses = {
   announcements: HomeSourceStatus;
   events: HomeSourceStatus;
@@ -135,6 +140,7 @@ export default function HomeScreen() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [events, setEvents] = useState<EventOccurrence[]>([]);
   const [membershipStatus, setMembershipStatus] = useState<MembershipStatus | null>(null);
+  const [membershipActiveToday, setMembershipActiveToday] = useState(false);
   const [programs, setPrograms] = useState<HomeProgramSummary[]>([]);
   const [payments, setPayments] = useState<HomePaymentSummary>(emptyPaymentSummary);
   const [achievements, setAchievements] = useState<AchievementWithState[]>([]);
@@ -153,6 +159,9 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [statuses, setStatuses] = useState<HomeStatuses>(initialStatuses);
   const [homeCache, setHomeCache] = useState<HomeReadCache | null>(null);
+  const [customerValueSnapshot, setCustomerValueSnapshot] = useState<CustomerValueSnapshot | null>(null);
+  const [customerValueStatus, setCustomerValueStatus] = useState<CustomerValueHomeStatus>('idle');
+  const [customerValueSavedAt, setCustomerValueSavedAt] = useState<string | null>(null);
   const cacheScopeRef = useRef<string | null>(null);
 
   const load = useCallback(async () => {
@@ -169,6 +178,7 @@ export default function HomeScreen() {
       setAnnouncements([]);
       setEvents([]);
       setMembershipStatus(null);
+      setMembershipActiveToday(false);
       setPrograms([]);
       setPayments(emptyPaymentSummary);
       setAchievements([]);
@@ -178,12 +188,25 @@ export default function HomeScreen() {
       setPracticeActivityAvailable(false);
       setStatuses(initialStatuses);
       setHomeCache(null);
+      setCustomerValueSnapshot(null);
+      setCustomerValueStatus('idle');
+      setCustomerValueSavedAt(null);
     }
 
     const cachedHome = await readHomeCache(scope);
     setHomeCache(cachedHome);
     const pendingPracticeCounts = user ? await getPendingPracticeCounts(user.id) : [];
     const cachedPracticeActivity = user ? await getCachedMyPracticeActivity(user.id) : null;
+    const cachedCustomerValue = user && customerValueFeatures.homeSnapshotV1
+      ? await readCustomerValueSnapshotCache(user.id)
+      : null;
+
+    if (cachedCustomerValue) {
+      setCustomerValueSnapshot(cachedCustomerValue.snapshot);
+      setCustomerValueStatus('cached');
+      setCustomerValueSavedAt(cachedCustomerValue.savedAt);
+    }
+
     if (cachedPracticeActivity) {
       setPracticeActivity(cachedPracticeActivity.entries);
       setPracticeEngagement(cachedPracticeActivity.stats);
@@ -224,6 +247,10 @@ export default function HomeScreen() {
     ) {
       setLoading(false);
     }
+
+    const customerValuePromise = user && customerValueFeatures.homeSnapshotV1
+      ? withHomeTimeout(getMyCustomerValueSnapshot())
+      : null;
 
     const [announcementResult, eventResult, membershipResult, programsResult, paymentsResult, achievementsResult, practiceResult, practiceActivityResult] = await Promise.allSettled([
       withHomeTimeout(getVisibleAnnouncements(3)),
@@ -269,6 +296,7 @@ export default function HomeScreen() {
       if (membershipResult.status === 'fulfilled') {
         const value = membershipResult.value?.status ?? null;
         setMembershipStatus(value);
+        setMembershipActiveToday(isMembershipActiveToday(membershipResult.value));
         cacheUpdates.membership_status = createHomeCacheSource(value);
         nextStatuses.membership = 'ok';
       } else if (cachedHome?.membership_status) {
@@ -339,12 +367,17 @@ export default function HomeScreen() {
         setPracticeEngagement(practiceActivityResult.value.stats);
         setPracticeActivityAvailable(true);
       }
+
     } else {
       setMembershipStatus(null);
+      setMembershipActiveToday(false);
       setPrograms([]);
       setPayments(emptyPaymentSummary);
       setAchievements([]);
       setPractice({ week_start: '', counts: [] });
+      setCustomerValueSnapshot(null);
+      setCustomerValueStatus('idle');
+      setCustomerValueSavedAt(null);
     }
 
     if (Object.keys(cacheUpdates).length > 0) {
@@ -354,6 +387,34 @@ export default function HomeScreen() {
 
     setStatuses(nextStatuses);
     setLoading(false);
+
+    if (user && customerValuePromise) {
+      try {
+        const snapshot = await customerValuePromise;
+        const hasSourceErrors = Object.values(snapshot.sourceStatus).some((status) => status === 'error');
+
+        if (hasSourceErrors && cachedCustomerValue) {
+          setCustomerValueSnapshot(cachedCustomerValue.snapshot);
+          setCustomerValueStatus('cached');
+          setCustomerValueSavedAt(cachedCustomerValue.savedAt);
+        } else {
+          setCustomerValueSnapshot(snapshot);
+          setCustomerValueStatus(hasSourceErrors ? 'partial' : 'ok');
+          setCustomerValueSavedAt(null);
+          if (!hasSourceErrors) void writeCustomerValueSnapshotCache(snapshot);
+        }
+      } catch {
+        if (cachedCustomerValue) {
+          setCustomerValueSnapshot(cachedCustomerValue.snapshot);
+          setCustomerValueStatus('cached');
+          setCustomerValueSavedAt(cachedCustomerValue.savedAt);
+        } else {
+          setCustomerValueSnapshot(null);
+          setCustomerValueStatus('error');
+          setCustomerValueSavedAt(null);
+        }
+      }
+    }
   }, [isAdmin, user]);
 
   useFocusEffect(useCallback(() => { void load(); return undefined; }, [load]));
@@ -377,6 +438,13 @@ export default function HomeScreen() {
   const displayName = profile?.full_name || profile?.email || user?.email || 'Visitante';
   const profileComplete = Boolean((profile?.full_name ?? '').trim() && (profile?.phone ?? '').trim());
   const hasPaymentAttention = payments.attention_total > 0.005 || payments.legacy_membership_pending;
+  const hasEffectiveMembership = customerValueSnapshot?.whatIHave.membership?.isValidToday ?? membershipActiveToday;
+  const customerValueVisible = Boolean(
+    user &&
+    customerValueFeatures.homeSnapshotV1 &&
+    customerValueSnapshot &&
+    ['ok', 'cached', 'partial'].includes(customerValueStatus),
+  );
   const accountDataError = user ? statuses.membership === 'error' || statuses.programs === 'error' || statuses.payments === 'error' : false;
   const practiceCount = nextProgram ? (practice.counts.find((item) => item.enrollment_id === nextProgram.enrollment_id || (item.dog_id && item.dog_id === nextProgram.dog_id))?.count ?? 0) : 0;
   const practiceAvailable = statuses.practice === 'ok' || statuses.practice === 'cached';
@@ -417,6 +485,43 @@ export default function HomeScreen() {
     if (values.length === 0) return null;
     return values.sort()[0] ?? null;
   }, [homeCache, statuses]);
+
+  function openCustomerValueHave() {
+    if (!customerValueSnapshot) return;
+    if (customerValueSnapshot.whatIHave.programs.length > 0) {
+      router.push('/classes' as never);
+      return;
+    }
+    router.push('/client/membership' as never);
+  }
+
+  function openCustomerValueUsed() {
+    if (!customerValueSnapshot || customerValueSnapshot.whatIUsed.attendanceTotal <= 0) return;
+    router.push('/client/attendance-history' as never);
+  }
+
+  function openCustomerValueNext() {
+    if (!customerValueSnapshot) return;
+    const action = getCustomerValuePrimaryNextAction(customerValueSnapshot);
+    if (!action) return;
+
+    if (action.kind === 'payment') {
+      router.push('/payments' as never);
+      return;
+    }
+
+    if (action.kind === 'class') {
+      router.push(`/client/class-detail?enrollmentId=${encodeURIComponent(action.enrollmentId)}` as never);
+      return;
+    }
+
+    if (action.kind === 'event') {
+      router.push('/calendar' as never);
+      return;
+    }
+
+    router.push('/client/membership' as never);
+  }
 
   function startPractice() {
     if (!nextProgram) return;
@@ -529,11 +634,11 @@ export default function HomeScreen() {
           />
         ) : (
           <>
-            <Text style={[styles.subtitle, { color: format.muted }]}>Entrenamiento real contigo y tu perro, acompañado por expertos y con progreso por niveles.</Text>
+            <Text style={[styles.subtitle, { color: format.muted }]}>Entrenamiento real contigo y tu perro, acompañado por expertos y con una ruta clara por niveles.</Text>
             <View style={styles.proofRow}>
               <ProofPill label="40+ años" format={format} />
               <ProofPill label="Métodos positivos" format={format} />
-              <ProofPill label="Progreso medible" format={format} />
+              <ProofPill label="Historial verificable" format={format} />
             </View>
           </>
         )}
@@ -579,6 +684,23 @@ export default function HomeScreen() {
           savedAt={cachedSavedAt}
           onRetry={() => void refresh()}
         />
+      ) : null}
+
+      {!loading && user && customerValueFeatures.homeSnapshotV1 && customerValueSnapshot && ['ok', 'cached', 'partial'].includes(customerValueStatus) ? (
+        <CustomerValueSnapshotCard
+          snapshot={customerValueSnapshot}
+          format={format}
+          dataState={customerValueStatus === 'cached' ? 'cached' : customerValueStatus === 'partial' ? 'partial' : 'ok'}
+          savedAt={customerValueSavedAt}
+          onOpenHave={openCustomerValueHave}
+          onOpenUsed={customerValueSnapshot.whatIUsed.attendanceTotal > 0 ? openCustomerValueUsed : undefined}
+          onOpenAchieved={() => router.push('/achievements' as never)}
+          onOpenNext={openCustomerValueNext}
+        />
+      ) : null}
+
+      {!loading && user && customerValueFeatures.homeSnapshotV1 && customerValueStatus === 'error' ? (
+        <SectionError format={format} text="No pudimos cargar tu resumen UCAPSA." onRetry={() => void refresh()} />
       ) : null}
 
       {!loading && user && nextProgram ? (
@@ -629,29 +751,31 @@ export default function HomeScreen() {
             <Text style={[styles.calendarHabitButtonText, { color: format.secondaryButtonText }]}>Ver mi calendario</Text>
           </Pressable>
 
-          <View style={[styles.habitProgress, { borderTopColor: format.cardBorder }]}>
-            <Text style={[styles.progressTitle, { color: format.cardText }]}>{nextProgram.dog_name || 'Tu perro'} y tú</Text>
-            <Text style={[styles.progressLine, { color: format.muted }]}>{getProgramCodeLabel(nextProgram.program_code)} · {nextProgram.attendances_count ?? 0} de {nextProgram.required_attendances ?? 0} clases</Text>
-            <Text style={[styles.progressLine, { color: format.muted }]}>Próxima clase: {nextClassText(nextProgram)}</Text>
-          </View>
+          {!customerValueVisible ? (
+            <View style={[styles.habitProgress, { borderTopColor: format.cardBorder }]}>
+              <Text style={[styles.progressTitle, { color: format.cardText }]}>{nextProgram.dog_name || 'Tu perro'} y tú</Text>
+              <Text style={[styles.progressLine, { color: format.muted }]}>{getProgramCodeLabel(nextProgram.program_code)} · {nextProgram.attendances_count ?? 0} de {nextProgram.required_attendances ?? 0} clases</Text>
+              <Text style={[styles.progressLine, { color: format.muted }]}>Próxima clase: {nextClassText(nextProgram)}</Text>
+            </View>
+          ) : null}
         </View>
       ) : null}
 
-      {!loading && user ? (
+      {!loading && user && (!customerValueVisible || !profileComplete) ? (
         <View style={styles.block}>
           <Text style={[styles.sectionTitle, { color: format.text }]}>Lo importante</Text>
           {!profileComplete ? <ActionCard format={format} icon="person" title="Completa tus datos" text="Falta información básica de tu perfil." onPress={() => router.push('/account-settings?section=profile' as never)} /> : null}
-          {hasPaymentAttention ? <ActionCard format={format} icon="payments" title="Revisa tus pagos" text={payments.attention_total > 0.005 ? `Requiere atención: ${money(payments.attention_total)}` : 'Hay un pago pendiente de revisión.'} onPress={() => router.push('/payments' as never)} /> : null}
-          {nextProgram ? <ActionCard format={format} icon="school" title={`Próxima clase: ${getProgramCodeLabel(nextProgram.program_code)}`} text={nextClassText(nextProgram)} onPress={() => router.push(`/client/class-detail?enrollmentId=${encodeURIComponent(nextProgram.enrollment_id)}` as never)} /> : null}
-          {membershipStatus === 'pending' ? <ActionCard format={format} icon="badge" title="Membresía en revisión" text="Tu solicitud sigue pendiente." onPress={() => router.push('/client/membership' as never)} /> : null}
-          {profileComplete && !accountDataError && accountDataFresh && !hasPaymentAttention && !nextProgram && membershipStatus !== 'pending' ? (
+          {!customerValueVisible && hasPaymentAttention ? <ActionCard format={format} icon="payments" title="Revisa tus pagos" text={payments.attention_total > 0.005 ? `Requiere atención: ${money(payments.attention_total)}` : 'Hay un pago pendiente de revisión.'} onPress={() => router.push('/payments' as never)} /> : null}
+          {!customerValueVisible && nextProgram ? <ActionCard format={format} icon="school" title={`Próxima clase: ${getProgramCodeLabel(nextProgram.program_code)}`} text={nextClassText(nextProgram)} onPress={() => router.push(`/client/class-detail?enrollmentId=${encodeURIComponent(nextProgram.enrollment_id)}` as never)} /> : null}
+          {!customerValueVisible && membershipStatus === 'pending' ? <ActionCard format={format} icon="badge" title="Membresía en revisión" text="Tu solicitud sigue pendiente." onPress={() => router.push('/client/membership' as never)} /> : null}
+          {!customerValueVisible && profileComplete && !accountDataError && accountDataFresh && !hasPaymentAttention && !nextProgram && membershipStatus !== 'pending' ? (
             <View style={styles.okCard}><MaterialIcons name="check-circle" size={22} color={ucapsaBrand.colors.success} /><Text style={styles.okText}>No hay acciones pendientes en tu cuenta.</Text></View>
           ) : null}
         </View>
       ) : null}
 
       <View style={styles.quickRow}>
-        {user && (activePrograms.length > 0 || membershipStatus === 'active') ? <QuickAction format={format} icon="qr-code-scanner" label="Asistencia" onPress={() => router.push('/attendance' as never)} /> : null}
+        {user && (activePrograms.length > 0 || hasEffectiveMembership) ? <QuickAction format={format} icon="qr-code-scanner" label="Asistencia" onPress={() => router.push('/attendance' as never)} /> : null}
         <QuickAction format={format} icon="event" label="Calendario" onPress={() => router.push('/calendar' as never)} />
         <QuickAction format={format} icon="campaign" label="Anuncios" onPress={() => router.push('/announcements' as never)} />
         {user ? <QuickAction format={format} icon="notifications-active" label="Recordatorios" onPress={() => router.push('/account-settings?section=notifications' as never)} /> : null}

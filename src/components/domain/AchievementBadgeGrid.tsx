@@ -83,6 +83,8 @@ export function AchievementBadgeGrid({
     <View style={styles.grid}>
       {visibleItems.map((item) => {
         const tone = getTone(item);
+        const lockedColor = premium ? ucapsaBrand.colors.premiumMuted : ucapsaBrand.colors.gray;
+        const lockedBackground = premium ? withAlpha(ucapsaBrand.colors.surface, 0.14) : ucapsaBrand.colors.graySoft;
         return (
           <Pressable
             key={item.definition.code}
@@ -94,13 +96,13 @@ export function AchievementBadgeGrid({
             ]}
             onPress={() => onSelect(item)}
           >
-            <View style={[styles.iconSeal, { backgroundColor: item.unlocked ? tone.soft : ucapsaBrand.colors.graySoft }]}>
-              <MaterialCommunityIcons name={item.definition.icon as any} size={28} color={item.unlocked ? tone.dark : ucapsaBrand.colors.gray} />
+            <View style={[styles.iconSeal, { backgroundColor: item.unlocked ? tone.soft : lockedBackground }]}>
+              <MaterialCommunityIcons name={item.definition.icon as any} size={28} color={item.unlocked ? tone.dark : lockedColor} />
             </View>
-            <Text numberOfLines={2} style={[styles.badgeTitle, premium && styles.badgeTitlePremium, !item.unlocked && styles.badgeTitleLocked]}>
+            <Text numberOfLines={2} style={[styles.badgeTitle, premium && styles.badgeTitlePremium, !item.unlocked && styles.badgeTitleLocked, premium && !item.unlocked && styles.badgeTitleLockedPremium]}>
               {item.definition.title}
             </Text>
-            <Text style={[styles.badgeState, item.unlocked ? { color: tone.main } : styles.badgeStateLocked]}>
+            <Text style={[styles.badgeState, item.unlocked ? { color: tone.main } : styles.badgeStateLocked, premium && !item.unlocked && styles.badgeStateLockedPremium]}>
               {item.unlocked ? 'Desbloqueada' : 'Pendiente'}
             </Text>
           </Pressable>
@@ -221,13 +223,15 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   badgeCard: { width: '48%', minHeight: 142, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 13, borderRadius: 24, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.borderNeutral },
   badgeCardPremium: { backgroundColor: withAlpha(ucapsaBrand.colors.surface, 0.08), borderColor: withAlpha(ucapsaBrand.colors.gold, 0.26) },
-  badgeCardLocked: { opacity: 0.72 },
+  badgeCardLocked: { opacity: 0.88 },
   iconSeal: { width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: withAlpha(ucapsaBrand.colors.surface, 0.6) },
   badgeTitle: { color: ucapsaBrand.colors.cameraDark, fontSize: 14, fontWeight: '900', textAlign: 'center' },
   badgeTitlePremium: { color: ucapsaBrand.colors.surface },
   badgeTitleLocked: { color: ucapsaBrand.colors.mutedNeutral },
+  badgeTitleLockedPremium: { color: ucapsaBrand.colors.premiumMuted },
   badgeState: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
   badgeStateLocked: { color: ucapsaBrand.colors.gray },
+  badgeStateLockedPremium: { color: ucapsaBrand.colors.premiumMuted },
   pressed: { opacity: 0.86, transform: [{ scale: 0.99 }] },
   emptyBox: { gap: 5, padding: 16, borderRadius: 20, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   emptyBoxPremium: { backgroundColor: withAlpha(ucapsaBrand.colors.surface, 0.08), borderColor: withAlpha(ucapsaBrand.colors.gold, 0.26) },

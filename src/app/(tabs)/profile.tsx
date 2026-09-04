@@ -28,7 +28,7 @@ export default function ProfileScreen() {
       <View style={styles.hero}>
         <Image source={wordmark} style={styles.wordmark} resizeMode="contain" />
         <Text style={styles.title}>Perfil</Text>
-        <Text style={styles.muted}>Si ya entrenas con UCAPSA, entra para ver clases, progreso, logros, perros y pagos.</Text>
+        <Text style={styles.muted}>Si ya entrenas con UCAPSA, entra para ver clases, asistencias, logros, perros y pagos.</Text>
       </View>
 
       <Pressable style={styles.primaryButton} onPress={() => router.push('/auth/login' as never)}>

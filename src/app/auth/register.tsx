@@ -58,7 +58,7 @@ export default function RegisterScreen() {
       <View style={styles.header}>
         <Text style={styles.kicker}>UCAPSA APP</Text>
         <Text style={styles.title}>Crear cuenta</Text>
-        <Text style={styles.subtitle}>Crea tu cuenta para llevar clases, asistencias, progreso, logros y pagos de tus perros en un solo lugar.</Text>
+        <Text style={styles.subtitle}>Crea tu cuenta para llevar clases, asistencias, logros y pagos de tus perros en un solo lugar.</Text>
       </View>
 
       <View style={styles.card}>

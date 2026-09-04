@@ -1,3 +1,4 @@
+import { PROGRAM_COMPLETION_ACHIEVEMENT_CODES, type ProgramCompletionAchievementCode } from '../constants/programCompletion';
 import { supabase } from '../lib/supabase';
 import type { TableUpdate } from '../types/database.helpers';
 import type {
@@ -31,6 +32,101 @@ export type UpdateMembershipDetailsInput = {
   paymentNotes?: string | null;
 };
 
+export type MembershipEffectiveStatus = MembershipStatus | 'scheduled';
+
+type MembershipValidityInput = Pick<Membership, 'status' | 'start_date' | 'end_date'>;
+
+function localDateKey(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function normalizedDateKey(value: string | null | undefined) {
+  if (!value) return null;
+  const match = /^(\d{4}-\d{2}-\d{2})/.exec(value);
+  return match?.[1] ?? null;
+}
+
+export function getMembershipEffectiveStatus(
+  membership: MembershipValidityInput | null | undefined,
+  todayKey = localDateKey(),
+): MembershipEffectiveStatus {
+  if (!membership) return 'none';
+  if (membership.status !== 'active') return membership.status;
+
+  const start = normalizedDateKey(membership.start_date);
+  const end = normalizedDateKey(membership.end_date);
+
+  if (start && todayKey < start) return 'scheduled';
+  if (end && todayKey > end) return 'expired';
+  return 'active';
+}
+
+export function isMembershipActiveToday(membership: MembershipValidityInput | null | undefined) {
+  return getMembershipEffectiveStatus(membership) === 'active';
+}
+
+export type MembershipEligibilitySource = 'program_enrollment' | 'program_completion_achievement' | 'none';
+
+export type MembershipEligibility = {
+  eligible: boolean;
+  source: MembershipEligibilitySource;
+  enrollmentId: string | null;
+  achievementCode: ProgramCompletionAchievementCode | null;
+};
+
+export async function getMembershipEligibilityForUser(userId: string): Promise<MembershipEligibility> {
+  const { data: enrollment, error: enrollmentError } = await supabase
+    .from('program_enrollments')
+    .select('id,status')
+    .eq('user_id', userId)
+    .in('status', ['active', 'completed'])
+    .limit(1)
+    .maybeSingle();
+
+  if (enrollmentError) throw enrollmentError;
+  if (enrollment) {
+    return {
+      eligible: true,
+      source: 'program_enrollment',
+      enrollmentId: enrollment.id,
+      achievementCode: null,
+    };
+  }
+
+  // Legacy-safe evidence. Some historical customers have a completion medal but
+  // no recoverable enrollment row. Do not fabricate an enrollment; accept the
+  // explicit UCAPSA completion medal as evidence for membership eligibility.
+  const { data: achievement, error: achievementError } = await supabase
+    .from('user_achievements')
+    .select('achievement_code')
+    .eq('user_id', userId)
+    .in('achievement_code', [...PROGRAM_COMPLETION_ACHIEVEMENT_CODES])
+    .order('awarded_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (achievementError) throw achievementError;
+  if (achievement?.achievement_code) {
+    return {
+      eligible: true,
+      source: 'program_completion_achievement',
+      enrollmentId: null,
+      achievementCode: achievement.achievement_code as ProgramCompletionAchievementCode,
+    };
+  }
+
+  return { eligible: false, source: 'none', enrollmentId: null, achievementCode: null };
+}
+
+export async function getMyMembershipEligibility(): Promise<MembershipEligibility> {
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError) throw authError;
+
+  const userId = authData.user?.id;
+  if (!userId) throw new Error('No hay sesion activa.');
+  return getMembershipEligibilityForUser(userId);
+}
+
 function createQrToken() {
   const randomA = Math.random().toString(36).slice(2, 12);
   const randomB = Math.random().toString(36).slice(2, 12);
@@ -54,6 +150,11 @@ export function getMembershipStatusLabel(status: MembershipStatus) {
   return labels[status] ?? status;
 }
 
+export function getMembershipEffectiveStatusLabel(status: MembershipEffectiveStatus) {
+  if (status === 'scheduled') return 'Programada';
+  return getMembershipStatusLabel(status);
+}
+
 export function getPaymentStatusLabel(status: MembershipPaymentStatus | null | undefined) {
   const labels: Record<MembershipPaymentStatus, string> = {
     none: 'Sin pago',
@@ -68,7 +169,8 @@ export function getPaymentStatusLabel(status: MembershipPaymentStatus | null | u
 
 export function formatDate(value: string | null | undefined) {
   if (!value) return 'Sin fecha';
-  const date = new Date(value);
+  const dateKey = normalizedDateKey(value);
+  const date = dateKey ? new Date(`${dateKey}T12:00:00`) : new Date(value);
   if (Number.isNaN(date.getTime())) return 'Sin fecha';
   return date.toLocaleDateString('es-MX', {
     day: '2-digit',
@@ -78,10 +180,7 @@ export function formatDate(value: string | null | undefined) {
 }
 
 export function isMembershipDateExpired(membership: Membership | null | undefined) {
-  if (!membership?.end_date) return false;
-  const end = new Date(membership.end_date);
-  if (Number.isNaN(end.getTime())) return false;
-  return end.getTime() < Date.now();
+  return getMembershipEffectiveStatus(membership) === 'expired';
 }
 
 function dateKeyToIso(value: string | null | undefined) {
@@ -131,7 +230,16 @@ export async function requestMembership(): Promise<Membership> {
   if (!userId) throw new Error('No hay sesion activa.');
 
   const existing = await getMyMembership();
-  if (existing && ['pending', 'active'].includes(existing.status)) return existing;
+  if (existing?.status === 'pending') return existing;
+  if (existing?.status === 'active') {
+    if (isMembershipActiveToday(existing)) return existing;
+    throw new Error('La membresia esta marcada activa pero fuera de vigencia. Administracion debe revisar sus fechas antes de crear una nueva solicitud.');
+  }
+
+  const eligibility = await getMembershipEligibilityForUser(userId);
+  if (!eligibility.eligible) {
+    throw new Error('Para solicitar membresia primero debes estar inscrito o haber completado Puppy o Comandos.');
+  }
 
   const { data, error } = await supabase
     .from('memberships')

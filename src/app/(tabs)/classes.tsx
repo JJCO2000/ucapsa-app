@@ -14,7 +14,7 @@ import {
   getNextProgramScheduleDate,
   getProgramCodeLabel,
   getProgramEnrollmentDogName,
-  getProgramLevelLabel,
+  getProgramLevelDisplayLabel,
   getProgramStatusLabel,
 } from '../../services/programs.service';
 import { clientReadKeys, readClientResource, sanitizeProgramRowsForCache, writeClientResource } from '../../services/client-read-cache.service';
@@ -98,7 +98,7 @@ export default function ClassesTab() {
       <View style={styles.header}>
         <Text style={[styles.kicker, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Mi UCAPSA</Text>
         <Text style={[styles.title, { color: format.text }]}>Clases</Text>
-        <Text style={[styles.subtitle, { color: format.muted }]}>Tus programas, horario, progreso y asistencias en un solo lugar.</Text>
+        <Text style={[styles.subtitle, { color: format.muted }]}>Tus programas, horarios y asistencias en un solo lugar.</Text>
       </View>
 
       {active.length > 0 ? (
@@ -137,16 +137,18 @@ export default function ClassesTab() {
 }
 
 function ClassCard({ item, compact = false, premium, format }: { item: ProgramEnrollmentWithDetails; compact?: boolean; premium: boolean; format: ReturnType<typeof resolveUcapsaFormat> }) {
-  const progress = item.program.required_attendances > 0
+  const attendanceUsagePercent = item.program.required_attendances > 0
     ? Math.min(100, Math.round((item.attendances.length / item.program.required_attendances) * 100))
     : 0;
+  const levelLabel = getProgramLevelDisplayLabel(item.program.code, item.enrollment.program_level);
+  const statusLabel = getProgramStatusLabel(item.enrollment.status);
   return (
     <Pressable style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]} onPress={() => router.push(`/client/class-detail?enrollmentId=${encodeURIComponent(item.enrollment.id)}` as never)}>
       <View style={styles.cardTop}>
         <View style={[styles.programIcon, { backgroundColor: format.pillBackground }]}><MaterialIcons name="school" size={22} color={format.pillText} /></View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.cardTitle, { color: format.cardText }]}>{getProgramCodeLabel(item.program.code)}</Text>
-          <Text style={[styles.cardMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{getProgramLevelLabel(item.enrollment.program_level)} - {getProgramStatusLabel(item.enrollment.status)}</Text>
+          <Text style={[styles.cardMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{levelLabel ? `${levelLabel} · ${statusLabel}` : statusLabel}</Text>
           <Text style={[styles.cardMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Perro: {getProgramEnrollmentDogName(item)}</Text>
         </View>
         <MaterialIcons name="chevron-right" size={24} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
@@ -156,8 +158,8 @@ function ClassCard({ item, compact = false, premium, format }: { item: ProgramEn
           <Text style={[styles.nextClass, { color: format.cardText }]}>{nextClassLabel(item)}</Text>
           <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{scheduleLabel(item)}</Text>
           <View style={styles.progressRow}>
-            <View style={[styles.progressTrack, premium && styles.progressTrackPremium]}><View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: format.accent }]} /></View>
-            <Text style={[styles.progressText, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>{item.attendances.length}/{item.program.required_attendances}</Text>
+            <View style={[styles.progressTrack, premium && styles.progressTrackPremium]}><View style={[styles.progressFill, { width: `${attendanceUsagePercent}%`, backgroundColor: format.accent }]} /></View>
+            <Text style={[styles.progressText, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>{item.attendances.length} de {item.program.required_attendances} asistencias</Text>
           </View>
         </>
       ) : null}

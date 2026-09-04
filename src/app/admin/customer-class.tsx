@@ -134,7 +134,7 @@ export default function CustomerClassScreen() {
 
   return (
     <KeyboardAwareScreen>
-      <AdminCustomerContextHeader customerName={adminCustomerDisplayName(record?.profile)} section={row?.program.name || 'Clase'} subtitle="Inscripcion, perro, horario y progreso del cliente seleccionado." member={record?.membership?.status === 'active'} onBack={() => router.back()} />
+      <AdminCustomerContextHeader customerName={adminCustomerDisplayName(record?.profile)} section={row?.program.name || 'Clase'} subtitle="Inscripcion, perro, horario y asistencias del cliente seleccionado." member={record?.membership?.status === 'active'} onBack={() => router.back()} />
 
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando...</Text></View> : null}
 

@@ -13,7 +13,7 @@ import {
   getNextProgramScheduleDate,
   getProgramCodeLabel,
   getProgramEnrollmentDogName,
-  getProgramLevelLabel,
+  getProgramLevelDisplayLabel,
   getProgramStatusLabel,
 } from '../../services/programs.service';
 import { clientReadKeys, readClientResource, sanitizeProgramRowsForCache, writeClientResource } from '../../services/client-read-cache.service';
@@ -83,6 +83,8 @@ export default function ClientClassDetailScreen() {
   const recent = useMemo(() => [...(item?.attendances ?? [])].sort((a, b) => b.attendance_date.localeCompare(a.attendance_date)).slice(0, 5), [item]);
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin, hasActivePrograms: Boolean(item?.enrollment.status === 'active') }), [isAdmin, item?.enrollment.status, role, user]);
   const premium = format.key === 'member';
+  const levelLabel = item ? getProgramLevelDisplayLabel(item.program.code, item.enrollment.program_level) : null;
+  const statusLabel = item ? getProgramStatusLabel(item.enrollment.status) : null;
 
   async function refresh() { setRefreshing(true); try { await load(); } finally { setRefreshing(false); } }
 
@@ -108,7 +110,7 @@ export default function ClientClassDetailScreen() {
             <View style={{ flex: 1 }}>
               <Text style={[styles.kicker, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Mi clase</Text>
               <Text style={[styles.title, { color: format.text }]}>{getProgramCodeLabel(item.program.code)}</Text>
-              <Text style={[styles.subtitle, { color: format.muted }]}>{getProgramLevelLabel(item.enrollment.program_level)} - {getProgramStatusLabel(item.enrollment.status)}</Text>
+              <Text style={[styles.subtitle, { color: format.muted }]}>{levelLabel ? `${levelLabel} · ${statusLabel}` : statusLabel}</Text>
             </View>
           </View>
 

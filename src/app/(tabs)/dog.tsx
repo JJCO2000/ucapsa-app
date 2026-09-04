@@ -12,7 +12,7 @@ import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import { createMyDog, getMyDogs, renameMyDog, type BasicDog } from '../../services/dogs.service';
 import { clientReadKeys, readClientResource, sanitizeProgramRowsForCache, writeClientResource } from '../../services/client-read-cache.service';
-import { getMyProgramEnrollments, getProgramCodeLabel, getProgramLevelLabel } from '../../services/programs.service';
+import { getMyProgramEnrollments, getProgramCodeLabel, getProgramLevelDisplayLabel } from '../../services/programs.service';
 import type { ProgramEnrollmentWithDetails } from '../../types/app.types';
 import { DEFAULT_READ_TIMEOUT_MS, DEFAULT_WRITE_TIMEOUT_MS, friendlyReadError, friendlyWriteError, withOperationTimeout } from '../../utils/async.utils';
 
@@ -210,7 +210,7 @@ export default function DogTab() {
       </View>
 
       {usingSavedData ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} label="Mostrando informacion guardada" /> : null}
-      {programWarning ? <View style={[styles.errorCard, premium && styles.errorCardPremium]}><Text style={[styles.errorTitle, premium && styles.textPremium]}>Clases no disponibles</Text><Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Tus perros cargaron, pero no pudimos actualizar sus clases. Reintenta para ver progreso y asistencias.</Text></View> : null}
+      {programWarning ? <View style={[styles.errorCard, premium && styles.errorCardPremium]}><Text style={[styles.errorTitle, premium && styles.textPremium]}>Clases no disponibles</Text><Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Tus perros cargaron, pero no pudimos actualizar sus clases. Reintenta para ver clases y asistencias.</Text></View> : null}
 
       {loading ? <View style={styles.loading}><ActivityIndicator color={format.accent} /><Text style={[styles.muted, { color: format.muted }]}>Cargando perros...</Text></View> : null}
       {error ? <View style={[styles.errorCard, premium && styles.errorCardPremium]}><Text style={[styles.errorTitle, premium && styles.textPremium]}>No se pudieron cargar</Text><Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{error}</Text><Pressable style={[styles.secondaryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={() => void refresh()}><Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>Reintentar</Text></Pressable></View> : null}
@@ -274,15 +274,19 @@ export default function DogTab() {
                 <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Conectate para consultar las clases de {selectedDog.name}.</Text>
               ) : selectedEnrollments.length === 0 ? (
                 <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>No hay clases vinculadas a {selectedDog.name}.</Text>
-              ) : selectedEnrollments.map((item) => (
-                <View key={item.enrollment.id} style={[styles.classRow, premium && styles.rowPremium]}>
-                  <View style={[styles.classIcon, { backgroundColor: format.pillBackground }]}><MaterialIcons name="school" size={19} color={format.pillText} /></View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.classTitle, { color: format.cardText }]}>{getProgramCodeLabel(item.program.code)}</Text>
-                    <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{getProgramLevelLabel(item.enrollment.program_level)} - {item.attendances.length}/{item.program.required_attendances} asistencias</Text>
+              ) : selectedEnrollments.map((item) => {
+                const levelLabel = getProgramLevelDisplayLabel(item.program.code, item.enrollment.program_level);
+                const attendanceLabel = `${item.attendances.length} de ${item.program.required_attendances} asistencias`;
+                return (
+                  <View key={item.enrollment.id} style={[styles.classRow, premium && styles.rowPremium]}>
+                    <View style={[styles.classIcon, { backgroundColor: format.pillBackground }]}><MaterialIcons name="school" size={19} color={format.pillText} /></View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.classTitle, { color: format.cardText }]}>{getProgramCodeLabel(item.program.code)}</Text>
+                      <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{levelLabel ? `${levelLabel} · ${attendanceLabel}` : attendanceLabel}</Text>
+                    </View>
                   </View>
-                </View>
-              ))}
+                );
+              })}
             </View>
           ) : null}
         </>

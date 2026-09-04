@@ -23,6 +23,19 @@ for (const rel of ['src/app/admin/classes.tsx', 'src/app/admin/customer-class.ts
   must(rel, /dogId/, `${rel} no conserva dogId como relación explícita.`);
 }
 
+must('src/constants/programCompletion.ts', /PROGRAM_COMPLETION_ACHIEVEMENT_CODES/, 'Falta el registro central de logros por programa.');
+must('src/services/achievements.service.ts', /getProgramCompletionAchievementCode/, 'Logros no usa el registro central de finalización de programas.');
+mustNot('src/services/achievements.service.ts', /function\s+programCompletionAchievementCode/, 'Logros volvió a duplicar el mapeo programa -> medalla.');
+must('src/services/memberships.service.ts', /getMyMembershipEligibility/, 'Membresía no tiene una consulta canónica de elegibilidad.');
+must('src/services/memberships.service.ts', /program_completion_achievement/, 'Membresía perdió el fallback de evidencia histórica por logro de programa.');
+must('src/app/client/membership.tsx', /getMyMembershipEligibility/, 'Pantalla de membresía no usa la elegibilidad canónica.');
+mustNot('src/app/client/membership.tsx', /isMembershipEligibleFromPrograms\(programs\)/, 'Pantalla de membresía volvió a decidir elegibilidad desde una lista local de programas.');
+must('src/app/attendance.tsx', /isMembershipActiveToday/, 'Escáner de socio no valida vigencia efectiva de la membresía.');
+mustNot('src/app/client/attendance-history.tsx', /!enrollmentId\)\s*return/, 'Historial de asistencias volvió a exigir enrollmentId y rompe APROVECHASTE desde Home.');
+must('src/app/client/attendance-history.tsx', /Historial de asistencias/, 'Falta la vista agregada de asistencias desde APROVECHASTE.');
+mustNot('src/components/domain/CustomerValueSnapshotCard.tsx', /parts\.push\(`Membresía vencida/, 'TIENES volvió a presentar una membresía vencida como valor disponible.');
+must('src/services/customer-value.service.ts', /membership\?\.status === 'active' && !membership\.isValidToday/, 'SIGUE no prioriza una membresía activa fuera de vigencia.');
+
 const scanRoots = ['src', 'scripts'];
 function walk(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

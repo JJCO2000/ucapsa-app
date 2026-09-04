@@ -64,7 +64,7 @@ export const ucapsaFormats: Record<UcapsaFormatKey, UcapsaFormat> = {
   },
   client: {
     key: 'client', label: 'Cliente UCAPSA', shortLabel: 'Cliente', title: 'Tu espacio UCAPSA',
-    subtitle: 'Clases, progreso, practica, pagos y tus perros en un solo lugar.', icon: 'account-circle', ...brandLight,
+    subtitle: 'Clases, asistencias, practica, pagos y tus perros en un solo lugar.', icon: 'account-circle', ...brandLight,
   },
   member: {
     key: 'member', label: 'Socio UCAPSA', shortLabel: 'Socio', title: 'Tu UCAPSA',
