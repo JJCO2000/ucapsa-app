@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase';
 import { clearAchievementCacheForUser } from '../services/achievements.service';
 import { clearHomeCache } from '../services/home-cache.service';
 import { clearClientReadCache } from '../services/client-read-cache.service';
+import { clearPracticeActivityCache } from '../services/practice.service';
 import { disableStoredExpoPushToken } from '../services/notifications.service';
 import type { AppRole, UserProfile } from '../types/app.types';
 
@@ -227,6 +228,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
         clearHomeCache(currentUserId),
         clearAchievementCacheForUser(currentUserId),
         clearClientReadCache(currentUserId),
+        clearPracticeActivityCache(currentUserId),
       ]);
     }
 

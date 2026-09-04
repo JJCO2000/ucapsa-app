@@ -29,11 +29,43 @@ export type PracticeSaveResult = {
   completedAt: string;
 };
 
+
+export type PracticeActivityEntry = {
+  id: string;
+  clientEventId: string | null;
+  dogId: string | null;
+  dogName: string | null;
+  enrollmentId: string | null;
+  completedAt: string;
+  difficulty: PracticeDifficulty;
+  note: string | null;
+  syncStatus: 'synced' | 'pending';
+};
+
+export type PracticeEngagementStats = {
+  currentStreak: number;
+  longestStreak: number;
+  practicedToday: boolean;
+  thisWeekCount: number;
+  thisMonthCount: number;
+  activeDaysThisMonth: number;
+  lastPracticeAt: string | null;
+  recentDays: Array<{ dateKey: string; label: string; practiced: boolean; isToday: boolean }>;
+};
+
+export type PracticeActivitySnapshot = {
+  entries: PracticeActivityEntry[];
+  stats: PracticeEngagementStats;
+  source: 'remote' | 'cached' | 'local';
+  savedAt: string | null;
+};
+
 type PendingPracticeSession = {
   version: 1;
   userId: string;
   clientEventId: string;
   dogId: string | null;
+  dogName: string | null;
   enrollmentId: string;
   startedAt: string;
   completedAt: string;
@@ -43,6 +75,9 @@ type PendingPracticeSession = {
 };
 
 const PENDING_PRACTICE_PREFIX = 'ucapsa:practice-pending:v1:';
+const PRACTICE_ACTIVITY_CACHE_PREFIX = 'ucapsa:practice-activity:v1:';
+const PRACTICE_ACTIVITY_DAYS = 400;
+
 
 function pendingPracticeKey(userId: string) {
   return `${PENDING_PRACTICE_PREFIX}${userId}`;
@@ -80,6 +115,7 @@ async function readPending(userId: string): Promise<PendingPracticeSession[]> {
         value.version === 1 &&
         value.userId === userId &&
         typeof value.clientEventId === 'string' &&
+        (value.dogName == null || typeof value.dogName === 'string') &&
         typeof value.enrollmentId === 'string' &&
         typeof value.startedAt === 'string' &&
         typeof value.completedAt === 'string' &&
@@ -112,6 +148,218 @@ async function enqueuePending(item: PendingPracticeSession) {
 async function removePending(userId: string, clientEventId: string) {
   const current = await readPending(userId);
   await writePending(userId, current.filter((item) => item.clientEventId !== clientEventId));
+}
+
+
+type PracticeActivityCache = {
+  version: 1;
+  userId: string;
+  savedAt: string;
+  entries: PracticeActivityEntry[];
+};
+
+function practiceActivityCacheKey(userId: string) {
+  return `${PRACTICE_ACTIVITY_CACHE_PREFIX}${userId}`;
+}
+
+async function readPracticeActivityCache(userId: string): Promise<PracticeActivityCache | null> {
+  try {
+    const raw = await AsyncStorage.getItem(practiceActivityCacheKey(userId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<PracticeActivityCache>;
+    if (parsed.version !== 1 || parsed.userId !== userId || typeof parsed.savedAt !== 'string' || !Array.isArray(parsed.entries)) return null;
+    return parsed as PracticeActivityCache;
+  } catch {
+    return null;
+  }
+}
+
+async function writePracticeActivityCache(userId: string, entries: PracticeActivityEntry[]) {
+  const payload: PracticeActivityCache = {
+    version: 1,
+    userId,
+    savedAt: new Date().toISOString(),
+    entries,
+  };
+  try {
+    await AsyncStorage.setItem(practiceActivityCacheKey(userId), JSON.stringify(payload));
+  } catch {
+    // La actividad es una lectura offline; no bloquear la experiencia por la cache.
+  }
+  return payload;
+}
+
+function mergeActivityEntries(remote: PracticeActivityEntry[], pending: PendingPracticeSession[], dogNames: Map<string, string>) {
+  const byKey = new Map<string, PracticeActivityEntry>();
+  for (const item of remote) {
+    byKey.set(item.clientEventId || item.id, item);
+  }
+  for (const item of pending) {
+    const key = item.clientEventId;
+    if (byKey.has(key)) continue;
+    byKey.set(key, {
+      id: `pending:${item.clientEventId}`,
+      clientEventId: item.clientEventId,
+      dogId: item.dogId,
+      dogName: item.dogName ?? (item.dogId ? dogNames.get(item.dogId) ?? null : null),
+      enrollmentId: item.enrollmentId,
+      completedAt: item.completedAt,
+      difficulty: item.difficulty,
+      note: item.note,
+      syncStatus: 'pending',
+    });
+  }
+  return [...byKey.values()].sort((a, b) => b.completedAt.localeCompare(a.completedAt));
+}
+
+function dateKeyFromIso(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return localDateKey(date);
+}
+
+function dayBefore(dateKey: string) {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const value = new Date(year, month - 1, day, 12, 0, 0, 0);
+  value.setDate(value.getDate() - 1);
+  return localDateKey(value);
+}
+
+export function buildPracticeEngagementStats(entries: PracticeActivityEntry[]): PracticeEngagementStats {
+  const practicedDays = new Set(entries.map((item) => dateKeyFromIso(item.completedAt)).filter((value): value is string => Boolean(value)));
+  const today = new Date();
+  const todayKey = localDateKey(today);
+  const yesterday = dayBefore(todayKey);
+  const practicedToday = practicedDays.has(todayKey);
+
+  let currentStreak = 0;
+  let cursor = practicedToday ? todayKey : practicedDays.has(yesterday) ? yesterday : null;
+  while (cursor && practicedDays.has(cursor)) {
+    currentStreak += 1;
+    cursor = dayBefore(cursor);
+  }
+
+  const sortedDays = [...practicedDays].sort();
+  let longestStreak = 0;
+  let running = 0;
+  let previous: string | null = null;
+  for (const key of sortedDays) {
+    running = previous && dayBefore(key) === previous ? running + 1 : 1;
+    longestStreak = Math.max(longestStreak, running);
+    previous = key;
+  }
+
+  const weekStart = startOfLocalWeek().getTime();
+  const monthPrefix = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-`;
+  const thisWeekCount = entries.filter((item) => {
+    const time = new Date(item.completedAt).getTime();
+    return Number.isFinite(time) && time >= weekStart;
+  }).length;
+  const thisMonthEntries = entries.filter((item) => dateKeyFromIso(item.completedAt)?.startsWith(monthPrefix));
+  const activeDaysThisMonth = new Set(thisMonthEntries.map((item) => dateKeyFromIso(item.completedAt)).filter(Boolean)).size;
+
+  const recentDays: PracticeEngagementStats['recentDays'] = [];
+  const dayLabels = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+  for (let offset = 6; offset >= 0; offset -= 1) {
+    const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() - offset, 12, 0, 0, 0);
+    const key = localDateKey(date);
+    recentDays.push({ dateKey: key, label: dayLabels[date.getDay()], practiced: practicedDays.has(key), isToday: key === todayKey });
+  }
+
+  return {
+    currentStreak,
+    longestStreak,
+    practicedToday,
+    thisWeekCount,
+    thisMonthCount: thisMonthEntries.length,
+    activeDaysThisMonth,
+    lastPracticeAt: entries[0]?.completedAt ?? null,
+    recentDays,
+  };
+}
+
+export async function clearPracticeActivityCache(userId: string): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(practiceActivityCacheKey(userId));
+  } catch {
+    // No bloquear logout por un fallo de cache.
+  }
+}
+
+export async function getCachedMyPracticeActivity(userId: string): Promise<PracticeActivitySnapshot | null> {
+  const cached = await readPracticeActivityCache(userId);
+  const pending = await readPending(userId);
+  const dogNames = new Map<string, string>();
+  for (const item of cached?.entries ?? []) {
+    if (item.dogId && item.dogName) dogNames.set(item.dogId, item.dogName);
+  }
+  const entries = mergeActivityEntries(cached?.entries ?? [], pending, dogNames);
+  if (!cached && entries.length === 0) return null;
+  return {
+    entries,
+    stats: buildPracticeEngagementStats(entries),
+    source: cached ? 'cached' : 'local',
+    savedAt: cached?.savedAt ?? null,
+  };
+}
+
+export async function getMyPracticeActivity(userId: string, daysBack = PRACTICE_ACTIVITY_DAYS): Promise<PracticeActivitySnapshot> {
+  const cached = await readPracticeActivityCache(userId);
+  await flushPendingPracticeSessions(userId).catch(() => undefined);
+  const pending = await readPending(userId);
+  const cachedDogNames = new Map<string, string>();
+  for (const item of cached?.entries ?? []) {
+    if (item.dogId && item.dogName) cachedDogNames.set(item.dogId, item.dogName);
+  }
+
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - Math.max(30, daysBack));
+
+  try {
+    const [practiceResult, dogResult] = await Promise.all([
+      supabase
+        .from('practice_sessions')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('completed_at', cutoff.toISOString())
+        .order('completed_at', { ascending: false }),
+      supabase.from('dogs').select('id,name').eq('user_id', userId).eq('is_active', true),
+    ]);
+
+    if (practiceResult.error) throw practiceResult.error;
+    const dogNames = new Map(cachedDogNames);
+    if (!dogResult.error && Array.isArray(dogResult.data)) {
+      for (const row of dogResult.data as Array<{ id?: unknown; name?: unknown }>) {
+        if (typeof row.id === 'string' && typeof row.name === 'string') dogNames.set(row.id, row.name);
+      }
+    }
+
+    const remote = ((practiceResult.data ?? []) as PracticeSession[]).map<PracticeActivityEntry>((item) => ({
+      id: item.id,
+      clientEventId: item.client_event_id,
+      dogId: item.dog_id,
+      dogName: item.dog_id ? dogNames.get(item.dog_id) ?? null : null,
+      enrollmentId: item.enrollment_id,
+      completedAt: item.completed_at,
+      difficulty: item.difficulty,
+      note: item.note,
+      syncStatus: 'synced',
+    }));
+    const stored = await writePracticeActivityCache(userId, remote);
+    const entries = mergeActivityEntries(remote, pending, dogNames);
+    return { entries, stats: buildPracticeEngagementStats(entries), source: 'remote', savedAt: stored.savedAt };
+  } catch (error) {
+    const fallback = mergeActivityEntries(cached?.entries ?? [], pending, cachedDogNames);
+    if (fallback.length > 0 || cached) {
+      return {
+        entries: fallback,
+        stats: buildPracticeEngagementStats(fallback),
+        source: pending.length > 0 && !cached ? 'local' : 'cached',
+        savedAt: cached?.savedAt ?? null,
+      };
+    }
+    throw error;
+  }
 }
 
 async function syncOne(item: PendingPracticeSession) {
@@ -200,6 +448,7 @@ export async function getMyWeeklyPracticeSummary(input?: { enrollmentId?: string
 export async function saveMyPracticeSession(input: {
   userId: string;
   dogId?: string | null;
+  dogName?: string | null;
   enrollmentId: string;
   startedAt: string;
   difficulty: PracticeDifficulty;
@@ -216,6 +465,7 @@ export async function saveMyPracticeSession(input: {
     userId: input.userId,
     clientEventId,
     dogId: input.dogId ?? null,
+    dogName: input.dogName?.trim() || null,
     enrollmentId: input.enrollmentId,
     startedAt: normalizedStartedAt.toISOString(),
     completedAt: completedAt.toISOString(),

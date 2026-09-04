@@ -15,6 +15,7 @@ import { getVisibleAnnouncements } from '../../services/announcements.service';
 import { getVisibleEvents } from '../../services/events.service';
 import { clientReadKeys, readClientResource, writeClientResource, type CalendarClassesOfflineSnapshot } from '../../services/client-read-cache.service';
 import { formatProgramScheduleDetailLabel, formatProgramScheduleName, getProgramClassCancellations, getProgramScheduleTimeline, getPrograms, isProgramScheduleActiveOnDate } from '../../services/programs.service';
+import { getCachedMyPracticeActivity, getMyPracticeActivity, type PracticeActivityEntry } from '../../services/practice.service';
 import type { Announcement, EventOccurrence, ProgramClassCancellation, ProgramSchedule, UcapsaEvent, UcapsaProgram } from '../../types/app.types';
 import { expandEventOccurrences, formatDateKey, getUpcomingOccurrences, toDateKey, todayKey } from '../../utils/events.utils';
 import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
@@ -123,6 +124,18 @@ function getClassTheme(programCode: string | null | undefined) {
   };
 }
 
+function practiceDifficultyLabel(value: PracticeActivityEntry['difficulty']) {
+  if (value === 'easy') return 'Fácil';
+  if (value === 'hard') return 'Difícil';
+  return 'Bien';
+}
+
+function practiceTimeLabel(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+}
+
 export default function CalendarScreen() {
   const { user, role, isAdmin } = useSession();
   const [events, setEvents] = useState<UcapsaEvent[]>([]);
@@ -130,6 +143,8 @@ export default function CalendarScreen() {
   const [programs, setPrograms] = useState<UcapsaProgram[]>([]);
   const [programSchedules, setProgramSchedules] = useState<ProgramSchedule[]>([]);
   const [classCancellations, setClassCancellations] = useState<ProgramClassCancellation[]>([]);
+  const [practiceActivity, setPracticeActivity] = useState<PracticeActivityEntry[]>([]);
+  const [practiceLoadWarning, setPracticeLoadWarning] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(todayKey());
   const [classesExpanded, setClassesExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -148,12 +163,14 @@ export default function CalendarScreen() {
     setError(null);
     setClassLoadWarning(null);
     setPartialLoadWarning(null);
+    setPracticeLoadWarning(null);
     setUsingSavedData(false);
 
-    const [eventCache, announcementCache, classCache] = await Promise.all([
+    const [eventCache, announcementCache, classCache, localPracticeActivity] = await Promise.all([
       readClientResource<UcapsaEvent[]>(cacheScope, clientReadKeys.calendarEvents),
       readClientResource<Announcement[]>(cacheScope, clientReadKeys.announcements),
       readClientResource<CalendarClassesOfflineSnapshot>(cacheScope, clientReadKeys.calendarClasses),
+      user && !isAdmin ? getCachedMyPracticeActivity(user.id) : Promise.resolve(null),
     ]);
 
     if (eventCache) setEvents(eventCache.data);
@@ -163,12 +180,13 @@ export default function CalendarScreen() {
       setProgramSchedules(classCache.data.schedules);
       setClassCancellations(classCache.data.cancellations);
     }
-    if (eventCache || announcementCache || classCache) {
-      setSavedAt(eventCache?.saved_at ?? announcementCache?.saved_at ?? classCache?.saved_at ?? null);
+    if (localPracticeActivity) setPracticeActivity(localPracticeActivity.entries);
+    if (eventCache || announcementCache || classCache || localPracticeActivity) {
+      setSavedAt(eventCache?.saved_at ?? announcementCache?.saved_at ?? classCache?.saved_at ?? localPracticeActivity?.savedAt ?? null);
       setLoading(false);
     }
 
-    const [eventResult, announcementResult, classResult] = await Promise.allSettled([
+    const [eventResult, announcementResult, classResult, practiceResult] = await Promise.allSettled([
       withOperationTimeout(getVisibleEvents(), DEFAULT_READ_TIMEOUT_MS, 'calendar-events'),
       withOperationTimeout(getVisibleAnnouncements(), DEFAULT_READ_TIMEOUT_MS, 'calendar-announcements'),
       withOperationTimeout(
@@ -176,6 +194,9 @@ export default function CalendarScreen() {
         DEFAULT_READ_TIMEOUT_MS,
         'calendar-classes',
       ),
+      user && !isAdmin
+        ? withOperationTimeout(getMyPracticeActivity(user.id), DEFAULT_READ_TIMEOUT_MS, 'calendar-practice')
+        : Promise.resolve(null),
     ]);
 
     if (eventResult.status === 'fulfilled') {
@@ -198,14 +219,27 @@ export default function CalendarScreen() {
       setClassCancellations(snapshot.cancellations);
       await writeClientResource(cacheScope, clientReadKeys.calendarClasses, snapshot);
     }
+    if (practiceResult.status === 'fulfilled' && practiceResult.value) {
+      setPracticeActivity(practiceResult.value.entries);
+      if (practiceResult.value.source !== 'remote' && practiceResult.value.entries.length > 0) {
+        setUsingSavedData(true);
+        setSavedAt(practiceResult.value.savedAt ?? localPracticeActivity?.savedAt ?? null);
+      }
+    } else if (practiceResult.status === 'rejected' && user && !isAdmin) {
+      setPracticeLoadWarning('Tu historial de prácticas no se pudo actualizar.');
+    }
 
     const eventFailed = eventResult.status === 'rejected';
     const announcementFailed = announcementResult.status === 'rejected';
     const classFailed = classResult.status === 'rejected';
+    const usablePracticeEntries = practiceResult.status === 'fulfilled'
+      ? (practiceResult.value?.entries.length ?? 0)
+      : (localPracticeActivity?.entries.length ?? 0);
     const noUsableData =
       eventFailed && !eventCache &&
       announcementFailed && !announcementCache &&
-      classFailed && !classCache;
+      classFailed && !classCache &&
+      usablePracticeEntries === 0;
 
     if (noUsableData) {
       setError(friendlyReadError('No se pudo cargar el calendario.'));
@@ -228,7 +262,7 @@ export default function CalendarScreen() {
     }
 
     setLoading(false);
-  }, [cacheScope]);
+  }, [cacheScope, isAdmin, user?.id]);
 
   useFocusEffect(
     useCallback(() => {
@@ -268,6 +302,11 @@ export default function CalendarScreen() {
     [announcements, selectedDate],
   );
 
+  const selectedPractices = useMemo(
+    () => practiceActivity.filter((item) => toLocalDateKey(new Date(item.completedAt)) === selectedDate),
+    [practiceActivity, selectedDate],
+  );
+
   const markedDates = useMemo(() => {
     const marks: Record<string, any> = {};
 
@@ -293,15 +332,29 @@ export default function CalendarScreen() {
       marks[key] = { ...marks[key], dots: hasAnnouncementDot ? existingDots : [...existingDots, { key: 'announcements', color: ucapsaBrand.colors.gold }] };
     }
 
+    for (const practice of practiceActivity) {
+      const key = toLocalDateKey(new Date(practice.completedAt));
+      if (!key) continue;
+      const existingDots = marks[key]?.dots ?? [];
+      const hasPracticeDot = existingDots.some((dot: { key: string }) => dot.key === 'practice');
+      marks[key] = {
+        ...marks[key],
+        selected: true,
+        selectedColor: format.accentSoft,
+        selectedTextColor: format.accentDark,
+        dots: hasPracticeDot ? existingDots : [...existingDots, { key: 'practice', color: ucapsaBrand.colors.redDark }],
+      };
+    }
+
     marks[selectedDate] = { ...(marks[selectedDate] ?? {}), selected: true, selectedColor: ucapsaBrand.colors.red, selectedTextColor: ucapsaBrand.colors.surface };
     return marks;
-  }, [announcements, classOccurrences, occurrences, selectedDate]);
+  }, [announcements, classOccurrences, format.accentDark, format.accentSoft, occurrences, practiceActivity, selectedDate]);
 
   const upcomingEvents: EventOccurrence[] = useMemo(() => getUpcomingOccurrences(events, 3), [events]);
   const allSelectedClassesCancelled = selectedClasses.length > 0 && selectedClasses.every((occurrence) => Boolean(occurrence.cancellation));
   const cancelledClassesCount = selectedClasses.filter((occurrence) => Boolean(occurrence.cancellation)).length;
   const activeClassesCount = selectedClasses.length - cancelledClassesCount;
-  const dayCount = selectedEvents.length + (selectedClasses.length > 0 ? 1 : 0) + selectedAnnouncements.length;
+  const dayCount = selectedEvents.length + (selectedClasses.length > 0 ? 1 : 0) + selectedAnnouncements.length + selectedPractices.length;
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: format.background }]} edges={['top']}>
@@ -367,6 +420,13 @@ export default function CalendarScreen() {
           </View>
         ) : null}
 
+        {practiceLoadWarning ? (
+          <View style={styles.warningBox}>
+            <Text style={styles.warningTitle}>Actividad sin actualizar</Text>
+            <Text style={styles.warningText}>{practiceLoadWarning}</Text>
+          </View>
+        ) : null}
+
         {!error ? (
           <>
             <View style={styles.calendarCard}>
@@ -392,6 +452,7 @@ export default function CalendarScreen() {
                 }}
               />
               <View style={styles.legendRow}>
+                {user && !isAdmin ? <Legend label="Práctica" style={styles.practiceDot} /> : null}
                 <Legend label="Eventos" style={styles.eventDot} />
                 <Legend label="Clases" style={styles.classDot} />
                 <Legend label="Anuncios" style={styles.announcementDot} />
@@ -410,6 +471,32 @@ export default function CalendarScreen() {
               <View style={[styles.emptyBox, { backgroundColor: isPremium ? withAlpha(ucapsaBrand.colors.surface, 0.08) : ucapsaBrand.colors.surface, borderColor: isPremium ? withAlpha(ucapsaBrand.colors.gold, 0.24) : ucapsaBrand.colors.borderNeutral }]}>
                 <Text style={[styles.emptyTitle, { color: isPremium ? ucapsaBrand.colors.surface : ucapsaBrand.colors.cameraDark }]}>Sin actividad este dia</Text>
                 <Text style={[styles.muted, { color: isPremium ? ucapsaBrand.colors.premiumMuted : ucapsaBrand.colors.mutedNeutral }]}>Selecciona otro dia marcado en el calendario.</Text>
+              </View>
+            ) : null}
+
+            {selectedPractices.length > 0 && user && !isAdmin ? (
+              <View style={[styles.practiceDayCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
+                <View style={styles.practiceDayHeader}>
+                  <View style={[styles.practiceDayIcon, { backgroundColor: format.accentSoft }]}>
+                    <MaterialIcons name="local-fire-department" size={21} color={format.accentDark} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.practiceDayKicker, { color: format.accentDark }]}>Tu entrenamiento</Text>
+                    <Text style={[styles.practiceDayTitle, { color: format.cardText }]}>{selectedPractices.length} práctica{selectedPractices.length === 1 ? '' : 's'} completada{selectedPractices.length === 1 ? '' : 's'}</Text>
+                  </View>
+                </View>
+                <View style={styles.practiceDayList}>
+                  {selectedPractices.map((practice) => (
+                    <View key={practice.id} style={[styles.practiceDayRow, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.practiceDayDog, { color: format.cardText }]}>Práctica con {practice.dogName || 'tu perro'}</Text>
+                        <Text style={[styles.practiceDayMeta, { color: format.muted }]}>{practiceDifficultyLabel(practice.difficulty)}{practiceTimeLabel(practice.completedAt) ? ` · ${practiceTimeLabel(practice.completedAt)}` : ''}</Text>
+                        {practice.note ? <Text style={[styles.practiceDayNote, { color: format.muted }]} numberOfLines={2}>{practice.note}</Text> : null}
+                      </View>
+                      {practice.syncStatus === 'pending' ? <Text style={[styles.practicePending, { color: format.accentDark, backgroundColor: format.accentSoft }]}>Pendiente</Text> : <MaterialIcons name="check-circle" size={20} color={format.accentDark} />}
+                    </View>
+                  ))}
+                </View>
               </View>
             ) : null}
 
@@ -547,7 +634,19 @@ const styles = StyleSheet.create({
   eventDot: { backgroundColor: ucapsaBrand.colors.red },
   classDot: { backgroundColor: ucapsaBrand.colors.red },
   announcementDot: { backgroundColor: ucapsaBrand.colors.gold },
+  practiceDot: { backgroundColor: ucapsaBrand.colors.redDark },
   legendText: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '800' },
+  practiceDayCard: { gap: 12, padding: 14, borderRadius: 22, borderWidth: 1 },
+  practiceDayHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  practiceDayIcon: { width: 42, height: 42, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  practiceDayKicker: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.7 },
+  practiceDayTitle: { fontSize: 17, fontWeight: '900', marginTop: 2 },
+  practiceDayList: { gap: 8 },
+  practiceDayRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16, borderWidth: 1, padding: 11 },
+  practiceDayDog: { fontSize: 14, fontWeight: '900' },
+  practiceDayMeta: { fontSize: 12, fontWeight: '800', marginTop: 2 },
+  practiceDayNote: { fontSize: 12, lineHeight: 17, fontWeight: '700', marginTop: 4 },
+  practicePending: { overflow: 'hidden', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 5, fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
   warningBox: { gap: 6, padding: 16, borderRadius: 18, backgroundColor: ucapsaBrand.colors.warningSoft, borderWidth: 1, borderColor: ucapsaBrand.colors.warningBorder },
   warningTitle: { color: ucapsaBrand.colors.goldDark, fontSize: 16, fontWeight: '900' },
   warningText: { color: ucapsaBrand.colors.goldDark, fontSize: 13, lineHeight: 19, fontWeight: '700' },

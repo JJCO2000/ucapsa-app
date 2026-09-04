@@ -30,7 +30,7 @@ import {
 import { getMyMembership } from '../../services/memberships.service';
 import { getMyPaymentOverview } from '../../services/payments.service';
 import { getMyProgramEnrollments, getNextProgramScheduleDate, getProgramCodeLabel, getProgramEnrollmentDogName } from '../../services/programs.service';
-import { getMyWeeklyPracticeSummary, getPendingPracticeCounts, saveMyPracticeSession } from '../../services/practice.service';
+import { buildPracticeEngagementStats, getCachedMyPracticeActivity, getMyPracticeActivity, getMyWeeklyPracticeSummary, getPendingPracticeCounts, saveMyPracticeSession, type PracticeActivityEntry, type PracticeEngagementStats } from '../../services/practice.service';
 import type { PracticeDifficulty } from '../../types/app.types';
 import type { Announcement, EventOccurrence, MembershipStatus } from '../../types/app.types';
 import { getUpcomingOccurrences } from '../../utils/events.utils';
@@ -40,6 +40,16 @@ const dayNames = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
 const monthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const emptyPaymentSummary: HomePaymentSummary = { attention_total: 0, legacy_membership_pending: false };
 const HOME_QUERY_TIMEOUT_MS = 6000;
+const EMPTY_PRACTICE_ENGAGEMENT: PracticeEngagementStats = {
+  currentStreak: 0,
+  longestStreak: 0,
+  practicedToday: false,
+  thisWeekCount: 0,
+  thisMonthCount: 0,
+  activeDaysThisMonth: 0,
+  lastPracticeAt: null,
+  recentDays: [],
+};
 const GUEST_WHATSAPP_MESSAGE = 'Hola UCAPSA, vi la app y quiero saber que programa recomiendan para mi perro.';
 const GUEST_WHATSAPP_URL = `https://wa.me/525522410679?text=${encodeURIComponent(GUEST_WHATSAPP_MESSAGE)}`;
 
@@ -129,6 +139,9 @@ export default function HomeScreen() {
   const [payments, setPayments] = useState<HomePaymentSummary>(emptyPaymentSummary);
   const [achievements, setAchievements] = useState<AchievementWithState[]>([]);
   const [practice, setPractice] = useState<HomePracticeSummary>({ week_start: '', counts: [] });
+  const [practiceActivity, setPracticeActivity] = useState<PracticeActivityEntry[]>([]);
+  const [practiceEngagement, setPracticeEngagement] = useState<PracticeEngagementStats>(EMPTY_PRACTICE_ENGAGEMENT);
+  const [practiceActivityAvailable, setPracticeActivityAvailable] = useState(false);
   const [practiceModalOpen, setPracticeModalOpen] = useState(false);
   const [practiceStartedAt, setPracticeStartedAt] = useState<string | null>(null);
   const [practiceDifficulty, setPracticeDifficulty] = useState<PracticeDifficulty | null>(null);
@@ -160,6 +173,9 @@ export default function HomeScreen() {
       setPayments(emptyPaymentSummary);
       setAchievements([]);
       setPractice({ week_start: '', counts: [] });
+      setPracticeActivity([]);
+      setPracticeEngagement(EMPTY_PRACTICE_ENGAGEMENT);
+      setPracticeActivityAvailable(false);
       setStatuses(initialStatuses);
       setHomeCache(null);
     }
@@ -167,6 +183,12 @@ export default function HomeScreen() {
     const cachedHome = await readHomeCache(scope);
     setHomeCache(cachedHome);
     const pendingPracticeCounts = user ? await getPendingPracticeCounts(user.id) : [];
+    const cachedPracticeActivity = user ? await getCachedMyPracticeActivity(user.id) : null;
+    if (cachedPracticeActivity) {
+      setPracticeActivity(cachedPracticeActivity.entries);
+      setPracticeEngagement(cachedPracticeActivity.stats);
+      setPracticeActivityAvailable(true);
+    }
 
     if (cachedHome?.announcements) setAnnouncements(cachedHome.announcements.data);
     if (cachedHome?.events) setEvents(cachedHome.events.data);
@@ -203,7 +225,7 @@ export default function HomeScreen() {
       setLoading(false);
     }
 
-    const [announcementResult, eventResult, membershipResult, programsResult, paymentsResult, achievementsResult, practiceResult] = await Promise.allSettled([
+    const [announcementResult, eventResult, membershipResult, programsResult, paymentsResult, achievementsResult, practiceResult, practiceActivityResult] = await Promise.allSettled([
       withHomeTimeout(getVisibleAnnouncements(3)),
       withHomeTimeout(getVisibleEvents()),
       user ? withHomeTimeout(getMyMembership()) : Promise.resolve(null),
@@ -211,6 +233,7 @@ export default function HomeScreen() {
       user ? withHomeTimeout(getMyPaymentOverview()) : Promise.resolve(null),
       user ? withHomeTimeout(refreshAchievementsForUser(user.id)) : Promise.resolve([] as AchievementWithState[]),
       user ? withHomeTimeout(getMyWeeklyPracticeSummary()) : Promise.resolve({ count: 0, goal: WEEKLY_PRACTICE_GOAL, weekStart: '', sessions: [] }),
+      user ? withHomeTimeout(getMyPracticeActivity(user.id)) : Promise.resolve(null),
     ]);
 
     const cacheUpdates: HomeCacheUpdates = {};
@@ -309,6 +332,13 @@ export default function HomeScreen() {
       } else if (cachedHome?.practice || pendingPracticeCounts.length > 0) {
         nextStatuses.practice = 'cached';
       }
+
+
+      if (practiceActivityResult.status === 'fulfilled' && practiceActivityResult.value) {
+        setPracticeActivity(practiceActivityResult.value.entries);
+        setPracticeEngagement(practiceActivityResult.value.stats);
+        setPracticeActivityAvailable(true);
+      }
     } else {
       setMembershipStatus(null);
       setPrograms([]);
@@ -350,6 +380,13 @@ export default function HomeScreen() {
   const accountDataError = user ? statuses.membership === 'error' || statuses.programs === 'error' || statuses.payments === 'error' : false;
   const practiceCount = nextProgram ? (practice.counts.find((item) => item.enrollment_id === nextProgram.enrollment_id || (item.dog_id && item.dog_id === nextProgram.dog_id))?.count ?? 0) : 0;
   const practiceAvailable = statuses.practice === 'ok' || statuses.practice === 'cached';
+  const streakMessage = !practiceActivityAvailable
+    ? 'Tu racha se actualizará cuando haya datos disponibles.'
+    : practiceEngagement.practicedToday
+      ? 'Racha protegida hoy.'
+      : practiceEngagement.currentStreak > 0
+        ? 'Practica hoy para mantener tu racha.'
+        : 'Empieza tu racha hoy.';
   const accountDataFresh = user ? statuses.membership === 'ok' && statuses.programs === 'ok' && statuses.payments === 'ok' : true;
   const announcementsError = statuses.announcements === 'error';
   const eventsError = statuses.events === 'error';
@@ -397,12 +434,29 @@ export default function HomeScreen() {
         userId: user.id,
         enrollmentId: nextProgram.enrollment_id,
         dogId: nextProgram.dog_id ?? null,
+        dogName: nextProgram.dog_name ?? null,
         startedAt: practiceStartedAt,
         difficulty: practiceDifficulty,
         note: practiceNote,
       });
       const nextPractice = incrementPracticeSummary(practice, nextProgram);
       setPractice(nextPractice);
+      const activityEntry: PracticeActivityEntry = {
+        id: result.syncStatus === 'pending' ? `pending:${result.clientEventId}` : result.clientEventId,
+        clientEventId: result.clientEventId,
+        dogId: nextProgram.dog_id ?? null,
+        dogName: nextProgram.dog_name ?? null,
+        enrollmentId: nextProgram.enrollment_id,
+        completedAt: result.completedAt,
+        difficulty: practiceDifficulty,
+        note: practiceNote.trim() || null,
+        syncStatus: result.syncStatus,
+      };
+      const nextActivity = [activityEntry, ...practiceActivity.filter((item) => item.clientEventId !== result.clientEventId)];
+      const nextEngagement = buildPracticeEngagementStats(nextActivity);
+      setPracticeActivity(nextActivity);
+      setPracticeEngagement(nextEngagement);
+      setPracticeActivityAvailable(true);
       setPracticeModalOpen(false);
       setPracticeStartedAt(null);
       setPracticeDifficulty(null);
@@ -414,11 +468,18 @@ export default function HomeScreen() {
       }
 
       const nextCount = practiceCount + 1;
+      const streakText = nextEngagement.currentStreak > 0 ? ` Racha: ${nextEngagement.currentStreak} día${nextEngagement.currentStreak === 1 ? '' : 's'}.` : '';
+      const streakMilestone = [3, 7, 14, 30, 60, 100].includes(nextEngagement.currentStreak);
+      const celebrationTitle = nextCount === WEEKLY_PRACTICE_GOAL
+        ? '¡Meta semanal cumplida!'
+        : streakMilestone
+          ? `¡Racha de ${nextEngagement.currentStreak} días!`
+          : 'Práctica guardada';
       Alert.alert(
-        'Práctica guardada',
+        celebrationTitle,
         result.syncStatus === 'pending'
-          ? `${nextCount} de ${WEEKLY_PRACTICE_GOAL} esta semana. Se sincronizará automáticamente cuando vuelva la conexión.`
-          : `${nextCount} de ${WEEKLY_PRACTICE_GOAL} esta semana.`,
+          ? `${nextCount} de ${WEEKLY_PRACTICE_GOAL} esta semana.${streakText} Se sincronizará automáticamente cuando vuelva la conexión.`
+          : `${nextCount} de ${WEEKLY_PRACTICE_GOAL} esta semana.${streakText}`,
       );
     } catch (cause) {
       const message = cause && typeof cause === 'object' && 'message' in cause && typeof (cause as { message?: unknown }).message === 'string'
@@ -443,7 +504,9 @@ export default function HomeScreen() {
       <View style={[styles.hero, { backgroundColor: format.surface, borderColor: format.border }]}>
         <View style={styles.heroContent}>
         <View style={styles.heroTop}>
-          <Image source={mark} style={styles.mark} resizeMode="contain" />
+          <View style={[styles.markWrap, format.key === 'member' && styles.markWrapMember]}>
+            <Image source={mark} style={styles.mark} resizeMode="contain" />
+          </View>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={user ? 'Abrir ajustes de cuenta' : 'Iniciar sesión'}
@@ -519,22 +582,59 @@ export default function HomeScreen() {
       ) : null}
 
       {!loading && user && nextProgram ? (
-        <>
-          <View style={[styles.progressCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
-            <Text style={[styles.progressTitle, { color: format.cardText }]}>{nextProgram.dog_name || 'Tu perro'} y tú</Text>
-            <Text style={[styles.progressLine, { color: format.muted }]}>{getProgramCodeLabel(nextProgram.program_code)} - {nextProgram.attendances_count ?? 0} de {nextProgram.required_attendances ?? 0} clases</Text>
-            <Text style={[styles.progressLine, { color: format.muted }]}>{practiceAvailable ? `Prácticas de esta semana: ${practiceCount} de ${WEEKLY_PRACTICE_GOAL}` : 'Prácticas de esta semana: sin actualizar'}</Text>
-            <Text style={[styles.progressLine, { color: format.muted }]}>Próxima clase: {nextClassText(nextProgram)}</Text>
+        <View style={[styles.habitCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
+          <View style={styles.habitHeader}>
+            <View style={styles.habitTitleWrap}>
+              <Text style={[styles.habitKicker, { color: format.accentDark }]}>Esta semana con {nextProgram.dog_name || 'tu perro'}</Text>
+              <Text style={[styles.habitTitle, { color: format.cardText }]}>{streakMessage}</Text>
+            </View>
+            <View style={[styles.streakBadge, { backgroundColor: format.accentSoft, borderColor: format.cardBorder }]}>
+              <MaterialIcons name="local-fire-department" size={22} color={format.accentDark} />
+              <Text style={[styles.streakNumber, { color: format.accentDark }]}>{practiceActivityAvailable ? practiceEngagement.currentStreak : '—'}</Text>
+              <Text style={[styles.streakLabel, { color: format.accentDark }]}>racha</Text>
+            </View>
           </View>
 
-          <View style={[styles.practiceCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
-            <Text style={[styles.practiceKicker, { color: format.cardText }]}>Esta semana con {nextProgram.dog_name || 'tu perro'}</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel={`${practiceCount > 0 ? 'Continuar' : 'Empezar'} práctica con ${nextProgram.dog_name || 'tu perro'}`} style={[styles.practiceButton, { backgroundColor: format.primaryButton }]} onPress={startPractice}>
-              <MaterialIcons name="play-arrow" size={20} color={format.primaryButtonText} />
-              <Text style={[styles.practiceButtonText, { color: format.primaryButtonText }]}>{practiceCount > 0 ? 'Continuar entrenamiento' : 'Empezar práctica'}</Text>
-            </Pressable>
+          {practiceActivityAvailable ? (
+            <View style={styles.weekTracker}>
+              {practiceEngagement.recentDays.map((day) => (
+                <View key={day.dateKey} style={styles.weekDay}>
+                  <Text style={[styles.weekDayLabel, { color: format.muted }]}>{day.label}</Text>
+                  <View style={[styles.weekDayDot, { borderColor: day.isToday ? format.accentDark : format.cardBorder, backgroundColor: day.practiced ? format.accent : format.secondaryButton }]}>
+                    {day.practiced ? <MaterialIcons name="check" size={14} color={format.primaryButtonText} /> : null}
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          <View style={styles.habitStats}>
+            <View style={styles.habitStat}>
+              <Text style={[styles.habitStatValue, { color: format.cardText }]}>{practiceAvailable ? `${practiceCount}/${WEEKLY_PRACTICE_GOAL}` : '—'}</Text>
+              <Text style={[styles.habitStatLabel, { color: format.muted }]}>prácticas esta semana</Text>
+            </View>
+            <View style={[styles.habitStatDivider, { backgroundColor: format.cardBorder }]} />
+            <View style={styles.habitStat}>
+              <Text style={[styles.habitStatValue, { color: format.cardText }]}>{practiceActivityAvailable ? practiceEngagement.thisMonthCount : '—'}</Text>
+              <Text style={[styles.habitStatLabel, { color: format.muted }]}>prácticas este mes</Text>
+            </View>
           </View>
-        </>
+
+          <Pressable accessibilityRole="button" accessibilityLabel={`${practiceCount > 0 ? 'Continuar' : 'Empezar'} práctica con ${nextProgram.dog_name || 'tu perro'}`} style={[styles.practiceButton, { backgroundColor: format.primaryButton }]} onPress={startPractice}>
+            <MaterialIcons name="play-arrow" size={20} color={format.primaryButtonText} />
+            <Text style={[styles.practiceButtonText, { color: format.primaryButtonText }]}>{practiceCount > 0 ? 'Continuar entrenamiento' : 'Empezar práctica'}</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Ver prácticas en el calendario" style={[styles.calendarHabitButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={() => router.push('/calendar' as never)}>
+            <MaterialIcons name="calendar-month" size={18} color={format.secondaryButtonText} />
+            <Text style={[styles.calendarHabitButtonText, { color: format.secondaryButtonText }]}>Ver mi calendario</Text>
+          </Pressable>
+
+          <View style={[styles.habitProgress, { borderTopColor: format.cardBorder }]}>
+            <Text style={[styles.progressTitle, { color: format.cardText }]}>{nextProgram.dog_name || 'Tu perro'} y tú</Text>
+            <Text style={[styles.progressLine, { color: format.muted }]}>{getProgramCodeLabel(nextProgram.program_code)} · {nextProgram.attendances_count ?? 0} de {nextProgram.required_attendances ?? 0} clases</Text>
+            <Text style={[styles.progressLine, { color: format.muted }]}>Próxima clase: {nextClassText(nextProgram)}</Text>
+          </View>
+        </View>
       ) : null}
 
       {!loading && user ? (
@@ -697,6 +797,8 @@ const styles = StyleSheet.create({
   hero: { position: 'relative', overflow: 'hidden', borderRadius: 24, borderWidth: 1, padding: 18, marginBottom: 15 },
   heroContent: { position: 'relative', zIndex: 1, gap: 5 },
   heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  markWrap: { width: 52, height: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  markWrapMember: { backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: withAlpha(ucapsaBrand.colors.gold, 0.28) },
   mark: { width: 44, height: 44 },
   accountButton: { position: 'relative', width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   accountEditDot: { position: 'absolute', right: -4, bottom: -4, width: 21, height: 21, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.red, borderWidth: 2, borderColor: ucapsaBrand.colors.surface },
@@ -724,6 +826,26 @@ const styles = StyleSheet.create({
   dataErrorTitle: { fontSize: 13, fontWeight: '900' },
   dataErrorText: { fontSize: 12, lineHeight: 17, fontWeight: '700', marginTop: 2 },
   retryButton: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  habitCard: { gap: 13, borderRadius: 24, borderWidth: 1, padding: 16, marginBottom: 14 },
+  habitHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  habitTitleWrap: { flex: 1, gap: 4 },
+  habitKicker: { fontSize: 13, fontWeight: '900' },
+  habitTitle: { fontSize: 20, lineHeight: 25, fontWeight: '900' },
+  streakBadge: { minWidth: 78, minHeight: 74, alignItems: 'center', justifyContent: 'center', borderRadius: 20, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 8 },
+  streakNumber: { fontSize: 22, lineHeight: 25, fontWeight: '900' },
+  streakLabel: { fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 },
+  weekTracker: { flexDirection: 'row', justifyContent: 'space-between', gap: 6 },
+  weekDay: { flex: 1, alignItems: 'center', gap: 5 },
+  weekDayLabel: { fontSize: 10, fontWeight: '900' },
+  weekDayDot: { width: 30, height: 30, borderRadius: 15, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  habitStats: { flexDirection: 'row', alignItems: 'stretch', gap: 12 },
+  habitStat: { flex: 1, gap: 2 },
+  habitStatDivider: { width: 1 },
+  habitStatValue: { fontSize: 20, fontWeight: '900' },
+  habitStatLabel: { fontSize: 11, lineHeight: 15, fontWeight: '800' },
+  calendarHabitButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 15, borderWidth: 1, paddingHorizontal: 14 },
+  calendarHabitButtonText: { fontSize: 13, fontWeight: '900' },
+  habitProgress: { gap: 3, borderTopWidth: 1, paddingTop: 12 },
   progressCard: { gap: 4, borderRadius: 22, borderWidth: 1, padding: 16, marginBottom: 10 },
   progressTitle: { fontSize: 18, fontWeight: '900' },
   progressLine: { fontSize: 13, lineHeight: 19, fontWeight: '700' },
