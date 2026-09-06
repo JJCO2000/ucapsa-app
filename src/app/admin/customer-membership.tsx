@@ -6,7 +6,6 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View 
 import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../components/domain/AdminCustomerContextHeader';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
-import { useSession } from '../../hooks/useSession';
 import { getAdminCustomerRecord, type AdminCustomerRecord } from '../../services/admin-customer.service';
 import { forceMembershipForProfile, getMembershipStatusLabel, updateMembershipStatus } from '../../services/memberships.service';
 import type { MembershipStatus } from '../../types/app.types';
@@ -27,7 +26,6 @@ function mexicoCurrentMonthKey() {
 }
 
 export default function CustomerMembershipScreen() {
-  const { isAdmin } = useSession();
   const params = useLocalSearchParams<{ userId?: string }>();
   const userId = typeof params.userId === 'string' ? params.userId.trim() : '';
   const [record, setRecord] = useState<AdminCustomerRecord | null>(null);
@@ -40,7 +38,7 @@ export default function CustomerMembershipScreen() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    if (!isAdmin || !userId) return;
+    if (!userId) return;
     const next = await getAdminCustomerRecord(userId);
     setRecord(next);
     if (next.membership) {
@@ -49,7 +47,7 @@ export default function CustomerMembershipScreen() {
       setEndDate(next.membership.end_date?.slice(0, 10) ?? '');
       setStatus(next.membership.status);
     }
-  }, [isAdmin, userId]);
+  }, [userId]);
 
   useFocusEffect(useCallback(() => {
     setLoading(true);
@@ -97,8 +95,6 @@ export default function CustomerMembershipScreen() {
       setSaving(false);
     }
   }
-
-  if (!isAdmin) return <KeyboardAwareScreen><Text style={styles.title}>Acceso restringido</Text></KeyboardAwareScreen>;
 
   const visitMonths = new Set((record?.memberVisits ?? []).map((visit) => visit.visit_date.slice(0, 7)));
   const currentMonth = mexicoCurrentMonthKey();
