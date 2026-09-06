@@ -25,3 +25,5 @@ jobs:
     params:
       channel: preview
       platform: android
+
+# GitHub integration connected; this push verifies the automatic preview trigger.
