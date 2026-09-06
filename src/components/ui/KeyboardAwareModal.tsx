@@ -1,5 +1,6 @@
 import type { PropsWithChildren } from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import {
   KeyboardAvoidingView,
@@ -25,6 +26,7 @@ export function KeyboardAwareModal({
   contentContainerStyle,
   children,
 }: KeyboardAwareModalProps) {
+  const insets = useSafeAreaInsets();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView
@@ -38,7 +40,7 @@ export function KeyboardAwareModal({
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={[styles.content, contentContainerStyle]}
+            contentContainerStyle={[styles.content, { paddingBottom: Math.max(40, insets.bottom + 24) }, contentContainerStyle]}
           >
             {children}
           </ScrollView>

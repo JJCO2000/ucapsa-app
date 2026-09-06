@@ -8,6 +8,8 @@ function must(rel, pattern, label) { if (!pattern.test(read(rel))) failures.push
 function mustNot(rel, pattern, label) { if (pattern.test(read(rel))) failures.push(label); }
 
 must('src/lib/supabase.ts', /createClient<Database>/, 'Supabase client no está tipado con Database.');
+mustNot('src/constants/ucapsaFormats.ts', /#[0-9a-f]{6}/i, 'ucapsaFormats.ts repite HEX; debe consumir tokens de brand.ts.');
+must('AGENTS.md', /versions\/v57\.0\.0/, 'AGENTS.md no apunta a la documentación de Expo SDK 57.');
 const generated = read('src/types/database.generated.ts');
 if (!/export (type|interface) Database/.test(generated)) failures.push('Falta Database generado desde Supabase.');
 mustNot('src/types/database.types.ts', /Record<string,\s*never>/, 'Sigue activo el placeholder Record<string, never>.');
@@ -27,14 +29,48 @@ must('src/constants/programCompletion.ts', /PROGRAM_COMPLETION_ACHIEVEMENT_CODES
 must('src/services/achievements.service.ts', /getProgramCompletionAchievementCode/, 'Logros no usa el registro central de finalización de programas.');
 mustNot('src/services/achievements.service.ts', /function\s+programCompletionAchievementCode/, 'Logros volvió a duplicar el mapeo programa -> medalla.');
 must('src/services/memberships.service.ts', /getMyMembershipEligibility/, 'Membresía no tiene una consulta canónica de elegibilidad.');
+must('src/app/(tabs)/admin-home.tsx', /getAdminDashboardStats/, 'Admin Home no usa el servicio canónico de resumen.');
+mustNot('src/app/(tabs)/admin-home.tsx', /supabase\.from\(/, 'Admin Home volvió a consultar tablas directamente.');
 must('src/services/memberships.service.ts', /program_completion_achievement/, 'Membresía perdió el fallback de evidencia histórica por logro de programa.');
 must('src/app/client/membership.tsx', /getMyMembershipEligibility/, 'Pantalla de membresía no usa la elegibilidad canónica.');
+must('src/components/ui/Screen.tsx', /edges = \['top', 'right', 'bottom', 'left'\]/, 'Screen perdió el safe-area inferior global.');
+must('src/components/ui/KeyboardAwareModal.tsx', /useSafeAreaInsets/, 'Los modales no protegen la barra de navegación inferior.');
+
+const auditDir = path.join(root, 'supabase', 'sql', 'audit');
+const schemaManifests = fs.existsSync(auditDir)
+  ? fs.readdirSync(auditDir).filter((name) => /^remote_schema_manifest_\d{8}(?:_\d{6})?\.md$/.test(name)).sort()
+  : [];
+if (schemaManifests.length === 0) {
+  failures.push('Falta una captura remota versionada del esquema Supabase.');
+} else {
+  const latestManifest = read(`supabase/sql/audit/${schemaManifests.at(-1)}`);
+  if (!/RLS/i.test(latestManifest) || !/functions?/i.test(latestManifest) || !/polic/i.test(latestManifest)) {
+    failures.push('El manifiesto remoto de Supabase no documenta RLS, funciones y políticas.');
+  }
+}
+must('scripts/capture-supabase-source-of-truth.ps1', /supabase gen types --linked --schema public/, 'Captura Supabase no regenera tipos desde el remoto.');
+must('scripts/capture-supabase-source-of-truth.ps1', /no es requisito para trabajar en UCAPSA/, 'Captura Supabase volvió a depender obligatoriamente de Docker.');
+
 mustNot('src/app/client/membership.tsx', /isMembershipEligibleFromPrograms\(programs\)/, 'Pantalla de membresía volvió a decidir elegibilidad desde una lista local de programas.');
 must('src/app/attendance.tsx', /isMembershipActiveToday/, 'Escáner de socio no valida vigencia efectiva de la membresía.');
 mustNot('src/app/client/attendance-history.tsx', /!enrollmentId\)\s*return/, 'Historial de asistencias volvió a exigir enrollmentId y rompe APROVECHASTE desde Home.');
 must('src/app/client/attendance-history.tsx', /Historial de asistencias/, 'Falta la vista agregada de asistencias desde APROVECHASTE.');
 mustNot('src/components/domain/CustomerValueSnapshotCard.tsx', /parts\.push\(`Membresía vencida/, 'TIENES volvió a presentar una membresía vencida como valor disponible.');
 must('src/services/customer-value.service.ts', /membership\?\.status === 'active' && !membership\.isValidToday/, 'SIGUE no prioriza una membresía activa fuera de vigencia.');
+
+// Guardas de la remediación UX y de asistencia histórica.
+must('src/app/(tabs)/calendar.tsx', /Agenda del dia/, 'Calendario perdió la agenda explícita del día seleccionado.');
+must('src/app/(tabs)/calendar.tsx', /selectedPractices/, 'Calendario dejó de integrar las prácticas del día seleccionado.');
+must('src/app/client/practice-activity.tsx', /setSelectedEntry\(entry\)/, 'Prácticas recientes dejaron de ser seleccionables.');
+must('src/app/client/practice-activity.tsx', /selectedEntry\.note/, 'Detalle de práctica dejó de mostrar la nota registrada.');
+must('src/app/admin/customer-class.tsx', /editableDetail/, 'Ficha de clase perdió la edición directa de tarjeta.');
+must('src/app/admin/customer-class.tsx', /customer-profile-edit/, 'Ficha de clase dejó de enlazar la edición general del cliente.');
+must('src/app/attendance.tsx', /getMyHistoricalAttendanceDates/, 'Escáner dejó de consultar fechas históricas validadas por servidor.');
+must('src/app/attendance.tsx', /saveAttendanceQrForLater/, 'Escáner dejó de conservar el QR de clase para uso posterior.');
+must('src/services/historical-attendance.service.ts', /register_program_attendance_from_qr_for_date/, 'Servicio histórico dejó de usar la RPC segura de Supabase.');
+must('supabase/sql/ucapsa-cambio-4-1-historical-attendance-qr.sql', /program_schedule_occurs_on_date/, 'SQL histórico dejó de validar que exista clase real en la fecha.');
+must('supabase/sql/ucapsa-cambio-4-1-historical-attendance-qr.sql', /program_class_cancellations/, 'SQL histórico dejó de bloquear clases canceladas.');
+must('supabase/sql/ucapsa-cambio-4-1-historical-attendance-qr.sql', /p_attendance_date >= v_today/, 'SQL histórico dejó de bloquear hoy y fechas futuras.');
 
 const scanRoots = ['src', 'scripts'];
 function walk(dir) {
@@ -50,6 +86,7 @@ for (const scanRoot of scanRoots) {
     const relFile = path.relative(root, file).replaceAll('\\', '/');
     const text = fs.readFileSync(file, 'utf8');
     if (/\d{18}/.test(text)) failures.push(`CLABE de 18 dígitos hardcodeada en ${relFile}.`);
+    if (relFile.startsWith('src/') && relFile !== 'src/constants/brand.ts' && /#[0-9a-f]{6}/i.test(text)) failures.push(`Color HEX fuera de brand.ts en ${relFile}.`);
     const replacementChar = String.fromCharCode(0xfffd);
     const mojibakeLead = new RegExp(`[${String.fromCharCode(0xc3)}${String.fromCharCode(0xc2)}].`);
     if (text.includes(replacementChar) || mojibakeLead.test(text)) failures.push(`Texto UTF-8 dañado o mojibake detectado en ${relFile}.`);
@@ -63,4 +100,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log('SOURCE INTEGRITY OK: tipos, perros, rutas críticas, UTF-8, textos y CLABE revisados.');
+console.log('SOURCE INTEGRITY OK: tipos, perros, rutas críticas, UTF-8, textos, Supabase y CLABE revisados.');

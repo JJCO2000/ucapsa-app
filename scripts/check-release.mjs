@@ -33,6 +33,11 @@ const pkg = readJson('package.json');
 const app = readJson('app.json');
 const eas = readJson('eas.json');
 
+const brandSource = fs.readFileSync(path.join(root, 'src/constants/brand.ts'), 'utf8');
+const brandRedMatch = brandSource.match(/\bred:\s*['"](#[0-9A-Fa-f]{6})['"]/);
+if (!brandRedMatch) fail('No pude resolver ucapsaBrand.colors.red desde brand.ts.');
+const brandRed = brandRedMatch?.[1]?.toUpperCase() ?? '';
+
 const dependencies = pkg.dependencies ?? {};
 const overrides = pkg.overrides ?? {};
 
@@ -109,7 +114,14 @@ if (!notifications) {
   fail('Falta config plugin expo-notifications.');
 } else {
   if (notifications.defaultChannel !== 'default') fail('expo-notifications.defaultChannel debe ser default.');
-  if (notifications.color !== '#C91F37') fail('El color de notificacion debe usar el rojo UCAPSA #C91F37.');
+  if (String(notifications.color ?? '').toUpperCase() !== brandRed) fail('El color de notificación no coincide con ucapsaBrand.colors.red.');
+}
+
+const splash = pluginConfig(expo.plugins ?? [], 'expo-splash-screen');
+if (!splash) {
+  fail('Falta config plugin expo-splash-screen.');
+} else if (String(splash.backgroundColor ?? '').toUpperCase() !== brandRed) {
+  fail('El splash no coincide con ucapsaBrand.colors.red.');
 }
 
 if (eas?.build?.production?.autoIncrement !== true) {

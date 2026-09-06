@@ -10,11 +10,10 @@ import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
-import { getMyPracticeActivity, saveMyPracticeSession, type PracticeActivitySnapshot } from '../../services/practice.service';
+import { getMyPracticeActivity, saveMyPracticeSession, type PracticeActivityEntry, type PracticeActivitySnapshot } from '../../services/practice.service';
 import { DEFAULT_PRACTICE_TARGET_DAYS, getPracticeGoalProgress, getPracticeTargetDays, togglePracticeTargetDay, type PracticeTargetDay } from '../../services/practice-goal-preference.service';
 import { getMyProgramEnrollments, getProgramEnrollmentDogName } from '../../services/programs.service';
 import type { PracticeDifficulty, ProgramEnrollmentWithDetails } from '../../types/app.types';
-
 
 function localPracticeDateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -51,6 +50,18 @@ function formatPracticeDate(value: string) {
   return date.toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
+function formatPracticeDateLong(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString('es-MX', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function practiceDifficultyLabel(value: PracticeDifficulty) {
+  if (value === 'easy') return 'Fácil';
+  if (value === 'hard') return 'Difícil';
+  return 'Bien';
+}
+
 export default function PracticeActivityScreen() {
   const { user, role, isAdmin } = useSession();
   const [activity, setActivity] = useState<PracticeActivitySnapshot | null>(null);
@@ -59,6 +70,7 @@ export default function PracticeActivityScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [selectedEntry, setSelectedEntry] = useState<PracticeActivityEntry | null>(null);
   const [startedAt, setStartedAt] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<PracticeDifficulty | null>(null);
   const [note, setNote] = useState('');
@@ -89,7 +101,6 @@ export default function PracticeActivityScreen() {
     setRefreshing(true);
     try { await load(); } finally { setRefreshing(false); }
   }
-
 
   async function toggleTarget(day: PracticeTargetDay) {
     if (!user || savingTarget) return;
@@ -232,16 +243,42 @@ export default function PracticeActivityScreen() {
 
           <View style={styles.historySection}>
             <Text style={[styles.sectionTitle, { color: format.text }]}>Prácticas recientes</Text>
+            <Text style={[styles.historyHint, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Toca una práctica para ver la nota que escribiste ese día.</Text>
             {(activity?.entries ?? []).slice(0, 12).map((entry) => (
-              <View key={entry.id} style={[styles.historyRow, { borderColor: premium ? withAlpha(ucapsaBrand.colors.gold, 0.2) : format.cardBorder, backgroundColor: format.cardBackground }]}>
+              <Pressable
+                key={entry.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Abrir práctica del ${formatPracticeDate(entry.completedAt)}`}
+                onPress={() => setSelectedEntry(entry)}
+                style={[styles.historyRow, { borderColor: premium ? withAlpha(ucapsaBrand.colors.gold, 0.2) : format.cardBorder, backgroundColor: format.cardBackground }]}
+              >
                 <View style={[styles.historyIcon, { backgroundColor: format.pillBackground }]}><MaterialIcons name="pets" size={18} color={format.pillText} /></View>
-                <View style={{ flex: 1, minWidth: 0 }}><Text style={[styles.historyTitle, { color: format.cardText }]}>{formatPracticeDate(entry.completedAt)}</Text><Text style={[styles.historyMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{entry.dogName || 'Tu perro'} · {entry.difficulty === 'easy' ? 'Fácil' : entry.difficulty === 'hard' ? 'Difícil' : 'Bien'}{entry.syncStatus === 'pending' ? ' · por sincronizar' : ''}</Text></View>
-              </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={[styles.historyTitle, { color: format.cardText }]}>{formatPracticeDate(entry.completedAt)}</Text>
+                  <Text style={[styles.historyMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{entry.dogName || 'Tu perro'} · {practiceDifficultyLabel(entry.difficulty)}{entry.syncStatus === 'pending' ? ' · por sincronizar' : ''}</Text>
+                  {entry.note ? <Text style={[styles.historyPreview, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]} numberOfLines={1}>{entry.note}</Text> : null}
+                </View>
+                <MaterialIcons name="chevron-right" size={22} color={format.accentDark} />
+              </Pressable>
             ))}
             {activity?.entries.length === 0 ? <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Tu primera práctica aparecerá aquí.</Text> : null}
           </View>
         </>
       ) : null}
+
+      <KeyboardAwareModal visible={Boolean(selectedEntry)} onClose={() => setSelectedEntry(null)}>
+        {selectedEntry ? (
+          <View style={styles.modal}>
+            <Text style={styles.modalEyebrow}>Detalle de práctica</Text>
+            <Text style={styles.modalTitle}>{selectedEntry.dogName || 'Tu perro'}</Text>
+            <Detail label="Fecha" value={formatPracticeDateLong(selectedEntry.completedAt)} />
+            <Detail label="Resultado" value={practiceDifficultyLabel(selectedEntry.difficulty)} />
+            <Detail label="Nota" value={selectedEntry.note?.trim() || 'Sin nota'} />
+            <Detail label="Estado" value={selectedEntry.syncStatus === 'pending' ? 'Pendiente de sincronizar' : 'Sincronizada'} />
+            <Pressable style={styles.modalClose} onPress={() => setSelectedEntry(null)}><Text style={styles.modalCloseText}>Cerrar</Text></Pressable>
+          </View>
+        ) : null}
+      </KeyboardAwareModal>
 
       <KeyboardAwareModal visible={modalOpen} onClose={() => !saving && setModalOpen(false)}>
         <View style={styles.modal}>
@@ -258,6 +295,10 @@ export default function PracticeActivityScreen() {
       </KeyboardAwareModal>
     </KeyboardAwareScreen>
   );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return <View style={styles.detail}><Text style={styles.detailLabel}>{label}</Text><Text style={styles.detailValue}>{value}</Text></View>;
 }
 
 function StatCard({ format, premium, value, label }: { format: ReturnType<typeof resolveUcapsaFormat>; premium: boolean; value: number; label: string }) {
@@ -297,13 +338,20 @@ const styles = StyleSheet.create({
   badgesMeta: { marginTop: 2, fontSize: 11, lineHeight: 15, fontWeight: '700' },
   historySection: { gap: 8 },
   sectionTitle: { fontSize: 20, lineHeight: 24, fontWeight: '900', marginBottom: 2 },
+  historyHint: { fontSize: 11, lineHeight: 16, fontWeight: '700', marginBottom: 2 },
   historyRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 18, padding: 12 },
   historyIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   historyTitle: { fontSize: 13, lineHeight: 17, fontWeight: '900' },
   historyMeta: { marginTop: 2, fontSize: 10, lineHeight: 14, fontWeight: '700' },
+  historyPreview: { marginTop: 3, fontSize: 10, lineHeight: 14, fontWeight: '700' },
   modal: { gap: 12 },
   modalEyebrow: { color: ucapsaBrand.colors.redDark, fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.7 },
   modalTitle: { color: ucapsaBrand.colors.text, fontSize: 24, fontWeight: '900' },
+  detail: { gap: 3, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.border, paddingBottom: 9 },
+  detailLabel: { color: ucapsaBrand.colors.muted, fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 },
+  detailValue: { color: ucapsaBrand.colors.text, fontSize: 14, lineHeight: 20, fontWeight: '800' },
+  modalClose: { alignItems: 'center', borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingVertical: 13 },
+  modalCloseText: { color: ucapsaBrand.colors.redDark, fontSize: 14, fontWeight: '900' },
   difficultyRow: { flexDirection: 'row', gap: 8 },
   difficultyButton: { flex: 1, alignItems: 'center', borderRadius: 15, borderWidth: 1, borderColor: ucapsaBrand.colors.border, paddingVertical: 12 },
   difficultyButtonActive: { backgroundColor: ucapsaBrand.colors.red, borderColor: ucapsaBrand.colors.red },

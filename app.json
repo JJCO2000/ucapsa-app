@@ -26,7 +26,10 @@
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE"
       ],
-      "allowBackup": false
+      "allowBackup": false,
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
     },
     "web": {
       "output": "static",
@@ -72,6 +75,12 @@
         "projectId": "9c843f3d-169a-4e32-a437-a780878ec8e0"
       }
     },
-    "owner": "jjcc2000"
+    "owner": "jjcc2000",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/9c843f3d-169a-4e32-a437-a780878ec8e0"
+    }
   }
 }
