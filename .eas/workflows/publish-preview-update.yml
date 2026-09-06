@@ -5,9 +5,21 @@ on:
     branches:
       - audit/source-of-truth-and-ux-fixes-v4
 
+concurrency:
+  cancel_in_progress: true
+  group: ${{ workflow.filename }}-${{ github.ref }}
+
 jobs:
+  verify:
+    name: Verify release gates
+    steps:
+      - uses: eas/checkout
+      - uses: eas/install_node_modules
+      - run: npm run verify:release
+
   publish_preview_update:
     name: Publish Android preview update
+    needs: [verify]
     type: update
     environment: preview
     params:
