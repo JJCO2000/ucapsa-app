@@ -640,7 +640,7 @@ export default function HomeScreen() {
                   {user ? 'HOLA' : 'UCAPSA'}
                 </Text>
                 <Text numberOfLines={1} style={[styles.title, { color: format.key === 'member' ? format.heroText : format.text }]}>
-                  {user ? displayName : 'holaaaaaaa prueba 1'}
+                  {user ? displayName : 'Mejora la convivencia con tu perro'}
                 </Text>
                 {user ? (
                   <>
