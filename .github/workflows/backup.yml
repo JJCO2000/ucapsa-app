@@ -1,0 +1,45 @@
+name: UCAPSA repository backup
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout complete repository history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Fetch every branch and tag
+        run: |
+          git fetch --prune origin '+refs/heads/*:refs/remotes/origin/*'
+          git fetch --prune --tags origin
+
+      - name: Create full Git bundle
+        run: |
+          git bundle create ucapsa-repository.bundle --all
+          git bundle verify ucapsa-repository.bundle
+
+      - name: Upload verified bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ucapsa-repository-${{ github.sha }}
+          path: ucapsa-repository.bundle
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Mirror all refs to independent backup remote
+        if: ${{ secrets.BACKUP_REMOTE_URL != '' }}
+        env:
+          BACKUP_REMOTE_URL: ${{ secrets.BACKUP_REMOTE_URL }}
+        run: |
+          git remote add backup "$BACKUP_REMOTE_URL"
+          git push --mirror backup
