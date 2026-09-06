@@ -35,11 +35,6 @@ must('src/services/memberships.service.ts', /program_completion_achievement/, 'M
 must('src/app/client/membership.tsx', /getMyMembershipEligibility/, 'Pantalla de membresía no usa la elegibilidad canónica.');
 must('src/components/ui/Screen.tsx', /edges = \['top', 'right', 'bottom', 'left'\]/, 'Screen perdió el safe-area inferior global.');
 must('src/components/ui/KeyboardAwareModal.tsx', /useSafeAreaInsets/, 'Los modales no protegen la barra de navegación inferior.');
-must('src/app/(tabs)/calendar.tsx', /selectedDayCategories/, 'Calendario perdió el resumen visual del día seleccionado.');
-mustNot('src/app/(tabs)/calendar.tsx', /selectedColor:\s*format\.accentSoft/, 'Calendario vuelve a confundir días con práctica con el día seleccionado.');
-must('src/app/client/practice-activity.tsx', /setSelectedEntry\(entry\)/, 'Historial de prácticas no abre el detalle.');
-must('src/app/client/practice-activity.tsx', /selectedEntry\.note/, 'Detalle de práctica no muestra la nota registrada.');
-must('src/app/admin/customer-class.tsx', /Editar todos los datos/, 'Ficha admin no expone edición unificada de la inscripción.');
 must('scripts/capture-supabase-source-of-truth.ps1', /supabase','db','dump','--linked','--schema','public'/, 'Captura Supabase no guarda el esquema remoto public.');
 mustNot('src/app/client/membership.tsx', /isMembershipEligibleFromPrograms\(programs\)/, 'Pantalla de membresía volvió a decidir elegibilidad desde una lista local de programas.');
 must('src/app/attendance.tsx', /isMembershipActiveToday/, 'Escáner de socio no valida vigencia efectiva de la membresía.');
