@@ -6,7 +6,6 @@ import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } 
 import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../components/domain/AdminCustomerContextHeader';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
-import { useSession } from '../../hooks/useSession';
 import { getAdminCustomerRecord, type AdminCustomerRecord } from '../../services/admin-customer.service';
 import { formatDate as formatMembershipDate, getMembershipStatusLabel } from '../../services/memberships.service';
 import { formatProgramScheduleDisplayLabel, getProgramLevelLabel, getProgramStatusLabel } from '../../services/programs.service';
@@ -32,7 +31,6 @@ const titles: Record<SectionKey, string> = {
 };
 
 export default function CustomerSectionScreen() {
-  const { isAdmin } = useSession();
   const params = useLocalSearchParams<{ userId?: string; section?: string }>();
   const userId = typeof params.userId === 'string' ? params.userId.trim() : '';
   const rawSection = typeof params.section === 'string' ? params.section : 'profile';
@@ -43,7 +41,7 @@ export default function CustomerSectionScreen() {
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
-    if (!isAdmin || !userId) return;
+    if (!userId) return;
     try {
       setError('');
       setRecord(await getAdminCustomerRecord(userId));
@@ -51,14 +49,14 @@ export default function CustomerSectionScreen() {
       setError(cause instanceof Error ? cause.message : 'No se pudo cargar el cliente.');
       setRecord(null);
     }
-  }, [isAdmin, userId]);
+  }, [userId]);
 
   useFocusEffect(useCallback(() => {
-    if (!isAdmin || !userId) return undefined;
+    if (!userId) return undefined;
     setLoading(true);
     void load().finally(() => setLoading(false));
     return undefined;
-  }, [isAdmin, load, userId]));
+  }, [load, userId]));
 
   const attendanceRows = useMemo(() => {
     if (!record) return [];
@@ -87,7 +85,6 @@ export default function CustomerSectionScreen() {
     try { await load(); } finally { setRefreshing(false); }
   }
 
-  if (!isAdmin) return <KeyboardAwareScreen><Text style={styles.title}>Acceso restringido</Text></KeyboardAwareScreen>;
   if (!userId) return <KeyboardAwareScreen><View style={styles.center}><Text style={styles.title}>Cliente no disponible</Text><Pressable style={styles.primary} onPress={() => router.replace('/admin-clients' as never)}><Text style={styles.primaryText}>Ir a Clientes</Text></Pressable></View></KeyboardAwareScreen>;
 
   return (

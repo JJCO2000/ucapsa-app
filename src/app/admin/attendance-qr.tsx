@@ -9,7 +9,6 @@ import QRCode from 'react-native-qrcode-svg';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
-import { useSession } from '../../hooks/useSession';
 import { buildOfficialAttendanceQrValue, getOfficialAttendanceQrCodes } from '../../services/programs.service';
 import type { AttendanceQrCode, AttendanceQrProgramCode } from '../../types/app.types';
 
@@ -22,7 +21,6 @@ function labelFor(code: AttendanceQrProgramCode) {
   if (code === 'comandos') return 'Comandos';
   return 'Socios';
 }
-
 
 function getQrBase64(ref: QrSvgHandle | null) {
   return new Promise<string>((resolve, reject) => {
@@ -68,7 +66,6 @@ function qrHtml(items: Array<{ code: AttendanceQrProgramCode; base64: string }>)
 }
 
 export default function AdminAttendanceQrScreen() {
-  const { isAdmin } = useSession();
   const [rows, setRows] = useState<AttendanceQrCode[]>([]);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState<string | null>(null);
@@ -84,16 +81,11 @@ export default function AdminAttendanceQrScreen() {
   }, [rows]);
 
   useEffect(() => {
-    if (!isAdmin) {
-      setLoading(false);
-      return;
-    }
-
     void getOfficialAttendanceQrCodes()
       .then(setRows)
       .catch((err) => Alert.alert('No se pudieron cargar', err instanceof Error ? err.message : 'Intenta de nuevo.'))
       .finally(() => setLoading(false));
-  }, [isAdmin]);
+  }, []);
 
   function refFor(code: AttendanceQrProgramCode) {
     if (code === 'puppy') return puppyRef.current;
@@ -154,18 +146,6 @@ export default function AdminAttendanceQrScreen() {
     }
   }
 
-  if (!isAdmin) {
-    return (
-      <KeyboardAwareScreen>
-        <View style={styles.deniedBox}>
-          <MaterialIcons name="lock" size={42} color={ucapsaBrand.colors.redDark} />
-          <Text style={styles.title}>Acceso restringido</Text>
-          <Text style={styles.muted}>Solo administradores pueden consultar los QR oficiales.</Text>
-        </View>
-      </KeyboardAwareScreen>
-    );
-  }
-
   return (
     <KeyboardAwareScreen>
       <View style={styles.hero}>
@@ -218,7 +198,6 @@ export default function AdminAttendanceQrScreen() {
           onPdf={() => void sharePdf('comandos')}
         />
       ) : null}
-
 
       {byCode.member ? (
         <OfficialQrCard

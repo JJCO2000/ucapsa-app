@@ -8,7 +8,6 @@ import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../components/domain/AdminCustomerContextHeader';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
-import { useSession } from '../../hooks/useSession';
 import {
   getAdminCustomerRecord,
   type AdminCustomerPayment,
@@ -44,7 +43,6 @@ type PaymentForm = {
 const emptyForm: PaymentForm = { payment: null, amount: '', method: 'manual', date: dateKey(null), notes: '', concept: 'Pago manual', obligationId: '' };
 
 export default function CustomerPaymentsScreen() {
-  const { isAdmin } = useSession();
   const params = useLocalSearchParams<{ userId?: string }>();
   const userId = typeof params.userId === 'string' ? params.userId.trim() : '';
   const [record, setRecord] = useState<AdminCustomerRecord | null>(null);
@@ -56,9 +54,9 @@ export default function CustomerPaymentsScreen() {
   const [visibleCount, setVisibleCount] = useState(8);
 
   const load = useCallback(async () => {
-    if (!isAdmin || !userId) return;
+    if (!userId) return;
     setRecord(await getAdminCustomerRecord(userId));
-  }, [isAdmin, userId]);
+  }, [userId]);
 
   useFocusEffect(useCallback(() => {
     setLoading(true);
@@ -178,8 +176,6 @@ export default function CustomerPaymentsScreen() {
       } },
     ]);
   }
-
-  if (!isAdmin) return <KeyboardAwareScreen><Text style={styles.title}>Acceso restringido</Text></KeyboardAwareScreen>;
 
   return (
     <KeyboardAwareScreen>

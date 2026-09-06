@@ -8,7 +8,6 @@ import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../components/domain/AdminCustomerContextHeader';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
-import { useSession } from '../../hooks/useSession';
 import { supabase } from '../../lib/supabase';
 import { getAdminCustomerRecord, type AdminCustomerRecord } from '../../services/admin-customer.service';
 import {
@@ -44,7 +43,6 @@ type EditState = {
 const emptyEdit: EditState = { attendance: null, enrollment: null, date: todayKey(), scheduleId: '', notes: '' };
 
 export default function CustomerAttendanceScreen() {
-  const { isAdmin } = useSession();
   const params = useLocalSearchParams<{ userId?: string; enrollmentId?: string }>();
   const userId = typeof params.userId === 'string' ? params.userId.trim() : '';
   const initialEnrollmentId = typeof params.enrollmentId === 'string' ? params.enrollmentId.trim() : '';
@@ -60,7 +58,7 @@ export default function CustomerAttendanceScreen() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    if (!isAdmin || !userId) return;
+    if (!userId) return;
     const [nextRecord, nextSchedules] = await Promise.all([getAdminCustomerRecord(userId), getProgramScheduleTimeline()]);
     setRecord(nextRecord);
     setSchedules(nextSchedules);
@@ -75,7 +73,7 @@ export default function CustomerAttendanceScreen() {
     const { data, error } = await supabase.from('program_sessions').select('id, schedule_id').in('id', sessionIds);
     if (error) throw error;
     setSessionScheduleById(Object.fromEntries((data ?? []).map((item) => [item.id, item.schedule_id])));
-  }, [initialEnrollmentId, isAdmin, userId]);
+  }, [initialEnrollmentId, userId]);
 
   useFocusEffect(useCallback(() => {
     setLoading(true);
@@ -160,8 +158,6 @@ export default function CustomerAttendanceScreen() {
       } },
     ]);
   }
-
-  if (!isAdmin) return <KeyboardAwareScreen><Text style={styles.title}>Acceso restringido</Text></KeyboardAwareScreen>;
 
   return (
     <KeyboardAwareScreen>
