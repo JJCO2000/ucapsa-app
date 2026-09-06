@@ -46,31 +46,36 @@ if (Test-Path $typesErr) {
     $errText | Out-File (Join-Path $audit "database_types_STEP9_$Stamp.stderr.txt") -Encoding utf8
   }
 }
+$typesHash = (Get-FileHash $types -Algorithm SHA256).Hash
 Write-Host '[1/4] Tipos OK.' -ForegroundColor Green
 
-Write-Host '[2/4] Verificando Docker para el dump del esquema...'
+$schemaStatus = 'SKIPPED_NO_DOCKER'
+$schemaHash = ''
+$schemaOut = ''
+Write-Host '[2/4] Esquema public: dump local opcional...'
 $docker = Get-Command docker.exe -ErrorAction SilentlyContinue
 if (-not $docker) { $docker = Get-Command docker -ErrorAction SilentlyContinue }
-if (-not $docker) {
-  throw 'Supabase db dump necesita Docker Desktop. Instala/abre Docker Desktop y vuelve a ejecutar este script.'
+if ($docker) {
+  & $docker.Source info *> $null
+  if ($LASTEXITCODE -eq 0) {
+    $schemaOut = Join-Path $audit "remote_public_schema_STEP9_$Stamp.sql"
+    Remove-Item $schemaOut -Force -ErrorAction SilentlyContinue
+    & $npx.Source supabase db dump --linked --schema public --file $schemaOut
+    $schemaCode = $LASTEXITCODE
+    if ($schemaCode -eq 0 -and (Test-Path $schemaOut) -and (Get-Item $schemaOut).Length -ge 1000) {
+      $schemaStatus = 'OK'
+      $schemaHash = (Get-FileHash $schemaOut -Algorithm SHA256).Hash
+      Write-Host '[2/4] Esquema local OK.' -ForegroundColor Green
+    } else {
+      $schemaStatus = "FAILED_EXIT_$schemaCode"
+      Write-Warning 'No se pudo generar el dump local. Los tipos siguen siendo validos; usa la captura remota versionada en supabase/sql/audit para revisar RLS, funciones, triggers e indices.'
+    }
+  } else {
+    Write-Warning 'Docker no esta corriendo. Se omite el dump local; no es requisito para trabajar en UCAPSA.'
+  }
+} else {
+  Write-Warning 'Docker no esta instalado. Se omite el dump local; no es requisito para trabajar en UCAPSA.'
 }
-& $docker.Source info *> $null
-if ($LASTEXITCODE -ne 0) {
-  throw 'Docker Desktop esta instalado pero el motor no esta corriendo. Abre Docker Desktop, espera a que diga Engine running y vuelve a ejecutar este script.'
-}
-Write-Host '[2/4] Docker OK.' -ForegroundColor Green
-
-Write-Host '[2/4] Capturando esquema public completo (sin datos)...'
-$schemaOut = Join-Path $audit "remote_public_schema_STEP9_$Stamp.sql"
-Remove-Item $schemaOut -Force -ErrorAction SilentlyContinue
-& $npx.Source supabase db dump --linked --schema public --file $schemaOut
-$schemaCode = $LASTEXITCODE
-if ($schemaCode -ne 0 -or -not (Test-Path $schemaOut) -or (Get-Item $schemaOut).Length -lt 1000) {
-  throw "No se pudo capturar el esquema remoto public (exit $schemaCode). No se actualiza la fuente de verdad."
-}
-$typesHash = (Get-FileHash $types -Algorithm SHA256).Hash
-$schemaHash = (Get-FileHash $schemaOut -Algorithm SHA256).Hash
-Write-Host '[2/4] Esquema OK.' -ForegroundColor Green
 
 Write-Host '[3/4] Historial de migraciones (diagnostico best effort)...'
 $migrationOut = Join-Path $audit "migration_list_STEP9_$Stamp.txt"
@@ -86,16 +91,17 @@ $meta = @"
 UCAPSA STEP 9 SOURCE OF TRUTH
 Stamp: $Stamp
 Generated types: OK
-Remote public schema dump: OK
 Types SHA256: $typesHash
+Local public schema dump: $schemaStatus
 Schema SHA256: $schemaHash
 Migration list exit: $migrationCode
 DB lint exit: $lintCode
 No db push, db pull, db reset or migration repair executed.
+Authoritative remote schema metadata is versioned separately in supabase/sql/audit and does not require Docker Desktop.
 "@
 $meta | Out-File -FilePath (Join-Path $audit "source_of_truth_STEP9_$Stamp.txt") -Encoding utf8
 
 Write-Host ''
-Write-Host 'SOURCE OF TRUTH: TYPES + REMOTE PUBLIC SCHEMA OK' -ForegroundColor Green
+Write-Host 'SOURCE OF TRUTH TYPES: OK' -ForegroundColor Green
 Write-Host $types
-Write-Host $schemaOut
+if ($schemaStatus -eq 'OK') { Write-Host $schemaOut }
