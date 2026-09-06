@@ -1,7 +1,14 @@
+import { Redirect, Stack } from 'expo-router';
+
 import { ucapsaBrand } from '../../constants/brand';
-import { Stack } from 'expo-router';
+import { useSession } from '../../hooks/useSession';
 
 export default function AdminLayout() {
+  const { isAdmin, loading } = useSession();
+
+  if (loading) return null;
+  if (!isAdmin) return <Redirect href="/home" />;
+
   return (
     <Stack
       screenOptions={{
