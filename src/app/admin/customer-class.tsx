@@ -148,7 +148,10 @@ export default function CustomerClassScreen() {
               {row.program.code === 'comandos' ? <Detail label="Nivel" value={getProgramLevelLabel(row.enrollment.program_level)} /> : null}
               <Detail label="Horario" value={formatProgramScheduleDisplayLabel(row.schedule, row.program)} />
               <Detail label="Perro" value={getProgramEnrollmentDogName(row)} />
-              <Detail label="Tarjeta" value={row.enrollment.physical_card_number || 'Sin numero'} />
+              <Pressable style={styles.editableDetail} onPress={() => setEditing(true)} accessibilityRole="button" accessibilityLabel="Editar numero de tarjeta">
+                <View style={{ flex: 1 }}><Text style={styles.detailLabel}>Tarjeta</Text><Text style={styles.detailValue}>{row.enrollment.physical_card_number || 'Sin numero'}</Text></View>
+                <MaterialIcons name="edit" size={19} color={ucapsaBrand.colors.redDark} />
+              </Pressable>
               <Detail label="Asistencias" value={`${row.attendances.length} de ${row.program.required_attendances}`} last />
             </View>
           ) : (
@@ -200,13 +203,23 @@ export default function CustomerClassScreen() {
           </View>
 
           {!editing ? (
-            <Pressable style={styles.statusAction} onPress={() => setStatusModalOpen(true)}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.statusActionTitle}>Cambiar estado</Text>
-                <Text style={styles.muted}>Activa, completada o cancelada</Text>
+            <>
+              <Pressable style={styles.statusAction} onPress={() => setStatusModalOpen(true)}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.statusActionTitle}>Cambiar estado</Text>
+                  <Text style={styles.muted}>Activa, completada o cancelada</Text>
+                </View>
+                <MaterialIcons name="chevron-right" size={22} color={ucapsaBrand.colors.redDark} />
+              </Pressable>
+
+              <View style={styles.manageCard}>
+                <Text style={styles.manageTitle}>Administrar este cliente</Text>
+                <Text style={styles.manageText}>Desde aqui puedes saltar a los demas datos editables sin volver a buscar al cliente.</Text>
+                <ManageRow icon="person" label="Datos personales" onPress={() => router.push(`/admin/customer-profile-edit?userId=${encodeURIComponent(userId)}` as never)} />
+                <ManageRow icon="badge" label="Membresia" onPress={() => router.push(`/admin/customer-membership?userId=${encodeURIComponent(userId)}` as never)} />
+                <ManageRow icon="payments" label="Pagos" onPress={() => router.push(`/admin/customer-payments?userId=${encodeURIComponent(userId)}` as never)} />
               </View>
-              <MaterialIcons name="chevron-right" size={22} color={ucapsaBrand.colors.redDark} />
-            </Pressable>
+            </>
           ) : null}
 
           <KeyboardAwareModal visible={statusModalOpen} onClose={() => setStatusModalOpen(false)}>
@@ -239,6 +252,10 @@ function Choice({ label, active, onPress }: { label: string; active: boolean; on
   return <Pressable style={[styles.choice, active && styles.choiceActive]} onPress={onPress}><Text style={[styles.choiceText, active && styles.choiceTextActive]}>{label}</Text></Pressable>;
 }
 
+function ManageRow({ icon, label, onPress }: { icon: keyof typeof MaterialIcons.glyphMap; label: string; onPress: () => void }) {
+  return <Pressable style={styles.manageRow} onPress={onPress}><MaterialIcons name={icon} size={19} color={ucapsaBrand.colors.redDark} /><Text style={styles.manageRowText}>{label}</Text><MaterialIcons name="chevron-right" size={21} color={ucapsaBrand.colors.redDark} /></Pressable>;
+}
+
 const styles = StyleSheet.create({
   header: { marginBottom: 16 },
   kicker: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
@@ -250,6 +267,7 @@ const styles = StyleSheet.create({
   emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '900' },
   card: { borderRadius: 20, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 14, gap: 12 },
   detail: { borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.premiumMuted, paddingBottom: 10 },
+  editableDetail: { flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.premiumMuted, paddingBottom: 10 },
   detailLast: { borderBottomWidth: 0, paddingBottom: 0 },
   detailLabel: { color: ucapsaBrand.colors.muted, fontSize: 11, fontWeight: '800' },
   detailValue: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900', marginTop: 3 },
@@ -274,6 +292,11 @@ const styles = StyleSheet.create({
   secondaryText: { color: ucapsaBrand.colors.redDark, fontSize: 14, fontWeight: '900' },
   statusAction: { marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 13 },
   statusActionTitle: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
+  manageCard: { marginTop: 12, gap: 8, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 13 },
+  manageTitle: { color: ucapsaBrand.colors.text, fontSize: 15, fontWeight: '900' },
+  manageText: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 18, fontWeight: '700' },
+  manageRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 14, backgroundColor: ucapsaBrand.colors.redSoft, paddingHorizontal: 11, paddingVertical: 9 },
+  manageRowText: { flex: 1, color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900' },
   modalKicker: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
   modalTitle: { color: ucapsaBrand.colors.text, fontSize: 24, fontWeight: '900', marginTop: 2 },
   modalText: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 6, marginBottom: 10 },
