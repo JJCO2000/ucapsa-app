@@ -5,7 +5,6 @@ import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } 
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
-import { useSession } from '../../hooks/useSession';
 import { getAdminCustomerRecord, type AdminCustomerRecord } from '../../services/admin-customer.service';
 
 function money(value: number) {
@@ -22,7 +21,6 @@ function membershipLabel(status: string | null | undefined) {
 }
 
 export default function AdminCustomerScreen() {
-  const { isAdmin } = useSession();
   const params = useLocalSearchParams<{ userId?: string }>();
   const userId = typeof params.userId === 'string' ? params.userId.trim() : '';
   const [record, setRecord] = useState<AdminCustomerRecord | null>(null);
@@ -31,7 +29,7 @@ export default function AdminCustomerScreen() {
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
-    if (!isAdmin || !userId) return;
+    if (!userId) return;
     try {
       setError('');
       setRecord(await getAdminCustomerRecord(userId));
@@ -39,14 +37,14 @@ export default function AdminCustomerScreen() {
       setError(cause instanceof Error ? cause.message : 'No se pudo cargar el cliente.');
       setRecord(null);
     }
-  }, [isAdmin, userId]);
+  }, [userId]);
 
   useFocusEffect(useCallback(() => {
-    if (!isAdmin || !userId) return undefined;
+    if (!userId) return undefined;
     setLoading(true);
     void load().finally(() => setLoading(false));
     return undefined;
-  }, [isAdmin, load, userId]));
+  }, [load, userId]));
 
   const actualAttendances = useMemo(() => record?.enrollments.reduce((sum, item) => sum + item.attendances.length, 0) ?? 0, [record]);
   const pendingBalance = useMemo(() => {
@@ -64,10 +62,6 @@ export default function AdminCustomerScreen() {
   async function refresh() {
     setRefreshing(true);
     try { await load(); } finally { setRefreshing(false); }
-  }
-
-  if (!isAdmin) {
-    return <KeyboardAwareScreen><View style={styles.center}><MaterialIcons name="lock" size={36} color={ucapsaBrand.colors.redDark} /><Text style={styles.title}>Acceso restringido</Text></View></KeyboardAwareScreen>;
   }
 
   if (!userId) {

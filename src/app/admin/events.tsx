@@ -7,7 +7,6 @@ import { Calendar } from 'react-native-calendars';
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
-import { useSession } from '../../hooks/useSession';
 import {
   archiveEvent,
   createEvent,
@@ -141,7 +140,6 @@ function statusLabel(item: UcapsaEvent) {
 }
 
 export default function AdminEventsScreen() {
-  const { isAdmin } = useSession();
   const params = useLocalSearchParams<{ eventId?: string }>();
   const openedParam = useRef<string | null>(null);
   const [items, setItems] = useState<UcapsaEvent[]>([]);
@@ -156,7 +154,6 @@ export default function AdminEventsScreen() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    if (!isAdmin) return;
     setLoading(true);
     try {
       setItems(await getAdminEvents());
@@ -165,7 +162,7 @@ export default function AdminEventsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin]);
+  }, []);
 
   useFocusEffect(useCallback(() => { void load(); return undefined; }, [load]));
 
@@ -274,8 +271,6 @@ export default function AdminEventsScreen() {
       { text: 'Eliminar', style: 'destructive', onPress: () => void run(() => deleteEvent(item.id)) },
     ]);
   }
-
-  if (!isAdmin) return <KeyboardAwareScreen><Text style={styles.title}>Acceso restringido</Text></KeyboardAwareScreen>;
 
   return (
     <KeyboardAwareScreen>

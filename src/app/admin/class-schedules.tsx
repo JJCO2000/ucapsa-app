@@ -7,7 +7,6 @@ import { Calendar } from 'react-native-calendars';
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
-import { useSession } from '../../hooks/useSession';
 import {
   changeProgramScheduleFromDate,
   formatProgramScheduleDetailLabel,
@@ -57,7 +56,6 @@ function programFor(programs: UcapsaProgram[], schedule: ProgramSchedule | null)
 }
 
 export default function AdminClassSchedulesScreen() {
-  const { isAdmin } = useSession();
   const params = useLocalSearchParams<{ date?: string; scheduleId?: string; program?: string; status?: string }>();
   const routeDate = typeof params.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(params.date) ? params.date : todayKey();
   const [programs, setPrograms] = useState<UcapsaProgram[]>([]);
@@ -81,7 +79,6 @@ export default function AdminClassSchedulesScreen() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    if (!isAdmin) return;
     setLoading(true);
     try {
       const [programResult, scheduleResult, timelineResult] = await Promise.all([
@@ -103,7 +100,7 @@ export default function AdminClassSchedulesScreen() {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, params.scheduleId, routeDate]);
+  }, [params.scheduleId, routeDate]);
 
   useFocusEffect(useCallback(() => { void load(); return undefined; }, [load]));
 
@@ -205,10 +202,6 @@ export default function AdminClassSchedulesScreen() {
         },
       ],
     );
-  }
-
-  if (!isAdmin) {
-    return <KeyboardAwareScreen><Text style={styles.title}>Acceso restringido</Text></KeyboardAwareScreen>;
   }
 
   return (

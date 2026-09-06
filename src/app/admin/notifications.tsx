@@ -1,11 +1,10 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
-import { useSession } from '../../hooks/useSession';
 import {
   deleteAdminNotificationCampaign,
   getAdminNotificationCampaigns,
@@ -50,7 +49,6 @@ function formatDate(value: string | null | undefined) {
 }
 
 export default function AdminNotificationsScreen() {
-  const { loading, user, isAdmin } = useSession();
   const [mode, setMode] = useState<ViewMode>('send');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -66,7 +64,6 @@ export default function AdminNotificationsScreen() {
   const selectedCategory = useMemo(() => categoryOptions.find((item) => item.value === category) ?? categoryOptions[0], [category]);
 
   const loadHistory = useCallback(async () => {
-    if (!isAdmin) return;
     setLoadingHistory(true);
     try {
       setCampaigns(await getAdminNotificationCampaigns(30));
@@ -75,7 +72,7 @@ export default function AdminNotificationsScreen() {
     } finally {
       setLoadingHistory(false);
     }
-  }, [isAdmin]);
+  }, []);
 
   useFocusEffect(useCallback(() => { void loadHistory(); return undefined; }, [loadHistory]));
 
@@ -134,9 +131,6 @@ export default function AdminNotificationsScreen() {
       },
     ]);
   }
-
-  if (loading) return <KeyboardAwareScreen><Text style={styles.muted}>Revisando acceso...</Text></KeyboardAwareScreen>;
-  if (!user || !isAdmin) return <KeyboardAwareScreen><Text style={styles.title}>Acceso restringido</Text><Pressable style={styles.backButton} onPress={() => router.back()}><Text style={styles.backText}>Volver</Text></Pressable></KeyboardAwareScreen>;
 
   return (
     <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={loadingHistory} onRefresh={() => void loadHistory()} tintColor={ucapsaBrand.colors.red} />}>

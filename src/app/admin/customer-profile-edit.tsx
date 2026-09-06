@@ -6,12 +6,10 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View 
 import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../components/domain/AdminCustomerContextHeader';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
-import { useSession } from '../../hooks/useSession';
 import { getProfileByUserId, updateAdminCustomerProfile } from '../../services/profiles.service';
 import type { Profile } from '../../types/app.types';
 
 export default function CustomerProfileEditScreen() {
-  const { isAdmin } = useSession();
   const params = useLocalSearchParams<{ userId?: string }>();
   const userId = typeof params.userId === 'string' ? params.userId.trim() : '';
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -22,13 +20,13 @@ export default function CustomerProfileEditScreen() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    if (!isAdmin || !userId) return;
+    if (!userId) return;
     const row = await getProfileByUserId(userId);
     setProfile(row);
     setName(row?.full_name ?? '');
     setEmail(row?.email ?? '');
     setPhone(row?.phone ?? '');
-  }, [isAdmin, userId]);
+  }, [userId]);
 
   useFocusEffect(useCallback(() => {
     setLoading(true);
@@ -52,8 +50,6 @@ export default function CustomerProfileEditScreen() {
       setSaving(false);
     }
   }
-
-  if (!isAdmin) return <KeyboardAwareScreen><Text style={styles.title}>Acceso restringido</Text></KeyboardAwareScreen>;
 
   return (
     <KeyboardAwareScreen>

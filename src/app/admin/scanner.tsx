@@ -8,7 +8,6 @@ import { ProgramCredentialCard } from '../../components/domain/ProgramCredential
 import { MemberCredentialCard } from '../../components/domain/MemberCredentialCard';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
-import { useSession } from '../../hooks/useSession';
 import {
   formatDate,
   getDisplayName,
@@ -60,7 +59,6 @@ function modeAllows(mode: ScanMode, type: 'member' | 'program') {
 }
 
 export default function AdminScannerScreen() {
-  const { isAdmin } = useSession();
   const params = useLocalSearchParams<{ mode?: string }>();
   const mode: ScanMode = params.mode === 'member' || params.mode === 'program' ? params.mode : 'all';
   const [permission, requestPermission] = useCameraPermissions();
@@ -162,18 +160,6 @@ export default function AdminScannerScreen() {
     } finally {
       setRegistering(false);
     }
-  }
-
-  if (!isAdmin) {
-    return (
-      <KeyboardAwareScreen>
-        <View style={styles.deniedBox}>
-          <MaterialIcons name="lock" size={42} color={ucapsaBrand.colors.redDark} />
-          <Text style={styles.title}>Acceso restringido</Text>
-          <Text style={styles.muted}>Solo administradores pueden usar el escaner.</Text>
-        </View>
-      </KeyboardAwareScreen>
-    );
   }
 
   if (!permission) {
@@ -348,7 +334,6 @@ const styles = StyleSheet.create({
   secondaryButtonWide: { alignItems: 'center', borderRadius: 16, paddingVertical: 13, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   secondaryButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900' },
   disabledButton: { opacity: 0.48 },
-  deniedBox: { gap: 10, alignItems: 'center', justifyContent: 'center', flex: 1 },
 });
 
 

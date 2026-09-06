@@ -5,7 +5,6 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
-import { useSession } from '../../hooks/useSession';
 import {
   formatDate,
   getAdminMembershipRows,
@@ -20,7 +19,6 @@ import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from
 type MemberFilter = 'all' | 'pending' | 'active' | 'payment' | 'expired';
 
 export default function AdminMembersScreen() {
-  const { isAdmin } = useSession();
   const params = useLocalSearchParams<{ userId?: string; filter?: string }>();
   const [rows, setRows] = useState<MembershipAdminRow[]>([]);
   const [search, setSearch] = useState('');
@@ -32,7 +30,6 @@ export default function AdminMembersScreen() {
   const [hasData, setHasData] = useState(false);
 
   const load = useCallback(async () => {
-    if (!isAdmin) return;
     setLoading(true);
     setError(null);
     try {
@@ -44,7 +41,7 @@ export default function AdminMembersScreen() {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin]);
+  }, []);
 
   useFocusEffect(useCallback(() => { void load(); return undefined; }, [load]));
 
@@ -78,8 +75,6 @@ export default function AdminMembersScreen() {
   if (routeUserId) {
     return <MembershipRedirect userId={routeUserId} />;
   }
-
-  if (!isAdmin) return <KeyboardAwareScreen><Text style={styles.title}>Acceso restringido</Text></KeyboardAwareScreen>;
 
   return (
     <KeyboardAwareScreen>

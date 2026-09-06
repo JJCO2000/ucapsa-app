@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Redirect, router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Line, Polyline, Text as SvgText } from 'react-native-svg';
@@ -7,7 +7,6 @@ import Svg, { Circle, Line, Polyline, Text as SvgText } from 'react-native-svg';
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
-import { useSession } from '../../hooks/useSession';
 import {
   correctMemberVisitAdmin,
   deleteMemberVisitAdmin,
@@ -46,7 +45,6 @@ function visitDateLabel(value: string) {
 }
 
 export default function AdminMemberVisitsScreen() {
-  const { isAdmin } = useSession();
   const [stats, setStats] = useState<MemberVisitMonthlyStat[]>([]);
   const [visits, setVisits] = useState<AdminMemberVisitRow[]>([]);
   const [members, setMembers] = useState<MembershipAdminRow[]>([]);
@@ -61,7 +59,6 @@ export default function AdminMemberVisitsScreen() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    if (!isAdmin) return;
     setError(null);
     const [nextStats, nextVisits, nextMembers] = await withOperationTimeout(Promise.all([
       getAdminMemberVisitMonthlyStats(MONTHS),
@@ -71,7 +68,7 @@ export default function AdminMemberVisitsScreen() {
     setStats(nextStats);
     setVisits(nextVisits);
     setMembers(nextMembers.filter((row) => row.membership.status === 'active'));
-  }, [isAdmin]);
+  }, []);
 
   useFocusEffect(useCallback(() => {
     setLoading(true);
@@ -142,8 +139,6 @@ export default function AdminMemberVisitsScreen() {
     ]);
   }
 
-  if (!isAdmin) return <Redirect href="/home" />;
-
   return (
     <KeyboardAwareScreen>
       <View style={styles.header}>
@@ -199,7 +194,7 @@ function MonthlyLineChart({ rows }: { rows: MemberVisitMonthlyStat[] }) {
   return <View style={styles.chartWrap}><Svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}>
     <Line x1={left} y1={top + chartHeight} x2={width - right} y2={top + chartHeight} stroke={ucapsaBrand.colors.border} strokeWidth="1" />
     <Polyline points={points.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke={ucapsaBrand.colors.red} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
-    {points.map((point, index) => <Circle key={point.row.month_start} cx={point.x} cy={point.y} r="4" fill={ucapsaBrand.colors.surface} stroke={ucapsaBrand.colors.red} strokeWidth="3" />)}
+    {points.map((point) => <Circle key={point.row.month_start} cx={point.x} cy={point.y} r="4" fill={ucapsaBrand.colors.surface} stroke={ucapsaBrand.colors.red} strokeWidth="3" />)}
     {points.map((point, index) => (index === 0 || index === points.length - 1 || index % Math.max(1, Math.ceil(points.length / 6)) === 0) ? <SvgText key={`label-${point.row.month_start}`} x={point.x} y={height - 10} fontSize="10" fontWeight="700" textAnchor="middle" fill={ucapsaBrand.colors.muted}>{monthLabel(point.row.month_start)}</SvgText> : null)}
     {points.map((point) => <SvgText key={`value-${point.row.month_start}`} x={point.x} y={Math.max(11, point.y - 8)} fontSize="9" fontWeight="800" textAnchor="middle" fill={ucapsaBrand.colors.text}>{point.row.total_visits}</SvgText>)}
   </Svg></View>;

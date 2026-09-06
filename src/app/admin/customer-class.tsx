@@ -8,7 +8,6 @@ import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../components/domain/AdminCustomerContextHeader';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
-import { useSession } from '../../hooks/useSession';
 import { getAdminCustomerRecord, type AdminCustomerRecord } from '../../services/admin-customer.service';
 import { createDogForUserAdmin, getDogsForUser, type BasicDog } from '../../services/dogs.service';
 import {
@@ -24,7 +23,6 @@ import {
 import type { ProgramEnrollmentStatus, ProgramLevel, ProgramSchedule } from '../../types/app.types';
 
 export default function CustomerClassScreen() {
-  const { isAdmin } = useSession();
   const params = useLocalSearchParams<{ userId?: string; enrollmentId?: string }>();
   const userId = typeof params.userId === 'string' ? params.userId.trim() : '';
   const enrollmentId = typeof params.enrollmentId === 'string' ? params.enrollmentId.trim() : '';
@@ -44,7 +42,7 @@ export default function CustomerClassScreen() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    if (!isAdmin || !userId) return;
+    if (!userId) return;
     const [nextRecord, nextSchedules, nextDogs] = await Promise.all([getAdminCustomerRecord(userId), getProgramSchedules(), getDogsForUser(userId)]);
     setRecord(nextRecord);
     setSchedules(nextSchedules);
@@ -60,7 +58,7 @@ export default function CustomerClassScreen() {
       setCardNumber(row.enrollment.physical_card_number ?? '');
       setNotes(row.enrollment.notes ?? '');
     }
-  }, [enrollmentId, isAdmin, userId]);
+  }, [enrollmentId, userId]);
 
   useFocusEffect(useCallback(() => {
     setLoading(true);
@@ -129,8 +127,6 @@ export default function CustomerClassScreen() {
       } },
     ]);
   }
-
-  if (!isAdmin) return <KeyboardAwareScreen><Text style={styles.title}>Acceso restringido</Text></KeyboardAwareScreen>;
 
   return (
     <KeyboardAwareScreen>

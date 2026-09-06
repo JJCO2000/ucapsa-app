@@ -181,7 +181,7 @@ function nextScheduleForForm(form: EnrollmentFormState, schedules: ProgramSchedu
 }
 
 export default function AdminClassesScreen() {
-  const { isAdmin, role } = useSession();
+  const { role } = useSession();
   const params = useLocalSearchParams<{ scheduleId?: string; cancellations?: string; date?: string; userId?: string; program?: string; status?: string }>();
   const isSuperAdmin = role === 'super_admin';
   const [programs, setPrograms] = useState<UcapsaProgram[]>([]);
@@ -254,14 +254,14 @@ export default function AdminClassesScreen() {
   }
 
   useEffect(() => {
-    if (isAdmin) void loadData();
-  }, [isAdmin]);
+    void loadData();
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      if (isAdmin) void loadData();
+      void loadData();
       return undefined;
-    }, [isAdmin]),
+    }, []),
   );
 
   useEffect(() => {
@@ -834,18 +834,6 @@ export default function AdminClassesScreen() {
       programLevel: useNextLevel ? getNextProgramLevel(row.enrollment.program_level) : row.enrollment.program_level,
       notes: useNextLevel ? `Reinscripcion desde ${getProgramLevelLabel(row.enrollment.program_level)}.` : 'Reinscripcion del mismo nivel.',
     });
-  }
-
-  if (!isAdmin) {
-    return (
-      <KeyboardAwareScreen>
-        <View style={styles.deniedBox}>
-          <MaterialIcons name="lock" size={42} color={ucapsaBrand.colors.redDark} />
-          <Text style={styles.title}>Acceso restringido</Text>
-          <Text style={styles.muted}>Solo administradores pueden gestionar Clases.</Text>
-        </View>
-      </KeyboardAwareScreen>
-    );
   }
 
   return (
