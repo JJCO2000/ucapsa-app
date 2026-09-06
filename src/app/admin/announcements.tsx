@@ -7,7 +7,6 @@ import { Calendar } from 'react-native-calendars';
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
-import { useSession } from '../../hooks/useSession';
 import {
   archiveAnnouncement,
   createAnnouncement,
@@ -100,7 +99,6 @@ function statusLabel(item: Announcement) {
 }
 
 export default function AdminAnnouncementsScreen() {
-  const { isAdmin } = useSession();
   const params = useLocalSearchParams<{ announcementId?: string }>();
   const openedParam = useRef<string | null>(null);
   const [items, setItems] = useState<Announcement[]>([]);
@@ -118,7 +116,6 @@ export default function AdminAnnouncementsScreen() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    if (!isAdmin) return;
     setLoading(true);
     try {
       const [announcementResult, eventResult] = await Promise.all([getAdminAnnouncements(), getAdminEvents()]);
@@ -129,7 +126,7 @@ export default function AdminAnnouncementsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin]);
+  }, []);
 
   useFocusEffect(useCallback(() => { void load(); return undefined; }, [load]));
 
@@ -252,8 +249,6 @@ export default function AdminAnnouncementsScreen() {
       Alert.alert('No se pudo revisar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     }
   }
-
-  if (!isAdmin) return <KeyboardAwareScreen><Text style={styles.title}>Acceso restringido</Text></KeyboardAwareScreen>;
 
   return (
     <KeyboardAwareScreen>
