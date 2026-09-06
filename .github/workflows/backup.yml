@@ -1,8 +1,8 @@
 name: UCAPSA repository backup
 
 on:
-  push:
-    branches: [main]
+  schedule:
+    - cron: '17 8 * * *'
   workflow_dispatch:
 
 permissions:
@@ -34,12 +34,4 @@ jobs:
           name: ucapsa-repository-${{ github.sha }}
           path: ucapsa-repository.bundle
           if-no-files-found: error
-          retention-days: 90
-
-      - name: Mirror all refs to independent backup remote
-        if: ${{ secrets.BACKUP_REMOTE_URL != '' }}
-        env:
-          BACKUP_REMOTE_URL: ${{ secrets.BACKUP_REMOTE_URL }}
-        run: |
-          git remote add backup "$BACKUP_REMOTE_URL"
-          git push --mirror backup
+          retention-days: 30
