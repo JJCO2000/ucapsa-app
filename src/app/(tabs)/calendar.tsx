@@ -1,8 +1,8 @@
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Calendar, type DateData } from 'react-native-calendars';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -28,6 +28,13 @@ type ClassOccurrence = {
   cancellation?: ProgramClassCancellation | null;
 };
 
+type CalendarDot = {
+  key: string;
+  color: string;
+};
+
+const WEEKDAY_SHORT = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'] as const;
+
 function announcementDateKey(announcement: Announcement): string | null {
   if (announcement.event?.start_date) return toDateKey(announcement.event.start_date);
   return toDateKey(announcement.created_at);
@@ -49,6 +56,30 @@ function toLocalDateKey(date: Date) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function getWeekDates(dateKey: string) {
+  const selected = parseLocalDate(dateKey);
+  const selectedWeekday = selected.getDay();
+  const daysFromMonday = selectedWeekday === 0 ? 6 : selectedWeekday - 1;
+  const monday = addDays(selected, -daysFromMonday);
+
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = addDays(monday, index);
+    return {
+      dateKey: toLocalDateKey(date),
+      label: WEEKDAY_SHORT[index],
+      day: date.getDate(),
+      sameMonth: date.getMonth() === selected.getMonth(),
+    };
+  });
+}
+
+function formatMonthYear(dateKey: string) {
+  const date = parseLocalDate(dateKey);
+  const rawMonth = date.toLocaleDateString('es-MX', { month: 'long' });
+  const month = rawMonth.charAt(0).toUpperCase() + rawMonth.slice(1);
+  return `${month} ${date.getFullYear()}`;
 }
 
 function getCancellationKey(scheduleId: string, dateKey: string) {
@@ -146,6 +177,7 @@ export default function CalendarScreen() {
   const [practiceActivity, setPracticeActivity] = useState<PracticeActivityEntry[]>([]);
   const [practiceLoadWarning, setPracticeLoadWarning] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(todayKey());
+  const [calendarCollapsed, setCalendarCollapsed] = useState(false);
   const [classesExpanded, setClassesExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -154,6 +186,10 @@ export default function CalendarScreen() {
   const [partialLoadWarning, setPartialLoadWarning] = useState<string | null>(null);
   const [usingSavedData, setUsingSavedData] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const agendaY = useRef(0);
+  const agendaAnim = useRef(new Animated.Value(1)).current;
+  const selectedDayScale = useRef(new Animated.Value(1)).current;
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [user, role, isAdmin]);
   const isPremium = format.key === 'member';
 
@@ -350,15 +386,57 @@ export default function CalendarScreen() {
     return marks;
   }, [announcements, classOccurrences, format.accentDark, format.accentSoft, occurrences, practiceActivity, selectedDate]);
 
+  const selectedWeek = useMemo(() => getWeekDates(selectedDate), [selectedDate]);
   const upcomingEvents: EventOccurrence[] = useMemo(() => getUpcomingOccurrences(events, 3), [events]);
   const allSelectedClassesCancelled = selectedClasses.length > 0 && selectedClasses.every((occurrence) => Boolean(occurrence.cancellation));
   const cancelledClassesCount = selectedClasses.filter((occurrence) => Boolean(occurrence.cancellation)).length;
   const activeClassesCount = selectedClasses.length - cancelledClassesCount;
   const dayCount = selectedEvents.length + (selectedClasses.length > 0 ? 1 : 0) + selectedAnnouncements.length + selectedPractices.length;
 
+  const runDayFocusAnimation = useCallback(() => {
+    agendaAnim.setValue(0);
+    selectedDayScale.setValue(0.92);
+
+    Animated.parallel([
+      Animated.sequence([
+        Animated.timing(selectedDayScale, {
+          toValue: 1.08,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(selectedDayScale, {
+          toValue: 1,
+          duration: 110,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.timing(agendaAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [agendaAnim, selectedDayScale]);
+
+  const selectDate = useCallback((dateString: string, collapseCalendar = true) => {
+    setSelectedDate(dateString);
+    if (collapseCalendar) setCalendarCollapsed(true);
+    runDayFocusAnimation();
+
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        scrollRef.current?.scrollTo({
+          y: Math.max(0, agendaY.current - 12),
+          animated: true,
+        });
+      }, 180);
+    });
+  }, [runDayFocusAnimation]);
+
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: format.background }]} edges={['top']}>
       <ScrollView
+        ref={scrollRef}
         style={[styles.container, { backgroundColor: format.background }]}
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -430,27 +508,86 @@ export default function CalendarScreen() {
         {!error ? (
           <>
             <View style={styles.calendarCard}>
-              <Calendar
-                current={selectedDate}
-                onDayPress={(day: DateData) => setSelectedDate(day.dateString)}
-                markingType="multi-dot"
-                markedDates={markedDates}
-                firstDay={1}
-                enableSwipeMonths
-                theme={{
-                  calendarBackground: ucapsaBrand.colors.surface,
-                  textSectionTitleColor: ucapsaBrand.colors.muted,
-                  selectedDayBackgroundColor: ucapsaBrand.colors.red,
-                  selectedDayTextColor: ucapsaBrand.colors.surface,
-                  todayTextColor: ucapsaBrand.colors.red,
-                  dayTextColor: ucapsaBrand.colors.text,
-                  monthTextColor: ucapsaBrand.colors.text,
-                  arrowColor: ucapsaBrand.colors.red,
-                  textDayFontWeight: '700',
-                  textMonthFontWeight: '900',
-                  textDayHeaderFontWeight: '800',
-                }}
-              />
+              {calendarCollapsed ? (
+                <>
+                  <Pressable
+                    style={styles.calendarCollapsedHeader}
+                    onPress={() => setCalendarCollapsed(false)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Ver calendario mensual"
+                  >
+                    <Text style={styles.calendarCollapsedTitle}>{formatMonthYear(selectedDate)}</Text>
+                    <View style={styles.calendarExpandAction}>
+                      <Text style={styles.calendarExpandText}>Ver mes</Text>
+                      <MaterialIcons name="expand-more" size={22} color={ucapsaBrand.colors.red} />
+                    </View>
+                  </Pressable>
+
+                  <View style={styles.weekRow}>
+                    {selectedWeek.map((item) => {
+                      const isSelected = item.dateKey === selectedDate;
+                      const dots = (markedDates[item.dateKey]?.dots ?? []) as CalendarDot[];
+
+                      return (
+                        <Pressable
+                          key={item.dateKey}
+                          style={styles.weekDayButton}
+                          onPress={() => selectDate(item.dateKey)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`${item.label}, ${formatDateKey(item.dateKey)}`}
+                          accessibilityState={{ selected: isSelected }}
+                        >
+                          <Text style={[styles.weekDayLabel, isSelected && styles.weekDayLabelSelected]}>{item.label}</Text>
+                          <Animated.View
+                            style={[
+                              styles.weekDayCircle,
+                              isSelected && styles.weekDayCircleSelected,
+                              isSelected ? { transform: [{ scale: selectedDayScale }] } : null,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.weekDayNumber,
+                                !item.sameMonth && !isSelected && styles.weekDayNumberOutside,
+                                isSelected && styles.weekDayNumberSelected,
+                              ]}
+                            >
+                              {item.day}
+                            </Text>
+                          </Animated.View>
+                          <View style={styles.weekDots}>
+                            {dots.slice(0, 4).map((dot) => (
+                              <View key={dot.key} style={[styles.weekDot, { backgroundColor: dot.color }]} />
+                            ))}
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </>
+              ) : (
+                <Calendar
+                  current={selectedDate}
+                  onDayPress={(day: DateData) => selectDate(day.dateString)}
+                  markingType="multi-dot"
+                  markedDates={markedDates}
+                  firstDay={1}
+                  enableSwipeMonths
+                  theme={{
+                    calendarBackground: ucapsaBrand.colors.surface,
+                    textSectionTitleColor: ucapsaBrand.colors.muted,
+                    selectedDayBackgroundColor: ucapsaBrand.colors.red,
+                    selectedDayTextColor: ucapsaBrand.colors.surface,
+                    todayTextColor: ucapsaBrand.colors.red,
+                    dayTextColor: ucapsaBrand.colors.text,
+                    monthTextColor: ucapsaBrand.colors.text,
+                    arrowColor: ucapsaBrand.colors.red,
+                    textDayFontWeight: '700',
+                    textMonthFontWeight: '900',
+                    textDayHeaderFontWeight: '800',
+                  }}
+                />
+              )}
               <View style={styles.legendRow}>
                 {user && !isAdmin ? <Legend label="Práctica" style={styles.practiceDot} /> : null}
                 <Legend label="Eventos" style={styles.eventDot} />
@@ -459,123 +596,143 @@ export default function CalendarScreen() {
               </View>
             </View>
 
-            <View style={styles.sectionHeader}>
-              <View>
-                <Text style={[styles.sectionTitle, { color: isPremium ? ucapsaBrand.colors.surface : ucapsaBrand.colors.cameraDark }]}>Agenda del dia</Text>
-                <Text style={[styles.sectionSubtitle, { color: isPremium ? ucapsaBrand.colors.premiumMuted : ucapsaBrand.colors.mutedNeutral }]}>{formatDateKey(selectedDate)}</Text>
-              </View>
-              <Text style={styles.sectionCount}>{dayCount}</Text>
-            </View>
-
-            {dayCount === 0 ? (
-              <View style={[styles.emptyBox, { backgroundColor: isPremium ? withAlpha(ucapsaBrand.colors.surface, 0.08) : ucapsaBrand.colors.surface, borderColor: isPremium ? withAlpha(ucapsaBrand.colors.gold, 0.24) : ucapsaBrand.colors.borderNeutral }]}>
-                <Text style={[styles.emptyTitle, { color: isPremium ? ucapsaBrand.colors.surface : ucapsaBrand.colors.cameraDark }]}>Sin actividad este dia</Text>
-                <Text style={[styles.muted, { color: isPremium ? ucapsaBrand.colors.premiumMuted : ucapsaBrand.colors.mutedNeutral }]}>Selecciona otro dia marcado en el calendario.</Text>
-              </View>
-            ) : null}
-
-            {selectedPractices.length > 0 && user && !isAdmin ? (
-              <View style={[styles.practiceDayCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
-                <View style={styles.practiceDayHeader}>
-                  <View style={[styles.practiceDayIcon, { backgroundColor: format.accentSoft }]}>
-                    <MaterialIcons name="local-fire-department" size={21} color={format.accentDark} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.practiceDayKicker, { color: format.accentDark }]}>Tu entrenamiento</Text>
-                    <Text style={[styles.practiceDayTitle, { color: format.cardText }]}>{selectedPractices.length} práctica{selectedPractices.length === 1 ? '' : 's'} completada{selectedPractices.length === 1 ? '' : 's'}</Text>
-                  </View>
+            <Animated.View
+              style={[
+                styles.agendaBlock,
+                {
+                  opacity: agendaAnim,
+                  transform: [
+                    {
+                      translateY: agendaAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [10, 0],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+              onLayout={(event) => {
+                agendaY.current = event.nativeEvent.layout.y;
+              }}
+            >
+              <View style={styles.sectionHeader}>
+                <View>
+                  <Text style={[styles.sectionTitle, { color: isPremium ? ucapsaBrand.colors.surface : ucapsaBrand.colors.cameraDark }]}>Agenda del dia</Text>
+                  <Text style={[styles.sectionSubtitle, { color: isPremium ? ucapsaBrand.colors.premiumMuted : ucapsaBrand.colors.mutedNeutral }]}>{formatDateKey(selectedDate)}</Text>
                 </View>
-                <View style={styles.practiceDayList}>
-                  {selectedPractices.map((practice) => (
-                    <View key={practice.id} style={[styles.practiceDayRow, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.practiceDayDog, { color: format.cardText }]}>Práctica con {practice.dogName || 'tu perro'}</Text>
-                        <Text style={[styles.practiceDayMeta, { color: format.muted }]}>{practiceDifficultyLabel(practice.difficulty)}{practiceTimeLabel(practice.completedAt) ? ` · ${practiceTimeLabel(practice.completedAt)}` : ''}</Text>
-                        {practice.note ? <Text style={[styles.practiceDayNote, { color: format.muted }]} numberOfLines={2}>{practice.note}</Text> : null}
-                      </View>
-                      {practice.syncStatus === 'pending' ? <Text style={[styles.practicePending, { color: format.accentDark, backgroundColor: format.accentSoft }]}>Pendiente</Text> : <MaterialIcons name="check-circle" size={20} color={format.accentDark} />}
+                <Text style={styles.sectionCount}>{dayCount} actividad{dayCount === 1 ? '' : 'es'}</Text>
+              </View>
+
+              {dayCount === 0 ? (
+                <View style={[styles.emptyBox, { backgroundColor: isPremium ? withAlpha(ucapsaBrand.colors.surface, 0.08) : ucapsaBrand.colors.surface, borderColor: isPremium ? withAlpha(ucapsaBrand.colors.gold, 0.24) : ucapsaBrand.colors.borderNeutral }]}>
+                  <Text style={[styles.emptyTitle, { color: isPremium ? ucapsaBrand.colors.surface : ucapsaBrand.colors.cameraDark }]}>Sin actividad este dia</Text>
+                  <Text style={[styles.muted, { color: isPremium ? ucapsaBrand.colors.premiumMuted : ucapsaBrand.colors.mutedNeutral }]}>Selecciona otro dia marcado en el calendario.</Text>
+                </View>
+              ) : null}
+
+              {selectedPractices.length > 0 && user && !isAdmin ? (
+                <View style={[styles.practiceDayCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
+                  <View style={styles.practiceDayHeader}>
+                    <View style={[styles.practiceDayIcon, { backgroundColor: format.accentSoft }]}>
+                      <MaterialIcons name="local-fire-department" size={21} color={format.accentDark} />
                     </View>
-                  ))}
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.practiceDayKicker, { color: format.accentDark }]}>Tu entrenamiento</Text>
+                      <Text style={[styles.practiceDayTitle, { color: format.cardText }]}>{selectedPractices.length} práctica{selectedPractices.length === 1 ? '' : 's'} completada{selectedPractices.length === 1 ? '' : 's'}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.practiceDayList}>
+                    {selectedPractices.map((practice) => (
+                      <View key={practice.id} style={[styles.practiceDayRow, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.practiceDayDog, { color: format.cardText }]}>Práctica con {practice.dogName || 'tu perro'}</Text>
+                          <Text style={[styles.practiceDayMeta, { color: format.muted }]}>{practiceDifficultyLabel(practice.difficulty)}{practiceTimeLabel(practice.completedAt) ? ` · ${practiceTimeLabel(practice.completedAt)}` : ''}</Text>
+                          {practice.note ? <Text style={[styles.practiceDayNote, { color: format.muted }]} numberOfLines={2}>{practice.note}</Text> : null}
+                        </View>
+                        {practice.syncStatus === 'pending' ? <Text style={[styles.practicePending, { color: format.accentDark, backgroundColor: format.accentSoft }]}>Pendiente</Text> : <MaterialIcons name="check-circle" size={20} color={format.accentDark} />}
+                      </View>
+                    ))}
+                  </View>
                 </View>
-              </View>
-            ) : null}
+              ) : null}
 
-            {selectedClasses.length > 0 ? (
-              <View style={[styles.classGroupCard, allSelectedClassesCancelled && styles.classGroupCardCancelled]}>
-                <Pressable style={styles.classGroupHeader} onPress={() => setClassesExpanded((value) => !value)}>
-                  <View style={[styles.classGroupIcon, allSelectedClassesCancelled && styles.classGroupIconCancelled]}>
-                    <MaterialIcons name={allSelectedClassesCancelled ? 'event-busy' : 'school'} size={22} color={allSelectedClassesCancelled ? ucapsaBrand.colors.red : ucapsaBrand.colors.red} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.classKicker, allSelectedClassesCancelled && styles.classKickerCancelled]}>Clases</Text>
-                    <Text style={[styles.classGroupTitle, allSelectedClassesCancelled && styles.classGroupTitleCancelled]}>Clases</Text>
-                    <Text style={[styles.classGroupText, allSelectedClassesCancelled && styles.classGroupTextCancelled]}>
-                      {allSelectedClassesCancelled
-                        ? `Dia cancelado - ${selectedClasses.length} clase${selectedClasses.length === 1 ? '' : 's'} cancelada${selectedClasses.length === 1 ? '' : 's'}.`
-                        : `${activeClassesCount} activa${activeClassesCount === 1 ? '' : 's'}${cancelledClassesCount > 0 ? `, ${cancelledClassesCount} cancelada${cancelledClassesCount === 1 ? '' : 's'}` : ''}.`}
-                    </Text>
-                    {allSelectedClassesCancelled ? <Text style={styles.dayCancelledText}>Dia cancelado</Text> : null}
-                  </View>
-                  <View style={[styles.classGroupPill, allSelectedClassesCancelled && styles.classGroupPillCancelled]}>
-                    <Text style={styles.classGroupPillText}>{selectedClasses.length}</Text>
-                  </View>
-                  <MaterialIcons name={classesExpanded ? 'expand-less' : 'expand-more'} size={24} color={allSelectedClassesCancelled ? ucapsaBrand.colors.red : ucapsaBrand.colors.red} />
-                </Pressable>
+              {selectedClasses.length > 0 ? (
+                <View style={[styles.classGroupCard, allSelectedClassesCancelled && styles.classGroupCardCancelled]}>
+                  <Pressable style={styles.classGroupHeader} onPress={() => setClassesExpanded((value) => !value)}>
+                    <View style={[styles.classGroupIcon, allSelectedClassesCancelled && styles.classGroupIconCancelled]}>
+                      <MaterialIcons name={allSelectedClassesCancelled ? 'event-busy' : 'school'} size={22} color={allSelectedClassesCancelled ? ucapsaBrand.colors.red : ucapsaBrand.colors.red} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.classKicker, allSelectedClassesCancelled && styles.classKickerCancelled]}>Clases</Text>
+                      <Text style={[styles.classGroupTitle, allSelectedClassesCancelled && styles.classGroupTitleCancelled]}>Clases</Text>
+                      <Text style={[styles.classGroupText, allSelectedClassesCancelled && styles.classGroupTextCancelled]}>
+                        {allSelectedClassesCancelled
+                          ? `Dia cancelado - ${selectedClasses.length} clase${selectedClasses.length === 1 ? '' : 's'} cancelada${selectedClasses.length === 1 ? '' : 's'}.`
+                          : `${activeClassesCount} activa${activeClassesCount === 1 ? '' : 's'}${cancelledClassesCount > 0 ? `, ${cancelledClassesCount} cancelada${cancelledClassesCount === 1 ? '' : 's'}` : ''}.`}
+                      </Text>
+                      {allSelectedClassesCancelled ? <Text style={styles.dayCancelledText}>Dia cancelado</Text> : null}
+                    </View>
+                    <View style={[styles.classGroupPill, allSelectedClassesCancelled && styles.classGroupPillCancelled]}>
+                      <Text style={styles.classGroupPillText}>{selectedClasses.length}</Text>
+                    </View>
+                    <MaterialIcons name={classesExpanded ? 'expand-less' : 'expand-more'} size={24} color={allSelectedClassesCancelled ? ucapsaBrand.colors.red : ucapsaBrand.colors.red} />
+                  </Pressable>
 
-                {classesExpanded ? (
-                  <View style={styles.classList}>
-                    {selectedClasses.map((occurrence) => {
-                      const theme = getClassTheme(occurrence.program?.code);
-                      const isCancelled = Boolean(occurrence.cancellation);
-                      const title = formatProgramScheduleName(occurrence.schedule, occurrence.program);
-                      const detail = formatProgramScheduleDetailLabel(occurrence.schedule);
+                  {classesExpanded ? (
+                    <View style={styles.classList}>
+                      {selectedClasses.map((occurrence) => {
+                        const theme = getClassTheme(occurrence.program?.code);
+                        const isCancelled = Boolean(occurrence.cancellation);
+                        const title = formatProgramScheduleName(occurrence.schedule, occurrence.program);
+                        const detail = formatProgramScheduleDetailLabel(occurrence.schedule);
 
-                      return (
-                        <Pressable
-                          key={`class-${occurrence.id}`}
-                          disabled={!isAdmin}
-                          style={[
-                            styles.classChildCard,
-                            { backgroundColor: isCancelled ? ucapsaBrand.colors.graySoft : theme.background, borderColor: isCancelled ? ucapsaBrand.colors.redBorder : theme.border },
-                          ]}
-                          onPress={isAdmin ? () => router.push(`/admin/class-cancellations?date=${occurrence.dateKey}` as never) : undefined}
-                        >
-                          <View style={[styles.classIconSmall, { backgroundColor: isCancelled ? ucapsaBrand.colors.premiumMuted : theme.iconBackground }]}>
-                            <MaterialIcons name={isCancelled ? 'event-busy' : 'event-note'} size={18} color={isCancelled ? ucapsaBrand.colors.red : theme.accent} />
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Text style={[styles.classTitle, { color: isCancelled ? ucapsaBrand.colors.mutedNeutral : theme.title, textDecorationLine: isCancelled ? 'line-through' : 'none' }]}>{title}</Text>
-                            <Text style={[styles.classText, { color: isCancelled ? ucapsaBrand.colors.mutedNeutral : theme.text }]}>{occurrence.program?.name ?? 'Clase'} - {detail}</Text>
-                            {isCancelled ? <Text style={styles.cancelledText}>Clase cancelada{occurrence.cancellation?.reason ? ` - ${occurrence.cancellation.reason}` : ''}</Text> : null}
-                            {isAdmin ? <Text style={[styles.classHint, { color: isCancelled ? ucapsaBrand.colors.red : theme.accent }]}>{isCancelled ? 'Tocar para ver cancelaciones' : 'Tocar para cancelar o administrar esta fecha'}</Text> : null}
-                          </View>
-                          {isAdmin ? <MaterialIcons name="chevron-right" size={22} color={isCancelled ? ucapsaBrand.colors.red : theme.accent} /> : null}
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                ) : null}
-              </View>
-            ) : null}
+                        return (
+                          <Pressable
+                            key={`class-${occurrence.id}`}
+                            disabled={!isAdmin}
+                            style={[
+                              styles.classChildCard,
+                              { backgroundColor: isCancelled ? ucapsaBrand.colors.graySoft : theme.background, borderColor: isCancelled ? ucapsaBrand.colors.redBorder : theme.border },
+                            ]}
+                            onPress={isAdmin ? () => router.push(`/admin/class-cancellations?date=${occurrence.dateKey}` as never) : undefined}
+                          >
+                            <View style={[styles.classIconSmall, { backgroundColor: isCancelled ? ucapsaBrand.colors.premiumMuted : theme.iconBackground }]}>
+                              <MaterialIcons name={isCancelled ? 'event-busy' : 'event-note'} size={18} color={isCancelled ? ucapsaBrand.colors.red : theme.accent} />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={[styles.classTitle, { color: isCancelled ? ucapsaBrand.colors.mutedNeutral : theme.title, textDecorationLine: isCancelled ? 'line-through' : 'none' }]}>{title}</Text>
+                              <Text style={[styles.classText, { color: isCancelled ? ucapsaBrand.colors.mutedNeutral : theme.text }]}>{occurrence.program?.name ?? 'Clase'} - {detail}</Text>
+                              {isCancelled ? <Text style={styles.cancelledText}>Clase cancelada{occurrence.cancellation?.reason ? ` - ${occurrence.cancellation.reason}` : ''}</Text> : null}
+                              {isAdmin ? <Text style={[styles.classHint, { color: isCancelled ? ucapsaBrand.colors.red : theme.accent }]}>{isCancelled ? 'Tocar para ver cancelaciones' : 'Tocar para cancelar o administrar esta fecha'}</Text> : null}
+                            </View>
+                            {isAdmin ? <MaterialIcons name="chevron-right" size={22} color={isCancelled ? ucapsaBrand.colors.red : theme.accent} /> : null}
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
 
-            {selectedEvents.map((occurrence) => (
-              <EventCard
-                key={`event-${occurrence.id}`}
-                event={occurrence.event}
-                startDateOverride={occurrence.start_date}
-                occurrenceIndex={occurrence.is_recurring ? occurrence.occurrence_index : undefined}
-                onPress={isAdmin ? () => router.push(`/admin/events?eventId=${occurrence.event.id}` as never) : undefined}
-              />
-            ))}
+              {selectedEvents.map((occurrence) => (
+                <EventCard
+                  key={`event-${occurrence.id}`}
+                  event={occurrence.event}
+                  startDateOverride={occurrence.start_date}
+                  occurrenceIndex={occurrence.is_recurring ? occurrence.occurrence_index : undefined}
+                  onPress={isAdmin ? () => router.push(`/admin/events?eventId=${occurrence.event.id}` as never) : undefined}
+                />
+              ))}
 
-            {selectedAnnouncements.map((announcement) => (
-              <AnnouncementCard
-                key={`announcement-${announcement.id}`}
-                announcement={announcement}
-                onPress={isAdmin ? () => router.push(`/admin/announcements?announcementId=${announcement.id}` as never) : undefined}
-                onOpenEvent={announcement.event?.start_date ? () => setSelectedDate(toDateKey(announcement.event?.start_date) ?? selectedDate) : undefined}
-              />
-            ))}
+              {selectedAnnouncements.map((announcement) => (
+                <AnnouncementCard
+                  key={`announcement-${announcement.id}`}
+                  announcement={announcement}
+                  onPress={isAdmin ? () => router.push(`/admin/announcements?announcementId=${announcement.id}` as never) : undefined}
+                  onOpenEvent={announcement.event?.start_date ? () => selectDate(toDateKey(announcement.event?.start_date) ?? selectedDate) : undefined}
+                />
+              ))}
+            </Animated.View>
 
             {upcomingEvents.length > 0 ? (
               <>
@@ -591,7 +748,7 @@ export default function CalendarScreen() {
                     event={occurrence.event}
                     startDateOverride={occurrence.start_date}
                     occurrenceIndex={occurrence.is_recurring ? occurrence.occurrence_index : undefined}
-                    onPress={isAdmin ? () => router.push(`/admin/events?eventId=${occurrence.event.id}` as never) : () => setSelectedDate(toDateKey(occurrence.start_date) ?? selectedDate)}
+                    onPress={isAdmin ? () => router.push(`/admin/events?eventId=${occurrence.event.id}` as never) : () => selectDate(toDateKey(occurrence.start_date) ?? selectedDate)}
                   />
                 ))}
               </>
@@ -628,6 +785,21 @@ const styles = StyleSheet.create({
   adminButtonAlt: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 15, borderRadius: 18, backgroundColor: ucapsaBrand.colors.redSoft, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder },
   adminButtonAltText: { color: ucapsaBrand.colors.redDark, fontSize: 14, fontWeight: '900' },
   calendarCard: { overflow: 'hidden', borderRadius: 22, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  calendarCollapsedHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 },
+  calendarCollapsedTitle: { flex: 1, color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900' },
+  calendarExpandAction: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  calendarExpandText: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900' },
+  weekRow: { flexDirection: 'row', paddingHorizontal: 9, paddingTop: 4, paddingBottom: 10 },
+  weekDayButton: { flex: 1, minHeight: 66, alignItems: 'center', justifyContent: 'flex-start', gap: 3 },
+  weekDayLabel: { color: ucapsaBrand.colors.muted, fontSize: 10, fontWeight: '800' },
+  weekDayLabelSelected: { color: ucapsaBrand.colors.redDark, fontWeight: '900' },
+  weekDayCircle: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  weekDayCircleSelected: { backgroundColor: ucapsaBrand.colors.red },
+  weekDayNumber: { color: ucapsaBrand.colors.text, fontSize: 15, fontWeight: '800' },
+  weekDayNumberOutside: { color: ucapsaBrand.colors.borderNeutral },
+  weekDayNumberSelected: { color: ucapsaBrand.colors.surface, fontWeight: '900' },
+  weekDots: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2, minHeight: 5 },
+  weekDot: { width: 4, height: 4, borderRadius: 999 },
   legendRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, paddingHorizontal: 16, paddingBottom: 14, borderTopWidth: 1, borderTopColor: ucapsaBrand.colors.graySoft },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingTop: 12 },
   legendDot: { width: 9, height: 9, borderRadius: 999 },
@@ -636,6 +808,7 @@ const styles = StyleSheet.create({
   announcementDot: { backgroundColor: ucapsaBrand.colors.gold },
   practiceDot: { backgroundColor: ucapsaBrand.colors.redDark },
   legendText: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '800' },
+  agendaBlock: { gap: 16 },
   practiceDayCard: { gap: 12, padding: 14, borderRadius: 22, borderWidth: 1 },
   practiceDayHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   practiceDayIcon: { width: 42, height: 42, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
@@ -657,7 +830,7 @@ const styles = StyleSheet.create({
   errorText: { color: ucapsaBrand.colors.premiumActionText, fontSize: 14 },
   secondaryButton: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, backgroundColor: ucapsaBrand.colors.surface },
   secondaryButtonText: { color: ucapsaBrand.colors.redDark, fontWeight: '900' },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 4 },
   sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 20, fontWeight: '900' },
   sectionSubtitle: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '700', marginTop: 2 },
   sectionCount: { overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, color: ucapsaBrand.colors.redDark, backgroundColor: ucapsaBrand.colors.redSoft, fontSize: 12, fontWeight: '900' },
