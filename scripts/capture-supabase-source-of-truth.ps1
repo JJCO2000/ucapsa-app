@@ -48,6 +48,18 @@ if (Test-Path $typesErr) {
 }
 Write-Host '[1/4] Tipos OK.' -ForegroundColor Green
 
+Write-Host '[2/4] Verificando Docker para el dump del esquema...'
+$docker = Get-Command docker.exe -ErrorAction SilentlyContinue
+if (-not $docker) { $docker = Get-Command docker -ErrorAction SilentlyContinue }
+if (-not $docker) {
+  throw 'Supabase db dump necesita Docker Desktop. Instala/abre Docker Desktop y vuelve a ejecutar este script.'
+}
+& $docker.Source info *> $null
+if ($LASTEXITCODE -ne 0) {
+  throw 'Docker Desktop esta instalado pero el motor no esta corriendo. Abre Docker Desktop, espera a que diga Engine running y vuelve a ejecutar este script.'
+}
+Write-Host '[2/4] Docker OK.' -ForegroundColor Green
+
 Write-Host '[2/4] Capturando esquema public completo (sin datos)...'
 $schemaOut = Join-Path $audit "remote_public_schema_STEP9_$Stamp.sql"
 Remove-Item $schemaOut -Force -ErrorAction SilentlyContinue
