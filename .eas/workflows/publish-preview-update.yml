@@ -1,0 +1,15 @@
+name: Publish UCAPSA Preview Update
+
+on:
+  push:
+    branches:
+      - audit/source-of-truth-and-ux-fixes-v4
+
+jobs:
+  publish_preview_update:
+    name: Publish Android preview update
+    type: update
+    environment: preview
+    params:
+      channel: preview
+      platform: android
