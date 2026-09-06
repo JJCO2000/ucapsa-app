@@ -6,24 +6,22 @@ Esta carpeta conserva SQL historico y capturas de auditoria. No debe contener ll
 
 1. El esquema remoto de Supabase es la realidad de ejecucion.
 2. `src/types/database.generated.ts` se genera directamente desde el proyecto remoto enlazado.
-3. `supabase/sql/audit/` guarda copias fechadas de los tipos **y un dump completo del esquema `public` sin datos**, incluyendo funciones, políticas, triggers e índices.
-4. El código usa `createClient<Database>` para detectar drift entre frontend y base durante TypeScript.
+3. `supabase/sql/audit/` conserva capturas fechadas de tipos y metadatos remotos de esquema sin datos de clientes.
+4. El codigo usa `createClient<Database>` para detectar drift entre frontend y base durante TypeScript.
 5. Los cambios nuevos de base deben quedar en SQL/migraciones versionadas antes de considerarse cerrados.
-6. Una captura sólo cuenta como válida cuando `source_of_truth_STEP9_*.txt` contiene SHA256 tanto de tipos como del dump remoto.
+6. Docker Desktop **no es requisito del proyecto**. Si existe, el script puede generar adicionalmente un `db dump`; si no existe, continua con tipos, migraciones y lint. La auditoria remota de tablas, RLS, politicas, funciones, triggers, indices y constraints se guarda como manifiesto separado.
 
 ## Importante sobre el historial anterior
 
 Parte de los cambios de Mejora Cliente se aplicaron mediante SQL manual antes de formalizar este flujo. Por eso el historial local de migraciones no debe asumirse completo solo por existir esta carpeta. No usar `migration repair`, `db reset`, `db push` o `db pull` para intentar corregirlo sin una auditoria especifica.
 
-## Captura segura
-
-Ejecutar:
+## Captura segura local
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\capture-supabase-source-of-truth.ps1
 ```
 
-La captura actualiza tipos desde el remoto y genera `remote_public_schema_STEP9_*.sql` mediante `supabase db dump --linked --schema public`; ese dump es obligatorio porque conserva la definición real de RPC, RLS, triggers e índices. Después guarda `migration list` y `db lint` como diagnósticos best-effort. No se exportan datos de clientes.
+Siempre actualiza los tipos remotos. Si Docker esta disponible y activo, tambien intenta un dump del esquema `public`; de lo contrario lo omite sin bloquear el flujo. `migration list` y `db lint` son diagnosticos best-effort. No se exportan datos de clientes.
 
 ## Sistemas que deben conservarse
 
