@@ -45,7 +45,7 @@ function getFilterLabel(filter: UserFilter) {
 }
 
 export default function AdminUsersScreen() {
-  const { loading: sessionLoading, user, role, isAdmin } = useSession();
+  const { user, role } = useSession();
   const adminFormat = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin: true }), [user, role]);
   const params = useLocalSearchParams<{ filter?: string; userId?: string }>();
   const adminsOnly = params.filter === 'admins';
@@ -65,7 +65,6 @@ export default function AdminUsersScreen() {
   }, [params.filter]);
 
   async function loadProfiles() {
-    if (!isAdmin) return;
     setLoading(true);
     const { data, error } = await supabase
       .from('profiles')
@@ -78,16 +77,11 @@ export default function AdminUsersScreen() {
   }
 
   useEffect(() => {
-    if (!isAdmin) {
-      setLoading(false);
-      return;
-    }
-
     loadProfiles().catch((error) => {
       setLoading(false);
       console.warn('No se pudieron cargar usuarios:', error instanceof Error ? error.message : error);
     });
-  }, [isAdmin]);
+  }, []);
 
   async function refreshSelectedProfile(userId: string) {
     const { data, error } = await supabase.from('profiles').select('*').eq('user_id', userId).maybeSingle();
@@ -217,47 +211,6 @@ export default function AdminUsersScreen() {
     admins: profiles.filter((profile) => profile.role === 'admin' || profile.role === 'super_admin').length,
   }), [profiles]);
 
-  if (sessionLoading) {
-    return (
-      <KeyboardAwareScreen style={{ backgroundColor: adminFormat.background }}>
-        <View style={styles.deniedBox}>
-          <MaterialCommunityIcons name="account-lock" size={42} color={ucapsaBrand.colors.redDark} />
-          <Text style={styles.deniedTitle}>Revisando acceso</Text>
-          <Text style={styles.deniedText}>Cargando sesion...</Text>
-        </View>
-      </KeyboardAwareScreen>
-    );
-  }
-
-  if (!user) {
-    return (
-      <KeyboardAwareScreen style={{ backgroundColor: adminFormat.background }}>
-        <View style={styles.deniedBox}>
-          <MaterialCommunityIcons name="lock" size={42} color={ucapsaBrand.colors.redDark} />
-          <Text style={styles.deniedTitle}>Acceso restringido</Text>
-          <Text style={styles.deniedText}>Inicia sesion con una cuenta administrativa para ver usuarios.</Text>
-          <Pressable style={styles.primaryButton} onPress={() => router.push('/auth/login' as never)}>
-            <Text style={styles.primaryButtonText}>Iniciar sesion</Text>
-          </Pressable>
-        </View>
-      </KeyboardAwareScreen>
-    );
-  }
-
-  if (!isAdmin) {
-    return (
-      <KeyboardAwareScreen style={{ backgroundColor: adminFormat.background }}>
-        <View style={styles.deniedBox}>
-          <MaterialCommunityIcons name="lock" size={42} color={ucapsaBrand.colors.redDark} />
-          <Text style={styles.deniedTitle}>Acceso restringido</Text>
-          <Text style={styles.deniedText}>Solo administradores pueden ver usuarios.</Text>
-          <Pressable style={styles.primaryButton} onPress={() => router.push('/home' as never)}>
-            <Text style={styles.primaryButtonText}>Volver a Inicio</Text>
-          </Pressable>
-        </View>
-      </KeyboardAwareScreen>
-    );
-  }
 
   return (
     <KeyboardAwareScreen style={{ backgroundColor: adminFormat.background }}>
