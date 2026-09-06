@@ -1,15 +1,13 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Redirect, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
-import { useSession } from '../../hooks/useSession';
 import { getPaymentSettings, updatePaymentSettings } from '../../services/payments.service';
 
 export default function AdminPaymentSettingsScreen() {
-  const { isAdmin } = useSession();
   const [bankName, setBankName] = useState('');
   const [accountHolder, setAccountHolder] = useState('');
   const [clabe, setClabe] = useState('');
@@ -22,7 +20,6 @@ export default function AdminPaymentSettingsScreen() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    if (!isAdmin) return;
     try {
       const row = await getPaymentSettings();
       setBankName(row?.bank_name ?? '');
@@ -36,7 +33,7 @@ export default function AdminPaymentSettingsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin]);
+  }, []);
 
   useFocusEffect(useCallback(() => { void load(); return undefined; }, [load]));
 
@@ -69,8 +66,6 @@ export default function AdminPaymentSettingsScreen() {
       setSaving(false);
     }
   }
-
-  if (!isAdmin) return <Redirect href="/home" />;
 
   return (
     <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={ucapsaBrand.colors.red} />}>
