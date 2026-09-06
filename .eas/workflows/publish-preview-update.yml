@@ -25,3 +25,5 @@ jobs:
     params:
       channel: preview
       platform: android
+
+# Trigger preview for calendar day focus.
