@@ -1,8 +1,9 @@
-import { ucapsaBrand } from '../../constants/brand';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { MemberClubCrest } from '../domain/MemberClubCrest';
+import { ucapsaBrand } from '../../constants/brand';
 import type { UcapsaFormat } from '../../constants/ucapsaFormats';
 
 type IconFamily = 'material' | 'community';
@@ -30,9 +31,13 @@ export function UcapsaRoleHero({ format, eyebrow, title, subtitle, right, icon }
   return (
     <View style={[styles.hero, { backgroundColor: format.heroBackground, borderColor: format.cardBorder }]}>
       <View style={styles.heroTop}>
-        <View style={[styles.iconBox, { backgroundColor: format.pillBackground }]}>
-          <Icon family="community" name={iconName} size={26} color={format.pillText} />
-        </View>
+        {format.key === 'member' ? (
+          <MemberClubCrest />
+        ) : (
+          <View style={[styles.iconBox, { backgroundColor: format.pillBackground }]}>
+            <Icon family="community" name={iconName} size={26} color={format.pillText} />
+          </View>
+        )}
         {right}
       </View>
       {eyebrow ? <Text style={[styles.eyebrow, { color: format.heroMuted }]}>{eyebrow}</Text> : null}
@@ -65,9 +70,9 @@ export function UcapsaRoleCard({ format, title, subtitle, icon, iconFamily = 'ma
           ) : null}
           <View style={{ flex: 1 }}>
             {title ? <Text style={[styles.cardTitle, { color: format.cardText }]}>{title}</Text> : null}
-            {subtitle ? <Text style={[styles.cardSubtitle, { color: format.key === 'member' ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{subtitle}</Text> : null}
+            {subtitle ? <Text style={[styles.cardSubtitle, { color: format.muted }]}>{subtitle}</Text> : null}
           </View>
-          {onPress ? <MaterialIcons name="chevron-right" size={24} color={format.key === 'member' ? ucapsaBrand.colors.surface : format.accent} /> : null}
+          {onPress ? <MaterialIcons name="chevron-right" size={24} color={format.key === 'member' ? format.accentDark : format.accent} /> : null}
         </View>
       ) : null}
       {children}
@@ -83,7 +88,7 @@ export function UcapsaPill({ format, children }: { format: UcapsaFormat; childre
 }
 
 const styles = StyleSheet.create({
-  hero: { gap: 8, padding: 20, borderRadius: 30, borderWidth: 1 },
+  hero: { gap: 8, padding: 20, borderRadius: 30, borderWidth: 1, shadowColor: ucapsaBrand.colors.redDeep, shadowOpacity: 0.035, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 1 },
   heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   iconBox: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
   eyebrow: { fontSize: 12, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase' },

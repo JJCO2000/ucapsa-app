@@ -1,7 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { ucapsaBrand, withAlpha } from '../../constants/brand';
+import { ucapsaBrand } from '../../constants/brand';
 
 type SocialLinksRowProps = {
   title?: string;
@@ -25,7 +25,7 @@ export function SocialLinksRow({ title = 'Canales oficiales', subtitle = 'Sitio 
       <View style={styles.row}>
         {ucapsaBrand.socialLinks.map((item) => (
           <Pressable accessibilityRole="link" accessibilityLabel={`Abrir ${item.label}`} key={item.key} style={[styles.item, premium && styles.itemPremium]} onPress={() => void openLink(item.url)}>
-            <MaterialCommunityIcons name={item.icon as any} size={20} color={premium ? ucapsaBrand.colors.gold : ucapsaBrand.colors.red} />
+            <MaterialCommunityIcons name={item.icon as any} size={20} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.red} />
             <Text style={[styles.label, premium && styles.labelPremium]}>{item.label}</Text>
           </Pressable>
         ))}
@@ -56,10 +56,10 @@ const styles = StyleSheet.create({
     backgroundColor: ucapsaBrand.colors.redSoft,
   },
   label: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900' },
-  wrapperPremium: { backgroundColor: ucapsaBrand.colors.premiumSurface, borderColor: withAlpha(ucapsaBrand.colors.gold, 0.34) },
-  titlePremium: { color: ucapsaBrand.colors.premiumAction },
+  wrapperPremium: { backgroundColor: ucapsaBrand.colors.premiumSurface, borderColor: ucapsaBrand.colors.premiumBorder },
+  titlePremium: { color: ucapsaBrand.colors.premiumText },
   subtitlePremium: { color: ucapsaBrand.colors.premiumMuted },
-  itemPremium: { backgroundColor: withAlpha(ucapsaBrand.colors.gold, 0.12), borderWidth: 1, borderColor: withAlpha(ucapsaBrand.colors.gold, 0.22) },
-  labelPremium: { color: ucapsaBrand.colors.premiumAction },
+  itemPremium: { backgroundColor: ucapsaBrand.colors.premiumSurfaceAlt, borderWidth: 1, borderColor: ucapsaBrand.colors.premiumBorder },
+  labelPremium: { color: ucapsaBrand.colors.premiumActionText },
 });
 

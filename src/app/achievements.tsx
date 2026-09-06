@@ -5,6 +5,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { AchievementBadgeGrid, AchievementDetailModal, AchievementSummary } from '../components/domain/AchievementBadgeGrid';
+import { ClientPageHeader } from '../components/layout/ClientPageHeader';
 import { KeyboardAwareScreen } from '../components/ui/KeyboardAwareScreen';
 import { resolveUcapsaFormat } from '../constants/ucapsaFormats';
 import { useSession } from '../hooks/useSession';
@@ -109,14 +110,13 @@ export default function AchievementsScreen() {
       contentContainerStyle={premium ? styles.premiumContent : undefined}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={format.accent} />}
     >
-      <View style={[styles.hero, { backgroundColor: premium ? ucapsaBrand.colors.premiumHero : format.surface, borderColor: premium ? withAlpha(ucapsaBrand.colors.gold, 0.42) : format.border }]}>
-        <View style={[styles.heroIcon, { backgroundColor: premium ? ucapsaBrand.colors.premiumAction : format.accentSoft }]}>
-          <MaterialCommunityIcons name="medal" size={34} color={premium ? ucapsaBrand.colors.premiumActionText : format.accent} />
-        </View>
-        <Text style={[styles.eyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accent }]}>Perfil</Text>
-        <Text style={[styles.title, { color: premium ? ucapsaBrand.colors.surface : format.text }]}>Logros UCAPSA</Text>
-        <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Medallas desbloqueadas por completar Puppy y Comandos.</Text>
-      </View>
+      <ClientPageHeader
+        format={format}
+        eyebrow="Tu recorrido"
+        title="Logros"
+        subtitle="Hitos reales que ya alcanzaste con tu perro en UCAPSA."
+        icon="emoji-events"
+      />
 
       {hasAchievements ? <AchievementSummary items={achievements} premium={premium} /> : null}
 
@@ -146,6 +146,20 @@ export default function AchievementsScreen() {
 
       {!loading || hasAchievements ? <AchievementBadgeGrid items={achievements} premium={premium} onSelect={setSelectedAchievement} /> : null}
 
+      <Pressable
+        style={[styles.activityBadgesCard, premium && styles.activityBadgesCardPremium]}
+        onPress={() => router.push('/client/activity-achievements' as never)}
+      >
+        <View style={[styles.activityBadgesIcon, premium && styles.activityBadgesIconPremium]}>
+          <MaterialCommunityIcons name="star-four-points" size={24} color={premium ? ucapsaBrand.colors.premiumActionText : ucapsaBrand.colors.red} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.activityBadgesTitle, premium && styles.activityBadgesTitlePremium]}>Insignias de actividad</Text>
+          <Text style={[styles.activityBadgesText, premium && styles.activityBadgesTextPremium]}>Asistencias, prácticas, visitas y rachas. Tus 4 medallas principales no cambian.</Text>
+        </View>
+        <MaterialCommunityIcons name="chevron-right" size={24} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.red} />
+      </Pressable>
+
       <Pressable style={[styles.secondaryButton, premium && styles.secondaryButtonPremium]} onPress={() => router.push('/home' as never)}>
         <Text style={[styles.secondaryButtonText, premium && styles.secondaryButtonTextPremium]}>Volver a Inicio</Text>
       </Pressable>
@@ -164,23 +178,31 @@ const styles = StyleSheet.create({
   muted: { fontSize: 14, lineHeight: 20, fontWeight: '700' },
   loadingBox: { gap: 10, alignItems: 'center', padding: 20 },
   cacheBox: { flexDirection: 'row', alignItems: 'center', gap: 9, padding: 13, borderRadius: 18, backgroundColor: ucapsaBrand.colors.redPale, borderWidth: 1, borderColor: ucapsaBrand.colors.textLight },
-  cacheBoxPremium: { backgroundColor: withAlpha(ucapsaBrand.colors.surface, 0.08), borderColor: withAlpha(ucapsaBrand.colors.gold, 0.26) },
+  cacheBoxPremium: { backgroundColor: ucapsaBrand.colors.premiumSurfaceAlt, borderColor: ucapsaBrand.colors.premiumBorder },
   cacheText: { flex: 1, color: ucapsaBrand.colors.grayDark, fontSize: 12, lineHeight: 17, fontWeight: '800' },
   cacheTextPremium: { color: ucapsaBrand.colors.premiumMuted },
   errorBox: { gap: 8, padding: 16, borderRadius: 20, backgroundColor: ucapsaBrand.colors.dangerSoft, borderWidth: 1, borderColor: ucapsaBrand.colors.dangerBorder },
-  errorBoxPremium: { backgroundColor: withAlpha(ucapsaBrand.colors.surface, 0.08), borderColor: withAlpha(ucapsaBrand.colors.gold, 0.26) },
+  errorBoxPremium: { backgroundColor: ucapsaBrand.colors.premiumSurfaceAlt, borderColor: ucapsaBrand.colors.premiumBorder },
   errorTitle: { color: ucapsaBrand.colors.danger, fontSize: 16, fontWeight: '900' },
   errorTitlePremium: { color: ucapsaBrand.colors.premiumAction },
   errorText: { color: ucapsaBrand.colors.premiumActionText, fontSize: 13, lineHeight: 19, fontWeight: '700' },
   errorTextPremium: { color: ucapsaBrand.colors.premiumMuted },
   retryButton: { alignSelf: 'flex-start', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.dangerBorder },
-  retryButtonPremium: { backgroundColor: withAlpha(ucapsaBrand.colors.surface, 0.08), borderColor: withAlpha(ucapsaBrand.colors.gold, 0.26) },
+  retryButtonPremium: { backgroundColor: ucapsaBrand.colors.premiumSurface, borderColor: ucapsaBrand.colors.premiumBorder },
   retryButtonText: { color: ucapsaBrand.colors.danger, fontSize: 13, fontWeight: '900' },
   retryButtonTextPremium: { color: ucapsaBrand.colors.premiumAction },
   primaryButton: { alignItems: 'center', borderRadius: 18, paddingVertical: 14, marginTop: 8 },
   primaryButtonText: { fontSize: 15, fontWeight: '900' },
+  activityBadgesCard: { minHeight: 92, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 22, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.borderNeutral, marginTop: 12, marginBottom: 12 },
+  activityBadgesCardPremium: { backgroundColor: ucapsaBrand.colors.premiumSurface, borderColor: ucapsaBrand.colors.premiumBorder },
+  activityBadgesIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
+  activityBadgesIconPremium: { backgroundColor: ucapsaBrand.colors.premiumSurfaceAlt, borderWidth: 1, borderColor: ucapsaBrand.colors.premiumBorder },
+  activityBadgesTitle: { color: ucapsaBrand.colors.text, fontSize: 16, lineHeight: 20, fontWeight: '900' },
+  activityBadgesTitlePremium: { color: ucapsaBrand.colors.premiumText },
+  activityBadgesText: { marginTop: 3, color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 16, fontWeight: '700' },
+  activityBadgesTextPremium: { color: ucapsaBrand.colors.premiumMuted },
   secondaryButton: { alignItems: 'center', borderRadius: 18, paddingVertical: 14, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.borderNeutral },
-  secondaryButtonPremium: { backgroundColor: withAlpha(ucapsaBrand.colors.surface, 0.08), borderColor: withAlpha(ucapsaBrand.colors.gold, 0.26) },
+  secondaryButtonPremium: { backgroundColor: ucapsaBrand.colors.premiumSurface, borderColor: ucapsaBrand.colors.premiumBorder },
   secondaryButtonText: { color: ucapsaBrand.colors.cameraDark, fontSize: 15, fontWeight: '900' },
   secondaryButtonTextPremium: { color: ucapsaBrand.colors.premiumAction },
 });

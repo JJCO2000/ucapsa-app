@@ -65,16 +65,20 @@ export const ucapsaBrand = {
     dangerSoft: '#FEF2F2',
     dangerBorder: '#FECACA',
 
-    // Experiencia de socio premium.
-    premiumBackground: '#270711',
-    premiumSurface: '#38111B',
-    premiumSurfaceAlt: '#461521',
-    premiumBorder: '#7A2A36',
-    premiumHero: '#6D0817',
-    premiumText: '#FFFFFF',
-    premiumMuted: '#FFE3E8',
-    premiumAction: '#FFE8B5',
-    premiumActionText: '#7A1020',
+    // Experiencia Club UCAPSA: marfil y blanco como base, borgoña como marca
+    // y dorado reservado para estatus, hitos y detalles realmente exclusivos.
+    premiumBackground: '#F7EFE2',
+    premiumSurface: '#FFFEFB',
+    premiumSurfaceAlt: '#F3E5CF',
+    premiumBorder: '#DCC9A6',
+    premiumBorderStrong: '#C5A66B',
+    premiumHero: '#FFF8EC',
+    premiumText: '#2F191D',
+    premiumMuted: '#71595E',
+    premiumAction: '#A87821',
+    premiumActionSoft: '#E6C982',
+    premiumActionText: '#6D0817',
+    premiumBurgundySoft: '#F1E1E3',
   },
   socialLinks: [
     { key: 'whatsapp', label: 'WhatsApp', url: 'https://wa.me/525522410679', icon: 'whatsapp' },

@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
+import { ClientPageHeader } from '../../components/layout/ClientPageHeader';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
@@ -140,11 +141,13 @@ export default function PaymentsTab() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={format.accent} />}
     >
       <UcapsaAmbientBackground format={format} variant="payments" />
-      <View style={styles.header}>
-        <Text style={[styles.kicker, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Mi UCAPSA</Text>
-        <Text style={[styles.title, { color: format.text }]}>Pagos</Text>
-        <Text style={[styles.subtitle, { color: format.muted }]}>Consulta saldos, transferencias y pagos registrados.</Text>
-      </View>
+      <ClientPageHeader
+        format={format}
+        eyebrow="Tu cuenta"
+        title="Pagos"
+        subtitle="Saldo, cargos, transferencias y comprobantes en un solo lugar."
+        icon="account-balance-wallet"
+      />
 
       {usingSavedData ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} /> : null}
 
@@ -153,21 +156,41 @@ export default function PaymentsTab() {
 
       {!loading && !error ? (
         <>
-          {overviewAvailable ? <View style={[styles.balanceCard, premium && styles.balanceCardPremium, (overview.attention_total > 0.005 || overview.legacy_membership_pending) && (premium ? styles.balanceCardPremiumPending : styles.balanceCardPending)]}>
-            <Text style={[styles.balanceLabel, premium && styles.mutedPremium]}>Por pagar</Text>
-            <Text style={[styles.balanceValue, premium && styles.textPremium]}>{overview.outstanding_total > 0.005 ? money(overview.outstanding_total) : 'Sin saldo'}</Text>
-            <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
-              {overview.overdue_count > 0
-                ? `${overview.overdue_count} cargo${overview.overdue_count === 1 ? '' : 's'} vencido${overview.overdue_count === 1 ? '' : 's'}.`
-                : overview.legacy_membership_pending
-                  ? 'Hay un pago de membresia pendiente de revision.'
-                  : overview.attention_total > 0.005
-                    ? 'Tienes cargos que requieren atencion.'
+          {overviewAvailable ? (
+            <>
+              <View style={[styles.balanceCard, premium && styles.balanceCardPremium]}>
+                <View style={styles.balanceTopRow}>
+                  <View style={[styles.balanceIcon, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : overview.outstanding_total > 0.005 ? ucapsaBrand.colors.warningSoft : ucapsaBrand.colors.successSoft }]}>
+                    <MaterialIcons name={overview.outstanding_total > 0.005 ? 'account-balance-wallet' : 'check-circle'} size={22} color={premium ? ucapsaBrand.colors.premiumActionText : overview.outstanding_total > 0.005 ? ucapsaBrand.colors.warning : ucapsaBrand.colors.success} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.balanceStatus, premium && styles.balanceStatusPremium]}>ESTADO DE CUENTA</Text>
+                    <Text style={[styles.balanceLabel, premium && styles.mutedPremium]}>{overview.outstanding_total > 0.005 ? 'Saldo abierto' : 'Sin cargos abiertos'}</Text>
+                  </View>
+                </View>
+                <Text style={[styles.balanceValue, premium && styles.textPremium]}>{overview.outstanding_total > 0.005 ? money(overview.outstanding_total) : 'Sin saldo'}</Text>
+                <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+                  {overview.overdue_count > 0
+                    ? `${overview.overdue_count} cargo${overview.overdue_count === 1 ? '' : 's'} vencido${overview.overdue_count === 1 ? '' : 's'}.`
                     : overview.future_total > 0.005
                       ? `Cargos futuros: ${money(overview.future_total)}.`
-                      : 'No tienes cargos abiertos registrados.'}
-            </Text>
-          </View> : (
+                      : overview.outstanding_total > 0.005
+                        ? 'Consulta el detalle de tus cargos abiertos.'
+                        : 'No tienes cargos abiertos registrados.'}
+                </Text>
+              </View>
+
+              {overview.legacy_membership_pending ? (
+                <View style={[styles.reviewNote, { borderColor: premium ? ucapsaBrand.colors.premiumBorder : ucapsaBrand.colors.warningBorder, backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : ucapsaBrand.colors.warningSoft }]}>
+                  <MaterialIcons name="hourglass-top" size={18} color={premium ? ucapsaBrand.colors.premiumActionText : ucapsaBrand.colors.warningDark} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.reviewNoteTitle, { color: premium ? ucapsaBrand.colors.premiumText : ucapsaBrand.colors.text }]}>Comprobante en revisión</Text>
+                    <Text style={[styles.reviewNoteText, { color: premium ? ucapsaBrand.colors.premiumMuted : ucapsaBrand.colors.muted }]}>UCAPSA está revisando un pago de membresía.</Text>
+                  </View>
+                </View>
+              ) : null}
+            </>
+          ) : (
             <View style={[styles.section, premium && styles.sectionPremium]}>
               <Text style={[styles.sectionTitle, premium && styles.textPremium]}>Saldo no disponible</Text>
               <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>No pudimos consultar tu saldo. Reintenta antes de asumir que no tienes cargos pendientes.</Text>
@@ -288,36 +311,42 @@ const styles = StyleSheet.create({
   loading: { flexDirection: 'row', gap: 10, alignItems: 'center', paddingVertical: 12 },
   muted: { color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 19, fontWeight: '700' },
   mutedPremium: { color: ucapsaBrand.colors.premiumMuted },
-  textPremium: { color: ucapsaBrand.colors.surface },
+  textPremium: { color: ucapsaBrand.colors.premiumText },
   errorBox: { gap: 5, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.dangerBorder, backgroundColor: ucapsaBrand.colors.dangerSoft, padding: 16 },
   errorBoxPremium: { borderColor: withAlpha(ucapsaBrand.colors.gold, 0.35), backgroundColor: ucapsaBrand.colors.premiumSurface },
   errorTitle: { color: ucapsaBrand.colors.danger, fontSize: 17, fontWeight: '900' },
   errorTitlePremium: { color: ucapsaBrand.colors.premiumAction },
-  balanceCard: { gap: 5, borderRadius: 22, borderWidth: 1, borderColor: ucapsaBrand.colors.successBorder, backgroundColor: ucapsaBrand.colors.successSoft, padding: 18, marginBottom: 14 },
+  balanceCard: { gap: 7, borderRadius: 24, borderWidth: 1, borderColor: ucapsaBrand.colors.successBorder, backgroundColor: ucapsaBrand.colors.successSoft, padding: 16, marginBottom: 10 },
+  balanceTopRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  balanceIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  balanceStatus: { color: ucapsaBrand.colors.successDark, fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 0.9 },
+  balanceStatusPremium: { color: ucapsaBrand.colors.premiumActionText },
   balanceCardPending: { borderColor: ucapsaBrand.colors.warningBorder, backgroundColor: ucapsaBrand.colors.warningSoft },
-  balanceCardPremium: { borderColor: withAlpha(ucapsaBrand.colors.gold, 0.38), backgroundColor: ucapsaBrand.colors.premiumHero },
-  balanceCardPremiumPending: { borderColor: ucapsaBrand.colors.gold, backgroundColor: ucapsaBrand.colors.premiumSurfaceAlt },
+  balanceCardPremium: { borderColor: ucapsaBrand.colors.premiumBorder, backgroundColor: ucapsaBrand.colors.premiumHero },
   balanceLabel: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
   balanceValue: { color: ucapsaBrand.colors.text, fontSize: 29, fontWeight: '900' },
+  reviewNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, borderRadius: 16, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 14 },
+  reviewNoteTitle: { fontSize: 12, lineHeight: 16, fontWeight: '900' },
+  reviewNoteText: { marginTop: 2, fontSize: 11, lineHeight: 15, fontWeight: '700' },
   section: { gap: 10, borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 16, marginBottom: 14 },
-  sectionPremium: { borderColor: withAlpha(ucapsaBrand.colors.gold, 0.34), backgroundColor: ucapsaBrand.colors.premiumSurface },
+  sectionPremium: { borderColor: ucapsaBrand.colors.premiumBorder, backgroundColor: ucapsaBrand.colors.premiumSurface },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '900' },
   count: { minWidth: 28, textAlign: 'center', overflow: 'hidden', borderRadius: 999, backgroundColor: ucapsaBrand.colors.redSoft, color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900', paddingVertical: 5 },
   countPremium: { backgroundColor: withAlpha(ucapsaBrand.colors.gold, 0.16), color: ucapsaBrand.colors.premiumAction },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: ucapsaBrand.colors.premiumMuted, paddingTop: 10 },
-  rowPremium: { borderTopColor: withAlpha(ucapsaBrand.colors.gold, 0.16) },
+  rowPremium: { borderTopColor: ucapsaBrand.colors.premiumBorder },
   rowTitle: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
   amount: { color: ucapsaBrand.colors.warning, fontSize: 14, fontWeight: '900' },
   amountPremium: { color: ucapsaBrand.colors.premiumAction },
   paidAmount: { color: ucapsaBrand.colors.success, fontSize: 14, fontWeight: '900' },
-  paidAmountPremium: { color: ucapsaBrand.colors.gold },
+  paidAmountPremium: { color: ucapsaBrand.colors.success },
   hint: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '700' },
   bankRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: ucapsaBrand.colors.premiumMuted, paddingTop: 10 },
   bankLabel: { color: ucapsaBrand.colors.muted, fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
   bankValue: { color: ucapsaBrand.colors.text, fontSize: 15, lineHeight: 20, fontWeight: '900', marginTop: 2 },
   smallCopy: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
-  smallCopyPremium: { backgroundColor: withAlpha(ucapsaBrand.colors.gold, 0.14), borderWidth: 1, borderColor: withAlpha(ucapsaBrand.colors.gold, 0.25) },
+  smallCopyPremium: { backgroundColor: ucapsaBrand.colors.premiumSurfaceAlt, borderWidth: 1, borderColor: ucapsaBrand.colors.premiumBorder },
   receiptBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.dangerBorder, backgroundColor: ucapsaBrand.colors.dangerSoft, padding: 12, marginTop: 2 },
   receiptBoxPremium: { borderColor: withAlpha(ucapsaBrand.colors.gold, 0.28), backgroundColor: withAlpha(ucapsaBrand.colors.gold, 0.08) },
   receiptTitle: { color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '900' },
@@ -325,11 +354,11 @@ const styles = StyleSheet.create({
   copyButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 16, paddingVertical: 12, marginTop: 2 },
   copyButtonText: { fontSize: 13, fontWeight: '900' },
   whatsappButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingVertical: 12 },
-  whatsappButtonPremium: { borderColor: withAlpha(ucapsaBrand.colors.gold, 0.34), backgroundColor: withAlpha(ucapsaBrand.colors.surface, 0.06) },
+  whatsappButtonPremium: { borderColor: ucapsaBrand.colors.premiumBorder, backgroundColor: ucapsaBrand.colors.premiumSurface },
   whatsappButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900' },
   whatsappButtonTextPremium: { color: ucapsaBrand.colors.premiumAction },
   secondaryButton: { alignItems: 'center', borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, paddingVertical: 12 },
-  secondaryButtonPremium: { borderColor: withAlpha(ucapsaBrand.colors.gold, 0.34), backgroundColor: withAlpha(ucapsaBrand.colors.surface, 0.06) },
+  secondaryButtonPremium: { borderColor: ucapsaBrand.colors.premiumBorder, backgroundColor: ucapsaBrand.colors.premiumSurface },
   secondaryButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900' },
   secondaryButtonTextPremium: { color: ucapsaBrand.colors.premiumAction },
   link: { fontSize: 13, fontWeight: '900' },

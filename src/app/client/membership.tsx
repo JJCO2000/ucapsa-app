@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, Pressable, RefreshControl, StyleSheet, Text, 
 
 import { MemberCredentialCard } from '../../components/domain/MemberCredentialCard';
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
+import { ClientPageHeader } from '../../components/layout/ClientPageHeader';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
@@ -192,11 +193,13 @@ export default function ClientMembershipScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={format.accent} />}
     >
       <UcapsaAmbientBackground format={format} variant="services" />
-      <View style={styles.header}>
-        <Text style={[styles.kicker, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Servicios</Text>
-        <Text style={[styles.title, { color: format.text }]}>Membresia</Text>
-        <Text style={[styles.subtitle, { color: format.muted }]}>Estado, vigencia y credencial. Las clases y pagos estan en sus propias secciones.</Text>
-      </View>
+      <ClientPageHeader
+        format={format}
+        eyebrow="Tu acceso UCAPSA"
+        title="Membresía"
+        subtitle={premium ? 'Tu credencial, vigencia y acceso como socio.' : 'Estado, vigencia y credencial.'}
+        icon="workspace-premium"
+      />
 
       {usingSavedData ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} /> : null}
       {error ? <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}><Text style={[styles.cardTitle, { color: format.cardText }]}>No se pudo actualizar</Text><Text style={[styles.muted, { color: format.muted }]}>{error}</Text><Pressable style={[styles.secondaryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={() => void refresh()}><Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>Reintentar</Text></Pressable></View> : null}
@@ -234,7 +237,7 @@ export default function ClientMembershipScreen() {
 
       {pending ? (
         <View style={[styles.noticeCard, premium && styles.noticeCardPremium]}>
-          <Text style={[styles.cardTitle, { color: premium ? ucapsaBrand.colors.surface : format.text }]}>Solicitud pendiente</Text>
+          <Text style={[styles.cardTitle, { color: premium ? ucapsaBrand.colors.premiumText : format.text }]}>Solicitud pendiente</Text>
           <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Administracion esta revisando tu solicitud. La credencial aparecera aqui cuando sea aprobada.</Text>
         </View>
       ) : null}
@@ -256,10 +259,22 @@ export default function ClientMembershipScreen() {
       {active && membership && membershipFresh ? (
         <>
           <MemberCredentialCard membership={membership} profile={profile} displayName={displayName} expiredByDate={isMembershipDateExpired(membership)} />
-          <View style={styles.actions}>
-            <Pressable style={[styles.secondaryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={() => router.push('/payments' as never)}><Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>Ver pagos</Text></Pressable>
-            <Pressable style={[styles.secondaryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={() => router.push('/classes' as never)}><Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>Ver clases</Text></Pressable>
-          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Registrar visita de socio"
+            style={styles.memberVisitAction}
+            onPress={() => router.push('/attendance' as never)}
+          >
+            <View style={styles.memberVisitIcon}>
+              <MaterialIcons name="qr-code-scanner" size={24} color={ucapsaBrand.colors.premiumActionText} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.memberVisitTitle}>Registrar visita de socio</Text>
+              <Text style={styles.memberVisitText}>Escanea el QR oficial de Socios al ingresar a UCAPSA. Se registra como visita, no como asistencia a clase.</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={25} color={ucapsaBrand.colors.premiumAction} />
+          </Pressable>
+          <Pressable style={[styles.secondaryButton, styles.classesButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={() => router.push('/classes' as never)}><Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>Ver clases</Text></Pressable>
         </>
       ) : active && cachedMembership ? (
         <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
@@ -285,11 +300,15 @@ const styles = StyleSheet.create({
   muted: { fontSize: 13, lineHeight: 19, fontWeight: '700' },
   card: { gap: 9, borderRadius: 20, borderWidth: 1, padding: 17, marginBottom: 14 },
   noticeCard: { gap: 8, borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.goldSoft, backgroundColor: ucapsaBrand.colors.warningSoft, padding: 17, marginBottom: 14 },
-  noticeCardPremium: { borderColor: withAlpha(ucapsaBrand.colors.gold, 0.42), backgroundColor: ucapsaBrand.colors.premiumSurface },
+  noticeCardPremium: { borderColor: ucapsaBrand.colors.premiumBorder, backgroundColor: ucapsaBrand.colors.premiumSurface },
   cardTitle: { fontSize: 18, fontWeight: '900' },
   primaryButton: { alignItems: 'center', borderRadius: 16, paddingVertical: 12, marginTop: 2 },
   primaryButtonText: { fontSize: 13, fontWeight: '900' },
   secondaryButton: { flex: 1, alignItems: 'center', borderRadius: 16, borderWidth: 1, paddingVertical: 12 },
   secondaryButtonText: { fontSize: 13, fontWeight: '900' },
-  actions: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  memberVisitAction: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 14, borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.premiumBorderStrong, backgroundColor: ucapsaBrand.colors.premiumHero, padding: 14 },
+  memberVisitIcon: { width: 46, height: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.premiumActionSoft },
+  memberVisitTitle: { color: ucapsaBrand.colors.premiumText, fontSize: 15, fontWeight: '900' },
+  memberVisitText: { color: ucapsaBrand.colors.premiumMuted, fontSize: 11, lineHeight: 17, fontWeight: '700', marginTop: 3 },
+  classesButton: { marginTop: 10 },
 });

@@ -1,9 +1,9 @@
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Linking, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { AchievementMiniRow } from '../../components/domain/AchievementBadgeGrid';
 import { CustomerValueSnapshotCard } from '../../components/domain/CustomerValueSnapshotCard';
 import { AnnouncementCard } from '../../components/domain/AnnouncementCard';
 import { EventCard } from '../../components/domain/EventCard';
@@ -33,7 +33,8 @@ import { readCustomerValueSnapshotCache, writeCustomerValueSnapshotCache } from 
 import { getCustomerValuePrimaryNextAction, getMyCustomerValueSnapshot, type CustomerValueSnapshot } from '../../services/customer-value.service';
 import { getMyMembership, isMembershipActiveToday } from '../../services/memberships.service';
 import { getMyPaymentOverview } from '../../services/payments.service';
-import { getMyProgramEnrollments, getNextProgramScheduleDate, getProgramCodeLabel, getProgramEnrollmentDogName } from '../../services/programs.service';
+import { getMyProgramEnrollments, getNextProgramScheduleDate, getProgramCodeLabel, getProgramEnrollmentDogName, getProgramLevelLabel } from '../../services/programs.service';
+import { DEFAULT_PRACTICE_TARGET_DAYS, getPracticeGoalProgress, getPracticeTargetDays, type PracticeTargetDay } from '../../services/practice-goal-preference.service';
 import { buildPracticeEngagementStats, getCachedMyPracticeActivity, getMyPracticeActivity, getMyWeeklyPracticeSummary, getPendingPracticeCounts, saveMyPracticeSession, type PracticeActivityEntry, type PracticeEngagementStats } from '../../services/practice.service';
 import type { PracticeDifficulty } from '../../types/app.types';
 import type { Announcement, EventOccurrence, MembershipStatus } from '../../types/app.types';
@@ -89,9 +90,6 @@ function withHomeTimeout<T>(promise: Promise<T>): Promise<T> {
   });
 }
 
-function money(value: number) {
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 }).format(value);
-}
 
 function nextClassText(item: HomeProgramSummary | null) {
   if (!item) return 'Sin clase próxima';
@@ -148,6 +146,7 @@ export default function HomeScreen() {
   const [practiceActivity, setPracticeActivity] = useState<PracticeActivityEntry[]>([]);
   const [practiceEngagement, setPracticeEngagement] = useState<PracticeEngagementStats>(EMPTY_PRACTICE_ENGAGEMENT);
   const [practiceActivityAvailable, setPracticeActivityAvailable] = useState(false);
+  const [practiceTargetDays, setPracticeTargetDays] = useState<PracticeTargetDay[]>(DEFAULT_PRACTICE_TARGET_DAYS);
   const [practiceModalOpen, setPracticeModalOpen] = useState(false);
   const [practiceStartedAt, setPracticeStartedAt] = useState<string | null>(null);
   const [practiceDifficulty, setPracticeDifficulty] = useState<PracticeDifficulty | null>(null);
@@ -186,6 +185,7 @@ export default function HomeScreen() {
       setPracticeActivity([]);
       setPracticeEngagement(EMPTY_PRACTICE_ENGAGEMENT);
       setPracticeActivityAvailable(false);
+      setPracticeTargetDays(DEFAULT_PRACTICE_TARGET_DAYS);
       setStatuses(initialStatuses);
       setHomeCache(null);
       setCustomerValueSnapshot(null);
@@ -246,6 +246,10 @@ export default function HomeScreen() {
       (user && (cachedHome?.membership_status || cachedHome?.programs || cachedHome?.payments || cachedHome?.practice || cachedAchievements))
     ) {
       setLoading(false);
+    }
+
+    if (user) {
+      void getPracticeTargetDays(user.id).then(setPracticeTargetDays).catch(() => setPracticeTargetDays(DEFAULT_PRACTICE_TARGET_DAYS));
     }
 
     const customerValuePromise = user && customerValueFeatures.homeSnapshotV1
@@ -436,16 +440,23 @@ export default function HomeScreen() {
   }, [activePrograms]);
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin, membershipStatus, hasActivePrograms: activePrograms.length > 0 }), [activePrograms.length, isAdmin, membershipStatus, role, user]);
   const displayName = profile?.full_name || profile?.email || user?.email || 'Visitante';
-  const profileComplete = Boolean((profile?.full_name ?? '').trim() && (profile?.phone ?? '').trim());
-  const hasPaymentAttention = payments.attention_total > 0.005 || payments.legacy_membership_pending;
+  const primaryValueProgram = customerValueSnapshot?.whatIHave.programs[0] ?? null;
   const hasEffectiveMembership = customerValueSnapshot?.whatIHave.membership?.isValidToday ?? membershipActiveToday;
+  const identityDetail = format.key === 'member'
+    ? 'SOCIO UCAPSA'
+    : primaryValueProgram
+      ? `${primaryValueProgram.dogName || 'Tu perro'} · ${primaryValueProgram.programCode === 'comandos' ? `Comandos ${getProgramLevelLabel(primaryValueProgram.programLevel)}` : primaryValueProgram.programName}`
+      : hasEffectiveMembership
+        ? 'Membresía UCAPSA activa'
+        : 'Tu experiencia UCAPSA';
+  const profileComplete = Boolean((profile?.full_name ?? '').trim() && (profile?.phone ?? '').trim());
   const customerValueVisible = Boolean(
     user &&
     customerValueFeatures.homeSnapshotV1 &&
     customerValueSnapshot &&
     ['ok', 'cached', 'partial'].includes(customerValueStatus),
   );
-  const accountDataError = user ? statuses.membership === 'error' || statuses.programs === 'error' || statuses.payments === 'error' : false;
+  const accountDataError = user ? statuses.membership === 'error' || statuses.programs === 'error' : false;
   const practiceCount = nextProgram ? (practice.counts.find((item) => item.enrollment_id === nextProgram.enrollment_id || (item.dog_id && item.dog_id === nextProgram.dog_id))?.count ?? 0) : 0;
   const practiceAvailable = statuses.practice === 'ok' || statuses.practice === 'cached';
   const streakMessage = !practiceActivityAvailable
@@ -455,6 +466,7 @@ export default function HomeScreen() {
       : practiceEngagement.currentStreak > 0
         ? 'Practica hoy para mantener tu racha.'
         : 'Empieza tu racha hoy.';
+  const practiceGoalProgress = getPracticeGoalProgress(practiceActivity.map((entry) => entry.completedAt), practiceTargetDays);
   const accountDataFresh = user ? statuses.membership === 'ok' && statuses.programs === 'ok' && statuses.payments === 'ok' : true;
   const announcementsError = statuses.announcements === 'error';
   const eventsError = statuses.events === 'error';
@@ -466,7 +478,6 @@ export default function HomeScreen() {
     if (statuses.events === 'cached') labels.push('agenda');
     if (statuses.membership === 'cached') labels.push('membresia');
     if (statuses.programs === 'cached') labels.push('clases');
-    if (statuses.payments === 'cached') labels.push('pagos');
     if (statuses.achievements === 'cached') labels.push('logros');
     if (statuses.practice === 'cached') labels.push('practica');
     return labels;
@@ -572,10 +583,10 @@ export default function HomeScreen() {
         setHomeCache(merged);
       }
 
-      const nextCount = practiceCount + 1;
+      const goalAfterSave = getPracticeGoalProgress(nextActivity.map((entry) => entry.completedAt), practiceTargetDays);
       const streakText = nextEngagement.currentStreak > 0 ? ` Racha: ${nextEngagement.currentStreak} día${nextEngagement.currentStreak === 1 ? '' : 's'}.` : '';
       const streakMilestone = [3, 7, 14, 30, 60, 100].includes(nextEngagement.currentStreak);
-      const celebrationTitle = nextCount === WEEKLY_PRACTICE_GOAL
+      const celebrationTitle = goalAfterSave.completedTargets >= goalAfterSave.targetCount
         ? '¡Meta semanal cumplida!'
         : streakMilestone
           ? `¡Racha de ${nextEngagement.currentStreak} días!`
@@ -583,8 +594,8 @@ export default function HomeScreen() {
       Alert.alert(
         celebrationTitle,
         result.syncStatus === 'pending'
-          ? `${nextCount} de ${WEEKLY_PRACTICE_GOAL} esta semana.${streakText} Se sincronizará automáticamente cuando vuelva la conexión.`
-          : `${nextCount} de ${WEEKLY_PRACTICE_GOAL} esta semana.${streakText}`,
+          ? `${goalAfterSave.completedTargets} de ${goalAfterSave.targetCount} días objetivo esta semana.${streakText} Se sincronizará automáticamente cuando vuelva la conexión.`
+          : `${goalAfterSave.completedTargets} de ${goalAfterSave.targetCount} días objetivo esta semana.${streakText}`,
       );
     } catch (cause) {
       const message = cause && typeof cause === 'object' && 'message' in cause && typeof (cause as { message?: unknown }).message === 'string'
@@ -606,42 +617,72 @@ export default function HomeScreen() {
       contentContainerStyle={styles.screenContent}
     >
       <UcapsaAmbientBackground format={format} variant="home" />
-      <View style={[styles.hero, { backgroundColor: format.surface, borderColor: format.border }]}>
+      <View style={[
+        styles.hero,
+        {
+          backgroundColor: format.key === 'member' ? format.heroBackground : format.surface,
+          borderColor: format.border,
+        },
+      ]}>
         <View style={styles.heroContent}>
-        <View style={styles.heroTop}>
-          <View style={[styles.markWrap, format.key === 'member' && styles.markWrapMember]}>
-            <Image source={mark} style={styles.mark} resizeMode="contain" />
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={user ? 'Abrir ajustes de cuenta' : 'Iniciar sesión'}
-            style={[styles.accountButton, { backgroundColor: format.accentSoft, borderColor: format.key === 'member' ? withAlpha(ucapsaBrand.colors.gold, 0.4) : format.border }]}
-            onPress={() => router.push((user ? '/account-settings' : '/auth/login') as never)}
-          >
-            <MaterialIcons name={user ? 'person' : 'login'} size={22} color={format.accentDark} />
-            {user ? <View style={[styles.accountEditDot, format.key === 'member' && styles.accountEditDotPremium]}><MaterialIcons name="edit" size={11} color={format.key === 'member' ? ucapsaBrand.colors.premiumActionText : ucapsaBrand.colors.surface} /></View> : null}
-          </Pressable>
-        </View>
-        <Text style={[styles.kicker, { color: format.accentDark }]}>{user ? 'Tu UCAPSA' : 'UCAPSA'}</Text>
-        <Text style={[styles.title, { color: format.text }]}>{user ? displayName : 'Mejora la convivencia con tu perro'}</Text>
-        {user ? (
-          <AchievementMiniRow
-            items={achievements}
-            premium={format.key === 'member'}
-            maxItems={3}
-            label="Tus logros"
-            onPress={() => router.push('/achievements' as never)}
-          />
-        ) : (
-          <>
-            <Text style={[styles.subtitle, { color: format.muted }]}>Entrenamiento real contigo y tu perro, acompañado por expertos y con una ruta clara por niveles.</Text>
-            <View style={styles.proofRow}>
-              <ProofPill label="40+ años" format={format} />
-              <ProofPill label="Métodos positivos" format={format} />
-              <ProofPill label="Historial verificable" format={format} />
+          <View style={styles.heroTop}>
+            <View style={styles.identityRow}>
+              <View style={[styles.markWrap, format.key === 'member' && styles.markWrapMember]}>
+                <Image source={mark} style={styles.mark} resizeMode="contain" />
+                {format.key === 'member' ? (
+                  <View style={styles.memberCrownBadge}>
+                    <MaterialCommunityIcons name="crown" size={15} color={ucapsaBrand.colors.premiumAction} />
+                  </View>
+                ) : null}
+              </View>
+              <View style={styles.identityCopy}>
+                <Text style={[styles.kicker, { color: format.key === 'member' ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>
+                  {user ? 'HOLA' : 'UCAPSA'}
+                </Text>
+                <Text numberOfLines={1} style={[styles.title, { color: format.key === 'member' ? format.heroText : format.text }]}>
+                  {user ? displayName : 'Mejora la convivencia con tu perro'}
+                </Text>
+                {user ? (
+                  <>
+                    <Text numberOfLines={1} style={[styles.identityDetail, { color: format.key === 'member' ? format.heroMuted : format.muted }]}>
+                      {identityDetail}
+                    </Text>
+                    {format.key === 'member' ? (
+                      <View style={styles.clubStatusRow}>
+                        <View style={styles.clubStatusDot} />
+                        <Text style={styles.clubStatusText}>CLUB UCAPSA</Text>
+                      </View>
+                    ) : null}
+                  </>
+                ) : null}
+              </View>
             </View>
-          </>
-        )}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={user ? 'Abrir ajustes de cuenta' : 'Iniciar sesión'}
+              style={[
+                styles.accountButton,
+                {
+                  backgroundColor: format.key === 'member' ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft,
+                  borderColor: format.key === 'member' ? withAlpha(ucapsaBrand.colors.gold, 0.26) : format.border,
+                },
+              ]}
+              onPress={() => router.push((user ? '/account-settings' : '/auth/login') as never)}
+            >
+              <MaterialIcons name={user ? 'person' : 'login'} size={21} color={format.key === 'member' ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+            </Pressable>
+          </View>
+
+          {!user ? (
+            <>
+              <Text style={[styles.subtitle, { color: format.muted }]}>Entrenamiento real contigo y tu perro, acompañado por expertos y con una ruta clara por niveles.</Text>
+              <View style={styles.proofRow}>
+                <ProofPill label="40+ años" format={format} />
+                <ProofPill label="Métodos positivos" format={format} />
+                <ProofPill label="Historial verificable" format={format} />
+              </View>
+            </>
+          ) : null}
         </View>
       </View>
 
@@ -693,7 +734,9 @@ export default function HomeScreen() {
           dataState={customerValueStatus === 'cached' ? 'cached' : customerValueStatus === 'partial' ? 'partial' : 'ok'}
           savedAt={customerValueSavedAt}
           onOpenHave={openCustomerValueHave}
-          onOpenUsed={customerValueSnapshot.whatIUsed.attendanceTotal > 0 ? openCustomerValueUsed : undefined}
+          onOpenUsed={openCustomerValueUsed}
+          onOpenVisits={format.key === 'member' ? () => router.push('/client/member-visits' as never) : undefined}
+          onOpenPractices={() => router.push('/client/practice-activity' as never)}
           onOpenAchieved={() => router.push('/achievements' as never)}
           onOpenNext={openCustomerValueNext}
         />
@@ -704,107 +747,74 @@ export default function HomeScreen() {
       ) : null}
 
       {!loading && user && nextProgram ? (
-        <View style={[styles.habitCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
-          <View style={styles.habitHeader}>
-            <View style={styles.habitTitleWrap}>
-              <Text style={[styles.habitKicker, { color: format.accentDark }]}>Esta semana con {nextProgram.dog_name || 'tu perro'}</Text>
-              <Text style={[styles.habitTitle, { color: format.cardText }]}>{streakMessage}</Text>
-            </View>
-            <View style={[styles.streakBadge, { backgroundColor: format.accentSoft, borderColor: format.cardBorder }]}>
-              <MaterialIcons name="local-fire-department" size={22} color={format.accentDark} />
-              <Text style={[styles.streakNumber, { color: format.accentDark }]}>{practiceActivityAvailable ? practiceEngagement.currentStreak : '—'}</Text>
-              <Text style={[styles.streakLabel, { color: format.accentDark }]}>racha</Text>
-            </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Abrir racha y práctica con ${nextProgram.dog_name || 'tu perro'}`}
+          onPress={() => router.push('/client/practice-activity' as never)}
+          style={[styles.streakStrip, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}
+        >
+          <View style={[styles.streakStripIcon, { backgroundColor: format.accentSoft }]}>
+            <MaterialIcons name="local-fire-department" size={22} color={format.accentDark} />
           </View>
-
-          {practiceActivityAvailable ? (
-            <View style={styles.weekTracker}>
-              {practiceEngagement.recentDays.map((day) => (
-                <View key={day.dateKey} style={styles.weekDay}>
-                  <Text style={[styles.weekDayLabel, { color: format.muted }]}>{day.label}</Text>
-                  <View style={[styles.weekDayDot, { borderColor: day.isToday ? format.accentDark : format.cardBorder, backgroundColor: day.practiced ? format.accent : format.secondaryButton }]}>
-                    {day.practiced ? <MaterialIcons name="check" size={14} color={format.primaryButtonText} /> : null}
-                  </View>
-                </View>
-              ))}
-            </View>
-          ) : null}
-
-          <View style={styles.habitStats}>
-            <View style={styles.habitStat}>
-              <Text style={[styles.habitStatValue, { color: format.cardText }]}>{practiceAvailable ? `${practiceCount}/${WEEKLY_PRACTICE_GOAL}` : '—'}</Text>
-              <Text style={[styles.habitStatLabel, { color: format.muted }]}>prácticas esta semana</Text>
-            </View>
-            <View style={[styles.habitStatDivider, { backgroundColor: format.cardBorder }]} />
-            <View style={styles.habitStat}>
-              <Text style={[styles.habitStatValue, { color: format.cardText }]}>{practiceActivityAvailable ? practiceEngagement.thisMonthCount : '—'}</Text>
-              <Text style={[styles.habitStatLabel, { color: format.muted }]}>prácticas este mes</Text>
-            </View>
+          <View style={styles.streakStripCopy}>
+            <Text style={[styles.streakStripEyebrow, { color: format.accentDark }]}>RACHA CON {String(nextProgram.dog_name || 'TU PERRO').toUpperCase()}</Text>
+            <Text style={[styles.streakStripTitle, { color: format.cardText }]}>
+              {practiceActivityAvailable ? `${practiceEngagement.currentStreak} día${practiceEngagement.currentStreak === 1 ? '' : 's'} · ${practiceGoalProgress.completedTargets}/${practiceGoalProgress.targetCount} objetivo semanal` : 'Ver actividad de práctica'}
+            </Text>
           </View>
-
-          <Pressable accessibilityRole="button" accessibilityLabel={`${practiceCount > 0 ? 'Continuar' : 'Empezar'} práctica con ${nextProgram.dog_name || 'tu perro'}`} style={[styles.practiceButton, { backgroundColor: format.primaryButton }]} onPress={startPractice}>
-            <MaterialIcons name="play-arrow" size={20} color={format.primaryButtonText} />
-            <Text style={[styles.practiceButtonText, { color: format.primaryButtonText }]}>{practiceCount > 0 ? 'Continuar entrenamiento' : 'Empezar práctica'}</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Ver prácticas en el calendario" style={[styles.calendarHabitButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={() => router.push('/calendar' as never)}>
-            <MaterialIcons name="calendar-month" size={18} color={format.secondaryButtonText} />
-            <Text style={[styles.calendarHabitButtonText, { color: format.secondaryButtonText }]}>Ver mi calendario</Text>
-          </Pressable>
-
-          {!customerValueVisible ? (
-            <View style={[styles.habitProgress, { borderTopColor: format.cardBorder }]}>
-              <Text style={[styles.progressTitle, { color: format.cardText }]}>{nextProgram.dog_name || 'Tu perro'} y tú</Text>
-              <Text style={[styles.progressLine, { color: format.muted }]}>{getProgramCodeLabel(nextProgram.program_code)} · {nextProgram.attendances_count ?? 0} de {nextProgram.required_attendances ?? 0} clases</Text>
-              <Text style={[styles.progressLine, { color: format.muted }]}>Próxima clase: {nextClassText(nextProgram)}</Text>
-            </View>
-          ) : null}
-        </View>
+          <MaterialIcons name="chevron-right" size={24} color={format.accentDark} />
+        </Pressable>
       ) : null}
 
       {!loading && user && (!customerValueVisible || !profileComplete) ? (
         <View style={styles.block}>
           <Text style={[styles.sectionTitle, { color: format.text }]}>Lo importante</Text>
           {!profileComplete ? <ActionCard format={format} icon="person" title="Completa tus datos" text="Falta información básica de tu perfil." onPress={() => router.push('/account-settings?section=profile' as never)} /> : null}
-          {!customerValueVisible && hasPaymentAttention ? <ActionCard format={format} icon="payments" title="Revisa tus pagos" text={payments.attention_total > 0.005 ? `Requiere atención: ${money(payments.attention_total)}` : 'Hay un pago pendiente de revisión.'} onPress={() => router.push('/payments' as never)} /> : null}
           {!customerValueVisible && nextProgram ? <ActionCard format={format} icon="school" title={`Próxima clase: ${getProgramCodeLabel(nextProgram.program_code)}`} text={nextClassText(nextProgram)} onPress={() => router.push(`/client/class-detail?enrollmentId=${encodeURIComponent(nextProgram.enrollment_id)}` as never)} /> : null}
-          {!customerValueVisible && membershipStatus === 'pending' ? <ActionCard format={format} icon="badge" title="Membresía en revisión" text="Tu solicitud sigue pendiente." onPress={() => router.push('/client/membership' as never)} /> : null}
-          {!customerValueVisible && profileComplete && !accountDataError && accountDataFresh && !hasPaymentAttention && !nextProgram && membershipStatus !== 'pending' ? (
+          {!customerValueVisible && profileComplete && !accountDataError && accountDataFresh && !nextProgram ? (
             <View style={styles.okCard}><MaterialIcons name="check-circle" size={22} color={ucapsaBrand.colors.success} /><Text style={styles.okText}>No hay acciones pendientes en tu cuenta.</Text></View>
           ) : null}
         </View>
       ) : null}
 
-      <View style={styles.quickRow}>
-        {user && (activePrograms.length > 0 || hasEffectiveMembership) ? <QuickAction format={format} icon="qr-code-scanner" label="Asistencia" onPress={() => router.push('/attendance' as never)} /> : null}
-        <QuickAction format={format} icon="event" label="Calendario" onPress={() => router.push('/calendar' as never)} />
-        <QuickAction format={format} icon="campaign" label="Anuncios" onPress={() => router.push('/announcements' as never)} />
-        {user ? <QuickAction format={format} icon="notifications-active" label="Recordatorios" onPress={() => router.push('/account-settings?section=notifications' as never)} /> : null}
-        {!user ? <QuickAction format={format} icon="login" label="Iniciar sesión" onPress={() => router.push('/auth/login' as never)} /> : null}
+      <View style={styles.utilityLinks}>
+        <Pressable style={[styles.utilityLink, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={() => router.push('/calendar' as never)}>
+          <MaterialIcons name="event" size={18} color={format.secondaryButtonText} />
+          <Text style={[styles.utilityLinkText, { color: format.secondaryButtonText }]}>Calendario</Text>
+        </Pressable>
+        <Pressable style={[styles.utilityLink, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={() => router.push('/announcements' as never)}>
+          <MaterialIcons name="campaign" size={18} color={format.secondaryButtonText} />
+          <Text style={[styles.utilityLinkText, { color: format.secondaryButtonText }]}>Avisos</Text>
+        </Pressable>
       </View>
 
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: format.text }]}>Avisos</Text>
-        <Pressable onPress={() => router.push('/announcements' as never)}><Text style={[styles.link, { color: format.accentDark }]}>Ver todos</Text></Pressable>
-      </View>
-      {announcements[0] ? (
-        <AnnouncementCard announcement={announcements[0]} onPress={() => setSelectedAnnouncement(announcements[0])} onOpenEvent={announcements[0].event ? () => router.push('/calendar' as never) : undefined} />
-      ) : announcementsError ? (
-        <SectionError format={format} text="No pudimos cargar los avisos." onRetry={() => void refresh()} />
-      ) : (
-        <Empty format={format} text="No hay anuncios publicados." />
-      )}
+      {announcements[0] || announcementsError ? (
+        <>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: format.text }]}>Avisos</Text>
+            <Pressable onPress={() => router.push('/announcements' as never)}><Text style={[styles.link, { color: format.accentDark }]}>Ver todos</Text></Pressable>
+          </View>
+          {announcements[0] ? (
+            <AnnouncementCard announcement={announcements[0]} onPress={() => setSelectedAnnouncement(announcements[0])} onOpenEvent={announcements[0].event ? () => router.push('/calendar' as never) : undefined} />
+          ) : (
+            <SectionError format={format} text="No pudimos cargar los avisos." onRetry={() => void refresh()} />
+          )}
+        </>
+      ) : null}
 
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: format.text }]}>Agenda</Text>
-        <Pressable onPress={() => router.push('/calendar' as never)}><Text style={[styles.link, { color: format.accentDark }]}>Abrir calendario</Text></Pressable>
-      </View>
-      {events[0] ? (
-        <EventCard event={events[0].event} startDateOverride={events[0].start_date} occurrenceIndex={events[0].is_recurring ? events[0].occurrence_index : undefined} onPress={() => setSelectedEvent(events[0])} />
-      ) : eventsError ? (
-        <SectionError format={format} text="No pudimos cargar la agenda." onRetry={() => void refresh()} />
-      ) : (
-        <Empty format={format} text="No hay eventos próximos." />
-      )}
+      {events[0] || eventsError ? (
+        <>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: format.text }]}>Agenda</Text>
+            <Pressable onPress={() => router.push('/calendar' as never)}><Text style={[styles.link, { color: format.accentDark }]}>Abrir calendario</Text></Pressable>
+          </View>
+          {events[0] ? (
+            <EventCard event={events[0].event} startDateOverride={events[0].start_date} occurrenceIndex={events[0].is_recurring ? events[0].occurrence_index : undefined} onPress={() => setSelectedEvent(events[0])} />
+          ) : (
+            <SectionError format={format} text="No pudimos cargar la agenda." onRetry={() => void refresh()} />
+          )}
+        </>
+      ) : null}
 
       <KeyboardAwareModal visible={practiceModalOpen} onClose={() => !savingPractice && setPracticeModalOpen(false)}>
         <View style={styles.practiceModal}>
@@ -918,17 +928,27 @@ function Empty({ format, text }: { format: ReturnType<typeof resolveUcapsaFormat
 
 const styles = StyleSheet.create({
   screenContent: { position: 'relative' },
-  hero: { position: 'relative', overflow: 'hidden', borderRadius: 24, borderWidth: 1, padding: 18, marginBottom: 15 },
-  heroContent: { position: 'relative', zIndex: 1, gap: 5 },
-  heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
-  markWrap: { width: 52, height: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  markWrapMember: { backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: withAlpha(ucapsaBrand.colors.gold, 0.28) },
-  mark: { width: 44, height: 44 },
-  accountButton: { position: 'relative', width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  hero: { position: 'relative', overflow: 'hidden', borderRadius: 26, borderWidth: 1, padding: 16, marginBottom: 20 },
+  heroContent: { position: 'relative', zIndex: 1, gap: 12 },
+  heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  identityRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  identityCopy: { flex: 1, gap: 1 },
+  markWrap: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  markWrapMember: { position: 'relative', backgroundColor: ucapsaBrand.colors.premiumSurface, borderWidth: 1.5, borderColor: ucapsaBrand.colors.premiumBorderStrong, shadowColor: ucapsaBrand.colors.redDeep, shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 1 },
+  memberCrownBadge: { position: 'absolute', top: -9, right: -8, width: 25, height: 25, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.premiumSurface, borderWidth: 1, borderColor: ucapsaBrand.colors.premiumBorderStrong },
+  mark: { width: 40, height: 40 },
+  accountButton: { width: 42, height: 42, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   accountEditDot: { position: 'absolute', right: -4, bottom: -4, width: 21, height: 21, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.red, borderWidth: 2, borderColor: ucapsaBrand.colors.surface },
-  accountEditDotPremium: { backgroundColor: ucapsaBrand.colors.premiumAction, borderColor: ucapsaBrand.colors.gold },
-  kicker: { fontSize: 12, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.8 },
-  title: { fontSize: 29, lineHeight: 34, fontWeight: '900' },
+  accountEditDotPremium: { backgroundColor: ucapsaBrand.colors.premiumAction, borderColor: ucapsaBrand.colors.premiumBorder },
+  kicker: { fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1.2 },
+  title: { fontSize: 25, lineHeight: 29, fontWeight: '900', letterSpacing: -0.4 },
+  identityDetail: { fontSize: 12, lineHeight: 17, fontWeight: '800' },
+  clubStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
+  clubStatusDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: ucapsaBrand.colors.premiumAction },
+  clubStatusText: { color: ucapsaBrand.colors.premiumAction, fontSize: 8, lineHeight: 10, fontWeight: '900', letterSpacing: 1.05 },
+  achievementCompact: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 17, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 8 },
+  achievementCompactIcon: { width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  achievementCompactText: { flex: 1, fontSize: 12, lineHeight: 16, fontWeight: '900' },
   subtitle: { fontSize: 14, lineHeight: 20, fontWeight: '700' },
   proofRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 12 },
   proofPill: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, borderWidth: 1, paddingHorizontal: 9, paddingVertical: 6 },
@@ -950,14 +970,24 @@ const styles = StyleSheet.create({
   dataErrorTitle: { fontSize: 13, fontWeight: '900' },
   dataErrorText: { fontSize: 12, lineHeight: 17, fontWeight: '700', marginTop: 2 },
   retryButton: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  habitCard: { gap: 13, borderRadius: 24, borderWidth: 1, padding: 16, marginBottom: 14 },
-  habitHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  habitTitleWrap: { flex: 1, gap: 4 },
-  habitKicker: { fontSize: 13, fontWeight: '900' },
-  habitTitle: { fontSize: 20, lineHeight: 25, fontWeight: '900' },
-  streakBadge: { minWidth: 78, minHeight: 74, alignItems: 'center', justifyContent: 'center', borderRadius: 20, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 8 },
-  streakNumber: { fontSize: 22, lineHeight: 25, fontWeight: '900' },
+  habitCard: { gap: 12, borderRadius: 24, borderWidth: 1, padding: 15, marginBottom: 18 },
+  habitHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  habitTitleWrap: { flex: 1, gap: 3 },
+  habitKicker: { fontSize: 9, fontWeight: '900', letterSpacing: 0.9 },
+  habitTitle: { fontSize: 17, lineHeight: 21, fontWeight: '900', letterSpacing: -0.15 },
+  streakBadge: { minWidth: 54, minHeight: 48, flexDirection: 'row', gap: 3, alignItems: 'center', justifyContent: 'center', borderRadius: 16, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 7 },
+  streakNumber: { fontSize: 18, lineHeight: 21, fontWeight: '900' },
   streakLabel: { fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 },
+  weekTrackerCompact: { flexDirection: 'row', justifyContent: 'space-between', gap: 5, paddingVertical: 2 },
+  weekDayCompact: { flex: 1, alignItems: 'center', gap: 4 },
+  weekDotCompact: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.3, alignItems: 'center', justifyContent: 'center' },
+  weekDayLabelCompact: { fontSize: 9, fontWeight: '900' },
+  habitBottomRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  habitStatsCompact: { flex: 1, gap: 1 },
+  habitStatValueCompact: { fontSize: 18, lineHeight: 21, fontWeight: '900' },
+  habitStatLabelCompact: { fontSize: 10, lineHeight: 14, fontWeight: '800' },
+  practiceButtonCompact: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 15, paddingHorizontal: 15 },
+  practiceButtonTextCompact: { fontSize: 13, fontWeight: '900' },
   weekTracker: { flexDirection: 'row', justifyContent: 'space-between', gap: 6 },
   weekDay: { flex: 1, alignItems: 'center', gap: 5 },
   weekDayLabel: { fontSize: 10, fontWeight: '900' },
@@ -998,6 +1028,14 @@ const styles = StyleSheet.create({
   actionText: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 17, fontWeight: '700', marginTop: 2 },
   okCard: { flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.successBorder, backgroundColor: ucapsaBrand.colors.successSoft, padding: 14 },
   okText: { color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '800' },
+  streakStrip: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 20, paddingHorizontal: 13, paddingVertical: 11, marginBottom: 12 },
+  streakStripIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  streakStripCopy: { flex: 1, minWidth: 0 },
+  streakStripEyebrow: { fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 0.8 },
+  streakStripTitle: { marginTop: 2, fontSize: 14, lineHeight: 18, fontWeight: '900' },
+  utilityLinks: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+  utilityLink: { flex: 1, minHeight: 48, borderWidth: 1, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  utilityLinkText: { fontSize: 12, fontWeight: '900' },
   quickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginBottom: 16 },
   quickAction: { minWidth: '30%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingVertical: 11, paddingHorizontal: 10 },
   quickText: { color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '900' },

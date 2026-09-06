@@ -80,32 +80,53 @@ export function AchievementBadgeGrid({
   }
 
   return (
-    <View style={styles.grid}>
-      {visibleItems.map((item) => {
+    <View style={styles.roadmap}>
+      {visibleItems.map((item, index) => {
         const tone = getTone(item);
         const lockedColor = premium ? ucapsaBrand.colors.premiumMuted : ucapsaBrand.colors.gray;
-        const lockedBackground = premium ? withAlpha(ucapsaBrand.colors.surface, 0.14) : ucapsaBrand.colors.graySoft;
+        const lockedBackground = premium ? ucapsaBrand.colors.premiumSurfaceAlt : ucapsaBrand.colors.graySoft;
+        const isLast = index === visibleItems.length - 1;
         return (
-          <Pressable
-            key={item.definition.code}
-            style={({ pressed }) => [
-              styles.badgeCard,
-              premium && styles.badgeCardPremium,
-              item.unlocked ? { borderColor: tone.main } : styles.badgeCardLocked,
-              pressed && styles.pressed,
-            ]}
-            onPress={() => onSelect(item)}
-          >
-            <View style={[styles.iconSeal, { backgroundColor: item.unlocked ? tone.soft : lockedBackground }]}>
-              <MaterialCommunityIcons name={item.definition.icon as any} size={28} color={item.unlocked ? tone.dark : lockedColor} />
+          <View key={item.definition.code} style={styles.roadmapRow}>
+            <View style={styles.roadmapRail}>
+              <View style={[
+                styles.roadmapNode,
+                { backgroundColor: item.unlocked ? tone.soft : lockedBackground, borderColor: item.unlocked ? tone.main : premium ? ucapsaBrand.colors.premiumBorder : ucapsaBrand.colors.textLight },
+              ]}>
+                <MaterialCommunityIcons name={item.definition.icon as any} size={24} color={item.unlocked ? tone.dark : lockedColor} />
+              </View>
+              {!isLast ? <View style={[styles.roadmapLine, { backgroundColor: item.unlocked ? tone.main : premium ? ucapsaBrand.colors.premiumBorder : ucapsaBrand.colors.borderNeutral }]} /> : null}
             </View>
-            <Text numberOfLines={2} style={[styles.badgeTitle, premium && styles.badgeTitlePremium, !item.unlocked && styles.badgeTitleLocked, premium && !item.unlocked && styles.badgeTitleLockedPremium]}>
-              {item.definition.title}
-            </Text>
-            <Text style={[styles.badgeState, item.unlocked ? { color: tone.main } : styles.badgeStateLocked, premium && !item.unlocked && styles.badgeStateLockedPremium]}>
-              {item.unlocked ? 'Desbloqueada' : 'Pendiente'}
-            </Text>
-          </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.roadmapCard,
+                premium && styles.roadmapCardPremium,
+                item.unlocked ? { borderColor: tone.main } : null,
+                pressed && styles.pressed,
+              ]}
+              onPress={() => onSelect(item)}
+            >
+              <View style={styles.roadmapCardTop}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.roadmapStep, { color: item.unlocked ? tone.dark : lockedColor }]}>ETAPA {index + 1}</Text>
+                  <Text style={[styles.roadmapTitle, premium && styles.roadmapTitlePremium, !item.unlocked && styles.roadmapTitleLocked, premium && !item.unlocked && styles.roadmapTitleLockedPremium]}>
+                    {item.definition.title}
+                  </Text>
+                </View>
+                <View style={[styles.statePill, { backgroundColor: item.unlocked ? tone.soft : lockedBackground }]}>
+                  <Text style={[styles.badgeState, item.unlocked ? { color: tone.dark } : styles.badgeStateLocked, premium && !item.unlocked && styles.badgeStateLockedPremium]}>
+                    {item.unlocked ? 'COMPLETADO' : 'SIGUIENTE'}
+                  </Text>
+                </View>
+              </View>
+              <Text style={[styles.roadmapHint, premium && styles.roadmapHintPremium]}>
+                {item.unlocked ? item.definition.unlocked_title || 'Hito completado' : item.definition.description || 'Completa esta etapa para desbloquear la medalla.'}
+              </Text>
+              {item.unlocked ? (
+                <Text style={[styles.roadmapDate, { color: item.unlocked ? tone.dark : lockedColor }]}>{formatAchievementDate(item.achievement?.awarded_at)}</Text>
+              ) : null}
+            </Pressable>
+          </View>
         );
       })}
     </View>
@@ -221,39 +242,59 @@ export function AchievementSummary({ items, premium = false, onPress }: { items:
 
 const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  badgeCard: { width: '48%', minHeight: 142, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 13, borderRadius: 24, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.borderNeutral },
-  badgeCardPremium: { backgroundColor: withAlpha(ucapsaBrand.colors.surface, 0.08), borderColor: withAlpha(ucapsaBrand.colors.gold, 0.26) },
-  badgeCardLocked: { opacity: 0.88 },
-  iconSeal: { width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: withAlpha(ucapsaBrand.colors.surface, 0.6) },
-  badgeTitle: { color: ucapsaBrand.colors.cameraDark, fontSize: 14, fontWeight: '900', textAlign: 'center' },
-  badgeTitlePremium: { color: ucapsaBrand.colors.surface },
+  roadmap: { gap: 0 },
+  roadmapRow: { flexDirection: 'row', alignItems: 'stretch', gap: 12 },
+  roadmapRail: { width: 54, alignItems: 'center' },
+  roadmapNode: { width: 50, height: 50, borderRadius: 18, borderWidth: 2, alignItems: 'center', justifyContent: 'center', zIndex: 2 },
+  roadmapLine: { width: 3, flex: 1, minHeight: 58, borderRadius: 999, marginVertical: 3 },
+  roadmapCard: { flex: 1, minHeight: 110, gap: 7, borderRadius: 22, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.borderNeutral, padding: 14, marginBottom: 12 },
+  roadmapCardPremium: { backgroundColor: ucapsaBrand.colors.premiumSurface, borderColor: ucapsaBrand.colors.premiumBorder },
+  roadmapCardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  roadmapStep: { fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 0.9 },
+  roadmapTitle: { marginTop: 2, color: ucapsaBrand.colors.cameraDark, fontSize: 16, lineHeight: 20, fontWeight: '900' },
+  roadmapTitlePremium: { color: ucapsaBrand.colors.premiumText },
+  roadmapTitleLocked: { color: ucapsaBrand.colors.mutedNeutral },
+  roadmapTitleLockedPremium: { color: ucapsaBrand.colors.premiumMuted },
+  roadmapHint: { color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 16, fontWeight: '700' },
+  roadmapHintPremium: { color: ucapsaBrand.colors.premiumMuted },
+  roadmapDate: { fontSize: 10, lineHeight: 14, fontWeight: '900' },
+  badgeCard: { width: '48%', minHeight: 132, alignItems: 'stretch', justifyContent: 'space-between', gap: 9, padding: 13, borderRadius: 22, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.borderNeutral },
+  badgeCardPremium: { backgroundColor: ucapsaBrand.colors.premiumSurface, borderColor: ucapsaBrand.colors.premiumBorder },
+  badgeCardLocked: { opacity: 0.9 },
+  badgeTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  iconSeal: { width: 46, height: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: withAlpha(ucapsaBrand.colors.surface, 0.6) },
+  statePill: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 5 },
+  badgeTitle: { color: ucapsaBrand.colors.cameraDark, fontSize: 14, lineHeight: 18, fontWeight: '900', textAlign: 'left' },
+  badgeTitlePremium: { color: ucapsaBrand.colors.premiumText },
   badgeTitleLocked: { color: ucapsaBrand.colors.mutedNeutral },
   badgeTitleLockedPremium: { color: ucapsaBrand.colors.premiumMuted },
-  badgeState: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
+  badgeHint: { color: ucapsaBrand.colors.muted, fontSize: 10, lineHeight: 14, fontWeight: '700' },
+  badgeHintPremium: { color: ucapsaBrand.colors.premiumMuted },
+  badgeState: { fontSize: 9, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 },
   badgeStateLocked: { color: ucapsaBrand.colors.gray },
   badgeStateLockedPremium: { color: ucapsaBrand.colors.premiumMuted },
   pressed: { opacity: 0.86, transform: [{ scale: 0.99 }] },
   emptyBox: { gap: 5, padding: 16, borderRadius: 20, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
-  emptyBoxPremium: { backgroundColor: withAlpha(ucapsaBrand.colors.surface, 0.08), borderColor: withAlpha(ucapsaBrand.colors.gold, 0.26) },
+  emptyBoxPremium: { backgroundColor: ucapsaBrand.colors.premiumSurface, borderColor: ucapsaBrand.colors.premiumBorder },
   emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 15, fontWeight: '900' },
-  emptyTitlePremium: { color: ucapsaBrand.colors.surface },
+  emptyTitlePremium: { color: ucapsaBrand.colors.premiumText },
   emptyText: { color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 18, fontWeight: '700' },
   emptyTextPremium: { color: ucapsaBrand.colors.premiumMuted },
   miniRow: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 12, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 999, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
-  miniRowPremium: { backgroundColor: withAlpha(ucapsaBrand.colors.surface, 0.1), borderColor: withAlpha(ucapsaBrand.colors.gold, 0.28) },
+  miniRowPremium: { backgroundColor: ucapsaBrand.colors.premiumSurface, borderColor: ucapsaBrand.colors.premiumBorder },
   miniSeal: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
-  miniSealPremium: { borderColor: withAlpha(ucapsaBrand.colors.gold, 0.34) },
+  miniSealPremium: { borderColor: ucapsaBrand.colors.premiumBorder },
   miniSealLocked: { backgroundColor: ucapsaBrand.colors.graySoft, borderColor: ucapsaBrand.colors.textLight, opacity: 0.72 },
   miniLabel: { color: ucapsaBrand.colors.muted, fontSize: 13, fontWeight: '900', marginLeft: 1 },
   miniLabelPremium: { color: ucapsaBrand.colors.premiumMuted },
   modalBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: withAlpha(ucapsaBrand.colors.cameraDark, 0.48) },
   modalCard: { width: '100%', gap: 10, alignItems: 'center', padding: 22, borderRadius: 30, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
-  modalCardPremium: { backgroundColor: ucapsaBrand.colors.premiumSurface, borderColor: withAlpha(ucapsaBrand.colors.gold, 0.34) },
+  modalCardPremium: { backgroundColor: ucapsaBrand.colors.premiumSurface, borderColor: ucapsaBrand.colors.premiumBorder },
   modalIcon: { width: 82, height: 82, borderRadius: 41, alignItems: 'center', justifyContent: 'center', borderWidth: 2, marginBottom: 6 },
   modalKicker: { color: ucapsaBrand.colors.red, fontSize: 12, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.8 },
   modalKickerPremium: { color: ucapsaBrand.colors.premiumAction },
   modalTitle: { color: ucapsaBrand.colors.text, fontSize: 25, fontWeight: '900', textAlign: 'center' },
-  modalTitlePremium: { color: ucapsaBrand.colors.surface },
+  modalTitlePremium: { color: ucapsaBrand.colors.premiumText },
   modalText: { color: ucapsaBrand.colors.muted, fontSize: 14, lineHeight: 20, fontWeight: '700', textAlign: 'center' },
   modalTextPremium: { color: ucapsaBrand.colors.premiumMuted },
   modalDate: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900', marginTop: 4 },
@@ -263,11 +304,11 @@ const styles = StyleSheet.create({
   closeButtonText: { color: ucapsaBrand.colors.surface, fontSize: 15, fontWeight: '900' },
   closeButtonTextPremium: { color: ucapsaBrand.colors.redDeeper },
   summaryCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, borderRadius: 22, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
-  summaryCardPremium: { backgroundColor: withAlpha(ucapsaBrand.colors.surface, 0.08), borderColor: withAlpha(ucapsaBrand.colors.gold, 0.26) },
+  summaryCardPremium: { backgroundColor: ucapsaBrand.colors.premiumSurface, borderColor: ucapsaBrand.colors.premiumBorder },
   summaryIcon: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
-  summaryIconPremium: { backgroundColor: ucapsaBrand.colors.premiumAction },
+  summaryIconPremium: { backgroundColor: ucapsaBrand.colors.premiumSurfaceAlt, borderWidth: 1, borderColor: ucapsaBrand.colors.premiumBorder },
   summaryTitle: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900' },
-  summaryTitlePremium: { color: ucapsaBrand.colors.surface },
+  summaryTitlePremium: { color: ucapsaBrand.colors.premiumText },
   summaryText: { color: ucapsaBrand.colors.muted, fontSize: 13, fontWeight: '800', marginTop: 2 },
   summaryTextPremium: { color: ucapsaBrand.colors.premiumMuted },
 });
