@@ -35,7 +35,22 @@ must('src/services/memberships.service.ts', /program_completion_achievement/, 'M
 must('src/app/client/membership.tsx', /getMyMembershipEligibility/, 'Pantalla de membresía no usa la elegibilidad canónica.');
 must('src/components/ui/Screen.tsx', /edges = \['top', 'right', 'bottom', 'left'\]/, 'Screen perdió el safe-area inferior global.');
 must('src/components/ui/KeyboardAwareModal.tsx', /useSafeAreaInsets/, 'Los modales no protegen la barra de navegación inferior.');
-must('scripts/capture-supabase-source-of-truth.ps1', /supabase','db','dump','--linked','--schema','public'/, 'Captura Supabase no guarda el esquema remoto public.');
+
+const auditDir = path.join(root, 'supabase', 'sql', 'audit');
+const schemaManifests = fs.existsSync(auditDir)
+  ? fs.readdirSync(auditDir).filter((name) => /^remote_schema_manifest_\d{8}(?:_\d{6})?\.md$/.test(name)).sort()
+  : [];
+if (schemaManifests.length === 0) {
+  failures.push('Falta una captura remota versionada del esquema Supabase.');
+} else {
+  const latestManifest = read(`supabase/sql/audit/${schemaManifests.at(-1)}`);
+  if (!/RLS/i.test(latestManifest) || !/functions?/i.test(latestManifest) || !/polic/i.test(latestManifest)) {
+    failures.push('El manifiesto remoto de Supabase no documenta RLS, funciones y políticas.');
+  }
+}
+must('scripts/capture-supabase-source-of-truth.ps1', /supabase gen types --linked --schema public/, 'Captura Supabase no regenera tipos desde el remoto.');
+must('scripts/capture-supabase-source-of-truth.ps1', /no es requisito para trabajar en UCAPSA/, 'Captura Supabase volvió a depender obligatoriamente de Docker.');
+
 mustNot('src/app/client/membership.tsx', /isMembershipEligibleFromPrograms\(programs\)/, 'Pantalla de membresía volvió a decidir elegibilidad desde una lista local de programas.');
 must('src/app/attendance.tsx', /isMembershipActiveToday/, 'Escáner de socio no valida vigencia efectiva de la membresía.');
 mustNot('src/app/client/attendance-history.tsx', /!enrollmentId\)\s*return/, 'Historial de asistencias volvió a exigir enrollmentId y rompe APROVECHASTE desde Home.');
@@ -71,4 +86,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log('SOURCE INTEGRITY OK: tipos, perros, rutas críticas, UTF-8, textos y CLABE revisados.');
+console.log('SOURCE INTEGRITY OK: tipos, perros, rutas críticas, UTF-8, textos, Supabase y CLABE revisados.');
