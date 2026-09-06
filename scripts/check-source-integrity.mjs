@@ -58,6 +58,20 @@ must('src/app/client/attendance-history.tsx', /Historial de asistencias/, 'Falta
 mustNot('src/components/domain/CustomerValueSnapshotCard.tsx', /parts\.push\(`Membresía vencida/, 'TIENES volvió a presentar una membresía vencida como valor disponible.');
 must('src/services/customer-value.service.ts', /membership\?\.status === 'active' && !membership\.isValidToday/, 'SIGUE no prioriza una membresía activa fuera de vigencia.');
 
+// Guardas de la remediación UX y de asistencia histórica.
+must('src/app/(tabs)/calendar.tsx', /Agenda del dia/, 'Calendario perdió la agenda explícita del día seleccionado.');
+must('src/app/(tabs)/calendar.tsx', /selectedPractices/, 'Calendario dejó de integrar las prácticas del día seleccionado.');
+must('src/app/client/practice-activity.tsx', /setSelectedEntry\(entry\)/, 'Prácticas recientes dejaron de ser seleccionables.');
+must('src/app/client/practice-activity.tsx', /selectedEntry\.note/, 'Detalle de práctica dejó de mostrar la nota registrada.');
+must('src/app/admin/customer-class.tsx', /editableDetail/, 'Ficha de clase perdió la edición directa de tarjeta.');
+must('src/app/admin/customer-class.tsx', /customer-profile-edit/, 'Ficha de clase dejó de enlazar la edición general del cliente.');
+must('src/app/attendance.tsx', /getMyHistoricalAttendanceDates/, 'Escáner dejó de consultar fechas históricas validadas por servidor.');
+must('src/app/attendance.tsx', /saveAttendanceQrForLater/, 'Escáner dejó de conservar el QR de clase para uso posterior.');
+must('src/services/historical-attendance.service.ts', /register_program_attendance_from_qr_for_date/, 'Servicio histórico dejó de usar la RPC segura de Supabase.');
+must('supabase/sql/ucapsa-cambio-4-1-historical-attendance-qr.sql', /program_schedule_occurs_on_date/, 'SQL histórico dejó de validar que exista clase real en la fecha.');
+must('supabase/sql/ucapsa-cambio-4-1-historical-attendance-qr.sql', /program_class_cancellations/, 'SQL histórico dejó de bloquear clases canceladas.');
+must('supabase/sql/ucapsa-cambio-4-1-historical-attendance-qr.sql', /p_attendance_date >= v_today/, 'SQL histórico dejó de bloquear hoy y fechas futuras.');
+
 const scanRoots = ['src', 'scripts'];
 function walk(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
