@@ -42,7 +42,9 @@ Copy-Item $tmpTypes $types -Force
 Copy-Item $tmpTypes (Join-Path $audit "database.types.generated_STEP9_$Stamp.ts") -Force
 if (Test-Path $typesErr) {
   $errText = Get-Content $typesErr -Raw -ErrorAction SilentlyContinue
-  if ($errText.Trim()) { $errText | Out-File (Join-Path $audit "database_types_STEP9_$Stamp.stderr.txt") -Encoding utf8 }
+  if (-not [string]::IsNullOrWhiteSpace($errText)) {
+    $errText | Out-File (Join-Path $audit "database_types_STEP9_$Stamp.stderr.txt") -Encoding utf8
+  }
 }
 Write-Host '[1/4] Tipos OK.' -ForegroundColor Green
 
