@@ -1,0 +1,97 @@
+name: Exact admin guard cleanup v2
+
+on:
+  push:
+    branches:
+      - remediation/1-3-admin-guard-cleanup-v2
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: remediation/1-3-admin-guard-cleanup-v2
+          fetch-depth: 0
+      - name: Apply exact guard-only edits
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          import subprocess
+
+          def replace_exact(path, old, new, expected=1):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != expected:
+                  raise SystemExit(f'{path}: expected {expected} exact matches, found {count}: {old[:80]!r}')
+              p.write_text(text.replace(old, new), encoding='utf-8')
+
+          # classes.tsx — remove only the generic admin gate; keep isSuperAdmin behavior intact.
+          classes = 'src/app/admin/classes.tsx'
+          replace_exact(classes,
+              "  const { isAdmin, role } = useSession();",
+              "  const { role } = useSession();")
+          replace_exact(classes,
+              "  useEffect(() => {\n    if (isAdmin) void loadData();\n  }, [isAdmin]);",
+              "  useEffect(() => {\n    void loadData();\n  }, []);")
+          replace_exact(classes,
+              "  useFocusEffect(\n    useCallback(() => {\n      if (isAdmin) void loadData();\n      return undefined;\n    }, [isAdmin]),\n  );",
+              "  useFocusEffect(\n    useCallback(() => {\n      void loadData();\n      return undefined;\n    }, []),\n  );")
+          replace_exact(classes,
+              "  if (!isAdmin) {\n    return (\n      <KeyboardAwareScreen>\n        <View style={styles.deniedBox}>\n          <MaterialIcons name=\"lock\" size={42} color={ucapsaBrand.colors.redDark} />\n          <Text style={styles.title}>Acceso restringido</Text>\n          <Text style={styles.muted}>Solo administradores pueden gestionar Clases.</Text>\n        </View>\n      </KeyboardAwareScreen>\n    );\n  }\n\n",
+              "")
+          classes_text = Path(classes).read_text(encoding='utf-8')
+          assert 'isAdmin' not in classes_text
+          assert "const isSuperAdmin = role === 'super_admin';" in classes_text
+
+          # events.tsx — layout owns generic admin authorization.
+          events = 'src/app/admin/events.tsx'
+          replace_exact(events, "import { useSession } from '../../hooks/useSession';\n", "")
+          replace_exact(events, "  const { isAdmin } = useSession();\n", "")
+          replace_exact(events,
+              "  const load = useCallback(async () => {\n    if (!isAdmin) return;\n    setLoading(true);",
+              "  const load = useCallback(async () => {\n    setLoading(true);")
+          replace_exact(events, "  }, [isAdmin]);", "  }, []);")
+          replace_exact(events,
+              "  if (!isAdmin) return <KeyboardAwareScreen><Text style={styles.title}>Acceso restringido</Text></KeyboardAwareScreen>;\n\n",
+              "")
+          assert 'isAdmin' not in Path(events).read_text(encoding='utf-8')
+
+          # users.tsx — preserve the visual isAdmin:true format flag; remove only access/session guards.
+          users = 'src/app/admin/users.tsx'
+          replace_exact(users,
+              "  const { loading: sessionLoading, user, role, isAdmin } = useSession();",
+              "  const { user, role } = useSession();")
+          replace_exact(users, "    if (!isAdmin) return;\n", "")
+          replace_exact(users,
+              "  useEffect(() => {\n    if (!isAdmin) {\n      setLoading(false);\n      return;\n    }\n\n    loadProfiles().catch((error) => {\n      setLoading(false);\n      console.warn('No se pudieron cargar usuarios:', error instanceof Error ? error.message : error);\n    });\n  }, [isAdmin]);",
+              "  useEffect(() => {\n    loadProfiles().catch((error) => {\n      setLoading(false);\n      console.warn('No se pudieron cargar usuarios:', error instanceof Error ? error.message : error);\n    });\n  }, []);")
+
+          p = Path(users)
+          text = p.read_text(encoding='utf-8')
+          pattern = re.compile(r"\n  if \(sessionLoading\) \{.*?\n  if \(!isAdmin\) \{.*?\n  \}\n\n  return \(", re.S)
+          text, count = pattern.subn("\n\n  return (", text, count=1)
+          if count != 1:
+              raise SystemExit(f'{users}: expected one contiguous access-guard block, found {count}')
+          p.write_text(text, encoding='utf-8')
+          users_text = p.read_text(encoding='utf-8')
+          assert "resolveUcapsaFormat({ user, role, isAdmin: true })" in users_text
+          assert 'sessionLoading' not in users_text
+          assert 'if (!isAdmin)' not in users_text
+
+          subprocess.run(['git', 'diff', '--check'], check=True)
+          subprocess.run(['git', 'diff', '--stat'], check=True)
+      - name: Commit exact edits
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/app/admin/classes.tsx src/app/admin/events.tsx src/app/admin/users.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "refactor(security): finish minimal admin guard cleanup"
+          git push origin HEAD:remediation/1-3-admin-guard-cleanup-v2
