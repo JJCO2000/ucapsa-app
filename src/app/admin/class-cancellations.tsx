@@ -6,7 +6,6 @@ import { Calendar } from 'react-native-calendars';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
-import { useSession } from '../../hooks/useSession';
 import { sendClassCancellationNotification } from '../../services/admin-class-cancellations.service';
 import { getVisibleAnnouncements } from '../../services/announcements.service';
 import { getVisibleEvents } from '../../services/events.service';
@@ -60,7 +59,6 @@ function announcementDate(announcement: Announcement) {
 }
 
 export default function AdminClassCancellationsScreen() {
-  const { isAdmin } = useSession();
   const params = useLocalSearchParams<{ date?: string }>();
   const routeDate = typeof params.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(params.date) ? params.date : todayKey();
   const [selectedDate, setSelectedDate] = useState(routeDate);
@@ -77,7 +75,6 @@ export default function AdminClassCancellationsScreen() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    if (!isAdmin) return;
     setLoading(true);
     try {
       const [programResult, scheduleResult, cancellationResult, eventResult, announcementResult] = await Promise.all([
@@ -97,7 +94,7 @@ export default function AdminClassCancellationsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, selectedDate]);
+  }, [selectedDate]);
 
   useFocusEffect(useCallback(() => { void load(); return undefined; }, [load]));
 
@@ -234,8 +231,6 @@ export default function AdminClassCancellationsScreen() {
       },
     ]);
   }
-
-  if (!isAdmin) return <KeyboardAwareScreen><Text style={styles.title}>Acceso restringido</Text></KeyboardAwareScreen>;
 
   return (
     <KeyboardAwareScreen>
