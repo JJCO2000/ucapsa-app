@@ -1,0 +1,67 @@
+name: Assemble Supabase schema snapshot
+
+on:
+  push:
+    branches:
+      - remediation/1-2-schema-versioning
+
+permissions:
+  contents: write
+
+jobs:
+  assemble:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: remediation/1-2-schema-versioning
+          fetch-depth: 0
+
+      - name: Assemble schema_actual.sql
+        run: |
+          cat \
+            .schema-export/01_core.sql \
+            .schema-export/02_constraints_indexes.sql \
+            .schema-export/03_functions_a.sql \
+            .schema-export/04_functions_b.sql \
+            .schema-export/05_functions_c.sql \
+            .schema-export/06_security.sql \
+            .schema-export/07_grants.sql \
+            > supabase/sql/schema_actual.sql
+
+      - name: Validate snapshot inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(grep -ci '^create table public\.' supabase/sql/schema_actual.sql)" -eq 32
+          test "$(grep -ci '^CREATE OR REPLACE FUNCTION public\.' supabase/sql/schema_actual.sql)" -eq 45
+          test "$(grep -ci '^CREATE TRIGGER ' supabase/sql/schema_actual.sql)" -eq 30
+          test "$(grep -ci '^create event trigger ' supabase/sql/schema_actual.sql)" -eq 1
+          test "$(grep -ci 'enable row level security;' supabase/sql/schema_actual.sql)" -eq 32
+          test "$(grep -ci '^create policy ' supabase/sql/schema_actual.sql)" -eq 81
+
+          grep -q '^create policy memberships_super_admin_delete .* for delete .*is_super_admin' supabase/sql/schema_actual.sql
+          grep -q '^create policy memberships_admin_select ' supabase/sql/schema_actual.sql
+          grep -q '^create policy memberships_admin_insert ' supabase/sql/schema_actual.sql
+          grep -q '^create policy memberships_admin_update ' supabase/sql/schema_actual.sql
+          ! grep -q '^create policy memberships_admin_all ' supabase/sql/schema_actual.sql
+
+          grep -q '^create policy program_class_cancellations_public_select .*restored_at IS NULL' supabase/sql/schema_actual.sql
+          grep -q '^create policy program_class_cancellations_public_calendar_select .*restored_at IS NULL' supabase/sql/schema_actual.sql
+          ! grep -q '^create policy program_class_cancellations_select_all ' supabase/sql/schema_actual.sql
+
+          grep -q '^create policy program_schedule_versions_read .* for select to public using (true);' supabase/sql/schema_actual.sql
+          grep -q '^CREATE OR REPLACE FUNCTION public.is_admin()' supabase/sql/schema_actual.sql
+          grep -q '^CREATE OR REPLACE FUNCTION public.is_super_admin()' supabase/sql/schema_actual.sql
+          grep -q '^CREATE OR REPLACE FUNCTION public.prevent_unauthorized_profile_changes()' supabase/sql/schema_actual.sql
+          grep -q '^CREATE TRIGGER prevent_unauthorized_profile_changes_trigger ' supabase/sql/schema_actual.sql
+
+      - name: Commit snapshot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add supabase/sql/schema_actual.sql
+          git diff --cached --quiet && exit 0
+          git commit -m "chore(db): capture live Supabase schema"
+          git push origin HEAD:remediation/1-2-schema-versioning
