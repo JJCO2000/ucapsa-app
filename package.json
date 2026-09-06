@@ -52,14 +52,15 @@
     "typecheck": "tsc --noEmit",
     "check:routes": "node scripts/check-routes.mjs",
     "check:integrity": "node scripts/check-source-integrity.mjs",
-    "verify": "npm run typecheck && npm run check:routes && npm run check:integrity",
+    "verify": "npm run typecheck && npm run check:routes && npm run check:integrity && npm run check:hygiene",
     "audit:report": "npm audit --omit=dev",
     "check:release": "node scripts/check-release.mjs",
     "verify:release": "npm run verify && npm run check:release && npm run check:nanoid-security",
     "audit:critical": "npm audit --omit=dev --audit-level=critical",
     "check:build-env": "node scripts/check-build-env.mjs",
     "eas-build-post-install": "npm run verify:release && npm run check:build-env",
-    "check:nanoid-security": "node scripts/check-nanoid-security.mjs"
+    "check:nanoid-security": "node scripts/check-nanoid-security.mjs",
+    "check:hygiene": "node scripts/check-repo-hygiene.mjs"
   },
   "private": true,
   "overrides": {

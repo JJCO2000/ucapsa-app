@@ -79,6 +79,14 @@ export const ucapsaBrand = {
     premiumActionSoft: '#E6C982',
     premiumActionText: '#6D0817',
     premiumBurgundySoft: '#F1E1E3',
+    premiumPill: '#EFE0C3',
+
+    // Administracion
+    adminBackground: '#F8FAFC',
+    adminSurfaceAlt: '#ECFDF5',
+    adminBorder: '#CBD5E1',
+    adminText: '#0F172A',
+    adminMuted: '#475569',
   },
   socialLinks: [
     { key: 'whatsapp', label: 'WhatsApp', url: 'https://wa.me/525522410679', icon: 'whatsapp' },

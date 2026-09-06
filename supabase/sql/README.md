@@ -6,9 +6,10 @@ Esta carpeta conserva SQL historico y capturas de auditoria. No debe contener ll
 
 1. El esquema remoto de Supabase es la realidad de ejecucion.
 2. `src/types/database.generated.ts` se genera directamente desde el proyecto remoto enlazado.
-3. `supabase/sql/audit/` guarda copias fechadas de esos tipos y diagnosticos de CLI.
-4. El codigo usa `createClient<Database>` para detectar drift entre frontend y base durante TypeScript.
+3. `supabase/sql/audit/` guarda copias fechadas de los tipos **y un dump completo del esquema `public` sin datos**, incluyendo funciones, políticas, triggers e índices.
+4. El código usa `createClient<Database>` para detectar drift entre frontend y base durante TypeScript.
 5. Los cambios nuevos de base deben quedar en SQL/migraciones versionadas antes de considerarse cerrados.
+6. Una captura sólo cuenta como válida cuando `source_of_truth_STEP9_*.txt` contiene SHA256 tanto de tipos como del dump remoto.
 
 ## Importante sobre el historial anterior
 
@@ -22,7 +23,7 @@ Ejecutar:
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\capture-supabase-source-of-truth.ps1
 ```
 
-La captura actualiza tipos desde el remoto y guarda `migration list` y `db lint` como diagnosticos best-effort. Si esos dos comandos requieren una conexion de base que no este disponible, los tipos remotos siguen siendo el gate obligatorio para compilar la app.
+La captura actualiza tipos desde el remoto y genera `remote_public_schema_STEP9_*.sql` mediante `supabase db dump --linked --schema public`; ese dump es obligatorio porque conserva la definición real de RPC, RLS, triggers e índices. Después guarda `migration list` y `db lint` como diagnósticos best-effort. No se exportan datos de clientes.
 
 ## Sistemas que deben conservarse
 

@@ -42,6 +42,16 @@ if (Test-Path $typesErr) {
   Copy-Item $typesErr (Join-Path $audit "database_types_STEP9_$Stamp.stderr.txt") -Force
 }
 
+Write-Host '[9.1/4] Capturando esquema public completo (sin datos)...'
+$schemaOut = Join-Path $audit "remote_public_schema_STEP9_$Stamp.sql"
+Remove-Item $schemaOut -Force -ErrorAction SilentlyContinue
+$schemaProcess = Start-Process -FilePath $npx.Source -ArgumentList @('supabase','db','dump','--linked','--schema','public','--file',$schemaOut) -NoNewWindow -Wait -PassThru
+if ($schemaProcess.ExitCode -ne 0 -or -not (Test-Path $schemaOut) -or (Get-Item $schemaOut).Length -lt 1000) {
+  throw 'No se pudo capturar el esquema remoto public. No se actualiza la fuente de verdad.'
+}
+$typesHash = (Get-FileHash $types -Algorithm SHA256).Hash
+$schemaHash = (Get-FileHash $schemaOut -Algorithm SHA256).Hash
+
 Write-Host '[9.1/4] Historial de migraciones (diagnostico best effort)...'
 $migrationOut = Join-Path $audit "migration_list_STEP9_$Stamp.txt"
 $migrationCode = Run-Capture -Arguments @('supabase','migration','list','--linked') -OutputPath $migrationOut
@@ -56,11 +66,15 @@ $meta = @"
 UCAPSA STEP 9 SOURCE OF TRUTH
 Stamp: $Stamp
 Generated types: OK
+Remote public schema dump: OK
+Types SHA256: $typesHash
+Schema SHA256: $schemaHash
 Migration list exit: $migrationCode
 DB lint exit: $lintCode
 No db push, db pull, db reset or migration repair executed.
 "@
 $meta | Out-File -FilePath (Join-Path $audit "source_of_truth_STEP9_$Stamp.txt") -Encoding utf8
 
-Write-Host 'SOURCE OF TRUTH TYPES: OK'
+Write-Host 'SOURCE OF TRUTH: TYPES + REMOTE PUBLIC SCHEMA OK'
 Write-Host $types
+Write-Host $schemaOut

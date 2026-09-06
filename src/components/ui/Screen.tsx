@@ -29,7 +29,7 @@ export function Screen({
   keyboardAware = false,
   style,
   contentContainerStyle,
-  edges = ['top', 'left', 'right'],
+  edges = ['top', 'right', 'bottom', 'left'],
   refreshControl,
   backgroundColor = ucapsaBrand.colors.background,
 }: ScreenProps) {
