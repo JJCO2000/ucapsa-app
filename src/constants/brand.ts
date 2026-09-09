@@ -65,8 +65,8 @@ export const ucapsaBrand = {
     dangerSoft: '#FEF2F2',
     dangerBorder: '#FECACA',
 
-    // Experiencia Club UCAPSA: marfil y blanco como base, borgoña como marca
-    // y dorado reservado para estatus, hitos y detalles realmente exclusivos.
+    // Experiencia Club UCAPSA: marfil y blanco como base, borgoña como marca.
+    // premiumAction se usa también como texto pequeño y por eso debe conservar AA.
     premiumBackground: '#F7EFE2',
     premiumSurface: '#FFFEFB',
     premiumSurfaceAlt: '#F3E5CF',
@@ -75,7 +75,7 @@ export const ucapsaBrand = {
     premiumHero: '#FFF8EC',
     premiumText: '#2F191D',
     premiumMuted: '#71595E',
-    premiumAction: '#A87821',
+    premiumAction: '#8A5F10',
     premiumActionSoft: '#E6C982',
     premiumActionText: '#6D0817',
     premiumBurgundySoft: '#F1E1E3',
