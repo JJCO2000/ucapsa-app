@@ -1,6 +1,7 @@
-import { ucapsaBrand } from '../../constants/brand';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { ucapsaBrand } from '../../constants/brand';
 import type { Announcement, UcapsaColorKey, UcapsaPriority } from '../../types/app.types';
 
 type Props = {
@@ -14,7 +15,7 @@ const colorMap: Record<UcapsaColorKey, { main: string; soft: string; text: strin
   red: { main: ucapsaBrand.colors.red, soft: ucapsaBrand.colors.redSoft, text: ucapsaBrand.colors.redDark },
   blue: { main: ucapsaBrand.colors.blue, soft: ucapsaBrand.colors.blueSoft, text: ucapsaBrand.colors.blueDark },
   yellow: { main: ucapsaBrand.colors.gold, soft: ucapsaBrand.colors.goldPale, text: ucapsaBrand.colors.warningDark },
-  green: { main: ucapsaBrand.colors.green, soft: ucapsaBrand.colors.greenSoft, text: ucapsaBrand.colors.green },
+  green: { main: ucapsaBrand.colors.green, soft: ucapsaBrand.colors.greenSoft, text: ucapsaBrand.colors.greenDark },
   purple: { main: ucapsaBrand.colors.purple, soft: ucapsaBrand.colors.purpleSoft, text: ucapsaBrand.colors.purpleDark },
   gray: { main: ucapsaBrand.colors.mutedNeutral, soft: ucapsaBrand.colors.graySoft, text: ucapsaBrand.colors.grayDark },
 };
@@ -32,7 +33,7 @@ function getColor(color: UcapsaColorKey | null | undefined) {
 
 function audienceLabel(audience: Announcement['audience']): string {
   const labels = {
-    public: 'Publico',
+    public: 'Público',
     clients: 'Clientes',
     members: 'Socios',
     admins: 'Admins',
@@ -62,6 +63,8 @@ export function AnnouncementCard({
 
   return (
     <Pressable
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={onPress ? `Abrir anuncio: ${announcement.title}` : undefined}
       onPress={onPress}
       disabled={!onPress}
       style={({ pressed }) => [styles.card, { borderLeftColor: tone.main }, pressed && styles.pressed]}
@@ -79,7 +82,7 @@ export function AnnouncementCard({
 
       {dateLabel ? (
         <View style={[styles.dateRow, { backgroundColor: tone.soft }]}>
-          <MaterialIcons name="event-note" size={17} color={tone.main} />
+          <MaterialIcons name="event-note" size={18} color={tone.text} />
           <Text style={[styles.dateText, { color: tone.text }]}>{dateLabel}</Text>
         </View>
       ) : null}
@@ -87,8 +90,14 @@ export function AnnouncementCard({
       <Text style={styles.content}>{announcement.content}</Text>
 
       {announcement.event ? (
-        <Pressable onPress={onOpenEvent} disabled={!onOpenEvent} style={styles.eventLink}>
-          <MaterialIcons name="event" size={18} color={tone.main} />
+        <Pressable
+          accessibilityRole={onOpenEvent ? 'button' : undefined}
+          accessibilityLabel={onOpenEvent ? `Abrir evento: ${announcement.event.title}` : undefined}
+          onPress={onOpenEvent}
+          disabled={!onOpenEvent}
+          style={({ pressed }) => [styles.eventLink, pressed && styles.pressedLink]}
+        >
+          <MaterialIcons name="event" size={20} color={tone.text} />
           <View style={styles.eventTextBox}>
             <Text style={styles.eventLabel}>Evento vinculado</Text>
             <Text style={styles.eventTitle}>{announcement.event.title}</Text>
@@ -125,6 +134,7 @@ const styles = StyleSheet.create({
     opacity: 0.86,
     transform: [{ scale: 0.995 }],
   },
+  pressedLink: { opacity: 0.72 },
   header: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -136,7 +146,8 @@ const styles = StyleSheet.create({
   },
   title: {
     color: ucapsaBrand.colors.cameraDark,
-    fontSize: 17,
+    fontSize: 18,
+    lineHeight: 23,
     fontWeight: '900',
   },
   dateRow: {
@@ -144,18 +155,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 7,
     alignSelf: 'flex-start',
-    paddingHorizontal: 10,
+    minHeight: 36,
+    paddingHorizontal: 11,
     paddingVertical: 7,
     borderRadius: 999,
   },
   dateText: {
     fontSize: 12,
+    lineHeight: 17,
     fontWeight: '900',
   },
   content: {
     color: ucapsaBrand.colors.grayDark,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 22,
   },
   metaRow: {
     flexDirection: 'row',
@@ -168,6 +181,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 999,
     fontSize: 12,
+    lineHeight: 17,
     fontWeight: '800',
   },
   priorityBadge: {
@@ -178,10 +192,11 @@ const styles = StyleSheet.create({
     color: ucapsaBrand.colors.grayDark,
     backgroundColor: ucapsaBrand.colors.graySoft,
     fontSize: 12,
+    lineHeight: 17,
     fontWeight: '800',
   },
   priorityHigh: { color: ucapsaBrand.colors.warningDark, backgroundColor: ucapsaBrand.colors.goldPale },
-  priorityUrgent: { color: ucapsaBrand.colors.danger, backgroundColor: ucapsaBrand.colors.premiumMuted },
+  priorityUrgent: { color: ucapsaBrand.colors.danger, backgroundColor: ucapsaBrand.colors.dangerSoft },
   pin: {
     overflow: 'hidden',
     paddingHorizontal: 10,
@@ -190,9 +205,11 @@ const styles = StyleSheet.create({
     color: ucapsaBrand.colors.redDark,
     backgroundColor: ucapsaBrand.colors.redSoft,
     fontSize: 12,
+    lineHeight: 17,
     fontWeight: '800',
   },
   eventLink: {
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -204,20 +221,24 @@ const styles = StyleSheet.create({
   },
   eventTextBox: {
     flex: 1,
+    minWidth: 0,
   },
   eventLabel: {
     color: ucapsaBrand.colors.mutedNeutral,
     fontSize: 11,
+    lineHeight: 15,
     fontWeight: '800',
     textTransform: 'uppercase',
   },
   eventTitle: {
     color: ucapsaBrand.colors.cameraDark,
     fontSize: 14,
+    lineHeight: 20,
     fontWeight: '800',
   },
   statusRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
   status: {
@@ -226,6 +247,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 999,
     fontSize: 12,
+    lineHeight: 17,
     fontWeight: '800',
   },
   statusPublished: { color: ucapsaBrand.colors.redDark, backgroundColor: ucapsaBrand.colors.redSoft },
@@ -236,6 +258,6 @@ const styles = StyleSheet.create({
   },
   danger: {
     color: ucapsaBrand.colors.danger,
-    backgroundColor: ucapsaBrand.colors.premiumMuted,
+    backgroundColor: ucapsaBrand.colors.dangerSoft,
   },
 });
