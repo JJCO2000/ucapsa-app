@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { ClientPageHeader } from '../../components/layout/ClientPageHeader';
@@ -15,7 +15,7 @@ import { createMyDog, getMyDogs, renameMyDog, type BasicDog } from '../../servic
 import { clientReadKeys, readClientResource, sanitizeProgramRowsForCache, writeClientResource } from '../../services/client-read-cache.service';
 import { getMyProgramEnrollments, getProgramCodeLabel, getProgramLevelDisplayLabel } from '../../services/programs.service';
 import type { ProgramEnrollmentWithDetails } from '../../types/app.types';
-import { DEFAULT_READ_TIMEOUT_MS, DEFAULT_WRITE_TIMEOUT_MS, friendlyReadError, friendlyWriteError, withOperationTimeout } from '../../utils/async.utils';
+import { DEFAULT_READ_TIMEOUT_MS, DEFAULT_WRITE_TIMEOUT_MS, friendlyWriteError, withOperationTimeout } from '../../utils/async.utils';
 
 type EditorMode = 'create' | 'rename' | null;
 
@@ -31,18 +31,18 @@ export default function DogTab() {
   const [editorMode, setEditorMode] = useState<EditorMode>(null);
   const [draftName, setDraftName] = useState('');
   const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [localReady, setLocalReady] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
   const [usingSavedData, setUsingSavedData] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [programWarning, setProgramWarning] = useState(false);
+  const [offlineEmpty, setOfflineEmpty] = useState(false);
 
   const load = useCallback(async () => {
     if (!user || isAdmin) return;
-    setError('');
     setUsingSavedData(false);
     setProgramWarning(false);
+    setOfflineEmpty(false);
 
     const [dogCache, programCache] = await Promise.all([
       readClientResource<BasicDog[]>(user.id, clientReadKeys.dogs),
@@ -55,8 +55,8 @@ export default function DogTab() {
       setDogs(nextDogs);
       setRows(nextPrograms);
       setSavedAt(dogCache?.saved_at ?? programCache?.saved_at ?? null);
-      setLoading(false);
     }
+    setLocalReady(true);
 
     const [dogResult, programResult] = await Promise.allSettled([
       withOperationTimeout(getMyDogs(), DEFAULT_READ_TIMEOUT_MS, 'dogs'),
@@ -82,9 +82,8 @@ export default function DogTab() {
 
     const dogFailed = dogResult.status === 'rejected';
     const programFailed = programResult.status === 'rejected';
-    if (dogFailed && !dogCache) {
-      setError(friendlyReadError('No se pudieron cargar tus perros.'));
-    } else if (dogFailed || programFailed) {
+    if (dogFailed && !dogCache) setOfflineEmpty(true);
+    if (dogFailed || programFailed) {
       setUsingSavedData(Boolean((dogFailed && dogCache) || (programFailed && programCache)));
       setSavedAt(
         dogFailed && dogCache
@@ -95,8 +94,6 @@ export default function DogTab() {
       );
     }
     if (programFailed && !programCache) setProgramWarning(true);
-
-    setLoading(false);
   }, [isAdmin, user]);
 
   useFocusEffect(useCallback(() => { void load(); return undefined; }, [load]));
@@ -139,7 +136,7 @@ export default function DogTab() {
   async function saveDog() {
     const userId = user?.id;
     if (!userId) {
-      Alert.alert('Sesion requerida', 'Vuelve a iniciar sesion para guardar cambios.');
+      Alert.alert('Sesión requerida', 'Vuelve a iniciar sesión para guardar cambios.');
       return;
     }
 
@@ -154,7 +151,7 @@ export default function DogTab() {
       let selectedAfterSave: string | null = null;
       let nextDogs = dogs;
       if (editorMode === 'create') {
-        // Crear un perro no usa timeout artificial: una peticion tardia podria completar despues y duplicarse al reintentar.
+        // Crear un perro no usa timeout artificial: una petición tardía podría completar después y duplicarse al reintentar.
         const created = await createMyDog(name);
         selectedAfterSave = created.id;
         nextDogs = [...dogs.filter((dog) => dog.id !== created.id), created];
@@ -164,7 +161,7 @@ export default function DogTab() {
         nextDogs = dogs.map((dog) => (dog.id === updated.id ? updated : dog));
       }
 
-      // La escritura ya fue confirmada. Actualiza primero la vista y la cache local;
+      // La escritura ya fue confirmada. Actualiza primero la vista y la caché local;
       // si la lectura posterior falla, el usuario no debe ver desaparecer el cambio.
       setDogs(nextDogs);
       await writeClientResource(userId, clientReadKeys.dogs, nextDogs);
@@ -173,7 +170,7 @@ export default function DogTab() {
       if (selectedAfterSave) setSelectedDogId(selectedAfterSave);
       void load();
     } catch (cause) {
-      Alert.alert('No se pudo guardar', friendlyWriteError(cause));
+      Alert.alert('No se pudo guardar', friendlyWriteError(cause, 'Conéctate a internet y vuelve a intentar.'));
     } finally {
       setSaving(false);
     }
@@ -181,6 +178,14 @@ export default function DogTab() {
 
   if (!user) return <Redirect href="/auth/login" />;
   if (isAdmin) return <Redirect href="/admin-home" />;
+
+  const headerSubtitle = offlineEmpty
+    ? 'Tus perros aparecerán aquí después de la primera sincronización.'
+    : dogs.length > 1
+      ? `${dogs.length} perros registrados · selecciona uno para ver su historia.`
+      : dogs.length === 1
+        ? 'Clases e historial de tu perro, sin perder contexto.'
+        : 'Agrega tu primer perro para conectar su historia UCAPSA.';
 
   return (
     <KeyboardAwareScreen
@@ -195,7 +200,7 @@ export default function DogTab() {
         format={format}
         eyebrow="Tu equipo"
         title={selectedDog?.name || 'Mis perros'}
-        subtitle={dogs.length > 1 ? `${dogs.length} perros registrados · selecciona uno para ver su historia.` : dogs.length === 1 ? 'Clases e historial de tu perro, sin perder contexto.' : 'Agrega tu primer perro para conectar su historia UCAPSA.'}
+        subtitle={headerSubtitle}
         icon="pets"
         right={
           <Pressable
@@ -204,36 +209,71 @@ export default function DogTab() {
             style={[styles.headerProfileButton, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}
             onPress={() => router.push('/account-settings?section=profile' as never)}
           >
-            <MaterialIcons name="person" size={19} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+            <MaterialIcons name="person" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
           </Pressable>
         }
       />
 
-      {usingSavedData ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} label="Mostrando informacion guardada" /> : null}
-      {programWarning ? <View style={[styles.errorCard, premium && styles.errorCardPremium]}><Text style={[styles.errorTitle, premium && styles.textPremium]}>Clases no disponibles</Text><Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Tus perros cargaron, pero no pudimos actualizar sus clases. Reintenta para ver clases y asistencias.</Text></View> : null}
+      {usingSavedData ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} label="Mostrando información guardada" /> : null}
 
-      {loading ? <View style={styles.loading}><ActivityIndicator color={format.accent} /><Text style={[styles.muted, { color: format.muted }]}>Cargando perros...</Text></View> : null}
-      {error ? <View style={[styles.errorCard, premium && styles.errorCardPremium]}><Text style={[styles.errorTitle, premium && styles.textPremium]}>No se pudieron cargar</Text><Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{error}</Text><Pressable style={[styles.secondaryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={() => void refresh()}><Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>Reintentar</Text></Pressable></View> : null}
+      {programWarning && dogs.length > 0 ? (
+        <View style={[styles.offlineCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
+          <MaterialIcons name="cloud-off" size={22} color={premium ? ucapsaBrand.colors.premiumActionText : format.accentDark} />
+          <View style={styles.offlineCopy}>
+            <Text style={[styles.offlineTitle, { color: format.cardText }]}>Clases aún no guardadas</Text>
+            <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Tus perros están disponibles. Conéctate una vez para guardar también sus clases y asistencias.</Text>
+          </View>
+        </View>
+      ) : null}
 
-      {!loading && !error ? (
+      {localReady ? (
         <>
           <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
             <View style={styles.sectionHeader}>
-              <View style={{ flex: 1 }}>
+              <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={[styles.sectionTitle, { color: format.cardText }]}>Tus perros</Text>
-                <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Selecciona el perro que quieres consultar.</Text>
+                <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+                  {offlineEmpty ? 'No hay una copia local todavía.' : 'Selecciona el perro que quieres consultar.'}
+                </Text>
               </View>
-              <Pressable style={[styles.addButton, { backgroundColor: format.primaryButton }]} onPress={openCreate}>
-                <MaterialIcons name="add" size={18} color={format.primaryButtonText} />
-                <Text style={[styles.addButtonText, { color: format.primaryButtonText }]}>Agregar</Text>
-              </Pressable>
+              {!offlineEmpty ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Agregar perro"
+                  style={[styles.addButton, { backgroundColor: format.primaryButton }]}
+                  onPress={openCreate}
+                >
+                  <MaterialIcons name="add" size={19} color={format.primaryButtonText} />
+                  <Text style={[styles.addButtonText, { color: format.primaryButtonText }]}>Agregar</Text>
+                </Pressable>
+              ) : null}
             </View>
 
-            {dogs.length === 0 ? (
-              <Pressable style={[styles.emptyDog, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={openCreate}>
+            {offlineEmpty ? (
+              <View style={[styles.emptyDog, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}>
+                <MaterialIcons name="cloud-off" size={28} color={premium ? ucapsaBrand.colors.premiumActionText : format.accentDark} />
+                <Text style={[styles.emptyDogTitle, { color: format.cardText }]}>Perros aún no guardados</Text>
+                <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>La app funciona sin conexión después de la primera sincronización. Conéctate una vez para guardar tus perros en este dispositivo.</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Reintentar sincronización de perros"
+                  style={[styles.retryButton, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}
+                  onPress={() => void refresh()}
+                >
+                  <MaterialIcons name="refresh" size={20} color={format.secondaryButtonText} />
+                  <Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>Reintentar</Text>
+                </Pressable>
+              </View>
+            ) : dogs.length === 0 ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Agregar tu primer perro"
+                style={[styles.emptyDog, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}
+                onPress={openCreate}
+              >
                 <MaterialIcons name="pets" size={28} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
                 <Text style={[styles.emptyDogTitle, { color: format.cardText }]}>Agrega tu primer perro</Text>
-                <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Despues podras agregar los demas desde esta misma pantalla.</Text>
+                <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Después podrás agregar los demás desde esta misma pantalla.</Text>
               </Pressable>
             ) : (
               <View style={styles.dogGrid}>
@@ -241,6 +281,9 @@ export default function DogTab() {
                   const selected = selectedDog?.id === dog.id;
                   return (
                     <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Seleccionar a ${dog.name}`}
+                      accessibilityState={{ selected }}
                       key={dog.id}
                       style={[
                         styles.dogChip,
@@ -261,17 +304,17 @@ export default function DogTab() {
           {selectedDog ? (
             <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
               <View style={styles.sectionHeader}>
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={[styles.sectionTitle, { color: format.cardText }]}>{selectedDog.name}</Text>
-                  <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{programWarning ? 'Clases no disponibles' : `${selectedActive.length} clase${selectedActive.length === 1 ? '' : 's'} activa${selectedActive.length === 1 ? '' : 's'}`}</Text>
+                  <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{programWarning ? 'Clases no guardadas' : `${selectedActive.length} clase${selectedActive.length === 1 ? '' : 's'} activa${selectedActive.length === 1 ? '' : 's'}`}</Text>
                 </View>
                 <Pressable accessibilityRole="button" accessibilityLabel={`Editar a ${selectedDog.name}`} style={[styles.pencilButton, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]} onPress={openRename}>
-                  <MaterialIcons name="edit" size={19} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                  <MaterialIcons name="edit" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
                 </Pressable>
               </View>
 
               {programWarning ? (
-                <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Conectate para consultar las clases de {selectedDog.name}.</Text>
+                <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Conéctate una vez para guardar las clases de {selectedDog.name} en este dispositivo.</Text>
               ) : selectedEnrollments.length === 0 ? (
                 <View style={styles.dogEmptyProgram}>
                   <MaterialIcons name="school" size={24} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
@@ -284,12 +327,18 @@ export default function DogTab() {
                     const item = selectedActive[0];
                     const levelLabel = getProgramLevelDisplayLabel(item.program.code, item.enrollment.program_level);
                     const remaining = item.program.required_attendances > 0 ? Math.max(0, item.program.required_attendances - item.attendances.length) : null;
+                    const programLabel = `${getProgramCodeLabel(item.program.code)}${levelLabel ? ` ${levelLabel}` : ''}`;
                     return (
-                      <Pressable style={[styles.dogProgramHero, { borderColor: format.border, backgroundColor: format.surfaceAlt }]} onPress={() => router.push(`/client/class-detail?enrollmentId=${encodeURIComponent(item.enrollment.id)}` as never)}>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Abrir ${programLabel} de ${selectedDog.name}`}
+                        style={[styles.dogProgramHero, { borderColor: format.border, backgroundColor: format.surfaceAlt }]}
+                        onPress={() => router.push(`/client/class-detail?enrollmentId=${encodeURIComponent(item.enrollment.id)}` as never)}
+                      >
                         <View style={[styles.dogProgramIcon, { backgroundColor: format.pillBackground }]}><MaterialIcons name="school" size={22} color={format.pillText} /></View>
                         <View style={{ flex: 1, minWidth: 0 }}>
                           <Text style={[styles.dogProgramEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>ENTRENAMIENTO ACTUAL</Text>
-                          <Text style={[styles.dogProgramTitle, { color: format.cardText }]}>{getProgramCodeLabel(item.program.code)}{levelLabel ? ` ${levelLabel}` : ''}</Text>
+                          <Text style={[styles.dogProgramTitle, { color: format.cardText }]}>{programLabel}</Text>
                           <Text style={[styles.dogProgramMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{item.attendances.length} asistencias registradas</Text>
                         </View>
                         {!premium && remaining != null ? <View style={[styles.dogRemainingBox, { backgroundColor: format.accent }]}><Text style={[styles.dogRemainingValue, { color: format.primaryButtonText }]}>{remaining}</Text><Text style={[styles.dogRemainingLabel, { color: format.primaryButtonText }]}>restantes</Text></View> : <MaterialIcons name="chevron-right" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />}
@@ -303,7 +352,7 @@ export default function DogTab() {
                     return (
                       <View key={item.enrollment.id} style={[styles.classRow, premium && styles.rowPremium]}>
                         <View style={[styles.classIcon, { backgroundColor: format.pillBackground }]}><MaterialIcons name="history" size={19} color={format.pillText} /></View>
-                        <View style={{ flex: 1 }}>
+                        <View style={{ flex: 1, minWidth: 0 }}>
                           <Text style={[styles.classTitle, { color: format.cardText }]}>{getProgramCodeLabel(item.program.code)}{levelLabel ? ` ${levelLabel}` : ''}</Text>
                           <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{item.attendances.length} asistencias registradas</Text>
                         </View>
@@ -324,27 +373,30 @@ export default function DogTab() {
         contentContainerStyle={styles.modalContent}
       >
         <View style={styles.modalHeader}>
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={[styles.modalTitle, premium && styles.textPremium]}>{editorMode === 'create' ? 'Agregar perro' : 'Editar perro'}</Text>
             <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{editorMode === 'create' ? 'Registra otro perro en tu cuenta.' : 'Cambia el nombre sin perder sus clases.'}</Text>
           </View>
-          <Pressable onPress={() => setEditorMode(null)}><MaterialIcons name="close" size={25} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.text} /></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Cerrar edición" style={styles.modalCloseButton} onPress={() => setEditorMode(null)}>
+            <MaterialIcons name="close" size={25} color={premium ? ucapsaBrand.colors.premiumActionText : ucapsaBrand.colors.text} />
+          </Pressable>
         </View>
         <Text style={[styles.label, premium && styles.textPremium]}>Nombre</Text>
         <TextInput
+          accessibilityLabel="Nombre del perro"
           value={draftName}
           onChangeText={setDraftName}
           placeholder="Ej. Max, Luna, Toby"
-          placeholderTextColor={premium ? ucapsaBrand.colors.redBorder : ucapsaBrand.colors.gray}
+          placeholderTextColor={premium ? ucapsaBrand.colors.premiumMuted : ucapsaBrand.colors.gray}
           autoCapitalize="words"
           autoFocus
           style={[styles.input, premium && styles.inputPremium]}
         />
         <View style={styles.actions}>
-          <Pressable style={[styles.secondaryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={() => setEditorMode(null)} disabled={saving}>
+          <Pressable accessibilityRole="button" style={[styles.secondaryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={() => setEditorMode(null)} disabled={saving}>
             <Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>Cancelar</Text>
           </Pressable>
-          <Pressable style={[styles.primaryButton, { backgroundColor: format.primaryButton }]} onPress={() => void saveDog()} disabled={saving}>
+          <Pressable accessibilityRole="button" style={[styles.primaryButton, { backgroundColor: format.primaryButton }]} onPress={() => void saveDog()} disabled={saving}>
             <Text style={[styles.primaryButtonText, { color: format.primaryButtonText }]}>{saving ? 'Guardando...' : editorMode === 'create' ? 'Agregar perro' : 'Guardar'}</Text>
           </Pressable>
         </View>
@@ -356,55 +408,49 @@ export default function DogTab() {
 const styles = StyleSheet.create({
   screenContent: { position: 'relative' },
   premiumContent: { backgroundColor: ucapsaBrand.colors.premiumBackground },
-  headerProfileButton: { width: 40, height: 40, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  hero: { flexDirection: 'row', alignItems: 'center', gap: 13, marginBottom: 16 },
-  petIcon: { position: 'relative', width: 62, height: 62, borderRadius: 22, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
-  editDot: { position: 'absolute', right: -3, bottom: -3, width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.red },
-  editDotPremium: { backgroundColor: ucapsaBrand.colors.premiumAction, borderWidth: 1, borderColor: ucapsaBrand.colors.gold },
-  kicker: { fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
-  title: { fontSize: 28, fontWeight: '900' },
-  subtitle: { fontSize: 13, fontWeight: '700', lineHeight: 18, marginTop: 2 },
-  loading: { flexDirection: 'row', gap: 9, alignItems: 'center', marginBottom: 12 },
-  muted: { fontSize: 13, lineHeight: 19, fontWeight: '700' },
+  headerProfileButton: { width: 48, height: 48, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  muted: { fontSize: 14, lineHeight: 20, fontWeight: '700' },
   textPremium: { color: ucapsaBrand.colors.premiumText },
-  errorCard: { gap: 5, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.dangerBorder, backgroundColor: ucapsaBrand.colors.dangerSoft, padding: 15, marginBottom: 14 },
-  errorCardPremium: { borderColor: withAlpha(ucapsaBrand.colors.gold, 0.34), backgroundColor: ucapsaBrand.colors.premiumSurface },
-  errorTitle: { color: ucapsaBrand.colors.danger, fontSize: 16, fontWeight: '900' },
+  offlineCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 18, borderWidth: 1, padding: 14, marginBottom: 14 },
+  offlineCopy: { flex: 1, minWidth: 0, gap: 3 },
+  offlineTitle: { fontSize: 15, lineHeight: 20, fontWeight: '900' },
   card: { gap: 12, borderRadius: 22, borderWidth: 1, padding: 16, marginBottom: 14 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, justifyContent: 'space-between' },
-  sectionTitle: { fontSize: 18, fontWeight: '900' },
-  addButton: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 14, paddingHorizontal: 11, paddingVertical: 9 },
-  addButtonText: { fontSize: 12, fontWeight: '900' },
-  emptyDog: { alignItems: 'center', gap: 6, borderRadius: 18, borderWidth: 1, padding: 18 },
-  emptyDogTitle: { fontSize: 16, fontWeight: '900' },
+  sectionTitle: { fontSize: 18, lineHeight: 23, fontWeight: '900' },
+  addButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 14, paddingHorizontal: 13, paddingVertical: 9 },
+  addButtonText: { fontSize: 13, lineHeight: 18, fontWeight: '900' },
+  emptyDog: { alignItems: 'center', gap: 7, borderRadius: 18, borderWidth: 1, padding: 18 },
+  emptyDogTitle: { fontSize: 17, lineHeight: 22, fontWeight: '900' },
+  retryButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, alignSelf: 'stretch', borderRadius: 15, borderWidth: 1, paddingHorizontal: 14 },
   dogGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
-  dogChip: { maxWidth: '100%', flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 16, borderWidth: 1, paddingHorizontal: 11, paddingVertical: 10 },
-  dogChipText: { maxWidth: 165, fontSize: 13, fontWeight: '900' },
-  pencilButton: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  dogChip: { minHeight: 44, maxWidth: '100%', flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 16, borderWidth: 1, paddingHorizontal: 11, paddingVertical: 10 },
+  dogChipText: { maxWidth: 165, fontSize: 14, lineHeight: 19, fontWeight: '900' },
+  pencilButton: { width: 48, height: 48, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   classRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: ucapsaBrand.colors.border, paddingTop: 11 },
   rowPremium: { borderTopColor: withAlpha(ucapsaBrand.colors.gold, 0.16) },
-  classIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  classTitle: { fontSize: 14, fontWeight: '900' },
+  classIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  classTitle: { fontSize: 15, lineHeight: 20, fontWeight: '900' },
   dogEmptyProgram: { gap: 6, alignItems: 'flex-start', paddingVertical: 4 },
-  dogProgramHero: { flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 22, borderWidth: 1, padding: 13 },
+  dogProgramHero: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 22, borderWidth: 1, padding: 13 },
   dogProgramIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  dogProgramEyebrow: { fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 0.9 },
-  dogProgramTitle: { marginTop: 2, fontSize: 16, lineHeight: 20, fontWeight: '900' },
-  dogProgramMeta: { marginTop: 2, fontSize: 10, lineHeight: 14, fontWeight: '700' },
-  dogRemainingBox: { width: 66, minHeight: 60, borderRadius: 17, alignItems: 'center', justifyContent: 'center', padding: 6 },
+  dogProgramEyebrow: { fontSize: 11, lineHeight: 15, fontWeight: '900', letterSpacing: 0.8 },
+  dogProgramTitle: { marginTop: 2, fontSize: 17, lineHeight: 22, fontWeight: '900' },
+  dogProgramMeta: { marginTop: 2, fontSize: 12, lineHeight: 17, fontWeight: '700' },
+  dogRemainingBox: { width: 70, minHeight: 62, borderRadius: 17, alignItems: 'center', justifyContent: 'center', padding: 6 },
   dogRemainingValue: { fontSize: 22, lineHeight: 25, fontWeight: '900' },
-  dogRemainingLabel: { fontSize: 8, lineHeight: 10, fontWeight: '900' },
-  dogHistoryLabel: { marginTop: 3, fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 0.9 },
+  dogRemainingLabel: { fontSize: 10, lineHeight: 13, fontWeight: '900' },
+  dogHistoryLabel: { marginTop: 3, fontSize: 11, lineHeight: 15, fontWeight: '900', letterSpacing: 0.8 },
   modalContent: { gap: 11 },
-  modalCardPremium: { backgroundColor: ucapsaBrand.colors.premiumSurface, borderTopWidth: 1, borderColor: withAlpha(ucapsaBrand.colors.gold, 0.34) },
+  modalCardPremium: { backgroundColor: ucapsaBrand.colors.premiumSurface, borderTopWidth: 1, borderColor: ucapsaBrand.colors.premiumBorder },
   modalHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, justifyContent: 'space-between' },
-  modalTitle: { color: ucapsaBrand.colors.text, fontSize: 21, fontWeight: '900' },
-  label: { color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '900' },
-  input: { borderRadius: 15, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 13, paddingVertical: 11, color: ucapsaBrand.colors.text, fontSize: 15 },
+  modalCloseButton: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  modalTitle: { color: ucapsaBrand.colors.text, fontSize: 21, lineHeight: 27, fontWeight: '900' },
+  label: { color: ucapsaBrand.colors.text, fontSize: 13, lineHeight: 18, fontWeight: '900' },
+  input: { minHeight: 48, borderRadius: 15, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 13, paddingVertical: 11, color: ucapsaBrand.colors.text, fontSize: 16 },
   inputPremium: { borderColor: ucapsaBrand.colors.premiumBorder, backgroundColor: ucapsaBrand.colors.premiumSurface, color: ucapsaBrand.colors.premiumText },
   actions: { flexDirection: 'row', gap: 9 },
-  primaryButton: { flex: 1, alignItems: 'center', borderRadius: 15, paddingVertical: 12 },
-  primaryButtonText: { fontSize: 13, fontWeight: '900' },
-  secondaryButton: { flex: 1, alignItems: 'center', borderRadius: 15, borderWidth: 1, paddingVertical: 12 },
-  secondaryButtonText: { fontSize: 13, fontWeight: '900' },
+  primaryButton: { minHeight: 48, flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 15, paddingVertical: 12 },
+  primaryButtonText: { fontSize: 14, lineHeight: 19, fontWeight: '900' },
+  secondaryButton: { minHeight: 48, flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 15, borderWidth: 1, paddingVertical: 12 },
+  secondaryButtonText: { fontSize: 14, lineHeight: 19, fontWeight: '900' },
 });

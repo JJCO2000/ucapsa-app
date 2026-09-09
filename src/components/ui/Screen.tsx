@@ -67,5 +67,13 @@ export function Screen({
 const styles = StyleSheet.create({
   keyboard: { flex: 1 },
   safe: { flex: 1 },
-  content: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 28 },
+  content: {
+    width: '100%',
+    maxWidth: 820,
+    alignSelf: 'center',
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 28,
+  },
 });

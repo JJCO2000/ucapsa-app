@@ -3,7 +3,7 @@ import { Tabs } from 'expo-router';
 import { Platform, View, type ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ucapsaBrand, withAlpha } from '../../constants/brand';
+import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 
@@ -23,15 +23,15 @@ function TabIcon({
   return (
     <View
       style={{
-        width: 36,
-        height: 32,
-        borderRadius: 13,
+        width: 42,
+        height: 36,
+        borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: focused ? activeSurface : 'transparent',
       }}
     >
-      <MaterialIcons name={name} size={Math.min(size, 23)} color={color} />
+      <MaterialIcons name={name} size={Math.min(size, 24)} color={color} />
     </View>
   );
 }
@@ -76,11 +76,11 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: activeTint,
         tabBarInactiveTintColor: inactiveTint,
-        tabBarLabelStyle: { fontSize: 10, lineHeight: 12, fontWeight: '900', marginTop: 2 },
+        tabBarLabelStyle: { fontSize: 11, lineHeight: 14, fontWeight: '900', marginTop: 2 },
         tabBarIconStyle: { marginTop: 1 },
         tabBarItemStyle: { paddingTop: 3 },
         tabBarStyle: {
-          height: 64 + bottomInset,
+          height: 68 + bottomInset,
           paddingTop: 7,
           paddingBottom: bottomInset,
           paddingHorizontal: 4,
@@ -88,7 +88,7 @@ export default function TabsLayout() {
           borderTopColor: tabBorder,
           borderTopWidth: 1,
           shadowColor: ucapsaBrand.colors.black,
-          shadowOpacity: isPremium ? 0.08 : 0.08,
+          shadowOpacity: 0.08,
           shadowRadius: 14,
           shadowOffset: { width: 0, height: -4 },
           elevation: 14,
