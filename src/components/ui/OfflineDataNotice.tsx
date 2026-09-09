@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { ucapsaBrand, withAlpha } from '../../constants/brand';
+import { ucapsaBrand } from '../../constants/brand';
 
 function formatSavedAt(value: string | null | undefined) {
   if (!value) return null;
@@ -28,17 +28,23 @@ export function OfflineDataNotice({
 }) {
   const date = formatSavedAt(savedAt);
   return (
-    <View style={[styles.container, premium && styles.containerPremium]}>
-      <MaterialIcons name="cloud-off" size={20} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.warning} />
+    <View style={[styles.container, premium && styles.containerPremium]} accessibilityRole="summary">
+      <MaterialIcons name="cloud-off" size={22} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.warningDark} />
       <View style={styles.textWrap}>
         <Text style={[styles.title, premium && styles.titlePremium]}>{label}</Text>
         <Text style={[styles.text, premium && styles.textPremium]}>
-          {date ? `Ultima actualizacion: ${date}.` : 'Se mostrara la ultima informacion disponible.'}
+          {date ? `Última actualización: ${date}.` : 'Se mostrará la última información disponible.'}
         </Text>
       </View>
       {onRetry ? (
-        <Pressable accessibilityRole="button" accessibilityLabel="Reintentar sincronizacion" style={[styles.retry, premium && styles.retryPremium]} onPress={onRetry}>
-          <MaterialIcons name="refresh" size={20} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.redDark} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Reintentar sincronización"
+          hitSlop={4}
+          style={({ pressed }) => [styles.retry, premium && styles.retryPremium, pressed && styles.pressed]}
+          onPress={onRetry}
+        >
+          <MaterialIcons name="refresh" size={22} color={premium ? ucapsaBrand.colors.premiumActionText : ucapsaBrand.colors.redDark} />
         </Pressable>
       ) : null}
     </View>
@@ -49,7 +55,7 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 11,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: ucapsaBrand.colors.warningBorder,
@@ -57,14 +63,27 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   containerPremium: {
-    borderColor: withAlpha(ucapsaBrand.colors.gold, 0.36),
+    borderColor: ucapsaBrand.colors.premiumBorder,
     backgroundColor: ucapsaBrand.colors.premiumSurface,
   },
-  textWrap: { flex: 1 },
-  title: { color: ucapsaBrand.colors.goldDark, fontSize: 13, fontWeight: '900' },
-  titlePremium: { color: ucapsaBrand.colors.premiumAction },
-  text: { color: ucapsaBrand.colors.goldDark, fontSize: 11, lineHeight: 16, fontWeight: '700', marginTop: 2 },
+  textWrap: { flex: 1, minWidth: 0 },
+  title: { color: ucapsaBrand.colors.goldDark, fontSize: 14, lineHeight: 18, fontWeight: '900' },
+  titlePremium: { color: ucapsaBrand.colors.premiumActionText },
+  text: { color: ucapsaBrand.colors.goldDark, fontSize: 12, lineHeight: 17, fontWeight: '700', marginTop: 2 },
   textPremium: { color: ucapsaBrand.colors.premiumMuted },
-  retry: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.surface },
-  retryPremium: { backgroundColor: withAlpha(ucapsaBrand.colors.surface, 0.08), borderWidth: 1, borderColor: withAlpha(ucapsaBrand.colors.gold, 0.24) },
+  retry: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: ucapsaBrand.colors.surface,
+    borderWidth: 1,
+    borderColor: ucapsaBrand.colors.warningBorder,
+  },
+  retryPremium: {
+    backgroundColor: ucapsaBrand.colors.premiumHero,
+    borderColor: ucapsaBrand.colors.premiumBorder,
+  },
+  pressed: { opacity: 0.72 },
 });
