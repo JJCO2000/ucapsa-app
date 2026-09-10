@@ -66,7 +66,7 @@ if (!atLeast(dependencies['react-native'], '0.86.2')) {
 
 const expectedOverrides = {
   'brace-expansion': '5.0.9',
-  'js-yaml': '4.3.1',
+  'js-yaml': '4.3.2',
   'postcss': '8.5.23',
   'nanoid@>=4.0.0 <=5.1.10': '5.1.16',
 };
