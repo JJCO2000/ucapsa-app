@@ -1,0 +1,59 @@
+name: Bootstrap EAS Update dependency
+
+on:
+  push:
+    branches:
+      - chore/eas-update-preview
+    paths:
+      - .github/workflows/bootstrap-eas-update.yml
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install current dependencies
+        run: npm ci
+
+      - name: Install SDK-compatible expo-updates
+        run: npx expo install expo-updates
+
+      - name: Reject unexpected installer changes
+        shell: bash
+        run: |
+          unexpected="$(git diff --name-only | grep -Ev '^(package.json|package-lock.json)$' || true)"
+          if [ -n "$unexpected" ]; then
+            echo "expo install modifico archivos inesperados:"
+            echo "$unexpected"
+            exit 1
+          fi
+
+      - name: Release gates
+        run: npm run verify:release
+
+      - name: Expo Doctor
+        run: npx expo-doctor
+
+      - name: Remove bootstrap workflow and commit lockfile
+        shell: bash
+        run: |
+          rm .github/workflows/bootstrap-eas-update.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json .github/workflows/bootstrap-eas-update.yml
+          git commit -m "chore: install expo-updates for EAS Update"
+          git push origin HEAD:chore/eas-update-preview
