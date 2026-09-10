@@ -21,7 +21,6 @@ const guestWhatsAppUrl = `${whatsappUrl}?text=${encodeURIComponent('Hola UCAPSA,
 const schoolUrl = 'https://www.ucapsa.mx/ucapsa-school';
 const trainingUrl = 'https://www.ucapsa.mx/ucapsa/entrenamientos';
 
-
 async function openExternal(url: string) {
   try {
     await Linking.openURL(url);
@@ -110,7 +109,6 @@ export default function ServicesTab() {
         <ServiceCard premium={false} icon="pets" title="2. Construir las bases" subtitle="UCAPSA School: aprende a comunicarte mejor y trabaja convivencia, hábitos y manejo." onPress={() => void openExternal(schoolUrl)} />
         <ServiceCard premium={false} icon="school" title="3. Entrenar y avanzar" subtitle="Entrenamiento guiado con niveles, seguimiento y trabajo en equipo humano-perro." onPress={() => void openExternal(trainingUrl)} />
 
-
         <View style={styles.contactCard}>
           <Text style={styles.sectionTitle}>Contacto</Text>
           <Text style={styles.muted}>También puedes conocer UCAPSA por estos canales.</Text>
@@ -133,7 +131,6 @@ export default function ServicesTab() {
             : membershipStatus === 'expired'
               ? { eyebrow: 'MEMBRESÍA', title: 'Consulta tu membresía', detail: 'Revisa su estado y tu historial de acceso.', icon: 'history' as const }
               : { eyebrow: 'MEMBRESÍA', title: 'Consulta tu elegibilidad', detail: 'Revisa si ya puedes solicitar membresía UCAPSA.', icon: 'workspace-premium' as const };
-
 
   return (
     <KeyboardAwareScreen
@@ -176,6 +173,27 @@ export default function ServicesTab() {
         <MaterialIcons name="arrow-forward" size={23} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.redDark} />
       </Pressable>
 
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Escanear QR de Puppy, Comandos o Socio"
+        onPress={() => router.push('/attendance' as never)}
+        style={({ pressed }) => [
+          styles.scanCard,
+          premium && styles.scanCardPremium,
+          pressed && styles.scanCardPressed,
+        ]}
+      >
+        <View style={[styles.scanIcon, premium && styles.scanIconPremium]}>
+          <MaterialIcons name="qr-code-scanner" size={27} color={premium ? ucapsaBrand.colors.premiumActionText : ucapsaBrand.colors.surface} />
+        </View>
+        <View style={styles.scanCopy}>
+          <Text style={[styles.scanEyebrow, premium && styles.scanEyebrowPremium]}>ACCESO RÁPIDO</Text>
+          <Text style={[styles.scanTitle, premium && styles.textPremium]}>Escanear QR</Text>
+          <Text style={[styles.scanSubtitle, premium && styles.mutedPremium]}>Puppy, Comandos o Socio. La app reconoce qué registrar.</Text>
+        </View>
+        <MaterialIcons name="arrow-forward" size={24} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.surface} />
+      </Pressable>
+
       {premium ? (
         <View style={styles.clubAccessCard}>
           <Text style={styles.clubAccessEyebrow}>TU ACCESO COMO SOCIO</Text>
@@ -191,9 +209,9 @@ export default function ServicesTab() {
               onPress={() => router.push('/classes' as never)}
             />
             <ClubAccessItem
-              icon="qr-code-scanner"
-              label="Registrar visita"
-              onPress={() => router.push('/attendance' as never)}
+              icon="history"
+              label="Historial de visitas"
+              onPress={() => router.push('/client/member-visits' as never)}
             />
           </View>
         </View>
@@ -268,7 +286,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 30, fontWeight: '900' },
   subtitle: { fontSize: 14, lineHeight: 20, fontWeight: '700' },
   loading: { flexDirection: 'row', gap: 10, alignItems: 'center', paddingVertical: 10 },
-  membershipHero: { minHeight: 138, flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 28, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, backgroundColor: ucapsaBrand.colors.redSoft, padding: 17, marginBottom: 18 },
+  membershipHero: { minHeight: 138, flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 28, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, backgroundColor: ucapsaBrand.colors.redSoft, padding: 17, marginBottom: 14 },
   membershipHeroPremium: { borderColor: ucapsaBrand.colors.premiumBorderStrong, backgroundColor: ucapsaBrand.colors.premiumSurface, shadowColor: ucapsaBrand.colors.redDeep, shadowOpacity: 0.05, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 1 },
   membershipHeroIcon: { width: 54, height: 54, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.surface },
   membershipHeroIconPremium: { backgroundColor: ucapsaBrand.colors.premiumSurfaceAlt, borderWidth: 1, borderColor: ucapsaBrand.colors.premiumBorder },
@@ -277,6 +295,16 @@ const styles = StyleSheet.create({
   membershipHeroEyebrowPremium: { color: ucapsaBrand.colors.premiumAction },
   membershipHeroTitle: { color: ucapsaBrand.colors.text, fontSize: 20, lineHeight: 24, fontWeight: '900', marginTop: 2 },
   membershipHeroDetail: { color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 16, fontWeight: '700', marginTop: 3 },
+  scanCard: { minHeight: 92, flexDirection: 'row', alignItems: 'center', gap: 13, borderRadius: 22, backgroundColor: ucapsaBrand.colors.red, padding: 14, marginBottom: 18 },
+  scanCardPremium: { backgroundColor: ucapsaBrand.colors.premiumHero, borderWidth: 1, borderColor: ucapsaBrand.colors.premiumBorderStrong },
+  scanCardPressed: { opacity: 0.82, transform: [{ scale: 0.99 }] },
+  scanIcon: { width: 50, height: 50, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redDark },
+  scanIconPremium: { backgroundColor: ucapsaBrand.colors.premiumSurfaceAlt, borderWidth: 1, borderColor: ucapsaBrand.colors.premiumBorder },
+  scanCopy: { flex: 1, minWidth: 0 },
+  scanEyebrow: { color: ucapsaBrand.colors.redSoftStrong, fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 1.0 },
+  scanEyebrowPremium: { color: ucapsaBrand.colors.premiumAction },
+  scanTitle: { color: ucapsaBrand.colors.surface, fontSize: 18, lineHeight: 23, fontWeight: '900', marginTop: 2 },
+  scanSubtitle: { color: ucapsaBrand.colors.redSoft, fontSize: 11, lineHeight: 16, fontWeight: '700', marginTop: 2 },
   clubAccessCard: { gap: 10, borderRadius: 24, borderWidth: 1, borderColor: ucapsaBrand.colors.premiumBorder, backgroundColor: ucapsaBrand.colors.premiumHero, padding: 14, marginBottom: 18 },
   clubAccessEyebrow: { color: ucapsaBrand.colors.premiumAction, fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 1.0 },
   clubAccessGrid: { flexDirection: 'row', gap: 8 },

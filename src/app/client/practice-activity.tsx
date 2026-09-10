@@ -15,7 +15,6 @@ import { DEFAULT_PRACTICE_TARGET_DAYS, getPracticeGoalProgress, getPracticeTarge
 import { getMyProgramEnrollments, getProgramEnrollmentDogName } from '../../services/programs.service';
 import type { PracticeDifficulty, ProgramEnrollmentWithDetails } from '../../types/app.types';
 
-
 function localPracticeDateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
@@ -51,6 +50,12 @@ function formatPracticeDate(value: string) {
   return date.toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
+function practiceDifficultyLabel(value: PracticeDifficulty) {
+  if (value === 'easy') return 'Fácil';
+  if (value === 'hard') return 'Difícil';
+  return 'Bien';
+}
+
 export default function PracticeActivityScreen() {
   const { user, role, isAdmin } = useSession();
   const [activity, setActivity] = useState<PracticeActivitySnapshot | null>(null);
@@ -59,6 +64,7 @@ export default function PracticeActivityScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [selectedPractice, setSelectedPractice] = useState<PracticeActivitySnapshot['entries'][number] | null>(null);
   const [startedAt, setStartedAt] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<PracticeDifficulty | null>(null);
   const [note, setNote] = useState('');
@@ -89,7 +95,6 @@ export default function PracticeActivityScreen() {
     setRefreshing(true);
     try { await load(); } finally { setRefreshing(false); }
   }
-
 
   async function toggleTarget(day: PracticeTargetDay) {
     if (!user || savingTarget) return;
@@ -233,10 +238,24 @@ export default function PracticeActivityScreen() {
           <View style={styles.historySection}>
             <Text style={[styles.sectionTitle, { color: format.text }]}>Prácticas recientes</Text>
             {(activity?.entries ?? []).slice(0, 12).map((entry) => (
-              <View key={entry.id} style={[styles.historyRow, { borderColor: premium ? withAlpha(ucapsaBrand.colors.gold, 0.2) : format.cardBorder, backgroundColor: format.cardBackground }]}>
+              <Pressable
+                key={entry.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Ver práctica de ${entry.dogName || 'tu perro'} del ${formatPracticeDate(entry.completedAt)}`}
+                onPress={() => setSelectedPractice(entry)}
+                style={({ pressed }) => [
+                  styles.historyRow,
+                  { borderColor: premium ? withAlpha(ucapsaBrand.colors.gold, 0.2) : format.cardBorder, backgroundColor: format.cardBackground },
+                  pressed && styles.historyRowPressed,
+                ]}
+              >
                 <View style={[styles.historyIcon, { backgroundColor: format.pillBackground }]}><MaterialIcons name="pets" size={18} color={format.pillText} /></View>
-                <View style={{ flex: 1, minWidth: 0 }}><Text style={[styles.historyTitle, { color: format.cardText }]}>{formatPracticeDate(entry.completedAt)}</Text><Text style={[styles.historyMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{entry.dogName || 'Tu perro'} · {entry.difficulty === 'easy' ? 'Fácil' : entry.difficulty === 'hard' ? 'Difícil' : 'Bien'}{entry.syncStatus === 'pending' ? ' · por sincronizar' : ''}</Text></View>
-              </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={[styles.historyTitle, { color: format.cardText }]}>{formatPracticeDate(entry.completedAt)}</Text>
+                  <Text style={[styles.historyMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{entry.dogName || 'Tu perro'} · {practiceDifficultyLabel(entry.difficulty)}{entry.syncStatus === 'pending' ? ' · por sincronizar' : ''}</Text>
+                </View>
+                <MaterialIcons name="chevron-right" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+              </Pressable>
             ))}
             {activity?.entries.length === 0 ? <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Tu primera práctica aparecerá aquí.</Text> : null}
           </View>
@@ -255,6 +274,48 @@ export default function PracticeActivityScreen() {
           <TextInput multiline maxLength={500} placeholder="Nota opcional" placeholderTextColor={ucapsaBrand.colors.muted} value={note} onChangeText={setNote} style={styles.noteInput} />
           <Pressable disabled={!difficulty || saving} style={[styles.saveButton, (!difficulty || saving) && styles.disabled]} onPress={() => void savePractice()}><Text style={styles.saveButtonText}>{saving ? 'Guardando...' : 'Guardar práctica'}</Text></Pressable>
         </View>
+      </KeyboardAwareModal>
+
+      <KeyboardAwareModal visible={Boolean(selectedPractice)} onClose={() => setSelectedPractice(null)}>
+        {selectedPractice ? (
+          <View style={styles.practiceDetail}>
+            <View style={styles.practiceDetailHeader}>
+              <View style={[styles.practiceDetailIcon, { backgroundColor: format.pillBackground }]}>
+                <MaterialIcons name="pets" size={22} color={format.pillText} />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={[styles.modalEyebrow, { color: premium ? ucapsaBrand.colors.premiumActionText : ucapsaBrand.colors.redDark }]}>PRÁCTICA REGISTRADA</Text>
+                <Text style={[styles.practiceDetailTitle, { color: premium ? ucapsaBrand.colors.premiumText : ucapsaBrand.colors.text }]}>{selectedPractice.dogName || 'Tu perro'}</Text>
+              </View>
+              <Pressable accessibilityRole="button" accessibilityLabel="Cerrar detalle de práctica" onPress={() => setSelectedPractice(null)} style={styles.practiceDetailClose}>
+                <MaterialIcons name="close" size={23} color={premium ? ucapsaBrand.colors.premiumActionText : ucapsaBrand.colors.text} />
+              </Pressable>
+            </View>
+
+            <View style={[styles.practiceDetailSummary, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}>
+              <View style={styles.practiceDetailMetric}>
+                <Text style={[styles.practiceDetailLabel, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>FECHA</Text>
+                <Text style={[styles.practiceDetailValue, { color: format.cardText }]}>{formatPracticeDate(selectedPractice.completedAt)}</Text>
+              </View>
+              <View style={styles.practiceDetailMetric}>
+                <Text style={[styles.practiceDetailLabel, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>RESULTADO</Text>
+                <Text style={[styles.practiceDetailValue, { color: format.cardText }]}>{practiceDifficultyLabel(selectedPractice.difficulty)}</Text>
+              </View>
+            </View>
+
+            <View style={styles.practiceDetailNoteWrap}>
+              <Text style={[styles.practiceDetailLabel, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>COMENTARIO</Text>
+              <Text style={[styles.practiceDetailNote, { color: format.cardText }]}>{selectedPractice.note?.trim() || 'Sin comentario.'}</Text>
+            </View>
+
+            {selectedPractice.syncStatus === 'pending' ? (
+              <View style={[styles.practicePending, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}>
+                <MaterialIcons name="sync" size={18} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                <Text style={[styles.practicePendingText, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Guardada en este dispositivo. Se sincronizará cuando vuelva la conexión.</Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
       </KeyboardAwareModal>
     </KeyboardAwareScreen>
   );
@@ -298,6 +359,7 @@ const styles = StyleSheet.create({
   historySection: { gap: 8 },
   sectionTitle: { fontSize: 20, lineHeight: 24, fontWeight: '900', marginBottom: 2 },
   historyRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 18, padding: 12 },
+  historyRowPressed: { opacity: 0.78 },
   historyIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   historyTitle: { fontSize: 13, lineHeight: 17, fontWeight: '900' },
   historyMeta: { marginTop: 2, fontSize: 10, lineHeight: 14, fontWeight: '700' },
@@ -313,4 +375,17 @@ const styles = StyleSheet.create({
   saveButton: { alignItems: 'center', borderRadius: 17, backgroundColor: ucapsaBrand.colors.red, paddingVertical: 14 },
   saveButtonText: { color: ucapsaBrand.colors.surface, fontSize: 14, fontWeight: '900' },
   disabled: { opacity: 0.45 },
+  practiceDetail: { gap: 16 },
+  practiceDetailHeader: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  practiceDetailIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  practiceDetailTitle: { marginTop: 2, fontSize: 22, lineHeight: 27, fontWeight: '900' },
+  practiceDetailClose: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  practiceDetailSummary: { flexDirection: 'row', gap: 10, borderWidth: 1, borderRadius: 18, padding: 13 },
+  practiceDetailMetric: { flex: 1, gap: 4 },
+  practiceDetailLabel: { fontSize: 10, lineHeight: 14, fontWeight: '900', letterSpacing: 0.7 },
+  practiceDetailValue: { fontSize: 14, lineHeight: 19, fontWeight: '900' },
+  practiceDetailNoteWrap: { gap: 6 },
+  practiceDetailNote: { fontSize: 15, lineHeight: 22, fontWeight: '700' },
+  practicePending: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderWidth: 1, borderRadius: 16, padding: 12 },
+  practicePendingText: { flex: 1, fontSize: 12, lineHeight: 18, fontWeight: '700' },
 });
