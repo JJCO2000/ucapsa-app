@@ -34,12 +34,15 @@ jobs:
       - name: Install SDK-compatible expo-updates
         run: npx expo install expo-updates
 
+      - name: Align Expo SDK 57 package versions
+        run: npx expo install --fix
+
       - name: Reject unexpected installer changes
         shell: bash
         run: |
           unexpected="$(git diff --name-only | grep -Ev '^(package.json|package-lock.json)$' || true)"
           if [ -n "$unexpected" ]; then
-            echo "expo install modifico archivos inesperados:"
+            echo "Expo modifico archivos inesperados:"
             echo "$unexpected"
             exit 1
           fi
@@ -49,6 +52,9 @@ jobs:
 
       - name: Expo Doctor
         run: npx expo-doctor
+
+      - name: Critical vulnerability gate
+        run: npm run audit:critical
 
       - name: Android export smoke test
         run: npx expo export --platform android --output-dir dist-bootstrap --clear
@@ -60,5 +66,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add package.json package-lock.json .github/workflows/bootstrap-eas-update.yml
-          git commit -m "chore: install expo-updates for EAS Update"
+          git commit -m "chore: align SDK 57 and install expo-updates"
           git push origin HEAD:${{ github.head_ref }}
