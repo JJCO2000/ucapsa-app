@@ -27,8 +27,10 @@ jobs:
     steps:
       - name: Require EXPO_TOKEN
         shell: bash
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
+          if [ -z "$EXPO_TOKEN" ]; then
             echo "EXPO_TOKEN no esta configurado en el environment preview."
             exit 1
           fi
@@ -58,6 +60,9 @@ jobs:
 
       - name: Expo Doctor
         run: npx expo-doctor
+
+      - name: Critical vulnerability gate
+        run: npm run audit:critical
 
       - name: Publish Android Preview OTA
         env:
