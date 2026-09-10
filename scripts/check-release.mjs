@@ -40,6 +40,9 @@ const expoVersion = String(dependencies.expo ?? '');
 if (!/[~^]?57\./.test(expoVersion)) {
   fail(`Expo debe estar en SDK 57: ${dependencies.expo ?? 'missing'}`);
 }
+if (!dependencies['expo-updates']) {
+  fail('Falta expo-updates: EAS Update no puede funcionar sin la libreria nativa instalada.');
+}
 
 function parseVersion(value) {
   const match = String(value ?? '').match(/(\d+)\.(\d+)\.(\d+)/);
@@ -123,6 +126,21 @@ for (const environment of ['development', 'preview', 'production']) {
     fail(`EAS build.${environment}.environment debe ser ${environment}.`);
   }
 }
+if (eas?.build?.preview?.channel !== 'preview') {
+  fail('EAS build.preview.channel debe ser preview para aislar OTAs de prueba.');
+}
+if (eas?.build?.production?.channel !== 'production') {
+  fail('EAS build.production.channel debe ser production para aislar OTAs productivos.');
+}
+if (expo?.runtimeVersion?.policy !== 'appVersion') {
+  fail('expo.runtimeVersion.policy debe ser appVersion para EAS Update.');
+}
+const easProjectId = expo?.extra?.eas?.projectId;
+if (!easProjectId) {
+  fail('Falta expo.extra.eas.projectId.');
+} else if (expo?.updates?.url !== `https://u.expo.dev/${easProjectId}`) {
+  fail(`expo.updates.url debe apuntar al projectId EAS: https://u.expo.dev/${easProjectId}`);
+}
 
 const srcDir = path.join(root, 'src');
 const sourceFiles = walk(srcDir).filter((file) => /\.(tsx?|jsx?)$/.test(file));
@@ -149,5 +167,5 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('RELEASE CHECK OK: SDK 57/RN 0.86.2+, permisos Android, notificaciones, dependencias, iconos y EAS revisados.');
+console.log('RELEASE CHECK OK: SDK 57/RN 0.86.2+, permisos Android, notificaciones, dependencias, iconos, EAS y EAS Update revisados.');
 for (const note of notes) console.log(`NOTE: ${note}`);
