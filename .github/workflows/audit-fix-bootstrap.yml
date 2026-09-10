@@ -32,7 +32,12 @@ jobs:
         run: npm ci
 
       - name: Apply only non-forced npm audit fixes
-        run: npm audit fix
+        shell: bash
+        run: |
+          # npm audit fix exits non-zero when vulnerabilities remain even after
+          # applying all non-breaking fixes. The explicit audit gate below
+          # decides whether the resulting tree is acceptable.
+          npm audit fix || true
 
       - name: Reject unexpected file changes
         shell: bash
@@ -60,8 +65,8 @@ jobs:
           const v = audit.metadata?.vulnerabilities ?? {};
           console.log(`AUDIT AFTER: critical=${v.critical ?? 0}, high=${v.high ?? 0}, moderate=${v.moderate ?? 0}, low=${v.low ?? 0}`);
           if ((v.critical ?? 0) > 0) process.exit(1);
-          if ((v.high ?? 0) > 8) {
-            console.error('El arreglo aumento vulnerabilidades altas; se rechaza.');
+          if ((v.high ?? 0) > 6) {
+            console.error('El arreglo no conserva la reduccion esperada de vulnerabilidades altas; se rechaza.');
             process.exit(1);
           }
           NODE
@@ -77,9 +82,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add package.json package-lock.json .github/workflows/audit-fix-bootstrap.yml
-          if git diff --cached --quiet; then
-            echo "No hay cambios seguros que npm audit fix pueda aplicar."
-            exit 0
-          fi
           git commit -m "security: apply non-breaking npm audit fixes"
           git push origin HEAD:${{ github.head_ref }}
