@@ -1,4 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { MemberClubCrest } from './MemberClubCrest';
@@ -260,6 +261,7 @@ export function CustomerValueSnapshotCard({
   const remaining = mainProgram?.requiredAttendances && mainProgram.requiredAttendances > 0
     ? mainProgram.attendanceRemaining
     : null;
+  const openScanner = onScanQr ?? (() => router.push('/attendance' as never));
 
   return (
     <View style={styles.wrapper}>
@@ -339,24 +341,22 @@ export function CustomerValueSnapshotCard({
 
       <View style={styles.activityHeader}>
         <Text style={[styles.activityTitleCompact, { color: format.text }]}>Actividad</Text>
-        {onScanQr ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Escanear QR para registrar asistencia o visita"
-            onPress={onScanQr}
-            hitSlop={4}
-            style={({ pressed }) => [
-              styles.scanButton,
-              {
-                borderColor: format.border,
-                backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft,
-              },
-              pressed && styles.scanButtonPressed,
-            ]}
-          >
-            <MaterialIcons name="qr-code-scanner" size={21} color={premium ? ucapsaBrand.colors.premiumActionText : format.accentDark} />
-          </Pressable>
-        ) : null}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Escanear QR para registrar asistencia o visita"
+          onPress={openScanner}
+          hitSlop={4}
+          style={({ pressed }) => [
+            styles.scanButton,
+            {
+              borderColor: format.border,
+              backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft,
+            },
+            pressed && styles.scanButtonPressed,
+          ]}
+        >
+          <MaterialIcons name="qr-code-scanner" size={21} color={premium ? ucapsaBrand.colors.premiumActionText : format.accentDark} />
+        </Pressable>
       </View>
 
       <View style={styles.metricsRow}>
