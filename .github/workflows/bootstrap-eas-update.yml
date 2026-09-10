@@ -40,12 +40,44 @@ jobs:
       - name: Reject unexpected installer changes
         shell: bash
         run: |
-          unexpected="$(git diff --name-only | grep -Ev '^(package.json|package-lock.json)$' || true)"
+          unexpected="$(git diff --name-only | grep -Ev '^(package.json|package-lock.json|app.json)$' || true)"
           if [ -n "$unexpected" ]; then
             echo "Expo modifico archivos inesperados:"
             echo "$unexpected"
             exit 1
           fi
+
+      - name: Verify app.json change is only an Expo plugin addition
+        shell: bash
+        run: |
+          git diff -- app.json
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { execFileSync } from 'node:child_process';
+
+          const before = JSON.parse(execFileSync('git', ['show', 'HEAD:app.json'], { encoding: 'utf8' }));
+          const after = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+
+          const beforePlugins = before.expo?.plugins ?? [];
+          const afterPlugins = after.expo?.plugins ?? [];
+          const normalize = (v) => JSON.stringify(v);
+          const added = afterPlugins.filter((item) => !beforePlugins.some((old) => normalize(old) === normalize(item)));
+
+          const beforeSans = structuredClone(before);
+          const afterSans = structuredClone(after);
+          beforeSans.expo.plugins = [];
+          afterSans.expo.plugins = [];
+
+          if (JSON.stringify(beforeSans) !== JSON.stringify(afterSans)) {
+            console.error('app.json cambio fuera de expo.plugins');
+            process.exit(1);
+          }
+          if (added.length !== 1 || normalize(added[0]) !== '"expo-image"') {
+            console.error('Cambio inesperado en plugins:', added);
+            process.exit(1);
+          }
+          console.log('app.json OK: Expo solo agrego el plugin expo-image.');
+          NODE
 
       - name: Release gates
         run: npm run verify:release
@@ -65,6 +97,6 @@ jobs:
           rm .github/workflows/bootstrap-eas-update.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json package-lock.json .github/workflows/bootstrap-eas-update.yml
+          git add app.json package.json package-lock.json .github/workflows/bootstrap-eas-update.yml
           git commit -m "chore: align SDK 57 and install expo-updates"
           git push origin HEAD:${{ github.head_ref }}
