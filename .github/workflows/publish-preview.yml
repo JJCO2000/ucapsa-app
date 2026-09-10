@@ -1,0 +1,70 @@
+name: Publish Preview OTA
+
+on:
+  workflow_dispatch:
+    inputs:
+      message:
+        description: "Mensaje del EAS Update"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ucap-preview-ota
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Verify and publish Preview OTA
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: preview
+
+    steps:
+      - name: Require EXPO_TOKEN
+        shell: bash
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "EXPO_TOKEN no esta configurado en el environment preview."
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@c7b66a9c327a43a8fa7c0158e7f30d6040d2481e # v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Release gates
+        run: npm run verify:release
+
+      - name: Expo Doctor
+        run: npx expo-doctor
+
+      - name: Critical vulnerability gate
+        run: npm run audit:critical
+
+      - name: Publish Android Preview OTA
+        env:
+          UPDATE_MESSAGE: ${{ inputs.message }}
+        run: eas update --channel preview --platform android --message "$UPDATE_MESSAGE" --environment preview --non-interactive
