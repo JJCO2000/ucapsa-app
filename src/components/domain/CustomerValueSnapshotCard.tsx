@@ -22,6 +22,7 @@ type Props = {
   onOpenPractices?: () => void;
   onOpenAchieved?: () => void;
   onOpenNext?: (action: CustomerValuePrimaryNextAction) => void;
+  onScanQr?: () => void;
 };
 
 function plural(value: number, singular: string, pluralValue = `${singular}s`) {
@@ -233,6 +234,7 @@ export function CustomerValueSnapshotCard({
   onOpenPractices,
   onOpenAchieved,
   onOpenNext,
+  onScanQr,
 }: Props) {
   const premium = format.key === 'member';
   const activePrograms = snapshot.whatIHave.programs;
@@ -337,6 +339,24 @@ export function CustomerValueSnapshotCard({
 
       <View style={styles.activityHeader}>
         <Text style={[styles.activityTitleCompact, { color: format.text }]}>Actividad</Text>
+        {onScanQr ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Escanear QR para registrar asistencia o visita"
+            onPress={onScanQr}
+            hitSlop={4}
+            style={({ pressed }) => [
+              styles.scanButton,
+              {
+                borderColor: format.border,
+                backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft,
+              },
+              pressed && styles.scanButtonPressed,
+            ]}
+          >
+            <MaterialIcons name="qr-code-scanner" size={21} color={premium ? ucapsaBrand.colors.premiumActionText : format.accentDark} />
+          </Pressable>
+        ) : null}
       </View>
 
       <View style={styles.metricsRow}>
@@ -405,11 +425,13 @@ const styles = StyleSheet.create({
   nextEyebrow: { fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 1.05, opacity: 0.82 },
   nextTitle: { fontSize: 19, lineHeight: 23, fontWeight: '900', letterSpacing: -0.2 },
   nextDetail: { fontSize: 11, lineHeight: 16, fontWeight: '800', opacity: 0.84 },
-  activityHeader: { marginTop: 3, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10, paddingHorizontal: 2 },
+  activityHeader: { marginTop: 3, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingHorizontal: 2 },
   activityEyebrow: { fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 1.0 },
   activityTitle: { marginTop: 1, fontSize: 18, lineHeight: 22, fontWeight: '900' },
   activityTitleCompact: { fontSize: 17, lineHeight: 21, fontWeight: '900', letterSpacing: -0.2 },
   activityLink: { fontSize: 12, fontWeight: '900', paddingVertical: 4 },
+  scanButton: { width: 48, height: 48, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  scanButtonPressed: { opacity: 0.72, transform: [{ scale: 0.97 }] },
   metricsRow: { flexDirection: 'row', gap: 8 },
   metric: { flex: 1, minHeight: 118, borderWidth: 1, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 12, alignItems: 'flex-start' },
   metricIcon: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
