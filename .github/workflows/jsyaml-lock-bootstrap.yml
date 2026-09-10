@@ -1,0 +1,83 @@
+name: Sync patched js-yaml lockfile
+
+on:
+  pull_request:
+    types: [reopened]
+    branches: [main]
+    paths:
+      - .github/workflows/jsyaml-lock-bootstrap.yml
+      - package.json
+      - scripts/check-release.mjs
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.head_ref == 'security/post-eas-hardening' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout security branch
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Sync lockfile from package.json overrides
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Reject unexpected changes
+        shell: bash
+        run: |
+          unexpected="$(git diff --name-only | grep -Ev '^package-lock.json$' || true)"
+          if [ -n "$unexpected" ]; then
+            echo "La sincronizacion modifico archivos inesperados:"
+            echo "$unexpected"
+            exit 1
+          fi
+
+      - name: Install exact synchronized tree
+        run: npm ci
+
+      - name: Release gates
+        run: npm run verify:release
+
+      - name: Expo Doctor
+        run: npx expo-doctor
+
+      - name: Audit resulting production tree
+        shell: bash
+        run: |
+          npm audit --omit=dev --json > audit-after.json || true
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const audit = JSON.parse(fs.readFileSync('audit-after.json', 'utf8'));
+          const v = audit.metadata?.vulnerabilities ?? {};
+          console.log(`AUDIT FINAL: critical=${v.critical ?? 0}, high=${v.high ?? 0}, moderate=${v.moderate ?? 0}, low=${v.low ?? 0}`);
+          if ((v.critical ?? 0) > 0) process.exit(1);
+          if ((v.high ?? 0) > 5) {
+            console.error('El parche de js-yaml no produjo la reduccion esperada; se rechaza.');
+            process.exit(1);
+          }
+          NODE
+          rm audit-after.json
+
+      - name: Android export smoke test
+        run: npx expo export --platform android --output-dir dist-jsyaml --clear
+
+      - name: Remove bootstrap and commit synchronized lockfile
+        shell: bash
+        run: |
+          rm .github/workflows/jsyaml-lock-bootstrap.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json .github/workflows/jsyaml-lock-bootstrap.yml
+          git commit -m "security: sync patched js-yaml lockfile"
+          git push origin HEAD:${{ github.head_ref }}
