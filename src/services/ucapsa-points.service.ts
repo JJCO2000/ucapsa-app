@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import type {
   UcapsaPointsLedgerEntry,
+  UcapsaPointsLeaderboardRow,
   UcapsaPointsParticipant,
   UcapsaPointsScreenData,
   UcapsaPointsSeason,
@@ -135,8 +136,8 @@ export async function getUcapsaPointsScreenData(userId: string): Promise<UcapsaP
   if (tiersResult.error) throw tiersResult.error;
 
   const participant = participantResult.data ? normalizeParticipant(participantResult.data) : null;
-  const tiers = (tiersResult.data ?? []).map(normalizeTier);
-  const leaderboard = (leaderboardResult.data ?? []).map((row: any) => ({
+  const tiers: UcapsaPointsTier[] = (tiersResult.data ?? []).map(normalizeTier);
+  const leaderboard: UcapsaPointsLeaderboardRow[] = (leaderboardResult.data ?? []).map((row: any) => ({
     rank: toNumber(row.rank),
     tied: Boolean(row.is_tied),
     dog_id: String(row.dog_id),
@@ -170,7 +171,7 @@ export async function getUcapsaPointsScreenData(userId: string): Promise<UcapsaP
     ownLedgerTotal = (totalResult.data ?? []).reduce((sum: number, row: any) => sum + toNumber(row.points), 0);
   }
 
-  const currentRow = leaderboard.find((row: any) => row.is_current_user) ?? null;
+  const currentRow = leaderboard.find((row) => row.is_current_user) ?? null;
   const totalPoints = participant ? ownLedgerTotal : 0;
 
   const currentTier = [...tiers].reverse().find((tier) => tier.min_points <= totalPoints) ?? null;
