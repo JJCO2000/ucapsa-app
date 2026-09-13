@@ -1,0 +1,82 @@
+name: Authorized one-shot Preview APK
+
+on:
+  push:
+    branches:
+      - build/apk-preview-main-115b960
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment:
+      name: preview
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - name: Checkout canonical main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Require Expo authentication
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${EXPO_TOKEN:-}"
+
+      - run: npm ci
+      - run: npm run verify:release
+      - run: npx expo-doctor@latest
+      - run: npm run audit:critical
+
+      - name: Verify canonical source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "115b9601f018194ae5f94a13d5665c7074d315cf"
+          test "$(node -p "require('./eas.json').build.preview.android.buildType")" = "apk"
+          test "$(node -p "require('./eas.json').build.preview.channel")" = "preview"
+
+      - name: Generate Preview APK with EAS Build
+        id: eas_build
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUILD_JSON="$RUNNER_TEMP/eas-build.json"
+          npx eas-cli@latest build --platform android --profile preview --non-interactive --wait --json > "$BUILD_JSON"
+          BUILD_ID="$(jq -r 'if type == "array" then .[0].id else .id end' "$BUILD_JSON")"
+          BUILD_URL="$(jq -r 'if type == "array" then .[0].artifacts.buildUrl else .artifacts.buildUrl end' "$BUILD_JSON")"
+          test -n "$BUILD_ID" && test "$BUILD_ID" != "null"
+          test -n "$BUILD_URL" && test "$BUILD_URL" != "null"
+          echo "build_id=$BUILD_ID" >> "$GITHUB_OUTPUT"
+          echo "build_url=$BUILD_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Download generated APK
+        shell: bash
+        env:
+          BUILD_URL: ${{ steps.eas_build.outputs.build_url }}
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 "$BUILD_URL" --output ucapsa-preview.apk
+          test -s ucapsa-preview.apk
+          sha256sum ucapsa-preview.apk > ucapsa-preview.apk.sha256
+
+      - name: Store APK as GitHub artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ucapsa-preview-apk
+          path: |
+            ucapsa-preview.apk
+            ucapsa-preview.apk.sha256
+          if-no-files-found: error
+          retention-days: 7
