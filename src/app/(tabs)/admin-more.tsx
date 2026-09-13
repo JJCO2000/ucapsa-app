@@ -29,6 +29,7 @@ export default function AdminMoreTab() {
 
       <Text style={styles.sectionTitle}>Operación</Text>
       <View style={styles.card}>
+        <MenuRow icon="emoji-events" title="Puntos UCAPSA" subtitle="Bonos, correcciones y Perro del Año" onPress={() => router.push('/admin/points' as never)} />
         <MenuRow icon="restaurant-menu" title="Restaurante" subtitle="Editar menú, precios y disponibilidad" onPress={() => router.push('/admin/restaurant' as never)} />
         <MenuRow icon="rate-review" title="Reseñas Google" subtitle="Abrir el asistente para redactar una reseña real" onPress={() => router.push('/reviews' as never)} />
         <MenuRow icon="groups" title="Visitas de socios" subtitle="QR, registros y tendencia mensual" onPress={() => router.push('/admin/member-visits' as never)} />

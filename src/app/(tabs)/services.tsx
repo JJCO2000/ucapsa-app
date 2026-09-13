@@ -179,9 +179,21 @@ export default function ServicesTab() {
         <View style={styles.clubAccessCard}>
           <Text style={styles.clubAccessEyebrow}>TU ACCESO COMO SOCIO</Text>
           <View style={styles.clubAccessGrid}>
-            <ClubAccessItem icon="badge" label="Credencial digital" onPress={() => router.push('/client/membership' as never)} />
-            <ClubAccessItem icon="school" label="Clases incluidas" onPress={() => router.push('/classes' as never)} />
-            <ClubAccessItem icon="history" label="Historial de visitas" onPress={() => router.push('/client/member-visits' as never)} />
+            <ClubAccessItem
+              icon="badge"
+              label="Credencial digital"
+              onPress={() => router.push('/client/membership' as never)}
+            />
+            <ClubAccessItem
+              icon="emoji-events"
+              label="Perro del Año"
+              onPress={() => router.push('/client/points' as never)}
+            />
+            <ClubAccessItem
+              icon="history"
+              label="Historial de visitas"
+              onPress={() => router.push('/client/member-visits' as never)}
+            />
           </View>
         </View>
       ) : null}
@@ -221,8 +233,15 @@ function GuestProof({ icon, title, text }: { icon: keyof typeof MaterialIcons.gl
 
 function ClubAccessItem({ icon, label, onPress }: { icon: keyof typeof MaterialIcons.glyphMap; label: string; onPress: () => void }) {
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [styles.clubAccessItem, pressed && styles.clubAccessItemPressed]}>
-      <View style={styles.clubAccessIcon}><MaterialIcons name={icon} size={18} color={ucapsaBrand.colors.premiumActionText} /></View>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [styles.clubAccessItem, pressed && styles.clubAccessItemPressed]}
+    >
+      <View style={styles.clubAccessIcon}>
+        <MaterialIcons name={icon} size={18} color={ucapsaBrand.colors.premiumActionText} />
+      </View>
       <Text style={styles.clubAccessLabel}>{label}</Text>
     </Pressable>
   );
