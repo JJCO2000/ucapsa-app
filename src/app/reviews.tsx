@@ -7,11 +7,20 @@ import { Alert, Linking, Pressable, StyleSheet, Text, TextInput, View } from 're
 import { KeyboardAwareScreen } from '../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../constants/brand';
 
+const serviceOptions = ['Puppy', 'Comandos', 'Membresía', 'Restaurante'];
+const highlightOptions = ['Atención', 'Seguimiento', 'Instalaciones', 'Trato al perro'];
+
+function sentence(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+}
+
 function buildDraft(service: string, highlight: string, result: string) {
   const parts: string[] = [];
-  if (service.trim()) parts.push(`Mi experiencia con ${service.trim()} en UCAPSA fue muy buena.`);
-  if (highlight.trim()) parts.push(`Lo que más destacaría es ${highlight.trim()}.`);
-  if (result.trim()) parts.push(`En mi caso, ${result.trim()}.`);
+  if (service.trim()) parts.push(`Tomé ${service.trim()} en UCAPSA.`);
+  if (highlight.trim()) parts.push(`Lo que más me gustó fue ${highlight.trim().toLocaleLowerCase('es-MX')}.`);
+  if (result.trim()) parts.push(sentence(result));
   return parts.join(' ');
 }
 
@@ -25,7 +34,7 @@ export default function ReviewsScreen() {
 
   function generate() {
     if (!suggested) {
-      Alert.alert('Cuéntanos un poco más', 'Completa al menos una respuesta para crear un borrador.');
+      Alert.alert('Cuéntanos un poco más', 'Elige o escribe al menos un dato para crear tu borrador.');
       return;
     }
     setFinalText(suggested);
@@ -33,7 +42,7 @@ export default function ReviewsScreen() {
 
   async function copyReview() {
     if (!finalText.trim()) {
-      Alert.alert('Falta el texto', 'Genera o escribe tu reseña antes de copiarla.');
+      Alert.alert('Falta el texto', 'Crea o escribe tu reseña antes de copiarla.');
       return;
     }
     await Clipboard.setStringAsync(finalText.trim());
@@ -41,10 +50,15 @@ export default function ReviewsScreen() {
   }
 
   async function openGoogle() {
+    if (!finalText.trim()) {
+      Alert.alert('Primero crea tu reseña', 'Genera o escribe el texto final antes de abrir Google.');
+      return;
+    }
     try {
+      await Clipboard.setStringAsync(finalText.trim());
       await Linking.openURL(ucapsaBrand.googleReviewUrl);
     } catch {
-      Alert.alert('No se pudo abrir Google Maps', 'Copia tu reseña e inténtalo de nuevo desde Google Maps.');
+      Alert.alert('No se pudo abrir Google Maps', 'Tu texto quedó listo para copiar. Inténtalo de nuevo desde Google Maps.');
     }
   }
 
@@ -62,12 +76,38 @@ export default function ReviewsScreen() {
 
       <View style={styles.notice}>
         <MaterialIcons name="verified" size={22} color={ucapsaBrand.colors.greenDark} />
-        <Text style={styles.noticeText}>La app solo te ayuda a ordenar tus ideas. Usa únicamente tu experiencia real y cambia lo que quieras antes de publicarla.</Text>
+        <Text style={styles.noticeText}>Te ayudamos a ordenar tu experiencia real. Tú decides el texto final antes de publicarlo.</Text>
       </View>
 
-      <Question label="¿Qué servicio tomaste?" placeholder="Ej. Puppy, Comandos, membresía..." value={service} onChangeText={setService} />
-      <Question label="¿Qué fue lo que más te gustó?" placeholder="Ej. la atención, el seguimiento, las instalaciones..." value={highlight} onChangeText={setHighlight} multiline />
-      <Question label="¿Qué cambió o qué resultado viste?" placeholder="Ej. mi perro mejoró al pasear y entendí mejor cómo comunicarme con él" value={result} onChangeText={setResult} multiline />
+      <QuestionBlock label="¿Qué servicio tomaste?">
+        <ChoiceRow options={serviceOptions} value={service} onChange={setService} />
+        <TextInput
+          value={service}
+          onChangeText={setService}
+          placeholder="Otro servicio o programa"
+          style={styles.input}
+        />
+      </QuestionBlock>
+
+      <QuestionBlock label="¿Qué fue lo que más te gustó?">
+        <ChoiceRow options={highlightOptions} value={highlight} onChange={setHighlight} />
+        <TextInput
+          value={highlight}
+          onChangeText={setHighlight}
+          placeholder="Escríbelo con tus palabras"
+          style={styles.input}
+        />
+      </QuestionBlock>
+
+      <QuestionBlock label="¿Qué cambió o qué resultado viste?">
+        <TextInput
+          value={result}
+          onChangeText={setResult}
+          placeholder="Ej. Mi perro mejoró al pasear y entendí mejor cómo comunicarme con él."
+          multiline
+          style={[styles.input, styles.inputMultiline]}
+        />
+      </QuestionBlock>
 
       <Pressable style={styles.generateButton} onPress={generate}>
         <MaterialIcons name="auto-awesome" size={20} color={ucapsaBrand.colors.surface} />
@@ -90,7 +130,7 @@ export default function ReviewsScreen() {
         </Pressable>
         <Pressable style={styles.primaryButton} onPress={() => void openGoogle()}>
           <MaterialIcons name="rate-review" size={19} color={ucapsaBrand.colors.surface} />
-          <Text style={styles.primaryText}>Abrir Google</Text>
+          <Text style={styles.primaryText}>Copiar y abrir Google</Text>
         </Pressable>
       </View>
 
@@ -102,11 +142,32 @@ export default function ReviewsScreen() {
   );
 }
 
-function Question({ label, placeholder, value, onChangeText, multiline = false }: { label: string; placeholder: string; value: string; onChangeText: (value: string) => void; multiline?: boolean }) {
+function QuestionBlock({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <View style={styles.question}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} multiline={multiline} style={[styles.input, multiline && styles.inputMultiline]} />
+      {children}
+    </View>
+  );
+}
+
+function ChoiceRow({ options, value, onChange }: { options: string[]; value: string; onChange: (value: string) => void }) {
+  return (
+    <View style={styles.choiceRow}>
+      {options.map((option) => {
+        const selected = value.trim().toLocaleLowerCase('es-MX') === option.toLocaleLowerCase('es-MX');
+        return (
+          <Pressable
+            key={option}
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
+            style={[styles.choiceChip, selected && styles.choiceChipSelected]}
+            onPress={() => onChange(option)}
+          >
+            <Text style={[styles.choiceText, selected && styles.choiceTextSelected]}>{option}</Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -118,18 +179,23 @@ const styles = StyleSheet.create({
   title: { color: ucapsaBrand.colors.text, fontSize: 28, lineHeight: 34, fontWeight: '900' },
   notice: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.successBorder, backgroundColor: ucapsaBrand.colors.successSoft, padding: 14, marginBottom: 18 },
   noticeText: { flex: 1, color: ucapsaBrand.colors.successDark, fontSize: 13, lineHeight: 19, fontWeight: '700' },
-  question: { gap: 7, marginBottom: 14 },
-  label: { color: ucapsaBrand.colors.text, fontSize: 14, lineHeight: 19, fontWeight: '900', marginBottom: 6 },
-  input: { borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, color: ucapsaBrand.colors.text, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15 },
+  question: { gap: 9, marginBottom: 16 },
+  label: { color: ucapsaBrand.colors.text, fontSize: 14, lineHeight: 19, fontWeight: '900' },
+  choiceRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  choiceChip: { minHeight: 40, justifyContent: 'center', borderRadius: 999, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 13 },
+  choiceChipSelected: { borderColor: ucapsaBrand.colors.redDark, backgroundColor: ucapsaBrand.colors.redDark },
+  choiceText: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900' },
+  choiceTextSelected: { color: ucapsaBrand.colors.surface },
+  input: { minHeight: 48, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, color: ucapsaBrand.colors.text, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15 },
   inputMultiline: { minHeight: 92, textAlignVertical: 'top' },
   generateButton: { minHeight: 52, borderRadius: 16, backgroundColor: ucapsaBrand.colors.red, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, marginTop: 2, marginBottom: 18 },
   generateText: { color: ucapsaBrand.colors.surface, fontSize: 15, fontWeight: '900' },
-  finalInput: { minHeight: 132, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, backgroundColor: ucapsaBrand.colors.surface, color: ucapsaBrand.colors.text, padding: 14, fontSize: 15, lineHeight: 22, textAlignVertical: 'top' },
+  finalInput: { minHeight: 118, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, backgroundColor: ucapsaBrand.colors.surface, color: ucapsaBrand.colors.text, padding: 14, fontSize: 15, lineHeight: 22, textAlignVertical: 'top' },
   actionRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  secondaryButton: { flex: 1, minHeight: 50, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, backgroundColor: ucapsaBrand.colors.surface, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center' },
+  secondaryButton: { flex: 0.8, minHeight: 50, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, backgroundColor: ucapsaBrand.colors.surface, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center' },
   secondaryText: { color: ucapsaBrand.colors.redDark, fontSize: 14, fontWeight: '900' },
-  primaryButton: { flex: 1.25, minHeight: 50, borderRadius: 16, backgroundColor: ucapsaBrand.colors.red, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center' },
-  primaryText: { color: ucapsaBrand.colors.surface, fontSize: 14, fontWeight: '900' },
+  primaryButton: { flex: 1.4, minHeight: 50, borderRadius: 16, backgroundColor: ucapsaBrand.colors.red, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
+  primaryText: { color: ucapsaBrand.colors.surface, fontSize: 13, fontWeight: '900', textAlign: 'center' },
   mapsLink: { marginTop: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 10 },
   mapsLinkText: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '800' },
 });
