@@ -46,13 +46,17 @@ function scheduleLabel(item: ProgramEnrollmentWithDetails) {
 }
 
 function visibleLevelLabel(item: ProgramEnrollmentWithDetails) {
-  const label = getProgramLevelDisplayLabel(item.program.code, item.enrollment.program_level);
-  return label === 'Medio' ? 'Intermedio' : label;
+  return getProgramLevelDisplayLabel(item.program.code, item.enrollment.program_level);
 }
 
 function rowForStage(rows: ProgramEnrollmentWithDetails[], key: typeof courseStages[number]['key']) {
   if (key === 'puppy') return rows.find((item) => item.program.code === 'puppy') ?? null;
   return rows.find((item) => item.program.code === 'comandos' && item.enrollment.program_level === key) ?? null;
+}
+
+function dogRouteKey(item: ProgramEnrollmentWithDetails) {
+  if (item.enrollment.dog_id) return `dog:${item.enrollment.dog_id}`;
+  return `legacy:${getProgramEnrollmentDogName(item).trim().toLowerCase()}`;
 }
 
 export default function ClassesTab() {
@@ -93,6 +97,16 @@ export default function ClassesTab() {
 
   const active = useMemo(() => rows.filter((item) => item.enrollment.status === 'active'), [rows]);
   const previous = useMemo(() => rows.filter((item) => item.enrollment.status !== 'active'), [rows]);
+  const coursePaths = useMemo(() => {
+    const groups = new Map<string, { key: string; dogName: string; rows: ProgramEnrollmentWithDetails[] }>();
+    for (const item of rows) {
+      const key = dogRouteKey(item);
+      const existing = groups.get(key);
+      if (existing) existing.rows.push(item);
+      else groups.set(key, { key, dogName: getProgramEnrollmentDogName(item), rows: [item] });
+    }
+    return [...groups.values()];
+  }, [rows]);
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin, hasActivePrograms: active.length > 0 }), [active.length, isAdmin, role, user]);
   const premium = format.key === 'member';
 
@@ -133,13 +147,13 @@ export default function ClassesTab() {
         </View>
       ) : null}
 
-      {rows.length > 0 ? (
-        <View style={[styles.pathCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
-          <Text style={[styles.currentEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>TU RUTA UCAPSA</Text>
+      {coursePaths.map((path) => (
+        <View key={path.key} style={[styles.pathCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
+          <Text style={[styles.currentEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>RUTA DE {path.dogName.toUpperCase()}</Text>
           <Text style={[styles.pathTitle, { color: format.cardText }]}>Los niveles se desbloquean al completar el anterior</Text>
           <View style={styles.stageList}>
             {courseStages.map((stage, index) => {
-              const stageRow = rowForStage(rows, stage.key);
+              const stageRow = rowForStage(path.rows, stage.key);
               const completed = stageRow?.enrollment.status === 'completed';
               const unlocked = Boolean(stageRow);
               const activeStage = stageRow?.enrollment.status === 'active';
@@ -159,7 +173,7 @@ export default function ClassesTab() {
             })}
           </View>
         </View>
-      ) : null}
+      ))}
 
       {active.length > 0 ? (
         <>
