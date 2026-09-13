@@ -2,6 +2,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import { Alert, Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../components/ui/KeyboardAwareScreen';
@@ -142,7 +143,7 @@ export default function ReviewsScreen() {
   );
 }
 
-function QuestionBlock({ label, children }: { label: string; children: React.ReactNode }) {
+function QuestionBlock({ label, children }: { label: string; children: ReactNode }) {
   return (
     <View style={styles.question}>
       <Text style={styles.label}>{label}</Text>
