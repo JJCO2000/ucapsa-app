@@ -60,6 +60,13 @@ execute function public.set_updated_at_timestamp();
 alter table public.restaurant_menu_categories enable row level security;
 alter table public.restaurant_menu_items enable row level security;
 
+-- Las policies de RLS no sustituyen los privilegios PostgreSQL de tabla.
+-- Sin estos grants, PostgREST devuelve permission denied antes de evaluar RLS.
+grant select on table public.restaurant_menu_categories to anon, authenticated;
+grant select on table public.restaurant_menu_items to anon, authenticated;
+grant insert, update, delete on table public.restaurant_menu_categories to authenticated;
+grant insert, update, delete on table public.restaurant_menu_items to authenticated;
+
 -- El menú no contiene información privada. Lectura pública para que funcione también sin iniciar sesión.
 drop policy if exists "Public can read restaurant categories" on public.restaurant_menu_categories;
 create policy "Public can read restaurant categories"
