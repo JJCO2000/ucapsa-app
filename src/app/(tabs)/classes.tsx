@@ -25,6 +25,13 @@ import type { ProgramEnrollmentWithDetails } from '../../types/app.types';
 const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const monthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
+const courseStages = [
+  { key: 'puppy', label: 'Puppy' },
+  { key: 'principiante', label: 'Básico' },
+  { key: 'medio', label: 'Intermedio' },
+  { key: 'avanzado', label: 'Avanzado' },
+] as const;
+
 function nextClassLabel(item: ProgramEnrollmentWithDetails) {
   const date = getNextProgramScheduleDate(item.schedule);
   if (!date) return 'Próxima clase por confirmar';
@@ -36,6 +43,16 @@ function scheduleLabel(item: ProgramEnrollmentWithDetails) {
   const repeat = item.schedule.repeat_type === 'biweekly' ? 'Cada 2 semanas' : 'Cada semana';
   const time = String(item.schedule.start_time ?? '').slice(0, 5);
   return `${dayNames[item.schedule.day_of_week] ?? 'Día'} ${time || '--:--'} - ${repeat}`;
+}
+
+function visibleLevelLabel(item: ProgramEnrollmentWithDetails) {
+  const label = getProgramLevelDisplayLabel(item.program.code, item.enrollment.program_level);
+  return label === 'Medio' ? 'Intermedio' : label;
+}
+
+function rowForStage(rows: ProgramEnrollmentWithDetails[], key: typeof courseStages[number]['key']) {
+  if (key === 'puppy') return rows.find((item) => item.program.code === 'puppy') ?? null;
+  return rows.find((item) => item.program.code === 'comandos' && item.enrollment.program_level === key) ?? null;
 }
 
 export default function ClassesTab() {
@@ -99,7 +116,7 @@ export default function ClassesTab() {
         format={format}
         eyebrow="Tu entrenamiento"
         title="Clases"
-        subtitle="Próximas sesiones, asistencias y programas anteriores."
+        subtitle="Tu ruta Puppy → Básico → Intermedio → Avanzado, con todo tu historial."
         icon="school"
       />
 
@@ -108,22 +125,39 @@ export default function ClassesTab() {
       {localReady && rows.length === 0 ? (
         <View style={[styles.emptyCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
           <MaterialIcons name={offlineEmpty ? 'cloud-off' : 'school'} size={32} color={offlineEmpty ? format.accentDark : format.accent} />
-          <Text style={[styles.sectionTitle, { color: format.cardText }]}>
-            {offlineEmpty ? 'Clases aún no guardadas' : 'Sin clases activas'}
-          </Text>
-          <Text style={[styles.muted, { color: format.muted }]}>
-            {offlineEmpty
-              ? 'La app funciona sin conexión después de la primera sincronización. Conéctate una vez para guardar tus clases y asistencias en este dispositivo.'
-              : 'Cuando tengas una inscripción activa de Puppy o Comandos aparecerá aquí.'}
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={offlineEmpty ? 'Reintentar sincronización de clases' : 'Ver servicios'}
-            style={[styles.secondaryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}
-            onPress={offlineEmpty ? () => void refresh() : () => router.push('/services' as never)}
-          >
+          <Text style={[styles.sectionTitle, { color: format.cardText }]}>{offlineEmpty ? 'Clases aún no guardadas' : 'Sin clases activas'}</Text>
+          <Text style={[styles.muted, { color: format.muted }]}>{offlineEmpty ? 'Conéctate una vez para guardar tus clases y asistencias en este dispositivo.' : 'Cuando tengas una inscripción activa de Puppy o Comandos aparecerá aquí.'}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={offlineEmpty ? 'Reintentar sincronización de clases' : 'Ver servicios'} style={[styles.secondaryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={offlineEmpty ? () => void refresh() : () => router.push('/services' as never)}>
             <Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>{offlineEmpty ? 'Reintentar' : 'Ver servicios'}</Text>
           </Pressable>
+        </View>
+      ) : null}
+
+      {rows.length > 0 ? (
+        <View style={[styles.pathCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
+          <Text style={[styles.currentEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>TU RUTA UCAPSA</Text>
+          <Text style={[styles.pathTitle, { color: format.cardText }]}>Los niveles se desbloquean al completar el anterior</Text>
+          <View style={styles.stageList}>
+            {courseStages.map((stage, index) => {
+              const stageRow = rowForStage(rows, stage.key);
+              const completed = stageRow?.enrollment.status === 'completed';
+              const unlocked = Boolean(stageRow);
+              const activeStage = stageRow?.enrollment.status === 'active';
+              return (
+                <View key={stage.key} style={styles.stageLine}>
+                  <View style={[styles.stageIcon, { backgroundColor: completed || activeStage ? format.pillBackground : format.surfaceAlt, borderColor: format.cardBorder }]}>
+                    <MaterialIcons name={completed ? 'check-circle' : activeStage ? 'play-circle-filled' : 'lock-outline'} size={20} color={completed || activeStage ? format.pillText : format.muted} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.stageName, { color: format.cardText }]}>{stage.label}</Text>
+                    <Text style={[styles.stageStatus, { color: format.muted }]}>{completed ? 'Completado · historial conservado' : activeStage ? 'Desbloqueado · nivel actual' : unlocked ? getProgramStatusLabel(stageRow!.enrollment.status) : 'Bloqueado'}</Text>
+                  </View>
+                  {stageRow ? <Pressable onPress={() => router.push(`/client/class-detail?enrollmentId=${encodeURIComponent(stageRow.enrollment.id)}` as never)}><MaterialIcons name="chevron-right" size={22} color={format.accentDark} /></Pressable> : null}
+                  {index < courseStages.length - 1 ? <View style={[styles.stageConnector, { backgroundColor: format.cardBorder }]} /> : null}
+                </View>
+              );
+            })}
+          </View>
         </View>
       ) : null}
 
@@ -132,15 +166,10 @@ export default function ClassesTab() {
           <View style={styles.currentHeader}>
             <View>
               <Text style={[styles.currentEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>TU PROGRAMA ACTUAL</Text>
-              <Text style={[styles.sectionTitle, { color: format.text }]}>Lo que viene y lo que has usado</Text>
+              <Text style={[styles.sectionTitle, { color: format.text }]}>Lo que sigue</Text>
             </View>
           </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Registrar asistencia"
-            style={[styles.scanWideButton, { backgroundColor: format.primaryButton }]}
-            onPress={() => router.push('/attendance' as never)}
-          >
+          <Pressable accessibilityRole="button" accessibilityLabel="Registrar asistencia" style={[styles.scanWideButton, { backgroundColor: format.primaryButton }]} onPress={() => router.push('/attendance' as never)}>
             <MaterialIcons name="qr-code-scanner" size={20} color={format.primaryButtonText} />
             <Text style={[styles.scanWideText, { color: format.primaryButtonText }]}>Registrar asistencia</Text>
           </Pressable>
@@ -150,9 +179,8 @@ export default function ClassesTab() {
 
       {previous.length > 0 ? (
         <View style={styles.historySection}>
-          <Text style={[styles.sectionTitle, { color: format.text }]}>Anteriores</Text>
-          {previous.slice(0, 4).map((item) => <ClassCard key={item.enrollment.id} item={item} compact premium={premium} format={format} />)}
-          {previous.length > 4 ? <Text style={[styles.muted, { color: format.muted }]}>Se muestran las 4 más recientes.</Text> : null}
+          <Text style={[styles.sectionTitle, { color: format.text }]}>Historial completo</Text>
+          {previous.map((item) => <ClassCard key={item.enrollment.id} item={item} compact premium={premium} format={format} />)}
         </View>
       ) : null}
     </KeyboardAwareScreen>
@@ -163,20 +191,15 @@ function ClassCard({ item, compact = false, premium, format }: { item: ProgramEn
   const attendanceCount = item.attendances.length;
   const required = item.program.required_attendances;
   const remaining = required > 0 ? Math.max(0, required - attendanceCount) : null;
-  const levelLabel = getProgramLevelDisplayLabel(item.program.code, item.enrollment.program_level);
+  const levelLabel = visibleLevelLabel(item);
   const statusLabel = getProgramStatusLabel(item.enrollment.status);
   const dogName = getProgramEnrollmentDogName(item);
   const classLabel = `${getProgramCodeLabel(item.program.code)}${levelLabel ? ` ${levelLabel}` : ''} con ${dogName}`;
 
   if (compact) {
     return (
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Abrir ${classLabel}`}
-        style={[styles.historyCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}
-        onPress={() => router.push(`/client/class-detail?enrollmentId=${encodeURIComponent(item.enrollment.id)}` as never)}
-      >
-        <View style={[styles.historyIcon, { backgroundColor: format.pillBackground }]}><MaterialIcons name="history" size={19} color={format.pillText} /></View>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Abrir ${classLabel}`} style={[styles.historyCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]} onPress={() => router.push(`/client/class-detail?enrollmentId=${encodeURIComponent(item.enrollment.id)}` as never)}>
+        <View style={[styles.historyIcon, { backgroundColor: format.pillBackground }]}><MaterialIcons name={item.enrollment.status === 'completed' ? 'check-circle' : 'history'} size={19} color={format.pillText} /></View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={[styles.historyTitle, { color: format.cardText }]}>{getProgramCodeLabel(item.program.code)}{levelLabel ? ` · ${levelLabel}` : ''}</Text>
           <Text style={[styles.cardMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{dogName} · {statusLabel} · {attendanceCount} asistencias</Text>
@@ -187,12 +210,7 @@ function ClassCard({ item, compact = false, premium, format }: { item: ProgramEn
   }
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`Abrir ${classLabel}`}
-      style={[styles.currentCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}
-      onPress={() => router.push(`/client/class-detail?enrollmentId=${encodeURIComponent(item.enrollment.id)}` as never)}
-    >
+    <Pressable accessibilityRole="button" accessibilityLabel={`Abrir ${classLabel}`} style={[styles.currentCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]} onPress={() => router.push(`/client/class-detail?enrollmentId=${encodeURIComponent(item.enrollment.id)}` as never)}>
       <View style={styles.currentCardTop}>
         <View style={[styles.programIconLarge, { backgroundColor: format.pillBackground }]}><MaterialIcons name="school" size={25} color={format.pillText} /></View>
         <View style={{ flex: 1, minWidth: 0 }}>
@@ -233,6 +251,14 @@ function ClassCard({ item, compact = false, premium, format }: { item: ProgramEn
 const styles = StyleSheet.create({
   screenContent: { position: 'relative' },
   premiumContent: { backgroundColor: ucapsaBrand.colors.premiumBackground },
+  pathCard: { borderRadius: 24, borderWidth: 1, padding: 15, marginBottom: 16 },
+  pathTitle: { marginTop: 3, marginBottom: 12, fontSize: 16, lineHeight: 21, fontWeight: '900' },
+  stageList: { gap: 0 },
+  stageLine: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 10, position: 'relative' },
+  stageIcon: { width: 38, height: 38, borderRadius: 13, borderWidth: 1, alignItems: 'center', justifyContent: 'center', zIndex: 2 },
+  stageConnector: { position: 'absolute', left: 18, top: 47, width: 2, height: 22, zIndex: 1 },
+  stageName: { fontSize: 14, lineHeight: 18, fontWeight: '900' },
+  stageStatus: { marginTop: 1, fontSize: 11, lineHeight: 15, fontWeight: '700' },
   currentHeader: { marginBottom: 8 },
   currentEyebrow: { fontSize: 11, lineHeight: 15, fontWeight: '900', letterSpacing: 0.9, marginBottom: 2 },
   scanWideButton: { width: '100%', minHeight: 48, borderRadius: 16, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12 },

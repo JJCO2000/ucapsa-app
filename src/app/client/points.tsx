@@ -39,10 +39,7 @@ export default function UcapsaPointsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [infoMode, setInfoMode] = useState<InfoMode>(null);
 
-  const format = useMemo(
-    () => resolveUcapsaFormat({ user, role, isAdmin, membershipStatus: 'active' }),
-    [isAdmin, role, user],
-  );
+  const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin, membershipStatus: 'active' }), [isAdmin, role, user]);
 
   const load = useCallback(async () => {
     if (!user || isAdmin) return;
@@ -56,21 +53,11 @@ export default function UcapsaPointsScreen() {
     }
 
     try {
-      const live = await withOperationTimeout(
-        getUcapsaPointsScreenData(user.id),
-        DEFAULT_READ_TIMEOUT_MS,
-        'ucapsa-points-screen',
-      );
+      const live = await withOperationTimeout(getUcapsaPointsScreenData(user.id), DEFAULT_READ_TIMEOUT_MS, 'ucapsa-points-screen');
       setData(live);
-    } catch (loadError: any) {
-      if (cached) {
-        setUsingSavedData(true);
-      } else {
-        const message = String(loadError?.message ?? '');
-        setError(message.includes('active_membership_required')
-          ? 'Perro del Año está disponible para socios UCAPSA con membresía activa.'
-          : 'No pudimos cargar la clasificación. Intenta de nuevo.');
-      }
+    } catch {
+      if (cached) setUsingSavedData(true);
+      else setError('No pudimos cargar la clasificación. Intenta de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -83,75 +70,42 @@ export default function UcapsaPointsScreen() {
     try { await load(); } finally { setRefreshing(false); }
   }
 
-  if (isAdmin) return <Redirect href="/admin-more" />;
+  if (isAdmin) return <Redirect href="/admin/points" />;
   if (!user) return <Redirect href="/home" />;
 
   const tier = data?.summary.current_tier ?? null;
   const nextTier = data?.summary.next_tier ?? null;
 
   return (
-    <KeyboardAwareScreen
-      backgroundColor={ucapsaBrand.colors.premiumBackground}
-      style={{ backgroundColor: ucapsaBrand.colors.premiumBackground }}
-      contentContainerStyle={styles.screenContent}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={ucapsaBrand.colors.premiumAction} />}
-    >
+    <KeyboardAwareScreen backgroundColor={ucapsaBrand.colors.premiumBackground} style={{ backgroundColor: ucapsaBrand.colors.premiumBackground }} contentContainerStyle={styles.screenContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={ucapsaBrand.colors.premiumAction} />}>
       <UcapsaAmbientBackground format={format} variant="services" />
-      <ClientPageHeader
-        format={format}
-        eyebrow="Club UCAPSA"
-        title="Perro del Año"
-        subtitle="Tu posición, tus puntos y el podio de la temporada."
-        icon="emoji-events"
-      />
+      <ClientPageHeader format={format} eyebrow="Club UCAPSA" title="Perro del Año" subtitle="Consulta el podio de la temporada. Si participas, también verás tu posición y tus puntos." icon="emoji-events" />
 
-      {usingSavedData && data?.cached_at ? (
-        <OfflineDataNotice savedAt={data.cached_at} onRetry={() => void refresh()} premium />
-      ) : null}
+      {usingSavedData && data?.cached_at ? <OfflineDataNotice savedAt={data.cached_at} onRetry={() => void refresh()} premium /> : null}
 
-      {loading && !data ? (
-        <View style={styles.loadingCard}>
-          <ActivityIndicator color={ucapsaBrand.colors.premiumAction} />
-          <Text style={styles.muted}>Cargando Puntos UCAPSA…</Text>
-        </View>
-      ) : null}
+      {loading && !data ? <View style={styles.loadingCard}><ActivityIndicator color={ucapsaBrand.colors.premiumAction} /><Text style={styles.muted}>Cargando Puntos UCAPSA…</Text></View> : null}
 
       {error && !data ? (
         <View style={styles.errorCard}>
           <MaterialIcons name="emoji-events" size={28} color={ucapsaBrand.colors.premiumAction} />
           <Text style={styles.errorTitle}>No pudimos abrir Perro del Año</Text>
           <Text style={styles.muted}>{error}</Text>
-          <Pressable style={styles.retryButton} onPress={() => void refresh()}>
-            <Text style={styles.retryText}>Reintentar</Text>
-          </Pressable>
+          <Pressable style={styles.retryButton} onPress={() => void refresh()}><Text style={styles.retryText}>Reintentar</Text></Pressable>
         </View>
       ) : null}
 
       {data ? (
         <>
           <View style={styles.medalCard}>
-            <View style={styles.medalIconWrap}>
-              <Text style={styles.medalEmoji}>{medalForTier(tier?.code)}</Text>
-            </View>
+            <View style={styles.medalIconWrap}><Text style={styles.medalEmoji}>{medalForTier(tier?.code)}</Text></View>
             <View style={styles.medalCopy}>
               <Text style={styles.medalEyebrow}>TU MEDALLA DE TEMPORADA</Text>
               <Text style={styles.medalTitle}>{tier?.label ?? 'Aún sin medalla'}</Text>
-              <Text style={styles.medalText}>
-                {tier
-                  ? nextTier && data.summary.points_to_next_tier != null
-                    ? `${data.summary.points_to_next_tier} puntos para ${nextTier.label}.`
-                    : 'Llegaste al rango más alto de esta temporada.'
-                  : 'Consigue 10 puntos para desbloquear Bronce.'}
-              </Text>
+              <Text style={styles.medalText}>{tier ? nextTier && data.summary.points_to_next_tier != null ? `${data.summary.points_to_next_tier} puntos para ${nextTier.label}.` : 'Llegaste al rango más alto de esta temporada.' : 'Consigue 10 puntos para desbloquear Bronce.'}</Text>
             </View>
           </View>
 
-          <UcapsaPointsLeaderboard
-            summary={data.summary}
-            rows={data.leaderboard}
-            onOpenRules={() => setInfoMode('rules')}
-            onOpenHistory={() => setInfoMode('history')}
-          />
+          <UcapsaPointsLeaderboard summary={data.summary} rows={data.leaderboard} onOpenRules={() => setInfoMode('rules')} onOpenHistory={() => setInfoMode('history')} />
 
           <View style={styles.tiersCard}>
             <Text style={styles.sectionEyebrow}>MEDALLAS</Text>
@@ -164,41 +118,24 @@ export default function UcapsaPointsScreen() {
         </>
       ) : null}
 
-      <PointsInfoModal
-        mode={infoMode}
-        ledger={data?.recent_ledger ?? []}
-        onClose={() => setInfoMode(null)}
-      />
+      <PointsInfoModal mode={infoMode} ledger={data?.recent_ledger ?? []} onClose={() => setInfoMode(null)} />
     </KeyboardAwareScreen>
   );
 }
 
 function TierPill({ emoji, label, points }: { emoji: string; label: string; points: string }) {
-  return (
-    <View style={styles.tierPill}>
-      <Text style={styles.tierEmoji}>{emoji}</Text>
-      <Text style={styles.tierLabel}>{label}</Text>
-      <Text style={styles.tierPoints}>{points}</Text>
-    </View>
-  );
+  return <View style={styles.tierPill}><Text style={styles.tierEmoji}>{emoji}</Text><Text style={styles.tierLabel}>{label}</Text><Text style={styles.tierPoints}>{points}</Text></View>;
 }
 
 function PointsInfoModal({ mode, ledger, onClose }: { mode: InfoMode; ledger: UcapsaPointsLedgerEntry[]; onClose: () => void }) {
-  const visible = mode != null;
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+    <Modal visible={mode != null} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.modalBackdrop}>
         <View style={styles.modalCard} accessibilityViewIsModal>
           <View style={styles.modalHeader}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.modalEyebrow}>PUNTOS UCAPSA</Text>
-              <Text style={styles.modalTitle}>{mode === 'history' ? 'Tus movimientos' : 'Cómo ganas puntos'}</Text>
-            </View>
-            <Pressable accessibilityRole="button" accessibilityLabel="Cerrar" style={styles.closeButton} onPress={onClose}>
-              <MaterialIcons name="close" size={24} color={ucapsaBrand.colors.premiumText} />
-            </Pressable>
+            <View style={{ flex: 1 }}><Text style={styles.modalEyebrow}>PUNTOS UCAPSA</Text><Text style={styles.modalTitle}>{mode === 'history' ? 'Tus movimientos' : 'Cómo ganas puntos'}</Text></View>
+            <Pressable accessibilityRole="button" accessibilityLabel="Cerrar" style={styles.closeButton} onPress={onClose}><MaterialIcons name="close" size={24} color={ucapsaBrand.colors.premiumText} /></Pressable>
           </View>
-
           <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
             {mode === 'rules' ? (
               <>
@@ -207,24 +144,13 @@ function PointsInfoModal({ mode, ledger, onClose }: { mode: InfoMode; ledger: Uc
                 <RuleRow icon="military-tech" title="Medallas" detail="Bronce desde 10 puntos, Plata desde 25 y Oro desde 50." />
                 <Text style={styles.modalFootnote}>En este MVP las visitas de socio y evaluaciones todavía no suman automáticamente.</Text>
               </>
-            ) : ledger.length > 0 ? (
-              ledger.map((item) => (
-                <View key={item.id} style={styles.ledgerRow}>
-                  <View style={[styles.pointsBubble, item.points < 0 && styles.pointsBubbleNegative]}>
-                    <Text style={[styles.pointsBubbleText, item.points < 0 && styles.pointsBubbleTextNegative]}>{item.points > 0 ? `+${item.points}` : item.points}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.ledgerReason}>{item.reason}</Text>
-                    <Text style={styles.ledgerMeta}>{formatLedgerDate(item.occurred_at)}</Text>
-                  </View>
-                </View>
-              ))
-            ) : (
-              <View style={styles.emptyHistory}>
-                <MaterialIcons name="history" size={28} color={ucapsaBrand.colors.premiumAction} />
-                <Text style={styles.emptyHistoryTitle}>Todavía no tienes movimientos</Text>
-                <Text style={styles.muted}>Tu primera asistencia confirmada aparecerá aquí.</Text>
+            ) : ledger.length > 0 ? ledger.map((item) => (
+              <View key={item.id} style={styles.ledgerRow}>
+                <View style={[styles.pointsBubble, item.points < 0 && styles.pointsBubbleNegative]}><Text style={[styles.pointsBubbleText, item.points < 0 && styles.pointsBubbleTextNegative]}>{item.points > 0 ? `+${item.points}` : item.points}</Text></View>
+                <View style={{ flex: 1 }}><Text style={styles.ledgerReason}>{item.reason}</Text><Text style={styles.ledgerMeta}>{formatLedgerDate(item.occurred_at)}</Text></View>
               </View>
+            )) : (
+              <View style={styles.emptyHistory}><MaterialIcons name="history" size={28} color={ucapsaBrand.colors.premiumAction} /><Text style={styles.emptyHistoryTitle}>Todavía no tienes movimientos</Text><Text style={styles.muted}>Tu primera asistencia confirmada aparecerá aquí.</Text></View>
             )}
           </ScrollView>
         </View>
@@ -234,12 +160,7 @@ function PointsInfoModal({ mode, ledger, onClose }: { mode: InfoMode; ledger: Uc
 }
 
 function RuleRow({ icon, title, detail }: { icon: keyof typeof MaterialIcons.glyphMap; title: string; detail: string }) {
-  return (
-    <View style={styles.ruleRow}>
-      <View style={styles.ruleIcon}><MaterialIcons name={icon} size={21} color={ucapsaBrand.colors.premiumActionText} /></View>
-      <View style={{ flex: 1 }}><Text style={styles.ruleTitle}>{title}</Text><Text style={styles.ruleDetail}>{detail}</Text></View>
-    </View>
-  );
+  return <View style={styles.ruleRow}><View style={styles.ruleIcon}><MaterialIcons name={icon} size={21} color={ucapsaBrand.colors.premiumActionText} /></View><View style={{ flex: 1 }}><Text style={styles.ruleTitle}>{title}</Text><Text style={styles.ruleDetail}>{detail}</Text></View></View>;
 }
 
 const styles = StyleSheet.create({

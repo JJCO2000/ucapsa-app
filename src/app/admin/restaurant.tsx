@@ -24,6 +24,15 @@ function money(value: number) {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 }).format(value);
 }
 
+function errorMessage(cause: unknown, fallback: string) {
+  if (cause instanceof Error && cause.message.trim()) return cause.message;
+  if (cause && typeof cause === 'object' && 'message' in cause && typeof (cause as { message?: unknown }).message === 'string') {
+    const message = String((cause as { message: string }).message).trim();
+    if (message) return message;
+  }
+  return fallback;
+}
+
 export default function AdminRestaurantScreen() {
   const { isAdmin } = useSession();
   const [sections, setSections] = useState<RestaurantMenuSection[]>([]);
@@ -50,8 +59,7 @@ export default function AdminRestaurantScreen() {
     try {
       setSections(await getAdminRestaurantMenu());
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : 'No se pudo cargar el menú.';
-      setError(message);
+      setError(errorMessage(cause, 'No se pudo cargar el menú. Revisa tu conexión y vuelve a intentarlo.'));
     } finally {
       setLoading(false);
     }
@@ -90,7 +98,7 @@ export default function AdminRestaurantScreen() {
       setCategoryOpen(false);
       await load();
     } catch (cause) {
-      Alert.alert('No se pudo guardar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+      Alert.alert('No se pudo guardar', errorMessage(cause, 'No pudimos guardar la categoría. Revisa tu sesión y conexión e intenta de nuevo.'));
     } finally {
       setSaving(false);
     }
@@ -137,7 +145,7 @@ export default function AdminRestaurantScreen() {
       setItemOpen(false);
       await load();
     } catch (cause) {
-      Alert.alert('No se pudo guardar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+      Alert.alert('No se pudo guardar', errorMessage(cause, 'No pudimos guardar el producto. Revisa tu sesión y conexión e intenta de nuevo.'));
     } finally {
       setSaving(false);
     }
@@ -163,7 +171,7 @@ export default function AdminRestaurantScreen() {
       await action();
       await load();
     } catch (cause) {
-      Alert.alert('No se pudo completar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+      Alert.alert('No se pudo completar', errorMessage(cause, 'Revisa tu sesión y conexión e intenta de nuevo.'));
     } finally {
       setSaving(false);
     }
@@ -187,7 +195,7 @@ export default function AdminRestaurantScreen() {
         <View style={styles.errorCard}>
           <Text style={styles.errorTitle}>No se pudo abrir el menú</Text>
           <Text style={styles.muted}>{error}</Text>
-          <Text style={styles.setupText}>Si es la primera vez, aplica `supabase/sql/ucapsa-cambio-4-1-restaurant-menu.sql` en Supabase.</Text>
+          <Text style={styles.setupText}>La base del restaurante ya está configurada. Si vuelve a fallar, el mensaje de arriba indica el problema real para poder corregirlo.</Text>
           <Pressable style={styles.retryButton} onPress={() => void load()}><Text style={styles.retryText}>Reintentar</Text></Pressable>
         </View>
       ) : null}
@@ -196,7 +204,7 @@ export default function AdminRestaurantScreen() {
         <View style={styles.emptyCard}>
           <MaterialIcons name="restaurant-menu" size={32} color={ucapsaBrand.colors.redDark} />
           <Text style={styles.emptyTitle}>Empieza por una categoría</Text>
-          <Text style={styles.muted}>Ejemplos: alimentos, bebidas, snacks. No agregamos productos inventados.</Text>
+          <Text style={styles.muted}>El menú está listo. Crea categorías y después agrega productos, precios y disponibilidad.</Text>
           <Pressable style={styles.primaryButton} onPress={openNewCategory}><Text style={styles.primaryText}>Crear categoría</Text></Pressable>
         </View>
       ) : null}
@@ -208,11 +216,7 @@ export default function AdminRestaurantScreen() {
               <Text style={styles.categoryTitle}>{section.category.name}</Text>
               <Text style={styles.categoryMeta}>{section.category.is_active ? 'Visible' : 'Oculta'} · {section.items.length} productos</Text>
             </Pressable>
-            <Switch
-              value={section.category.is_active}
-              disabled={saving}
-              onValueChange={(value) => void runAndReload(() => updateRestaurantCategory(section.category.id, { is_active: value }).then(() => undefined))}
-            />
+            <Switch value={section.category.is_active} disabled={saving} onValueChange={(value) => void runAndReload(() => updateRestaurantCategory(section.category.id, { is_active: value }).then(() => undefined))} />
             <Pressable onPress={() => askDeleteCategory(section.category)} style={styles.iconButton}><MaterialIcons name="delete-outline" size={20} color={ucapsaBrand.colors.danger} /></Pressable>
           </View>
 
@@ -245,19 +249,16 @@ export default function AdminRestaurantScreen() {
       <KeyboardAwareModal visible={itemOpen} onClose={() => setItemOpen(false)}>
         <Text style={styles.modalKicker}>Restaurante</Text>
         <Text style={styles.modalTitle}>{itemEditing ? 'Editar producto' : 'Nuevo producto'}</Text>
-
         <Text style={styles.label}>Nombre</Text>
         <TextInput value={itemName} onChangeText={setItemName} placeholder="Nombre del producto" style={styles.input} />
         <Text style={styles.label}>Descripción</Text>
         <TextInput value={itemDescription} onChangeText={setItemDescription} placeholder="Opcional" multiline style={[styles.input, styles.textArea]} />
         <Text style={styles.label}>Precio MXN</Text>
         <TextInput value={itemPrice} onChangeText={setItemPrice} placeholder="0.00" keyboardType="decimal-pad" style={styles.input} />
-
         <View style={styles.switchRow}>
           <View style={{ flex: 1 }}><Text style={styles.label}>Disponible</Text><Text style={styles.hint}>Apágalo cuando se haya agotado.</Text></View>
           <Switch value={itemAvailable} onValueChange={setItemAvailable} />
         </View>
-
         <Pressable disabled={saving} style={[styles.primaryButton, saving && styles.disabled]} onPress={() => void saveItem()}><Text style={styles.primaryText}>{saving ? 'Guardando...' : 'Guardar producto'}</Text></Pressable>
         {itemEditing ? <Pressable disabled={saving} style={styles.deleteButton} onPress={() => { setItemOpen(false); askDeleteItem(itemEditing); }}><Text style={styles.deleteText}>Eliminar producto</Text></Pressable> : null}
       </KeyboardAwareModal>
