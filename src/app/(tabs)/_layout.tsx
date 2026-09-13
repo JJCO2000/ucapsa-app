@@ -40,7 +40,9 @@ export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const { user, role, isAdmin } = useSession();
   const format = resolveUcapsaFormat({ user, role, isAdmin });
-  const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 20 : 10);
+  const systemBottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 20 : 10);
+  const navigationBreathingRoom = Platform.OS === 'android' ? 8 : 4;
+  const tabBottomInset = systemBottomInset + navigationBreathingRoom;
   const isPremium = format.key === 'member';
   const tabBackground = isAdmin
     ? ucapsaBrand.colors.surface
@@ -74,15 +76,16 @@ export default function TabsLayout() {
       initialRouteName={isAdmin ? 'admin-home' : 'home'}
       screenOptions={{
         headerShown: false,
+        tabBarHideOnKeyboard: true,
         tabBarActiveTintColor: activeTint,
         tabBarInactiveTintColor: inactiveTint,
         tabBarLabelStyle: { fontSize: 11, lineHeight: 14, fontWeight: '900', marginTop: 2 },
         tabBarIconStyle: { marginTop: 1 },
         tabBarItemStyle: { paddingTop: 3 },
         tabBarStyle: {
-          height: 68 + bottomInset,
+          height: 68 + tabBottomInset,
           paddingTop: 7,
-          paddingBottom: bottomInset,
+          paddingBottom: tabBottomInset,
           paddingHorizontal: 4,
           backgroundColor: tabBackground,
           borderTopColor: tabBorder,
