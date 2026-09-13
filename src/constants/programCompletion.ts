@@ -31,7 +31,7 @@ export function getProgramCompletionDisplayLabel(code: ProgramCompletionAchievem
   const labels: Record<ProgramCompletionAchievementCode, string> = {
     puppy_completed: 'Puppy',
     comandos_basico_completed: 'Comandos Básico',
-    comandos_medio_completed: 'Comandos Medio',
+    comandos_medio_completed: 'Comandos Intermedio',
     comandos_avanzado_completed: 'Comandos Avanzado',
   };
   return labels[code];
