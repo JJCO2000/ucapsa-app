@@ -149,10 +149,7 @@ begin
 end;
 $$;
 
-for_table_placeholder: begin end;
-
--- PostgreSQL has no procedural loop at top level; keep explicit triggers so this
--- file stays easy to review and replay.
+-- Keep explicit triggers so this file stays easy to review and replay.
 drop trigger if exists set_ucapsa_points_seasons_updated_at on public.ucapsa_points_seasons;
 create trigger set_ucapsa_points_seasons_updated_at
 before update on public.ucapsa_points_seasons
