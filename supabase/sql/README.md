@@ -24,6 +24,25 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\capture-supabase-sou
 
 La captura actualiza tipos desde el remoto y guarda `migration list` y `db lint` como diagnosticos best-effort. Si esos dos comandos requieren una conexion de base que no este disponible, los tipos remotos siguen siendo el gate obligatorio para compilar la app.
 
+## Cambios 4.x pendientes de aplicar al remoto
+
+### 4.1 — Menú del restaurante
+
+1. Ejecutar `supabase/sql/ucapsa-cambio-4-1-restaurant-menu.sql` en el SQL Editor del proyecto correcto.
+2. Volver a ejecutar `scripts/capture-supabase-source-of-truth.ps1` para regenerar los tipos desde el remoto.
+3. Verificar desde Admin > Restaurante que se pueda crear una categoría y un producto; no se insertan productos ficticios por SQL.
+
+### Recordatorios de anuncios
+
+No requieren tablas nuevas: reutilizan `notification_campaigns`, `notification_deliveries`, `notification_tokens` y `notification_preferences`.
+
+1. Desplegar la Edge Function `supabase/functions/send-announcement-reminders`.
+2. Configurarla con las mismas variables seguras de las funciones de notificaciones (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET` y, si aplica, `EXPO_ACCESS_TOKEN`).
+3. El programador/cron debe invocar `POST` con `{"action":"run_due"}` y el header `x-cron-secret`. Una ejecución cada 5–15 minutos es suficiente; la función bloquea cada campaña al pasarla de `draft` a `sending` antes de enviarla.
+4. Desde Admin > Anuncios se pueden guardar hasta cinco anticipaciones entre 0 y 60 días y una hora local de Ciudad de México.
+
+No guardar `CRON_SECRET`, `SUPABASE_SERVICE_ROLE_KEY` ni `EXPO_ACCESS_TOKEN` en este repositorio.
+
 ## Sistemas que deben conservarse
 
 - 3 QR oficiales permanentes: Puppy, Comandos y Socios; Socios registra visitas separadas de las asistencias de clase
