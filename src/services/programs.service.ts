@@ -103,7 +103,7 @@ const dayLabels = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes
 
 export const programLevelOptions: Array<{ value: ProgramLevel; label: string }> = [
   { value: 'principiante', label: 'Básico' },
-  { value: 'medio', label: 'Medio' },
+  { value: 'medio', label: 'Intermedio' },
   { value: 'avanzado', label: 'Avanzado' },
 ];
 
@@ -213,7 +213,7 @@ export function getProgramCodeLabel(code: string | null | undefined) {
 
 export function getProgramLevelLabel(level: ProgramLevel | null | undefined) {
   if (level === 'principiante') return 'Básico';
-  if (level === 'medio') return 'Medio';
+  if (level === 'medio') return 'Intermedio';
   if (level === 'avanzado') return 'Avanzado';
   return 'Base';
 }

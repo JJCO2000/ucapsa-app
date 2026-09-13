@@ -14,9 +14,7 @@ type MemberCredentialCardProps = {
   expiredByDate: boolean;
 };
 
-export function MemberCredentialCard({ membership, profile: _profile, displayName, expiredByDate }: MemberCredentialCardProps) {
-  const statusLabel = expiredByDate ? 'Vigencia por revisar' : 'Socio activo';
-
+export function MemberCredentialCard({ membership, profile: _profile, displayName, expiredByDate: _expiredByDate }: MemberCredentialCardProps) {
   return (
     <View style={styles.card}>
       <View style={styles.textureRingOne} />
@@ -41,15 +39,15 @@ export function MemberCredentialCard({ membership, profile: _profile, displayNam
               <Text style={styles.memberNumber}>{membership.member_number || 'Pendiente'}</Text>
             </View>
             <View style={styles.statusPill}>
-              <View style={[styles.statusDot, { backgroundColor: expiredByDate ? ucapsaBrand.colors.warning : ucapsaBrand.colors.premiumAction }]} />
-              <Text style={styles.statusText}>{statusLabel}</Text>
+              <View style={[styles.statusDot, { backgroundColor: ucapsaBrand.colors.premiumAction }]} />
+              <Text style={styles.statusText}>Socio activo</Text>
             </View>
           </View>
         </View>
 
         <View style={styles.infoGrid}>
           <Info label="Inicio" value={formatDate(membership.start_date)} />
-          <Info label="Vigencia" value={formatDate(membership.end_date)} />
+          <Info label="Duración" value="Toda la vida de tu perro" />
         </View>
 
         <View style={styles.accessDivider}>

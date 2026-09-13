@@ -22,6 +22,7 @@ export function getProgramCompletionAchievementCode(
 
   // `base` survives in legacy rows as the first Comandos level.
   if (programLevel === 'base' || programLevel === 'principiante') return 'comandos_basico_completed';
+  // `medio` es el identificador historico en BD; en la app se muestra como Intermedio.
   if (programLevel === 'medio') return 'comandos_medio_completed';
   if (programLevel === 'avanzado') return 'comandos_avanzado_completed';
   return null;
@@ -31,7 +32,7 @@ export function getProgramCompletionDisplayLabel(code: ProgramCompletionAchievem
   const labels: Record<ProgramCompletionAchievementCode, string> = {
     puppy_completed: 'Puppy',
     comandos_basico_completed: 'Comandos Básico',
-    comandos_medio_completed: 'Comandos Medio',
+    comandos_medio_completed: 'Comandos Intermedio',
     comandos_avanzado_completed: 'Comandos Avanzado',
   };
   return labels[code];

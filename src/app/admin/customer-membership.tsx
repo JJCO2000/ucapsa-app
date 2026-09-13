@@ -14,7 +14,6 @@ const statusOptions: Array<{ value: MembershipStatus; label: string }> = [
   { value: 'pending', label: 'Pendiente' },
   { value: 'active', label: 'Activa' },
   { value: 'rejected', label: 'Rechazada' },
-  { value: 'expired', label: 'Vencida' },
   { value: 'cancelled', label: 'Cancelada' },
 ];
 
@@ -31,7 +30,6 @@ export default function CustomerMembershipScreen() {
   const [record, setRecord] = useState<AdminCustomerRecord | null>(null);
   const [memberNumber, setMemberNumber] = useState('');
   const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
   const [status, setStatus] = useState<MembershipStatus>('pending');
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -44,7 +42,6 @@ export default function CustomerMembershipScreen() {
     if (next.membership) {
       setMemberNumber(next.membership.member_number ?? '');
       setStartDate(next.membership.start_date?.slice(0, 10) ?? '');
-      setEndDate(next.membership.end_date?.slice(0, 10) ?? '');
       setStatus(next.membership.status);
     }
   }, [userId]);
@@ -61,7 +58,7 @@ export default function CustomerMembershipScreen() {
       setSaving(true);
       await forceMembershipForProfile(record.profile);
       await load();
-      Alert.alert('Membresia creada', 'La membresia quedo activa y lista para editar.');
+      Alert.alert('Membresia creada', 'La membresia quedo activa y sin vencimiento por fecha.');
     } catch (cause) {
       Alert.alert('No se pudo crear', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     } finally {
@@ -75,20 +72,16 @@ export default function CustomerMembershipScreen() {
       Alert.alert('Fecha invalida', 'Usa AAAA-MM-DD para la fecha de inicio.');
       return;
     }
-    if (endDate && !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
-      Alert.alert('Fecha invalida', 'Usa AAAA-MM-DD para la vigencia.');
-      return;
-    }
     try {
       setSaving(true);
       await updateMembershipStatus(record.membership, status, {
         memberNumber,
         startDate: startDate || null,
-        endDate: endDate || null,
+        endDate: null,
       });
       setEditing(false);
       await load();
-      Alert.alert('Membresia guardada', 'Los cambios se actualizaron.');
+      Alert.alert('Membresia guardada', 'Los cambios se actualizaron. La membresia no vence por fecha.');
     } catch (cause) {
       Alert.alert('No se pudo guardar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     } finally {
@@ -103,7 +96,7 @@ export default function CustomerMembershipScreen() {
 
   return (
     <KeyboardAwareScreen>
-      <AdminCustomerContextHeader customerName={adminCustomerDisplayName(record?.profile)} section="Membresia" subtitle="Estado, numero, vigencia y visitas del socio seleccionado." member={record?.membership?.status === 'active'} onBack={() => router.back()} />
+      <AdminCustomerContextHeader customerName={adminCustomerDisplayName(record?.profile)} section="Membresia" subtitle="Estado, numero y visitas del socio seleccionado. La membresia no vence por fecha." member={record?.membership?.status === 'active'} onBack={() => router.back()} />
 
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando...</Text></View> : null}
 
@@ -123,7 +116,7 @@ export default function CustomerMembershipScreen() {
               <Detail label="Estado" value={getMembershipStatusLabel(record.membership.status)} />
               <Detail label="Numero de socio" value={record.membership.member_number || 'Pendiente'} />
               <Detail label="Inicio" value={record.membership.start_date?.slice(0, 10) || 'Sin fecha'} />
-              <Detail label="Vigencia" value={record.membership.end_date?.slice(0, 10) || 'Sin fecha'} />
+              <Detail label="Duracion" value="Toda la vida del perro" />
               <Detail label="Visitas registradas" value={String(record.memberVisits.length)} />
               <Detail label="Visitas este mes" value={String(visitsThisMonth)} />
               <Detail label="Promedio por mes con actividad" value={visitsPerActiveMonth.toFixed(1)} />
@@ -131,6 +124,10 @@ export default function CustomerMembershipScreen() {
             </View>
           ) : (
             <View style={styles.card}>
+              <View style={styles.lifetimeNotice}>
+                <MaterialIcons name="all-inclusive" size={20} color={ucapsaBrand.colors.redDark} />
+                <Text style={styles.lifetimeText}>Sin vencimiento por fecha. Si deja de aplicar, cambia el estado manualmente a Cancelada.</Text>
+              </View>
               <Text style={styles.label}>Estado</Text>
               <View style={styles.statusGrid}>
                 {statusOptions.map((option) => (
@@ -141,7 +138,6 @@ export default function CustomerMembershipScreen() {
               </View>
               <Field label="Numero de socio" value={memberNumber} onChangeText={setMemberNumber} placeholder="Ej. SOC-2026-001" />
               <Field label="Inicio" value={startDate} onChangeText={setStartDate} placeholder="AAAA-MM-DD" />
-              <Field label="Vigencia" value={endDate} onChangeText={setEndDate} placeholder="AAAA-MM-DD" />
             </View>
           )}
 
@@ -183,6 +179,8 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', gap: 9, paddingVertical: 36 },
   emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 19, fontWeight: '900' },
   card: { borderRadius: 20, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 14, gap: 12 },
+  lifetimeNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 14, backgroundColor: ucapsaBrand.colors.redSoft, padding: 11 },
+  lifetimeText: { flex: 1, color: ucapsaBrand.colors.redDark, fontSize: 11, lineHeight: 17, fontWeight: '800' },
   detail: { borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.premiumMuted, paddingBottom: 11 },
   detailLast: { borderBottomWidth: 0, paddingBottom: 0 },
   detailLabel: { color: ucapsaBrand.colors.muted, fontSize: 11, fontWeight: '800' },
