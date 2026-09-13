@@ -63,7 +63,6 @@ function dateKey(value: string | null | undefined) {
 function reminderDate(date: string, setting: ReminderSetting) {
   const hour = String(setting.hour).padStart(2, '0');
   const minute = String(setting.minute).padStart(2, '0');
-  // Ciudad de México permanece en UTC-6 bajo la legislación vigente.
   const eventLocal = new Date(`${date}T${hour}:${minute}:00-06:00`);
   eventLocal.setUTCDate(eventLocal.getUTCDate() - setting.days_before);
   return eventLocal.toISOString();
@@ -103,7 +102,19 @@ Deno.serve(async (req) => {
 
   const serviceClient = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const cronHeader = req.headers.get('x-cron-secret') ?? '';
-  const isCronCall = action === 'run_due' && Boolean(cronSecret && cronHeader === cronSecret);
+  let vaultCronSecret = '';
+
+  if (action === 'run_due') {
+    const { data: storedSecret, error: storedSecretError } = await serviceClient.rpc('get_internal_cron_secret');
+    if (!storedSecretError && typeof storedSecret === 'string') vaultCronSecret = storedSecret;
+  }
+
+  const isCronCall = action === 'run_due' && Boolean(
+    cronHeader && (
+      (cronSecret && cronHeader === cronSecret) ||
+      (vaultCronSecret && cronHeader === vaultCronSecret)
+    )
+  );
   let adminUserId: string | null = null;
 
   if (!isCronCall) {
