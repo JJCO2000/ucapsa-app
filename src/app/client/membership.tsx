@@ -197,7 +197,7 @@ export default function ClientMembershipScreen() {
         format={format}
         eyebrow="Tu acceso UCAPSA"
         title="Membresía"
-        subtitle={premium ? 'Tu credencial, vigencia y acceso como socio.' : 'Estado, vigencia y credencial.'}
+        subtitle={premium ? 'Tu credencial y acceso como socio.' : 'Estado y credencial.'}
         icon="workspace-premium"
       />
 
