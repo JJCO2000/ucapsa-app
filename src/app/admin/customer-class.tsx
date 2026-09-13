@@ -23,11 +23,10 @@ import {
 import type { ProgramEnrollmentStatus, ProgramLevel, ProgramSchedule } from '../../types/app.types';
 
 function levelLabel(level: ProgramLevel | null | undefined) {
-  const label = getProgramLevelLabel(level);
-  return label === 'Medio' ? 'Intermedio' : label;
+  return getProgramLevelLabel(level);
 }
 
-const visibleLevelOptions = programLevelOptions.map((option) => ({ ...option, label: option.label === 'Medio' ? 'Intermedio' : option.label }));
+const visibleLevelOptions = programLevelOptions;
 
 export default function CustomerClassScreen() {
   const params = useLocalSearchParams<{ userId?: string; enrollmentId?: string }>();
