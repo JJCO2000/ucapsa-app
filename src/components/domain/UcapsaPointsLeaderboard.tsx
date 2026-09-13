@@ -60,7 +60,7 @@ export function UcapsaPointsLeaderboard({ summary, rows, onOpenRules, onOpenHist
         <View style={styles.heroCopy}>
           <Text style={styles.heroEyebrow}>PUNTOS UCAPSA · DOG CLUB</Text>
           <Text style={styles.heroTitle}>{summary.season.name}</Text>
-          <Text style={styles.heroText}>Una competencia sana. Cada actividad confirmada cuenta.</Text>
+          <Text style={styles.heroText}>Cada asistencia confirmada suma 1 punto. Los bonos especiales los registra UCAPSA.</Text>
         </View>
       </View>
 
@@ -76,8 +76,8 @@ export function UcapsaPointsLeaderboard({ summary, rows, onOpenRules, onOpenHist
       ) : (
         <View style={styles.emptyCard}>
           <MaterialIcons name="leaderboard" size={25} color={ucapsaBrand.colors.premiumAction} />
-          <Text style={styles.emptyTitle}>La clasificación aún no tiene participantes</Text>
-          <Text style={styles.emptyText}>Cuando empiece la temporada, el podio aparecerá aquí.</Text>
+          <Text style={styles.emptyTitle}>Todavía no hay puntos en el ranking</Text>
+          <Text style={styles.emptyText}>El podio aparecerá en cuanto el primer socio reciba puntos.</Text>
         </View>
       )}
 
