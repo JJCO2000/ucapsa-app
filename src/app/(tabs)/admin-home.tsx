@@ -21,7 +21,7 @@ type DashboardStats = {
 const emptyStats: DashboardStats = { clients: 0, activePrograms: 0, pendingRequests: 0, paymentAttention: 0 };
 
 export default function AdminHomeTab() {
-  const { user, profile, isAdmin } = useSession();
+  const { user, profile, role, isAdmin } = useSession();
   const [stats, setStats] = useState<DashboardStats>(emptyStats);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -29,6 +29,7 @@ export default function AdminHomeTab() {
   const [hasData, setHasData] = useState(false);
 
   const displayName = useMemo(() => profile?.full_name?.trim() || user?.email || 'Administrador', [profile?.full_name, user?.email]);
+  const roleLabel = role === 'super_admin' ? 'Superadmin' : 'Admin';
 
   const load = useCallback(async () => {
     if (!isAdmin) return;
@@ -61,13 +62,12 @@ export default function AdminHomeTab() {
     for (const row of memberships) {
       if (row.membership.current_payment_status === 'pending') attentionUsers.add(row.membership.user_id);
     }
-    const paymentAttention = attentionUsers.size;
 
     setStats({
       clients: (profilesResult.data ?? []).filter((item: { role: string }) => item.role === 'client' || item.role === 'member').length,
       activePrograms: programs.filter((item) => item.enrollment.status === 'active').length,
       pendingRequests: memberships.filter((item) => item.membership.status === 'pending').length,
-      paymentAttention,
+      paymentAttention: attentionUsers.size,
     });
     setHasData(true);
   }, [isAdmin]);
@@ -95,27 +95,35 @@ export default function AdminHomeTab() {
   return (
     <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={ucapsaBrand.colors.red} />}>
       <View style={styles.hero}>
-        <Text style={styles.kicker}>Admin</Text>
+        <Text style={styles.kicker}>{roleLabel}</Text>
         <Text style={styles.title}>Hola, {displayName.split(' ')[0]}</Text>
-        <Text style={styles.subtitle}>Lo importante de hoy, sin menus escondidos.</Text>
+        <Text style={styles.subtitle}>Lo importante de hoy y las acciones que más usas, sin esconder herramientas.</Text>
       </View>
 
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Actualizando resumen...</Text></View> : null}
       {error ? <View style={styles.errorBox}><Text style={styles.errorTitle}>No se pudo actualizar</Text><Text style={styles.muted}>{error}</Text><Pressable style={styles.retryButton} onPress={() => void refresh()}><Text style={styles.retryText}>Reintentar</Text></Pressable></View> : null}
 
-      <Text style={styles.sectionTitle}>Atencion</Text>
+      <Text style={styles.sectionTitle}>Atención</Text>
       {hasData ? <View style={styles.metricsGrid}>
         <Metric label="Solicitudes" value={stats.pendingRequests} icon="event-note" onPress={() => router.push('/admin/members?filter=pending_requests' as never)} />
         <Metric label="Pagos pendientes" value={stats.paymentAttention} icon="payments" onPress={() => router.push('/admin-payments' as never)} />
         <Metric label="Clases activas" value={stats.activePrograms} icon="school" onPress={() => router.push('/admin-classes' as never)} />
         <Metric label="Clientes" value={stats.clients} icon="people" onPress={() => router.push('/admin-clients' as never)} />
-      </View> : !loading && !error ? <Text style={styles.muted}>Aun no hay un resumen confirmado.</Text> : null}
+      </View> : !loading && !error ? <Text style={styles.muted}>Aún no hay un resumen confirmado.</Text> : null}
 
-      <Text style={styles.sectionTitle}>Acciones rapidas</Text>
+      <Text style={styles.sectionTitle}>Comunicación</Text>
+      <View style={styles.actionCard}>
+        <MenuRow icon="campaign" title="Crear anuncio" subtitle="Publica un aviso y programa recordatorios" onPress={() => router.push('/admin/announcements?intent=new' as never)} />
+        <MenuRow icon="event" title="Eventos" subtitle="Crea y administra fechas importantes" onPress={() => router.push('/admin/events' as never)} />
+        <MenuRow icon="notifications-active" title="Enviar notificación" subtitle="Aviso directo a usuarios" onPress={() => router.push('/admin/notifications' as never)} last />
+      </View>
+
+      <Text style={styles.sectionTitle}>Operación rápida</Text>
       <View style={styles.actionCard}>
         <MenuRow icon="person-search" title="Buscar cliente" subtitle="Abre Clientes" onPress={() => router.push('/admin-clients' as never)} />
         <MenuRow icon="fact-check" title="Registrar asistencia" subtitle="Elige cliente y abre Asistencias" onPress={() => router.push('/admin-clients?intent=attendance' as never)} />
         <MenuRow icon="payments" title="Registrar pago" subtitle="Elige cliente y abre Pagos" onPress={() => router.push('/admin-clients?intent=payments' as never)} />
+        <MenuRow icon="restaurant-menu" title="Restaurante" subtitle="Menú y disponibilidad" onPress={() => router.push('/admin/restaurant' as never)} />
         <MenuRow icon="calendar-month" title="Calendario" subtitle="Agenda de eventos y clases" onPress={() => router.push('/calendar' as never)} />
         <MenuRow icon="qr-code-scanner" title="Escanear" subtitle="Credencial o asistencia" onPress={() => router.push('/admin/scanner' as never)} last />
       </View>
@@ -154,12 +162,12 @@ const styles = StyleSheet.create({
   errorTitle: { color: ucapsaBrand.colors.danger, fontSize: 15, fontWeight: '900' },
   retryButton: { alignSelf: 'flex-start', borderRadius: 12, backgroundColor: ucapsaBrand.colors.red, paddingHorizontal: 13, paddingVertical: 9 },
   retryText: { color: ucapsaBrand.colors.surface, fontSize: 12, fontWeight: '900' },
-  sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 19, fontWeight: '900', marginBottom: 10 },
-  metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 22 },
+  sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 19, fontWeight: '900', marginTop: 8, marginBottom: 10 },
+  metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 18 },
   metric: { width: '48%', minHeight: 112, borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 14, gap: 5 },
   metricValue: { color: ucapsaBrand.colors.text, fontSize: 25, fontWeight: '900' },
   metricLabel: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 16, fontWeight: '800' },
-  actionCard: { borderRadius: 22, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, overflow: 'hidden' },
+  actionCard: { borderRadius: 22, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, overflow: 'hidden', marginBottom: 18 },
   menuRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.premiumMuted },
   menuRowLast: { borderBottomWidth: 0 },
   menuIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
