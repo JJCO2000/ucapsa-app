@@ -6,17 +6,15 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import {
-  formatDate,
   getAdminMembershipRows,
   getDisplayName,
   getMembershipStatusLabel,
   getPaymentStatusLabel,
-  isMembershipDateExpired,
   type MembershipAdminRow,
 } from '../../services/memberships.service';
 import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
 
-type MemberFilter = 'all' | 'pending' | 'active' | 'payment' | 'expired';
+type MemberFilter = 'all' | 'pending' | 'active' | 'payment';
 
 export default function AdminMembersScreen() {
   const params = useLocalSearchParams<{ userId?: string; filter?: string }>();
@@ -50,7 +48,6 @@ export default function AdminMembersScreen() {
     pending: rows.filter((row) => row.membership.status === 'pending').length,
     active: rows.filter((row) => row.membership.status === 'active').length,
     payment: rows.filter((row) => row.membership.current_payment_status !== 'paid' && row.membership.current_payment_status !== 'not_required').length,
-    expired: rows.filter((row) => row.membership.status === 'active' && isMembershipDateExpired(row.membership)).length,
   }), [rows]);
 
   const visibleRows = useMemo(() => {
@@ -59,7 +56,6 @@ export default function AdminMembersScreen() {
       if (filter === 'pending' && row.membership.status !== 'pending') return false;
       if (filter === 'active' && row.membership.status !== 'active') return false;
       if (filter === 'payment' && (row.membership.current_payment_status === 'paid' || row.membership.current_payment_status === 'not_required')) return false;
-      if (filter === 'expired' && !(row.membership.status === 'active' && isMembershipDateExpired(row.membership))) return false;
       if (!query) return true;
       const haystack = [
         getDisplayName(row.profile),
@@ -82,7 +78,7 @@ export default function AdminMembersScreen() {
         <View style={{ flex: 1 }}>
           <Text style={styles.kicker}>Administracion</Text>
           <Text style={styles.title}>Membresias</Text>
-          <Text style={styles.subtitle}>Busca un socio y entra solo a Membresia, Pagos o su ficha.</Text>
+          <Text style={styles.subtitle}>Busca un socio y entra solo a Membresia, Pagos o su ficha. Las membresias activas no vencen por fecha.</Text>
         </View>
         <Pressable style={styles.scanButton} onPress={() => router.push('/admin/scanner?mode=member' as never)}>
           <MaterialIcons name="qr-code-scanner" size={22} color={ucapsaBrand.colors.redDark} />
@@ -94,7 +90,6 @@ export default function AdminMembersScreen() {
         <Metric label="Pendientes" value={stats.pending} active={filter === 'pending'} onPress={() => setFilter('pending')} />
         <Metric label="Activas" value={stats.active} active={filter === 'active'} onPress={() => setFilter('active')} />
         <Metric label="Pago" value={stats.payment} active={filter === 'payment'} onPress={() => setFilter('payment')} />
-        <Metric label="Vencidas" value={stats.expired} active={filter === 'expired'} onPress={() => setFilter('expired')} />
       </View>
 
       <View style={styles.searchBox}>
@@ -142,7 +137,7 @@ function MemberRow({ row, last }: { row: MembershipAdminRow; last: boolean }) {
         <View style={{ flex: 1 }}>
           <Text style={styles.rowTitle}>{getDisplayName(row.profile)}</Text>
           <Text style={styles.rowMeta}>{row.membership.member_number || 'Numero pendiente'} - {getMembershipStatusLabel(row.membership.status)}</Text>
-          <Text style={styles.rowMeta}>Pago: {getPaymentStatusLabel(row.membership.current_payment_status)} - Vigencia: {formatDate(row.membership.end_date)}</Text>
+          <Text style={styles.rowMeta}>Pago: {getPaymentStatusLabel(row.membership.current_payment_status)} - Duracion: toda la vida del perro</Text>
           {warning ? <Text style={styles.warning}>{warning}</Text> : null}
         </View>
         <MaterialIcons name="chevron-right" size={23} color={ucapsaBrand.colors.redDark} />
