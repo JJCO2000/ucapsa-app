@@ -183,9 +183,9 @@ export default function ServicesTab() {
               onPress={() => router.push('/client/membership' as never)}
             />
             <ClubAccessItem
-              icon="school"
-              label="Clases incluidas"
-              onPress={() => router.push('/classes' as never)}
+              icon="emoji-events"
+              label="Perro del Año"
+              onPress={() => router.push('/client/points' as never)}
             />
             <ClubAccessItem
               icon="history"

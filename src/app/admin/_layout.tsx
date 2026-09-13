@@ -38,6 +38,7 @@ export default function AdminLayout() {
       <Stack.Screen name="announcements" options={{ title: 'Anuncios' }} />
       <Stack.Screen name="events" options={{ title: 'Eventos' }} />
       <Stack.Screen name="notifications" options={{ title: 'Notificaciones' }} />
+      <Stack.Screen name="points" options={{ title: 'Puntos UCAPSA' }} />
       <Stack.Screen name="tools-communication" options={{ title: 'Comunicacion' }} />
       <Stack.Screen name="tools-administration" options={{ title: 'Administracion' }} />
     </Stack>
