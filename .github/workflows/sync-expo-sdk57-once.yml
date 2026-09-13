@@ -27,17 +27,38 @@ jobs:
       - name: Align Expo SDK 57 patch versions
         run: npx expo install --fix
 
-      - name: Restrict changes to dependency manifests
+      - name: Restrict changes to expected dependency/config files
         shell: bash
         run: |
           set -euo pipefail
           git diff --name-only
-          BAD="$(git diff --name-only | grep -Ev '^(package.json|package-lock.json)$' || true)"
+          BAD="$(git diff --name-only | grep -Ev '^(package.json|package-lock.json|app.json)$' || true)"
           if [ -n "$BAD" ]; then
             echo "Unexpected files changed:"
             echo "$BAD"
             exit 1
           fi
+          node <<'NODE'
+          const fs = require('fs');
+          const { execFileSync } = require('child_process');
+          const base = JSON.parse(execFileSync('git', ['show', 'HEAD:app.json'], { encoding: 'utf8' }));
+          const cur = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+          const bp = base.expo?.plugins ?? [];
+          const cp = cur.expo?.plugins ?? [];
+          const key = (x) => JSON.stringify(x);
+          const added = cp.filter((x) => !bp.some((y) => key(y) === key(x)));
+          const removed = bp.filter((x) => !cp.some((y) => key(y) === key(x)));
+          if (added.length !== 1 || added[0] !== 'expo-web-browser' || removed.length !== 0) {
+            console.error('app.json changed outside the expected expo-web-browser plugin addition');
+            process.exit(1);
+          }
+          cur.expo.plugins = bp;
+          if (JSON.stringify(cur) !== JSON.stringify(base)) {
+            console.error('app.json contains additional unexpected changes');
+            process.exit(1);
+          }
+          console.log('app.json change is limited to adding expo-web-browser plugin.');
+          NODE
 
       - run: npm run verify:release
       - run: npx expo-doctor@latest
@@ -50,6 +71,6 @@ jobs:
           git config user.name "JJCO2000"
           git config user.email "actions@users.noreply.github.com"
           git rm .github/workflows/sync-expo-sdk57-once.yml
-          git add package.json package-lock.json
+          git add package.json package-lock.json app.json
           git commit -m "chore: align Expo SDK 57 patch versions"
           git push origin HEAD:chore/expo-sdk57-patches-20260913
