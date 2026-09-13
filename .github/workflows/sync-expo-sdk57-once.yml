@@ -1,0 +1,55 @@
+name: One-shot Expo SDK 57 patch sync
+
+on:
+  push:
+    branches:
+      - chore/expo-sdk57-patches-20260913
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Align Expo SDK 57 patch versions
+        run: npx expo install --fix
+
+      - name: Restrict changes to dependency manifests
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --name-only
+          BAD="$(git diff --name-only | grep -Ev '^(package.json|package-lock.json)$' || true)"
+          if [ -n "$BAD" ]; then
+            echo "Unexpected files changed:"
+            echo "$BAD"
+            exit 1
+          fi
+
+      - run: npm run verify:release
+      - run: npx expo-doctor@latest
+      - run: npm run audit:critical
+
+      - name: Commit verified patch alignment and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "JJCO2000"
+          git config user.email "actions@users.noreply.github.com"
+          git rm .github/workflows/sync-expo-sdk57-once.yml
+          git add package.json package-lock.json
+          git commit -m "chore: align Expo SDK 57 patch versions"
+          git push origin HEAD:chore/expo-sdk57-patches-20260913
