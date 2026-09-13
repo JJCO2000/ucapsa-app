@@ -105,6 +105,6 @@ export type UcapsaPointsScreenData = {
 
 export const UCAPSA_POINTS_MVP = {
   eligibilityScope: 'members' as const,
-  automaticAwardsEnabled: false,
-  visibleNavigationEnabled: false,
+  automaticAwardsEnabled: true,
+  visibleNavigationEnabled: true,
 } as const;
