@@ -148,24 +148,30 @@ export async function getUcapsaPointsScreenData(userId: string): Promise<UcapsaP
   }));
 
   let recentLedger: UcapsaPointsLedgerEntry[] = [];
+  let ownLedgerTotal = 0;
   if (participant) {
-    const ledgerResult = await pointsDb
-      .from('ucapsa_points_ledger')
-      .select('id,season_id,participant_id,rule_code,source_type,source_id,dedupe_key,points,reason,reversal_of_id,awarded_by,occurred_at,created_at')
-      .eq('season_id', season.id)
-      .eq('participant_id', participant.id)
-      .order('occurred_at', { ascending: false })
-      .limit(20);
+    const [ledgerResult, totalResult] = await Promise.all([
+      pointsDb
+        .from('ucapsa_points_ledger')
+        .select('id,season_id,participant_id,rule_code,source_type,source_id,dedupe_key,points,reason,reversal_of_id,awarded_by,occurred_at,created_at')
+        .eq('season_id', season.id)
+        .eq('participant_id', participant.id)
+        .order('occurred_at', { ascending: false })
+        .limit(20),
+      pointsDb
+        .from('ucapsa_points_ledger')
+        .select('points')
+        .eq('season_id', season.id)
+        .eq('participant_id', participant.id),
+    ]);
     if (ledgerResult.error) throw ledgerResult.error;
+    if (totalResult.error) throw totalResult.error;
     recentLedger = (ledgerResult.data ?? []).map(normalizeLedger);
+    ownLedgerTotal = (totalResult.data ?? []).reduce((sum: number, row: any) => sum + toNumber(row.points), 0);
   }
 
   const currentRow = leaderboard.find((row: any) => row.is_current_user) ?? null;
-  const totalPoints = participant
-    ? recentLedger.length > 0
-      ? recentLedger.reduce((sum, item) => sum + item.points, 0)
-      : toNumber(currentRow?.total_points)
-    : 0;
+  const totalPoints = participant ? ownLedgerTotal : 0;
 
   const currentTier = [...tiers].reverse().find((tier) => tier.min_points <= totalPoints) ?? null;
   const nextTier = tiers.find((tier) => tier.min_points > totalPoints) ?? null;
