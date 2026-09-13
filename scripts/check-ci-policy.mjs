@@ -1,75 +1,49 @@
+import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 
 const root = process.cwd();
 const failures = [];
-
-const automaticTriggers = new Set([
-  'push',
-  'pull_request',
-  'pull_request_target',
-  'workflow_run',
-  'repository_dispatch',
-  'schedule',
-]);
-
-const allowedManualOrReusableTriggers = new Set(['workflow_dispatch', 'workflow_call']);
-
-const ignoredDirs = new Set([
-  '.git',
-  '.expo',
-  '.next',
-  'node_modules',
-  'dist',
-  'dist-ci',
-  'coverage',
-  'build',
-]);
-
-function read(rel) {
-  return fs.readFileSync(path.join(root, rel), 'utf8');
-}
+const automaticTriggers = new Set(['push', 'pull_request', 'pull_request_target', 'workflow_run', 'repository_dispatch', 'schedule']);
+const ignoredDirs = new Set(['.git', '.expo', '.next', 'node_modules', 'dist', 'dist-ci', 'coverage', 'build']);
 
 function normalizeRel(file) {
   return path.relative(root, file).replaceAll('\\', '/');
 }
 
-function listFilesRecursive(relDir, predicate = () => true) {
+function read(rel) {
+  return fs.readFileSync(path.join(root, rel), 'utf8');
+}
+
+function walkFiles(relDir, predicate = () => true) {
   const start = path.join(root, relDir);
   if (!fs.existsSync(start)) return [];
   const output = [];
   const stack = [start];
-
   while (stack.length > 0) {
     const current = stack.pop();
     for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
       if (entry.isDirectory() && ignoredDirs.has(entry.name)) continue;
       const full = path.join(current, entry.name);
-      if (entry.isDirectory()) {
-        stack.push(full);
-        continue;
-      }
-      if (entry.isFile() && predicate(full)) output.push(normalizeRel(full));
+      if (entry.isDirectory()) stack.push(full);
+      else if (entry.isFile() && predicate(full)) output.push(normalizeRel(full));
     }
   }
-
   return output.sort();
 }
 
 function stripQuotes(value) {
   const trimmed = value.trim();
-  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
-    return trimmed.slice(1, -1);
-  }
+  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) return trimmed.slice(1, -1);
   return trimmed;
 }
 
 function parseOnEvents(source) {
   const lines = source.split(/\r?\n/);
-  const onIndex = lines.findIndex((line) => /^on\s*:\s*/.test(line));
+  const onIndex = lines.findIndex((line) => /^\s*(?:"on"|'on'|on)\s*:\s*/.test(line) && (line.length - line.trimStart().length) === 0);
   if (onIndex < 0) return new Set();
 
-  const inline = lines[onIndex].replace(/^on\s*:\s*/, '').trim();
+  const inline = lines[onIndex].replace(/^\s*(?:"on"|'on'|on)\s*:\s*/, '').trim();
   if (inline) {
     if (inline.startsWith('[') && inline.endsWith(']')) {
       return new Set(inline.slice(1, -1).split(',').map((item) => stripQuotes(item)).filter(Boolean));
@@ -77,21 +51,14 @@ function parseOnEvents(source) {
     return new Set([stripQuotes(inline)]);
   }
 
-  const block = [];
+  const candidates = [];
   for (let index = onIndex + 1; index < lines.length; index += 1) {
     const line = lines[index];
-    if (!line.trim() || line.trimStart().startsWith('#')) {
-      block.push(line);
-      continue;
-    }
+    if (!line.trim() || line.trimStart().startsWith('#')) continue;
     const indent = line.length - line.trimStart().length;
     if (indent === 0) break;
-    block.push(line);
+    candidates.push({ line, indent });
   }
-
-  const candidates = block
-    .filter((line) => line.trim() && !line.trimStart().startsWith('#'))
-    .map((line) => ({ line, indent: line.length - line.trimStart().length }));
   if (candidates.length === 0) return new Set();
 
   const minIndent = Math.min(...candidates.map(({ indent }) => indent));
@@ -110,38 +77,45 @@ function parseOnEvents(source) {
 function extractRunBlocks(source) {
   const lines = source.split(/\r?\n/);
   const runs = [];
-
   for (let index = 0; index < lines.length; index += 1) {
-    const match = /^(\s*)run\s*:\s*(.*)$/.exec(lines[index]);
+    const match = /^(\s*)(?:-\s*)?run\s*:\s*(.*)$/.exec(lines[index]);
     if (!match) continue;
-
     const indent = match[1].length;
     const inline = match[2].trim();
-    if (inline && inline !== '|' && inline !== '>' && inline !== '|-' && inline !== '>-') {
+    if (inline && !['|', '>', '|-', '>-'].includes(inline)) {
       runs.push(stripQuotes(inline));
       continue;
     }
-
     const block = [];
+    let last = index;
     for (let child = index + 1; child < lines.length; child += 1) {
       const line = lines[child];
       if (!line.trim()) {
         block.push('');
-        index = child;
+        last = child;
         continue;
       }
       const childIndent = line.length - line.trimStart().length;
       if (childIndent <= indent) break;
-      block.push(line.slice(Math.min(line.length, indent + 2)));
-      index = child;
+      block.push(line.trimStart());
+      last = child;
     }
+    index = last;
     runs.push(block.join('\n'));
   }
-
   return runs;
 }
 
+function extractUses(source) {
+  const uses = [];
+  const regex = /^\s*(?:-\s*)?uses\s*:\s*['"]?([^'"\s#]+)['"]?/gmi;
+  let match;
+  while ((match = regex.exec(source)) !== null) uses.push(match[1]);
+  return uses;
+}
+
 function stripShellComment(line) {
+  if (/^\s*(?:REM\b|::)/i.test(line)) return '';
   let quote = null;
   let escaped = false;
   for (let index = 0; index < line.length; index += 1) {
@@ -172,13 +146,11 @@ function splitShellSegments(source) {
   let current = '';
   let quote = null;
   let escaped = false;
-
   function flush() {
     const cleaned = stripShellComment(current).trim();
     if (cleaned) segments.push(cleaned);
     current = '';
   }
-
   for (let index = 0; index < source.length; index += 1) {
     const char = source[index];
     const next = source[index + 1];
@@ -202,7 +174,7 @@ function splitShellSegments(source) {
       current += char;
       continue;
     }
-    if (char === '\n' || char === ';' || (char === '&' && next === '&') || (char === '|' && next === '|')) {
+    if (char === '\n' || char === ';' || (char === '&' && next === '&') || char === '|') {
       flush();
       if ((char === '&' && next === '&') || (char === '|' && next === '|')) index += 1;
       continue;
@@ -215,192 +187,218 @@ function splitShellSegments(source) {
 
 function normalizeShellSegment(segment) {
   let value = segment.trim();
-  value = value.replace(/^(?:then|do)\s+/i, '');
+  value = value.replace(/^(?:then|do|else)\s+/i, '');
+  value = value.replace(/^(?:if|while|until)\s+/i, '');
   value = value.replace(/^(?:[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|[^\s]+)\s+)*/, '');
+  value = value.replace(/^env\s+(?:(?:-i|--ignore-environment)\s+)?(?:[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|[^\s]+)\s+)*/i, '');
   value = value.replace(/^sudo\s+/, '');
   return value.trim();
 }
 
+const directRules = [
+  ['eas update/build/submit/workflow', /^(?:(?:npx|bunx)\s+|(?:pnpm|yarn)\s+(?:dlx|exec)\s+|npm\s+exec\s+(?:--\s+)?)?(?:eas|eas-cli)(?:\s+--)?\s+(?:update|build|submit|workflow(?::run|\s+run)?)\b/i],
+  ['expo upload', /^(?:(?:npx|bunx)\s+|(?:pnpm|yarn)\s+(?:dlx|exec)\s+|npm\s+exec\s+(?:--\s+)?)?expo(?:\s+--)?\s+upload\b/i],
+  ['gradlew bundle', /^(?:\.\/)?gradlew(?:\.bat)?\s+bundle\w*\b/i],
+  ['gh workflow run', /^gh\s+workflow\s+run\b/i],
+  ['GitHub dispatch API', /^gh\s+api\b.*(?:actions\/workflows\/.+\/dispatches|repos\/.+\/dispatches)\b/i],
+  ['GitHub dispatch HTTP call', /^(?:curl|wget)\b.*(?:actions\/workflows\/.+\/dispatches|repos\/.+\/dispatches)\b/i],
+];
+
 function detectExecutableShell(source) {
   const labels = new Set();
-
-  for (const rawSegment of splitShellSegments(source)) {
-    const segment = normalizeShellSegment(rawSegment);
-    if (!segment) continue;
-    if (/^(?:echo|printf|Write-(?:Host|Output)|console\.log)\b/i.test(segment)) continue;
-
-    if (/^(?:(?:npx|pnpm\s+dlx|yarn\s+dlx|npm\s+exec(?:\s+--)?)[ \t]+)?eas(?:-cli)?[ \t]+update\b/i.test(segment)) labels.add('eas update');
-    if (/^(?:(?:npx|pnpm\s+dlx|yarn\s+dlx|npm\s+exec(?:\s+--)?)[ \t]+)?eas(?:-cli)?[ \t]+build\b/i.test(segment)) labels.add('eas build');
-    if (/^(?:(?:npx|pnpm\s+dlx|yarn\s+dlx|npm\s+exec(?:\s+--)?)[ \t]+)?eas(?:-cli)?[ \t]+submit\b/i.test(segment)) labels.add('eas submit');
-    if (/^(?:(?:npx|pnpm\s+dlx|yarn\s+dlx|npm\s+exec(?:\s+--)?)[ \t]+)?eas(?:-cli)?[ \t]+workflow(?::run|[ \t]+run)?\b/i.test(segment)) labels.add('eas workflow');
-    if (/^(?:(?:npx|pnpm\s+dlx|yarn\s+dlx|npm\s+exec(?:\s+--)?)[ \t]+)?expo[ \t]+upload\b/i.test(segment)) labels.add('expo upload');
-    if (/^(?:\.\/)?gradlew(?:\.bat)?[ \t]+bundle\w*\b/i.test(segment)) labels.add('gradlew bundle');
-    if (/^gh[ \t]+workflow[ \t]+run\b/i.test(segment)) labels.add('gh workflow run');
-    if (/\bcurl\b/i.test(segment) && /actions\/workflows\/.+\/dispatches\b/i.test(segment)) labels.add('GitHub workflow dispatch API');
-    if (/\bcurl\b/i.test(segment) && /repos\/.+\/dispatches\b/i.test(segment)) labels.add('GitHub repository dispatch API');
+  for (const raw of splitShellSegments(source)) {
+    const segment = normalizeShellSegment(raw);
+    if (!segment || /^(?:echo|printf|Write-(?:Host|Output)|console\.log)\b/i.test(segment)) continue;
+    for (const [label, pattern] of directRules) if (pattern.test(segment)) labels.add(label);
+    const wrapped = segment.match(/^(?:bash|sh|zsh|cmd(?:\.exe)?|powershell|pwsh)\s+.*?(?:-c|-command)\s+(.+)$/i);
+    if (wrapped) {
+      const nested = wrapped[1].replace(/^['"]|['"]$/g, '');
+      for (const label of detectExecutableShell(nested)) labels.add(label);
+    }
   }
-
   return [...labels];
+}
+
+function stripJsComments(source) {
+  let out = '';
+  let state = 'code';
+  let quote = '';
+  let escaped = false;
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+    const next = source[index + 1];
+    if (state === 'line') {
+      if (char === '\n') {
+        state = 'code';
+        out += char;
+      } else out += ' ';
+      continue;
+    }
+    if (state === 'block') {
+      if (char === '*' && next === '/') {
+        out += '  ';
+        index += 1;
+        state = 'code';
+      } else out += char === '\n' ? '\n' : ' ';
+      continue;
+    }
+    if (state === 'string') {
+      out += char;
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === quote) state = 'code';
+      continue;
+    }
+    if (char === '/' && next === '/') {
+      out += '  ';
+      index += 1;
+      state = 'line';
+      continue;
+    }
+    if (char === '/' && next === '*') {
+      out += '  ';
+      index += 1;
+      state = 'block';
+      continue;
+    }
+    if (char === "'" || char === '"' || char === '`') {
+      state = 'string';
+      quote = char;
+    }
+    out += char;
+  }
+  return out;
+}
+
+function runnerProvider(source) {
+  return /(?:from\s*['"](?:node:)?child_process['"]|require\(\s*['"](?:node:)?child_process['"]\s*\)|from\s*['"](?:execa|shelljs|cross-spawn|zx)['"]|require\(\s*['"](?:execa|shelljs|cross-spawn|zx)['"]\s*\)|\bBun\.spawn|\bnew\s+Deno\.Command)/i.test(source);
 }
 
 function extractStringLiterals(source) {
   const values = [];
-  const regex = /(['"`])((?:\\.|(?!\1)[\s\S])*?)\1/g;
+  const regex = /(['"`])([^'"`\n${}]*)\1/g;
   let match;
   while ((match = regex.exec(source)) !== null) values.push(match[2]);
   return values;
 }
 
-function commandFromProgramAndArgs(program, argsSource) {
-  const args = extractStringLiterals(argsSource);
-  return [program, ...args].join(' ');
-}
-
 function detectExecutableJavaScript(source) {
+  const clean = stripJsComments(source);
+  if (!runnerProvider(clean)) return [];
   const labels = new Set();
-
-  const stringRunners = /(?:\b(?:exec|execSync|execaCommand|execaCommandSync)\s*\(|\b(?:child_process|childProcess|cp|shelljs)\.(?:exec|execSync)\s*\()\s*(['"`])((?:\\.|(?!\1)[\s\S])*?)\1/g;
+  const constants = new Map();
+  const constantPattern = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(['"`])([^'"`\n${}]*)\2/g;
   let match;
-  while ((match = stringRunners.exec(source)) !== null) {
-    for (const label of detectExecutableShell(match[2])) labels.add(label);
-  }
+  while ((match = constantPattern.exec(clean)) !== null) constants.set(match[1], match[3]);
 
-  const argvRunners = /(?:\b(?:spawn|spawnSync|execFile|execFileSync|execa|execaSync)\s*\(|\b(?:child_process|childProcess|cp)\.(?:spawn|spawnSync|execFile|execFileSync)\s*\()\s*(['"`])([^'"`]+)\1\s*,\s*\[([\s\S]{0,1200}?)\]/g;
-  while ((match = argvRunners.exec(source)) !== null) {
-    for (const label of detectExecutableShell(commandFromProgramAndArgs(match[2], match[3]))) labels.add(label);
-  }
+  const calls = /\b(?:exec|execSync|spawn|spawnSync|execFile|execFileSync|execa|execaSync|execaCommand|execaCommandSync|shelljs\.exec|shell\.exec|crossSpawn|spawnCommand|[A-Za-z_$][\w$]*\.(?:exec|execSync|spawn|spawnSync|execFile|execFileSync)|Bun\.spawn(?:Sync)?|new\s+Deno\.Command)\s*\(/g;
+  while ((match = calls.exec(clean)) !== null) {
+    const slice = clean.slice(match.index, Math.min(clean.length, match.index + 1200));
+    const literal = slice.match(/\(\s*(['"`])([^'"`\n${}]*)\1/);
+    const argv = slice.match(/\(\s*(['"`])([^'"`\n${}]*)\1\s*,\s*\[([\s\S]{0,650}?)\]/);
+    const variable = slice.match(/\(\s*([A-Za-z_$][\w$]*)\b/);
 
-  const taggedTemplates = /(?:\b(?:execaCommand|execaCommandSync)|\$)\s*`([^`]+)`/g;
-  while ((match = taggedTemplates.exec(source)) !== null) {
-    for (const label of detectExecutableShell(match[1])) labels.add(label);
-  }
-
-  const bunSpawn = /\bBun\.spawn(?:Sync)?\s*\(\s*\[([\s\S]{0,1200}?)\]/g;
-  while ((match = bunSpawn.exec(source)) !== null) {
-    const parts = extractStringLiterals(match[1]);
-    for (const label of detectExecutableShell(parts.join(' '))) labels.add(label);
-  }
-
-  const denoCommand = /\bnew\s+Deno\.Command\s*\(\s*(['"`])([^'"`]+)\1\s*,\s*\{([\s\S]{0,1600}?)\}\s*\)/g;
-  while ((match = denoCommand.exec(source)) !== null) {
-    const argsMatch = /args\s*:\s*\[([\s\S]{0,1000}?)\]/.exec(match[3]);
-    const command = commandFromProgramAndArgs(match[2], argsMatch?.[1] ?? '');
-    for (const label of detectExecutableShell(command)) labels.add(label);
-  }
-
-  return [...labels];
-}
-
-function extractLocalUses(source) {
-  const uses = [];
-  const regex = /^\s*uses\s*:\s*['"]?([^'"\s#]+)['"]?/gmi;
-  let match;
-  while ((match = regex.exec(source)) !== null) {
-    if (match[1].startsWith('./.github/')) uses.push(match[1].replace(/^\.\//, ''));
-  }
-  return uses;
-}
-
-function resolveLocalUse(usePath) {
-  const candidate = path.join(root, usePath);
-  if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) return normalizeRel(candidate);
-  if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) {
-    for (const name of ['action.yml', 'action.yaml']) {
-      const action = path.join(candidate, name);
-      if (fs.existsSync(action)) return normalizeRel(action);
+    if (argv) {
+      const command = [argv[2], ...extractStringLiterals(argv[3])].join(' ');
+      for (const label of detectExecutableShell(command)) labels.add(label);
+    } else if (literal) {
+      for (const label of detectExecutableShell(literal[2])) labels.add(label);
+    } else if (variable && constants.has(variable[1])) {
+      for (const label of detectExecutableShell(constants.get(variable[1]))) labels.add(label);
+    } else if (variable) {
+      labels.add(`dynamic process runner (${variable[1]})`);
     }
   }
-  return null;
-}
 
-function analyzeYamlFile(rel) {
-  const source = read(rel);
-  const commandLabels = new Set();
-  for (const run of extractRunBlocks(source)) {
-    for (const label of detectExecutableShell(run)) commandLabels.add(label);
+  if (/from\s*['"]zx['"]|require\(\s*['"]zx['"]\s*\)/.test(clean)) {
+    for (const tagged of clean.matchAll(/\$\s*`([^`\n${}]*)`/g)) {
+      for (const label of detectExecutableShell(tagged[1])) labels.add(label);
+    }
   }
-  return {
-    source,
-    events: parseOnEvents(source),
-    commands: [...commandLabels],
-    localUses: extractLocalUses(source),
-  };
-}
-
-const yamlCache = new Map();
-function yamlInfo(rel) {
-  if (!yamlCache.has(rel)) yamlCache.set(rel, analyzeYamlFile(rel));
-  return yamlCache.get(rel);
-}
-
-function collectIndirectCommands(rel, seen = new Set()) {
-  if (seen.has(rel)) return [];
-  seen.add(rel);
-  const info = yamlInfo(rel);
-  const labels = new Set(info.commands);
-
-  for (const usePath of info.localUses) {
-    const resolved = resolveLocalUse(usePath);
-    if (!resolved || !/\.ya?ml$/i.test(resolved)) continue;
-    for (const label of collectIndirectCommands(resolved, seen)) labels.add(label);
-  }
-
   return [...labels];
 }
 
-const easWorkflows = listFilesRecursive('.eas/workflows', (file) => /\.ya?ml$/i.test(file));
-for (const rel of easWorkflows) {
-  const events = yamlInfo(rel).events;
+function inspectWorkflow(rel) {
+  const source = read(rel);
+  const events = parseOnEvents(source);
   const automatic = [...events].filter((event) => automaticTriggers.has(event));
-  if (automatic.length > 0) {
-    failures.push(`${rel}: EAS Workflow automatico detectado (${automatic.join(', ')}). Ningun push/PR/schedule ordinario debe consumir EAS Workflows.`);
+  const commands = new Set();
+  for (const run of extractRunBlocks(source)) for (const label of detectExecutableShell(run)) commands.add(label);
+
+  if (commands.size > 0 && (automatic.length > 0 || !events.has('workflow_dispatch'))) {
+    failures.push(`${rel}: comandos de publicacion/build/dispatch (${[...commands].join(', ')}) solo se permiten en workflow_dispatch sin triggers automaticos.`);
+  }
+
+  const reusable = extractUses(source).filter((value) => value.includes('.github/workflows/'));
+  if (automatic.length > 0 && reusable.length > 0) {
+    failures.push(`${rel}: workflow automatico (${automatic.join(', ')}) encadena workflow reutilizable (${reusable.join(', ')}).`);
   }
 }
 
-const githubWorkflows = listFilesRecursive('.github/workflows', (file) => /\.ya?ml$/i.test(file));
-for (const rel of githubWorkflows) {
-  const info = yamlInfo(rel);
-  const automatic = [...info.events].filter((event) => automaticTriggers.has(event));
-  const permittedEntry = [...info.events].some((event) => allowedManualOrReusableTriggers.has(event));
-  const commands = collectIndirectCommands(rel);
-  const publishOrBuild = commands.filter((label) => !label.includes('dispatch'));
-  const dispatching = commands.filter((label) => label.includes('dispatch') || label === 'gh workflow run');
+function inspectEasWorkflow(rel) {
+  const events = parseOnEvents(read(rel));
+  const automatic = [...events].filter((event) => automaticTriggers.has(event));
+  if (automatic.length > 0) failures.push(`${rel}: EAS Workflow automatico detectado (${automatic.join(', ')}).`);
+}
 
-  if (automatic.length > 0 && publishOrBuild.length > 0) {
-    failures.push(`${rel}: workflow automatico (${automatic.join(', ')}) alcanza publicacion/build (${publishOrBuild.join(', ')}), directa o mediante action/workflow local.`);
-  }
-  if (automatic.length > 0 && dispatching.length > 0) {
-    failures.push(`${rel}: workflow automatico (${automatic.join(', ')}) puede encadenar otro workflow (${dispatching.join(', ')}).`);
-  }
-  if (commands.length > 0 && automatic.length === 0 && !permittedEntry) {
-    failures.push(`${rel}: contiene publicacion/build/dispatch pero no es una entrada manual workflow_dispatch ni un reusable workflow_call.`);
-  }
+function runSelfTests() {
+  assert.deepEqual(detectExecutableShell('# eas build --platform android\necho "EAS Update docs"'), []);
+  assert(detectExecutableShell('eas update --channel preview').length > 0);
+  assert(detectExecutableShell('npx eas build --platform android').length > 0);
+  assert(detectExecutableShell('./gradlew bundleRelease').includes('gradlew bundle'));
+  assert(detectExecutableShell('gh workflow run publish.yml').includes('gh workflow run'));
+  assert(detectExecutableShell('bash -c "eas submit --platform android"').length > 0);
+
+  assert.deepEqual(detectExecutableJavaScript('const note = "EAS Build"; console.log(note);'), []);
+  assert(detectExecutableJavaScript("import { execSync } from 'node:child_process'; execSync('eas update --channel preview');").length > 0);
+  assert(detectExecutableJavaScript("import { spawn } from 'node:child_process'; spawn('eas', ['build', '--platform', 'android']);").length > 0);
+  assert(detectExecutableJavaScript("import { exec } from 'node:child_process'; const cmd = 'eas submit --platform android'; exec(cmd);").length > 0);
+  assert(detectExecutableJavaScript("import { exec } from 'node:child_process'; exec(command);").some((label) => label.startsWith('dynamic process runner')));
+
+  const auto = 'on:\n  push:\n    branches: [main]\njobs:\n  x:\n    steps:\n      - run: eas update --channel preview\n';
+  const manual = 'on:\n  workflow_dispatch:\njobs:\n  x:\n    steps:\n      - run: eas update --channel preview\n';
+  assert(parseOnEvents(auto).has('push'));
+  assert(parseOnEvents(manual).has('workflow_dispatch'));
+  assert(detectExecutableShell(extractRunBlocks(auto)[0]).length > 0);
+  assert(detectExecutableShell(extractRunBlocks(manual)[0]).length > 0);
+  assert(extractUses('steps:\n  - uses: ./.github/actions/release').includes('./.github/actions/release'));
+}
+
+runSelfTests();
+
+const easWorkflows = walkFiles('.eas/workflows', (file) => /\.ya?ml$/i.test(file));
+for (const rel of easWorkflows) inspectEasWorkflow(rel);
+
+const githubWorkflows = walkFiles('.github/workflows', (file) => /\.ya?ml$/i.test(file));
+for (const rel of githubWorkflows) inspectWorkflow(rel);
+
+const localActionYaml = walkFiles('.github/actions', (file) => /(?:action\.)?ya?ml$/i.test(file));
+for (const rel of localActionYaml) {
+  const commands = new Set();
+  for (const run of extractRunBlocks(read(rel))) for (const label of detectExecutableShell(run)) commands.add(label);
+  if (commands.size > 0) failures.push(`${rel}: una action local oculta comandos de publicacion/build/dispatch (${[...commands].join(', ')}). Mantener esas acciones visibles en un workflow manual.`);
 }
 
 const packageJson = JSON.parse(read('package.json'));
 for (const [name, command] of Object.entries(packageJson.scripts ?? {})) {
   if (typeof command !== 'string') continue;
   const matches = detectExecutableShell(command);
-  if (matches.length > 0) {
-    failures.push(`package.json script "${name}": comando de publicacion/build/dispatch detectado (${matches.join(', ')}). No debe esconderse en scripts npm normales.`);
-  }
+  if (matches.length > 0) failures.push(`package.json script "${name}": comando de publicacion/build/dispatch detectado (${matches.join(', ')}).`);
 }
 
-const executableFiles = listFilesRecursive('.', (file) => {
-  const rel = normalizeRel(file);
-  if (rel.startsWith('.github/workflows/') || rel.startsWith('.eas/workflows/')) return false;
-  if (rel === 'package.json' || rel === 'package-lock.json') return false;
-  if (rel.startsWith('.husky/')) return true;
-  return /\.(?:mjs|cjs|js|ts|sh|ps1|cmd|bat)$/i.test(file);
-});
+const shellFiles = walkFiles('.', (file) => /\.(?:sh|ps1|cmd|bat)$/i.test(file));
+for (const rel of shellFiles) {
+  const matches = detectExecutableShell(read(rel));
+  if (matches.length > 0) failures.push(`${rel}: comando ejecutable de publicacion/build/dispatch detectado (${matches.join(', ')}).`);
+}
 
-for (const rel of executableFiles) {
-  const source = read(rel);
-  const isJavaScript = /\.(?:mjs|cjs|js|ts)$/i.test(rel);
-  const matches = isJavaScript ? detectExecutableJavaScript(source) : detectExecutableShell(source);
-  if (matches.length > 0) {
-    failures.push(`${rel}: ejecucion real de publicacion/build/dispatch detectada (${matches.join(', ')}). Las menciones de texto no cuentan; los runners de procesos si.`);
-  }
+const jsRoots = ['scripts', '.husky', '.github/actions'];
+const jsFiles = new Set();
+for (const relDir of jsRoots) for (const rel of walkFiles(relDir, (file) => /\.(?:mjs|cjs|js|ts)$/i.test(file))) jsFiles.add(rel);
+for (const rel of jsFiles) {
+  if (rel === 'scripts/check-ci-policy.mjs') continue;
+  const matches = detectExecutableJavaScript(read(rel));
+  if (matches.length > 0) failures.push(`${rel}: process runner peligroso o no auditable detectado (${matches.join(', ')}).`);
 }
 
 if (failures.length > 0) {
@@ -409,4 +407,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`CI POLICY OK: ${easWorkflows.length} EAS workflow(s), ${githubWorkflows.length} GitHub workflow(s) y ${executableFiles.length} archivo(s) ejecutable(s) revisados; push normal no publica ni construye.`);
+console.log(`CI POLICY OK: ${easWorkflows.length} EAS workflow(s), ${githubWorkflows.length} GitHub workflow(s), ${localActionYaml.length} local action YAML(s), ${shellFiles.length} shell script(s) y ${jsFiles.size} JS/TS automation file(s) revisados.`);
