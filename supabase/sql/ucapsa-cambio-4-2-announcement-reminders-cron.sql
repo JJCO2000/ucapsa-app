@@ -64,7 +64,7 @@ select cron.schedule(
         )
       ),
       body := '{"action":"run_due"}'::jsonb,
-      timeout_milliseconds := 10000
+      timeout_milliseconds := 30000
     ) as request_id;
   $cron$
 );
