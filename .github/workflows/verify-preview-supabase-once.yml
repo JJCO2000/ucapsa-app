@@ -1,0 +1,30 @@
+name: Verify Preview Supabase once
+
+on:
+  push:
+    branches:
+      - fix/photo-audit-2026-09-13
+
+permissions:
+  contents: read
+
+jobs:
+  verify-preview-supabase:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: preview
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Verify Preview points at canonical UCAPSA Supabase
+        shell: bash
+        run: |
+          set -euo pipefail
+          eas env:exec preview 'node -e "const u=process.env.EXPO_PUBLIC_SUPABASE_URL||\"\"; if(!u.includes(\"hrfecmviyiluubymsoeq.supabase.co\")){console.error(\"Preview Supabase project mismatch\"); process.exit(1)} console.log(\"Preview Supabase project matches canonical UCAPSA project\")"' --non-interactive
