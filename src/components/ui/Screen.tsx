@@ -9,7 +9,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
+import { SafeAreaView, type Edge, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ucapsaBrand } from '../../constants/brand';
 
 type ScreenProps = {
@@ -33,17 +33,21 @@ export function Screen({
   refreshControl,
   backgroundColor = ucapsaBrand.colors.background,
 }: ScreenProps) {
+  const insets = useSafeAreaInsets();
+  const bottomBreathingRoom = Math.max(insets.bottom, Platform.OS === 'android' ? 16 : 10);
+  const dynamicContentStyle = { paddingBottom: 28 + bottomBreathingRoom };
+
   const content = scroll ? (
     <ScrollView
       keyboardShouldPersistTaps="handled"
       refreshControl={refreshControl}
       style={{ backgroundColor }}
-      contentContainerStyle={[styles.content, contentContainerStyle]}
+      contentContainerStyle={[styles.content, dynamicContentStyle, contentContainerStyle]}
     >
       {children}
     </ScrollView>
   ) : (
-    <View style={[styles.content, { backgroundColor }, contentContainerStyle]}>{children}</View>
+    <View style={[styles.content, dynamicContentStyle, { backgroundColor }, contentContainerStyle]}>{children}</View>
   );
 
   const safeContent = (
@@ -74,6 +78,5 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 28,
   },
 });

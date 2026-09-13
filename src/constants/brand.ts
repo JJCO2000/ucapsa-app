@@ -7,6 +7,8 @@
 export const ucapsaBrand = {
   name: 'UCAPSA',
   slogan: 'La universidad de tu perro',
+  googleMapsUrl: 'https://www.google.com/maps/search/?api=1&query=UCAPSA&query_place_id=ChIJVYVzenYHzoURGMjpGaTQsX0',
+  googleReviewUrl: 'https://search.google.com/local/writereview?placeid=ChIJVYVzenYHzoURGMjpGaTQsX0',
   colors: {
     // Marca
     red: '#C91F37',

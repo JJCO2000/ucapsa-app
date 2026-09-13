@@ -108,6 +108,8 @@ export default function ServicesTab() {
         <ServiceCard premium={false} icon="chat" title="1. Cuéntanos qué quieres mejorar" subtitle="Edad, paseo, obediencia, hábitos o convivencia: empieza con orientación directa de UCAPSA." onPress={() => void openExternal(guestWhatsAppUrl)} />
         <ServiceCard premium={false} icon="pets" title="2. Construir las bases" subtitle="UCAPSA School: aprende a comunicarte mejor y trabaja convivencia, hábitos y manejo." onPress={() => void openExternal(schoolUrl)} />
         <ServiceCard premium={false} icon="school" title="3. Entrenar y avanzar" subtitle="Entrenamiento guiado con niveles, seguimiento y trabajo en equipo humano-perro." onPress={() => void openExternal(trainingUrl)} />
+        <ServiceCard premium={false} icon="restaurant-menu" title="Menú del restaurante" subtitle="Consulta alimentos, bebidas, precios y disponibilidad." onPress={() => router.push('/restaurant' as never)} />
+        <ServiceCard premium={false} icon="rate-review" title="Escribir reseña en Google" subtitle="Ordena tu experiencia, copia el texto y abre Google Maps." onPress={() => router.push('/reviews' as never)} />
 
         <View style={styles.contactCard}>
           <Text style={styles.sectionTitle}>Contacto</Text>
@@ -144,7 +146,7 @@ export default function ServicesTab() {
         format={format}
         eyebrow="Tu acceso"
         title="Servicios"
-        subtitle="Membresía, compras y contacto directo con UCAPSA."
+        subtitle="Membresía, restaurante, compras y contacto directo con UCAPSA."
         icon="grid-view"
       />
 
@@ -198,6 +200,8 @@ export default function ServicesTab() {
 
       <Text style={[styles.sectionEyebrow, premium && styles.sectionEyebrowPremium]}>MÁS SERVICIOS</Text>
 
+      <ServiceCard premium={premium} icon="restaurant-menu" title="Menú del restaurante" subtitle="Consulta alimentos, bebidas, precios y disponibilidad antes de pedir." onPress={() => router.push('/restaurant' as never)} />
+      <ServiceCard premium={premium} icon="rate-review" title="Escribir reseña en Google" subtitle="Te ayudamos a ordenar tu experiencia; tú decides el texto final." onPress={() => router.push('/reviews' as never)} />
       <ServiceCard
         premium={premium}
         icon="shopping-bag"
