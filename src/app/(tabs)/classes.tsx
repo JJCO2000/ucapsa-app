@@ -4,11 +4,10 @@ import { useCallback, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
-import { ClientPageHeader } from '../../components/layout/ClientPageHeader';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
-import { ucapsaBrand, withAlpha } from '../../constants/brand';
+import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import {
   getMyProgramEnrollments,
@@ -23,6 +22,7 @@ import { DEFAULT_READ_TIMEOUT_MS, withOperationTimeout } from '../../utils/async
 import type { ProgramEnrollmentWithDetails } from '../../types/app.types';
 
 const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+const dayNamesLong = ['domingos', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábados'];
 const monthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 const courseStages = [
@@ -40,9 +40,12 @@ function nextClassLabel(item: ProgramEnrollmentWithDetails) {
 }
 
 function scheduleLabel(item: ProgramEnrollmentWithDetails) {
-  const repeat = item.schedule.repeat_type === 'biweekly' ? 'Cada 2 semanas' : 'Cada semana';
   const time = String(item.schedule.start_time ?? '').slice(0, 5);
-  return `${dayNames[item.schedule.day_of_week] ?? 'Día'} ${time || '--:--'} - ${repeat}`;
+  const day = dayNamesLong[item.schedule.day_of_week] ?? 'día por confirmar';
+  if (item.schedule.repeat_type === 'biweekly') {
+    return `Horario habitual: ${day} ${time || '--:--'} · Cada 2 semanas`;
+  }
+  return `Horario habitual: ${day} ${time || '--:--'}`;
 }
 
 function visibleLevelLabel(item: ProgramEnrollmentWithDetails) {
@@ -126,19 +129,13 @@ export default function ClassesTab() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={format.accent} />}
     >
       <UcapsaAmbientBackground format={format} variant="classes" />
-      <ClientPageHeader
-        format={format}
-        eyebrow="Tu entrenamiento"
-        title="Clases"
-        subtitle="Tu ruta Puppy → Básico → Intermedio → Avanzado, con todo tu historial."
-        icon="school"
-      />
+      <CompactClassesHeader premium={premium} format={format} />
 
       {usingSavedData ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} label="Mostrando clases guardadas" /> : null}
 
       {localReady && rows.length === 0 ? (
         <View style={[styles.emptyCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
-          <MaterialIcons name={offlineEmpty ? 'cloud-off' : 'school'} size={32} color={offlineEmpty ? format.accentDark : format.accent} />
+          <MaterialIcons name={offlineEmpty ? 'cloud-off' : 'school'} size={30} color={offlineEmpty ? format.accentDark : format.accent} />
           <Text style={[styles.sectionTitle, { color: format.cardText }]}>{offlineEmpty ? 'Clases aún no guardadas' : 'Sin clases activas'}</Text>
           <Text style={[styles.muted, { color: format.muted }]}>{offlineEmpty ? 'Conéctate una vez para guardar tus clases y asistencias en este dispositivo.' : 'Cuando tengas una inscripción activa de Puppy o Comandos aparecerá aquí.'}</Text>
           <Pressable accessibilityRole="button" accessibilityLabel={offlineEmpty ? 'Reintentar sincronización de clases' : 'Ver servicios'} style={[styles.secondaryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={offlineEmpty ? () => void refresh() : () => router.push('/services' as never)}>
@@ -147,61 +144,62 @@ export default function ClassesTab() {
         </View>
       ) : null}
 
-      {coursePaths.map((path) => (
-        <View key={path.key} style={[styles.pathCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
-          <Text style={[styles.currentEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>RUTA DE {path.dogName.toUpperCase()}</Text>
-          <Text style={[styles.pathTitle, { color: format.cardText }]}>Los niveles se desbloquean al completar el anterior</Text>
-          <View style={styles.stageList}>
-            {courseStages.map((stage, index) => {
-              const stageRow = rowForStage(path.rows, stage.key);
-              const completed = stageRow?.enrollment.status === 'completed';
-              const unlocked = Boolean(stageRow);
-              const activeStage = stageRow?.enrollment.status === 'active';
-              return (
-                <View key={stage.key} style={styles.stageLine}>
-                  <View style={[styles.stageIcon, { backgroundColor: completed || activeStage ? format.pillBackground : format.surfaceAlt, borderColor: format.cardBorder }]}>
-                    <MaterialIcons name={completed ? 'check-circle' : activeStage ? 'play-circle-filled' : 'lock-outline'} size={20} color={completed || activeStage ? format.pillText : format.muted} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.stageName, { color: format.cardText }]}>{stage.label}</Text>
-                    <Text style={[styles.stageStatus, { color: format.muted }]}>{completed ? 'Completado · historial conservado' : activeStage ? 'Desbloqueado · nivel actual' : unlocked ? getProgramStatusLabel(stageRow!.enrollment.status) : 'Bloqueado'}</Text>
-                  </View>
-                  {stageRow ? <Pressable onPress={() => router.push(`/client/class-detail?enrollmentId=${encodeURIComponent(stageRow.enrollment.id)}` as never)}><MaterialIcons name="chevron-right" size={22} color={format.accentDark} /></Pressable> : null}
-                  {index < courseStages.length - 1 ? <View style={[styles.stageConnector, { backgroundColor: format.cardBorder }]} /> : null}
-                </View>
-              );
-            })}
-          </View>
-        </View>
+      {active.map((item, index) => (
+        <ClassCard
+          key={item.enrollment.id}
+          item={item}
+          premium={premium}
+          format={format}
+          showAttendanceAction={index === 0}
+        />
       ))}
-
-      {active.length > 0 ? (
-        <>
-          <View style={styles.currentHeader}>
-            <View>
-              <Text style={[styles.currentEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>TU PROGRAMA ACTUAL</Text>
-              <Text style={[styles.sectionTitle, { color: format.text }]}>Lo que sigue</Text>
-            </View>
-          </View>
-          <Pressable accessibilityRole="button" accessibilityLabel="Registrar asistencia" style={[styles.scanWideButton, { backgroundColor: format.primaryButton }]} onPress={() => router.push('/attendance' as never)}>
-            <MaterialIcons name="qr-code-scanner" size={20} color={format.primaryButtonText} />
-            <Text style={[styles.scanWideText, { color: format.primaryButtonText }]}>Registrar asistencia</Text>
-          </Pressable>
-        </>
-      ) : null}
-      {active.map((item) => <ClassCard key={item.enrollment.id} item={item} premium={premium} format={format} />)}
 
       {previous.length > 0 ? (
         <View style={styles.historySection}>
-          <Text style={[styles.sectionTitle, { color: format.text }]}>Historial completo</Text>
+          <Text style={[styles.sectionTitle, { color: format.text }]}>Anteriores</Text>
           {previous.map((item) => <ClassCard key={item.enrollment.id} item={item} compact premium={premium} format={format} />)}
+        </View>
+      ) : null}
+
+      {coursePaths.length > 0 ? (
+        <View style={styles.routeSection}>
+          <Text style={[styles.routeSectionTitle, { color: format.text }]}>Tu ruta</Text>
+          {coursePaths.map((path) => (
+            <CompactRouteCard key={path.key} path={path} premium={premium} format={format} />
+          ))}
         </View>
       ) : null}
     </KeyboardAwareScreen>
   );
 }
 
-function ClassCard({ item, compact = false, premium, format }: { item: ProgramEnrollmentWithDetails; compact?: boolean; premium: boolean; format: ReturnType<typeof resolveUcapsaFormat> }) {
+function CompactClassesHeader({ premium, format }: { premium: boolean; format: ReturnType<typeof resolveUcapsaFormat> }) {
+  return (
+    <View style={styles.header}>
+      <View style={[styles.headerIcon, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft, borderColor: premium ? ucapsaBrand.colors.premiumBorder : format.border }]}>
+        <MaterialIcons name="school" size={25} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+      </View>
+      <View style={styles.headerCopy}>
+        <Text style={[styles.headerTitle, { color: format.text }]}>Clases</Text>
+        <Text style={[styles.headerSubtitle, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Tu programa y próximas sesiones</Text>
+      </View>
+    </View>
+  );
+}
+
+function ClassCard({
+  item,
+  compact = false,
+  premium,
+  format,
+  showAttendanceAction = false,
+}: {
+  item: ProgramEnrollmentWithDetails;
+  compact?: boolean;
+  premium: boolean;
+  format: ReturnType<typeof resolveUcapsaFormat>;
+  showAttendanceAction?: boolean;
+}) {
   const attendanceCount = item.attendances.length;
   const required = item.program.required_attendances;
   const remaining = required > 0 ? Math.max(0, required - attendanceCount) : null;
@@ -209,12 +207,15 @@ function ClassCard({ item, compact = false, premium, format }: { item: ProgramEn
   const statusLabel = getProgramStatusLabel(item.enrollment.status);
   const dogName = getProgramEnrollmentDogName(item);
   const classLabel = `${getProgramCodeLabel(item.program.code)}${levelLabel ? ` ${levelLabel}` : ''} con ${dogName}`;
+  const detailRoute = `/client/class-detail?enrollmentId=${encodeURIComponent(item.enrollment.id)}` as never;
 
   if (compact) {
     return (
-      <Pressable accessibilityRole="button" accessibilityLabel={`Abrir ${classLabel}`} style={[styles.historyCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]} onPress={() => router.push(`/client/class-detail?enrollmentId=${encodeURIComponent(item.enrollment.id)}` as never)}>
-        <View style={[styles.historyIcon, { backgroundColor: format.pillBackground }]}><MaterialIcons name={item.enrollment.status === 'completed' ? 'check-circle' : 'history'} size={19} color={format.pillText} /></View>
-        <View style={{ flex: 1, minWidth: 0 }}>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Abrir ${classLabel}`} style={[styles.historyCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]} onPress={() => router.push(detailRoute)}>
+        <View style={[styles.historyIcon, { backgroundColor: format.pillBackground }]}>
+          <MaterialIcons name={item.enrollment.status === 'completed' ? 'check-circle' : 'history'} size={19} color={format.pillText} />
+        </View>
+        <View style={styles.historyCopy}>
           <Text style={[styles.historyTitle, { color: format.cardText }]}>{getProgramCodeLabel(item.program.code)}{levelLabel ? ` · ${levelLabel}` : ''}</Text>
           <Text style={[styles.cardMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{dogName} · {statusLabel} · {attendanceCount} asistencias</Text>
         </View>
@@ -224,24 +225,32 @@ function ClassCard({ item, compact = false, premium, format }: { item: ProgramEn
   }
 
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={`Abrir ${classLabel}`} style={[styles.currentCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]} onPress={() => router.push(`/client/class-detail?enrollmentId=${encodeURIComponent(item.enrollment.id)}` as never)}>
+    <View style={[styles.currentCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
       <View style={styles.currentCardTop}>
-        <View style={[styles.programIconLarge, { backgroundColor: format.pillBackground }]}><MaterialIcons name="school" size={25} color={format.pillText} /></View>
-        <View style={{ flex: 1, minWidth: 0 }}>
+        <View style={[styles.programIconLarge, { backgroundColor: format.pillBackground }]}>
+          <MaterialIcons name="school" size={24} color={format.pillText} />
+        </View>
+        <View style={styles.programCopy}>
           <Text style={[styles.currentProgram, { color: format.cardText }]}>{getProgramCodeLabel(item.program.code)}{levelLabel ? ` ${levelLabel}` : ''}</Text>
           <Text style={[styles.currentDog, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Con {dogName}</Text>
         </View>
         {!premium && remaining != null ? (
-          <View style={[styles.remainingBox, { backgroundColor: format.accent }]}>
-            <Text style={[styles.remainingNumber, { color: format.primaryButtonText }]}>{remaining}</Text>
-            <Text style={[styles.remainingText, { color: format.primaryButtonText }]}>clases restantes</Text>
+          <View style={[styles.remainingBadge, { backgroundColor: format.accentSoft, borderColor: format.border }]}>
+            <Text style={[styles.remainingNumber, { color: format.accentDark }]}>{remaining}</Text>
+            <Text style={[styles.remainingText, { color: format.muted }]}>restantes</Text>
           </View>
-        ) : premium ? <View style={[styles.memberMark, { backgroundColor: ucapsaBrand.colors.premiumSurfaceAlt, borderColor: ucapsaBrand.colors.premiumBorder }]}><MaterialIcons name="workspace-premium" size={19} color={ucapsaBrand.colors.premiumAction} /></View> : null}
+        ) : premium ? (
+          <View style={[styles.memberMark, { backgroundColor: ucapsaBrand.colors.premiumSurfaceAlt, borderColor: ucapsaBrand.colors.premiumBorder }]}>
+            <MaterialIcons name="workspace-premium" size={19} color={ucapsaBrand.colors.premiumAction} />
+          </View>
+        ) : null}
       </View>
 
       <View style={[styles.nextSession, { borderColor: format.border, backgroundColor: format.surfaceAlt }]}>
-        <View style={[styles.nextSessionIcon, { backgroundColor: format.pillBackground }]}><MaterialIcons name="event" size={19} color={format.pillText} /></View>
-        <View style={{ flex: 1, minWidth: 0 }}>
+        <View style={[styles.nextSessionIcon, { backgroundColor: format.pillBackground }]}>
+          <MaterialIcons name="event" size={19} color={format.pillText} />
+        </View>
+        <View style={styles.sessionCopy}>
           <Text style={[styles.nextSessionLabel, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>PRÓXIMA SESIÓN</Text>
           <Text style={[styles.nextClass, { color: format.cardText }]}>{nextClassLabel(item)}</Text>
           <Text style={[styles.scheduleText, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{scheduleLabel(item)}</Text>
@@ -249,63 +258,118 @@ function ClassCard({ item, compact = false, premium, format }: { item: ProgramEn
       </View>
 
       <View style={styles.usageRow}>
-        <View style={styles.usageCopy}>
-          <Text style={[styles.usageValue, { color: format.cardText }]}>{attendanceCount}</Text>
-          <Text style={[styles.usageLabel, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>asistencias registradas</Text>
-        </View>
-        <View style={[styles.detailButton, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
+        <Text style={[styles.usageValue, { color: format.cardText }]}>{attendanceCount}</Text>
+        <Text style={[styles.usageLabel, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>asistencias registradas</Text>
+      </View>
+
+      <View style={styles.actionRow}>
+        {showAttendanceAction ? (
+          <Pressable accessibilityRole="button" accessibilityLabel="Registrar asistencia" style={[styles.primaryAction, { backgroundColor: format.primaryButton }]} onPress={() => router.push('/attendance' as never)}>
+            <MaterialIcons name="qr-code-scanner" size={19} color={format.primaryButtonText} />
+            <Text style={[styles.primaryActionText, { color: format.primaryButtonText }]}>Registrar asistencia</Text>
+          </Pressable>
+        ) : null}
+        <Pressable accessibilityRole="button" accessibilityLabel={`Ver programa ${classLabel}`} style={[styles.detailButton, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]} onPress={() => router.push(detailRoute)}>
           <Text style={[styles.detailButtonText, { color: format.secondaryButtonText }]}>Ver programa</Text>
           <MaterialIcons name="arrow-forward" size={18} color={format.secondaryButtonText} />
-        </View>
+        </Pressable>
       </View>
-    </Pressable>
+    </View>
+  );
+}
+
+function CompactRouteCard({
+  path,
+  premium,
+  format,
+}: {
+  path: { key: string; dogName: string; rows: ProgramEnrollmentWithDetails[] };
+  premium: boolean;
+  format: ReturnType<typeof resolveUcapsaFormat>;
+}) {
+  return (
+    <View style={[styles.routeCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
+      <Text style={[styles.routeEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>RUTA DE {path.dogName.toUpperCase()}</Text>
+      <View style={styles.stageGrid}>
+        {courseStages.map((stage) => {
+          const stageRow = rowForStage(path.rows, stage.key);
+          const completed = stageRow?.enrollment.status === 'completed';
+          const activeStage = stageRow?.enrollment.status === 'active';
+          const enabled = Boolean(stageRow);
+          return (
+            <Pressable
+              key={stage.key}
+              disabled={!enabled}
+              accessibilityRole={enabled ? 'button' : undefined}
+              accessibilityLabel={enabled ? `Abrir ${stage.label}` : `${stage.label}, bloqueado`}
+              onPress={stageRow ? () => router.push(`/client/class-detail?enrollmentId=${encodeURIComponent(stageRow.enrollment.id)}` as never) : undefined}
+              style={[
+                styles.stageChip,
+                {
+                  borderColor: format.border,
+                  backgroundColor: completed || activeStage ? format.pillBackground : format.surfaceAlt,
+                  opacity: enabled ? 1 : 0.62,
+                },
+              ]}
+            >
+              <MaterialIcons name={completed ? 'check-circle' : activeStage ? 'play-circle-filled' : 'lock-outline'} size={16} color={completed || activeStage ? format.pillText : format.muted} />
+              <Text style={[styles.stageChipText, { color: completed || activeStage ? format.cardText : format.muted }]}>{stage.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   screenContent: { position: 'relative' },
   premiumContent: { backgroundColor: ucapsaBrand.colors.premiumBackground },
-  pathCard: { borderRadius: 24, borderWidth: 1, padding: 15, marginBottom: 16 },
-  pathTitle: { marginTop: 3, marginBottom: 12, fontSize: 16, lineHeight: 21, fontWeight: '900' },
-  stageList: { gap: 0 },
-  stageLine: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 10, position: 'relative' },
-  stageIcon: { width: 38, height: 38, borderRadius: 13, borderWidth: 1, alignItems: 'center', justifyContent: 'center', zIndex: 2 },
-  stageConnector: { position: 'absolute', left: 18, top: 47, width: 2, height: 22, zIndex: 1 },
-  stageName: { fontSize: 14, lineHeight: 18, fontWeight: '900' },
-  stageStatus: { marginTop: 1, fontSize: 11, lineHeight: 15, fontWeight: '700' },
-  currentHeader: { marginBottom: 8 },
-  currentEyebrow: { fontSize: 11, lineHeight: 15, fontWeight: '900', letterSpacing: 0.9, marginBottom: 2 },
-  scanWideButton: { width: '100%', minHeight: 48, borderRadius: 16, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12 },
-  scanWideText: { fontSize: 14, lineHeight: 19, fontWeight: '900' },
-  currentCard: { gap: 13, borderRadius: 28, borderWidth: 1, padding: 16, marginBottom: 14 },
-  currentCardTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  programIconLarge: { width: 50, height: 50, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  currentProgram: { fontSize: 20, lineHeight: 25, fontWeight: '900', letterSpacing: -0.25 },
-  currentDog: { fontSize: 13, lineHeight: 18, fontWeight: '800', marginTop: 2 },
-  remainingBox: { width: 86, minHeight: 72, borderRadius: 20, padding: 8, alignItems: 'center', justifyContent: 'center' },
-  remainingNumber: { fontSize: 27, lineHeight: 30, fontWeight: '900' },
-  remainingText: { textAlign: 'center', fontSize: 11, lineHeight: 14, fontWeight: '900' },
-  memberMark: { width: 48, height: 48, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  nextSession: { flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 20, borderWidth: 1, padding: 13 },
-  nextSessionIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  nextSessionLabel: { fontSize: 11, lineHeight: 15, fontWeight: '900', letterSpacing: 0.8 },
-  scheduleText: { fontSize: 12, lineHeight: 17, fontWeight: '700', marginTop: 2 },
-  usageRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  usageCopy: { flex: 1, minWidth: 0 },
-  usageValue: { fontSize: 22, lineHeight: 26, fontWeight: '900' },
-  usageLabel: { fontSize: 12, lineHeight: 17, fontWeight: '800' },
-  detailButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 14, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16, paddingHorizontal: 2 },
+  headerIcon: { width: 48, height: 48, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  headerCopy: { flex: 1, minWidth: 0 },
+  headerTitle: { fontSize: 29, lineHeight: 34, fontWeight: '900', letterSpacing: -0.45 },
+  headerSubtitle: { marginTop: 1, fontSize: 13, lineHeight: 18, fontWeight: '700' },
+  currentCard: { gap: 12, borderRadius: 24, borderWidth: 1, padding: 14, marginBottom: 14 },
+  currentCardTop: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  programIconLarge: { width: 48, height: 48, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  programCopy: { flex: 1, minWidth: 0 },
+  currentProgram: { fontSize: 20, lineHeight: 24, fontWeight: '900', letterSpacing: -0.22 },
+  currentDog: { fontSize: 13, lineHeight: 18, fontWeight: '800', marginTop: 1 },
+  remainingBadge: { minWidth: 58, borderRadius: 15, borderWidth: 1, paddingHorizontal: 9, paddingVertical: 6, alignItems: 'center', justifyContent: 'center' },
+  remainingNumber: { fontSize: 17, lineHeight: 20, fontWeight: '900' },
+  remainingText: { fontSize: 9, lineHeight: 12, fontWeight: '800' },
+  memberMark: { width: 44, height: 44, borderRadius: 15, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  nextSession: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, borderWidth: 1, padding: 12 },
+  nextSessionIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  sessionCopy: { flex: 1, minWidth: 0 },
+  nextSessionLabel: { fontSize: 10, lineHeight: 14, fontWeight: '900', letterSpacing: 0.8 },
+  nextClass: { marginTop: 1, fontSize: 17, lineHeight: 21, fontWeight: '900' },
+  scheduleText: { fontSize: 11, lineHeight: 16, fontWeight: '700', marginTop: 2 },
+  usageRow: { flexDirection: 'row', alignItems: 'baseline', gap: 7 },
+  usageValue: { fontSize: 26, lineHeight: 29, fontWeight: '900' },
+  usageLabel: { flex: 1, fontSize: 12, lineHeight: 17, fontWeight: '800' },
+  actionRow: { flexDirection: 'row', alignItems: 'stretch', gap: 9 },
+  primaryAction: { minHeight: 46, flex: 1.25, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 15, paddingHorizontal: 12 },
+  primaryActionText: { fontSize: 12, lineHeight: 16, fontWeight: '900' },
+  detailButton: { minHeight: 46, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 15, borderWidth: 1, paddingHorizontal: 11 },
   detailButtonText: { fontSize: 12, lineHeight: 16, fontWeight: '900' },
-  historyCard: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 19, borderWidth: 1, padding: 13, marginBottom: 9 },
-  historyIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  historyTitle: { fontSize: 15, lineHeight: 20, fontWeight: '900' },
-  muted: { fontSize: 14, lineHeight: 20, fontWeight: '700' },
-  emptyCard: { gap: 10, alignItems: 'flex-start', borderRadius: 20, borderWidth: 1, padding: 18 },
-  sectionTitle: { fontSize: 19, lineHeight: 24, fontWeight: '900', marginBottom: 9 },
-  secondaryButton: { minHeight: 48, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', borderRadius: 15, borderWidth: 1, paddingVertical: 11, marginTop: 3 },
-  secondaryButtonText: { fontSize: 14, lineHeight: 19, fontWeight: '900' },
-  cardMeta: { fontSize: 12, lineHeight: 17, fontWeight: '800', marginTop: 2 },
-  nextClass: { fontSize: 15, lineHeight: 20, fontWeight: '900' },
-  historySection: { marginTop: 10 },
-  progressTrackPremium: { backgroundColor: withAlpha(ucapsaBrand.colors.surface, 0.14) },
+  historySection: { marginTop: 3 },
+  sectionTitle: { fontSize: 22, lineHeight: 27, fontWeight: '900', marginBottom: 10 },
+  historyCard: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, borderWidth: 1, padding: 12, marginBottom: 8 },
+  historyIcon: { width: 39, height: 39, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  historyCopy: { flex: 1, minWidth: 0 },
+  historyTitle: { fontSize: 15, lineHeight: 19, fontWeight: '900' },
+  cardMeta: { fontSize: 11, lineHeight: 16, fontWeight: '800', marginTop: 1 },
+  routeSection: { marginTop: 10 },
+  routeSectionTitle: { fontSize: 17, lineHeight: 21, fontWeight: '900', marginBottom: 8 },
+  routeCard: { borderRadius: 18, borderWidth: 1, padding: 11, marginBottom: 9 },
+  routeEyebrow: { fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 0.75, marginBottom: 8 },
+  stageGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  stageChip: { minHeight: 34, flexBasis: '47%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, borderWidth: 1, paddingHorizontal: 9, paddingVertical: 7 },
+  stageChipText: { flex: 1, fontSize: 10, lineHeight: 14, fontWeight: '800' },
+  muted: { fontSize: 13, lineHeight: 19, fontWeight: '700' },
+  emptyCard: { gap: 9, alignItems: 'flex-start', borderRadius: 20, borderWidth: 1, padding: 16 },
+  secondaryButton: { minHeight: 46, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', borderRadius: 15, borderWidth: 1, paddingVertical: 10, marginTop: 2 },
+  secondaryButtonText: { fontSize: 13, lineHeight: 18, fontWeight: '900' },
 });
