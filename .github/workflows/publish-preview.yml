@@ -7,6 +7,8 @@ on:
         description: "Mensaje del EAS Update"
         required: true
         type: string
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: read
@@ -18,7 +20,13 @@ concurrency:
 jobs:
   publish:
     name: Verify and publish Preview OTA
-    if: github.ref == 'refs/heads/main'
+    if: >
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'issue_comment' &&
+       github.event.action == 'created' &&
+       github.event.issue.number == 28 &&
+       github.event.comment.user.login == 'JJCO2000' &&
+       github.event.comment.body == '/publish-preview')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:
@@ -35,9 +43,10 @@ jobs:
             exit 1
           fi
 
-      - name: Checkout repository
+      - name: Checkout canonical main
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          ref: main
           persist-credentials: false
 
       - name: Setup Node
@@ -65,6 +74,16 @@ jobs:
         run: npm run audit:critical
 
       - name: Publish Android Preview OTA
+        shell: bash
         env:
-          UPDATE_MESSAGE: ${{ inputs.message }}
-        run: eas update --channel preview --platform android --message "$UPDATE_MESSAGE" --environment preview --non-interactive
+          EVENT_NAME: ${{ github.event_name }}
+          MANUAL_MESSAGE: ${{ inputs.message }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            UPDATE_MESSAGE="$MANUAL_MESSAGE"
+          else
+            SHORT_SHA="$(git rev-parse --short HEAD)"
+            UPDATE_MESSAGE="UCAPSA Preview OTA ${SHORT_SHA}"
+          fi
+          eas update --channel preview --platform android --message "$UPDATE_MESSAGE" --environment preview --non-interactive
