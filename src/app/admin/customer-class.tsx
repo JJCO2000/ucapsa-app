@@ -22,6 +22,12 @@ import {
 } from '../../services/programs.service';
 import type { ProgramEnrollmentStatus, ProgramLevel, ProgramSchedule } from '../../types/app.types';
 
+function levelLabel(level: ProgramLevel | null | undefined) {
+  return getProgramLevelLabel(level);
+}
+
+const visibleLevelOptions = programLevelOptions;
+
 export default function CustomerClassScreen() {
   const params = useLocalSearchParams<{ userId?: string; enrollmentId?: string }>();
   const userId = typeof params.userId === 'string' ? params.userId.trim() : '';
@@ -112,13 +118,17 @@ export default function CustomerClassScreen() {
 
   function changeStatus(status: ProgramEnrollmentStatus) {
     if (!row) return;
-    Alert.alert('Confirmar', `La inscripcion quedara como ${getProgramStatusLabel(status).toLowerCase()}.`, [
+    const progressionMessage = status === 'completed'
+      ? ' Al completarla, UCAPSA desbloqueará automáticamente la siguiente etapa si existe; esta tarjeta y todas sus asistencias se conservarán en el historial.'
+      : '';
+    Alert.alert('Confirmar', `La inscripcion quedara como ${getProgramStatusLabel(status).toLowerCase()}.${progressionMessage}`, [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Confirmar', onPress: async () => {
         try {
           setSaving(true);
           await setProgramEnrollmentStatus(row.enrollment.id, status);
           await load();
+          if (status === 'completed') Alert.alert('Etapa completada', 'La siguiente etapa quedó desbloqueada automáticamente cuando corresponde. Puedes editar su horario, perro, tarjeta y asistencias desde Administración.');
         } catch (cause) {
           Alert.alert('No se pudo cambiar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
         } finally {
@@ -141,7 +151,7 @@ export default function CustomerClassScreen() {
           {!editing ? (
             <View style={styles.card}>
               <Detail label="Estado" value={getProgramStatusLabel(row.enrollment.status)} />
-              {row.program.code === 'comandos' ? <Detail label="Nivel" value={getProgramLevelLabel(row.enrollment.program_level)} /> : null}
+              {row.program.code === 'comandos' ? <Detail label="Nivel" value={levelLabel(row.enrollment.program_level)} /> : null}
               <Detail label="Horario" value={formatProgramScheduleDisplayLabel(row.schedule, row.program)} />
               <Detail label="Perro" value={getProgramEnrollmentDogName(row)} />
               <Detail label="Tarjeta" value={row.enrollment.physical_card_number || 'Sin numero'} />
@@ -152,7 +162,7 @@ export default function CustomerClassScreen() {
               {row.program.code === 'comandos' ? (
                 <View style={styles.field}>
                   <Text style={styles.label}>Nivel</Text>
-                  <View style={styles.choiceWrap}>{programLevelOptions.map((option) => <Choice key={option.value} label={option.label} active={level === option.value} onPress={() => setLevel(option.value)} />)}</View>
+                  <View style={styles.choiceWrap}>{visibleLevelOptions.map((option) => <Choice key={option.value} label={option.label} active={level === option.value} onPress={() => setLevel(option.value)} />)}</View>
                 </View>
               ) : null}
 
@@ -199,7 +209,7 @@ export default function CustomerClassScreen() {
             <Pressable style={styles.statusAction} onPress={() => setStatusModalOpen(true)}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.statusActionTitle}>Cambiar estado</Text>
-                <Text style={styles.muted}>Activa, completada o cancelada</Text>
+                <Text style={styles.muted}>Completar desbloquea automáticamente la siguiente etapa</Text>
               </View>
               <MaterialIcons name="chevron-right" size={22} color={ucapsaBrand.colors.redDark} />
             </Pressable>
@@ -209,7 +219,7 @@ export default function CustomerClassScreen() {
             <Text style={styles.modalCustomerName}>{adminCustomerDisplayName(record?.profile)}</Text>
             <Text style={styles.modalKicker}>Clase</Text>
             <Text style={styles.modalTitle}>Cambiar estado</Text>
-            <Text style={styles.modalText}>Completar es una decision administrativa. No depende del contador de asistencias.</Text>
+            <Text style={styles.modalText}>La decisión de completar sigue siendo del admin. Al marcar Completada, se conserva este historial y se crea la siguiente etapa: Puppy → Básico → Intermedio → Avanzado.</Text>
             <View style={styles.modalChoices}>
               <Choice label="Activa" active={row.enrollment.status === 'active'} onPress={() => { setStatusModalOpen(false); changeStatus('active'); }} />
               <Choice label="Completada" active={row.enrollment.status === 'completed'} onPress={() => { setStatusModalOpen(false); changeStatus('completed'); }} />
