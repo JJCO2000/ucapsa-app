@@ -65,6 +65,17 @@ must('src/app/(tabs)/classes.tsx', /router\.push\('\/attendance'/, 'Clases perdi
 must('src/app/(tabs)/classes.tsx', /\/client\/class-detail\?enrollmentId=/, 'Clases perdió el acceso al detalle del programa.');
 must('src/app/(tabs)/classes.tsx', /Mostrando clases guardadas/, 'Clases perdió el aviso de datos offline guardados.');
 
+must('src/app/(tabs)/services.tsx', /Tu membresía y accesos UCAPSA/, 'Servicios perdió el encabezado compacto orientado al acceso del cliente.');
+must('src/app/(tabs)/services.tsx', /TU ACCESO DE SOCIO/, 'Servicios perdió los accesos rápidos de socio.');
+must('src/app/(tabs)/services.tsx', /\/client\/membership/, 'Servicios perdió el acceso a Membresía.');
+must('src/app/(tabs)/services.tsx', /\/client\/points/, 'Servicios perdió el acceso a Perro del Año.');
+must('src/app/(tabs)/services.tsx', /\/client\/member-visits/, 'Servicios perdió el historial de visitas.');
+must('src/app/(tabs)/services.tsx', /router\.push\('\/restaurant'/, 'Servicios perdió el menú del restaurante.');
+must('src/app/(tabs)/services.tsx', /router\.push\('\/reviews'/, 'Servicios perdió el flujo de reseña en Google.');
+must('src/app/(tabs)/services.tsx', /readClientResource<MembershipOfflineSummary>/, 'Servicios perdió la lectura offline de membresía.');
+must('src/app/(tabs)/services.tsx', /OfflineDataNotice/, 'Servicios perdió el aviso de datos guardados.');
+mustNot('src/app/(tabs)/services.tsx', /subtitle="Membresía, restaurante, compras y contacto directo con UCAPSA\."/, 'Servicios volvió al hero grande y redundante del diseño anterior.');
+
 const scanRoots = ['src', 'scripts'];
 function walk(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
