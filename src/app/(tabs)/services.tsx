@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { MemberClubCrest } from '../../components/domain/MemberClubCrest';
@@ -29,6 +29,17 @@ async function openExternal(url: string) {
   }
 }
 
+function getLifetimeMembershipStatus(
+  membership: Parameters<typeof getMembershipEffectiveStatus>[0],
+): MembershipEffectiveStatus {
+  const effective = getMembershipEffectiveStatus(membership);
+  // Una membresía que Administración mantiene como active sigue siendo de socio.
+  // end_date histórico no puede revocar el acceso; una fecha de inicio futura sí
+  // conserva el estado scheduled hasta que llegue su inicio.
+  if (membership?.status === 'active' && effective === 'expired') return 'active';
+  return effective;
+}
+
 export default function ServicesTab() {
   const { user, role, isAdmin } = useSession();
   const [membershipStatus, setMembershipStatus] = useState<MembershipEffectiveStatus | null>(null);
@@ -37,19 +48,39 @@ export default function ServicesTab() {
   const [usingSavedData, setUsingSavedData] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [membershipLoadFailed, setMembershipLoadFailed] = useState(false);
+  const cacheScopeRef = useRef<string | null>(null);
+  const loadRunRef = useRef(0);
 
   const load = useCallback(async () => {
-    if (!user || isAdmin) {
+    const runId = loadRunRef.current + 1;
+    loadRunRef.current = runId;
+    const isCurrentRun = () => loadRunRef.current === runId;
+    const scope = user?.id ?? (isAdmin ? 'admin' : 'public');
+
+    if (cacheScopeRef.current !== scope) {
+      cacheScopeRef.current = scope;
       setMembershipStatus(null);
-      setLoading(false);
+      setLoading(Boolean(user));
+      setUsingSavedData(false);
+      setSavedAt(null);
+      setMembershipLoadFailed(false);
+    }
+
+    if (!user || isAdmin) {
+      if (isCurrentRun()) {
+        setMembershipStatus(null);
+        setLoading(false);
+      }
       return;
     }
 
+    if (!isCurrentRun()) return;
     setUsingSavedData(false);
     setMembershipLoadFailed(false);
     const cached = await readClientResource<MembershipOfflineSummary>(user.id, clientReadKeys.membership);
+    if (!isCurrentRun()) return;
     if (cached) {
-      setMembershipStatus(getMembershipEffectiveStatus(cached.data.status ? {
+      setMembershipStatus(getLifetimeMembershipStatus(cached.data.status ? {
         status: cached.data.status,
         start_date: cached.data.start_date,
         end_date: cached.data.end_date,
@@ -60,18 +91,26 @@ export default function ServicesTab() {
 
     try {
       const membership = await withOperationTimeout(getMyMembership(), DEFAULT_READ_TIMEOUT_MS, 'services-membership');
-      setMembershipStatus(getMembershipEffectiveStatus(membership));
+      if (!isCurrentRun()) return;
+      setMembershipStatus(getLifetimeMembershipStatus(membership));
       const stored = await writeClientResource(user.id, clientReadKeys.membership, createMembershipOfflineSummary(membership));
+      if (!isCurrentRun()) return;
       setSavedAt(stored.saved_at);
     } catch {
+      if (!isCurrentRun()) return;
       if (cached) setUsingSavedData(true);
       else setMembershipLoadFailed(true);
     } finally {
-      setLoading(false);
+      if (isCurrentRun()) setLoading(false);
     }
   }, [isAdmin, user]);
 
-  useFocusEffect(useCallback(() => { void load(); return undefined; }, [load]));
+  useFocusEffect(useCallback(() => {
+    void load();
+    return () => {
+      loadRunRef.current += 1;
+    };
+  }, [load]));
 
   async function refresh() {
     setRefreshing(true);
