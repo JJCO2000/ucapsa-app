@@ -4,16 +4,16 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { MemberClubCrest } from '../../components/domain/MemberClubCrest';
-import { SocialLinksRow } from '../../components/ui/SocialLinksRow';
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { ClientPageHeader } from '../../components/layout/ClientPageHeader';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
-import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
+import { SocialLinksRow } from '../../components/ui/SocialLinksRow';
 import { ucapsaBrand } from '../../constants/brand';
+import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
-import { getMembershipEffectiveStatus, getMyMembership, type MembershipEffectiveStatus } from '../../services/memberships.service';
 import { clientReadKeys, createMembershipOfflineSummary, readClientResource, writeClientResource, type MembershipOfflineSummary } from '../../services/client-read-cache.service';
+import { getMembershipEffectiveStatus, getMyMembership, type MembershipEffectiveStatus } from '../../services/memberships.service';
 import { DEFAULT_READ_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
 
 const whatsappUrl = ucapsaBrand.socialLinks.find((item) => item.key === 'whatsapp')?.url ?? 'https://wa.me/525522410679';
@@ -49,7 +49,11 @@ export default function ServicesTab() {
     setMembershipLoadFailed(false);
     const cached = await readClientResource<MembershipOfflineSummary>(user.id, clientReadKeys.membership);
     if (cached) {
-      setMembershipStatus(getMembershipEffectiveStatus(cached.data.status ? { status: cached.data.status, start_date: cached.data.start_date, end_date: cached.data.end_date } : null));
+      setMembershipStatus(getMembershipEffectiveStatus(cached.data.status ? {
+        status: cached.data.status,
+        start_date: cached.data.start_date,
+        end_date: cached.data.end_date,
+      } : null));
       setSavedAt(cached.saved_at);
       setLoading(false);
     }
@@ -105,34 +109,30 @@ export default function ServicesTab() {
           <GuestProof icon="trending-up" title="Ruta de entrenamiento" text="Programas y niveles que puedes recorrer en UCAPSA." />
         </View>
 
-        <ServiceCard premium={false} icon="chat" title="1. Cuéntanos qué quieres mejorar" subtitle="Edad, paseo, obediencia, hábitos o convivencia: empieza con orientación directa de UCAPSA." onPress={() => void openExternal(guestWhatsAppUrl)} />
-        <ServiceCard premium={false} icon="pets" title="2. Construir las bases" subtitle="UCAPSA School: aprende a comunicarte mejor y trabaja convivencia, hábitos y manejo." onPress={() => void openExternal(schoolUrl)} />
-        <ServiceCard premium={false} icon="school" title="3. Entrenar y avanzar" subtitle="Entrenamiento guiado con niveles, seguimiento y trabajo en equipo humano-perro." onPress={() => void openExternal(trainingUrl)} />
-        <ServiceCard premium={false} icon="restaurant-menu" title="Menú del restaurante" subtitle="Consulta alimentos, bebidas, precios y disponibilidad." onPress={() => router.push('/restaurant' as never)} />
-        <ServiceCard premium={false} icon="rate-review" title="Escribir reseña en Google" subtitle="Ordena tu experiencia, copia el texto y abre Google Maps." onPress={() => router.push('/reviews' as never)} />
+        <GuestServiceCard icon="chat" title="1. Cuéntanos qué quieres mejorar" subtitle="Edad, paseo, obediencia, hábitos o convivencia: empieza con orientación directa de UCAPSA." onPress={() => void openExternal(guestWhatsAppUrl)} />
+        <GuestServiceCard icon="pets" title="2. Construir las bases" subtitle="UCAPSA School: aprende a comunicarte mejor y trabaja convivencia, hábitos y manejo." onPress={() => void openExternal(schoolUrl)} />
+        <GuestServiceCard icon="school" title="3. Entrenar y avanzar" subtitle="Entrenamiento guiado con niveles, seguimiento y trabajo en equipo humano-perro." onPress={() => void openExternal(trainingUrl)} />
+        <GuestServiceCard icon="restaurant-menu" title="Menú del restaurante" subtitle="Consulta alimentos, bebidas, precios y disponibilidad." onPress={() => router.push('/restaurant' as never)} />
+        <GuestServiceCard icon="rate-review" title="Escribir reseña en Google" subtitle="Ordena tu experiencia, copia el texto y abre Google Maps." onPress={() => router.push('/reviews' as never)} />
 
-        <View style={styles.contactCard}>
-          <Text style={styles.sectionTitle}>Contacto</Text>
-          <Text style={styles.muted}>También puedes conocer UCAPSA por estos canales.</Text>
-          <SocialLinksRow premium={false} />
-        </View>
+        <SocialLinksRow title="Contacto" subtitle="Sitio web y redes oficiales de UCAPSA." premium={false} />
       </KeyboardAwareScreen>
     );
   }
 
   const membershipHero = premium
-    ? { eyebrow: 'SOCIO UCAPSA', title: 'Tu membresía UCAPSA', detail: 'Consulta tu credencial, estado y acceso de socio.', icon: 'workspace-premium' as const }
+    ? { eyebrow: 'SOCIO UCAPSA', title: 'Tu membresía', detail: 'Credencial, estado y acceso de socio.', icon: 'workspace-premium' as const }
     : membershipLoadFailed
       ? { eyebrow: 'NO VERIFICADO', title: 'Revisa tu membresía', detail: 'No pudimos confirmar el estado actual.', icon: 'cloud-off' as const }
       : membershipStatus === 'active'
-        ? { eyebrow: 'MEMBRESÍA', title: 'Membresía vigente', detail: 'Consulta tu credencial y estado actual.', icon: 'workspace-premium' as const }
+        ? { eyebrow: 'MEMBRESÍA', title: 'Tu membresía', detail: 'Credencial y acceso UCAPSA.', icon: 'workspace-premium' as const }
         : membershipStatus === 'pending'
           ? { eyebrow: 'EN REVISIÓN', title: 'Solicitud de membresía', detail: 'UCAPSA está revisando tu solicitud.', icon: 'hourglass-top' as const }
           : membershipStatus === 'scheduled'
-            ? { eyebrow: 'PROGRAMADA', title: 'Tu membresía ya tiene inicio', detail: 'Abre el detalle para consultar la fecha.', icon: 'event-available' as const }
+            ? { eyebrow: 'PROGRAMADA', title: 'Tu membresía ya tiene inicio', detail: 'Consulta la fecha y el detalle.', icon: 'event-available' as const }
             : membershipStatus === 'expired'
               ? { eyebrow: 'MEMBRESÍA', title: 'Consulta tu membresía', detail: 'Revisa su estado y tu historial de acceso.', icon: 'history' as const }
-              : { eyebrow: 'MEMBRESÍA', title: 'Consulta tu elegibilidad', detail: 'Revisa si ya puedes solicitar membresía UCAPSA.', icon: 'workspace-premium' as const };
+              : { eyebrow: 'MEMBRESÍA', title: 'Consulta tu elegibilidad', detail: 'Revisa si ya puedes solicitarla.', icon: 'workspace-premium' as const };
 
   return (
     <KeyboardAwareScreen
@@ -142,80 +142,153 @@ export default function ServicesTab() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={format.accent} />}
     >
       <UcapsaAmbientBackground format={format} variant="services" />
-      <ClientPageHeader
-        format={format}
-        eyebrow="Tu acceso"
-        title="Servicios"
-        subtitle="Membresía, restaurante, compras y contacto directo con UCAPSA."
-        icon="grid-view"
-      />
+      <CompactServicesHeader premium={premium} accent={format.accent} muted={format.muted} />
 
       {usingSavedData ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} /> : null}
 
-      {loading ? <View style={styles.loading}><ActivityIndicator color={format.accent} /><Text style={[styles.muted, { color: format.muted }]}>Cargando...</Text></View> : null}
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${membershipHero.eyebrow}. ${membershipHero.title}`}
-        style={[styles.membershipHero, premium && styles.membershipHeroPremium]}
-        onPress={() => router.push('/client/membership' as never)}
-      >
-        {premium ? (
-          <MemberClubCrest compact />
-        ) : (
-          <View style={styles.membershipHeroIcon}>
-            <MaterialIcons name={membershipHero.icon} size={27} color={ucapsaBrand.colors.redDark} />
-          </View>
-        )}
-        <View style={styles.membershipHeroCopy}>
-          <Text style={[styles.membershipHeroEyebrow, premium && styles.membershipHeroEyebrowPremium]}>{membershipHero.eyebrow}</Text>
-          <Text style={[styles.membershipHeroTitle, premium && styles.textPremium]}>{membershipHero.title}</Text>
-          <Text style={[styles.membershipHeroDetail, premium && styles.mutedPremium]}>{membershipHero.detail}</Text>
+      {loading ? (
+        <View style={styles.loading}>
+          <ActivityIndicator color={format.accent} />
+          <Text style={[styles.muted, { color: format.muted }]}>Actualizando acceso...</Text>
         </View>
-        <MaterialIcons name="arrow-forward" size={23} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.redDark} />
-      </Pressable>
+      ) : null}
+
+      <MembershipCard
+        premium={premium}
+        eyebrow={membershipHero.eyebrow}
+        title={membershipHero.title}
+        detail={membershipHero.detail}
+        icon={membershipHero.icon}
+        onPress={() => router.push('/client/membership' as never)}
+      />
 
       {premium ? (
-        <View style={styles.clubAccessCard}>
-          <Text style={styles.clubAccessEyebrow}>TU ACCESO COMO SOCIO</Text>
-          <View style={styles.clubAccessGrid}>
-            <ClubAccessItem
-              icon="badge"
-              label="Credencial digital"
-              onPress={() => router.push('/client/membership' as never)}
-            />
-            <ClubAccessItem
-              icon="emoji-events"
-              label="Perro del Año"
-              onPress={() => router.push('/client/points' as never)}
-            />
-            <ClubAccessItem
-              icon="history"
-              label="Historial de visitas"
-              onPress={() => router.push('/client/member-visits' as never)}
-            />
+        <View style={styles.memberAccessSection}>
+          <Text style={styles.memberAccessEyebrow}>TU ACCESO DE SOCIO</Text>
+          <View style={styles.memberAccessGrid}>
+            <MemberShortcut icon="badge" label="Credencial" onPress={() => router.push('/client/membership' as never)} />
+            <MemberShortcut icon="emoji-events" label="Perro del Año" onPress={() => router.push('/client/points' as never)} />
+            <MemberShortcut icon="history" label="Visitas" onPress={() => router.push('/client/member-visits' as never)} />
           </View>
         </View>
       ) : null}
 
-      <Text style={[styles.sectionEyebrow, premium && styles.sectionEyebrowPremium]}>MÁS SERVICIOS</Text>
+      <Text style={[styles.sectionTitle, premium && styles.sectionTitlePremium]}>Más en UCAPSA</Text>
 
-      <ServiceCard premium={premium} icon="restaurant-menu" title="Menú del restaurante" subtitle="Consulta alimentos, bebidas, precios y disponibilidad antes de pedir." onPress={() => router.push('/restaurant' as never)} />
-      <ServiceCard premium={premium} icon="rate-review" title="Escribir reseña en Google" subtitle="Te ayudamos a ordenar tu experiencia; tú decides el texto final." onPress={() => router.push('/reviews' as never)} />
-      <ServiceCard
+      <ServiceRow
+        premium={premium}
+        icon="restaurant-menu"
+        title="Menú del restaurante"
+        subtitle="Alimentos, bebidas, precios y disponibilidad."
+        onPress={() => router.push('/restaurant' as never)}
+      />
+      <ServiceRow
         premium={premium}
         icon="shopping-bag"
         title="Compras y consultas"
-        subtitle="Pregunta por productos, disponibilidad u otros servicios directamente con UCAPSA."
-        onPress={() => void Linking.openURL(whatsappUrl).catch(() => Alert.alert('No se pudo abrir WhatsApp', 'Revisa tu conexión e intenta de nuevo.'))}
+        subtitle="Productos, disponibilidad y atención directa por WhatsApp."
+        onPress={() => void openExternal(whatsappUrl)}
+      />
+      <ServiceRow
+        premium={premium}
+        icon="rate-review"
+        title="Escribir reseña en Google"
+        subtitle="Ordena tu experiencia; tú decides el texto final."
+        onPress={() => router.push('/reviews' as never)}
       />
 
-      <View style={[styles.contactCard, premium && styles.cardPremium]}>
-        <Text style={[styles.sectionTitle, premium && styles.textPremium]}>Contacto</Text>
-        <Text style={[styles.muted, premium && styles.mutedPremium]}>Elige el canal que prefieras.</Text>
-        <SocialLinksRow premium={premium} />
+      <View style={styles.socialSection}>
+        <SocialLinksRow title="Canales oficiales" subtitle="WhatsApp, sitio web y redes de UCAPSA." premium={premium} />
       </View>
     </KeyboardAwareScreen>
+  );
+}
+
+function CompactServicesHeader({ premium, accent, muted }: { premium: boolean; accent: string; muted: string }) {
+  return (
+    <View style={styles.compactHeader}>
+      <View style={[styles.compactHeaderIcon, premium && styles.compactHeaderIconPremium]}>
+        <MaterialIcons name="grid-view" size={22} color={accent} />
+      </View>
+      <View style={styles.compactHeaderCopy}>
+        <Text style={[styles.compactHeaderTitle, premium && styles.textPremium]}>Servicios</Text>
+        <Text style={[styles.compactHeaderSubtitle, { color: muted }]}>Tu membresía y accesos UCAPSA</Text>
+      </View>
+    </View>
+  );
+}
+
+function MembershipCard({ premium, eyebrow, title, detail, icon, onPress }: {
+  premium: boolean;
+  eyebrow: string;
+  title: string;
+  detail: string;
+  icon: keyof typeof MaterialIcons.glyphMap;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${eyebrow}. ${title}`}
+      style={({ pressed }) => [styles.membershipCard, premium && styles.membershipCardPremium, pressed && styles.pressed]}
+      onPress={onPress}
+    >
+      {premium ? (
+        <MemberClubCrest compact />
+      ) : (
+        <View style={styles.membershipIcon}>
+          <MaterialIcons name={icon} size={24} color={ucapsaBrand.colors.redDark} />
+        </View>
+      )}
+      <View style={styles.membershipCopy}>
+        <Text style={[styles.membershipEyebrow, premium && styles.membershipEyebrowPremium]}>{eyebrow}</Text>
+        <Text style={[styles.membershipTitle, premium && styles.textPremium]}>{title}</Text>
+        <Text style={[styles.membershipDetail, premium && styles.mutedPremium]}>{detail}</Text>
+      </View>
+      <MaterialIcons name="chevron-right" size={24} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.redDark} />
+    </Pressable>
+  );
+}
+
+function MemberShortcut({ icon, label, onPress }: { icon: keyof typeof MaterialIcons.glyphMap; label: string; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [styles.memberShortcut, pressed && styles.pressed]}
+    >
+      <View style={styles.memberShortcutIcon}>
+        <MaterialIcons name={icon} size={18} color={ucapsaBrand.colors.premiumActionText} />
+      </View>
+      <Text style={styles.memberShortcutLabel}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function ServiceRow({ premium, icon, title, subtitle, onPress }: {
+  premium: boolean;
+  icon: keyof typeof MaterialIcons.glyphMap;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      style={({ pressed }) => [styles.serviceRow, premium && styles.cardPremium, pressed && styles.pressed]}
+      onPress={onPress}
+    >
+      <View style={[styles.serviceIcon, premium && styles.serviceIconPremium]}>
+        <MaterialIcons name={icon} size={21} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.redDark} />
+      </View>
+      <View style={styles.serviceCopy}>
+        <Text style={[styles.serviceTitle, premium && styles.textPremium]}>{title}</Text>
+        <Text style={[styles.serviceSubtitle, premium && styles.mutedPremium]}>{subtitle}</Text>
+      </View>
+      <MaterialIcons name="chevron-right" size={22} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.redDark} />
+    </Pressable>
   );
 }
 
@@ -231,31 +304,20 @@ function GuestProof({ icon, title, text }: { icon: keyof typeof MaterialIcons.gl
   );
 }
 
-function ClubAccessItem({ icon, label, onPress }: { icon: keyof typeof MaterialIcons.glyphMap; label: string; onPress: () => void }) {
+function GuestServiceCard({ icon, title, subtitle, onPress }: {
+  icon: keyof typeof MaterialIcons.glyphMap;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+}) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      style={({ pressed }) => [styles.clubAccessItem, pressed && styles.clubAccessItemPressed]}
-    >
-      <View style={styles.clubAccessIcon}>
-        <MaterialIcons name={icon} size={18} color={ucapsaBrand.colors.premiumActionText} />
+    <Pressable accessibilityRole="button" accessibilityLabel={title} style={styles.guestServiceCard} onPress={onPress}>
+      <View style={styles.guestServiceIcon}><MaterialIcons name={icon} size={24} color={ucapsaBrand.colors.redDark} /></View>
+      <View style={styles.serviceCopy}>
+        <Text style={styles.serviceTitle}>{title}</Text>
+        <Text style={styles.serviceSubtitle}>{subtitle}</Text>
       </View>
-      <Text style={styles.clubAccessLabel}>{label}</Text>
-    </Pressable>
-  );
-}
-
-function ServiceCard({ premium, icon, title, subtitle, onPress }: { premium: boolean; icon: keyof typeof MaterialIcons.glyphMap; title: string; subtitle: string; onPress: () => void }) {
-  return (
-    <Pressable accessibilityRole="button" accessibilityLabel={title} style={[styles.card, premium && styles.cardPremium]} onPress={onPress}>
-      <View style={[styles.iconBox, premium && styles.iconBoxPremium]}><MaterialIcons name={icon} size={24} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.redDark} /></View>
-      <View style={styles.cardText}>
-        <Text style={[styles.cardTitle, premium && styles.textPremium]}>{title}</Text>
-        <Text style={[styles.cardSubtitle, premium && styles.mutedPremium]}>{subtitle}</Text>
-      </View>
-      <MaterialIcons name="chevron-right" size={24} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.redDark} />
+      <MaterialIcons name="chevron-right" size={24} color={ucapsaBrand.colors.redDark} />
     </Pressable>
   );
 }
@@ -263,45 +325,46 @@ function ServiceCard({ premium, icon, title, subtitle, onPress }: { premium: boo
 const styles = StyleSheet.create({
   screenContent: { position: 'relative' },
   premiumContent: { backgroundColor: ucapsaBrand.colors.premiumBackground },
-  header: { gap: 4, marginBottom: 16 },
-  headerPremium: { marginBottom: 12 },
-  kicker: { fontSize: 12, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.8 },
-  title: { fontSize: 30, fontWeight: '900' },
-  subtitle: { fontSize: 14, lineHeight: 20, fontWeight: '700' },
-  loading: { flexDirection: 'row', gap: 10, alignItems: 'center', paddingVertical: 10 },
-  membershipHero: { minHeight: 138, flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 28, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, backgroundColor: ucapsaBrand.colors.redSoft, padding: 17, marginBottom: 14 },
-  membershipHeroPremium: { borderColor: ucapsaBrand.colors.premiumBorderStrong, backgroundColor: ucapsaBrand.colors.premiumSurface, shadowColor: ucapsaBrand.colors.redDeep, shadowOpacity: 0.05, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 1 },
-  membershipHeroIcon: { width: 54, height: 54, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.surface },
-  membershipHeroIconPremium: { backgroundColor: ucapsaBrand.colors.premiumSurfaceAlt, borderWidth: 1, borderColor: ucapsaBrand.colors.premiumBorder },
-  membershipHeroCopy: { flex: 1, minWidth: 0 },
-  membershipHeroEyebrow: { color: ucapsaBrand.colors.redDark, fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 1.0 },
-  membershipHeroEyebrowPremium: { color: ucapsaBrand.colors.premiumAction },
-  membershipHeroTitle: { color: ucapsaBrand.colors.text, fontSize: 20, lineHeight: 24, fontWeight: '900', marginTop: 2 },
-  membershipHeroDetail: { color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 16, fontWeight: '700', marginTop: 3 },
-  clubAccessCard: { gap: 10, borderRadius: 24, borderWidth: 1, borderColor: ucapsaBrand.colors.premiumBorder, backgroundColor: ucapsaBrand.colors.premiumHero, padding: 14, marginBottom: 18 },
-  clubAccessEyebrow: { color: ucapsaBrand.colors.premiumAction, fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 1.0 },
-  clubAccessGrid: { flexDirection: 'row', gap: 8 },
-  clubAccessItem: { flex: 1, minHeight: 88, alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.premiumBorder, backgroundColor: ucapsaBrand.colors.premiumSurface, paddingHorizontal: 8, paddingVertical: 10 },
-  clubAccessItemPressed: { opacity: 0.76, transform: [{ scale: 0.98 }] },
-  clubAccessIcon: { width: 36, height: 36, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.premiumSurfaceAlt },
-  clubAccessLabel: { color: ucapsaBrand.colors.premiumText, textAlign: 'center', fontSize: 10, lineHeight: 13, fontWeight: '900' },
-  sectionEyebrow: { color: ucapsaBrand.colors.redDark, fontSize: 10, fontWeight: '900', letterSpacing: 1.0, marginBottom: 9, marginTop: 2 },
-  sectionEyebrowPremium: { color: ucapsaBrand.colors.premiumAction },
+  compactHeader: { flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 14 },
+  compactHeaderIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder },
+  compactHeaderIconPremium: { backgroundColor: ucapsaBrand.colors.premiumSurfaceAlt, borderColor: ucapsaBrand.colors.premiumBorder },
+  compactHeaderCopy: { flex: 1, minWidth: 0 },
+  compactHeaderTitle: { color: ucapsaBrand.colors.text, fontSize: 27, lineHeight: 31, fontWeight: '900' },
+  compactHeaderSubtitle: { fontSize: 12, lineHeight: 17, fontWeight: '700', marginTop: 1 },
+  loading: { flexDirection: 'row', gap: 9, alignItems: 'center', paddingVertical: 8 },
+  muted: { fontSize: 12, lineHeight: 18, fontWeight: '700' },
+  mutedPremium: { color: ucapsaBrand.colors.premiumMuted },
+  textPremium: { color: ucapsaBrand.colors.premiumText },
+  pressed: { opacity: 0.78, transform: [{ scale: 0.99 }] },
+  membershipCard: { minHeight: 104, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 22, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, backgroundColor: ucapsaBrand.colors.redSoft, paddingHorizontal: 14, paddingVertical: 13, marginBottom: 13 },
+  membershipCardPremium: { borderColor: ucapsaBrand.colors.premiumBorderStrong, backgroundColor: ucapsaBrand.colors.premiumSurface, shadowColor: ucapsaBrand.colors.redDeep, shadowOpacity: 0.04, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 1 },
+  membershipIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.surface },
+  membershipCopy: { flex: 1, minWidth: 0 },
+  membershipEyebrow: { color: ucapsaBrand.colors.redDark, fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 1 },
+  membershipEyebrowPremium: { color: ucapsaBrand.colors.premiumAction },
+  membershipTitle: { color: ucapsaBrand.colors.text, fontSize: 18, lineHeight: 22, fontWeight: '900', marginTop: 1 },
+  membershipDetail: { color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 15, fontWeight: '700', marginTop: 2 },
+  memberAccessSection: { gap: 8, marginBottom: 17 },
+  memberAccessEyebrow: { color: ucapsaBrand.colors.premiumAction, fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 1 },
+  memberAccessGrid: { flexDirection: 'row', gap: 8 },
+  memberShortcut: { flex: 1, minHeight: 70, alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 17, borderWidth: 1, borderColor: ucapsaBrand.colors.premiumBorder, backgroundColor: ucapsaBrand.colors.premiumSurface, paddingHorizontal: 6, paddingVertical: 8 },
+  memberShortcutIcon: { width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.premiumSurfaceAlt },
+  memberShortcutLabel: { color: ucapsaBrand.colors.premiumText, textAlign: 'center', fontSize: 10, lineHeight: 12, fontWeight: '900' },
+  sectionTitle: { color: ucapsaBrand.colors.redDark, fontSize: 12, lineHeight: 16, fontWeight: '900', marginBottom: 8, marginTop: 1 },
+  sectionTitlePremium: { color: ucapsaBrand.colors.premiumAction },
+  serviceRow: { flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 13, paddingVertical: 12, marginBottom: 9 },
+  cardPremium: { backgroundColor: ucapsaBrand.colors.premiumSurface, borderColor: ucapsaBrand.colors.premiumBorder },
+  serviceIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
+  serviceIconPremium: { backgroundColor: ucapsaBrand.colors.premiumSurfaceAlt, borderWidth: 1, borderColor: ucapsaBrand.colors.premiumBorder },
+  serviceCopy: { flex: 1, minWidth: 0 },
+  serviceTitle: { color: ucapsaBrand.colors.text, fontSize: 15, lineHeight: 19, fontWeight: '900' },
+  serviceSubtitle: { color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 16, fontWeight: '700', marginTop: 1 },
+  socialSection: { marginTop: 3 },
   guestProofCard: { gap: 10, borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 14, marginBottom: 12 },
   guestProofRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   guestProofIcon: { width: 38, height: 38, borderRadius: 13, backgroundColor: ucapsaBrand.colors.redSoft, alignItems: 'center', justifyContent: 'center' },
   guestProofTitle: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
   guestProofText: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 17, fontWeight: '700', marginTop: 1 },
-  muted: { fontSize: 13, lineHeight: 19, fontWeight: '700' },
-  mutedPremium: { color: ucapsaBrand.colors.premiumMuted },
-  textPremium: { color: ucapsaBrand.colors.premiumText },
-  card: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 16, marginBottom: 12 },
-  cardPremium: { backgroundColor: ucapsaBrand.colors.premiumSurface, borderColor: ucapsaBrand.colors.premiumBorder },
-  iconBox: { width: 46, height: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
-  iconBoxPremium: { backgroundColor: ucapsaBrand.colors.premiumSurfaceAlt, borderWidth: 1, borderColor: ucapsaBrand.colors.premiumBorder },
-  cardText: { flex: 1 },
-  cardTitle: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900' },
-  cardSubtitle: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 2 },
-  contactCard: { gap: 8, borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 16 },
-  sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '900' },
+  guestServiceCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 16, marginBottom: 12 },
+  guestServiceIcon: { width: 46, height: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
 });
