@@ -30,7 +30,8 @@ must('src/services/memberships.service.ts', /getMyMembershipEligibility/, 'Membr
 must('src/services/memberships.service.ts', /program_completion_achievement/, 'Membresía perdió el fallback de evidencia histórica por logro de programa.');
 must('src/app/client/membership.tsx', /getMyMembershipEligibility/, 'Pantalla de membresía no usa la elegibilidad canónica.');
 mustNot('src/app/client/membership.tsx', /isMembershipEligibleFromPrograms\(programs\)/, 'Pantalla de membresía volvió a decidir elegibilidad desde una lista local de programas.');
-must('src/app/attendance.tsx', /isMembershipActiveToday/, 'Escáner de socio no valida vigencia efectiva de la membresía.');
+mustNot('src/app/attendance.tsx', /isMembershipActiveToday/, 'Escáner volvió a expirar socios activos por fecha.');
+must('src/app/attendance.tsx', /cachedMembership\?\.data\.status === 'active'/, 'Escáner no permite usar la membresía activa guardada sin conexión.');
 mustNot('src/app/client/attendance-history.tsx', /!enrollmentId\)\s*return/, 'Historial de asistencias volvió a exigir enrollmentId y rompe APROVECHASTE desde Home.');
 must('src/app/client/attendance-history.tsx', /Historial de asistencias/, 'Falta la vista agregada de asistencias desde APROVECHASTE.');
 mustNot('src/components/domain/CustomerValueSnapshotCard.tsx', /parts\.push\(`Membresía vencida/, 'TIENES volvió a presentar una membresía vencida como valor disponible.');
@@ -41,6 +42,16 @@ must('src/screens/home/HomeExperienceScreen.tsx', /loadRunRef/, 'Inicio perdió 
 must('src/screens/home/HomeExperienceScreen.tsx', /mergeCustomerValueSnapshotWithCache/, 'Inicio volvió al fallback todo-o-nada en vez de mezclar por fuente.');
 mustNot('src/screens/home/HomeExperienceScreen.tsx', /new Date\(selectedAnnouncement\?\.announcement_date\)/, 'Inicio volvió a parsear una fecha civil de aviso como UTC.');
 must('src/services/customer-value-merge.service.ts', /cached_fallback:/, 'Falta trazabilidad de qué fuente de Inicio cayó a caché.');
+
+must('src/services/attendance-outbox.service.ts', /AsyncStorage/, 'El QR perdió la cola local persistente.');
+must('src/services/attendance-outbox.service.ts', /p_client_event_id/, 'El QR perdió la clave idempotente de sincronización.');
+must('src/services/attendance-outbox.service.ts', /p_captured_at/, 'El QR dejó de conservar la hora real de captura offline.');
+must('src/services/client-offline-sync.service.ts', /flushPendingAttendanceOperations/, 'El arranque dejó de reintentar asistencias y visitas pendientes.');
+must('src/app/attendance.tsx', /queueClassAttendance/, 'El escáner de clases volvió a escribir solo en red.');
+must('src/app/attendance.tsx', /queueMemberVisit/, 'El escáner de socios volvió a escribir solo en red.');
+must('supabase/sql/ucapsa-offline-attendance-outbox.sql', /program_attendances_enrollment_client_event_unique_idx/, 'Backend perdió idempotencia de asistencias offline.');
+must('supabase/sql/ucapsa-offline-attendance-outbox.sql', /member_visits_user_client_event_unique_idx/, 'Backend perdió idempotencia de visitas offline.');
+must('supabase/sql/ucapsa-offline-attendance-outbox.sql', /interval '7 days'/, 'Backend perdió el límite de antigüedad para capturas offline.');
 
 must('src/app/(tabs)/classes.tsx', /Tu programa y próximas sesiones/, 'Clases perdió el encabezado compacto orientado al programa actual.');
 mustNot('src/app/(tabs)/classes.tsx', /ClientPageHeader/, 'Clases volvió al hero compartido que ocupa demasiado espacio vertical.');
