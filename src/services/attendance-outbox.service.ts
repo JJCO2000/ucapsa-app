@@ -175,13 +175,13 @@ export async function queueMemberVisit(input: {
 
 async function registerQueuedClass(operation: PendingClassAttendanceOperation): Promise<RegisterAttendanceFromQrResult> {
   const response = await withOperationTimeout(
-    Promise.resolve(supabase.rpc('register_program_attendance_from_qr', {
+    supabase.rpc('register_program_attendance_from_qr', {
       p_qr_token: operation.token,
       p_enrollment_id: operation.enrollmentId,
       p_confirm_outside_window: operation.confirmOutsideWindow,
       p_client_event_id: operation.id,
       p_captured_at: operation.capturedAt,
-    } as never)),
+    }),
     DEFAULT_WRITE_TIMEOUT_MS,
     'attendance-outbox-class',
   );
