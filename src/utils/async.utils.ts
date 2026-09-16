@@ -8,7 +8,7 @@ export function createOperationTimeoutError(label: string) {
 }
 
 export async function withOperationTimeout<T>(
-  promise: Promise<T>,
+  operation: PromiseLike<T>,
   timeoutMs: number,
   label: string,
 ): Promise<T> {
@@ -16,6 +16,7 @@ export async function withOperationTimeout<T>(
   const timeout = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => reject(createOperationTimeoutError(label)), timeoutMs);
   });
+  const promise = Promise.resolve(operation);
 
   try {
     return await Promise.race([promise, timeout]);
