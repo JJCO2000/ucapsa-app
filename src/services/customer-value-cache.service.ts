@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { normalizeLifetimeMembershipSnapshot } from './customer-value-merge.service';
 import type { CustomerValueSnapshot } from './customer-value.service';
 
 type CustomerValueCachePayload = {
@@ -43,7 +44,7 @@ export async function readCustomerValueSnapshotCache(
 
     return {
       savedAt: parsed.saved_at,
-      snapshot: parsed.snapshot,
+      snapshot: normalizeLifetimeMembershipSnapshot(parsed.snapshot),
     };
   } catch {
     return null;
@@ -51,17 +52,18 @@ export async function readCustomerValueSnapshotCache(
 }
 
 export async function writeCustomerValueSnapshotCache(snapshot: CustomerValueSnapshot): Promise<void> {
+  const normalizedSnapshot = normalizeLifetimeMembershipSnapshot(snapshot);
   const payload: CustomerValueCachePayload = {
     version: 1,
-    user_id: snapshot.userId,
+    user_id: normalizedSnapshot.userId,
     saved_at: new Date().toISOString(),
-    snapshot,
+    snapshot: normalizedSnapshot,
   };
 
   try {
-    await AsyncStorage.setItem(cacheKey(snapshot.userId), JSON.stringify(payload));
+    await AsyncStorage.setItem(cacheKey(normalizedSnapshot.userId), JSON.stringify(payload));
   } catch {
-    // La cache local es una mejora. Nunca convierte una lectura correcta en error.
+    // La caché local es una mejora. Nunca convierte una lectura correcta en error.
   }
 }
 
@@ -69,6 +71,6 @@ export async function clearCustomerValueSnapshotCache(userId: string): Promise<v
   try {
     await AsyncStorage.removeItem(cacheKey(userId));
   } catch {
-    // No bloquear logout ni otros flujos por un fallo de almacenamiento local.
+    // No bloquear logout ni otros flujos por un fallo del almacenamiento local.
   }
 }

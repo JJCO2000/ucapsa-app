@@ -9,19 +9,35 @@ import { KeyboardAwareScreen } from '../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand, withAlpha } from '../constants/brand';
 import { resolveUcapsaFormat } from '../constants/ucapsaFormats';
 import { useSession } from '../hooks/useSession';
-import { clientReadKeys, sanitizeProgramRowsForCache, writeClientResource } from '../services/client-read-cache.service';
-import { registerMyMemberVisitFromQr } from '../services/member-visits.service';
-import { getMyMembership, isMembershipActiveToday } from '../services/memberships.service';
+import {
+  confirmPendingClassAttendance,
+  discardAttendanceOperation,
+  flushPendingAttendanceOperations,
+  getPendingAttendanceOperations,
+  queueClassAttendance,
+  queueMemberVisit,
+  syncAttendanceOperation,
+  type PendingAttendanceOperation,
+  type PendingClassAttendanceOperation,
+} from '../services/attendance-outbox.service';
+import {
+  clientReadKeys,
+  createMembershipOfflineSummary,
+  readClientResource,
+  sanitizeProgramRowsForCache,
+  writeClientResource,
+  type MembershipOfflineSummary,
+} from '../services/client-read-cache.service';
+import { getMyMembership } from '../services/memberships.service';
 import {
   formatProgramScheduleDisplayLabel,
   getMyProgramEnrollments,
   getProgramEnrollmentDogName,
   getProgramLevelLabel,
   parseOfficialAttendanceQrValue,
-  registerMyProgramAttendanceFromQr,
 } from '../services/programs.service';
 import type { MembershipStatus, ProgramCode, ProgramEnrollmentWithDetails } from '../types/app.types';
-import { DEFAULT_READ_TIMEOUT_MS, DEFAULT_WRITE_TIMEOUT_MS, withOperationTimeout } from '../utils/async.utils';
+import { DEFAULT_READ_TIMEOUT_MS, withOperationTimeout } from '../utils/async.utils';
 
 function programLabel(code: ProgramCode) {
   return code === 'puppy' ? 'Puppy' : 'Comandos';
@@ -32,11 +48,11 @@ function enrollmentLabel(item: ProgramEnrollmentWithDetails) {
   return item.program.code === 'comandos' ? `${dog} - ${getProgramLevelLabel(item.enrollment.program_level)}` : dog;
 }
 
-type OutsideConfirmation = {
-  token: string;
-  enrollment: ProgramEnrollmentWithDetails;
-  message: string;
-};
+function capturedLabel(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'captura local';
+  return date.toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
 
 type Feedback = { kind: 'success' | 'business' | 'connection'; title: string; message: string } | null;
 
@@ -44,22 +60,33 @@ export default function AttendanceScanScreen() {
   const { user, role, isAdmin, loading: sessionLoading } = useSession();
   const [permission, requestPermission] = useCameraPermissions();
   const scanLockRef = useRef(false);
+  const loadRunRef = useRef(0);
   const [screenFocused, setScreenFocused] = useState(true);
   const [cameraActive, setCameraActive] = useState(true);
   const [enrollments, setEnrollments] = useState<ProgramEnrollmentWithDetails[]>([]);
   const [membershipStatus, setMembershipStatus] = useState<MembershipStatus | null>(null);
-  const [membershipActiveToday, setMembershipActiveToday] = useState(false);
+  const [membershipActive, setMembershipActive] = useState(false);
+  const [outbox, setOutbox] = useState<PendingAttendanceOperation[]>([]);
+  const [usingOfflineData, setUsingOfflineData] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [registering, setRegistering] = useState(false);
   const [pendingToken, setPendingToken] = useState<string | null>(null);
   const [pendingProgram, setPendingProgram] = useState<ProgramCode | null>(null);
   const [choices, setChoices] = useState<ProgramEnrollmentWithDetails[]>([]);
-  const [outsideConfirmation, setOutsideConfirmation] = useState<OutsideConfirmation | null>(null);
   const [feedback, setFeedback] = useState<Feedback>(null);
 
   const activeEnrollments = useMemo(() => enrollments.filter((item) => item.enrollment.status === 'active'), [enrollments]);
-  const canScanMemberVisits = membershipActiveToday;
+  const canScanMemberVisits = membershipActive;
   const canScanAnything = activeEnrollments.length > 0 || canScanMemberVisits;
+  const pendingCount = outbox.filter((item) => item.state === 'pending').length;
+  const confirmationOperation = outbox.find(
+    (item): item is PendingClassAttendanceOperation => item.kind === 'class' && item.state === 'needs_confirmation',
+  ) ?? null;
+  const rejectedOperation = outbox.find((item) => item.state === 'rejected') ?? null;
+  const confirmationEnrollment = confirmationOperation
+    ? enrollments.find((item) => item.enrollment.id === confirmationOperation.enrollmentId) ?? null
+    : null;
+
   const format = useMemo(
     () => resolveUcapsaFormat({ user, role, isAdmin, membershipStatus, hasActivePrograms: activeEnrollments.length > 0 }),
     [activeEnrollments.length, isAdmin, membershipStatus, role, user],
@@ -68,33 +95,74 @@ export default function AttendanceScanScreen() {
 
   const loadData = useCallback(async () => {
     if (!user || isAdmin) return;
+    const runId = loadRunRef.current + 1;
+    loadRunRef.current = runId;
+    const isCurrentRun = () => loadRunRef.current === runId;
+
     setLoadingData(true);
     setFeedback(null);
-    setMembershipActiveToday(false);
-    const [programResult, membershipResult] = await Promise.allSettled([
+
+    const [cachedPrograms, cachedMembership, cachedOutbox] = await Promise.all([
+      readClientResource<ProgramEnrollmentWithDetails[]>(user.id, clientReadKeys.programs),
+      readClientResource<MembershipOfflineSummary>(user.id, clientReadKeys.membership),
+      getPendingAttendanceOperations(user.id),
+    ]);
+    if (!isCurrentRun()) return;
+
+    setEnrollments(cachedPrograms?.data ?? []);
+    setMembershipStatus(cachedMembership?.data.status ?? null);
+    setMembershipActive(cachedMembership?.data.status === 'active');
+    setOutbox(cachedOutbox);
+    setLoadingData(false);
+
+    const [programResult, membershipResult, flushResult] = await Promise.allSettled([
       withOperationTimeout(getMyProgramEnrollments(), DEFAULT_READ_TIMEOUT_MS, 'attendance-enrollments'),
       withOperationTimeout(getMyMembership(), DEFAULT_READ_TIMEOUT_MS, 'attendance-membership'),
+      flushPendingAttendanceOperations(user.id),
     ]);
+    if (!isCurrentRun()) return;
 
     if (programResult.status === 'fulfilled') {
       setEnrollments(programResult.value);
       await writeClientResource(user.id, clientReadKeys.programs, sanitizeProgramRowsForCache(programResult.value));
-    }
-    if (membershipResult.status === 'fulfilled') {
-      setMembershipStatus(membershipResult.value?.status ?? null);
-      setMembershipActiveToday(isMembershipActiveToday(membershipResult.value));
+      if (!isCurrentRun()) return;
     }
 
-    if (programResult.status === 'rejected' && membershipResult.status === 'rejected') {
-      setFeedback({ kind: 'connection', title: 'No pudimos verificar tu cuenta', message: 'Registrar asistencia o visita necesita conexion para confirmar tus datos con UCAPSA.' });
+    if (membershipResult.status === 'fulfilled') {
+      const nextMembership = membershipResult.value;
+      setMembershipStatus(nextMembership?.status ?? null);
+      setMembershipActive(nextMembership?.status === 'active');
+      await writeClientResource(user.id, clientReadKeys.membership, createMembershipOfflineSummary(nextMembership));
+      if (!isCurrentRun()) return;
     }
+
+    if (flushResult.status === 'fulfilled') {
+      setOutbox(await getPendingAttendanceOperations(user.id));
+      if (!isCurrentRun()) return;
+    }
+
+    const remoteFailed = programResult.status === 'rejected' || membershipResult.status === 'rejected';
+    const hasLocalIdentity = Boolean(cachedPrograms || cachedMembership);
+    setUsingOfflineData(remoteFailed && hasLocalIdentity);
+
+    if (programResult.status === 'rejected' && membershipResult.status === 'rejected' && !hasLocalIdentity) {
+      setFeedback({
+        kind: 'connection',
+        title: 'No pudimos verificar tu cuenta',
+        message: 'Conecta una vez para guardar tus programas y membresía en este dispositivo. Después podrás capturar QR sin conexión.',
+      });
+    }
+
     setLoadingData(false);
   }, [isAdmin, user]);
 
   useFocusEffect(useCallback(() => {
     setScreenFocused(true);
     void loadData();
-    return () => setScreenFocused(false);
+    return () => {
+      setScreenFocused(false);
+      loadRunRef.current += 1;
+    };
   }, [loadData]));
 
   function resetScanner() {
@@ -102,9 +170,12 @@ export default function AttendanceScanScreen() {
     setPendingToken(null);
     setPendingProgram(null);
     setChoices([]);
-    setOutsideConfirmation(null);
     setFeedback(null);
     setCameraActive(true);
+  }
+
+  async function refreshOutbox(userId: string) {
+    setOutbox(await getPendingAttendanceOperations(userId));
   }
 
   async function refreshProgramsAfterConfirmedWrite(userId: string) {
@@ -113,48 +184,72 @@ export default function AttendanceScanScreen() {
       setEnrollments(refreshed);
       await writeClientResource(userId, clientReadKeys.programs, sanitizeProgramRowsForCache(refreshed));
     } catch {
-      // La escritura ya fue confirmada por Supabase. No convertir exito en error por el refresco.
+      // La escritura ya fue confirmada por Supabase. No convertir éxito en error por el refresco.
     }
   }
 
-  async function registerClass(token: string, enrollment: ProgramEnrollmentWithDetails, confirmOutsideWindow = false) {
+  async function registerClass(token: string, enrollment: ProgramEnrollmentWithDetails) {
     const userId = user?.id;
     if (!userId) {
-      setFeedback({ kind: 'business', title: 'Sesion no disponible', message: 'Vuelve a iniciar sesion.' });
+      setFeedback({ kind: 'business', title: 'Sesión no disponible', message: 'Vuelve a iniciar sesión.' });
       return;
     }
+
+    setRegistering(true);
+    setCameraActive(false);
+    setFeedback(null);
+
+    let operation: PendingClassAttendanceOperation;
     try {
-      setRegistering(true);
-      setCameraActive(false);
-      setFeedback(null);
-      const result = await withOperationTimeout(
-        registerMyProgramAttendanceFromQr({ token, enrollmentId: enrollment.enrollment.id, confirmOutsideWindow }),
-        DEFAULT_WRITE_TIMEOUT_MS,
-        'attendance-register',
-      );
+      operation = await queueClassAttendance({
+        userId,
+        token,
+        enrollmentId: enrollment.enrollment.id,
+      });
+      await refreshOutbox(userId);
+    } catch (error) {
+      setFeedback({
+        kind: 'business',
+        title: 'No se pudo guardar la captura',
+        message: error instanceof Error ? error.message : 'El dispositivo no pudo conservar esta asistencia. Intenta de nuevo.',
+      });
+      setRegistering(false);
+      return;
+    }
 
-      if (result.result === 'outside_window_confirmation_required') {
-        setOutsideConfirmation({ token, enrollment, message: result.message });
-        return;
-      }
+    try {
+      const result = await syncAttendanceOperation(userId, operation.id);
+      await refreshOutbox(userId);
+      if (!result) throw new Error('No se encontró el registro local pendiente.');
 
-      if (result.result === 'registered') {
-        setOutsideConfirmation(null);
-        setFeedback({ kind: 'success', title: 'Asistencia registrada', message: `${result.message} ${programLabel(enrollment.program.code)} - ${enrollmentLabel(enrollment)}.` });
+      if (result.status === 'synced') {
+        setFeedback({
+          kind: 'success',
+          title: 'Asistencia confirmada',
+          message: `${result.message} ${programLabel(enrollment.program.code)} - ${enrollmentLabel(enrollment)}.`,
+        });
         await refreshProgramsAfterConfirmedWrite(userId);
         return;
       }
 
-      if (result.result === 'already_registered') {
-        setOutsideConfirmation(null);
-        setFeedback({ kind: 'success', title: 'Ya estaba registrada', message: result.message });
+      if (result.status === 'needs_confirmation') {
+        setFeedback(null);
         return;
       }
 
-      setOutsideConfirmation(null);
-      setFeedback({ kind: 'business', title: 'No se puede registrar esta asistencia', message: result.message || 'UCAPSA rechazo el registro.' });
+      if (result.status === 'rejected') {
+        setFeedback({ kind: 'business', title: 'UCAPSA no pudo aceptar esta asistencia', message: result.message });
+        return;
+      }
+
+      setFeedback({ kind: 'connection', title: 'Asistencia guardada sin conexión', message: result.message });
     } catch {
-      setFeedback({ kind: 'connection', title: 'No se pudo confirmar', message: 'Revisa tu conexion e intenta de nuevo. No se registro ninguna asistencia sin confirmacion del servidor.' });
+      setFeedback({
+        kind: 'connection',
+        title: 'Asistencia guardada sin conexión',
+        message: 'La captura ya quedó en este dispositivo y se volverá a intentar cuando haya conexión.',
+      });
+      await refreshOutbox(userId).catch(() => undefined);
     } finally {
       setRegistering(false);
       setChoices([]);
@@ -164,21 +259,93 @@ export default function AttendanceScanScreen() {
   }
 
   async function registerMemberVisit(token: string) {
+    const userId = user?.id;
+    if (!userId) {
+      setFeedback({ kind: 'business', title: 'Sesión no disponible', message: 'Vuelve a iniciar sesión.' });
+      return;
+    }
+
+    setRegistering(true);
+    setCameraActive(false);
+    setFeedback(null);
+
+    let operation: PendingAttendanceOperation;
     try {
-      setRegistering(true);
-      setCameraActive(false);
-      setFeedback(null);
-      const result = await withOperationTimeout(registerMyMemberVisitFromQr(token), DEFAULT_WRITE_TIMEOUT_MS, 'member-visit-register');
-      if (result.result === 'registered') {
-        setFeedback({ kind: 'success', title: 'Visita registrada', message: result.message || 'Tu visita como socio quedo registrada.' });
-      } else {
-        setFeedback({ kind: 'business', title: 'No se puede registrar la visita', message: result.message || 'UCAPSA rechazo el registro.' });
+      operation = await queueMemberVisit({ userId, token });
+      await refreshOutbox(userId);
+    } catch (error) {
+      setFeedback({
+        kind: 'business',
+        title: 'No se pudo guardar la captura',
+        message: error instanceof Error ? error.message : 'El dispositivo no pudo conservar esta visita. Intenta de nuevo.',
+      });
+      setRegistering(false);
+      return;
+    }
+
+    try {
+      const result = await syncAttendanceOperation(userId, operation.id);
+      await refreshOutbox(userId);
+      if (!result) throw new Error('No se encontró la visita local pendiente.');
+
+      if (result.status === 'synced') {
+        setFeedback({ kind: 'success', title: 'Visita confirmada', message: result.message || 'Tu visita como socio quedó registrada.' });
+        return;
       }
+      if (result.status === 'rejected') {
+        setFeedback({ kind: 'business', title: 'UCAPSA no pudo aceptar esta visita', message: result.message });
+        return;
+      }
+      setFeedback({ kind: 'connection', title: 'Visita guardada sin conexión', message: result.message });
     } catch {
-      setFeedback({ kind: 'connection', title: 'No se pudo confirmar', message: 'Revisa tu conexion e intenta de nuevo. No se registro ninguna visita sin confirmacion del servidor.' });
+      setFeedback({
+        kind: 'connection',
+        title: 'Visita guardada sin conexión',
+        message: 'La captura ya quedó en este dispositivo y se volverá a intentar cuando haya conexión.',
+      });
+      await refreshOutbox(userId).catch(() => undefined);
     } finally {
       setRegistering(false);
     }
+  }
+
+  async function confirmQueuedClass(operation: PendingClassAttendanceOperation) {
+    const userId = user?.id;
+    if (!userId) return;
+    try {
+      setRegistering(true);
+      setFeedback(null);
+      const result = await confirmPendingClassAttendance(userId, operation.id);
+      await refreshOutbox(userId);
+      if (!result) throw new Error('No se encontró la asistencia pendiente.');
+
+      if (result.status === 'synced') {
+        setFeedback({ kind: 'success', title: 'Asistencia confirmada', message: result.message });
+        await refreshProgramsAfterConfirmedWrite(userId);
+        return;
+      }
+      if (result.status === 'rejected') {
+        setFeedback({ kind: 'business', title: 'UCAPSA no pudo aceptar esta asistencia', message: result.message });
+        return;
+      }
+      setFeedback({ kind: 'connection', title: 'Confirmación pendiente', message: result.message });
+    } catch {
+      setFeedback({
+        kind: 'connection',
+        title: 'Confirmación pendiente',
+        message: 'La captura sigue guardada en este dispositivo y se volverá a intentar cuando haya conexión.',
+      });
+    } finally {
+      setRegistering(false);
+    }
+  }
+
+  async function discardQueued(operationId: string) {
+    const userId = user?.id;
+    if (!userId) return;
+    await discardAttendanceOperation(userId, operationId);
+    await refreshOutbox(userId);
+    resetScanner();
   }
 
   async function handleBarcode(value: string) {
@@ -195,7 +362,7 @@ export default function AttendanceScanScreen() {
 
     if (parsed.programCode === 'member') {
       if (!canScanMemberVisits) {
-        setFeedback({ kind: 'business', title: 'QR de socios', message: 'Tu membresia no esta activa. Si crees que es un error, solicita revision en UCAPSA.' });
+        setFeedback({ kind: 'business', title: 'QR de socios', message: 'Tu membresía no está marcada como activa. Si crees que es un error, solicita revisión en UCAPSA.' });
         return;
       }
       await registerMemberVisit(parsed.token);
@@ -204,7 +371,7 @@ export default function AttendanceScanScreen() {
 
     const matching = activeEnrollments.filter((item) => item.program.code === parsed.programCode);
     if (matching.length === 0) {
-      setFeedback({ kind: 'business', title: 'Programa no disponible', message: `No tienes una inscripcion activa en ${programLabel(parsed.programCode)}.` });
+      setFeedback({ kind: 'business', title: 'Programa no disponible', message: `No tienes una inscripción activa en ${programLabel(parsed.programCode)}.` });
       return;
     }
     if (matching.length === 1) {
@@ -216,20 +383,20 @@ export default function AttendanceScanScreen() {
     setChoices(matching);
   }
 
-  if (sessionLoading) return <KeyboardAwareScreen backgroundColor={format.background}><ActivityIndicator color={format.accent} /><Text style={[styles.muted, { color: format.muted }]}>Revisando sesion...</Text></KeyboardAwareScreen>;
+  if (sessionLoading) return <KeyboardAwareScreen backgroundColor={format.background}><ActivityIndicator color={format.accent} /><Text style={[styles.muted, { color: format.muted }]}>Revisando sesión...</Text></KeyboardAwareScreen>;
 
   if (!user) {
-    return <KeyboardAwareScreen backgroundColor={format.background}><View style={styles.centerBox}><MaterialIcons name="lock" size={42} color={format.accentDark} /><Text style={styles.title}>Inicia sesion</Text><Text style={[styles.muted, { color: format.muted }]}>Necesitas tu cuenta UCAPSA para registrar asistencia o visita.</Text><Pressable style={[styles.primaryButton, { backgroundColor: format.primaryButton }]} onPress={() => router.push('/auth/login' as never)}><Text style={[styles.primaryButtonText, { color: format.primaryButtonText }]}>Iniciar sesion</Text></Pressable></View></KeyboardAwareScreen>;
+    return <KeyboardAwareScreen backgroundColor={format.background}><View style={styles.centerBox}><MaterialIcons name="lock" size={42} color={format.accentDark} /><Text style={styles.title}>Inicia sesión</Text><Text style={[styles.muted, { color: format.muted }]}>Necesitas tu cuenta UCAPSA para registrar asistencia o visita.</Text><Pressable style={[styles.primaryButton, { backgroundColor: format.primaryButton }]} onPress={() => router.push('/auth/login' as never)}><Text style={[styles.primaryButtonText, { color: format.primaryButtonText }]}>Iniciar sesión</Text></Pressable></View></KeyboardAwareScreen>;
   }
 
   if (isAdmin) {
-    return <KeyboardAwareScreen><View style={styles.centerBox}><MaterialIcons name="admin-panel-settings" size={42} color={ucapsaBrand.colors.redDark} /><Text style={styles.title}>Cuenta administrativa</Text><Text style={styles.muted}>Los QR oficiales se administran desde Administracion.</Text><Pressable style={styles.primaryButton} onPress={() => router.replace('/admin/attendance-qr' as never)}><Text style={styles.primaryButtonText}>Abrir QR oficiales</Text></Pressable></View></KeyboardAwareScreen>;
+    return <KeyboardAwareScreen><View style={styles.centerBox}><MaterialIcons name="admin-panel-settings" size={42} color={ucapsaBrand.colors.redDark} /><Text style={styles.title}>Cuenta administrativa</Text><Text style={styles.muted}>Los QR oficiales se administran desde Administración.</Text><Pressable style={styles.primaryButton} onPress={() => router.replace('/admin/attendance-qr' as never)}><Text style={styles.primaryButtonText}>Abrir QR oficiales</Text></Pressable></View></KeyboardAwareScreen>;
   }
 
-  if (!permission) return <KeyboardAwareScreen backgroundColor={format.background}><Text style={styles.title}>Registrar</Text><Text style={[styles.muted, { color: format.muted }]}>Preparando camara...</Text></KeyboardAwareScreen>;
+  if (!permission) return <KeyboardAwareScreen backgroundColor={format.background}><Text style={styles.title}>Registrar</Text><Text style={[styles.muted, { color: format.muted }]}>Preparando cámara...</Text></KeyboardAwareScreen>;
 
   if (!permission.granted) {
-    return <KeyboardAwareScreen backgroundColor={format.background}><View style={styles.centerBox}><MaterialCommunityIcons name="qrcode-scan" size={46} color={format.accentDark} /><Text style={styles.title}>Registrar</Text><Text style={[styles.muted, { color: format.muted }]}>Permite la camara para escanear el QR oficial de Puppy, Comandos o Socios.</Text><Pressable style={[styles.primaryButton, { backgroundColor: format.primaryButton }]} onPress={requestPermission}><Text style={[styles.primaryButtonText, { color: format.primaryButtonText }]}>Permitir camara</Text></Pressable></View></KeyboardAwareScreen>;
+    return <KeyboardAwareScreen backgroundColor={format.background}><View style={styles.centerBox}><MaterialCommunityIcons name="qrcode-scan" size={46} color={format.accentDark} /><Text style={styles.title}>Registrar</Text><Text style={[styles.muted, { color: format.muted }]}>Permite la cámara para escanear el QR oficial de Puppy, Comandos o Socios.</Text><Pressable style={[styles.primaryButton, { backgroundColor: format.primaryButton }]} onPress={requestPermission}><Text style={[styles.primaryButtonText, { color: format.primaryButtonText }]}>Permitir cámara</Text></Pressable></View></KeyboardAwareScreen>;
   }
 
   return (
@@ -237,7 +404,7 @@ export default function AttendanceScanScreen() {
       <View style={styles.hero}>
         <Text style={[styles.kicker, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>UCAPSA</Text>
         <Text style={[styles.heroTitle, { color: format.text }]}>Registrar</Text>
-        <Text style={[styles.muted, { color: format.muted }]}>Escanea el QR oficial. Puppy y Comandos registran clase; Socios registra una visita libre.</Text>
+        <Text style={[styles.muted, { color: format.muted }]}>Escanea el QR oficial. Si no hay internet, la captura queda guardada en este dispositivo hasta que UCAPSA pueda confirmarla.</Text>
       </View>
 
       <View style={styles.actionRow}>
@@ -245,39 +412,77 @@ export default function AttendanceScanScreen() {
         <Pressable style={[styles.secondaryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={resetScanner}><Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>Escanear otro</Text></Pressable>
       </View>
 
-      {loadingData ? <InfoCard format={format}><ActivityIndicator color={format.accent} /><Text style={[styles.muted, { color: format.muted }]}>Verificando tu cuenta...</Text></InfoCard> : null}
+      {loadingData ? <InfoCard format={format}><ActivityIndicator color={format.accent} /><Text style={[styles.muted, { color: format.muted }]}>Preparando tus datos guardados...</Text></InfoCard> : null}
 
-      {!loadingData && !feedback && !canScanAnything ? <InfoCard format={format}><Text style={[styles.infoTitle, { color: format.cardText }]}>Sin registros disponibles</Text><Text style={[styles.muted, { color: format.muted }]}>No tienes clases activas ni una membresia activa para registrar en este momento.</Text></InfoCard> : null}
+      {usingOfflineData ? (
+        <InfoCard format={format}>
+          <View style={styles.inlineStatus}>
+            <MaterialIcons name="offline-pin" size={22} color={format.accentDark} />
+            <View style={styles.statusCopy}>
+              <Text style={[styles.infoTitle, { color: format.cardText }]}>Modo sin conexión</Text>
+              <Text style={[styles.muted, { color: format.muted }]}>Usando la última información guardada en este dispositivo.</Text>
+            </View>
+          </View>
+        </InfoCard>
+      ) : null}
 
-      {screenFocused && cameraActive && !loadingData && canScanAnything ? (
+      {pendingCount > 0 ? (
+        <InfoCard format={format}>
+          <View style={styles.inlineStatus}>
+            <MaterialIcons name="sync" size={22} color={format.accentDark} />
+            <View style={styles.statusCopy}>
+              <Text style={[styles.infoTitle, { color: format.cardText }]}>{pendingCount} registro{pendingCount === 1 ? '' : 's'} pendiente{pendingCount === 1 ? '' : 's'}</Text>
+              <Text style={[styles.muted, { color: format.muted }]}>Se reintentará la sincronización cuando UCAPSA tenga conexión.</Text>
+            </View>
+          </View>
+        </InfoCard>
+      ) : null}
+
+      {confirmationOperation ? (
+        <View style={[styles.infoCard, styles.warningCard]}>
+          <MaterialIcons name="schedule" size={32} color={ucapsaBrand.colors.warningDark} />
+          <Text style={styles.warningTitle}>Confirma una captura fuera del horario habitual</Text>
+          <Text style={styles.warningText}>{confirmationOperation.message || 'UCAPSA necesita tu confirmación antes de registrar esta asistencia.'}</Text>
+          <Text style={styles.warningDetail}>
+            {confirmationEnrollment
+              ? `${enrollmentLabel(confirmationEnrollment)} - ${formatProgramScheduleDisplayLabel(confirmationEnrollment.schedule, confirmationEnrollment.program)}`
+              : `Capturado ${capturedLabel(confirmationOperation.capturedAt)}`}
+          </Text>
+          <Text style={styles.warningQuestion}>¿Quieres registrar esta asistencia de todos modos?</Text>
+          <View style={styles.actionRow}>
+            <Pressable style={[styles.secondaryButton, styles.flexButton]} onPress={() => void discardQueued(confirmationOperation.id)}><Text style={styles.secondaryButtonText}>Descartar</Text></Pressable>
+            <Pressable style={[styles.primaryButton, styles.flexButton]} onPress={() => void confirmQueuedClass(confirmationOperation)}><Text style={styles.primaryButtonText}>Confirmar asistencia</Text></Pressable>
+          </View>
+        </View>
+      ) : null}
+
+      {rejectedOperation ? (
+        <View style={[styles.infoCard, styles.errorCard]}>
+          <MaterialIcons name="info-outline" size={30} color={ucapsaBrand.colors.danger} />
+          <Text style={styles.feedbackTitle}>Un registro necesita revisión</Text>
+          <Text style={styles.feedbackText}>{rejectedOperation.message || 'UCAPSA no pudo aceptar esta captura.'}</Text>
+          <Text style={styles.feedbackText}>Capturado {capturedLabel(rejectedOperation.capturedAt)}</Text>
+          <Pressable style={styles.secondaryButton} onPress={() => void discardQueued(rejectedOperation.id)}><Text style={styles.secondaryButtonText}>Descartar registro local</Text></Pressable>
+        </View>
+      ) : null}
+
+      {!loadingData && !feedback && !canScanAnything ? <InfoCard format={format}><Text style={[styles.infoTitle, { color: format.cardText }]}>Sin registros disponibles</Text><Text style={[styles.muted, { color: format.muted }]}>No tienes clases activas ni una membresía activa guardada para registrar en este momento.</Text></InfoCard> : null}
+
+      {screenFocused && cameraActive && !loadingData && canScanAnything && !confirmationOperation ? (
         <View style={styles.cameraCard}>
           <CameraView style={styles.camera} facing="back" barcodeScannerSettings={{ barcodeTypes: ['qr'] }} onBarcodeScanned={(event) => void handleBarcode(event.data)} />
           <View pointerEvents="none" style={styles.scanOverlay}><MaterialCommunityIcons name="qrcode-scan" size={56} color={ucapsaBrand.colors.surface} /><Text style={styles.scanText}>QR oficial UCAPSA</Text></View>
         </View>
       ) : null}
 
-      {registering ? <InfoCard format={format}><ActivityIndicator color={format.accent} /><Text style={[styles.infoTitle, { color: format.cardText }]}>Confirmando con UCAPSA...</Text></InfoCard> : null}
+      {registering ? <InfoCard format={format}><ActivityIndicator color={format.accent} /><Text style={[styles.infoTitle, { color: format.cardText }]}>Guardando y sincronizando...</Text></InfoCard> : null}
 
       {choices.length > 1 && pendingToken && pendingProgram ? (
         <InfoCard format={format}>
-          <Text style={[styles.infoTitle, { color: format.cardText }]}>Selecciona quien asistio</Text>
-          <Text style={[styles.muted, { color: format.muted }]}>Hay mas de una inscripcion activa en {programLabel(pendingProgram)}.</Text>
+          <Text style={[styles.infoTitle, { color: format.cardText }]}>Selecciona quién asistió</Text>
+          <Text style={[styles.muted, { color: format.muted }]}>Hay más de una inscripción activa en {programLabel(pendingProgram)}.</Text>
           {choices.map((item) => <Pressable key={item.enrollment.id} style={[styles.choiceButton, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]} onPress={() => void registerClass(pendingToken, item)}><Text style={[styles.choiceTitle, { color: format.cardText }]}>{enrollmentLabel(item)}</Text><Text style={[styles.choiceMeta, { color: format.muted }]}>{programLabel(item.program.code)} - {item.enrollment.attendances_count}/{item.program.required_attendances}</Text></Pressable>)}
         </InfoCard>
-      ) : null}
-
-      {outsideConfirmation ? (
-        <View style={[styles.infoCard, styles.warningCard]}>
-          <MaterialIcons name="schedule" size={32} color={ucapsaBrand.colors.warningDark} />
-          <Text style={styles.warningTitle}>Estas fuera del horario habitual</Text>
-          <Text style={styles.warningText}>{outsideConfirmation.message}</Text>
-          <Text style={styles.warningDetail}>{enrollmentLabel(outsideConfirmation.enrollment)} - {formatProgramScheduleDisplayLabel(outsideConfirmation.enrollment.schedule, outsideConfirmation.enrollment.program)}</Text>
-          <Text style={styles.warningQuestion}>Estas seguro de querer registrar esta asistencia?</Text>
-          <View style={styles.actionRow}>
-            <Pressable style={[styles.secondaryButton, styles.flexButton]} onPress={resetScanner}><Text style={styles.secondaryButtonText}>Cancelar</Text></Pressable>
-            <Pressable style={[styles.primaryButton, styles.flexButton]} onPress={() => void registerClass(outsideConfirmation.token, outsideConfirmation.enrollment, true)}><Text style={styles.primaryButtonText}>Registrar asistencia</Text></Pressable>
-          </View>
-        </View>
       ) : null}
 
       {feedback ? (
@@ -285,7 +490,7 @@ export default function AttendanceScanScreen() {
           <MaterialIcons name={feedback.kind === 'success' ? 'check-circle' : feedback.kind === 'connection' ? 'cloud-off' : 'info-outline'} size={34} color={feedback.kind === 'success' ? ucapsaBrand.colors.success : feedback.kind === 'connection' ? ucapsaBrand.colors.warningDark : ucapsaBrand.colors.danger} />
           <Text style={styles.feedbackTitle}>{feedback.title}</Text>
           <Text style={styles.feedbackText}>{feedback.message}</Text>
-          {feedback.kind === 'connection' ? <Pressable style={styles.secondaryButton} onPress={() => void loadData()}><Text style={styles.secondaryButtonText}>Reintentar conexion</Text></Pressable> : <Pressable style={styles.secondaryButton} onPress={resetScanner}><Text style={styles.secondaryButtonText}>Escanear otro</Text></Pressable>}
+          {feedback.kind === 'connection' ? <Pressable style={styles.secondaryButton} onPress={() => void loadData()}><Text style={styles.secondaryButtonText}>Reintentar sincronización</Text></Pressable> : <Pressable style={styles.secondaryButton} onPress={resetScanner}><Text style={styles.secondaryButtonText}>Escanear otro</Text></Pressable>}
         </View>
       ) : null}
     </KeyboardAwareScreen>
@@ -315,6 +520,8 @@ const styles = StyleSheet.create({
   scanOverlay: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: withAlpha(ucapsaBrand.colors.black, 0.12) },
   scanText: { color: ucapsaBrand.colors.surface, fontSize: 15, fontWeight: '900', textShadowColor: withAlpha(ucapsaBrand.colors.black, 0.45), textShadowRadius: 6 },
   infoCard: { gap: 9, borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 16 },
+  inlineStatus: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  statusCopy: { flex: 1, gap: 2 },
   successCard: { borderColor: ucapsaBrand.colors.successBorder, backgroundColor: ucapsaBrand.colors.successSoft },
   connectionCard: { borderColor: ucapsaBrand.colors.warningBorder, backgroundColor: ucapsaBrand.colors.warningSoft },
   errorCard: { borderColor: ucapsaBrand.colors.dangerBorder, backgroundColor: ucapsaBrand.colors.dangerSoft },

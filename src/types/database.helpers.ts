@@ -1,4 +1,4 @@
-import type { Database } from './database.generated';
+import type { Database } from './database.types';
 
 export type PublicTableName = keyof Database['public']['Tables'];
 export type TableRow<T extends PublicTableName> = Database['public']['Tables'][T]['Row'];

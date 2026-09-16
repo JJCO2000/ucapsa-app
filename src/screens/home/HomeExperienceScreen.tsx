@@ -12,6 +12,7 @@ import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import { getHomeAnnouncements, rankHomeAnnouncements } from '../../services/announcements.service';
 import { readCustomerValueSnapshotCache, writeCustomerValueSnapshotCache } from '../../services/customer-value-cache.service';
+import { mergeCustomerValueSnapshotWithCache } from '../../services/customer-value-merge.service';
 import {
   getCustomerValuePrimaryNextAction,
   getMyCustomerValueSnapshot,
@@ -53,10 +54,15 @@ export default function HomeExperienceScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const cacheScopeRef = useRef<string | null>(null);
+  const loadRunRef = useRef(0);
 
   const load = useCallback(async () => {
+    const runId = loadRunRef.current + 1;
+    loadRunRef.current = runId;
+    const isCurrentRun = () => loadRunRef.current === runId;
+
     if (isAdmin) {
-      setLoading(false);
+      if (isCurrentRun()) setLoading(false);
       return;
     }
 
@@ -73,6 +79,8 @@ export default function HomeExperienceScreen() {
     }
 
     const cachedHome = await readHomeCache(scope);
+    if (!isCurrentRun()) return;
+
     const cachedAnnouncements = rankHomeAnnouncements(cachedHome?.announcements?.data ?? [], 1);
     if (cachedAnnouncements.length > 0) setAnnouncements(cachedAnnouncements);
 
@@ -83,6 +91,8 @@ export default function HomeExperienceScreen() {
         getCachedMyPracticeActivity(user.id),
         getPracticeTargetDays(user.id),
       ]);
+      if (!isCurrentRun()) return;
+
       cachedSnapshot = savedSnapshot;
       if (savedSnapshot) {
         setSnapshot(savedSnapshot.snapshot);
@@ -105,6 +115,7 @@ export default function HomeExperienceScreen() {
         : Promise.resolve(null),
       user ? getPracticeTargetDays(user.id) : Promise.resolve(DEFAULT_PRACTICE_TARGET_DAYS),
     ]);
+    if (!isCurrentRun()) return;
 
     if (announcementResult.status === 'fulfilled') {
       setAnnouncements(announcementResult.value);
@@ -118,14 +129,10 @@ export default function HomeExperienceScreen() {
       if (snapshotResult.status === 'fulfilled' && snapshotResult.value) {
         const remoteSnapshot = snapshotResult.value;
         const hasSourceErrors = Object.values(remoteSnapshot.sourceStatus).some((status) => status === 'error');
-        if (hasSourceErrors && cachedSnapshot) {
-          setSnapshot(cachedSnapshot.snapshot);
-          setSnapshotState('cached');
-        } else {
-          setSnapshot(remoteSnapshot);
-          setSnapshotState(hasSourceErrors ? 'partial' : 'fresh');
-          if (!hasSourceErrors) void writeCustomerValueSnapshotCache(remoteSnapshot);
-        }
+        const mergedSnapshot = mergeCustomerValueSnapshotWithCache(remoteSnapshot, cachedSnapshot?.snapshot);
+        setSnapshot(mergedSnapshot);
+        setSnapshotState(hasSourceErrors ? 'partial' : 'fresh');
+        void writeCustomerValueSnapshotCache(mergedSnapshot);
       } else if (cachedSnapshot) {
         setSnapshot(cachedSnapshot.snapshot);
         setSnapshotState('cached');
@@ -138,7 +145,12 @@ export default function HomeExperienceScreen() {
     setLoading(false);
   }, [isAdmin, user]);
 
-  useFocusEffect(useCallback(() => { void load(); return undefined; }, [load]));
+  useFocusEffect(useCallback(() => {
+    void load();
+    return () => {
+      loadRunRef.current += 1;
+    };
+  }, [load]));
 
   async function refresh() {
     setRefreshing(true);
@@ -366,7 +378,7 @@ export default function HomeExperienceScreen() {
         type="announcement"
         title={selectedAnnouncement?.title ?? ''}
         body={selectedAnnouncement?.content}
-        dateLabel={selectedAnnouncement?.announcement_date ? new Date(selectedAnnouncement.announcement_date).toLocaleDateString('es-MX') : null}
+        dateLabel={selectedAnnouncement?.announcement_date ? formatDate(selectedAnnouncement.announcement_date, true) : null}
         onClose={() => setSelectedAnnouncement(null)}
       />
     </KeyboardAwareScreen>

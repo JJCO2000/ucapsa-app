@@ -8,9 +8,13 @@ function must(rel, pattern, label) { if (!pattern.test(read(rel))) failures.push
 function mustNot(rel, pattern, label) { if (pattern.test(read(rel))) failures.push(label); }
 
 must('src/lib/supabase.ts', /createClient<Database>/, 'Supabase client no está tipado con Database.');
+must('src/lib/supabase.ts', /database\.types/, 'Supabase client no usa los tipos canónicos con overlay offline.');
 const generated = read('src/types/database.generated.ts');
 if (!/export (type|interface) Database/.test(generated)) failures.push('Falta Database generado desde Supabase.');
 mustNot('src/types/database.types.ts', /Record<string,\s*never>/, 'Sigue activo el placeholder Record<string, never>.');
+must('src/types/database.types.ts', /client_event_id/, 'El overlay tipado perdió client_event_id para sincronización offline.');
+must('src/types/database.types.ts', /p_captured_at/, 'El overlay tipado perdió la hora real de captura offline.');
+must('src/types/database.helpers.ts', /database\.types/, 'Los helpers de base no usan los tipos canónicos con overlay offline.');
 must('src/app/(tabs)/dog.tsx', /account-settings\?section=profile/, 'La pata con lápiz no abre Mis datos.');
 mustNot('src/app/admin/classes.tsx', /TextInput\s+value=\{form\.dogName\}/, 'Admin Clases aún usa perro como texto libre al crear.');
 mustNot('src/app/admin/classes.tsx', /TextInput\s+value=\{editForm\.dogName\}/, 'Admin Clases aún usa perro como texto libre al editar.');
@@ -30,11 +34,30 @@ must('src/services/memberships.service.ts', /getMyMembershipEligibility/, 'Membr
 must('src/services/memberships.service.ts', /program_completion_achievement/, 'Membresía perdió el fallback de evidencia histórica por logro de programa.');
 must('src/app/client/membership.tsx', /getMyMembershipEligibility/, 'Pantalla de membresía no usa la elegibilidad canónica.');
 mustNot('src/app/client/membership.tsx', /isMembershipEligibleFromPrograms\(programs\)/, 'Pantalla de membresía volvió a decidir elegibilidad desde una lista local de programas.');
-must('src/app/attendance.tsx', /isMembershipActiveToday/, 'Escáner de socio no valida vigencia efectiva de la membresía.');
+mustNot('src/app/attendance.tsx', /isMembershipActiveToday/, 'Escáner volvió a expirar socios activos por fecha.');
+must('src/app/attendance.tsx', /cachedMembership\?\.data\.status === 'active'/, 'Escáner no permite usar la membresía activa guardada sin conexión.');
 mustNot('src/app/client/attendance-history.tsx', /!enrollmentId\)\s*return/, 'Historial de asistencias volvió a exigir enrollmentId y rompe APROVECHASTE desde Home.');
 must('src/app/client/attendance-history.tsx', /Historial de asistencias/, 'Falta la vista agregada de asistencias desde APROVECHASTE.');
 mustNot('src/components/domain/CustomerValueSnapshotCard.tsx', /parts\.push\(`Membresía vencida/, 'TIENES volvió a presentar una membresía vencida como valor disponible.');
-must('src/services/customer-value.service.ts', /membership\?\.status === 'active' && !membership\.isValidToday/, 'SIGUE no prioriza una membresía activa fuera de vigencia.');
+must('supabase/sql/ucapsa-membership-lifetime-and-comandos-progression.sql', /new\.end_date := null/, 'Backend perdió la regla de membresía activa sin vencimiento por fecha.');
+must('src/services/customer-value-merge.service.ts', /membership_lifetime_normalized/, 'Snapshot de Inicio perdió la normalización de membresía vitalicia.');
+
+must('src/screens/home/HomeExperienceScreen.tsx', /loadRunRef/, 'Inicio perdió la guarda contra respuestas asíncronas obsoletas.');
+must('src/screens/home/HomeExperienceScreen.tsx', /mergeCustomerValueSnapshotWithCache/, 'Inicio volvió al fallback todo-o-nada en vez de mezclar por fuente.');
+mustNot('src/screens/home/HomeExperienceScreen.tsx', /new Date\(selectedAnnouncement\?\.announcement_date\)/, 'Inicio volvió a parsear una fecha civil de aviso como UTC.');
+must('src/services/customer-value-merge.service.ts', /cached_fallback:/, 'Falta trazabilidad de qué fuente de Inicio cayó a caché.');
+
+must('src/services/attendance-outbox.service.ts', /AsyncStorage/, 'El QR perdió la cola local persistente.');
+must('src/services/attendance-outbox.service.ts', /p_client_event_id/, 'El QR perdió la clave idempotente de sincronización.');
+must('src/services/attendance-outbox.service.ts', /p_captured_at/, 'El QR dejó de conservar la hora real de captura offline.');
+mustNot('src/services/attendance-outbox.service.ts', /as never/, 'La cola offline volvió a saltarse los tipos de Supabase.');
+mustNot('src/services/member-visits.service.ts', /as never/, 'Visitas de socio volvió a saltarse los tipos de Supabase.');
+must('src/services/client-offline-sync.service.ts', /flushPendingAttendanceOperations/, 'El arranque dejó de reintentar asistencias y visitas pendientes.');
+must('src/app/attendance.tsx', /queueClassAttendance/, 'El escáner de clases volvió a escribir solo en red.');
+must('src/app/attendance.tsx', /queueMemberVisit/, 'El escáner de socios volvió a escribir solo en red.');
+must('supabase/sql/ucapsa-offline-attendance-outbox.sql', /program_attendances_enrollment_client_event_unique_idx/, 'Backend perdió idempotencia de asistencias offline.');
+must('supabase/sql/ucapsa-offline-attendance-outbox.sql', /member_visits_user_client_event_unique_idx/, 'Backend perdió idempotencia de visitas offline.');
+must('supabase/sql/ucapsa-offline-attendance-outbox.sql', /interval '7 days'/, 'Backend perdió el límite de antigüedad para capturas offline.');
 
 must('src/app/(tabs)/classes.tsx', /Tu programa y próximas sesiones/, 'Clases perdió el encabezado compacto orientado al programa actual.');
 mustNot('src/app/(tabs)/classes.tsx', /ClientPageHeader/, 'Clases volvió al hero compartido que ocupa demasiado espacio vertical.');
@@ -69,4 +92,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log('SOURCE INTEGRITY OK: tipos, perros, rutas críticas, UTF-8, textos y CLABE revisados.');
+console.log('SOURCE INTEGRITY OK: tipos, perros, rutas críticas, offline, UTF-8, textos y CLABE revisados.');
