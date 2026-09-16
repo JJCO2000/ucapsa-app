@@ -34,7 +34,13 @@ must('src/app/attendance.tsx', /isMembershipActiveToday/, 'Escáner de socio no 
 mustNot('src/app/client/attendance-history.tsx', /!enrollmentId\)\s*return/, 'Historial de asistencias volvió a exigir enrollmentId y rompe APROVECHASTE desde Home.');
 must('src/app/client/attendance-history.tsx', /Historial de asistencias/, 'Falta la vista agregada de asistencias desde APROVECHASTE.');
 mustNot('src/components/domain/CustomerValueSnapshotCard.tsx', /parts\.push\(`Membresía vencida/, 'TIENES volvió a presentar una membresía vencida como valor disponible.');
-must('src/services/customer-value.service.ts', /membership\?\.status === 'active' && !membership\.isValidToday/, 'SIGUE no prioriza una membresía activa fuera de vigencia.');
+must('supabase/sql/ucapsa-membership-lifetime-and-comandos-progression.sql', /new\.end_date := null/, 'Backend perdió la regla de membresía activa sin vencimiento por fecha.');
+must('src/services/customer-value-merge.service.ts', /membership_lifetime_normalized/, 'Snapshot de Inicio perdió la normalización de membresía vitalicia.');
+
+must('src/screens/home/HomeExperienceScreen.tsx', /loadRunRef/, 'Inicio perdió la guarda contra respuestas asíncronas obsoletas.');
+must('src/screens/home/HomeExperienceScreen.tsx', /mergeCustomerValueSnapshotWithCache/, 'Inicio volvió al fallback todo-o-nada en vez de mezclar por fuente.');
+mustNot('src/screens/home/HomeExperienceScreen.tsx', /new Date\(selectedAnnouncement\?\.announcement_date\)/, 'Inicio volvió a parsear una fecha civil de aviso como UTC.');
+must('src/services/customer-value-merge.service.ts', /cached_fallback:/, 'Falta trazabilidad de qué fuente de Inicio cayó a caché.');
 
 must('src/app/(tabs)/classes.tsx', /Tu programa y próximas sesiones/, 'Clases perdió el encabezado compacto orientado al programa actual.');
 mustNot('src/app/(tabs)/classes.tsx', /ClientPageHeader/, 'Clases volvió al hero compartido que ocupa demasiado espacio vertical.');
@@ -69,4 +75,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log('SOURCE INTEGRITY OK: tipos, perros, rutas críticas, UTF-8, textos y CLABE revisados.');
+console.log('SOURCE INTEGRITY OK: tipos, perros, rutas críticas, offline, UTF-8, textos y CLABE revisados.');
