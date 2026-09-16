@@ -8,9 +8,13 @@ function must(rel, pattern, label) { if (!pattern.test(read(rel))) failures.push
 function mustNot(rel, pattern, label) { if (pattern.test(read(rel))) failures.push(label); }
 
 must('src/lib/supabase.ts', /createClient<Database>/, 'Supabase client no está tipado con Database.');
+must('src/lib/supabase.ts', /database\.types/, 'Supabase client no usa los tipos canónicos con overlay offline.');
 const generated = read('src/types/database.generated.ts');
 if (!/export (type|interface) Database/.test(generated)) failures.push('Falta Database generado desde Supabase.');
 mustNot('src/types/database.types.ts', /Record<string,\s*never>/, 'Sigue activo el placeholder Record<string, never>.');
+must('src/types/database.types.ts', /client_event_id/, 'El overlay tipado perdió client_event_id para sincronización offline.');
+must('src/types/database.types.ts', /p_captured_at/, 'El overlay tipado perdió la hora real de captura offline.');
+must('src/types/database.helpers.ts', /database\.types/, 'Los helpers de base no usan los tipos canónicos con overlay offline.');
 must('src/app/(tabs)/dog.tsx', /account-settings\?section=profile/, 'La pata con lápiz no abre Mis datos.');
 mustNot('src/app/admin/classes.tsx', /TextInput\s+value=\{form\.dogName\}/, 'Admin Clases aún usa perro como texto libre al crear.');
 mustNot('src/app/admin/classes.tsx', /TextInput\s+value=\{editForm\.dogName\}/, 'Admin Clases aún usa perro como texto libre al editar.');
@@ -46,6 +50,8 @@ must('src/services/customer-value-merge.service.ts', /cached_fallback:/, 'Falta 
 must('src/services/attendance-outbox.service.ts', /AsyncStorage/, 'El QR perdió la cola local persistente.');
 must('src/services/attendance-outbox.service.ts', /p_client_event_id/, 'El QR perdió la clave idempotente de sincronización.');
 must('src/services/attendance-outbox.service.ts', /p_captured_at/, 'El QR dejó de conservar la hora real de captura offline.');
+mustNot('src/services/attendance-outbox.service.ts', /as never/, 'La cola offline volvió a saltarse los tipos de Supabase.');
+mustNot('src/services/member-visits.service.ts', /as never/, 'Visitas de socio volvió a saltarse los tipos de Supabase.');
 must('src/services/client-offline-sync.service.ts', /flushPendingAttendanceOperations/, 'El arranque dejó de reintentar asistencias y visitas pendientes.');
 must('src/app/attendance.tsx', /queueClassAttendance/, 'El escáner de clases volvió a escribir solo en red.');
 must('src/app/attendance.tsx', /queueMemberVisit/, 'El escáner de socios volvió a escribir solo en red.');
