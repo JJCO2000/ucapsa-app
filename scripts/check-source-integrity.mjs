@@ -64,6 +64,22 @@ mustNot('src/app/(tabs)/classes.tsx', /ClientPageHeader/, 'Clases volvió al her
 must('src/app/(tabs)/classes.tsx', /router\.push\('\/attendance'/, 'Clases perdió el acceso a Registrar asistencia.');
 must('src/app/(tabs)/classes.tsx', /\/client\/class-detail\?enrollmentId=/, 'Clases perdió el acceso al detalle del programa.');
 must('src/app/(tabs)/classes.tsx', /Mostrando clases guardadas/, 'Clases perdió el aviso de datos offline guardados.');
+must('src/app/(tabs)/classes.tsx', /loadRunRef/, 'Clases perdió la guarda contra respuestas asíncronas obsoletas.');
+must('src/app/(tabs)/classes.tsx', /cacheScopeRef/, 'Clases dejó de limpiar el estado al cambiar de usuario.');
+
+must('src/app/(tabs)/services.tsx', /Tu membresía y accesos UCAPSA/, 'Servicios perdió el encabezado compacto orientado al acceso del cliente.');
+must('src/app/(tabs)/services.tsx', /TU ACCESO DE SOCIO/, 'Servicios perdió los accesos rápidos de socio.');
+must('src/app/(tabs)/services.tsx', /\/client\/membership/, 'Servicios perdió el acceso a Membresía.');
+must('src/app/(tabs)/services.tsx', /\/client\/points/, 'Servicios perdió el acceso a Perro del Año.');
+must('src/app/(tabs)/services.tsx', /\/client\/member-visits/, 'Servicios perdió el historial de visitas.');
+must('src/app/(tabs)/services.tsx', /router\.push\('\/restaurant'/, 'Servicios perdió el menú del restaurante.');
+must('src/app/(tabs)/services.tsx', /router\.push\('\/reviews'/, 'Servicios perdió el flujo de reseña en Google.');
+must('src/app/(tabs)/services.tsx', /readClientResource<MembershipOfflineSummary>/, 'Servicios perdió la lectura offline de membresía.');
+must('src/app/(tabs)/services.tsx', /OfflineDataNotice/, 'Servicios perdió el aviso de datos guardados.');
+must('src/app/(tabs)/services.tsx', /loadRunRef/, 'Servicios perdió la guarda contra respuestas asíncronas obsoletas.');
+must('src/app/(tabs)/services.tsx', /cacheScopeRef/, 'Servicios dejó de limpiar el estado al cambiar de usuario.');
+must('src/app/(tabs)/services.tsx', /membership\?\.status === 'active' && effective === 'expired'/, 'Servicios volvió a expirar automáticamente una membresía que Administración mantiene activa.');
+mustNot('src/app/(tabs)/services.tsx', /subtitle="Membresía, restaurante, compras y contacto directo con UCAPSA\."/, 'Servicios volvió al hero grande y redundante del diseño anterior.');
 
 const scanRoots = ['src', 'scripts'];
 function walk(dir) {

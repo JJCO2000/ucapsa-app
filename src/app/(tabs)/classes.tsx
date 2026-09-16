@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
@@ -70,13 +70,31 @@ export default function ClassesTab() {
   const [usingSavedData, setUsingSavedData] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [offlineEmpty, setOfflineEmpty] = useState(false);
+  const cacheScopeRef = useRef<string | null>(null);
+  const loadRunRef = useRef(0);
 
   const load = useCallback(async () => {
+    const runId = loadRunRef.current + 1;
+    loadRunRef.current = runId;
+    const isCurrentRun = () => loadRunRef.current === runId;
+    const scope = user?.id ?? (isAdmin ? 'admin' : 'public');
+
+    if (cacheScopeRef.current !== scope) {
+      cacheScopeRef.current = scope;
+      setRows([]);
+      setLocalReady(false);
+      setUsingSavedData(false);
+      setSavedAt(null);
+      setOfflineEmpty(false);
+    }
+
     if (!user || isAdmin) return;
+    if (!isCurrentRun()) return;
     setUsingSavedData(false);
     setOfflineEmpty(false);
 
     const cached = await readClientResource<ProgramEnrollmentWithDetails[]>(user.id, clientReadKeys.programs);
+    if (!isCurrentRun()) return;
     if (cached) {
       setRows(cached.data);
       setSavedAt(cached.saved_at);
@@ -85,18 +103,26 @@ export default function ClassesTab() {
 
     try {
       const fresh = await withOperationTimeout(getMyProgramEnrollments(), DEFAULT_READ_TIMEOUT_MS, 'programs');
+      if (!isCurrentRun()) return;
       setRows(fresh);
       const stored = await writeClientResource(user.id, clientReadKeys.programs, sanitizeProgramRowsForCache(fresh));
+      if (!isCurrentRun()) return;
       setSavedAt(stored.saved_at);
       setUsingSavedData(false);
       setOfflineEmpty(false);
     } catch {
+      if (!isCurrentRun()) return;
       if (cached) setUsingSavedData(true);
       else setOfflineEmpty(true);
     }
   }, [isAdmin, user]);
 
-  useFocusEffect(useCallback(() => { void load(); return undefined; }, [load]));
+  useFocusEffect(useCallback(() => {
+    void load();
+    return () => {
+      loadRunRef.current += 1;
+    };
+  }, [load]));
 
   const active = useMemo(() => rows.filter((item) => item.enrollment.status === 'active'), [rows]);
   const previous = useMemo(() => rows.filter((item) => item.enrollment.status !== 'active'), [rows]);
