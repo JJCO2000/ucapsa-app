@@ -195,18 +195,29 @@ export default function AttendanceScanScreen() {
       return;
     }
 
-    try {
-      setRegistering(true);
-      setCameraActive(false);
-      setFeedback(null);
+    setRegistering(true);
+    setCameraActive(false);
+    setFeedback(null);
 
-      const operation = await queueClassAttendance({
+    let operation: PendingClassAttendanceOperation;
+    try {
+      operation = await queueClassAttendance({
         userId,
         token,
         enrollmentId: enrollment.enrollment.id,
       });
       await refreshOutbox(userId);
+    } catch (error) {
+      setFeedback({
+        kind: 'business',
+        title: 'No se pudo guardar la captura',
+        message: error instanceof Error ? error.message : 'El dispositivo no pudo conservar esta asistencia. Intenta de nuevo.',
+      });
+      setRegistering(false);
+      return;
+    }
 
+    try {
       const result = await syncAttendanceOperation(userId, operation.id);
       await refreshOutbox(userId);
       if (!result) throw new Error('No se encontró el registro local pendiente.');
@@ -232,11 +243,11 @@ export default function AttendanceScanScreen() {
       }
 
       setFeedback({ kind: 'connection', title: 'Asistencia guardada sin conexión', message: result.message });
-    } catch (error) {
+    } catch {
       setFeedback({
         kind: 'connection',
-        title: 'La captura quedó en este dispositivo',
-        message: error instanceof Error ? error.message : 'Se volverá a intentar cuando haya conexión.',
+        title: 'Asistencia guardada sin conexión',
+        message: 'La captura ya quedó en este dispositivo y se volverá a intentar cuando haya conexión.',
       });
       await refreshOutbox(userId).catch(() => undefined);
     } finally {
@@ -254,13 +265,25 @@ export default function AttendanceScanScreen() {
       return;
     }
 
-    try {
-      setRegistering(true);
-      setCameraActive(false);
-      setFeedback(null);
+    setRegistering(true);
+    setCameraActive(false);
+    setFeedback(null);
 
-      const operation = await queueMemberVisit({ userId, token });
+    let operation: PendingAttendanceOperation;
+    try {
+      operation = await queueMemberVisit({ userId, token });
       await refreshOutbox(userId);
+    } catch (error) {
+      setFeedback({
+        kind: 'business',
+        title: 'No se pudo guardar la captura',
+        message: error instanceof Error ? error.message : 'El dispositivo no pudo conservar esta visita. Intenta de nuevo.',
+      });
+      setRegistering(false);
+      return;
+    }
+
+    try {
       const result = await syncAttendanceOperation(userId, operation.id);
       await refreshOutbox(userId);
       if (!result) throw new Error('No se encontró la visita local pendiente.');
@@ -274,11 +297,11 @@ export default function AttendanceScanScreen() {
         return;
       }
       setFeedback({ kind: 'connection', title: 'Visita guardada sin conexión', message: result.message });
-    } catch (error) {
+    } catch {
       setFeedback({
         kind: 'connection',
-        title: 'La captura quedó en este dispositivo',
-        message: error instanceof Error ? error.message : 'Se volverá a intentar cuando haya conexión.',
+        title: 'Visita guardada sin conexión',
+        message: 'La captura ya quedó en este dispositivo y se volverá a intentar cuando haya conexión.',
       });
       await refreshOutbox(userId).catch(() => undefined);
     } finally {
@@ -299,7 +322,6 @@ export default function AttendanceScanScreen() {
       if (result.status === 'synced') {
         setFeedback({ kind: 'success', title: 'Asistencia confirmada', message: result.message });
         await refreshProgramsAfterConfirmedWrite(userId);
-        resetScanner();
         return;
       }
       if (result.status === 'rejected') {
@@ -307,11 +329,11 @@ export default function AttendanceScanScreen() {
         return;
       }
       setFeedback({ kind: 'connection', title: 'Confirmación pendiente', message: result.message });
-    } catch (error) {
+    } catch {
       setFeedback({
         kind: 'connection',
         title: 'Confirmación pendiente',
-        message: error instanceof Error ? error.message : 'Se volverá a intentar cuando haya conexión.',
+        message: 'La captura sigue guardada en este dispositivo y se volverá a intentar cuando haya conexión.',
       });
     } finally {
       setRegistering(false);
