@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { supabase } from '../lib/supabase';
 import { registerMyMemberVisitFromQr } from './member-visits.service';
-import { registerMyProgramAttendanceFromQr } from './programs.service';
+import type { RegisterAttendanceFromQrResult } from './programs.service';
 import {
   DEFAULT_WRITE_TIMEOUT_MS,
   getErrorMessage,
@@ -116,7 +117,7 @@ export async function clearAttendanceOutbox(userId: string): Promise<void> {
   try {
     await AsyncStorage.removeItem(outboxKey(userId));
   } catch {
-    // No bloquear cierre de sesión por un fallo de almacenamiento local.
+    // No bloquear un borrado explícito por un fallo de almacenamiento local.
   }
 }
 
@@ -172,18 +173,29 @@ export async function queueMemberVisit(input: {
   return operation;
 }
 
+async function registerQueuedClass(operation: PendingClassAttendanceOperation): Promise<RegisterAttendanceFromQrResult> {
+  const response = await withOperationTimeout(
+    Promise.resolve(supabase.rpc('register_program_attendance_from_qr', {
+      p_qr_token: operation.token,
+      p_enrollment_id: operation.enrollmentId,
+      p_confirm_outside_window: operation.confirmOutsideWindow,
+      p_client_event_id: operation.id,
+      p_captured_at: operation.capturedAt,
+    } as never)),
+    DEFAULT_WRITE_TIMEOUT_MS,
+    'attendance-outbox-class',
+  );
+
+  if (response.error) throw response.error;
+  const first = Array.isArray(response.data) ? response.data[0] : response.data;
+  if (!first) throw new Error('Supabase no devolvió resultado del registro de asistencia.');
+  return first as RegisterAttendanceFromQrResult;
+}
+
 async function syncOperation(operation: PendingAttendanceOperation): Promise<AttendanceSyncResult> {
   try {
     if (operation.kind === 'class') {
-      const result = await withOperationTimeout(
-        registerMyProgramAttendanceFromQr({
-          token: operation.token,
-          enrollmentId: operation.enrollmentId,
-          confirmOutsideWindow: operation.confirmOutsideWindow,
-        }),
-        DEFAULT_WRITE_TIMEOUT_MS,
-        'attendance-outbox-class',
-      );
+      const result = await registerQueuedClass(operation);
 
       if (result.result === 'registered' || result.result === 'already_registered') {
         await discardAttendanceOperation(operation.userId, operation.id);
