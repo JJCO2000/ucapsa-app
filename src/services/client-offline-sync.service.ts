@@ -1,5 +1,6 @@
 import type { Announcement, Membership, MyPaymentOverview, ProgramEnrollmentWithDetails } from '../types/app.types';
 import { getVisibleAnnouncements } from './announcements.service';
+import { flushPendingAttendanceOperations } from './attendance-outbox.service';
 import { clientReadKeys, createMembershipOfflineSummary, createPaymentOfflineSummary, sanitizeProgramRowsForCache, writeClientResource } from './client-read-cache.service';
 import { getMyDogs, type BasicDog } from './dogs.service';
 import { createHomeCacheSource, mergeHomeCache, type HomeProgramSummary } from './home-cache.service';
@@ -13,6 +14,7 @@ export type OfflineWarmResult = {
   programs: boolean;
   membership: boolean;
   payments: boolean;
+  attendanceOutbox: boolean;
 };
 
 function toHomeProgramSummary(rows: ProgramEnrollmentWithDetails[]): HomeProgramSummary[] {
@@ -78,7 +80,8 @@ async function cachePayments(userId: string): Promise<MyPaymentOverview> {
 }
 
 /**
- * Prepara una instantánea local completa después de recuperar una sesión válida.
+ * Prepara una instantánea local completa después de recuperar una sesión válida
+ * y aprovecha ese mismo momento para vaciar escrituras locales pendientes.
  *
  * La interfaz nunca debe esperar esta función: cada recurso se sincroniza de forma
  * independiente y conserva el último valor válido si una petición falla.
@@ -90,6 +93,7 @@ export async function warmClientOfflineData(userId: string): Promise<OfflineWarm
     programs: false,
     membership: false,
     payments: false,
+    attendanceOutbox: false,
   };
 
   const tasks = [
@@ -98,6 +102,7 @@ export async function warmClientOfflineData(userId: string): Promise<OfflineWarm
     cachePrograms(userId).then(() => { result.programs = true; }),
     cacheMembership(userId).then(() => { result.membership = true; }),
     cachePayments(userId).then(() => { result.payments = true; }),
+    flushPendingAttendanceOperations(userId).then(() => { result.attendanceOutbox = true; }),
   ];
 
   await Promise.allSettled(tasks);
