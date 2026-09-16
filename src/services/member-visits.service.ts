@@ -18,13 +18,16 @@ export type AdminMemberVisitRow = MemberVisit & { profile: Profile | null };
 export async function registerMyMemberVisitFromQr(
   token: string,
   clientEventId?: string | null,
+  capturedAt?: string | null,
 ): Promise<RegisterMemberVisitFromQrResult> {
   const normalized = token.trim();
   if (!normalized) throw new Error('QR de socio vacio.');
 
-  const args = clientEventId
-    ? { p_qr_token: normalized, p_client_event_id: clientEventId }
-    : { p_qr_token: normalized };
+  const args = clientEventId && capturedAt
+    ? { p_qr_token: normalized, p_client_event_id: clientEventId, p_captured_at: capturedAt }
+    : clientEventId
+      ? { p_qr_token: normalized, p_client_event_id: clientEventId }
+      : { p_qr_token: normalized };
   const { data, error } = await supabase.rpc('register_member_visit_from_qr', args as never);
   if (error) throw error;
   const first = Array.isArray(data) ? data[0] : data;
