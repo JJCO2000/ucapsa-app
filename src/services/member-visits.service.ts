@@ -23,14 +23,21 @@ export async function registerMyMemberVisitFromQr(
   const normalized = token.trim();
   if (!normalized) throw new Error('QR de socio vacio.');
 
-  const args = clientEventId && capturedAt
-    ? { p_qr_token: normalized, p_client_event_id: clientEventId, p_captured_at: capturedAt }
+  const response = clientEventId && capturedAt
+    ? await supabase.rpc('register_member_visit_from_qr', {
+        p_qr_token: normalized,
+        p_client_event_id: clientEventId,
+        p_captured_at: capturedAt,
+      })
     : clientEventId
-      ? { p_qr_token: normalized, p_client_event_id: clientEventId }
-      : { p_qr_token: normalized };
-  const { data, error } = await supabase.rpc('register_member_visit_from_qr', args as never);
-  if (error) throw error;
-  const first = Array.isArray(data) ? data[0] : data;
+      ? await supabase.rpc('register_member_visit_from_qr', {
+          p_qr_token: normalized,
+          p_client_event_id: clientEventId,
+        })
+      : await supabase.rpc('register_member_visit_from_qr', { p_qr_token: normalized });
+
+  if (response.error) throw response.error;
+  const first = Array.isArray(response.data) ? response.data[0] : response.data;
   if (!first) throw new Error('Supabase no devolvio resultado del registro de visita.');
   return first as RegisterMemberVisitFromQrResult;
 }
