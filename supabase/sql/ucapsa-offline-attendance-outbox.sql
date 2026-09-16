@@ -1,9 +1,9 @@
 -- UCAPSA — Outbox e idempotencia para QR capturados offline
 --
 -- Objetivo: una asistencia o visita puede guardarse primero en el dispositivo
--- y reintentarse cuando vuelva la red sin duplicarse. Para clases se conserva la
--- hora real de captura (máximo 7 días) para validar el horario que el usuario
--- escaneó, no la hora posterior en la que volvió la conexión.
+-- y reintentarse cuando vuelva la red sin duplicarse. Para clases y visitas se
+-- conserva la hora real de captura (máximo 7 días), no la hora posterior en la
+-- que volvió la conexión.
 --
 -- Membresía: status = 'active' significa socio. Pagos y end_date no revocan
 -- automáticamente la membresía.
@@ -55,16 +55,9 @@ begin
     raise exception 'No hay sesion activa.';
   end if;
 
-  if v_capture > v_server_now + interval '10 minutes' then
-    return query select null::uuid, null::uuid, 'invalid_capture_time'::text, 'La hora de captura del dispositivo no es valida.'::text;
-    return;
-  end if;
-
-  if v_capture < v_server_now - interval '7 days' then
-    return query select null::uuid, null::uuid, 'offline_capture_too_old'::text, 'La captura offline tiene mas de 7 dias y necesita revision de UCAPSA.'::text;
-    return;
-  end if;
-
+  -- La idempotencia se comprueba antes de validar antigüedad. Si el servidor ya
+  -- confirmó esta operación pero el teléfono perdió la respuesta, un reintento
+  -- posterior siempre recupera el mismo resultado en vez de crear otro registro.
   if p_client_event_id is not null then
     select a.id, a.session_id
       into v_attendance_id, v_session_id
@@ -77,6 +70,16 @@ begin
       return query select v_attendance_id, v_session_id, 'already_registered'::text, 'Tu asistencia ya estaba registrada.'::text;
       return;
     end if;
+  end if;
+
+  if v_capture > v_server_now + interval '10 minutes' then
+    return query select null::uuid, null::uuid, 'invalid_capture_time'::text, 'La hora de captura del dispositivo no es valida.'::text;
+    return;
+  end if;
+
+  if v_capture < v_server_now - interval '7 days' then
+    return query select null::uuid, null::uuid, 'offline_capture_too_old'::text, 'La captura offline tiene mas de 7 dias y necesita revision de UCAPSA.'::text;
+    return;
   end if;
 
   v_capture_local := v_capture at time zone 'America/Mexico_City';
@@ -287,7 +290,8 @@ $$;
 
 create or replace function public.register_member_visit_from_qr(
   p_qr_token text,
-  p_client_event_id uuid
+  p_client_event_id uuid,
+  p_captured_at timestamptz
 )
 returns table(visit_id uuid, result text, message text)
 language plpgsql
@@ -298,7 +302,8 @@ declare
   v_user_id uuid := auth.uid();
   v_membership public.memberships%rowtype;
   v_visit_id uuid;
-  v_now timestamptz := clock_timestamp();
+  v_server_now timestamptz := clock_timestamp();
+  v_capture timestamptz := coalesce(p_captured_at, clock_timestamp());
 begin
   if v_user_id is null then
     return query select null::uuid, 'not_authenticated'::text, 'No hay sesion activa.'::text;
@@ -316,6 +321,16 @@ begin
       return query select v_visit_id, 'already_registered'::text, 'La visita ya estaba registrada.'::text;
       return;
     end if;
+  end if;
+
+  if v_capture > v_server_now + interval '10 minutes' then
+    return query select null::uuid, 'invalid_capture_time'::text, 'La hora de captura del dispositivo no es valida.'::text;
+    return;
+  end if;
+
+  if v_capture < v_server_now - interval '7 days' then
+    return query select null::uuid, 'offline_capture_too_old'::text, 'La captura offline tiene mas de 7 dias y necesita revision de UCAPSA.'::text;
+    return;
   end if;
 
   if not exists (
@@ -353,8 +368,8 @@ begin
   ) values (
     v_user_id,
     v_membership.id,
-    v_now,
-    (v_now at time zone 'America/Mexico_City')::date,
+    v_capture,
+    (v_capture at time zone 'America/Mexico_City')::date,
     'qr_member',
     v_user_id,
     null,
@@ -378,17 +393,30 @@ begin
 end;
 $$;
 
+create or replace function public.register_member_visit_from_qr(
+  p_qr_token text,
+  p_client_event_id uuid
+)
+returns table(visit_id uuid, result text, message text)
+language sql
+security definer
+set search_path = public
+as $$
+  select * from public.register_member_visit_from_qr(p_qr_token, p_client_event_id, clock_timestamp());
+$$;
+
 create or replace function public.register_member_visit_from_qr(p_qr_token text)
 returns table(visit_id uuid, result text, message text)
 language sql
 security definer
 set search_path = public
 as $$
-  select * from public.register_member_visit_from_qr(p_qr_token, null::uuid);
+  select * from public.register_member_visit_from_qr(p_qr_token, null::uuid, clock_timestamp());
 $$;
 
 grant execute on function public.register_program_attendance_from_qr(text, uuid, boolean, uuid, timestamptz) to authenticated;
 grant execute on function public.register_program_attendance_from_qr(text, uuid, boolean) to authenticated;
 grant execute on function public.register_program_attendance_from_qr(text, uuid) to authenticated;
+grant execute on function public.register_member_visit_from_qr(text, uuid, timestamptz) to authenticated;
 grant execute on function public.register_member_visit_from_qr(text, uuid) to authenticated;
 grant execute on function public.register_member_visit_from_qr(text) to authenticated;
