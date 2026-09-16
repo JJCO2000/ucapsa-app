@@ -226,7 +226,7 @@ async function syncOperation(operation: PendingAttendanceOperation): Promise<Att
     }
 
     const result = await withOperationTimeout(
-      registerMyMemberVisitFromQr(operation.token, operation.id),
+      registerMyMemberVisitFromQr(operation.token, operation.id, operation.capturedAt),
       DEFAULT_WRITE_TIMEOUT_MS,
       'attendance-outbox-member-visit',
     );
