@@ -3,7 +3,7 @@ import type { MemberVisit, Profile } from '../types/app.types';
 
 export type RegisterMemberVisitFromQrResult = {
   visit_id: string | null;
-  result: 'registered' | 'invalid_qr' | 'membership_not_active' | 'not_authenticated' | string;
+  result: 'registered' | 'already_registered' | 'invalid_qr' | 'membership_not_active' | 'not_authenticated' | string;
   message: string;
 };
 
@@ -15,10 +15,17 @@ export type MemberVisitMonthlyStat = {
 
 export type AdminMemberVisitRow = MemberVisit & { profile: Profile | null };
 
-export async function registerMyMemberVisitFromQr(token: string): Promise<RegisterMemberVisitFromQrResult> {
+export async function registerMyMemberVisitFromQr(
+  token: string,
+  clientEventId?: string | null,
+): Promise<RegisterMemberVisitFromQrResult> {
   const normalized = token.trim();
   if (!normalized) throw new Error('QR de socio vacio.');
-  const { data, error } = await supabase.rpc('register_member_visit_from_qr', { p_qr_token: normalized });
+
+  const args = clientEventId
+    ? { p_qr_token: normalized, p_client_event_id: clientEventId }
+    : { p_qr_token: normalized };
+  const { data, error } = await supabase.rpc('register_member_visit_from_qr', args as never);
   if (error) throw error;
   const first = Array.isArray(data) ? data[0] : data;
   if (!first) throw new Error('Supabase no devolvio resultado del registro de visita.');
