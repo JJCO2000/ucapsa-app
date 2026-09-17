@@ -104,6 +104,7 @@ if (!/items\.length > 0 && validResults\.length === items\.length/.test(service)
   failures.push('Servicio dejó de derivar completitud por presencia de una fila por ejercicio.');
 }
 
+const manualAttemptsUi = [attempts, attemptForm, attemptDetail, resultForm].join('\n');
 for (const forbidden of [
   'admin_create_ucapsa_exam_import_batch',
   'admin_validate_ucapsa_exam_import_batch',
@@ -112,7 +113,7 @@ for (const forbidden of [
   'admin_publish_ucapsa_exam_import_batch',
   'admin_revert_ucapsa_exam_import_batch',
 ]) {
-  if (service.includes(forbidden)) failures.push(`Intentos manuales no deben operar importaciones todavía: ${forbidden}`);
+  if (manualAttemptsUi.includes(forbidden)) failures.push(`Las pantallas de intentos manuales no deben operar importaciones: ${forbidden}`);
 }
 if (/ucapsa_points_/.test(service)) failures.push('Intentos de examen no pueden depender de UCAPSA Points legado.');
 if (!pkg.includes('check:rango-1-admin-exam-attempts-ui')) failures.push('npm verify no incluye guard de intentos/resultados.');
