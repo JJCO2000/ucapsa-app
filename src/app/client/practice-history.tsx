@@ -9,7 +9,7 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
-import { getMyPracticeActivity, type PracticeActivitySnapshot } from '../../services/practice.service';
+import { getCachedMyPracticeActivity, getMyPracticeActivity, type PracticeActivitySnapshot } from '../../services/practice.service';
 
 export default function PracticeHistoryScreen() {
   const { user, role, isAdmin } = useSession();
@@ -17,6 +17,7 @@ export default function PracticeHistoryScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [usingSavedData, setUsingSavedData] = useState(false);
   const loadRunRef = useRef(0);
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
   const premium = format.key === 'member';
@@ -28,13 +29,28 @@ export default function PracticeHistoryScreen() {
     if (!user || isAdmin) return;
 
     setError(null);
+    setUsingSavedData(false);
+
+    const cached = await getCachedMyPracticeActivity(user.id);
+    if (!isCurrentRun()) return;
+    if (cached) {
+      setActivity(cached);
+      setLoading(false);
+    }
+
     try {
       const next = await getMyPracticeActivity(user.id);
       if (!isCurrentRun()) return;
       setActivity(next);
+      setUsingSavedData(next.source !== 'remote');
     } catch {
       if (!isCurrentRun()) return;
-      setError('No pudimos cargar tu historial de prácticas.');
+      if (cached) {
+        setActivity(cached);
+        setUsingSavedData(true);
+      } else {
+        setError('No pudimos cargar tu historial de prácticas.');
+      }
     } finally {
       if (isCurrentRun()) setLoading(false);
     }
@@ -61,7 +77,7 @@ export default function PracticeHistoryScreen() {
     >
       <UcapsaAmbientBackground format={format} variant="home" />
 
-      {activity && activity.source !== 'remote' ? (
+      {usingSavedData && activity ? (
         <OfflineDataNotice savedAt={activity.savedAt} onRetry={() => void refresh()} premium={premium} label="Mostrando prácticas guardadas" />
       ) : null}
 
