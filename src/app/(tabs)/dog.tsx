@@ -5,7 +5,6 @@ import { Alert, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } f
 
 import { AchievementBadgeGrid, AchievementDetailModal } from '../../components/domain/AchievementBadgeGrid';
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
-import { ClientPageHeader } from '../../components/layout/ClientPageHeader';
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
@@ -295,14 +294,6 @@ export default function DogTab() {
   if (!user) return <Redirect href="/auth/login" />;
   if (isAdmin) return <Redirect href="/admin-home" />;
 
-  const headerSubtitle = offlineEmpty
-    ? 'Tus perros aparecerán aquí después de la primera sincronización.'
-    : dogs.length > 1
-      ? `${dogs.length} perros registrados · selecciona uno.`
-      : dogs.length === 1
-        ? 'Progreso, clases e historial.'
-        : 'Agrega tu primer perro.';
-
   return (
     <KeyboardAwareScreen
       backgroundColor={format.background}
@@ -311,24 +302,7 @@ export default function DogTab() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={format.accent} />}
     >
       <UcapsaAmbientBackground format={format} variant="dog" />
-
-      <ClientPageHeader
-        format={format}
-        eyebrow="Tu equipo"
-        title={dogs.length > 1 ? 'Mis perros' : 'Mi perro'}
-        subtitle={headerSubtitle}
-        icon="pets"
-        right={
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Abrir mis datos"
-            style={[styles.headerProfileButton, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}
-            onPress={() => router.push('/account-settings?section=profile' as never)}
-          >
-            <MaterialIcons name="person" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-          </Pressable>
-        }
-      />
+      <CompactDogHeader dogsCount={dogs.length} offlineEmpty={offlineEmpty} premium={premium} format={format} />
 
       {usingSavedData ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} label="Mostrando información guardada" /> : null}
 
@@ -496,14 +470,22 @@ export default function DogTab() {
               {!programWarning && selectedHistory.length > 0 ? <Text style={[styles.dogHistoryLabel, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>HISTORIAL UCAPSA</Text> : null}
               {!programWarning ? selectedHistory.map((item) => {
                 const levelLabel = getProgramLevelDisplayLabel(item.program.code, item.enrollment.program_level);
+                const historyLabel = `${getProgramCodeLabel(item.program.code)}${levelLabel ? ` ${levelLabel}` : ''}`;
                 return (
-                  <View key={item.enrollment.id} style={[styles.classRow, premium && styles.rowPremium]}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Abrir ${historyLabel} de ${selectedDog.name}`}
+                    key={item.enrollment.id}
+                    style={[styles.classRow, premium && styles.rowPremium]}
+                    onPress={() => router.push(`/client/class-detail?enrollmentId=${encodeURIComponent(item.enrollment.id)}` as never)}
+                  >
                     <View style={[styles.classIcon, { backgroundColor: format.pillBackground }]}><MaterialIcons name="history" size={19} color={format.pillText} /></View>
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={[styles.classTitle, { color: format.cardText }]}>{getProgramCodeLabel(item.program.code)}{levelLabel ? ` ${levelLabel}` : ''}</Text>
+                      <Text style={[styles.classTitle, { color: format.cardText }]}>{historyLabel}</Text>
                       <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{item.attendances.length} asistencias registradas</Text>
                     </View>
-                  </View>
+                    <MaterialIcons name="chevron-right" size={21} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                  </Pressable>
                 );
               }) : null}
             </View>
@@ -556,10 +538,46 @@ export default function DogTab() {
   );
 }
 
+function CompactDogHeader({
+  dogsCount,
+  offlineEmpty,
+  premium,
+  format,
+}: {
+  dogsCount: number;
+  offlineEmpty: boolean;
+  premium: boolean;
+  format: ReturnType<typeof resolveUcapsaFormat>;
+}) {
+  const subtitle = offlineEmpty
+    ? 'Sincroniza una vez para ver tus perros'
+    : dogsCount > 1
+      ? 'Elige un perro y revisa su progreso'
+      : dogsCount === 1
+        ? 'Entrenamiento, logros e historial'
+        : 'Agrega tu primer perro';
+
+  return (
+    <View style={styles.header}>
+      <View style={[styles.headerIcon, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft, borderColor: premium ? ucapsaBrand.colors.premiumBorder : format.border }]}>
+        <MaterialIcons name="pets" size={25} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+      </View>
+      <View style={styles.headerCopy}>
+        <Text style={[styles.headerTitle, { color: format.text }]}>{dogsCount > 1 ? 'Mis perros' : 'Mi perro'}</Text>
+        <Text style={[styles.headerSubtitle, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{subtitle}</Text>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   screenContent: { position: 'relative' },
   premiumContent: { backgroundColor: ucapsaBrand.colors.premiumBackground },
-  headerProfileButton: { width: 48, height: 48, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16, paddingHorizontal: 2 },
+  headerIcon: { width: 48, height: 48, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  headerCopy: { flex: 1, minWidth: 0 },
+  headerTitle: { fontSize: 29, lineHeight: 34, fontWeight: '900', letterSpacing: -0.45 },
+  headerSubtitle: { marginTop: 1, fontSize: 13, lineHeight: 18, fontWeight: '700' },
   muted: { fontSize: 14, lineHeight: 20, fontWeight: '700' },
   textPremium: { color: ucapsaBrand.colors.premiumText },
   offlineCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 18, borderWidth: 1, padding: 14, marginBottom: 14 },
@@ -578,7 +596,7 @@ const styles = StyleSheet.create({
   dogChipText: { maxWidth: 165, fontSize: 14, lineHeight: 19, fontWeight: '900' },
   dogHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   pencilButton: { width: 48, height: 48, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  classRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: ucapsaBrand.colors.border, paddingTop: 11 },
+  classRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: ucapsaBrand.colors.border, paddingTop: 11, paddingBottom: 2 },
   rowPremium: { borderTopColor: withAlpha(ucapsaBrand.colors.gold, 0.16) },
   classIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   classTitle: { fontSize: 15, lineHeight: 20, fontWeight: '900' },
