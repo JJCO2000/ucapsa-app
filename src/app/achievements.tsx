@@ -41,13 +41,15 @@ export default function AchievementsScreen() {
     if (showRefresh) setRefreshing(true);
     else setLoading(true);
     setError(false);
+    // Hidratar caché no significa estar offline. El aviso se activa sólo si
+    // el refresh remoto posterior falla y tenemos una copia local utilizable.
+    setUsingCachedData(false);
 
     const cached = await getCachedAchievementsForUser(user.id);
     if (requestId !== requestIdRef.current) return;
 
     if (cached) {
       setAchievements(cached);
-      setUsingCachedData(true);
       setLoading(false);
     }
 

@@ -1,20 +1,37 @@
 import type { Announcement, Membership, MyPaymentOverview, ProgramEnrollmentWithDetails } from '../types/app.types';
 import { getVisibleAnnouncements } from './announcements.service';
 import { flushPendingAttendanceOperations } from './attendance-outbox.service';
-import { clientReadKeys, createMembershipOfflineSummary, createPaymentOfflineSummary, sanitizeProgramRowsForCache, writeClientResource } from './client-read-cache.service';
+import { getMyMemberVisits } from './client-activity.service';
+import {
+  clientReadKeys,
+  createMembershipOfflineSummary,
+  createPaymentOfflineSummary,
+  sanitizeProgramRowsForCache,
+  writeClientResource,
+  type CalendarClassesOfflineSnapshot,
+} from './client-read-cache.service';
 import { getMyDogs, type BasicDog } from './dogs.service';
+import { getVisibleEvents } from './events.service';
 import { createHomeCacheSource, mergeHomeCache, type HomeProgramSummary } from './home-cache.service';
 import { getMyMembership } from './memberships.service';
 import { getMyPaymentOverview } from './payments.service';
-import { flushPendingPracticeSessions } from './practice.service';
-import { getMyProgramEnrollments } from './programs.service';
+import { flushPendingPracticeSessions, getMyPracticeActivity } from './practice.service';
+import {
+  getMyProgramEnrollments,
+  getProgramClassCancellations,
+  getProgramScheduleTimeline,
+  getPrograms,
+} from './programs.service';
 
 export type OfflineWarmResult = {
   announcements: boolean;
+  calendar: boolean;
   dogs: boolean;
   programs: boolean;
   membership: boolean;
   payments: boolean;
+  memberVisits: boolean;
+  practiceActivity: boolean;
   attendanceOutbox: boolean;
   practiceOutbox: boolean;
 };
@@ -42,6 +59,20 @@ async function cacheAnnouncements(userId: string): Promise<Announcement[]> {
     mergeHomeCache(userId, { announcements: createHomeCacheSource(rows) }),
   ]);
   return rows;
+}
+
+async function cacheCalendar(userId: string): Promise<void> {
+  const [events, programs, schedules, cancellations] = await Promise.all([
+    getVisibleEvents(),
+    getPrograms(),
+    getProgramScheduleTimeline(),
+    getProgramClassCancellations(),
+  ]);
+  const classes: CalendarClassesOfflineSnapshot = { programs, schedules, cancellations };
+  await Promise.all([
+    writeClientResource(userId, clientReadKeys.calendarEvents, events),
+    writeClientResource(userId, clientReadKeys.calendarClasses, classes),
+  ]);
 }
 
 async function cacheDogs(userId: string): Promise<BasicDog[]> {
@@ -83,6 +114,13 @@ async function cachePayments(userId: string): Promise<MyPaymentOverview> {
   return overview;
 }
 
+async function cachePracticeActivity(userId: string): Promise<void> {
+  // `getMyPracticeActivity` mantiene su propia caché y mezcla cualquier práctica
+  // pendiente durable. Se ejecuta después del flush para evitar dos reintentos
+  // concurrentes sobre la misma cola.
+  await getMyPracticeActivity(userId);
+}
+
 /**
  * Reintenta todas las escrituras locales durables. Cada cola es independiente:
  * un fallo de red o servidor en una no impide intentar la otra.
@@ -102,8 +140,8 @@ export async function flushPendingClientWrites(userId: string): Promise<OfflineW
 }
 
 /**
- * Prepara una instantánea local completa después de recuperar una sesión válida
- * y aprovecha ese mismo momento para vaciar escrituras locales pendientes.
+ * Prepara las lecturas críticas para uso offline después de recuperar una sesión
+ * válida y aprovecha ese mismo momento para vaciar escrituras locales pendientes.
  *
  * La interfaz nunca debe esperar esta función: cada recurso se sincroniza de forma
  * independiente y conserva el último valor válido si una petición falla.
@@ -111,23 +149,30 @@ export async function flushPendingClientWrites(userId: string): Promise<OfflineW
 export async function warmClientOfflineData(userId: string): Promise<OfflineWarmResult> {
   const result: OfflineWarmResult = {
     announcements: false,
+    calendar: false,
     dogs: false,
     programs: false,
     membership: false,
     payments: false,
+    memberVisits: false,
+    practiceActivity: false,
     attendanceOutbox: false,
     practiceOutbox: false,
   };
 
   const tasks = [
     cacheAnnouncements(userId).then(() => { result.announcements = true; }),
+    cacheCalendar(userId).then(() => { result.calendar = true; }),
     cacheDogs(userId).then(() => { result.dogs = true; }),
     cachePrograms(userId).then(() => { result.programs = true; }),
     cacheMembership(userId).then(() => { result.membership = true; }),
     cachePayments(userId).then(() => { result.payments = true; }),
-    flushPendingClientWrites(userId).then((flushResult) => {
+    getMyMemberVisits(userId, 500).then(() => { result.memberVisits = true; }),
+    flushPendingClientWrites(userId).then(async (flushResult) => {
       result.attendanceOutbox = flushResult.attendanceOutbox;
       result.practiceOutbox = flushResult.practiceOutbox;
+      await cachePracticeActivity(userId);
+      result.practiceActivity = true;
     }),
   ];
 
