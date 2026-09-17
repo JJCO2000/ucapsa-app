@@ -1,8 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { getProgramCompletionAchievementCode } from '../constants/programCompletion';
 import { supabase } from '../lib/supabase';
-import type { TableRow } from '../types/database.helpers';
+
+export { getProgramCompletionAchievementCode } from '../constants/programCompletion';
 
 export type AchievementDefinition = {
   code: string;
@@ -21,6 +21,7 @@ export type AchievementDefinition = {
 export type UserAchievement = {
   id: string;
   user_id: string;
+  dog_id: string | null;
   achievement_code: string;
   source_type: string | null;
   source_id: string | null;
@@ -37,16 +38,16 @@ export type AchievementWithState = {
 };
 
 type AchievementCachePayload = {
-  version: 1;
+  version: 2;
   user_id: string;
+  dog_id: string | null;
   saved_at: string;
   items: AchievementWithState[];
 };
 
-const ACHIEVEMENT_CACHE_PREFIX = 'ucapsa:achievements:v1:';
+const ACHIEVEMENT_CACHE_PREFIX = 'ucapsa:achievements:v2:';
 const ACHIEVEMENT_QUERY_TIMEOUT_MS = 6000;
-let cachedAchievementsUserId: string | null = null;
-let cachedAchievements: AchievementWithState[] | null = null;
+const memoryCache = new Map<string, AchievementWithState[]>();
 
 function normalizeDefinition(row: unknown): AchievementDefinition {
   return row as AchievementDefinition;
@@ -56,8 +57,12 @@ function normalizeAchievement(row: unknown): UserAchievement {
   return row as UserAchievement;
 }
 
-function achievementCacheKey(userId: string) {
-  return `${ACHIEVEMENT_CACHE_PREFIX}${userId}`;
+function achievementScopeKey(userId: string, dogId: string | null) {
+  return `${userId}:${dogId ?? 'all'}`;
+}
+
+function achievementCacheKey(userId: string, dogId: string | null) {
+  return `${ACHIEVEMENT_CACHE_PREFIX}${achievementScopeKey(userId, dogId)}`;
 }
 
 function withAchievementTimeout<T>(promise: Promise<T>): Promise<T> {
@@ -105,132 +110,139 @@ async function getAchievementDefinitions(): Promise<AchievementDefinition[]> {
   return (data ?? []).map(normalizeDefinition);
 }
 
-type CompletedProgramEvidence = {
-  id: string;
-  program_id: string;
-  program_level: string;
-  completed_at: string | null;
-  updated_at: string;
-  created_at: string;
-};
-
-async function getCompletedProgramAchievementEvidence(userId: string): Promise<Map<string, UserAchievement>> {
-  const { data: completedRows, error: completedError } = await supabase
-    .from('program_enrollments')
-    .select('id, program_id, program_level, completed_at, updated_at, created_at')
-    .eq('user_id', userId)
-    .eq('status', 'completed');
-
-  if (completedError) throw completedError;
-
-  const completed = (completedRows ?? []) as CompletedProgramEvidence[];
-  const programIds = [...new Set(completed.map((item) => item.program_id))];
-  if (programIds.length === 0) return new Map();
-
-  const { data: programs, error: programsError } = await supabase
-    .from('programs')
-    .select('id, code')
-    .in('id', programIds);
-
-  if (programsError) throw programsError;
-
-  const programRows = (programs ?? []) as Array<Pick<TableRow<'programs'>, 'id' | 'code'>>;
-  const codeByProgramId = new Map<string, string>(programRows.map((item) => [item.id, item.code]));
-  const evidenceByCode = new Map<string, UserAchievement>();
-
-  for (const enrollment of completed) {
-    const programCode = codeByProgramId.get(enrollment.program_id);
-    if (!programCode) continue;
-    const achievementCode = getProgramCompletionAchievementCode(programCode, enrollment.program_level);
-    if (!achievementCode || evidenceByCode.has(achievementCode)) continue;
-
-    const awardedAt = enrollment.completed_at || enrollment.updated_at || enrollment.created_at;
-    evidenceByCode.set(achievementCode, {
-      id: `derived:${enrollment.id}`,
-      user_id: userId,
-      achievement_code: achievementCode,
-      source_type: 'program_enrollment_derived',
-      source_id: enrollment.id,
-      awarded_at: awardedAt,
-      awarded_by: null,
-      created_at: awardedAt,
-    });
+function mergeDefinitionsWithStoredAchievements(
+  definitions: AchievementDefinition[],
+  achievements: UserAchievement[],
+): AchievementWithState[] {
+  const achievementByCode = new Map<string, UserAchievement>();
+  for (const achievement of achievements) {
+    if (!achievementByCode.has(achievement.achievement_code)) {
+      achievementByCode.set(achievement.achievement_code, achievement);
+    }
   }
 
-  return evidenceByCode;
+  return definitions.map((definition) => {
+    const achievement = achievementByCode.get(definition.code) ?? null;
+    return {
+      definition,
+      achievement,
+      unlocked: Boolean(achievement),
+      unlockSource: achievement ? 'stored' : null,
+    };
+  });
 }
 
-async function persistAchievementCache(userId: string, items: AchievementWithState[]) {
-  cachedAchievementsUserId = userId;
-  cachedAchievements = items;
+async function persistAchievementCache(
+  userId: string,
+  dogId: string | null,
+  items: AchievementWithState[],
+) {
+  const scopeKey = achievementScopeKey(userId, dogId);
+  memoryCache.set(scopeKey, items);
 
   const payload: AchievementCachePayload = {
-    version: 1,
+    version: 2,
     user_id: userId,
+    dog_id: dogId,
     saved_at: new Date().toISOString(),
     items,
   };
 
   try {
-    await AsyncStorage.setItem(achievementCacheKey(userId), JSON.stringify(payload));
+    await AsyncStorage.setItem(achievementCacheKey(userId, dogId), JSON.stringify(payload));
   } catch {
     // La cache local es una mejora offline; nunca debe romper la consulta remota.
   }
 }
 
-export async function getCachedAchievementsForUser(userId: string): Promise<AchievementWithState[] | null> {
-  if (cachedAchievementsUserId === userId && cachedAchievements) return cachedAchievements;
+async function getCachedAchievements(
+  userId: string,
+  dogId: string | null,
+): Promise<AchievementWithState[] | null> {
+  const scopeKey = achievementScopeKey(userId, dogId);
+  const inMemory = memoryCache.get(scopeKey);
+  if (inMemory) return inMemory;
 
+  const key = achievementCacheKey(userId, dogId);
   try {
-    const raw = await AsyncStorage.getItem(achievementCacheKey(userId));
+    const raw = await AsyncStorage.getItem(key);
     if (!raw) return null;
 
     const parsed = JSON.parse(raw) as Partial<AchievementCachePayload>;
-    if (parsed.version !== 1 || parsed.user_id !== userId || !isCachedAchievementArray(parsed.items)) {
-      await AsyncStorage.removeItem(achievementCacheKey(userId));
+    if (
+      parsed.version !== 2 ||
+      parsed.user_id !== userId ||
+      parsed.dog_id !== dogId ||
+      !isCachedAchievementArray(parsed.items)
+    ) {
+      await AsyncStorage.removeItem(key);
       return null;
     }
 
-    cachedAchievementsUserId = userId;
-    cachedAchievements = parsed.items;
+    memoryCache.set(scopeKey, parsed.items);
     return parsed.items;
   } catch {
     return null;
   }
 }
 
+export async function getCachedAchievementsForUser(userId: string): Promise<AchievementWithState[] | null> {
+  return getCachedAchievements(userId, null);
+}
+
+export async function getCachedAchievementsForDog(
+  userId: string,
+  dogId: string,
+): Promise<AchievementWithState[] | null> {
+  return getCachedAchievements(userId, dogId);
+}
+
 export async function getAchievementsForUser(userId: string): Promise<AchievementWithState[]> {
-  const [definitions, achievementResult, completionEvidence] = await Promise.all([
+  const [definitions, achievementResult] = await Promise.all([
     getAchievementDefinitions(),
     supabase
       .from('user_achievements')
       .select('*')
       .eq('user_id', userId)
       .order('awarded_at', { ascending: false }),
-    getCompletedProgramAchievementEvidence(userId),
   ]);
 
   if (achievementResult.error) throw achievementResult.error;
+  const achievements = (achievementResult.data ?? []).map(normalizeAchievement);
+  return mergeDefinitionsWithStoredAchievements(definitions, achievements);
+}
 
-  const achievements = (achievementResult.data ?? []).map(normalizeAchievement) as UserAchievement[];
-  const achievementByCode = new Map(achievements.map((item) => [item.achievement_code, item]));
+export async function getAchievementsForDog(
+  userId: string,
+  dogId: string,
+): Promise<AchievementWithState[]> {
+  const [definitions, achievementResult] = await Promise.all([
+    getAchievementDefinitions(),
+    supabase
+      .from('user_achievements')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('dog_id', dogId)
+      .order('awarded_at', { ascending: false }),
+  ]);
 
-  return definitions.map((definition) => {
-    const storedAchievement = achievementByCode.get(definition.code) ?? null;
-    const derivedAchievement = completionEvidence.get(definition.code) ?? null;
-    const achievement = storedAchievement ?? derivedAchievement;
-    return {
-      definition,
-      achievement,
-      unlocked: Boolean(achievement),
-      unlockSource: storedAchievement ? 'stored' : derivedAchievement ? 'program_completion' : null,
-    };
-  });
+  if (achievementResult.error) throw achievementResult.error;
+  const achievements = (achievementResult.data ?? []).map(normalizeAchievement);
+  return mergeDefinitionsWithStoredAchievements(definitions, achievements);
 }
 
 export async function refreshAchievementsForUser(userId: string): Promise<AchievementWithState[]> {
   const rows = await withAchievementTimeout(getAchievementsForUser(userId));
-  await persistAchievementCache(userId, rows);
+  await persistAchievementCache(userId, null, rows);
+  return rows;
+}
+
+export async function refreshAchievementsForDog(
+  userId: string,
+  dogId: string,
+): Promise<AchievementWithState[]> {
+  const rows = await withAchievementTimeout(getAchievementsForDog(userId, dogId));
+  await persistAchievementCache(userId, dogId, rows);
   return rows;
 }
 
@@ -259,20 +271,47 @@ export async function getMyAchievements(options?: {
   }
 }
 
+export async function getMyDogAchievements(
+  dogId: string,
+  options?: {
+    userId?: string;
+    forceRefresh?: boolean;
+    allowCachedOnError?: boolean;
+  },
+): Promise<AchievementWithState[]> {
+  const userId = options?.userId ?? await getCurrentUserId();
+  const forceRefresh = options?.forceRefresh ?? false;
+  const allowCachedOnError = options?.allowCachedOnError ?? true;
+
+  if (!forceRefresh) {
+    const cached = await getCachedAchievementsForDog(userId, dogId);
+    if (cached) return cached;
+  }
+
+  try {
+    return await refreshAchievementsForDog(userId, dogId);
+  } catch (error) {
+    if (allowCachedOnError) {
+      const cached = await getCachedAchievementsForDog(userId, dogId);
+      if (cached) return cached;
+    }
+    throw error;
+  }
+}
+
 export function clearAchievementCache() {
-  const userId = cachedAchievementsUserId;
-  cachedAchievementsUserId = null;
-  cachedAchievements = null;
-  if (userId) void AsyncStorage.removeItem(achievementCacheKey(userId));
+  memoryCache.clear();
 }
 
 export async function clearAchievementCacheForUser(userId: string) {
-  if (cachedAchievementsUserId === userId) {
-    cachedAchievementsUserId = null;
-    cachedAchievements = null;
+  for (const key of [...memoryCache.keys()]) {
+    if (key.startsWith(`${userId}:`)) memoryCache.delete(key);
   }
+
   try {
-    await AsyncStorage.removeItem(achievementCacheKey(userId));
+    const keys = await AsyncStorage.getAllKeys();
+    const matchingKeys = keys.filter((key) => key.startsWith(`${ACHIEVEMENT_CACHE_PREFIX}${userId}:`));
+    if (matchingKeys.length > 0) await AsyncStorage.multiRemove(matchingKeys);
   } catch {
     // No bloquear una accion remota correcta por un fallo del almacenamiento local.
   }
@@ -289,6 +328,7 @@ export async function awardAchievementToUser(userId: string, achievementCode: st
     .upsert(
       {
         user_id: userId,
+        dog_id: null,
         achievement_code: achievementCode,
         source_type: 'manual_admin',
         source_id: null,
@@ -306,7 +346,8 @@ export async function revokeAchievementFromUser(userId: string, achievementCode:
     .from('user_achievements')
     .delete()
     .eq('user_id', userId)
-    .eq('achievement_code', achievementCode);
+    .eq('achievement_code', achievementCode)
+    .is('dog_id', null);
 
   if (error) throw error;
   await clearAchievementCacheForUser(userId);
