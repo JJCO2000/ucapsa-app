@@ -160,7 +160,7 @@ export default function AccountSettingsScreen() {
       : section === 'notifications'
         ? 'Elige qué recordatorios quieres recibir.'
         : 'Solicitud de baja revisada por administracion.'
-    : 'Elige una opción. Cada tarjeta abre una tarea concreta.';
+    : 'Elige qué quieres gestionar.';
 
   return (
     <KeyboardAwareScreen
@@ -174,21 +174,6 @@ export default function AccountSettingsScreen() {
       {isOfflineFallback && profile ? (
         <OfflineDataNotice savedAt={lastProfileSyncAt} onRetry={() => void handleRefresh()} premium={premium} label="Mostrando tu perfil guardado" />
       ) : null}
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Abrir mis datos"
-        style={[styles.identityCard, premium && styles.premiumCard]}
-        onPress={() => section ? undefined : openSection('profile')}
-      >
-        <View style={[styles.avatar, { backgroundColor: avatarColor }]}><Text style={styles.avatarText}>{(fullName || profile?.email || 'U').trim().slice(0, 1).toUpperCase()}</Text></View>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.identityName, premium && styles.premiumTitle]}>{fullName || profile?.email || 'Usuario UCAPSA'}</Text>
-          <Text style={[styles.identityEmail, premium && styles.premiumText]}>{profile?.email ?? user.email}</Text>
-          <Text style={[styles.identityRole, premium && styles.premiumPill]}>{role === 'member' ? 'Socio UCAPSA' : isAdmin ? 'Administrador' : 'Cliente UCAPSA'}</Text>
-        </View>
-        {!section ? <MaterialIcons name="chevron-right" size={25} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} /> : null}
-      </Pressable>
 
       {!section ? (
         <View style={styles.menuStack}>
@@ -237,7 +222,7 @@ export default function AccountSettingsScreen() {
       {section === 'profile' ? (
         <View style={[styles.sectionCard, premium && styles.premiumCard]}>
           <View style={styles.sectionHeaderRow}>
-            <View style={{ flex: 1 }}><Text style={[styles.sectionTitle, premium && styles.premiumTitle]}>{isAdmin ? 'Mis datos administrativos' : 'Mis datos'}</Text><Text style={[styles.muted, premium && styles.premiumText]}>Nombre, contacto y avatar. Los perros se administran por separado.</Text></View>
+            <Text style={[styles.sectionIntro, premium && styles.premiumText]}>Nombre, correo, teléfono y avatar.</Text>
             <Pressable style={[styles.smallButton, premium && styles.premiumSmallButton]} onPress={() => setEditing(true)}><Text style={[styles.smallButtonText, premium && styles.premiumSmallButtonText]}>{profileComplete ? 'Editar' : 'Completar'}</Text></Pressable>
           </View>
           <ReadonlyRow label="Nombre" value={profile?.full_name || 'Pendiente'} premium={premium} />
@@ -247,7 +232,7 @@ export default function AccountSettingsScreen() {
       ) : null}
 
       {section === 'notifications' ? (
-        <View style={[styles.sectionCard, premium && styles.premiumCard]}>
+        <View style={styles.notificationSection}>
           <NotificationSettingsCard premium={premium} />
           {isAdmin ? (
             <Pressable style={[styles.adminNoticeButton, premium && styles.adminNoticeButtonPremium]} onPress={() => router.push('/admin/notifications' as never)}>
@@ -313,7 +298,7 @@ function SettingsButton({ icon, title, subtitle, onPress, premium, badge, danger
   return (
     <Pressable accessibilityRole="button" style={[styles.settingsButton, premium && styles.premiumCard, danger && styles.dangerSettingsButton]} onPress={onPress}>
       <View style={[styles.settingsIcon, premium && styles.premiumSmallButton, danger && styles.dangerIcon]}><MaterialIcons name={icon} size={23} color={premium ? ucapsaBrand.colors.premiumAction : danger ? ucapsaBrand.colors.red : ucapsaBrand.colors.redDark} /></View>
-      <View style={{ flex: 1 }}><View style={styles.settingsTitleRow}><Text style={[styles.settingsTitle, premium && styles.premiumTitle, danger && styles.dangerTitle]}>{title}</Text>{badge ? <Text style={[styles.badge, premium && styles.premiumPill]}>{badge}</Text> : null}</View><Text style={[styles.settingsSubtitle, premium && styles.premiumText]}>{subtitle}</Text><Text style={[styles.openLabel, premium && styles.openLabelPremium]}>Abrir</Text></View>
+      <View style={{ flex: 1 }}><View style={styles.settingsTitleRow}><Text style={[styles.settingsTitle, premium && styles.premiumTitle, danger && styles.dangerTitle]}>{title}</Text>{badge ? <Text style={[styles.badge, premium && styles.premiumPill]}>{badge}</Text> : null}</View><Text style={[styles.settingsSubtitle, premium && styles.premiumText]}>{subtitle}</Text></View>
       <MaterialIcons name="chevron-right" size={26} color={premium ? ucapsaBrand.colors.premiumAction : danger ? ucapsaBrand.colors.red : ucapsaBrand.colors.redDark} />
     </Pressable>
   );
@@ -329,26 +314,19 @@ const styles = StyleSheet.create({
   backButton: { width: 42, height: 42, borderRadius: 21, backgroundColor: ucapsaBrand.colors.redSoft, alignItems: 'center', justifyContent: 'center' },
   title: { color: ucapsaBrand.colors.text, fontSize: 28, fontWeight: '900' },
   muted: { color: ucapsaBrand.colors.muted, fontSize: 14, lineHeight: 20, marginTop: 4, fontWeight: '700' },
-  identityCard: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: ucapsaBrand.colors.surface, borderRadius: 24, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 16, marginTop: 10 },
-  avatar: { width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: ucapsaBrand.colors.surface, fontSize: 28, fontWeight: '900' },
-  identityName: { color: ucapsaBrand.colors.text, fontSize: 19, fontWeight: '900' },
-  identityEmail: { color: ucapsaBrand.colors.muted, fontSize: 13, marginTop: 2 },
-  identityRole: { alignSelf: 'flex-start', overflow: 'hidden', backgroundColor: ucapsaBrand.colors.redSoft, color: ucapsaBrand.colors.redDark, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, fontSize: 12, fontWeight: '900', marginTop: 8 },
-  menuStack: { gap: 11, marginTop: 2 },
+  menuStack: { gap: 11, marginTop: 12 },
   settingsButton: { flexDirection: 'row', alignItems: 'center', gap: 13, minHeight: 88, backgroundColor: ucapsaBrand.colors.surface, borderRadius: 22, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 15 },
   settingsIcon: { width: 46, height: 46, borderRadius: 16, backgroundColor: ucapsaBrand.colors.redSoft, alignItems: 'center', justifyContent: 'center' },
   settingsTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   settingsTitle: { color: ucapsaBrand.colors.text, fontSize: 17, fontWeight: '900' },
   settingsSubtitle: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 17, fontWeight: '700', marginTop: 3 },
-  openLabel: { color: ucapsaBrand.colors.redDark, fontSize: 11, fontWeight: '900', textTransform: 'uppercase', marginTop: 5 },
-  openLabelPremium: { color: ucapsaBrand.colors.premiumAction },
   badge: { overflow: 'hidden', borderRadius: 999, backgroundColor: ucapsaBrand.colors.warningSoft, color: ucapsaBrand.colors.goldDark, paddingHorizontal: 8, paddingVertical: 4, fontSize: 10, fontWeight: '900' },
   dangerSettingsButton: { borderColor: ucapsaBrand.colors.redBorder },
   dangerIcon: { backgroundColor: ucapsaBrand.colors.surfaceAlt },
   dangerTitle: { color: ucapsaBrand.colors.red },
-  sectionCard: { gap: 12, backgroundColor: ucapsaBrand.colors.surface, borderRadius: 24, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 16, marginTop: 2 },
+  sectionCard: { gap: 12, backgroundColor: ucapsaBrand.colors.surface, borderRadius: 24, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 16, marginTop: 12 },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  sectionIntro: { flex: 1, color: ucapsaBrand.colors.muted, fontSize: 14, lineHeight: 20, fontWeight: '700' },
   sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 20, fontWeight: '900' },
   smallButton: { borderRadius: 999, backgroundColor: ucapsaBrand.colors.redSoft, paddingHorizontal: 14, paddingVertical: 10 },
   smallButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900' },
@@ -356,6 +334,7 @@ const styles = StyleSheet.create({
   readonlyRowPremium: { borderBottomColor: withAlpha(ucapsaBrand.colors.gold, 0.16) },
   readonlyLabel: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
   readonlyValue: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900', marginTop: 4 },
+  notificationSection: { gap: 12, marginTop: 12 },
   signOutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingVertical: 13 },
   signOutButtonPremium: { backgroundColor: withAlpha(ucapsaBrand.colors.surface, 0.06), borderColor: withAlpha(ucapsaBrand.colors.gold, 0.3) },
   signOutText: { color: ucapsaBrand.colors.redDark, fontSize: 14, fontWeight: '900' },
