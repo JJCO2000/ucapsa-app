@@ -53,7 +53,6 @@ export const clientReadKeys = {
   dogs: 'dogs',
   membership: 'membership',
   paymentSummary: 'payment-summary',
-  paymentSettings: 'payment-settings',
 } as const;
 
 function key(scope: string, resource: string) {
