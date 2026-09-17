@@ -16,7 +16,7 @@ must('src/types/database.types.ts', /client_event_id/, 'El overlay tipado perdi�
 must('src/types/database.types.ts', /p_captured_at/, 'El overlay tipado perdió la hora real de captura offline.');
 must('src/types/database.helpers.ts', /database\.types/, 'Los helpers de base no usan los tipos canónicos con overlay offline.');
 
-must('src/app/(tabs)/dog.tsx', /account-settings\?section=profile/, 'Mi perro perdió el acceso separado a Mis datos.');
+mustNot('src/app/(tabs)/dog.tsx', /account-settings\?section=profile/, 'Mi perro volvió a mezclar la gestión de cuenta con la ficha del perro.');
 must('src/app/(tabs)/dog.tsx', /\/client\/dog-profile\?dogId=/, 'El lápiz de Mi perro dejó de editar al perro seleccionado.');
 must('src/app/(tabs)/dog.tsx', /useLocalSearchParams/, 'Mi perro dejó de aceptar el dogId de navegación contextual.');
 must('src/app/(tabs)/dog.tsx', /loadRunRef/, 'Mi perro perdió la guarda contra respuestas asíncronas obsoletas.');
