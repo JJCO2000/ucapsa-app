@@ -16,7 +16,7 @@ must('src/types/database.types.ts', /client_event_id/, 'El overlay tipado perdi�
 must('src/types/database.types.ts', /p_captured_at/, 'El overlay tipado perdió la hora real de captura offline.');
 must('src/types/database.helpers.ts', /database\.types/, 'Los helpers de base no usan los tipos canónicos con overlay offline.');
 
-mustNot('src/app/(tabs)/dog.tsx', /account-settings\?section=profile/, 'Mi perro volvió a mezclar la gestión de cuenta con la ficha del perro.');
+mustNot('src/app/(tabs)/dog.tsx', /account-settings\?section=profile/, 'Mi perro volvió a mezclar datos de cuenta con la ficha del perro.');
 must('src/app/(tabs)/dog.tsx', /\/client\/dog-profile\?dogId=/, 'El lápiz de Mi perro dejó de editar al perro seleccionado.');
 must('src/app/(tabs)/dog.tsx', /useLocalSearchParams/, 'Mi perro dejó de aceptar el dogId de navegación contextual.');
 must('src/app/(tabs)/dog.tsx', /loadRunRef/, 'Mi perro perdió la guarda contra respuestas asíncronas obsoletas.');
@@ -79,8 +79,11 @@ must('supabase/sql/ucapsa-offline-attendance-outbox.sql', /interval '7 days'/, '
 
 must('src/app/(tabs)/classes.tsx', /Tu programa y próximas sesiones/, 'Clases perdió el encabezado compacto orientado al programa actual.');
 mustNot('src/app/(tabs)/classes.tsx', /ClientPageHeader/, 'Clases volvió al hero compartido que ocupa demasiado espacio vertical.');
-must('src/app/(tabs)/classes.tsx', /router\.push\('\/attendance'/, 'Clases perdió el acceso a Registrar asistencia.');
+mustNot('src/app/(tabs)/classes.tsx', /router\.push\('\/attendance'/, 'Clases volvió a saltarse la ficha particular antes de Registrar asistencia.');
 must('src/app/(tabs)/classes.tsx', /\/client\/class-detail\?enrollmentId=/, 'Clases perdió el acceso al detalle del programa.');
+must('src/app/(tabs)/classes.tsx', />Ver detalle</, 'Clases perdió la acción explícita para abrir la ficha particular.');
+must('src/app/client/class-detail.tsx', /router\.push\('\/attendance'/, 'Detalle de clase perdió la acción concreta Registrar asistencia.');
+must('src/app/client/class-detail.tsx', /loadRunRef/, 'Detalle de clase perdió la guarda contra respuestas asíncronas obsoletas.');
 must('src/app/(tabs)/classes.tsx', /Mostrando clases guardadas/, 'Clases perdió el aviso de datos offline guardados.');
 must('src/app/(tabs)/classes.tsx', /loadRunRef/, 'Clases perdió la guarda contra respuestas asíncronas obsoletas.');
 must('src/app/(tabs)/classes.tsx', /cacheScopeRef/, 'Clases dejó de limpiar el estado al cambiar de usuario.');

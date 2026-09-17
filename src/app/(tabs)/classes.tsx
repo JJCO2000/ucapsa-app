@@ -169,7 +169,7 @@ export default function ClassesTab() {
         </View>
       ) : null}
 
-      {active.map((item, index) => (
+      {active.map((item) => (
         <ClassCard
           key={item.enrollment.id}
           item={item}
@@ -177,7 +177,6 @@ export default function ClassesTab() {
           sessionUnavailable={sessionWarning}
           premium={premium}
           format={format}
-          showAttendanceAction={index === 0}
         />
       ))}
 
@@ -212,7 +211,6 @@ function ClassCard({
   compact = false,
   premium,
   format,
-  showAttendanceAction = false,
 }: {
   item: ProgramEnrollmentWithDetails;
   nextSession: ProgramNextSession | null;
@@ -220,7 +218,6 @@ function ClassCard({
   compact?: boolean;
   premium: boolean;
   format: ReturnType<typeof resolveUcapsaFormat>;
-  showAttendanceAction?: boolean;
 }) {
   const attendanceCount = item.attendances.length;
   const required = item.program.required_attendances;
@@ -284,18 +281,10 @@ function ClassCard({
         <Text style={[styles.usageLabel, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>asistencias registradas</Text>
       </View>
 
-      <View style={styles.actionRow}>
-        {showAttendanceAction ? (
-          <Pressable accessibilityRole="button" accessibilityLabel="Registrar asistencia" style={[styles.primaryAction, { backgroundColor: format.primaryButton }]} onPress={() => router.push('/attendance' as never)}>
-            <MaterialIcons name="qr-code-scanner" size={19} color={format.primaryButtonText} />
-            <Text style={[styles.primaryActionText, { color: format.primaryButtonText }]}>Registrar asistencia</Text>
-          </Pressable>
-        ) : null}
-        <Pressable accessibilityRole="button" accessibilityLabel={`Ver programa ${classLabel}`} style={[styles.detailButton, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]} onPress={() => router.push(detailRoute)}>
-          <Text style={[styles.detailButtonText, { color: format.secondaryButtonText }]}>Ver programa</Text>
-          <MaterialIcons name="arrow-forward" size={18} color={format.secondaryButtonText} />
-        </Pressable>
-      </View>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Ver detalle de ${classLabel}`} style={[styles.detailButton, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]} onPress={() => router.push(detailRoute)}>
+        <Text style={[styles.detailButtonText, { color: format.secondaryButtonText }]}>Ver detalle</Text>
+        <MaterialIcons name="arrow-forward" size={18} color={format.secondaryButtonText} />
+      </Pressable>
     </View>
   );
 }
@@ -327,10 +316,7 @@ const styles = StyleSheet.create({
   usageRow: { flexDirection: 'row', alignItems: 'baseline', gap: 7 },
   usageValue: { fontSize: 26, lineHeight: 29, fontWeight: '900' },
   usageLabel: { flex: 1, fontSize: 12, lineHeight: 17, fontWeight: '800' },
-  actionRow: { flexDirection: 'row', alignItems: 'stretch', gap: 9 },
-  primaryAction: { minHeight: 46, flex: 1.25, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 15, paddingHorizontal: 12 },
-  primaryActionText: { fontSize: 12, lineHeight: 16, fontWeight: '900' },
-  detailButton: { minHeight: 46, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 15, borderWidth: 1, paddingHorizontal: 11 },
+  detailButton: { minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 15, borderWidth: 1, paddingHorizontal: 11 },
   detailButtonText: { fontSize: 12, lineHeight: 16, fontWeight: '900' },
   historySection: { marginTop: 3 },
   sectionTitle: { fontSize: 22, lineHeight: 27, fontWeight: '900', marginBottom: 10 },
