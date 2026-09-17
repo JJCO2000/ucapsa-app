@@ -5,7 +5,9 @@ import { AppState } from 'react-native';
 
 import { LoadingScreen } from '../components/ui/LoadingScreen';
 import { SessionProvider, useSession } from '../hooks/useSession';
-import { flushPendingClientWrites, warmClientOfflineData } from '../services/client-offline-sync.service';
+import { flushPendingAttendanceOperations } from '../services/attendance-outbox.service';
+import { warmClientOfflineData } from '../services/client-offline-sync.service';
+import { flushPendingPracticeSessions } from '../services/practice.service';
 
 function RootNavigator() {
   const { loading, startupError, retryStartup, user, isAdmin } = useSession();
@@ -29,8 +31,13 @@ function RootNavigator() {
       appStateRef.current = nextState;
       if (nextState !== 'active' || previousState === 'active') return;
 
-      void flushPendingClientWrites(user.id).catch((error) => {
-        console.warn('Could not retry UCAPSA offline queues:', error);
+      void Promise.allSettled([
+        flushPendingAttendanceOperations(user.id),
+        flushPendingPracticeSessions(user.id),
+      ]).then((results) => {
+        if (results.some((result) => result.status === 'rejected')) {
+          console.warn('Could not retry one or more UCAPSA offline queues.');
+        }
       });
     });
 
