@@ -161,7 +161,10 @@ export default function HomeExperienceScreen() {
     }
   }
 
-  const mainProgram = snapshot?.whatIHave.programs[0] ?? null;
+  const nextClass = snapshot?.whatIsNext.nextClass ?? null;
+  const mainProgram = nextClass
+    ? snapshot?.whatIHave.programs.find((program) => program.enrollmentId === nextClass.enrollmentId) ?? snapshot?.whatIHave.programs[0] ?? null
+    : snapshot?.whatIHave.programs[0] ?? null;
   const membershipStatus = snapshot?.whatIHave.membership?.status ?? null;
   const hasActivePrograms = Boolean(mainProgram);
   const format = useMemo(
@@ -360,8 +363,8 @@ export default function HomeExperienceScreen() {
           icon="emoji-events"
           eyebrow="NUEVO LOGRO"
           title={recentAchievement.unlockedTitle || recentAchievement.title}
-          detail={`Desbloqueado ${formatDate(recentAchievement.awardedAt) ?? 'recientemente'}`}
-          onPress={() => router.push('/achievements' as never)}
+          detail={[recentAchievement.dogName, `Desbloqueado ${formatDate(recentAchievement.awardedAt) ?? 'recientemente'}`].filter(Boolean).join(' · ')}
+          onPress={() => router.push((recentAchievement.dogId ? `/dog?dogId=${encodeURIComponent(recentAchievement.dogId)}` : '/achievements') as never)}
           accent="gold"
         />
       ) : null}
