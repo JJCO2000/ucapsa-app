@@ -130,7 +130,12 @@ export default function AdminCompetitionScreen() {
           subtitle="Movimientos Admin por perro y temporada"
           onPress={() => router.push('/admin/competition-adjustments' as never)}
         />
-        <FeatureRow icon="military-tech" title="Premios" subtitle="Perro del Año y reconocimientos permanentes" status="En integración" disabled />
+        <FeatureRow
+          icon="military-tech"
+          title="Premios"
+          subtitle="Perro del Año y reconocimientos permanentes"
+          onPress={() => router.push('/admin/competition-awards' as never)}
+        />
         <FeatureRow
           icon="calendar-month"
           title="Temporadas"

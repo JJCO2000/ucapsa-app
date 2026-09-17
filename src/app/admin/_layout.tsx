@@ -44,6 +44,8 @@ export default function AdminLayout() {
       <Stack.Screen name="competition-season-form" options={{ title: 'Configurar temporada' }} />
       <Stack.Screen name="competition-adjustments" options={{ title: 'Puntos y ajustes' }} />
       <Stack.Screen name="competition-adjustment-detail" options={{ title: 'Ajustes del perro' }} />
+      <Stack.Screen name="competition-awards" options={{ title: 'Premios' }} />
+      <Stack.Screen name="competition-award-form" options={{ title: 'Otorgar premio' }} />
       <Stack.Screen name="points" options={{ title: 'Puntos UCAPSA' }} />
       <Stack.Screen name="tools-communication" options={{ title: 'Comunicacion' }} />
       <Stack.Screen name="tools-administration" options={{ title: 'Administracion' }} />
