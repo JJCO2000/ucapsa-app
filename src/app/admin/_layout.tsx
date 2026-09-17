@@ -46,6 +46,10 @@ export default function AdminLayout() {
       <Stack.Screen name="competition-adjustment-detail" options={{ title: 'Ajustes del perro' }} />
       <Stack.Screen name="competition-awards" options={{ title: 'Premios' }} />
       <Stack.Screen name="competition-award-form" options={{ title: 'Otorgar premio' }} />
+      <Stack.Screen name="competition-exams" options={{ title: 'Exámenes' }} />
+      <Stack.Screen name="competition-exam-detail" options={{ title: 'Examen' }} />
+      <Stack.Screen name="competition-exam-form" options={{ title: 'Configurar examen' }} />
+      <Stack.Screen name="competition-exam-item-form" options={{ title: 'Ejercicio' }} />
       <Stack.Screen name="points" options={{ title: 'Puntos UCAPSA' }} />
       <Stack.Screen name="tools-communication" options={{ title: 'Comunicacion' }} />
       <Stack.Screen name="tools-administration" options={{ title: 'Administracion' }} />
