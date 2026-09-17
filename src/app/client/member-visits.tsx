@@ -1,16 +1,17 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { ClientPageHeader } from '../../components/layout/ClientPageHeader';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
+import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
-import { getMyMemberVisits } from '../../services/client-activity.service';
-import type { MemberVisit } from '../../types/app.types';
+import { getCachedMyMemberVisits, getMyMemberVisits } from '../../services/client-activity.service';
+import type { MemberVisitOfflineSummary } from '../../services/client-read-cache.service';
 
 function formatVisitDate(value: string) {
   const date = new Date(value);
@@ -20,26 +21,57 @@ function formatVisitDate(value: string) {
 
 export default function MemberVisitsScreen() {
   const { user, role, isAdmin } = useSession();
-  const [visits, setVisits] = useState<MemberVisit[]>([]);
+  const [visits, setVisits] = useState<MemberVisitOfflineSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [usingSavedData, setUsingSavedData] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const loadRunRef = useRef(0);
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
   const premium = format.key === 'member';
 
   const load = useCallback(async () => {
+    const runId = loadRunRef.current + 1;
+    loadRunRef.current = runId;
+    const isCurrentRun = () => loadRunRef.current === runId;
     if (!user || isAdmin) return;
+
     setError(null);
-    try {
-      setVisits(await getMyMemberVisits(user.id));
-    } catch {
-      setError('No pudimos cargar tus visitas de socio.');
-    } finally {
+    setUsingSavedData(false);
+
+    const cached = await getCachedMyMemberVisits(user.id);
+    if (!isCurrentRun()) return;
+    if (cached) {
+      setVisits(cached.data);
+      setSavedAt(cached.saved_at);
       setLoading(false);
+    }
+
+    try {
+      const fresh = await getMyMemberVisits(user.id);
+      if (!isCurrentRun()) return;
+      setVisits(fresh);
+      setUsingSavedData(false);
+      setError(null);
+    } catch {
+      if (!isCurrentRun()) return;
+      if (cached) {
+        setVisits(cached.data);
+        setUsingSavedData(true);
+      } else {
+        setVisits([]);
+        setError('No pudimos cargar tus visitas de socio.');
+      }
+    } finally {
+      if (isCurrentRun()) setLoading(false);
     }
   }, [isAdmin, user]);
 
-  useFocusEffect(useCallback(() => { void load(); return undefined; }, [load]));
+  useFocusEffect(useCallback(() => {
+    void load();
+    return () => { loadRunRef.current += 1; };
+  }, [load]));
 
   async function refresh() {
     setRefreshing(true);
@@ -69,6 +101,10 @@ export default function MemberVisitsScreen() {
         icon="badge"
       />
 
+      {usingSavedData ? (
+        <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} label="Mostrando visitas guardadas" />
+      ) : null}
+
       <View style={styles.summaryRow}>
         <View style={[styles.summaryCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
           <Text style={[styles.summaryValue, { color: format.cardText }]}>{visits.length}</Text>
@@ -80,8 +116,8 @@ export default function MemberVisitsScreen() {
         </View>
       </View>
 
-      {loading ? <View style={styles.loading}><ActivityIndicator color={format.accent} /><Text style={[styles.muted, { color: format.muted }]}>Cargando visitas...</Text></View> : null}
-      {error ? <View style={[styles.stateCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}><MaterialIcons name="error-outline" size={25} color={format.accentDark} /><Text style={[styles.stateTitle, { color: format.cardText }]}>{error}</Text></View> : null}
+      {loading && visits.length === 0 ? <View style={styles.loading}><ActivityIndicator color={format.accent} /><Text style={[styles.muted, { color: format.muted }]}>Cargando visitas...</Text></View> : null}
+      {error && visits.length === 0 ? <View style={[styles.stateCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}><MaterialIcons name="error-outline" size={25} color={format.accentDark} /><Text style={[styles.stateTitle, { color: format.cardText }]}>{error}</Text></View> : null}
 
       {!loading && !error && visits.length === 0 ? (
         <View style={[styles.stateCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
