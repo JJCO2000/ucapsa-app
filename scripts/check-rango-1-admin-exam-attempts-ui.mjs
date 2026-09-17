@@ -94,7 +94,12 @@ for (const token of [
   if (!service.includes(token)) failures.push(`Servicio de intentos perdió contrato canónico: ${token}`);
 }
 
-if (!/import_batch_id/.test(service)) failures.push('Servicio dejó de conservar la procedencia por lote del intento.');
+if (!/attempt:\s*CompetitionExamAttempt/.test(service)
+  || !/\.from\('ucapsa_exam_attempts'\)/.test(service)
+  || !/rawAttemptById/.test(service)
+  || !/attempt\.import_batch_id/.test(attempts)) {
+  failures.push('Servicio/UI dejó de conservar y consumir la procedencia por lote del intento.');
+}
 if (!/items\.length > 0 && validResults\.length === items\.length/.test(service)) {
   failures.push('Servicio dejó de derivar completitud por presencia de una fila por ejercicio.');
 }
