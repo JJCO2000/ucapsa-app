@@ -111,6 +111,11 @@ export default function AdminHomeTab() {
         <Metric label="Clientes" value={stats.clients} icon="people" onPress={() => router.push('/admin-clients' as never)} />
       </View> : !loading && !error ? <Text style={styles.muted}>Aún no hay un resumen confirmado.</Text> : null}
 
+      <Text style={styles.sectionTitle}>Competencia</Text>
+      <View style={styles.actionCard}>
+        <MenuRow icon="emoji-events" title="Competencia UCAPSA" subtitle="Temporadas, constancia, exámenes, ajustes y premios" onPress={() => router.push('/admin/competition' as never)} last />
+      </View>
+
       <Text style={styles.sectionTitle}>Comunicación</Text>
       <View style={styles.actionCard}>
         <MenuRow icon="campaign" title="Crear anuncio" subtitle="Publica un aviso y programa recordatorios" onPress={() => router.push('/admin/announcements?intent=new' as never)} />
