@@ -8,13 +8,13 @@ function must(rel, pattern, label) { if (!pattern.test(read(rel))) failures.push
 function mustNot(rel, pattern, label) { if (pattern.test(read(rel))) failures.push(label); }
 
 must('src/lib/supabase.ts', /createClient<Database>/, 'Supabase client no está tipado con Database.');
-must('src/lib/supabase.ts', /database\.types/, 'Supabase client no usa los tipos canónicos con overlay offline.');
+must('src/lib/supabase.ts', /database\.types/, 'Supabase client no usa los tipos canónicos.');
 const generated = read('src/types/database.generated.ts');
 if (!/export (type|interface) Database/.test(generated)) failures.push('Falta Database generado desde Supabase.');
 mustNot('src/types/database.types.ts', /Record<string,\s*never>/, 'Sigue activo el placeholder Record<string, never>.');
-must('src/types/database.types.ts', /client_event_id/, 'El overlay tipado perdió client_event_id para sincronización offline.');
-must('src/types/database.types.ts', /p_captured_at/, 'El overlay tipado perdió la hora real de captura offline.');
-must('src/types/database.helpers.ts', /database\.types/, 'Los helpers de base no usan los tipos canónicos con overlay offline.');
+if (!/client_event_id: string \\| null/.test(generated)) failures.push('Los tipos generados perdieron client_event_id para sincronización offline.');
+if (!/p_captured_at: string/.test(generated)) failures.push('Los tipos generados perdieron la hora real de captura offline.');
+must('src/types/database.helpers.ts', /database\.types/, 'Los helpers de base no usan los tipos canónicos.');
 
 mustNot('src/app/(tabs)/dog.tsx', /account-settings\?section=profile/, 'Mi perro volvió a mezclar datos de cuenta con la ficha del perro.');
 must('src/app/(tabs)/dog.tsx', /\/client\/dog-profile\?dogId=/, 'El lápiz de Mi perro dejó de editar al perro seleccionado.');
