@@ -114,7 +114,12 @@ mustNot('src/app/(tabs)/services.tsx', /subtitle="Membresía, restaurante, compr
 
 must('src/services/payments.service.ts', /export function normalizeClabe/, 'Pagos perdió la normalización canónica de CLABE.');
 must('src/services/payments.service.ts', /export function isValidClabe/, 'Pagos perdió la validación canónica de CLABE.');
-mustNot('src/app/(tabs)/payments.tsx', /getPaymentSettings|CLABE|account_holder|bank_name/, 'El resumen de Pagos volvió a exponer datos bancarios o lógica de transferencia.');
+must('src/app/(tabs)/payments.tsx', /withOperationTimeout\(getPaymentSettings\(\), DEFAULT_READ_TIMEOUT_MS, 'payments-bank-settings'\)/, 'Pagos dejó de leer la CLABE vigente desde la configuración administrada.');
+must('src/app/(tabs)/payments.tsx', /setBankSettings\(null\)/, 'Pagos volvió a conservar datos bancarios anteriores durante una nueva verificación.');
+must('src/app/(tabs)/payments.tsx', /settings\?\.is_active[\s\S]*isValidClabe\(settings\.clabe\)[\s\S]*settings\.bank_name\?\.trim\(\)[\s\S]*settings\.account_holder\?\.trim\(\)/, 'Pagos dejó de exigir banco, titular y CLABE válida antes de mostrar el dato.');
+must('src/app/(tabs)/payments.tsx', /CLABE UCAPSA/, 'Pagos perdió la tarjeta compacta de CLABE.');
+must('src/app/(tabs)/payments.tsx', /const clabe = normalizeClabe\(bankSettings\?\.clabe\)/, 'Pagos dejó de normalizar la CLABE antes de copiarla.');
+must('src/app/(tabs)/payments.tsx', /!isValidClabe\(clabe\)/, 'Pagos dejó de revalidar la CLABE antes de copiarla.');
 must('src/app/(tabs)/payments.tsx', /\/client\/payment-obligations/, 'Pagos perdió el acceso al listado de cargos.');
 must('src/app/(tabs)/payments.tsx', /\/client\/payment-obligation-detail\?obligationId=/, 'Pagos perdió el acceso a la ficha de cargo.');
 must('src/app/(tabs)/payments.tsx', /\/client\/payment-detail\?paymentId=/, 'Pagos perdió el acceso al detalle de pago.');

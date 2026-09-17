@@ -77,10 +77,16 @@ must('src/app/client/practice-activity.tsx', /readClientResource<ProgramEnrollme
 must('src/app/client/practice-activity.tsx', /cachedPrograms\.data\.find\(\(item\) => item\.enrollment\.status === 'active'\)/, 'Racha ya no puede conservar el programa activo sin conexión.');
 must('src/app/client/practice-activity.tsx', /writeClientResource\(user\.id, clientReadKeys\.programs, sanitizeProgramRowsForCache\(remotePrograms\)\)/, 'Racha dejó de actualizar la caché de programas después de una lectura remota correcta.');
 
-// Pagos offline: sólo resumen; banco/CLABE requieren red fresca en la acción.
+// 6.2: el resumen de pagos puede mostrar una CLABE compacta, pero sólo desde una
+// lectura viva. Los datos bancarios nunca entran a la caché y se borran antes de verificar.
 must('src/services/client-offline-sync.service.ts', /createPaymentOfflineSummary/, 'El resumen de pagos dejó de prepararse para offline.');
 mustNot('src/services/client-read-cache.service.ts', /paymentSettings/, 'Los datos bancarios volvieron a ser elegibles para caché.');
-mustNot('src/app/(tabs)/payments.tsx', /getPaymentSettings|CLABE|bank_name|account_holder/, 'Pagos resumen volvió a exponer datos bancarios.');
+must('src/app/(tabs)/payments.tsx', /setBankSettings\(null\)/, 'Pagos dejó de borrar la CLABE anterior antes de una nueva verificación.');
+must('src/app/(tabs)/payments.tsx', /withOperationTimeout\(getPaymentSettings\(\), DEFAULT_READ_TIMEOUT_MS, 'payments-bank-settings'\)/, 'Pagos dejó de consultar la configuración bancaria en vivo.');
+must('src/app/(tabs)/payments.tsx', /settings\?\.is_active[\s\S]*isValidClabe\(settings\.clabe\)[\s\S]*settings\.bank_name\?\.trim\(\)[\s\S]*settings\.account_holder\?\.trim\(\)/, 'Pagos dejó de exigir configuración bancaria completa y CLABE válida.');
+must('src/app/(tabs)/payments.tsx', /const clabe = normalizeClabe\(bankSettings\?\.clabe\)/, 'Pagos dejó de normalizar la CLABE antes de copiarla.');
+must('src/app/(tabs)/payments.tsx', /!isValidClabe\(clabe\)/, 'Pagos dejó de revalidar la CLABE justo antes de copiarla.');
+must('src/app/(tabs)/payments.tsx', /Conéctate para consultar la CLABE vigente/, 'Pagos dejó de ocultar la CLABE cuando no pudo verificarla en vivo.');
 must('src/app/client/payment-transfer.tsx', /setSettings\(null\)/, 'Transferir dejó de borrar datos bancarios anteriores antes de verificar.');
 must('src/app/client/payment-transfer.tsx', /getPaymentSettings\(\)/, 'Transferir dejó de consultar datos bancarios en vivo.');
 must('src/app/client/payment-transfer.tsx', /isValidClabe\(settings\.clabe\)/, 'Transferir dejó de exigir CLABE válida.');
