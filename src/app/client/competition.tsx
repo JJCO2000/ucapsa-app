@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Redirect, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
@@ -207,7 +207,7 @@ export default function ClientCompetitionScreen() {
                 ) : (
                   <View style={styles.examList}>
                     {officialExams.map((exam) => (
-                      <ExamRow key={exam.attempt_id ?? exam.exam_id ?? exam.exam_code ?? 'exam'} exam={exam} premium={premium} format={format} />
+                      <ExamRow key={exam.attempt_id ?? exam.exam_id ?? exam.exam_code ?? 'exam'} dogId={snapshot.dog_id} exam={exam} premium={premium} format={format} />
                     ))}
                   </View>
                 )}
@@ -240,16 +240,26 @@ function Metric({
 }
 
 function ExamRow({
+  dogId,
   exam,
   premium,
   format,
 }: {
+  dogId: string;
   exam: ClientOfficialExamResult;
   premium: boolean;
   format: ReturnType<typeof resolveUcapsaFormat>;
 }) {
+  const canOpen = Boolean(exam.attempt_id);
   return (
-    <View style={[styles.examRow, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
+    <Pressable
+      disabled={!canOpen}
+      style={[styles.examRow, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}
+      onPress={() => {
+        if (!exam.attempt_id) return;
+        router.push(`/client/competition-exam-result?dogId=${encodeURIComponent(dogId)}&attemptId=${encodeURIComponent(exam.attempt_id)}` as never);
+      }}
+    >
       <View style={[styles.examIcon, { backgroundColor: format.pillBackground }]}>
         <MaterialIcons name="assignment-turned-in" size={19} color={format.pillText} />
       </View>
@@ -260,7 +270,8 @@ function ExamRow({
         </View>
         <Text style={[styles.examScore, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>{numberLabel(exam.total_points_awarded)} / {numberLabel(exam.max_points)} pts</Text>
       </View>
-    </View>
+      {canOpen ? <MaterialIcons name="chevron-right" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} /> : null}
+    </Pressable>
   );
 }
 
