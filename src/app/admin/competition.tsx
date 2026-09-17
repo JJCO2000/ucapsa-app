@@ -123,7 +123,12 @@ export default function AdminCompetitionScreen() {
 
       <Text style={styles.sectionTitle}>Operación</Text>
       <View style={styles.card}>
-        <FeatureRow icon="assignment" title="Exámenes" subtitle="Configuración, resultados e importación" status="En integración" disabled />
+        <FeatureRow
+          icon="assignment"
+          title="Exámenes"
+          subtitle="Configuración, resultados e importación"
+          onPress={() => router.push('/admin/competition-exams' as never)}
+        />
         <FeatureRow
           icon="add-chart"
           title="Puntos y ajustes"
