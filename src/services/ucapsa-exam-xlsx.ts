@@ -1,4 +1,4 @@
-import { DOMParser, type Element } from '@xmldom/xmldom';
+import { DOMParser } from '@xmldom/xmldom';
 import { File } from 'expo-file-system';
 import { strFromU8, unzipSync } from 'fflate';
 
@@ -22,6 +22,16 @@ export type ParsedExamWorkbook = {
 
 const REL_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
 
+type XmlElement = {
+  textContent: string | null;
+  getAttribute(name: string): string | null;
+  getAttributeNS(namespace: string | null, localName: string): string | null;
+  getElementsByTagName(name: string): {
+    length: number;
+    item(index: number): XmlElement | null;
+  };
+};
+
 function parseXml(xml: string, label: string) {
   const document = new DOMParser().parseFromString(xml, 'application/xml');
   const parserErrors = document.getElementsByTagName('parsererror');
@@ -31,7 +41,7 @@ function parseXml(xml: string, label: string) {
   return document;
 }
 
-function xmlText(element: Element | null) {
+function xmlText(element: XmlElement | null) {
   if (!element) return '';
   const nodes = element.getElementsByTagName('t');
   if (nodes.length === 0) return element.textContent ?? '';
@@ -120,7 +130,7 @@ function columnIndexFromCellReference(reference: string | null) {
 
 type CellValue = string | number | boolean | null;
 
-function cellValue(cell: Element, strings: string[]): CellValue {
+function cellValue(cell: XmlElement, strings: string[]): CellValue {
   const type = cell.getAttribute('t');
   if (type === 'inlineStr') {
     const inline = cell.getElementsByTagName('is').item(0);
