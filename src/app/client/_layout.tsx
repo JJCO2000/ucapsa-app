@@ -29,6 +29,7 @@ export default function ClientLayout() {
       <Stack.Screen name="practice-detail" options={{ title: 'Práctica' }} />
       <Stack.Screen name="member-visits" options={{ title: 'Tus visitas' }} />
       <Stack.Screen name="activity-achievements" options={{ title: 'Insignias de actividad' }} />
+      <Stack.Screen name="competition" options={{ title: 'Competencia UCAPSA' }} />
       <Stack.Screen name="points" options={{ title: 'Perro del Año' }} />
     </Stack>
   );

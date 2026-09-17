@@ -448,6 +448,22 @@ export default function DogTab() {
                 );
               })() : null}
 
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Abrir Competencia UCAPSA de ${selectedDog.name}`}
+                style={[styles.classRow, premium && styles.rowPremium]}
+                onPress={() => router.push(`/client/competition?dogId=${encodeURIComponent(selectedDog.id)}` as never)}
+              >
+                <View style={[styles.classIcon, { backgroundColor: format.pillBackground }]}>
+                  <MaterialIcons name="emoji-events" size={19} color={format.pillText} />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={[styles.classTitle, { color: format.cardText }]}>Competencia UCAPSA</Text>
+                  <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Constancia, exámenes y temporadas de {selectedDog.name}</Text>
+                </View>
+                <MaterialIcons name="chevron-right" size={21} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+              </Pressable>
+
               {achievementReady ? (
                 <>
                   <Text style={[styles.dogHistoryLabel, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>LOGROS UCAPSA</Text>
