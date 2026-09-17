@@ -62,8 +62,6 @@ export const styles = StyleSheet.create({
   activityHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   activityEyebrow: { fontSize: 8, lineHeight: 11, fontWeight: '900', letterSpacing: 0.9 },
   activityTitle: { marginTop: 1, fontSize: 18, lineHeight: 22, fontWeight: '900' },
-  qrButton: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 13, paddingHorizontal: 10 },
-  qrButtonText: { fontSize: 10, fontWeight: '900' },
   metricsRow: { marginTop: 12, paddingTop: 11, borderTopWidth: 1, flexDirection: 'row', alignItems: 'stretch' },
   metricInline: { flex: 1, minWidth: 0, alignItems: 'center', justifyContent: 'center', gap: 2, paddingHorizontal: 5, paddingVertical: 3 },
   metricValue: { color: ucapsaBrand.colors.text, fontSize: 20, lineHeight: 23, fontWeight: '900' },
