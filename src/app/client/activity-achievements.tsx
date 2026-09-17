@@ -1,15 +1,20 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
+import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { activityAchievementDefinitions, activityAchievementValue, type ActivityAchievementMetric } from '../../constants/activityAchievements';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
-import { getMyClientActivityFacts, type ClientActivityFacts } from '../../services/client-activity.service';
+import {
+  getCachedMyClientActivityFacts,
+  getMyClientActivityFacts,
+  type ClientActivityFacts,
+} from '../../services/client-activity.service';
 
 const categoryMeta: Record<ActivityAchievementMetric, { title: string; subtitle: string; icon: keyof typeof MaterialIcons.glyphMap }> = {
   attendance: { title: 'Asistencias', subtitle: 'Clases registradas en UCAPSA', icon: 'school' },
@@ -24,22 +29,53 @@ export default function ActivityAchievementsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [usingSavedData, setUsingSavedData] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const loadRunRef = useRef(0);
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
   const premium = format.key === 'member';
 
   const load = useCallback(async () => {
+    const runId = loadRunRef.current + 1;
+    loadRunRef.current = runId;
+    const isCurrentRun = () => loadRunRef.current === runId;
     if (!user || isAdmin) return;
+
     setError(null);
-    try {
-      setFacts(await getMyClientActivityFacts(user.id));
-    } catch {
-      setError('No pudimos calcular tus insignias de actividad.');
-    } finally {
+    setUsingSavedData(false);
+
+    const cached = await getCachedMyClientActivityFacts(user.id);
+    if (!isCurrentRun()) return;
+    if (cached) {
+      setFacts(cached.data);
+      setSavedAt(cached.saved_at);
       setLoading(false);
+    }
+
+    try {
+      const fresh = await getMyClientActivityFacts(user.id);
+      if (!isCurrentRun()) return;
+      setFacts(fresh);
+      setUsingSavedData(false);
+      setError(null);
+    } catch {
+      if (!isCurrentRun()) return;
+      if (cached) {
+        setFacts(cached.data);
+        setUsingSavedData(true);
+      } else {
+        setFacts(null);
+        setError('No pudimos calcular tus insignias de actividad.');
+      }
+    } finally {
+      if (isCurrentRun()) setLoading(false);
     }
   }, [isAdmin, user]);
 
-  useFocusEffect(useCallback(() => { void load(); return undefined; }, [load]));
+  useFocusEffect(useCallback(() => {
+    void load();
+    return () => { loadRunRef.current += 1; };
+  }, [load]));
 
   async function refresh() {
     setRefreshing(true);
@@ -59,8 +95,12 @@ export default function ActivityAchievementsScreen() {
 
       <Text style={[styles.intro, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Reconocen tu actividad real. Las 4 medallas de Puppy y Comandos se consultan en Mi perro.</Text>
 
-      {loading ? <View style={styles.loading}><ActivityIndicator color={format.accent} /><Text style={[styles.muted, { color: format.muted }]}>Calculando insignias...</Text></View> : null}
-      {error ? <View style={[styles.stateCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}><Text style={[styles.stateTitle, { color: format.cardText }]}>{error}</Text></View> : null}
+      {usingSavedData ? (
+        <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} label="Mostrando insignias guardadas" />
+      ) : null}
+
+      {loading && !facts ? <View style={styles.loading}><ActivityIndicator color={format.accent} /><Text style={[styles.muted, { color: format.muted }]}>Calculando insignias...</Text></View> : null}
+      {error && !facts ? <View style={[styles.stateCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}><Text style={[styles.stateTitle, { color: format.cardText }]}>{error}</Text></View> : null}
 
       {facts ? ((premium ? ['attendance', 'practice', 'visits', 'streak'] : ['attendance', 'practice', 'streak']) as ActivityAchievementMetric[]).map((metric) => (
         <AchievementCategory key={metric} metric={metric} facts={facts} format={format} premium={premium} />
