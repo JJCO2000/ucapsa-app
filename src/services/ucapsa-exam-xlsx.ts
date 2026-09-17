@@ -1,4 +1,4 @@
-import { DOMParser } from '@xmldom/xmldom';
+import { DOMParser, type Element } from '@xmldom/xmldom';
 import { File } from 'expo-file-system';
 import { strFromU8, unzipSync } from 'fflate';
 
