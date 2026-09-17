@@ -167,6 +167,15 @@ export default function AdminCompetitionExamDetailScreen() {
               <MaterialIcons name="fact-check" size={18} color={ucapsaBrand.colors.redDark} />
               <Text style={styles.secondaryButtonText}>Intentos y resultados</Text>
             </Pressable>
+            {detail.exam.status === 'published' ? (
+              <Pressable
+                style={styles.secondaryButton}
+                onPress={() => router.push(`/admin/competition-exam-imports?examId=${encodeURIComponent(detail.exam.id)}` as never)}
+              >
+                <MaterialIcons name="table-view" size={18} color={ucapsaBrand.colors.redDark} />
+                <Text style={styles.secondaryButtonText}>Importar Excel</Text>
+              </Pressable>
+            ) : null}
             {canEditMetadata ? (
               <Pressable style={styles.secondaryButton} onPress={() => router.push(`/admin/competition-exam-form?examId=${encodeURIComponent(detail.exam.id)}` as never)}>
                 <MaterialIcons name="edit" size={18} color={ucapsaBrand.colors.redDark} />
