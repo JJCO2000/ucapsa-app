@@ -6,6 +6,7 @@ import { getMyDogs, type BasicDog } from './dogs.service';
 import { createHomeCacheSource, mergeHomeCache, type HomeProgramSummary } from './home-cache.service';
 import { getMyMembership } from './memberships.service';
 import { getMyPaymentOverview } from './payments.service';
+import { flushPendingPracticeSessions } from './practice.service';
 import { getMyProgramEnrollments } from './programs.service';
 
 export type OfflineWarmResult = {
@@ -15,7 +16,10 @@ export type OfflineWarmResult = {
   membership: boolean;
   payments: boolean;
   attendanceOutbox: boolean;
+  practiceOutbox: boolean;
 };
+
+export type OfflineWriteFlushResult = Pick<OfflineWarmResult, 'attendanceOutbox' | 'practiceOutbox'>;
 
 function toHomeProgramSummary(rows: ProgramEnrollmentWithDetails[]): HomeProgramSummary[] {
   return rows.map((item) => ({
@@ -80,6 +84,24 @@ async function cachePayments(userId: string): Promise<MyPaymentOverview> {
 }
 
 /**
+ * Reintenta todas las escrituras locales durables. Cada cola es independiente:
+ * un fallo de red o servidor en una no impide intentar la otra.
+ */
+export async function flushPendingClientWrites(userId: string): Promise<OfflineWriteFlushResult> {
+  const result: OfflineWriteFlushResult = {
+    attendanceOutbox: false,
+    practiceOutbox: false,
+  };
+
+  await Promise.allSettled([
+    flushPendingAttendanceOperations(userId).then(() => { result.attendanceOutbox = true; }),
+    flushPendingPracticeSessions(userId).then(() => { result.practiceOutbox = true; }),
+  ]);
+
+  return result;
+}
+
+/**
  * Prepara una instantánea local completa después de recuperar una sesión válida
  * y aprovecha ese mismo momento para vaciar escrituras locales pendientes.
  *
@@ -94,6 +116,7 @@ export async function warmClientOfflineData(userId: string): Promise<OfflineWarm
     membership: false,
     payments: false,
     attendanceOutbox: false,
+    practiceOutbox: false,
   };
 
   const tasks = [
@@ -102,7 +125,10 @@ export async function warmClientOfflineData(userId: string): Promise<OfflineWarm
     cachePrograms(userId).then(() => { result.programs = true; }),
     cacheMembership(userId).then(() => { result.membership = true; }),
     cachePayments(userId).then(() => { result.payments = true; }),
-    flushPendingAttendanceOperations(userId).then(() => { result.attendanceOutbox = true; }),
+    flushPendingClientWrites(userId).then((flushResult) => {
+      result.attendanceOutbox = flushResult.attendanceOutbox;
+      result.practiceOutbox = flushResult.practiceOutbox;
+    }),
   ];
 
   await Promise.allSettled(tasks);
