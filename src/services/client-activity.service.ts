@@ -1,15 +1,19 @@
 import { supabase } from '../lib/supabase';
 import type { MemberVisit } from '../types/app.types';
+import {
+  clientReadKeys,
+  readClientResource,
+  writeClientResource,
+  type ClientActivityOfflineSummary,
+} from './client-read-cache.service';
 import { getMyProgramEnrollments } from './programs.service';
 import { getMyPracticeActivity } from './practice.service';
 
-export type ClientActivityFacts = {
-  attendanceTotal: number;
-  memberVisitsTotal: number;
-  practiceTotal: number;
-  currentPracticeStreak: number;
-  longestPracticeStreak: number;
-};
+export type ClientActivityFacts = ClientActivityOfflineSummary;
+
+export async function getCachedMyClientActivityFacts(userId: string) {
+  return readClientResource<ClientActivityFacts>(userId, clientReadKeys.activityFacts);
+}
 
 export async function getMyMemberVisits(userId: string, limit = 200): Promise<MemberVisit[]> {
   const { data, error } = await supabase
@@ -29,11 +33,14 @@ export async function getMyClientActivityFacts(userId: string): Promise<ClientAc
     getMyPracticeActivity(userId, 3650),
   ]);
 
-  return {
+  const facts: ClientActivityFacts = {
     attendanceTotal: programs.reduce((sum, item) => sum + item.attendances.length, 0),
     memberVisitsTotal: visits.length,
     practiceTotal: practice.entries.length,
     currentPracticeStreak: practice.stats.currentStreak,
     longestPracticeStreak: practice.stats.longestStreak,
   };
+
+  await writeClientResource(userId, clientReadKeys.activityFacts, facts);
+  return facts;
 }
