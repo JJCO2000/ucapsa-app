@@ -42,6 +42,8 @@ export type AttendanceSyncResult = {
 };
 
 const ATTENDANCE_OUTBOX_PREFIX = 'ucapsa:attendance-outbox:v1:';
+const outboxMutationChains = new Map<string, Promise<unknown>>();
+const syncInFlightByOperation = new Map<string, Promise<AttendanceSyncResult>>();
 
 function outboxKey(userId: string) {
   return `${ATTENDANCE_OUTBOX_PREFIX}${userId}`;
@@ -103,22 +105,45 @@ async function writeOutbox(userId: string, items: PendingAttendanceOperation[]) 
   }
 }
 
+function serializeOutboxMutation<T>(userId: string, mutation: () => Promise<T>): Promise<T> {
+  const previous = outboxMutationChains.get(userId) ?? Promise.resolve();
+  const current = previous.catch(() => undefined).then(mutation);
+  outboxMutationChains.set(userId, current);
+
+  current.then(
+    () => {
+      if (outboxMutationChains.get(userId) === current) outboxMutationChains.delete(userId);
+    },
+    () => {
+      if (outboxMutationChains.get(userId) === current) outboxMutationChains.delete(userId);
+    },
+  );
+
+  return current;
+}
+
 async function replaceOperation(userId: string, next: PendingAttendanceOperation) {
-  const current = await getPendingAttendanceOperations(userId);
-  await writeOutbox(userId, current.map((item) => item.id === next.id ? next : item));
+  return serializeOutboxMutation(userId, async () => {
+    const current = await getPendingAttendanceOperations(userId);
+    await writeOutbox(userId, current.map((item) => item.id === next.id ? next : item));
+  });
 }
 
 export async function discardAttendanceOperation(userId: string, operationId: string) {
-  const current = await getPendingAttendanceOperations(userId);
-  await writeOutbox(userId, current.filter((item) => item.id !== operationId));
+  return serializeOutboxMutation(userId, async () => {
+    const current = await getPendingAttendanceOperations(userId);
+    await writeOutbox(userId, current.filter((item) => item.id !== operationId));
+  });
 }
 
 export async function clearAttendanceOutbox(userId: string): Promise<void> {
-  try {
-    await AsyncStorage.removeItem(outboxKey(userId));
-  } catch {
-    // No bloquear un borrado explícito por un fallo de almacenamiento local.
-  }
+  await serializeOutboxMutation(userId, async () => {
+    try {
+      await AsyncStorage.removeItem(outboxKey(userId));
+    } catch {
+      // No bloquear un borrado explícito por un fallo de almacenamiento local.
+    }
+  });
 }
 
 export async function queueClassAttendance(input: {
@@ -127,50 +152,54 @@ export async function queueClassAttendance(input: {
   enrollmentId: string;
   confirmOutsideWindow?: boolean;
 }): Promise<PendingClassAttendanceOperation> {
-  const capturedAt = new Date().toISOString();
-  const current = await getPendingAttendanceOperations(input.userId);
-  const dateKey = localDateKey(capturedAt);
-  const existing = current.find((item): item is PendingClassAttendanceOperation => (
-    item.kind === 'class'
-    && item.enrollmentId === input.enrollmentId
-    && localDateKey(item.capturedAt) === dateKey
-    && item.state !== 'rejected'
-  ));
-  if (existing) return existing;
+  return serializeOutboxMutation(input.userId, async () => {
+    const capturedAt = new Date().toISOString();
+    const current = await getPendingAttendanceOperations(input.userId);
+    const dateKey = localDateKey(capturedAt);
+    const existing = current.find((item): item is PendingClassAttendanceOperation => (
+      item.kind === 'class'
+      && item.enrollmentId === input.enrollmentId
+      && localDateKey(item.capturedAt) === dateKey
+      && item.state !== 'rejected'
+    ));
+    if (existing) return existing;
 
-  const operation: PendingClassAttendanceOperation = {
-    version: 1,
-    id: createOperationId(),
-    userId: input.userId,
-    kind: 'class',
-    token: input.token.trim(),
-    enrollmentId: input.enrollmentId,
-    confirmOutsideWindow: input.confirmOutsideWindow ?? false,
-    capturedAt,
-    state: 'pending',
-    message: null,
-  };
-  await writeOutbox(input.userId, [...current, operation]);
-  return operation;
+    const operation: PendingClassAttendanceOperation = {
+      version: 1,
+      id: createOperationId(),
+      userId: input.userId,
+      kind: 'class',
+      token: input.token.trim(),
+      enrollmentId: input.enrollmentId,
+      confirmOutsideWindow: input.confirmOutsideWindow ?? false,
+      capturedAt,
+      state: 'pending',
+      message: null,
+    };
+    await writeOutbox(input.userId, [...current, operation]);
+    return operation;
+  });
 }
 
 export async function queueMemberVisit(input: {
   userId: string;
   token: string;
 }): Promise<PendingMemberVisitOperation> {
-  const current = await getPendingAttendanceOperations(input.userId);
-  const operation: PendingMemberVisitOperation = {
-    version: 1,
-    id: createOperationId(),
-    userId: input.userId,
-    kind: 'member_visit',
-    token: input.token.trim(),
-    capturedAt: new Date().toISOString(),
-    state: 'pending',
-    message: null,
-  };
-  await writeOutbox(input.userId, [...current, operation]);
-  return operation;
+  return serializeOutboxMutation(input.userId, async () => {
+    const current = await getPendingAttendanceOperations(input.userId);
+    const operation: PendingMemberVisitOperation = {
+      version: 1,
+      id: createOperationId(),
+      userId: input.userId,
+      kind: 'member_visit',
+      token: input.token.trim(),
+      capturedAt: new Date().toISOString(),
+      state: 'pending',
+      message: null,
+    };
+    await writeOutbox(input.userId, [...current, operation]);
+    return operation;
+  });
 }
 
 async function registerQueuedClass(operation: PendingClassAttendanceOperation): Promise<RegisterAttendanceFromQrResult> {
@@ -192,7 +221,7 @@ async function registerQueuedClass(operation: PendingClassAttendanceOperation): 
   return first as RegisterAttendanceFromQrResult;
 }
 
-async function syncOperation(operation: PendingAttendanceOperation): Promise<AttendanceSyncResult> {
+async function syncOperationOnce(operation: PendingAttendanceOperation): Promise<AttendanceSyncResult> {
   try {
     if (operation.kind === 'class') {
       const result = await registerQueuedClass(operation);
@@ -255,6 +284,24 @@ async function syncOperation(operation: PendingAttendanceOperation): Promise<Att
     await replaceOperation(operation.userId, next);
     return { operationId: operation.id, status: 'pending', message };
   }
+}
+
+function syncOperation(operation: PendingAttendanceOperation): Promise<AttendanceSyncResult> {
+  const key = `${operation.userId}:${operation.id}`;
+  const inFlight = syncInFlightByOperation.get(key);
+  if (inFlight) return inFlight;
+
+  const current = syncOperationOnce(operation);
+  syncInFlightByOperation.set(key, current);
+  current.then(
+    () => {
+      if (syncInFlightByOperation.get(key) === current) syncInFlightByOperation.delete(key);
+    },
+    () => {
+      if (syncInFlightByOperation.get(key) === current) syncInFlightByOperation.delete(key);
+    },
+  );
+  return current;
 }
 
 export async function syncAttendanceOperation(
