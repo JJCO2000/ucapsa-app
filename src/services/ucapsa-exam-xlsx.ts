@@ -1,4 +1,5 @@
 import { DOMParser } from '@xmldom/xmldom';
+import { File } from 'expo-file-system';
 import { strFromU8, unzipSync } from 'fflate';
 
 export type ExamImportItemDescriptor = {
@@ -334,4 +335,33 @@ export function parseUcapsaExamXlsx(
   if (rows.length === 0) throw new Error('El Excel no contiene filas de resultados.');
 
   return { rows, sourceRows, headerLabels };
+}
+
+
+export async function pickAndParseUcapsaExamXlsx(
+  items: ExamImportItemDescriptor[],
+): Promise<(ParsedExamWorkbook & { fileName: string }) | null> {
+  const picked = await File.pickFileAsync({
+    multipleFiles: false,
+    mimeTypes: [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/octet-stream',
+      'application/zip',
+    ],
+  });
+
+  if (picked.canceled) return null;
+
+  const file = picked.result;
+  const fileName = file.name?.trim() || 'resultados.xlsx';
+  if (!fileName.toLocaleLowerCase('es-MX').endsWith('.xlsx')) {
+    throw new Error('Selecciona un archivo con extensión .xlsx.');
+  }
+
+  const bytes = await file.bytes();
+  const parsed = parseUcapsaExamXlsx(bytes, items);
+  return {
+    ...parsed,
+    fileName,
+  };
 }
