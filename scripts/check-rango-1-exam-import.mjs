@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 
 const sql = fs.readFileSync('supabase/sql/ucapsa-rango-1-exam-excel-import.sql', 'utf8');
+const hardening = fs.readFileSync('supabase/sql/ucapsa-rango-1-exam-import-revert-hardening.sql', 'utf8');
 
 const required = [
   'create table if not exists public.ucapsa_exam_import_rows',
@@ -51,6 +52,22 @@ if (/create table[\s\S]*?ucapsa_exam_import_rows[\s\S]*?\b(total_score|total_poi
 
 if (!/where batch_id=p_batch_id and validation_status='valid'/i.test(sql)) {
   throw new Error('Only validated rows may become canonical exam attempts.');
+}
+
+for (const token of [
+  'create or replace function public.admin_revert_ucapsa_exam_import_batch',
+  'admin_void_ucapsa_exam_attempt',
+  "a.status='published' or a.is_official=true",
+  "set status='reverted'",
+  "'voided_attempts'",
+]) {
+  if (!hardening.includes(token)) {
+    throw new Error(`Rango 1 import reversion hardening missing: ${token}`);
+  }
+}
+
+if (/delete\s+from\s+public\.ucapsa_exam_attempts/i.test(hardening)) {
+  throw new Error('Reverting an import must void attempts, not erase their audit trail.');
 }
 
 console.log('Rango 1 exam import contract: PASS');
