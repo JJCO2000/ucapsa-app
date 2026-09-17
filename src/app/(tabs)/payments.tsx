@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -132,13 +132,6 @@ export default function PaymentsTab() {
 
       {usingSavedData ? (
         <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} label="Mostrando saldo guardado" />
-      ) : null}
-
-      {!localReady ? (
-        <View style={styles.loading}>
-          <ActivityIndicator color={format.accent} />
-          <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Actualizando tu cuenta...</Text>
-        </View>
       ) : null}
 
       {localReady && overviewAvailable ? (
@@ -287,7 +280,6 @@ const styles = StyleSheet.create({
   headerIconPremium: { backgroundColor: ucapsaBrand.colors.premiumSurfaceAlt },
   headerTitle: { color: ucapsaBrand.colors.text, fontSize: 24, lineHeight: 28, fontWeight: '900' },
   headerSubtitle: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 16, fontWeight: '700' },
-  loading: { minHeight: 80, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   balanceCard: { gap: 8, borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 22, padding: 16, backgroundColor: ucapsaBrand.colors.surface, marginBottom: 12 },
   balanceTopRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   balanceIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
