@@ -58,7 +58,10 @@ export function ProgramCard({
   onPractice: () => void;
 }) {
   const premium = format.key === 'member';
-  const program = snapshot.whatIHave.programs[0] ?? null;
+  const nextClass = snapshot.whatIsNext.nextClass ?? null;
+  const program = nextClass
+    ? snapshot.whatIHave.programs.find((item) => item.enrollmentId === nextClass.enrollmentId) ?? snapshot.whatIHave.programs[0] ?? null
+    : snapshot.whatIHave.programs[0] ?? null;
   const membership = snapshot.whatIHave.membership;
   const required = program?.requiredAttendances ?? 0;
   const attendance = program?.attendanceCount ?? 0;
@@ -139,7 +142,6 @@ export function ActivityCard({
   onClasses,
   onVisits,
   onPractices,
-  onQr,
 }: {
   snapshot: CustomerValueSnapshot;
   practice: PracticeActivitySnapshot | null;
@@ -147,7 +149,7 @@ export function ActivityCard({
   onClasses: () => void;
   onVisits?: () => void;
   onPractices: () => void;
-  onQr: () => void;
+  onQr?: () => void;
 }) {
   const premium = format.key === 'member';
   const visits = snapshot.whatIUsed.memberVisitsTotal ?? 0;
@@ -160,21 +162,6 @@ export function ActivityCard({
           <Text style={[styles.activityEyebrow, { color: format.muted }]}>LO QUE HAS APROVECHADO</Text>
           <Text style={[styles.activityTitle, { color: format.cardText }]}>Tu actividad</Text>
         </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Escanear QR para registrar asistencia o visita"
-          onPress={onQr}
-          style={[
-            styles.qrButton,
-            {
-              borderColor: format.border,
-              backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft,
-            },
-          ]}
-        >
-          <MaterialIcons name="qr-code-scanner" size={19} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-          <Text style={[styles.qrButtonText, { color: premium ? ucapsaBrand.colors.premiumActionText : format.accentDark }]}>Escanear QR</Text>
-        </Pressable>
       </View>
       <View style={[styles.metricsRow, { borderTopColor: format.border }]}>
         <MetricInline icon="school" value={snapshot.whatIUsed.attendanceTotal} label="clases" color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} onPress={onClasses} />
