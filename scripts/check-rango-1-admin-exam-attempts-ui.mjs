@@ -65,7 +65,7 @@ if (!/publishCompetitionExamAttempt/.test(attemptDetail) || !/setCompetitionExam
 if (!/voidCompetitionExamAttempt/.test(attemptDetail)) {
   failures.push('Detalle perdió anulación auditable.');
 }
-if (!/reviewed.*incompleto/i.test(attemptDetail) || !/anularlo y capturar uno nuevo/i.test(attemptDetail)) {
+if (!/reviewed[\s\S]*incompleto/i.test(attemptDetail) || !/anularlo y capturar uno nuevo/i.test(attemptDetail)) {
   failures.push('Detalle dejó de explicar la salida segura para un reviewed incompleto heredado.');
 }
 
