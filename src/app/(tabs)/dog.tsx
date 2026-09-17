@@ -13,13 +13,13 @@ import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import { countUnlockedAchievements, getCachedAchievementsForDog, getMyDogAchievements, type AchievementWithState } from '../../services/achievements.service';
-import { createMyDog, getMyDogs, renameMyDog, type BasicDog } from '../../services/dogs.service';
+import { createMyDog, getMyDogs, type BasicDog } from '../../services/dogs.service';
 import { clientReadKeys, readClientResource, sanitizeProgramRowsForCache, writeClientResource } from '../../services/client-read-cache.service';
 import { getMyProgramEnrollments, getProgramCodeLabel, getProgramLevelDisplayLabel } from '../../services/programs.service';
 import type { ProgramEnrollmentWithDetails } from '../../types/app.types';
-import { DEFAULT_READ_TIMEOUT_MS, DEFAULT_WRITE_TIMEOUT_MS, friendlyWriteError, withOperationTimeout } from '../../utils/async.utils';
+import { DEFAULT_READ_TIMEOUT_MS, friendlyWriteError, withOperationTimeout } from '../../utils/async.utils';
 
-type EditorMode = 'create' | 'rename' | null;
+type EditorMode = 'create' | null;
 
 function sameDogName(left: string | null | undefined, right: string | null | undefined) {
   return (left ?? '').trim().toLocaleLowerCase('es-MX') === (right ?? '').trim().toLocaleLowerCase('es-MX');
@@ -196,13 +196,12 @@ export default function DogTab() {
     setEditorMode('create');
   }
 
-  function openRename() {
+  function openEditProfile() {
     if (!selectedDog) {
       openCreate();
       return;
     }
-    setDraftName(selectedDog.name);
-    setEditorMode('rename');
+    router.push(`/client/dog-profile?dogId=${encodeURIComponent(selectedDog.id)}` as never);
   }
 
   async function saveDog() {
@@ -220,18 +219,9 @@ export default function DogTab() {
 
     setSaving(true);
     try {
-      let selectedAfterSave: string | null = null;
-      let nextDogs = dogs;
-      if (editorMode === 'create') {
-        // Crear un perro no usa timeout artificial: una petición tardía podría completar después y duplicarse al reintentar.
-        const created = await createMyDog(name);
-        selectedAfterSave = created.id;
-        nextDogs = [...dogs.filter((dog) => dog.id !== created.id), created];
-      } else if (editorMode === 'rename' && selectedDog) {
-        const updated = await withOperationTimeout(renameMyDog(selectedDog.id, name), DEFAULT_WRITE_TIMEOUT_MS, 'dog-rename');
-        selectedAfterSave = updated.id;
-        nextDogs = dogs.map((dog) => (dog.id === updated.id ? updated : dog));
-      }
+      // Crear un perro no usa timeout artificial: una petición tardía podría completar después y duplicarse al reintentar.
+      const created = await createMyDog(name);
+      const nextDogs = [...dogs.filter((dog) => dog.id !== created.id), created];
 
       // La escritura ya fue confirmada. Actualiza primero la vista y la caché local;
       // si la lectura posterior falla, el usuario no debe ver desaparecer el cambio.
@@ -239,7 +229,7 @@ export default function DogTab() {
       await writeClientResource(userId, clientReadKeys.dogs, nextDogs);
       setEditorMode(null);
       setDraftName('');
-      if (selectedAfterSave) setSelectedDogId(selectedAfterSave);
+      setSelectedDogId(created.id);
       void load();
     } catch (cause) {
       Alert.alert('No se pudo guardar', friendlyWriteError(cause, 'Conéctate a internet y vuelve a intentar.'));
@@ -271,7 +261,7 @@ export default function DogTab() {
       <ClientPageHeader
         format={format}
         eyebrow="Tu equipo"
-        title={selectedDog?.name || 'Mis perros'}
+        title={dogs.length > 1 ? 'Mis perros' : 'Mi perro'}
         subtitle={headerSubtitle}
         icon="pets"
         right={
@@ -393,7 +383,7 @@ export default function DogTab() {
                       <MaterialIcons name="add" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
                     </Pressable>
                   ) : null}
-                  <Pressable accessibilityRole="button" accessibilityLabel={`Editar a ${selectedDog.name}`} style={[styles.pencilButton, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]} onPress={openRename}>
+                  <Pressable accessibilityRole="button" accessibilityLabel={`Editar datos de ${selectedDog.name}`} style={[styles.pencilButton, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]} onPress={openEditProfile}>
                     <MaterialIcons name="edit" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
                   </Pressable>
                 </View>
@@ -485,8 +475,8 @@ export default function DogTab() {
       >
         <View style={styles.modalHeader}>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={[styles.modalTitle, premium && styles.textPremium]}>{editorMode === 'create' ? 'Agregar perro' : 'Editar perro'}</Text>
-            <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{editorMode === 'create' ? 'Registra otro perro en tu cuenta.' : 'Cambia el nombre sin perder sus clases.'}</Text>
+            <Text style={[styles.modalTitle, premium && styles.textPremium]}>Agregar perro</Text>
+            <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Registra otro perro en tu cuenta.</Text>
           </View>
           <Pressable accessibilityRole="button" accessibilityLabel="Cerrar edición" style={styles.modalCloseButton} onPress={() => setEditorMode(null)}>
             <MaterialIcons name="close" size={25} color={premium ? ucapsaBrand.colors.premiumActionText : ucapsaBrand.colors.text} />
@@ -508,7 +498,7 @@ export default function DogTab() {
             <Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>Cancelar</Text>
           </Pressable>
           <Pressable accessibilityRole="button" style={[styles.primaryButton, { backgroundColor: format.primaryButton }]} onPress={() => void saveDog()} disabled={saving}>
-            <Text style={[styles.primaryButtonText, { color: format.primaryButtonText }]}>{saving ? 'Guardando...' : editorMode === 'create' ? 'Agregar perro' : 'Guardar'}</Text>
+            <Text style={[styles.primaryButtonText, { color: format.primaryButtonText }]}>{saving ? 'Guardando...' : 'Agregar perro'}</Text>
           </Pressable>
         </View>
       </KeyboardAwareModal>
