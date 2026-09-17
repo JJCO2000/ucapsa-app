@@ -1,0 +1,1 @@
+Rango 1 remote schema synchronized and hardened on 2026-09-17. See rango-1-remote-sync-20260917.md.
