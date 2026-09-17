@@ -1,8 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import {
+  PROGRAM_COMPLETION_ACHIEVEMENT_CODES,
+  getProgramCompletionAchievementCode,
+  isProgramCompletionAchievementCode,
+} from '../constants/programCompletion';
 import { supabase } from '../lib/supabase';
 
-export { getProgramCompletionAchievementCode } from '../constants/programCompletion';
+export { getProgramCompletionAchievementCode };
 
 export type AchievementDefinition = {
   code: string;
@@ -34,6 +39,7 @@ export type AchievementWithState = {
   definition: AchievementDefinition;
   achievement: UserAchievement | null;
   unlocked: boolean;
+  dogId: string | null;
   unlockSource?: 'stored' | 'program_completion' | null;
 };
 
@@ -113,6 +119,7 @@ async function getAchievementDefinitions(): Promise<AchievementDefinition[]> {
 function mergeDefinitionsWithStoredAchievements(
   definitions: AchievementDefinition[],
   achievements: UserAchievement[],
+  dogId: string | null,
 ): AchievementWithState[] {
   const achievementByCode = new Map<string, UserAchievement>();
   for (const achievement of achievements) {
@@ -127,6 +134,7 @@ function mergeDefinitionsWithStoredAchievements(
       definition,
       achievement,
       unlocked: Boolean(achievement),
+      dogId,
       unlockSource: achievement ? 'stored' : null,
     };
   });
@@ -179,8 +187,9 @@ async function getCachedAchievements(
       return null;
     }
 
-    memoryCache.set(scopeKey, parsed.items);
-    return parsed.items;
+    const normalizedItems = parsed.items.map((item) => ({ ...item, dogId: parsed.dog_id ?? null }));
+    memoryCache.set(scopeKey, normalizedItems);
+    return normalizedItems;
   } catch {
     return null;
   }
@@ -194,7 +203,11 @@ export async function getCachedAchievementsForDog(
   userId: string,
   dogId: string,
 ): Promise<AchievementWithState[] | null> {
-  return getCachedAchievements(userId, dogId);
+  const cached = await getCachedAchievements(userId, dogId);
+  if (!cached) return null;
+  return cached
+    .filter((item) => isProgramCompletionAchievementCode(item.definition.code))
+    .map((item) => ({ ...item, dogId }));
 }
 
 export async function getAchievementsForUser(userId: string): Promise<AchievementWithState[]> {
@@ -209,7 +222,7 @@ export async function getAchievementsForUser(userId: string): Promise<Achievemen
 
   if (achievementResult.error) throw achievementResult.error;
   const achievements = (achievementResult.data ?? []).map(normalizeAchievement);
-  return mergeDefinitionsWithStoredAchievements(definitions, achievements);
+  return mergeDefinitionsWithStoredAchievements(definitions, achievements, null);
 }
 
 export async function getAchievementsForDog(
@@ -228,7 +241,10 @@ export async function getAchievementsForDog(
 
   if (achievementResult.error) throw achievementResult.error;
   const achievements = (achievementResult.data ?? []).map(normalizeAchievement);
-  return mergeDefinitionsWithStoredAchievements(definitions, achievements);
+  const dogDefinitions = PROGRAM_COMPLETION_ACHIEVEMENT_CODES
+    .map((code) => definitions.find((definition) => definition.code === code))
+    .filter((definition): definition is AchievementDefinition => Boolean(definition));
+  return mergeDefinitionsWithStoredAchievements(dogDefinitions, achievements, dogId);
 }
 
 export async function refreshAchievementsForUser(userId: string): Promise<AchievementWithState[]> {
