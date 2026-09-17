@@ -1,7 +1,8 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import * as Clipboard from 'expo-clipboard';
 import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -16,8 +17,8 @@ import {
   writeClientResource,
   type PaymentOfflineSummary,
 } from '../../services/client-read-cache.service';
-import { getMyPaymentOverview } from '../../services/payments.service';
-import type { MyPaymentOverview, PaymentObligationWithBalance } from '../../types/app.types';
+import { getMyPaymentOverview, getPaymentSettings, isValidClabe, normalizeClabe } from '../../services/payments.service';
+import type { MyPaymentOverview, PaymentObligationWithBalance, PaymentSettings } from '../../types/app.types';
 import { DEFAULT_READ_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
 import { money, obligationStatusLabel, paymentDateLabel } from '../../utils/paymentPresentation';
 
@@ -34,6 +35,8 @@ const emptyOverview: MyPaymentOverview = {
 export default function PaymentsTab() {
   const { user, role, isAdmin } = useSession();
   const [overview, setOverview] = useState<MyPaymentOverview>(emptyOverview);
+  const [bankSettings, setBankSettings] = useState<PaymentSettings | null>(null);
+  const [bankUnavailable, setBankUnavailable] = useState(false);
   const [localReady, setLocalReady] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [usingSavedData, setUsingSavedData] = useState(false);
@@ -52,6 +55,8 @@ export default function PaymentsTab() {
     if (cacheScopeRef.current !== scope) {
       cacheScopeRef.current = scope;
       setOverview(emptyOverview);
+      setBankSettings(null);
+      setBankUnavailable(false);
       setLocalReady(false);
       setUsingSavedData(false);
       setSavedAt(null);
@@ -63,6 +68,10 @@ export default function PaymentsTab() {
 
     setUsingSavedData(false);
     setDetailsAvailable(false);
+    // La CLABE nunca se hidrata desde caché: se borra antes de cada verificación en vivo.
+    setBankSettings(null);
+    setBankUnavailable(false);
+
     const cached = await readClientResource<PaymentOfflineSummary>(user.id, clientReadKeys.paymentSummary);
     if (!isCurrentRun()) return;
 
@@ -73,22 +82,40 @@ export default function PaymentsTab() {
     }
     setLocalReady(true);
 
-    try {
-      const fresh = await withOperationTimeout(getMyPaymentOverview(), DEFAULT_READ_TIMEOUT_MS, 'payments-overview');
-      if (!isCurrentRun()) return;
+    const [overviewResult, settingsResult] = await Promise.allSettled([
+      withOperationTimeout(getMyPaymentOverview(), DEFAULT_READ_TIMEOUT_MS, 'payments-overview'),
+      withOperationTimeout(getPaymentSettings(), DEFAULT_READ_TIMEOUT_MS, 'payments-bank-settings'),
+    ]);
+    if (!isCurrentRun()) return;
+
+    if (overviewResult.status === 'fulfilled') {
+      const fresh = overviewResult.value;
       setOverview(fresh);
       setOverviewAvailable(true);
       setDetailsAvailable(true);
       const stored = await writeClientResource(user.id, clientReadKeys.paymentSummary, createPaymentOfflineSummary(fresh));
       if (!isCurrentRun()) return;
       setSavedAt(stored.saved_at);
-    } catch {
-      if (!isCurrentRun()) return;
-      if (cached) setUsingSavedData(true);
-      else {
-        setOverview(emptyOverview);
-        setOverviewAvailable(false);
-      }
+    } else if (cached) {
+      setUsingSavedData(true);
+    } else {
+      setOverview(emptyOverview);
+      setOverviewAvailable(false);
+    }
+
+    if (settingsResult.status === 'fulfilled') {
+      const settings = settingsResult.value;
+      const verified = Boolean(
+        settings?.is_active &&
+        isValidClabe(settings.clabe) &&
+        settings.bank_name?.trim() &&
+        settings.account_holder?.trim(),
+      );
+      setBankSettings(verified ? settings : null);
+      setBankUnavailable(Boolean(settings?.is_active && !verified));
+    } else {
+      setBankSettings(null);
+      setBankUnavailable(true);
     }
   }, [isAdmin, user]);
 
@@ -103,6 +130,16 @@ export default function PaymentsTab() {
   async function refresh() {
     setRefreshing(true);
     try { await load(); } finally { setRefreshing(false); }
+  }
+
+  async function copyClabe() {
+    const clabe = normalizeClabe(bankSettings?.clabe);
+    if (!bankSettings?.is_active || !bankSettings.account_holder?.trim() || !isValidClabe(clabe)) {
+      Alert.alert('CLABE no verificada', 'Conéctate para consultar la CLABE vigente antes de transferir.');
+      return;
+    }
+    await Clipboard.setStringAsync(clabe);
+    Alert.alert('CLABE copiada', 'Verifica el titular en tu aplicación bancaria antes de confirmar la transferencia.');
   }
 
   if (!user) return <Redirect href="/auth/login" />;
@@ -161,6 +198,33 @@ export default function PaymentsTab() {
                     : 'No tienes cargos abiertos registrados.'}
             </Text>
           </View>
+
+          {bankSettings ? (
+            <View style={[styles.bankStrip, premium && styles.cardPremium]}>
+              <View style={[styles.bankIcon, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft }]}>
+                <MaterialIcons name="account-balance" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+              </View>
+              <View style={styles.bankCopy}>
+                <Text style={[styles.eyebrow, premium && styles.goldText]}>CLABE UCAPSA</Text>
+                <Text selectable style={[styles.bankClabe, premium && styles.textPremium]}>{normalizeClabe(bankSettings.clabe)}</Text>
+                <Text numberOfLines={1} style={[styles.bankMeta, premium && styles.mutedPremium]}>{bankSettings.bank_name}</Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Copiar CLABE UCAPSA"
+                onPress={() => void copyClabe()}
+                style={({ pressed }) => [styles.copyButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }, pressed && styles.pressed]}
+              >
+                <MaterialIcons name="content-copy" size={18} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                <Text style={[styles.copyText, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Copiar</Text>
+              </Pressable>
+            </View>
+          ) : bankUnavailable ? (
+            <View style={[styles.bankUnavailableStrip, premium && styles.cardPremium]}>
+              <MaterialIcons name="cloud-off" size={18} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+              <Text style={[styles.bankUnavailableText, premium && styles.mutedPremium]}>Conéctate para consultar la CLABE vigente.</Text>
+            </View>
+          ) : null}
 
           {overview.legacy_membership_pending ? (
             <View style={[styles.notice, premium && styles.cardPremium]}>
@@ -286,6 +350,15 @@ const styles = StyleSheet.create({
   eyebrow: { color: ucapsaBrand.colors.redDark, fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 0.9 },
   balanceLabel: { color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 18, fontWeight: '800' },
   balanceValue: { color: ucapsaBrand.colors.text, fontSize: 30, lineHeight: 34, fontWeight: '900' },
+  bankStrip: { minHeight: 78, flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 18, padding: 12, backgroundColor: ucapsaBrand.colors.surface, marginBottom: 12 },
+  bankIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  bankCopy: { flex: 1, minWidth: 0 },
+  bankClabe: { color: ucapsaBrand.colors.text, fontSize: 15, lineHeight: 20, fontWeight: '900', letterSpacing: 0.25 },
+  bankMeta: { color: ucapsaBrand.colors.muted, marginTop: 2, fontSize: 11, lineHeight: 15, fontWeight: '700' },
+  copyButton: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: 1, borderRadius: 13, paddingHorizontal: 10 },
+  copyText: { fontSize: 11, fontWeight: '900' },
+  bankUnavailableStrip: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: ucapsaBrand.colors.surface, marginBottom: 12 },
+  bankUnavailableText: { flex: 1, color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 16, fontWeight: '700' },
   notice: { flexDirection: 'row', gap: 10, borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 18, padding: 13, backgroundColor: ucapsaBrand.colors.surface, marginBottom: 14 },
   sectionHeader: { marginTop: 6, marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 18, lineHeight: 22, fontWeight: '900' },
