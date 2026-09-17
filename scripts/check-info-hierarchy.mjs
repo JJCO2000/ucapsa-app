@@ -44,8 +44,11 @@ must('src/app/(tabs)/classes.tsx', /\/client\/class-detail\?enrollmentId=/, 'Cla
 must('src/app/client/class-detail.tsx', /router\.push\('\/attendance'/, 'Detalle de clase perdió la acción concreta Registrar asistencia.');
 must('src/app/client/class-detail.tsx', /getCanonicalNextProgramSessions/, 'Detalle de clase dejó de compartir la próxima sesión canónica.');
 
-// Pagos = resumen -> listado/ficha -> acción Transferir.
-mustNot('src/app/(tabs)/payments.tsx', /getPaymentSettings|CLABE|account_holder|bank_name/, 'Pagos volvió a mezclar la acción bancaria dentro del resumen.');
+// Pagos = resumen + CLABE compacta informativa -> listado/ficha -> acción Transferir.
+// El resumen puede copiar la CLABE vigente, pero no salta la ficha ni ejecuta el flujo completo de transferencia.
+must('src/app/(tabs)/payments.tsx', /CLABE UCAPSA/, 'Pagos perdió la CLABE compacta del resumen.');
+mustNot('src/app/(tabs)/payments.tsx', /\/client\/payment-transfer/, 'Pagos volvió a saltarse la ficha de cargo antes de Transferir.');
+mustNot('src/app/(tabs)/payments.tsx', /transfer_instructions|clip_url/, 'Pagos volvió a mezclar instrucciones bancarias profundas dentro del resumen.');
 must('src/app/(tabs)/payments.tsx', /\.slice\(0,\s*3\)/, 'Pagos dejó de limitar cargos y pagos recientes en el resumen.');
 must('src/app/(tabs)/payments.tsx', /\/client\/payment-obligations/, 'Pagos perdió el listado completo de cargos.');
 must('src/app/(tabs)/payments.tsx', /\/client\/payment-obligation-detail\?obligationId=/, 'Un cargo reciente dejó de abrir su ficha particular.');
