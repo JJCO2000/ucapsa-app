@@ -1,4 +1,5 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { router } from 'expo-router';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
@@ -79,6 +80,22 @@ export function AchievementBadgeGrid({
     );
   }
 
+  // En Mi perro, maxItems representa un resumen: sólo sellos pequeños y acceso a la ficha completa.
+  // El dogId viaja en el propio scope dog-specific para no depender del primer perro de la cuenta.
+  if (maxItems && visibleItems[0]?.dogId) {
+    const dogId = visibleItems[0].dogId;
+    return (
+      <AchievementMiniRow
+        items={visibleItems}
+        premium={premium}
+        maxItems={maxItems}
+        label="Ver logros"
+        sortMode="level"
+        onPress={() => router.push(`/client/dog-achievements?dogId=${encodeURIComponent(dogId)}` as never)}
+      />
+    );
+  }
+
   return (
     <View style={styles.roadmap}>
       {visibleItems.map((item, index) => {
@@ -133,26 +150,28 @@ export function AchievementBadgeGrid({
   );
 }
 
-
 export function AchievementMiniRow({
   items,
   premium = false,
   maxItems = 4,
   label = 'Tus logros',
+  sortMode = 'home',
   onPress,
 }: {
   items: AchievementWithState[];
   premium?: boolean;
   maxItems?: number;
   label?: string;
+  sortMode?: 'home' | 'level';
   onPress: () => void;
 }) {
-  const visibleItems = sortAchievementsForHome(items).slice(0, maxItems);
+  const orderedItems = sortMode === 'level' ? sortAchievementsByLevel(items) : sortAchievementsForHome(items);
+  const visibleItems = orderedItems.slice(0, maxItems);
 
   if (visibleItems.length === 0) return null;
 
   return (
-    <Pressable style={[styles.miniRow, premium && styles.miniRowPremium]} onPress={onPress}>
+    <Pressable accessibilityRole="button" accessibilityLabel="Ver logros del perro" style={[styles.miniRow, premium && styles.miniRowPremium]} onPress={onPress}>
       {visibleItems.map((item) => {
         const tone = getTone(item);
         return (
