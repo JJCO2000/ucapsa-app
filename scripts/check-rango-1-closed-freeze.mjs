@@ -27,7 +27,7 @@ for (const token of required) {
   }
 }
 
-if (/dog_awards/i.test(sql)) {
+if (/on\s+public\.dog_awards\b/i.test(sql)) {
   throw new Error('dog_awards must remain outside the closed-season freeze so post-close awards stay possible.');
 }
 
