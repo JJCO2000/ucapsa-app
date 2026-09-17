@@ -68,6 +68,7 @@ if (!/\.from\('ucapsa_exam_attempts'\)[\s\S]{0,350}\.select\('id'\)[\s\S]{0,350}
   failures.push('Detalle dejó de leer intentos bloqueados sólo para decidir mutabilidad estructural.');
 }
 
+const configUi = [list, detail, form, itemForm].join('\n');
 for (const forbidden of [
   'admin_create_ucapsa_exam_attempt',
   'admin_upsert_ucapsa_exam_item_result',
@@ -76,7 +77,7 @@ for (const forbidden of [
   'admin_create_ucapsa_exam_import_batch',
   'admin_commit_ucapsa_exam_import_batch',
 ]) {
-  if (service.includes(forbidden)) failures.push(`Este subbloque no debe operar intentos/importación todavía: ${forbidden}`);
+  if (configUi.includes(forbidden)) failures.push(`Las pantallas de configuración no deben operar intentos/importación: ${forbidden}`);
 }
 if (/ucapsa_points_/.test(service)) failures.push('Configuración de exámenes no puede depender de UCAPSA Points legado.');
 if (!pkg.includes('check:rango-1-admin-exams-config-ui')) failures.push('npm verify no incluye guard de configuración de exámenes.');
