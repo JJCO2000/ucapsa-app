@@ -11,32 +11,29 @@ import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import {
   getMyProgramEnrollments,
-  getNextProgramScheduleDate,
   getProgramCodeLabel,
   getProgramEnrollmentDogName,
   getProgramLevelDisplayLabel,
   getProgramStatusLabel,
 } from '../../services/programs.service';
+import {
+  getCanonicalNextProgramSessions,
+  type ProgramNextSession,
+} from '../../services/program-next-session.service';
 import { clientReadKeys, readClientResource, sanitizeProgramRowsForCache, writeClientResource } from '../../services/client-read-cache.service';
 import { DEFAULT_READ_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
 import type { ProgramEnrollmentWithDetails } from '../../types/app.types';
 
-const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const dayNamesLong = ['domingos', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábados'];
 const monthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
-const courseStages = [
-  { key: 'puppy', label: 'Puppy' },
-  { key: 'principiante', label: 'Básico' },
-  { key: 'medio', label: 'Intermedio' },
-  { key: 'avanzado', label: 'Avanzado' },
-] as const;
-
-function nextClassLabel(item: ProgramEnrollmentWithDetails) {
-  const date = getNextProgramScheduleDate(item.schedule);
-  if (!date) return 'Próxima clase por confirmar';
-  const time = String(item.schedule.start_time ?? '').slice(0, 5);
-  return `${dayNames[date.getDay()]} ${String(date.getDate()).padStart(2, '0')} ${monthNames[date.getMonth()]}${time ? `, ${time}` : ''}`;
+function nextClassLabel(session: ProgramNextSession | null, unavailable: boolean) {
+  if (unavailable) return 'Próxima sesión sin verificar';
+  if (!session) return 'Próxima clase por confirmar';
+  const [year, month, day] = session.dateKey.split('-').map(Number);
+  const date = new Date(year, month - 1, day, 12, 0, 0, 0);
+  if (Number.isNaN(date.getTime())) return session.dateKey;
+  return `${String(date.getDate()).padStart(2, '0')} ${monthNames[date.getMonth()]}${session.startTime ? `, ${session.startTime}` : ''}`;
 }
 
 function scheduleLabel(item: ProgramEnrollmentWithDetails) {
@@ -52,19 +49,11 @@ function visibleLevelLabel(item: ProgramEnrollmentWithDetails) {
   return getProgramLevelDisplayLabel(item.program.code, item.enrollment.program_level);
 }
 
-function rowForStage(rows: ProgramEnrollmentWithDetails[], key: typeof courseStages[number]['key']) {
-  if (key === 'puppy') return rows.find((item) => item.program.code === 'puppy') ?? null;
-  return rows.find((item) => item.program.code === 'comandos' && item.enrollment.program_level === key) ?? null;
-}
-
-function dogRouteKey(item: ProgramEnrollmentWithDetails) {
-  if (item.enrollment.dog_id) return `dog:${item.enrollment.dog_id}`;
-  return `legacy:${getProgramEnrollmentDogName(item).trim().toLowerCase()}`;
-}
-
 export default function ClassesTab() {
   const { user, role, isAdmin } = useSession();
   const [rows, setRows] = useState<ProgramEnrollmentWithDetails[]>([]);
+  const [nextSessions, setNextSessions] = useState<Record<string, ProgramNextSession>>({});
+  const [sessionWarning, setSessionWarning] = useState(false);
   const [localReady, setLocalReady] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [usingSavedData, setUsingSavedData] = useState(false);
@@ -82,6 +71,8 @@ export default function ClassesTab() {
     if (cacheScopeRef.current !== scope) {
       cacheScopeRef.current = scope;
       setRows([]);
+      setNextSessions({});
+      setSessionWarning(false);
       setLocalReady(false);
       setUsingSavedData(false);
       setSavedAt(null);
@@ -92,11 +83,13 @@ export default function ClassesTab() {
     if (!isCurrentRun()) return;
     setUsingSavedData(false);
     setOfflineEmpty(false);
+    setSessionWarning(false);
 
     const cached = await readClientResource<ProgramEnrollmentWithDetails[]>(user.id, clientReadKeys.programs);
     if (!isCurrentRun()) return;
+    let nextRows = cached?.data ?? [];
     if (cached) {
-      setRows(cached.data);
+      setRows(nextRows);
       setSavedAt(cached.saved_at);
     }
     setLocalReady(true);
@@ -104,6 +97,7 @@ export default function ClassesTab() {
     try {
       const fresh = await withOperationTimeout(getMyProgramEnrollments(), DEFAULT_READ_TIMEOUT_MS, 'programs');
       if (!isCurrentRun()) return;
+      nextRows = fresh;
       setRows(fresh);
       const stored = await writeClientResource(user.id, clientReadKeys.programs, sanitizeProgramRowsForCache(fresh));
       if (!isCurrentRun()) return;
@@ -114,6 +108,21 @@ export default function ClassesTab() {
       if (!isCurrentRun()) return;
       if (cached) setUsingSavedData(true);
       else setOfflineEmpty(true);
+    }
+
+    try {
+      const sessions = await withOperationTimeout(
+        getCanonicalNextProgramSessions(nextRows),
+        DEFAULT_READ_TIMEOUT_MS,
+        'program-next-sessions',
+      );
+      if (!isCurrentRun()) return;
+      setNextSessions(sessions);
+      setSessionWarning(false);
+    } catch {
+      if (!isCurrentRun()) return;
+      setNextSessions({});
+      setSessionWarning(nextRows.some((item) => item.enrollment.status === 'active'));
     }
   }, [isAdmin, user]);
 
@@ -126,16 +135,6 @@ export default function ClassesTab() {
 
   const active = useMemo(() => rows.filter((item) => item.enrollment.status === 'active'), [rows]);
   const previous = useMemo(() => rows.filter((item) => item.enrollment.status !== 'active'), [rows]);
-  const coursePaths = useMemo(() => {
-    const groups = new Map<string, { key: string; dogName: string; rows: ProgramEnrollmentWithDetails[] }>();
-    for (const item of rows) {
-      const key = dogRouteKey(item);
-      const existing = groups.get(key);
-      if (existing) existing.rows.push(item);
-      else groups.set(key, { key, dogName: getProgramEnrollmentDogName(item), rows: [item] });
-    }
-    return [...groups.values()];
-  }, [rows]);
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin, hasActivePrograms: active.length > 0 }), [active.length, isAdmin, role, user]);
   const premium = format.key === 'member';
 
@@ -174,6 +173,8 @@ export default function ClassesTab() {
         <ClassCard
           key={item.enrollment.id}
           item={item}
+          nextSession={nextSessions[item.enrollment.id] ?? null}
+          sessionUnavailable={sessionWarning}
           premium={premium}
           format={format}
           showAttendanceAction={index === 0}
@@ -183,16 +184,7 @@ export default function ClassesTab() {
       {previous.length > 0 ? (
         <View style={styles.historySection}>
           <Text style={[styles.sectionTitle, { color: format.text }]}>Anteriores</Text>
-          {previous.map((item) => <ClassCard key={item.enrollment.id} item={item} compact premium={premium} format={format} />)}
-        </View>
-      ) : null}
-
-      {coursePaths.length > 0 ? (
-        <View style={styles.routeSection}>
-          <Text style={[styles.routeSectionTitle, { color: format.text }]}>Tu ruta</Text>
-          {coursePaths.map((path) => (
-            <CompactRouteCard key={path.key} path={path} premium={premium} format={format} />
-          ))}
+          {previous.map((item) => <ClassCard key={item.enrollment.id} item={item} nextSession={null} sessionUnavailable={false} compact premium={premium} format={format} />)}
         </View>
       ) : null}
     </KeyboardAwareScreen>
@@ -215,12 +207,16 @@ function CompactClassesHeader({ premium, format }: { premium: boolean; format: R
 
 function ClassCard({
   item,
+  nextSession,
+  sessionUnavailable,
   compact = false,
   premium,
   format,
   showAttendanceAction = false,
 }: {
   item: ProgramEnrollmentWithDetails;
+  nextSession: ProgramNextSession | null;
+  sessionUnavailable: boolean;
   compact?: boolean;
   premium: boolean;
   format: ReturnType<typeof resolveUcapsaFormat>;
@@ -278,7 +274,7 @@ function ClassCard({
         </View>
         <View style={styles.sessionCopy}>
           <Text style={[styles.nextSessionLabel, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>PRÓXIMA SESIÓN</Text>
-          <Text style={[styles.nextClass, { color: format.cardText }]}>{nextClassLabel(item)}</Text>
+          <Text style={[styles.nextClass, { color: format.cardText }]}>{nextClassLabel(nextSession, sessionUnavailable)}</Text>
           <Text style={[styles.scheduleText, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{scheduleLabel(item)}</Text>
         </View>
       </View>
@@ -299,50 +295,6 @@ function ClassCard({
           <Text style={[styles.detailButtonText, { color: format.secondaryButtonText }]}>Ver programa</Text>
           <MaterialIcons name="arrow-forward" size={18} color={format.secondaryButtonText} />
         </Pressable>
-      </View>
-    </View>
-  );
-}
-
-function CompactRouteCard({
-  path,
-  premium,
-  format,
-}: {
-  path: { key: string; dogName: string; rows: ProgramEnrollmentWithDetails[] };
-  premium: boolean;
-  format: ReturnType<typeof resolveUcapsaFormat>;
-}) {
-  return (
-    <View style={[styles.routeCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
-      <Text style={[styles.routeEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>RUTA DE {path.dogName.toUpperCase()}</Text>
-      <View style={styles.stageGrid}>
-        {courseStages.map((stage) => {
-          const stageRow = rowForStage(path.rows, stage.key);
-          const completed = stageRow?.enrollment.status === 'completed';
-          const activeStage = stageRow?.enrollment.status === 'active';
-          const enabled = Boolean(stageRow);
-          return (
-            <Pressable
-              key={stage.key}
-              disabled={!enabled}
-              accessibilityRole={enabled ? 'button' : undefined}
-              accessibilityLabel={enabled ? `Abrir ${stage.label}` : `${stage.label}, bloqueado`}
-              onPress={stageRow ? () => router.push(`/client/class-detail?enrollmentId=${encodeURIComponent(stageRow.enrollment.id)}` as never) : undefined}
-              style={[
-                styles.stageChip,
-                {
-                  borderColor: format.border,
-                  backgroundColor: completed || activeStage ? format.pillBackground : format.surfaceAlt,
-                  opacity: enabled ? 1 : 0.62,
-                },
-              ]}
-            >
-              <MaterialIcons name={completed ? 'check-circle' : activeStage ? 'play-circle-filled' : 'lock-outline'} size={16} color={completed || activeStage ? format.pillText : format.muted} />
-              <Text style={[styles.stageChipText, { color: completed || activeStage ? format.cardText : format.muted }]}>{stage.label}</Text>
-            </Pressable>
-          );
-        })}
       </View>
     </View>
   );
@@ -387,13 +339,6 @@ const styles = StyleSheet.create({
   historyCopy: { flex: 1, minWidth: 0 },
   historyTitle: { fontSize: 15, lineHeight: 19, fontWeight: '900' },
   cardMeta: { fontSize: 11, lineHeight: 16, fontWeight: '800', marginTop: 1 },
-  routeSection: { marginTop: 10 },
-  routeSectionTitle: { fontSize: 17, lineHeight: 21, fontWeight: '900', marginBottom: 8 },
-  routeCard: { borderRadius: 18, borderWidth: 1, padding: 11, marginBottom: 9 },
-  routeEyebrow: { fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 0.75, marginBottom: 8 },
-  stageGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  stageChip: { minHeight: 34, flexBasis: '47%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, borderWidth: 1, paddingHorizontal: 9, paddingVertical: 7 },
-  stageChipText: { flex: 1, fontSize: 10, lineHeight: 14, fontWeight: '800' },
   muted: { fontSize: 13, lineHeight: 19, fontWeight: '700' },
   emptyCard: { gap: 9, alignItems: 'flex-start', borderRadius: 20, borderWidth: 1, padding: 16 },
   secondaryButton: { minHeight: 46, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', borderRadius: 15, borderWidth: 1, paddingVertical: 10, marginTop: 2 },

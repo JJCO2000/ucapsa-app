@@ -10,12 +10,15 @@ import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import {
   getMyProgramEnrollments,
-  getNextProgramScheduleDate,
   getProgramCodeLabel,
   getProgramEnrollmentDogName,
   getProgramLevelDisplayLabel,
   getProgramStatusLabel,
 } from '../../services/programs.service';
+import {
+  getCanonicalNextProgramSessions,
+  type ProgramNextSession,
+} from '../../services/program-next-session.service';
 import { clientReadKeys, readClientResource, sanitizeProgramRowsForCache, writeClientResource } from '../../services/client-read-cache.service';
 import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
 import type { ProgramEnrollmentWithDetails } from '../../types/app.types';
@@ -30,11 +33,13 @@ function dateLabel(value: string | null | undefined) {
   return `${String(date.getDate()).padStart(2, '0')} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
 }
 
-function nextClassLabel(item: ProgramEnrollmentWithDetails) {
-  const date = getNextProgramScheduleDate(item.schedule);
-  if (!date) return 'Por confirmar';
-  const time = String(item.schedule.start_time ?? '').slice(0, 5);
-  return `${dayNames[date.getDay()]} ${String(date.getDate()).padStart(2, '0')} ${monthNames[date.getMonth()]}${time ? `, ${time}` : ''}`;
+function nextClassLabel(session: ProgramNextSession | null, unavailable: boolean) {
+  if (unavailable) return 'Sin verificar';
+  if (!session) return 'Por confirmar';
+  const [year, month, day] = session.dateKey.split('-').map(Number);
+  const date = new Date(year, month - 1, day, 12, 0, 0, 0);
+  if (Number.isNaN(date.getTime())) return session.dateKey;
+  return `${dayNames[date.getDay()]} ${String(date.getDate()).padStart(2, '0')} ${monthNames[date.getMonth()]}${session.startTime ? `, ${session.startTime}` : ''}`;
 }
 
 function scheduleLabel(item: ProgramEnrollmentWithDetails) {
@@ -47,6 +52,8 @@ export default function ClientClassDetailScreen() {
   const { enrollmentId } = useLocalSearchParams<{ enrollmentId?: string }>();
   const { user, role, isAdmin } = useSession();
   const [item, setItem] = useState<ProgramEnrollmentWithDetails | null>(null);
+  const [nextSession, setNextSession] = useState<ProgramNextSession | null>(null);
+  const [sessionWarning, setSessionWarning] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,9 +64,12 @@ export default function ClientClassDetailScreen() {
     if (!user || isAdmin || !enrollmentId) return;
     setError(null);
     setUsingSavedData(false);
+    setNextSession(null);
+    setSessionWarning(false);
 
     const cached = await readClientResource<ProgramEnrollmentWithDetails[]>(user.id, clientReadKeys.programs);
     const cachedItem = cached?.data.find((row) => row.enrollment.id === enrollmentId) ?? null;
+    let resolvedItem = cachedItem;
     if (cachedItem) {
       setItem(cachedItem);
       setSavedAt(cached?.saved_at ?? null);
@@ -68,15 +78,31 @@ export default function ClientClassDetailScreen() {
 
     try {
       const rows = await withOperationTimeout(getMyProgramEnrollments(), DEFAULT_READ_TIMEOUT_MS, 'class-detail');
-      setItem(rows.find((row) => row.enrollment.id === enrollmentId) ?? null);
+      resolvedItem = rows.find((row) => row.enrollment.id === enrollmentId) ?? null;
+      setItem(resolvedItem);
       const stored = await writeClientResource(user.id, clientReadKeys.programs, sanitizeProgramRowsForCache(rows));
       setSavedAt(stored.saved_at);
     } catch {
       if (cachedItem) setUsingSavedData(true);
       else setError(friendlyReadError('No se pudo cargar la clase.'));
-    } finally {
-      setLoading(false);
     }
+
+    if (resolvedItem?.enrollment.status === 'active') {
+      try {
+        const sessions = await withOperationTimeout(
+          getCanonicalNextProgramSessions([resolvedItem]),
+          DEFAULT_READ_TIMEOUT_MS,
+          'class-next-session',
+        );
+        setNextSession(sessions[resolvedItem.enrollment.id] ?? null);
+        setSessionWarning(false);
+      } catch {
+        setNextSession(null);
+        setSessionWarning(true);
+      }
+    }
+
+    setLoading(false);
   }, [enrollmentId, isAdmin, user]);
 
   useFocusEffect(useCallback(() => { void load(); return undefined; }, [load]));
@@ -115,7 +141,7 @@ export default function ClientClassDetailScreen() {
           </View>
 
           <View style={styles.summaryGrid}>
-            <Info label="Proxima clase" value={nextClassLabel(item)} premium={premium} format={format} />
+            <Info label="Proxima clase" value={nextClassLabel(nextSession, sessionWarning)} premium={premium} format={format} />
             <Info label="Horario" value={scheduleLabel(item)} premium={premium} format={format} />
             <Info label="Perro" value={getProgramEnrollmentDogName(item)} premium={premium} format={format} />
             <Info label="Asistencias" value={`${item.attendances.length} de ${item.program.required_attendances}`} premium={premium} format={format} />

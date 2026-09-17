@@ -15,7 +15,16 @@ mustNot('src/types/database.types.ts', /Record<string,\s*never>/, 'Sigue activo 
 must('src/types/database.types.ts', /client_event_id/, 'El overlay tipado perdió client_event_id para sincronización offline.');
 must('src/types/database.types.ts', /p_captured_at/, 'El overlay tipado perdió la hora real de captura offline.');
 must('src/types/database.helpers.ts', /database\.types/, 'Los helpers de base no usan los tipos canónicos con overlay offline.');
-must('src/app/(tabs)/dog.tsx', /account-settings\?section=profile/, 'La pata con lápiz no abre Mis datos.');
+
+must('src/app/(tabs)/dog.tsx', /account-settings\?section=profile/, 'Mi perro perdió el acceso separado a Mis datos.');
+must('src/app/(tabs)/dog.tsx', /\/client\/dog-profile\?dogId=/, 'El lápiz de Mi perro dejó de editar al perro seleccionado.');
+must('src/app/(tabs)/dog.tsx', /useLocalSearchParams/, 'Mi perro dejó de aceptar el dogId de navegación contextual.');
+must('src/app/(tabs)/dog.tsx', /loadRunRef/, 'Mi perro perdió la guarda contra respuestas asíncronas obsoletas.');
+must('src/app/(tabs)/dog.tsx', /cacheScopeRef/, 'Mi perro dejó de limpiar el estado al cambiar de usuario.');
+must('src/app/(tabs)/dog.tsx', /selectedHistory/, 'Mi perro volvió a mezclar el historial con el bloque de entrenamiento.');
+must('src/app/(tabs)/dog.tsx', /!programWarning && selectedActive\[0\]/, 'Mi perro dejó de aislar el entrenamiento de otras secciones.');
+must('src/app/(tabs)/dog.tsx', /achievementReady \? \(/, 'Mi perro perdió el bloque independiente de logros por perro.');
+
 mustNot('src/app/admin/classes.tsx', /TextInput\s+value=\{form\.dogName\}/, 'Admin Clases aún usa perro como texto libre al crear.');
 mustNot('src/app/admin/classes.tsx', /TextInput\s+value=\{editForm\.dogName\}/, 'Admin Clases aún usa perro como texto libre al editar.');
 mustNot('src/app/admin/customer-class.tsx', /<Field label="Perro"/, 'Ficha de clase aún usa perro como texto libre.');
@@ -46,6 +55,11 @@ must('src/screens/home/HomeExperienceScreen.tsx', /loadRunRef/, 'Inicio perdió 
 must('src/screens/home/HomeExperienceScreen.tsx', /mergeCustomerValueSnapshotWithCache/, 'Inicio volvió al fallback todo-o-nada en vez de mezclar por fuente.');
 mustNot('src/screens/home/HomeExperienceScreen.tsx', /new Date\(selectedAnnouncement\?\.announcement_date\)/, 'Inicio volvió a parsear una fecha civil de aviso como UTC.');
 must('src/services/customer-value-merge.service.ts', /cached_fallback:/, 'Falta trazabilidad de qué fuente de Inicio cayó a caché.');
+must('src/screens/home/HomeExperienceScreen.tsx', /nextClass[\s\S]*find\(\(program\) => program\.enrollmentId === nextClass\.enrollmentId\)/, 'Inicio volvió a elegir un programa principal arbitrario en vez del asociado a la próxima clase.');
+must('src/screens/home/HomeExperienceScreen.tsx', /recentAchievement\.dogId/, 'Inicio perdió el perro asociado al logro reciente.');
+must('src/screens/home/HomeExperienceScreen.tsx', /\/dog\?dogId=/, 'El logro formal de Inicio dejó de abrir Mi perro en el perro correcto.');
+must('src/services/customer-value.service.ts', /sourceId: string \| null;\s*dogId: string \| null;\s*dogName: string \| null;/, 'El snapshot de Inicio dejó de conservar la identidad del perro en logros.');
+must('src/services/customer-value.service.ts', /dogId,\s*dogName:/, 'El snapshot de Inicio dejó de mapear el perro real del logro.');
 
 must('src/services/attendance-outbox.service.ts', /AsyncStorage/, 'El QR perdió la cola local persistente.');
 must('src/services/attendance-outbox.service.ts', /p_client_event_id/, 'El QR perdió la clave idempotente de sincronización.');
@@ -70,6 +84,16 @@ must('src/app/(tabs)/classes.tsx', /\/client\/class-detail\?enrollmentId=/, 'Cla
 must('src/app/(tabs)/classes.tsx', /Mostrando clases guardadas/, 'Clases perdió el aviso de datos offline guardados.');
 must('src/app/(tabs)/classes.tsx', /loadRunRef/, 'Clases perdió la guarda contra respuestas asíncronas obsoletas.');
 must('src/app/(tabs)/classes.tsx', /cacheScopeRef/, 'Clases dejó de limpiar el estado al cambiar de usuario.');
+mustNot('src/app/(tabs)/classes.tsx', /courseStages|CompactRouteCard|RUTA DE|>Tu ruta</, 'Clases volvió a duplicar la ruta de progreso que pertenece a Mi perro.');
+
+must('src/services/program-next-session.service.ts', /getProgramScheduleFromTimeline/, 'La próxima sesión dejó de respetar versiones de horario.');
+must('src/services/program-next-session.service.ts', /getProgramClassCancellations/, 'La próxima sesión dejó de consultar cancelaciones activas.');
+must('src/services/program-next-session.service.ts', /resolveNextProgramSessionAcrossEnrollments/, 'Falta el selector canónico de próxima sesión entre inscripciones.');
+must('src/app/(tabs)/classes.tsx', /getCanonicalNextProgramSessions/, 'Clases dejó de usar el selector canónico de próxima sesión.');
+must('src/app/client/class-detail.tsx', /getCanonicalNextProgramSessions/, 'Detalle de clase dejó de usar el selector canónico de próxima sesión.');
+must('src/services/customer-value.service.ts', /resolveNextProgramSessionAcrossEnrollments/, 'Inicio dejó de usar el selector canónico de próxima sesión.');
+mustNot('src/app/(tabs)/classes.tsx', /getNextProgramScheduleDate/, 'Clases volvió a calcular la próxima sesión con una regla paralela.');
+mustNot('src/app/client/class-detail.tsx', /getNextProgramScheduleDate/, 'Detalle de clase volvió a calcular la próxima sesión con una regla paralela.');
 
 must('src/app/(tabs)/services.tsx', /Tu membresía y accesos UCAPSA/, 'Servicios perdió el encabezado compacto orientado al acceso del cliente.');
 must('src/app/(tabs)/services.tsx', /TU ACCESO DE SOCIO/, 'Servicios perdió los accesos rápidos de socio.');
@@ -112,4 +136,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log('SOURCE INTEGRITY OK: tipos, perros, rutas críticas, offline, UTF-8, textos y CLABE revisados.');
+console.log('SOURCE INTEGRITY OK: tipos, perros, rutas críticas, offline, jerarquía de información, próxima sesión, UTF-8, textos y CLABE revisados.');

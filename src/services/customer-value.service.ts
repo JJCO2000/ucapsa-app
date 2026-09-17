@@ -23,10 +23,9 @@ import {
   getMyProgramEnrollments,
   getProgramClassCancellations,
   getProgramEnrollmentDogName,
-  getProgramScheduleFromTimeline,
   getProgramScheduleTimeline,
-  isProgramScheduleActiveOnDate,
 } from './programs.service';
+import { resolveNextProgramSessionAcrossEnrollments } from './program-next-session.service';
 import { getUpcomingOccurrences } from '../utils/events.utils';
 
 export type CustomerValueSourceKey =
@@ -147,6 +146,8 @@ export type CustomerValueSnapshot = {
       awardedAt: string;
       sourceType: string | null;
       sourceId: string | null;
+      dogId: string | null;
+      dogName: string | null;
     }>;
   };
   whatIsNext: {
@@ -202,15 +203,6 @@ function startOfCurrentMonthKey(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
 }
 
-function parseStartTime(value: string | null | undefined) {
-  const match = /^(\d{1,2}):(\d{2})/.exec(String(value ?? ''));
-  if (!match) return { hours: 0, minutes: 0 };
-  return {
-    hours: Math.max(0, Math.min(23, Number(match[1]))),
-    minutes: Math.max(0, Math.min(59, Number(match[2]))),
-  };
-}
-
 function toProgramValue(item: Awaited<ReturnType<typeof getMyProgramEnrollments>>[number]): CustomerValueProgram {
   const attendanceCount = item.attendances.length;
   const requiredAttendances = Math.max(0, Number(item.program.required_attendances ?? 0));
@@ -257,59 +249,6 @@ async function getMyMemberVisitSummary(userId: string) {
     thisMonth: monthResult.count ?? 0,
     lastVisitedAt: latestResult.data?.visited_at ?? null,
   };
-}
-
-function findNextClass(
-  enrollments: Awaited<ReturnType<typeof getMyProgramEnrollments>>,
-  timeline: Awaited<ReturnType<typeof getProgramScheduleTimeline>>,
-  cancellations: Awaited<ReturnType<typeof getProgramClassCancellations>>,
-  fromDate = new Date(),
-): CustomerValueNextClass | null {
-  const cancelled = new Set(
-    cancellations
-      .filter((item) => !item.restored_at)
-      .map((item) => `${item.schedule_id}|${item.cancellation_date}`),
-  );
-
-  const candidates: Array<{ startsAt: number; value: CustomerValueNextClass }> = [];
-
-  for (const item of enrollments.filter((row) => row.enrollment.status === 'active')) {
-    for (let offset = 0; offset <= 370; offset += 1) {
-      const day = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate() + offset, 12, 0, 0, 0);
-      const dateKey = localDateKey(day);
-      if (!item.enrollment.card_started_on || !item.enrollment.card_expires_on) continue;
-      if (!dateKeyIsWithinRange(dateKey, item.enrollment.card_started_on, item.enrollment.card_expires_on)) continue;
-      const schedule = getProgramScheduleFromTimeline(timeline, item.enrollment.schedule_id, dateKey);
-      if (!schedule || schedule.program_id !== item.enrollment.program_id) continue;
-      if (!isProgramScheduleActiveOnDate(schedule, dateKey)) continue;
-      if (cancelled.has(`${schedule.id}|${dateKey}`)) continue;
-
-      const time = parseStartTime(schedule.start_time);
-      const startsAt = new Date(day.getFullYear(), day.getMonth(), day.getDate(), time.hours, time.minutes, 0, 0).getTime();
-      if (startsAt < fromDate.getTime()) continue;
-
-      candidates.push({
-        startsAt,
-        value: {
-          enrollmentId: item.enrollment.id,
-          programId: item.program.id,
-          programName: item.program.name,
-          programCode: item.program.code,
-          programLevel: item.enrollment.program_level,
-          dogId: item.enrollment.dog_id ?? null,
-          dogName: getProgramEnrollmentDogName(item),
-          scheduleId: schedule.id,
-          scheduleName: schedule.name,
-          dateKey,
-          startTime: String(schedule.start_time ?? '').slice(0, 5),
-        },
-      });
-      break;
-    }
-  }
-
-  candidates.sort((a, b) => a.startsAt - b.startsAt);
-  return candidates[0]?.value ?? null;
 }
 
 export function getCustomerValuePrimaryNextAction(
@@ -414,6 +353,11 @@ export async function getMyCustomerValueSnapshot(): Promise<CustomerValueSnapsho
   const events = eventsSource.value ?? [];
   const nextOccurrence = getUpcomingOccurrences(events, 1)[0] ?? null;
   const nextPayment = paymentOverview?.obligations[0] ?? null;
+  const dogNameById = new Map<string, string>();
+  for (const item of programs) {
+    const dogId = item.enrollment.dog_id;
+    if (dogId && !dogNameById.has(dogId)) dogNameById.set(dogId, getProgramEnrollmentDogName(item));
+  }
 
   const warnings: string[] = [];
   for (const item of programs) {
@@ -438,8 +382,27 @@ export async function getMyCustomerValueSnapshot(): Promise<CustomerValueSnapsho
     cancellations: cancellationsSource.status,
   };
 
-  const nextClass = timelineSource.value && cancellationsSource.value
-    ? findNextClass(programs, timelineSource.value, cancellationsSource.value)
+  const nextSession = timelineSource.value && cancellationsSource.value
+    ? resolveNextProgramSessionAcrossEnrollments(programs, {
+        timeline: timelineSource.value,
+        cancellations: cancellationsSource.value,
+      })
+    : null;
+
+  const nextClass: CustomerValueNextClass | null = nextSession
+    ? {
+        enrollmentId: nextSession.item.enrollment.id,
+        programId: nextSession.item.program.id,
+        programName: nextSession.item.program.name,
+        programCode: nextSession.item.program.code,
+        programLevel: nextSession.item.enrollment.program_level,
+        dogId: nextSession.item.enrollment.dog_id ?? null,
+        dogName: getProgramEnrollmentDogName(nextSession.item),
+        scheduleId: nextSession.session.scheduleId,
+        scheduleName: nextSession.session.scheduleName,
+        dateKey: nextSession.session.dateKey,
+        startTime: nextSession.session.startTime,
+      }
     : null;
 
   return {
@@ -483,14 +446,19 @@ export async function getMyCustomerValueSnapshot(): Promise<CustomerValueSnapsho
       attendanceRequirementsMet: programValues.filter((item) => Boolean(item.attendanceRequirementsMetAt)),
       achievements: achievements
         .filter((item) => item.unlocked && item.achievement)
-        .map((item) => ({
-          code: item.definition.code,
-          title: item.definition.title,
-          unlockedTitle: item.definition.unlocked_title,
-          awardedAt: item.achievement?.awarded_at ?? '',
-          sourceType: item.achievement?.source_type ?? null,
-          sourceId: item.achievement?.source_id ?? null,
-        })),
+        .map((item) => {
+          const dogId = item.achievement?.dog_id ?? null;
+          return {
+            code: item.definition.code,
+            title: item.definition.title,
+            unlockedTitle: item.definition.unlocked_title,
+            awardedAt: item.achievement?.awarded_at ?? '',
+            sourceType: item.achievement?.source_type ?? null,
+            sourceId: item.achievement?.source_id ?? null,
+            dogId,
+            dogName: dogId ? dogNameById.get(dogId) ?? null : null,
+          };
+        }),
     },
     whatIsNext: {
       nextClass,
