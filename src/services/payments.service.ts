@@ -175,7 +175,6 @@ export async function deleteMembershipPayment(paymentId: string, membershipId: s
   await deleteCustomerPayment(paymentId);
 }
 
-
 export type UpdatePaymentSettingsInput = {
   bankName?: string | null;
   accountHolder?: string | null;
@@ -184,6 +183,14 @@ export type UpdatePaymentSettingsInput = {
   clipUrl?: string | null;
   isActive?: boolean;
 };
+
+export function normalizeClabe(value: string | null | undefined) {
+  return String(value ?? '').replace(/\D/g, '');
+}
+
+export function isValidClabe(value: string | null | undefined) {
+  return normalizeClabe(value).length === 18;
+}
 
 function localDateKey(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -201,9 +208,10 @@ export async function getPaymentSettings(): Promise<PaymentSettings | null> {
 }
 
 export async function updatePaymentSettings(input: UpdatePaymentSettingsInput): Promise<PaymentSettings> {
-  const clabe = input.clabe?.replace(/\D/g, '') || null;
+  const normalizedClabe = normalizeClabe(input.clabe);
+  const clabe = normalizedClabe || null;
   const clipUrl = input.clipUrl?.trim() || null;
-  if (clabe && clabe.length !== 18) throw new Error('La CLABE debe tener exactamente 18 digitos.');
+  if (clabe && !isValidClabe(clabe)) throw new Error('La CLABE debe tener exactamente 18 digitos.');
   if (clipUrl && !/^https?:\/\//i.test(clipUrl)) throw new Error('El enlace de pago debe comenzar con http:// o https://.');
 
   const payload: Record<string, unknown> = {};
