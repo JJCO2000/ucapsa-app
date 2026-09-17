@@ -39,7 +39,7 @@ where ua.dog_id is null
 -- Un logro manual histórico solo puede atribuirse automáticamente cuando la cuenta
 -- tiene exactamente un perro activo. Con dos o más perros se mantiene sin asignar.
 with single_active_dog as (
-  select user_id, min(id) as dog_id
+  select user_id, min(id::text)::uuid as dog_id
   from public.dogs
   where is_active = true
   group by user_id
