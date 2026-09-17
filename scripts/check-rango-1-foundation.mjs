@@ -13,6 +13,7 @@ const mustNot = (text, pattern, message) => {
 
 const doc = read('docs/UCAPSA_RANGO_1.md');
 const sql = read('supabase/sql/ucapsa-rango-1-foundation.sql');
+const hardening = read('supabase/sql/ucapsa-rango-1-access-hardening.sql');
 const oldPointsDoc = read('docs/UCAPSA_POINTS.md');
 const oldUxDoc = read('docs/UCAPSA_POINTS_UX_AUDIT.md');
 
@@ -63,10 +64,50 @@ mustNot(sql, /create table if not exists public\.ucapsa_points_participants/, 'R
 mustNot(sql, /create table if not exists public\.(?:ucapsa_)?(?:ranking|leaderboard|podium)/, 'Ranking/podio volvió a persistirse como fuente paralela.');
 mustNot(sql, /default_points/, 'La fundación adelantó la escala de puntos antes de definirla.');
 
+// Lock the access hardening that is already applied in the remote Supabase project.
+must(hardening, /alter function public\.ucapsa_validate_member_visit_dog_owner\(\) security invoker;/, 'El validator de visitas volvió a SECURITY DEFINER.');
+must(hardening, /alter function public\.ucapsa_validate_exam_item_result\(\) security invoker;/, 'El validator de resultados volvió a SECURITY DEFINER.');
+must(hardening, /revoke all on function public\.ucapsa_validate_member_visit_dog_owner\(\) from public, anon, authenticated;/, 'El validator de visitas volvió a exponerse como RPC.');
+must(hardening, /revoke all on function public\.ucapsa_validate_exam_item_result\(\) from public, anon, authenticated;/, 'El validator de resultados volvió a exponerse como RPC.');
+
+for (const table of [
+  'ucapsa_competition_seasons',
+  'member_visit_dogs',
+  'ucapsa_exams',
+  'ucapsa_exam_items',
+  'ucapsa_import_batches',
+  'ucapsa_exam_attempts',
+  'ucapsa_exam_item_results',
+  'ucapsa_competition_adjustments',
+  'ucapsa_award_definitions',
+  'dog_awards',
+]) {
+  must(hardening, new RegExp(`public\\.${table}`), `El hardening dejó de cubrir ${table}.`);
+}
+
+must(hardening, /grant select on table[\s\S]*to authenticated;/, 'Clientes autenticados perdieron el contrato de solo lectura de Rango 1.');
+must(hardening, /grant select, insert, update, delete on table[\s\S]*to service_role;/, 'Service role perdió acceso operativo a Rango 1.');
+must(hardening, /d\.user_id = \(select auth\.uid\(\)\)/, 'Las policies de Rango 1 perdieron la optimización init-plan de auth.uid().');
+must(hardening, /\(select public\.is_ucapsa_admin\(\)\)/, 'Las policies de Rango 1 perdieron la optimización init-plan de admin.');
+
+for (const index of [
+  'member_visit_dogs_credited_by_idx',
+  'ucapsa_competition_seasons_created_by_idx',
+  'ucapsa_exams_created_by_idx',
+  'ucapsa_import_batches_exam_idx',
+  'ucapsa_exam_attempts_import_batch_idx',
+  'ucapsa_exam_item_results_updated_by_idx',
+  'ucapsa_competition_adjustments_reversal_idx',
+  'dog_awards_award_code_idx',
+  'dog_awards_season_idx',
+]) {
+  must(hardening, new RegExp(`create index if not exists ${index}`), `Falta índice de hardening ${index}.`);
+}
+
 if (failures.length) {
   console.error('RANGO 1 FOUNDATION FAILED');
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
 
-console.log('RANGO 1 FOUNDATION OK: SSOT, multi-perro, temporadas, exámenes, imports, ajustes y premios protegidos.');
+console.log('RANGO 1 FOUNDATION OK: SSOT, multi-perro, temporadas, exámenes, imports, ajustes, premios y hardening protegidos.');
