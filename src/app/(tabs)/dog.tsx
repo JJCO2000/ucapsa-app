@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Redirect, router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AchievementBadgeGrid, AchievementDetailModal } from '../../components/domain/AchievementBadgeGrid';
@@ -26,6 +26,8 @@ function sameDogName(left: string | null | undefined, right: string | null | und
 }
 
 export default function DogTab() {
+  const { dogId: dogIdParam } = useLocalSearchParams<{ dogId?: string | string[] }>();
+  const requestedDogId = Array.isArray(dogIdParam) ? dogIdParam[0] ?? null : dogIdParam ?? null;
   const { user, role, isAdmin } = useSession();
   const [dogs, setDogs] = useState<BasicDog[]>([]);
   const [rows, setRows] = useState<ProgramEnrollmentWithDetails[]>([]);
@@ -43,9 +45,35 @@ export default function DogTab() {
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [programWarning, setProgramWarning] = useState(false);
   const [offlineEmpty, setOfflineEmpty] = useState(false);
+  const cacheScopeRef = useRef<string | null>(null);
+  const loadRunRef = useRef(0);
+  const lastRequestedDogIdRef = useRef<string | null>(null);
 
   const load = useCallback(async () => {
+    const runId = loadRunRef.current + 1;
+    loadRunRef.current = runId;
+    const isCurrentRun = () => loadRunRef.current === runId;
+    const scope = user?.id ?? (isAdmin ? 'admin' : 'public');
+
+    if (cacheScopeRef.current !== scope) {
+      cacheScopeRef.current = scope;
+      setDogs([]);
+      setRows([]);
+      setSelectedDogId(null);
+      setAchievements([]);
+      setSelectedAchievement(null);
+      setAchievementReady(false);
+      setAchievementWarning(false);
+      setLocalReady(false);
+      setUsingSavedData(false);
+      setSavedAt(null);
+      setProgramWarning(false);
+      setOfflineEmpty(false);
+      lastRequestedDogIdRef.current = null;
+    }
+
     if (!user || isAdmin) return;
+    if (!isCurrentRun()) return;
     setUsingSavedData(false);
     setProgramWarning(false);
     setOfflineEmpty(false);
@@ -54,6 +82,8 @@ export default function DogTab() {
       readClientResource<BasicDog[]>(user.id, clientReadKeys.dogs),
       readClientResource<ProgramEnrollmentWithDetails[]>(user.id, clientReadKeys.programs),
     ]);
+    if (!isCurrentRun()) return;
+
     let nextDogs = dogCache?.data ?? [];
     let nextPrograms = programCache?.data ?? [];
 
@@ -62,21 +92,28 @@ export default function DogTab() {
       setRows(nextPrograms);
       setSavedAt(dogCache?.saved_at ?? programCache?.saved_at ?? null);
     }
+    setSelectedDogId((current) => {
+      if (current && nextDogs.some((dog) => dog.id === current)) return current;
+      return nextDogs[0]?.id ?? null;
+    });
     setLocalReady(true);
 
     const [dogResult, programResult] = await Promise.allSettled([
       withOperationTimeout(getMyDogs(), DEFAULT_READ_TIMEOUT_MS, 'dogs'),
       withOperationTimeout(getMyProgramEnrollments(), DEFAULT_READ_TIMEOUT_MS, 'dog-programs'),
     ]);
+    if (!isCurrentRun()) return;
 
     if (dogResult.status === 'fulfilled') {
       nextDogs = dogResult.value;
       const stored = await writeClientResource(user.id, clientReadKeys.dogs, nextDogs);
+      if (!isCurrentRun()) return;
       setSavedAt(stored.saved_at);
     }
     if (programResult.status === 'fulfilled') {
       nextPrograms = programResult.value;
       await writeClientResource(user.id, clientReadKeys.programs, sanitizeProgramRowsForCache(nextPrograms));
+      if (!isCurrentRun()) return;
     }
 
     setDogs(nextDogs);
@@ -102,7 +139,23 @@ export default function DogTab() {
     if (programFailed && !programCache) setProgramWarning(true);
   }, [isAdmin, user]);
 
-  useFocusEffect(useCallback(() => { void load(); return undefined; }, [load]));
+  useFocusEffect(useCallback(() => {
+    void load();
+    return () => {
+      loadRunRef.current += 1;
+    };
+  }, [load]));
+
+  useEffect(() => {
+    if (!requestedDogId) {
+      lastRequestedDogIdRef.current = null;
+      return;
+    }
+    if (lastRequestedDogIdRef.current === requestedDogId) return;
+    if (!dogs.some((dog) => dog.id === requestedDogId)) return;
+    lastRequestedDogIdRef.current = requestedDogId;
+    setSelectedDogId(requestedDogId);
+  }, [dogs, requestedDogId]);
 
   const activeEnrollments = useMemo(() => rows.filter((item) => item.enrollment.status === 'active'), [rows]);
   const format = useMemo(
@@ -119,6 +172,7 @@ export default function DogTab() {
     });
   }, [rows, selectedDog]);
   const selectedActive = useMemo(() => selectedEnrollments.filter((item) => item.enrollment.status === 'active'), [selectedEnrollments]);
+  const selectedHistory = useMemo(() => selectedEnrollments.filter((item) => item.enrollment.status !== 'active'), [selectedEnrollments]);
   const unlockedAchievementCount = useMemo(() => countUnlockedAchievements(achievements), [achievements]);
 
   useEffect(() => {
@@ -370,7 +424,7 @@ export default function DogTab() {
               <View style={styles.sectionHeader}>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={[styles.sectionTitle, { color: format.cardText }]}>{selectedDog.name}</Text>
-                  <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{programWarning ? 'Clases no guardadas' : `${selectedActive.length} clase${selectedActive.length === 1 ? '' : 's'} activa${selectedActive.length === 1 ? '' : 's'}`}</Text>
+                  <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{programWarning ? 'Entrenamiento sin verificar' : `${selectedActive.length} clase${selectedActive.length === 1 ? '' : 's'} activa${selectedActive.length === 1 ? '' : 's'}`}</Text>
                 </View>
                 <View style={styles.dogHeaderActions}>
                   {dogs.length === 1 ? (
@@ -389,73 +443,69 @@ export default function DogTab() {
                 </View>
               </View>
 
-              {programWarning ? (
-                <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Conéctate una vez para guardar las clases de {selectedDog.name} en este dispositivo.</Text>
-              ) : selectedEnrollments.length === 0 ? (
+              {!programWarning && selectedEnrollments.length === 0 ? (
                 <View style={styles.dogEmptyProgram}>
                   <MaterialIcons name="school" size={24} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
                   <Text style={[styles.classTitle, { color: format.cardText }]}>Sin programa vinculado</Text>
                   <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Cuando {selectedDog.name} tenga clases o historial, aparecerá aquí.</Text>
                 </View>
-              ) : (
+              ) : null}
+
+              {!programWarning && selectedActive[0] ? (() => {
+                const item = selectedActive[0];
+                const levelLabel = getProgramLevelDisplayLabel(item.program.code, item.enrollment.program_level);
+                const remaining = item.program.required_attendances > 0 ? Math.max(0, item.program.required_attendances - item.attendances.length) : null;
+                const programLabel = `${getProgramCodeLabel(item.program.code)}${levelLabel ? ` ${levelLabel}` : ''}`;
+                return (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Abrir ${programLabel} de ${selectedDog.name}`}
+                    style={[styles.dogProgramHero, { borderColor: format.border, backgroundColor: format.surfaceAlt }]}
+                    onPress={() => router.push(`/client/class-detail?enrollmentId=${encodeURIComponent(item.enrollment.id)}` as never)}
+                  >
+                    <View style={[styles.dogProgramIcon, { backgroundColor: format.pillBackground }]}><MaterialIcons name="school" size={22} color={format.pillText} /></View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={[styles.dogProgramEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>ENTRENAMIENTO ACTUAL</Text>
+                      <Text style={[styles.dogProgramTitle, { color: format.cardText }]}>{programLabel}</Text>
+                      <Text style={[styles.dogProgramMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{item.attendances.length} asistencias registradas</Text>
+                    </View>
+                    {!premium && remaining != null ? <View style={[styles.dogRemainingBox, { backgroundColor: format.accent }]}><Text style={[styles.dogRemainingValue, { color: format.primaryButtonText }]}>{remaining}</Text><Text style={[styles.dogRemainingLabel, { color: format.primaryButtonText }]}>restantes</Text></View> : <MaterialIcons name="chevron-right" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />}
+                  </Pressable>
+                );
+              })() : null}
+
+              {achievementReady ? (
                 <>
-                  {selectedActive[0] ? (() => {
-                    const item = selectedActive[0];
-                    const levelLabel = getProgramLevelDisplayLabel(item.program.code, item.enrollment.program_level);
-                    const remaining = item.program.required_attendances > 0 ? Math.max(0, item.program.required_attendances - item.attendances.length) : null;
-                    const programLabel = `${getProgramCodeLabel(item.program.code)}${levelLabel ? ` ${levelLabel}` : ''}`;
-                    return (
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`Abrir ${programLabel} de ${selectedDog.name}`}
-                        style={[styles.dogProgramHero, { borderColor: format.border, backgroundColor: format.surfaceAlt }]}
-                        onPress={() => router.push(`/client/class-detail?enrollmentId=${encodeURIComponent(item.enrollment.id)}` as never)}
-                      >
-                        <View style={[styles.dogProgramIcon, { backgroundColor: format.pillBackground }]}><MaterialIcons name="school" size={22} color={format.pillText} /></View>
-                        <View style={{ flex: 1, minWidth: 0 }}>
-                          <Text style={[styles.dogProgramEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>ENTRENAMIENTO ACTUAL</Text>
-                          <Text style={[styles.dogProgramTitle, { color: format.cardText }]}>{programLabel}</Text>
-                          <Text style={[styles.dogProgramMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{item.attendances.length} asistencias registradas</Text>
-                        </View>
-                        {!premium && remaining != null ? <View style={[styles.dogRemainingBox, { backgroundColor: format.accent }]}><Text style={[styles.dogRemainingValue, { color: format.primaryButtonText }]}>{remaining}</Text><Text style={[styles.dogRemainingLabel, { color: format.primaryButtonText }]}>restantes</Text></View> : <MaterialIcons name="chevron-right" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />}
-                      </Pressable>
-                    );
-                  })() : null}
-
-                  {achievementReady ? (
+                  <Text style={[styles.dogHistoryLabel, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>LOGROS UCAPSA</Text>
+                  {achievements.length > 0 ? (
                     <>
-                      <Text style={[styles.dogHistoryLabel, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>LOGROS UCAPSA</Text>
-                      {achievements.length > 0 ? (
-                        <>
-                          <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
-                            {unlockedAchievementCount} de {achievements.length} medallas obtenidas por {selectedDog.name}.
-                          </Text>
-                          <AchievementBadgeGrid items={achievements} premium={premium} maxItems={4} onSelect={setSelectedAchievement} />
-                        </>
-                      ) : (
-                        <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Los logros de {selectedDog.name} todavía no están disponibles.</Text>
-                      )}
-                      {achievementWarning ? (
-                        <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>No pudimos verificar los logros en línea. Se conserva la información guardada en este dispositivo.</Text>
-                      ) : null}
+                      <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+                        {unlockedAchievementCount} de {achievements.length} medallas obtenidas por {selectedDog.name}.
+                      </Text>
+                      <AchievementBadgeGrid items={achievements} premium={premium} maxItems={4} onSelect={setSelectedAchievement} />
                     </>
+                  ) : (
+                    <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Los logros de {selectedDog.name} todavía no están disponibles.</Text>
+                  )}
+                  {achievementWarning ? (
+                    <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>No pudimos verificar los logros en línea. Se conserva la información guardada en este dispositivo.</Text>
                   ) : null}
-
-                  {selectedEnrollments.some((item) => item.enrollment.status !== 'active') ? <Text style={[styles.dogHistoryLabel, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>HISTORIAL UCAPSA</Text> : null}
-                  {selectedEnrollments.filter((item) => item.enrollment.status !== 'active').map((item) => {
-                    const levelLabel = getProgramLevelDisplayLabel(item.program.code, item.enrollment.program_level);
-                    return (
-                      <View key={item.enrollment.id} style={[styles.classRow, premium && styles.rowPremium]}>
-                        <View style={[styles.classIcon, { backgroundColor: format.pillBackground }]}><MaterialIcons name="history" size={19} color={format.pillText} /></View>
-                        <View style={{ flex: 1, minWidth: 0 }}>
-                          <Text style={[styles.classTitle, { color: format.cardText }]}>{getProgramCodeLabel(item.program.code)}{levelLabel ? ` ${levelLabel}` : ''}</Text>
-                          <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{item.attendances.length} asistencias registradas</Text>
-                        </View>
-                      </View>
-                    );
-                  })}
                 </>
-              )}
+              ) : null}
+
+              {!programWarning && selectedHistory.length > 0 ? <Text style={[styles.dogHistoryLabel, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>HISTORIAL UCAPSA</Text> : null}
+              {!programWarning ? selectedHistory.map((item) => {
+                const levelLabel = getProgramLevelDisplayLabel(item.program.code, item.enrollment.program_level);
+                return (
+                  <View key={item.enrollment.id} style={[styles.classRow, premium && styles.rowPremium]}>
+                    <View style={[styles.classIcon, { backgroundColor: format.pillBackground }]}><MaterialIcons name="history" size={19} color={format.pillText} /></View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={[styles.classTitle, { color: format.cardText }]}>{getProgramCodeLabel(item.program.code)}{levelLabel ? ` ${levelLabel}` : ''}</Text>
+                      <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{item.attendances.length} asistencias registradas</Text>
+                    </View>
+                  </View>
+                );
+              }) : null}
             </View>
           ) : null}
         </>
