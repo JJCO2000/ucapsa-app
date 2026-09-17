@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type {
+  MemberVisit,
   Membership,
   MembershipStatus,
   MyPaymentOverview,
@@ -43,13 +44,7 @@ export type PaymentOfflineSummary = Pick<
   | 'legacy_membership_pending'
 >;
 
-export type ClientActivityOfflineSummary = {
-  attendanceTotal: number;
-  memberVisitsTotal: number;
-  practiceTotal: number;
-  currentPracticeStreak: number;
-  longestPracticeStreak: number;
-};
+export type MemberVisitOfflineSummary = Pick<MemberVisit, 'id' | 'visit_date' | 'visited_at' | 'source'>;
 
 const CACHE_PREFIX = 'ucapsa:client-read:v1:';
 
@@ -61,7 +56,7 @@ export const clientReadKeys = {
   dogs: 'dogs',
   membership: 'membership',
   paymentSummary: 'payment-summary',
-  activityFacts: 'activity-facts',
+  memberVisits: 'member-visits',
 } as const;
 
 function key(scope: string, resource: string) {
