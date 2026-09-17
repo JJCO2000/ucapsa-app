@@ -41,6 +41,16 @@ requirePattern(
   'La consulta formal de logros dejó de filtrar por dog_id.',
 );
 requirePattern(
+  'src/components/domain/AchievementBadgeGrid.tsx',
+  /if \(maxItems && visibleItems\[0\]\?\.dogId\)[\s\S]*const dogId = visibleItems\[0\]\.dogId;[\s\S]*dog-achievements\?dogId=\$\{encodeURIComponent\(dogId\)\}/,
+  'El resumen compacto dejó de navegar con el dogId del perro mostrado.',
+);
+requirePattern(
+  'src/app/client/dog-achievements.tsx',
+  /const dogId =[\s\S]*dogIdParam[\s\S]*getCachedAchievementsForDog\(user\.id, dogId\)[\s\S]*getMyDogAchievements\(dogId,/,
+  'La ficha de logros dejó de conservar el mismo dogId entre caché y refresh remoto.',
+);
+requirePattern(
   'src/screens/home/HomeExperienceScreen.tsx',
   /nextClass[\s\S]*find\(\(program\) => program\.enrollmentId === nextClass\.enrollmentId\)/,
   'Inicio dejó de elegir el programa asociado a la próxima clase.',
@@ -93,6 +103,14 @@ const tukaAchievements = storedAchievements.filter((item) => item.dogId === 'dog
 const lunaAchievements = storedAchievements.filter((item) => item.dogId === 'dog-luna');
 if (tukaAchievements.length !== 1 || lunaAchievements.length !== 1) failures.push('Fixture multi-perro: la misma medalla no quedó independiente por perro.');
 
+// El resumen compacto debe abrir la ficha del mismo perro, incluso si ambos tienen la misma medalla.
+function dogAchievementRoute(items) {
+  const dogId = items[0]?.dogId ?? null;
+  return dogId ? `/client/dog-achievements?dogId=${encodeURIComponent(dogId)}` : null;
+}
+if (dogAchievementRoute(tukaAchievements) !== '/client/dog-achievements?dogId=dog-tuka') failures.push('Fixture multi-perro: el resumen de Tuka perdió su dogId al abrir logros.');
+if (dogAchievementRoute(lunaAchievements) !== '/client/dog-achievements?dogId=dog-luna') failures.push('Fixture multi-perro: el resumen de Luna perdió su dogId al abrir logros.');
+
 // Aunque el programa de Luna no sea el primero, la próxima clase de Luna debe seleccionar Luna.
 const nextClass = { enrollmentId: 'enrollment-luna' };
 const selectedProgram = programs.find((item) => item.enrollmentId === nextClass.enrollmentId) ?? programs[0] ?? null;
@@ -104,4 +122,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('MULTI-DOG OK: programas, logros y próxima clase permanecen aislados por perro.');
+console.log('MULTI-DOG OK: programas, logros, navegación dog-specific y próxima clase permanecen aislados por perro.');
