@@ -109,6 +109,17 @@ must('src/app/(tabs)/services.tsx', /cacheScopeRef/, 'Servicios dejó de limpiar
 must('src/app/(tabs)/services.tsx', /membership\?\.status === 'active' && effective === 'expired'/, 'Servicios volvió a expirar automáticamente una membresía que Administración mantiene activa.');
 mustNot('src/app/(tabs)/services.tsx', /subtitle="Membresía, restaurante, compras y contacto directo con UCAPSA\."/, 'Servicios volvió al hero grande y redundante del diseño anterior.');
 
+must('src/services/payments.service.ts', /export function normalizeClabe/, 'Pagos perdió la normalización canónica de CLABE.');
+must('src/services/payments.service.ts', /export function isValidClabe/, 'Pagos perdió la validación canónica de CLABE.');
+must('src/app/(tabs)/payments.tsx', /withOperationTimeout\(getPaymentSettings\(\)/, 'Pagos dejó de verificar los datos bancarios en vivo.');
+must('src/app/(tabs)/payments.tsx', /setSettings\(null\)/, 'Pagos volvió a conservar datos bancarios anteriores durante una nueva verificación.');
+must('src/app/(tabs)/payments.tsx', /isValidClabe\(settings\.clabe\)/, 'Pagos volvió a habilitar transferencias sin validar la CLABE de 18 dígitos.');
+must('src/app/(tabs)/payments.tsx', /label === 'CLABE' && !isValidClabe/, 'La acción de copiar CLABE dejó de validar el dato antes de copiarlo.');
+must('src/app/(tabs)/payments.tsx', /loadRunRef/, 'Pagos perdió la guarda contra respuestas asíncronas obsoletas.');
+must('src/app/(tabs)/payments.tsx', /cacheScopeRef/, 'Pagos dejó de limpiar el estado al cambiar de usuario.');
+mustNot('src/services/client-read-cache.service.ts', /paymentSettings/, 'Los datos bancarios volvieron a ser elegibles para caché local.');
+mustNot('src/app/(tabs)/payments.tsx', /BankRow label="CLABE"[^\n]*\bcopy\b/, 'Pagos volvió a mostrar una acción duplicada para copiar la CLABE.');
+
 const scanRoots = ['src', 'scripts'];
 function walk(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -136,4 +147,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log('SOURCE INTEGRITY OK: tipos, perros, rutas críticas, offline, jerarquía de información, próxima sesión, UTF-8, textos y CLABE revisados.');
+console.log('SOURCE INTEGRITY OK: tipos, perros, rutas críticas, offline, jerarquía de información, próxima sesión, pagos bancarios, UTF-8, textos y CLABE revisados.');
