@@ -366,19 +366,6 @@ begin
 end;
 $$;
 
-for function_signature in
-select unnest(array[
-  'public.admin_create_ucapsa_competition_season(text,text,date,date)',
-  'public.admin_update_ucapsa_competition_season(uuid,text,text,date,date)',
-  'public.admin_activate_ucapsa_competition_season(uuid)',
-  'public.admin_close_ucapsa_competition_season(uuid)',
-  'public.admin_reopen_ucapsa_competition_season(uuid)'
-])
-loop
-  -- Placeholder loop intentionally avoided below; explicit grants keep migration
-  -- compatible across PostgreSQL versions used by Supabase.
-end loop;
-
 revoke all on function public.admin_create_ucapsa_competition_season(text,text,date,date)
   from public, anon, authenticated;
 revoke all on function public.admin_update_ucapsa_competition_season(uuid,text,text,date,date)
