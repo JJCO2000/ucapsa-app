@@ -124,7 +124,12 @@ export default function AdminCompetitionScreen() {
       <Text style={styles.sectionTitle}>Operación</Text>
       <View style={styles.card}>
         <FeatureRow icon="assignment" title="Exámenes" subtitle="Configuración, resultados e importación" status="En integración" disabled />
-        <FeatureRow icon="add-chart" title="Puntos y ajustes" subtitle="Movimientos Admin por perro y temporada" status="En integración" disabled />
+        <FeatureRow
+          icon="add-chart"
+          title="Puntos y ajustes"
+          subtitle="Movimientos Admin por perro y temporada"
+          onPress={() => router.push('/admin/competition-adjustments' as never)}
+        />
         <FeatureRow icon="military-tech" title="Premios" subtitle="Perro del Año y reconocimientos permanentes" status="En integración" disabled />
         <FeatureRow
           icon="calendar-month"
