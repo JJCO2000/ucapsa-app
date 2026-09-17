@@ -1,8 +1,9 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { AchievementBadgeGrid, AchievementDetailModal } from '../../components/domain/AchievementBadgeGrid';
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { ClientPageHeader } from '../../components/layout/ClientPageHeader';
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
@@ -11,6 +12,7 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
+import { countUnlockedAchievements, getCachedAchievementsForDog, getMyDogAchievements, type AchievementWithState } from '../../services/achievements.service';
 import { createMyDog, getMyDogs, renameMyDog, type BasicDog } from '../../services/dogs.service';
 import { clientReadKeys, readClientResource, sanitizeProgramRowsForCache, writeClientResource } from '../../services/client-read-cache.service';
 import { getMyProgramEnrollments, getProgramCodeLabel, getProgramLevelDisplayLabel } from '../../services/programs.service';
@@ -28,6 +30,10 @@ export default function DogTab() {
   const [dogs, setDogs] = useState<BasicDog[]>([]);
   const [rows, setRows] = useState<ProgramEnrollmentWithDetails[]>([]);
   const [selectedDogId, setSelectedDogId] = useState<string | null>(null);
+  const [achievements, setAchievements] = useState<AchievementWithState[]>([]);
+  const [selectedAchievement, setSelectedAchievement] = useState<AchievementWithState | null>(null);
+  const [achievementReady, setAchievementReady] = useState(false);
+  const [achievementWarning, setAchievementWarning] = useState(false);
   const [editorMode, setEditorMode] = useState<EditorMode>(null);
   const [draftName, setDraftName] = useState('');
   const [saving, setSaving] = useState(false);
@@ -113,10 +119,76 @@ export default function DogTab() {
     });
   }, [rows, selectedDog]);
   const selectedActive = useMemo(() => selectedEnrollments.filter((item) => item.enrollment.status === 'active'), [selectedEnrollments]);
+  const unlockedAchievementCount = useMemo(() => countUnlockedAchievements(achievements), [achievements]);
+
+  useEffect(() => {
+    if (!user || isAdmin || !selectedDog) {
+      setAchievements([]);
+      setSelectedAchievement(null);
+      setAchievementReady(false);
+      setAchievementWarning(false);
+      return;
+    }
+
+    let cancelled = false;
+    const userId = user.id;
+    const dogId = selectedDog.id;
+
+    setSelectedAchievement(null);
+    setAchievementReady(false);
+    setAchievementWarning(false);
+
+    void (async () => {
+      const cached = await getCachedAchievementsForDog(userId, dogId);
+      if (cancelled) return;
+      if (cached) {
+        setAchievements(cached);
+        setAchievementReady(true);
+      } else {
+        setAchievements([]);
+      }
+
+      try {
+        const fresh = await getMyDogAchievements(dogId, {
+          userId,
+          forceRefresh: true,
+          allowCachedOnError: false,
+        });
+        if (cancelled) return;
+        setAchievements(fresh);
+        setAchievementReady(true);
+        setAchievementWarning(false);
+      } catch {
+        if (cancelled) return;
+        setAchievementReady(true);
+        setAchievementWarning(true);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [isAdmin, selectedDog, user]);
 
   async function refresh() {
     setRefreshing(true);
-    try { await load(); } finally { setRefreshing(false); }
+    try {
+      await load();
+      if (user && selectedDog && !isAdmin) {
+        try {
+          const fresh = await getMyDogAchievements(selectedDog.id, {
+            userId: user.id,
+            forceRefresh: true,
+            allowCachedOnError: false,
+          });
+          setAchievements(fresh);
+          setAchievementReady(true);
+          setAchievementWarning(false);
+        } catch {
+          setAchievementWarning(true);
+        }
+      }
+    } finally {
+      setRefreshing(false);
+    }
   }
 
   function openCreate() {
@@ -360,6 +432,25 @@ export default function DogTab() {
                     );
                   })() : null}
 
+                  {achievementReady ? (
+                    <>
+                      <Text style={[styles.dogHistoryLabel, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>LOGROS UCAPSA</Text>
+                      {achievements.length > 0 ? (
+                        <>
+                          <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+                            {unlockedAchievementCount} de {achievements.length} medallas obtenidas por {selectedDog.name}.
+                          </Text>
+                          <AchievementBadgeGrid items={achievements} premium={premium} maxItems={4} onSelect={setSelectedAchievement} />
+                        </>
+                      ) : (
+                        <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Los logros de {selectedDog.name} todavía no están disponibles.</Text>
+                      )}
+                      {achievementWarning ? (
+                        <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>No pudimos verificar los logros en línea. Se conserva la información guardada en este dispositivo.</Text>
+                      ) : null}
+                    </>
+                  ) : null}
+
                   {selectedEnrollments.some((item) => item.enrollment.status !== 'active') ? <Text style={[styles.dogHistoryLabel, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>HISTORIAL UCAPSA</Text> : null}
                   {selectedEnrollments.filter((item) => item.enrollment.status !== 'active').map((item) => {
                     const levelLabel = getProgramLevelDisplayLabel(item.program.code, item.enrollment.program_level);
@@ -379,6 +470,12 @@ export default function DogTab() {
           ) : null}
         </>
       ) : null}
+
+      <AchievementDetailModal
+        item={selectedAchievement}
+        premium={premium}
+        onClose={() => setSelectedAchievement(null)}
+      />
 
       <KeyboardAwareModal
         visible={editorMode !== null}
