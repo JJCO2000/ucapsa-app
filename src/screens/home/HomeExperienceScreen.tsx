@@ -41,7 +41,7 @@ import { styles } from './homeStyles';
 
 const mark = require('../../../assets/images/brand/ucapsa-mark.png');
 
-type SnapshotState = 'idle' | 'fresh' | 'cached' | 'partial' | 'error';
+type SnapshotState = 'idle' | 'hydrated' | 'fresh' | 'cached' | 'partial' | 'error';
 
 export default function HomeExperienceScreen() {
   const { user, profile, role, isAdmin } = useSession();
@@ -96,7 +96,9 @@ export default function HomeExperienceScreen() {
       cachedSnapshot = savedSnapshot;
       if (savedSnapshot) {
         setSnapshot(savedSnapshot.snapshot);
-        setSnapshotState('cached');
+        // La caché hidratada es una vista inmediata, no una prueba de que estemos offline.
+        // El aviso sólo aparece después si el refresh remoto realmente falla.
+        setSnapshotState('hydrated');
         setLoading(false);
       }
       if (savedPractice) setPractice(savedPractice);
@@ -126,12 +128,15 @@ export default function HomeExperienceScreen() {
     if (practiceResult.status === 'fulfilled' && practiceResult.value) setPractice(practiceResult.value);
 
     if (user) {
+      const announcementsFresh = announcementResult.status === 'fulfilled';
+      const practiceFresh = practiceResult.status === 'fulfilled' && practiceResult.value?.source === 'remote';
+
       if (snapshotResult.status === 'fulfilled' && snapshotResult.value) {
         const remoteSnapshot = snapshotResult.value;
         const hasSourceErrors = Object.values(remoteSnapshot.sourceStatus).some((status) => status === 'error');
         const mergedSnapshot = mergeCustomerValueSnapshotWithCache(remoteSnapshot, cachedSnapshot?.snapshot);
         setSnapshot(mergedSnapshot);
-        setSnapshotState(hasSourceErrors ? 'partial' : 'fresh');
+        setSnapshotState(hasSourceErrors || !announcementsFresh || !practiceFresh ? 'partial' : 'fresh');
         void writeCustomerValueSnapshotCache(mergedSnapshot);
       } else if (cachedSnapshot) {
         setSnapshot(cachedSnapshot.snapshot);
