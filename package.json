@@ -66,7 +66,7 @@
     "check:rango-1-exam-admin-rpcs": "node scripts/check-rango-1-exam-admin-rpcs.mjs",
     "check:rango-1-exam-import": "node scripts/check-rango-1-exam-import.mjs",
     "check:ci-policy": "node scripts/check-ci-policy.mjs",
-    "verify": "npm run typecheck && npm run check:routes && npm run check:integrity && npm run check:ui-quality && npm run check:info-hierarchy && npm run check:navigation-smoke && npm run check:multi-dog && npm run check:offline-roundtrip && npm run check:rango-1-foundation && npm run check:rango-1-constancy && npm run check:rango-1-seasons && npm run check:rango-1-closed-freeze && npm run check:rango-1-exams && npm run check:rango-1-exam-admin-rpcs && npm run check:rango-1-exam-import && npm run check:rango-1-admin-adjustments && npm run check:rango-1-dog-awards",
+    "verify": "npm run typecheck && npm run check:routes && npm run check:integrity && npm run check:ui-quality && npm run check:info-hierarchy && npm run check:navigation-smoke && npm run check:multi-dog && npm run check:offline-roundtrip && npm run check:rango-1-foundation && npm run check:rango-1-constancy && npm run check:rango-1-seasons && npm run check:rango-1-closed-freeze && npm run check:rango-1-exams && npm run check:rango-1-exam-admin-rpcs && npm run check:rango-1-exam-import && npm run check:rango-1-admin-adjustments && npm run check:rango-1-dog-awards && npm run check:rango-1-competition-inputs",
     "audit:report": "npm audit --omit=dev",
     "check:release": "node scripts/check-release.mjs",
     "verify:release": "npm run verify && npm run check:release && npm run check:nanoid-security && npm run check:ci-policy",
@@ -75,7 +75,8 @@
     "eas-build-post-install": "npm run verify:release && npm run check:build-env",
     "check:nanoid-security": "node scripts/check-nanoid-security.mjs",
     "check:rango-1-admin-adjustments": "node scripts/check-rango-1-admin-adjustments.mjs",
-    "check:rango-1-dog-awards": "node scripts/check-rango-1-dog-awards.mjs"
+    "check:rango-1-dog-awards": "node scripts/check-rango-1-dog-awards.mjs",
+    "check:rango-1-competition-inputs": "node scripts/check-rango-1-competition-inputs.mjs"
   },
   "private": true,
   "overrides": {
