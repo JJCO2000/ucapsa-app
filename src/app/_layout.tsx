@@ -5,8 +5,7 @@ import { AppState } from 'react-native';
 
 import { LoadingScreen } from '../components/ui/LoadingScreen';
 import { SessionProvider, useSession } from '../hooks/useSession';
-import { flushPendingAttendanceOperations } from '../services/attendance-outbox.service';
-import { warmClientOfflineData } from '../services/client-offline-sync.service';
+import { flushPendingClientWrites, warmClientOfflineData } from '../services/client-offline-sync.service';
 
 function RootNavigator() {
   const { loading, startupError, retryStartup, user, isAdmin } = useSession();
@@ -30,8 +29,8 @@ function RootNavigator() {
       appStateRef.current = nextState;
       if (nextState !== 'active' || previousState === 'active') return;
 
-      void flushPendingAttendanceOperations(user.id).catch((error) => {
-        console.warn('Could not retry UCAPSA offline attendance queue:', error);
+      void flushPendingClientWrites(user.id).catch((error) => {
+        console.warn('Could not retry UCAPSA offline queues:', error);
       });
     });
 
