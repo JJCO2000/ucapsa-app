@@ -1,6 +1,7 @@
 import type { Announcement, Membership, MyPaymentOverview, ProgramEnrollmentWithDetails } from '../types/app.types';
 import { getVisibleAnnouncements } from './announcements.service';
 import { flushPendingAttendanceOperations } from './attendance-outbox.service';
+import { getMyMemberVisits } from './client-activity.service';
 import {
   clientReadKeys,
   createMembershipOfflineSummary,
@@ -29,6 +30,7 @@ export type OfflineWarmResult = {
   programs: boolean;
   membership: boolean;
   payments: boolean;
+  memberVisits: boolean;
   practiceActivity: boolean;
   attendanceOutbox: boolean;
   practiceOutbox: boolean;
@@ -138,8 +140,8 @@ export async function flushPendingClientWrites(userId: string): Promise<OfflineW
 }
 
 /**
- * Prepara una instantánea local completa después de recuperar una sesión válida
- * y aprovecha ese mismo momento para vaciar escrituras locales pendientes.
+ * Prepara las lecturas críticas para uso offline después de recuperar una sesión
+ * válida y aprovecha ese mismo momento para vaciar escrituras locales pendientes.
  *
  * La interfaz nunca debe esperar esta función: cada recurso se sincroniza de forma
  * independiente y conserva el último valor válido si una petición falla.
@@ -152,6 +154,7 @@ export async function warmClientOfflineData(userId: string): Promise<OfflineWarm
     programs: false,
     membership: false,
     payments: false,
+    memberVisits: false,
     practiceActivity: false,
     attendanceOutbox: false,
     practiceOutbox: false,
@@ -164,6 +167,7 @@ export async function warmClientOfflineData(userId: string): Promise<OfflineWarm
     cachePrograms(userId).then(() => { result.programs = true; }),
     cacheMembership(userId).then(() => { result.membership = true; }),
     cachePayments(userId).then(() => { result.payments = true; }),
+    getMyMemberVisits(userId, 500).then(() => { result.memberVisits = true; }),
     flushPendingClientWrites(userId).then(async (flushResult) => {
       result.attendanceOutbox = flushResult.attendanceOutbox;
       result.practiceOutbox = flushResult.practiceOutbox;
