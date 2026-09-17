@@ -14,6 +14,7 @@ const mustNot = (text, pattern, message) => {
 const doc = read('docs/UCAPSA_RANGO_1.md');
 const sql = read('supabase/sql/ucapsa-rango-1-foundation.sql');
 const hardening = read('supabase/sql/ucapsa-rango-1-access-hardening.sql');
+const memberVisitSnapshot = read('supabase/sql/ucapsa-rango-1-member-visit-dogs.sql');
 const oldPointsDoc = read('docs/UCAPSA_POINTS.md');
 const oldUxDoc = read('docs/UCAPSA_POINTS_UX_AUDIT.md');
 
@@ -33,6 +34,14 @@ must(sql, /where status = 'active'/, 'Temporadas perdieron la unicidad de tempor
 must(sql, /create table if not exists public\.member_visit_dogs/, 'Falta el snapshot multi-perro de visitas de socio.');
 must(sql, /primary key \(visit_id, dog_id\)/, 'Una visita puede duplicar crédito al mismo perro.');
 must(sql, /ucapsa_validate_member_visit_dog_owner/, 'Visitas de socio no validan que el perro pertenezca a la misma cuenta.');
+
+must(memberVisitSnapshot, /create or replace function public\.ucapsa_snapshot_member_visit_dogs\(\)/, 'Falta el snapshot automático de perros al registrar una visita.');
+must(memberVisitSnapshot, /after insert on public\.member_visits/, 'La visita de socio dejó de disparar el snapshot multi-perro.');
+must(memberVisitSnapshot, /d\.user_id = new\.user_id[\s\S]*d\.is_active = true/, 'El snapshot ya no se limita a perros activos de la misma cuenta.');
+must(memberVisitSnapshot, /on conflict \(visit_id, dog_id\) do nothing/, 'El snapshot multi-perro perdió idempotencia por visita/perro.');
+must(memberVisitSnapshot, /credit_source[\s\S]*'auto'/, 'El snapshot automático dejó de identificar su fuente.');
+mustNot(memberVisitSnapshot, /insert into public\.member_visits/, 'El snapshot no debe duplicar el evento canónico member_visits.');
+mustNot(memberVisitSnapshot, /update public\.member_visit_dogs/, 'El snapshot de una visita nueva no debe reescribir créditos históricos.');
 
 for (const table of [
   'ucapsa_exams',
@@ -110,4 +119,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('RANGO 1 FOUNDATION OK: SSOT, multi-perro, temporadas, exámenes, imports, ajustes, premios y hardening protegidos.');
+console.log('RANGO 1 FOUNDATION OK: SSOT, multi-perro, visitas, temporadas, exámenes, imports, ajustes, premios y hardening protegidos.');
