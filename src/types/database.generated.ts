@@ -184,6 +184,95 @@ export type Database = {
         }
         Relationships: []
       }
+      dog_awards: {
+        Row: {
+          award_code: string
+          awarded_at: string
+          awarded_by: string | null
+          created_at: string
+          dog_id: string
+          id: string
+          note: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          season_id: string | null
+        }
+        Insert: {
+          award_code: string
+          awarded_at?: string
+          awarded_by?: string | null
+          created_at?: string
+          dog_id: string
+          id?: string
+          note?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          season_id?: string | null
+        }
+        Update: {
+          award_code?: string
+          awarded_at?: string
+          awarded_by?: string | null
+          created_at?: string
+          dog_id?: string
+          id?: string
+          note?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          season_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dog_awards_award_code_fkey"
+            columns: ["award_code"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_award_definitions"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "dog_awards_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dog_awards_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "dog_awards_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "dog_awards_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["season_id"]
+          },
+          {
+            foreignKeyName: "dog_awards_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_seasons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dog_awards_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["season_id"]
+          },
+        ]
+      }
       dog_documents: {
         Row: {
           created_at: string
@@ -243,6 +332,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "dogs"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dog_documents_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "dog_documents_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["dog_id"]
           },
         ]
       }
@@ -408,6 +511,109 @@ export type Database = {
         }
         Relationships: []
       }
+      member_visit_dogs: {
+        Row: {
+          credit_source: string
+          credited_at: string
+          credited_by: string | null
+          dog_id: string
+          visit_id: string
+        }
+        Insert: {
+          credit_source?: string
+          credited_at?: string
+          credited_by?: string | null
+          dog_id: string
+          visit_id: string
+        }
+        Update: {
+          credit_source?: string
+          credited_at?: string
+          credited_by?: string | null
+          dog_id?: string
+          visit_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_visit_dogs_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_visit_dogs_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "member_visit_dogs_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "member_visit_dogs_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "member_visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      member_visits: {
+        Row: {
+          client_event_id: string | null
+          created_at: string
+          id: string
+          membership_id: string | null
+          notes: string | null
+          recorded_by: string | null
+          source: string
+          updated_at: string
+          user_id: string
+          visit_date: string
+          visited_at: string
+        }
+        Insert: {
+          client_event_id?: string | null
+          created_at?: string
+          id?: string
+          membership_id?: string | null
+          notes?: string | null
+          recorded_by?: string | null
+          source?: string
+          updated_at?: string
+          user_id: string
+          visit_date?: string
+          visited_at?: string
+        }
+        Update: {
+          client_event_id?: string | null
+          created_at?: string
+          id?: string
+          membership_id?: string | null
+          notes?: string | null
+          recorded_by?: string | null
+          source?: string
+          updated_at?: string
+          user_id?: string
+          visit_date?: string
+          visited_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_visits_membership_id_fkey"
+            columns: ["membership_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       membership_billing_profiles: {
         Row: {
           amount: number
@@ -501,90 +707,6 @@ export type Database = {
           snapshot_member_number?: string | null
           snapshot_name?: string | null
           status?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      member_visits: {
-        Row: {
-          created_at: string
-          id: string
-          membership_id: string | null
-          notes: string | null
-          recorded_by: string | null
-          source: string
-          updated_at: string
-          user_id: string
-          visit_date: string
-          visited_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          membership_id?: string | null
-          notes?: string | null
-          recorded_by?: string | null
-          source?: string
-          updated_at?: string
-          user_id: string
-          visit_date?: string
-          visited_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          membership_id?: string | null
-          notes?: string | null
-          recorded_by?: string | null
-          source?: string
-          updated_at?: string
-          user_id?: string
-          visit_date?: string
-          visited_at?: string
-        }
-        Relationships: []
-      }
-      practice_sessions: {
-        Row: {
-          client_event_id: string | null
-          completed_at: string
-          created_at: string
-          difficulty: string
-          dog_id: string | null
-          duration_seconds: number | null
-          enrollment_id: string | null
-          id: string
-          note: string | null
-          started_at: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          client_event_id?: string | null
-          completed_at?: string
-          created_at?: string
-          difficulty: string
-          dog_id?: string | null
-          duration_seconds?: number | null
-          enrollment_id?: string | null
-          id?: string
-          note?: string | null
-          started_at?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          client_event_id?: string | null
-          completed_at?: string
-          created_at?: string
-          difficulty?: string
-          dog_id?: string | null
-          duration_seconds?: number | null
-          enrollment_id?: string | null
-          id?: string
-          note?: string | null
-          started_at?: string
           updated_at?: string
           user_id?: string
         }
@@ -1148,6 +1270,80 @@ export type Database = {
           },
         ]
       }
+      practice_sessions: {
+        Row: {
+          client_event_id: string | null
+          completed_at: string
+          created_at: string
+          difficulty: string
+          dog_id: string | null
+          duration_seconds: number | null
+          enrollment_id: string | null
+          id: string
+          note: string | null
+          started_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_event_id?: string | null
+          completed_at?: string
+          created_at?: string
+          difficulty: string
+          dog_id?: string | null
+          duration_seconds?: number | null
+          enrollment_id?: string | null
+          id?: string
+          note?: string | null
+          started_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_event_id?: string | null
+          completed_at?: string
+          created_at?: string
+          difficulty?: string
+          dog_id?: string | null
+          duration_seconds?: number | null
+          enrollment_id?: string | null
+          id?: string
+          note?: string | null
+          started_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practice_sessions_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practice_sessions_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "practice_sessions_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "practice_sessions_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "program_enrollments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_color: string
@@ -1196,6 +1392,7 @@ export type Database = {
       program_attendances: {
         Row: {
           attendance_date: string
+          client_event_id: string | null
           created_at: string
           enrollment_id: string
           id: string
@@ -1209,6 +1406,7 @@ export type Database = {
         }
         Insert: {
           attendance_date?: string
+          client_event_id?: string | null
           created_at?: string
           enrollment_id: string
           id?: string
@@ -1222,6 +1420,7 @@ export type Database = {
         }
         Update: {
           attendance_date?: string
+          client_event_id?: string | null
           created_at?: string
           enrollment_id?: string
           id?: string
@@ -1325,6 +1524,7 @@ export type Database = {
           schedule_id: string
           started_at: string | null
           status: string
+          unlocked_from_enrollment_id: string | null
           updated_at: string
           user_id: string
         }
@@ -1348,6 +1548,7 @@ export type Database = {
           schedule_id: string
           started_at?: string | null
           status?: string
+          unlocked_from_enrollment_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -1371,6 +1572,7 @@ export type Database = {
           schedule_id?: string
           started_at?: string | null
           status?: string
+          unlocked_from_enrollment_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -1381,6 +1583,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "dogs"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_enrollments_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "program_enrollments_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["dog_id"]
           },
           {
             foreignKeyName: "program_enrollments_program_id_fkey"
@@ -1394,6 +1610,13 @@ export type Database = {
             columns: ["schedule_id"]
             isOneToOne: false
             referencedRelation: "program_schedules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_enrollments_unlocked_from_enrollment_id_fkey"
+            columns: ["unlocked_from_enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "program_enrollments"
             referencedColumns: ["id"]
           },
         ]
@@ -1646,12 +1869,1063 @@ export type Database = {
         }
         Relationships: []
       }
+      restaurant_menu_categories: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      restaurant_menu_items: {
+        Row: {
+          category_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          image_url: string | null
+          is_available: boolean
+          name: string
+          price: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_available?: boolean
+          name: string
+          price?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_available?: boolean
+          name?: string
+          price?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_menu_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_menu_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ucapsa_award_definitions: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          icon_key: string | null
+          is_active: boolean
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          icon_key?: string | null
+          is_active?: boolean
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          icon_key?: string | null
+          is_active?: boolean
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ucapsa_competition_adjustments: {
+        Row: {
+          created_at: string
+          created_by: string
+          dog_id: string
+          id: string
+          import_batch_id: string | null
+          note: string | null
+          occurred_at: string
+          points: number
+          reversal_of_id: string | null
+          season_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          dog_id: string
+          id?: string
+          import_batch_id?: string | null
+          note?: string | null
+          occurred_at?: string
+          points: number
+          reversal_of_id?: string | null
+          season_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          dog_id?: string
+          id?: string
+          import_batch_id?: string | null
+          note?: string | null
+          occurred_at?: string
+          points?: number
+          reversal_of_id?: string | null
+          season_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ucapsa_competition_adjustments_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_competition_adjustments_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_competition_adjustments_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_competition_adjustments_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_import_preview"
+            referencedColumns: ["batch_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_competition_adjustments_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_competition_adjustments_reversal_of_id_fkey"
+            columns: ["reversal_of_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_adjustments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_competition_adjustments_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["season_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_competition_adjustments_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_seasons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_competition_adjustments_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["season_id"]
+          },
+        ]
+      }
+      ucapsa_competition_seasons: {
+        Row: {
+          activated_at: string | null
+          activated_by: string | null
+          closed_at: string | null
+          closed_by: string | null
+          code: string
+          created_at: string
+          created_by: string | null
+          ends_at: string
+          id: string
+          name: string
+          reopened_at: string | null
+          reopened_by: string | null
+          starts_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          activated_at?: string | null
+          activated_by?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          code: string
+          created_at?: string
+          created_by?: string | null
+          ends_at: string
+          id?: string
+          name: string
+          reopened_at?: string | null
+          reopened_by?: string | null
+          starts_at: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          activated_at?: string | null
+          activated_by?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string
+          id?: string
+          name?: string
+          reopened_at?: string | null
+          reopened_by?: string | null
+          starts_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ucapsa_exam_attempts: {
+        Row: {
+          attempt_number: number
+          created_at: string
+          created_by: string | null
+          dog_id: string
+          exam_id: string
+          id: string
+          import_batch_id: string | null
+          is_official: boolean
+          presented_at: string
+          published_at: string | null
+          published_by: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          voided_at: string | null
+          voided_by: string | null
+        }
+        Insert: {
+          attempt_number?: number
+          created_at?: string
+          created_by?: string | null
+          dog_id: string
+          exam_id: string
+          id?: string
+          import_batch_id?: string | null
+          is_official?: boolean
+          presented_at: string
+          published_at?: string | null
+          published_by?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Update: {
+          attempt_number?: number
+          created_at?: string
+          created_by?: string | null
+          dog_id?: string
+          exam_id?: string
+          id?: string
+          import_batch_id?: string | null
+          is_official?: boolean
+          presented_at?: string
+          published_at?: string | null
+          published_by?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ucapsa_exam_attempts_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_attempts_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_attempts_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_attempts_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_attempt_summary"
+            referencedColumns: ["exam_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_attempts_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_official_results"
+            referencedColumns: ["exam_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_attempts_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_attempts_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_import_preview"
+            referencedColumns: ["batch_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_attempts_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_import_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ucapsa_exam_import_rows: {
+        Row: {
+          attempt_id: string | null
+          batch_id: string
+          created_at: string
+          dog_id: string | null
+          dog_name: string | null
+          id: string
+          member_number: string | null
+          raw_data: Json
+          row_number: number
+          scores: Json
+          updated_at: string
+          validation_errors: Json
+          validation_status: string
+        }
+        Insert: {
+          attempt_id?: string | null
+          batch_id: string
+          created_at?: string
+          dog_id?: string | null
+          dog_name?: string | null
+          id?: string
+          member_number?: string | null
+          raw_data?: Json
+          row_number: number
+          scores?: Json
+          updated_at?: string
+          validation_errors?: Json
+          validation_status?: string
+        }
+        Update: {
+          attempt_id?: string | null
+          batch_id?: string
+          created_at?: string
+          dog_id?: string | null
+          dog_name?: string | null
+          id?: string
+          member_number?: string | null
+          raw_data?: Json
+          row_number?: number
+          scores?: Json
+          updated_at?: string
+          validation_errors?: Json
+          validation_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ucapsa_exam_import_rows_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_attempt_summary"
+            referencedColumns: ["attempt_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_import_rows_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_attempts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_import_rows_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_official_results"
+            referencedColumns: ["attempt_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_import_rows_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_import_preview"
+            referencedColumns: ["batch_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_import_rows_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_import_rows_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_import_rows_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_import_rows_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["dog_id"]
+          },
+        ]
+      }
+      ucapsa_exam_item_results: {
+        Row: {
+          attempt_id: string
+          created_at: string
+          evaluator_note: string | null
+          exam_item_id: string
+          points_awarded: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          attempt_id: string
+          created_at?: string
+          evaluator_note?: string | null
+          exam_item_id: string
+          points_awarded: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          attempt_id?: string
+          created_at?: string
+          evaluator_note?: string | null
+          exam_item_id?: string
+          points_awarded?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ucapsa_exam_item_results_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_attempt_summary"
+            referencedColumns: ["attempt_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_item_results_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_attempts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_item_results_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_official_results"
+            referencedColumns: ["attempt_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_item_results_exam_item_id_fkey"
+            columns: ["exam_item_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ucapsa_exam_items: {
+        Row: {
+          created_at: string
+          description: string | null
+          exam_id: string
+          id: string
+          item_number: number
+          max_points: number
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          exam_id: string
+          id?: string
+          item_number: number
+          max_points: number
+          sort_order?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          exam_id?: string
+          id?: string
+          item_number?: number
+          max_points?: number
+          sort_order?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ucapsa_exam_items_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_attempt_summary"
+            referencedColumns: ["exam_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_items_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_official_results"
+            referencedColumns: ["exam_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_items_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ucapsa_exams: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          exam_date: string | null
+          id: string
+          is_required_for_ranking: boolean
+          published_at: string | null
+          published_by: string | null
+          season_id: string
+          sort_order: number
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          exam_date?: string | null
+          id?: string
+          is_required_for_ranking?: boolean
+          published_at?: string | null
+          published_by?: string | null
+          season_id: string
+          sort_order?: number
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          exam_date?: string | null
+          id?: string
+          is_required_for_ranking?: boolean
+          published_at?: string | null
+          published_by?: string | null
+          season_id?: string
+          sort_order?: number
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ucapsa_exams_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["season_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exams_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_seasons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exams_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["season_id"]
+          },
+        ]
+      }
+      ucapsa_import_batches: {
+        Row: {
+          committed_at: string | null
+          created_at: string
+          created_by: string
+          exam_id: string | null
+          file_name: string | null
+          id: string
+          import_type: string
+          metadata: Json
+          reverted_at: string | null
+          season_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          committed_at?: string | null
+          created_at?: string
+          created_by: string
+          exam_id?: string | null
+          file_name?: string | null
+          id?: string
+          import_type: string
+          metadata?: Json
+          reverted_at?: string | null
+          season_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          committed_at?: string | null
+          created_at?: string
+          created_by?: string
+          exam_id?: string | null
+          file_name?: string | null
+          id?: string
+          import_type?: string
+          metadata?: Json
+          reverted_at?: string | null
+          season_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ucapsa_import_batches_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_attempt_summary"
+            referencedColumns: ["exam_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_import_batches_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_official_results"
+            referencedColumns: ["exam_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_import_batches_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_import_batches_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["season_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_import_batches_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_seasons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_import_batches_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["season_id"]
+          },
+        ]
+      }
+      ucapsa_points_ledger: {
+        Row: {
+          awarded_by: string | null
+          created_at: string
+          dedupe_key: string
+          id: string
+          metadata: Json
+          occurred_at: string
+          participant_id: string
+          points: number
+          reason: string
+          reversal_of_id: string | null
+          rule_code: string
+          season_id: string
+          source_id: string | null
+          source_type: string
+        }
+        Insert: {
+          awarded_by?: string | null
+          created_at?: string
+          dedupe_key: string
+          id?: string
+          metadata?: Json
+          occurred_at?: string
+          participant_id: string
+          points: number
+          reason: string
+          reversal_of_id?: string | null
+          rule_code: string
+          season_id: string
+          source_id?: string | null
+          source_type: string
+        }
+        Update: {
+          awarded_by?: string | null
+          created_at?: string
+          dedupe_key?: string
+          id?: string
+          metadata?: Json
+          occurred_at?: string
+          participant_id?: string
+          points?: number
+          reason?: string
+          reversal_of_id?: string | null
+          rule_code?: string
+          season_id?: string
+          source_id?: string | null
+          source_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ucapsa_points_ledger_participant_fk"
+            columns: ["participant_id", "season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_points_participants"
+            referencedColumns: ["id", "season_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_points_ledger_reversal_of_id_fkey"
+            columns: ["reversal_of_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_points_ledger"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_points_ledger_rule_fk"
+            columns: ["season_id", "rule_code"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_points_rules"
+            referencedColumns: ["season_id", "code"]
+          },
+        ]
+      }
+      ucapsa_points_participants: {
+        Row: {
+          created_at: string
+          display_name: string
+          dog_id: string
+          id: string
+          joined_at: string
+          locked_at: string | null
+          metadata: Json
+          season_id: string
+          status: string
+          updated_at: string
+          user_id: string
+          visible_in_leaderboard: boolean
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          dog_id: string
+          id?: string
+          joined_at?: string
+          locked_at?: string | null
+          metadata?: Json
+          season_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          visible_in_leaderboard?: boolean
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          dog_id?: string
+          id?: string
+          joined_at?: string
+          locked_at?: string | null
+          metadata?: Json
+          season_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          visible_in_leaderboard?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ucapsa_points_participants_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_points_participants_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_points_participants_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_points_participants_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_points_seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ucapsa_points_rules: {
+        Row: {
+          code: string
+          created_at: string
+          default_points: number
+          id: string
+          is_active: boolean
+          label: string
+          max_awards_per_day: number | null
+          metadata: Json
+          season_id: string
+          source_type: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          default_points?: number
+          id?: string
+          is_active?: boolean
+          label: string
+          max_awards_per_day?: number | null
+          metadata?: Json
+          season_id: string
+          source_type: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          default_points?: number
+          id?: string
+          is_active?: boolean
+          label?: string
+          max_awards_per_day?: number | null
+          metadata?: Json
+          season_id?: string
+          source_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ucapsa_points_rules_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_points_seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ucapsa_points_seasons: {
+        Row: {
+          code: string
+          created_at: string
+          eligibility_scope: string
+          ends_at: string
+          id: string
+          metadata: Json
+          name: string
+          starts_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          eligibility_scope?: string
+          ends_at: string
+          id?: string
+          metadata?: Json
+          name: string
+          starts_at: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          eligibility_scope?: string
+          ends_at?: string
+          id?: string
+          metadata?: Json
+          name?: string
+          starts_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ucapsa_points_tiers: {
+        Row: {
+          code: string
+          created_at: string
+          icon_key: string | null
+          id: string
+          label: string
+          metadata: Json
+          min_points: number
+          season_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          icon_key?: string | null
+          id?: string
+          label: string
+          metadata?: Json
+          min_points: number
+          season_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          icon_key?: string | null
+          id?: string
+          label?: string
+          metadata?: Json
+          min_points?: number
+          season_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ucapsa_points_tiers_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_points_seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_achievements: {
         Row: {
           achievement_code: string
           awarded_at: string
           awarded_by: string | null
           created_at: string
+          dog_id: string | null
           id: string
           source_id: string | null
           source_type: string | null
@@ -1662,6 +2936,7 @@ export type Database = {
           awarded_at?: string
           awarded_by?: string | null
           created_at?: string
+          dog_id?: string | null
           id?: string
           source_id?: string | null
           source_type?: string | null
@@ -1672,6 +2947,7 @@ export type Database = {
           awarded_at?: string
           awarded_by?: string | null
           created_at?: string
+          dog_id?: string | null
           id?: string
           source_id?: string | null
           source_type?: string | null
@@ -1685,13 +2961,506 @@ export type Database = {
             referencedRelation: "achievement_definitions"
             referencedColumns: ["code"]
           },
+          {
+            foreignKeyName: "user_achievements_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_achievements_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "user_achievements_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["dog_id"]
+          },
         ]
       }
     }
     Views: {
-      [_ in never]: never
+      ucapsa_competition_adjustment_summary: {
+        Row: {
+          adjustment_points: number | null
+          dog_id: string | null
+          dog_name: string | null
+          last_adjustment_at: string | null
+          movement_count: number | null
+          season_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ucapsa_competition_adjustments_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_competition_adjustments_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_competition_adjustments_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_competition_adjustments_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["season_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_competition_adjustments_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_seasons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_competition_adjustments_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["season_id"]
+          },
+        ]
+      }
+      ucapsa_competition_inputs: {
+        Row: {
+          admin_adjustment_movement_count: number | null
+          admin_adjustment_points: number | null
+          command_attendances_count: number | null
+          completed_required_exams_count: number | null
+          constancy_events_count: number | null
+          dog_id: string | null
+          dog_is_active: boolean | null
+          dog_name: string | null
+          first_event_date: string | null
+          has_competition_activity: boolean | null
+          is_ranking_eligible: boolean | null
+          last_adjustment_at: string | null
+          last_event_date: string | null
+          last_exam_published_at: string | null
+          member_visits_count: number | null
+          missing_required_exams_count: number | null
+          official_exam_max_points: number | null
+          official_exam_points_awarded: number | null
+          official_exams_count: number | null
+          optional_exam_max_points: number | null
+          optional_exam_points_awarded: number | null
+          optional_official_exams_count: number | null
+          owner_user_id: string | null
+          required_exam_max_points: number | null
+          required_exam_points_awarded: number | null
+          required_exams_count: number | null
+          required_official_exams_count: number | null
+          season_code: string | null
+          season_ends_at: string | null
+          season_id: string | null
+          season_name: string | null
+          season_starts_at: string | null
+          season_status: string | null
+        }
+        Relationships: []
+      }
+      ucapsa_constancy_events: {
+        Row: {
+          dog_id: string | null
+          enrollment_id: string | null
+          event_date: string | null
+          event_type: string | null
+          member_visit_id: string | null
+          season_id: string | null
+          session_id: string | null
+          source: string | null
+          source_id: string | null
+        }
+        Relationships: []
+      }
+      ucapsa_constancy_summary: {
+        Row: {
+          command_attendances_count: number | null
+          constancy_events_count: number | null
+          dog_id: string | null
+          first_event_date: string | null
+          last_event_date: string | null
+          member_visits_count: number | null
+          season_id: string | null
+        }
+        Relationships: []
+      }
+      ucapsa_dog_award_summary: {
+        Row: {
+          award_code: string | null
+          award_id: string | null
+          awarded_at: string | null
+          description: string | null
+          dog_id: string | null
+          dog_name: string | null
+          icon_key: string | null
+          note: string | null
+          season_id: string | null
+          season_name: string | null
+          title: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dog_awards_award_code_fkey"
+            columns: ["award_code"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_award_definitions"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "dog_awards_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dog_awards_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "dog_awards_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "dog_awards_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["season_id"]
+          },
+          {
+            foreignKeyName: "dog_awards_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_seasons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dog_awards_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["season_id"]
+          },
+        ]
+      }
+      ucapsa_exam_attempt_summary: {
+        Row: {
+          attempt_id: string | null
+          attempt_number: number | null
+          attempt_status: string | null
+          dog_id: string | null
+          exam_code: string | null
+          exam_date: string | null
+          exam_id: string | null
+          exam_status: string | null
+          exam_title: string | null
+          graded_items_count: number | null
+          is_complete: boolean | null
+          is_official: boolean | null
+          is_required_for_ranking: boolean | null
+          items_count: number | null
+          max_points: number | null
+          presented_at: string | null
+          published_at: string | null
+          season_id: string | null
+          total_points_awarded: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ucapsa_exam_attempts_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_attempts_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_attempts_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exams_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["season_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exams_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_seasons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exams_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["season_id"]
+          },
+        ]
+      }
+      ucapsa_exam_eligibility: {
+        Row: {
+          completed_required_exams_count: number | null
+          dog_id: string | null
+          is_ranking_eligible: boolean | null
+          missing_required_exams_count: number | null
+          required_exams_count: number | null
+          season_id: string | null
+        }
+        Relationships: []
+      }
+      ucapsa_exam_import_preview: {
+        Row: {
+          attempt_id: string | null
+          batch_id: string | null
+          batch_status: string | null
+          dog_id: string | null
+          dog_name: string | null
+          exam_id: string | null
+          file_name: string | null
+          import_row_id: string | null
+          max_points: number | null
+          member_number: string | null
+          resolved_dog_name: string | null
+          row_number: number | null
+          scores: Json | null
+          season_id: string | null
+          total_points_awarded: number | null
+          validation_errors: Json | null
+          validation_status: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ucapsa_exam_import_rows_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_attempt_summary"
+            referencedColumns: ["attempt_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_import_rows_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_attempts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_import_rows_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_official_results"
+            referencedColumns: ["attempt_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_import_rows_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_import_rows_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_import_rows_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_import_batches_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_attempt_summary"
+            referencedColumns: ["exam_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_import_batches_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_official_results"
+            referencedColumns: ["exam_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_import_batches_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_import_batches_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["season_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_import_batches_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_seasons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_import_batches_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["season_id"]
+          },
+        ]
+      }
+      ucapsa_exam_official_results: {
+        Row: {
+          attempt_id: string | null
+          attempt_number: number | null
+          attempt_status: string | null
+          dog_id: string | null
+          exam_code: string | null
+          exam_date: string | null
+          exam_id: string | null
+          exam_status: string | null
+          exam_title: string | null
+          graded_items_count: number | null
+          is_complete: boolean | null
+          is_official: boolean | null
+          is_required_for_ranking: boolean | null
+          items_count: number | null
+          max_points: number | null
+          presented_at: string | null
+          published_at: string | null
+          season_id: string | null
+          total_points_awarded: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ucapsa_exam_attempts_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_attempts_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_attempts_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exams_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["season_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exams_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_seasons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exams_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["season_id"]
+          },
+        ]
+      }
     }
     Functions: {
+      admin_activate_ucapsa_competition_season: {
+        Args: { p_season_id: string }
+        Returns: string
+      }
+      admin_add_ucapsa_competition_adjustment: {
+        Args: {
+          p_dog_id: string
+          p_note?: string
+          p_points: number
+          p_season_id: string
+        }
+        Returns: string
+      }
+      admin_add_ucapsa_exam_item: {
+        Args: {
+          p_description?: string
+          p_exam_id: string
+          p_item_number?: number
+          p_max_points: number
+          p_sort_order?: number
+          p_title: string
+        }
+        Returns: string
+      }
+      admin_adjust_ucapsa_points: {
+        Args: {
+          p_dog_id: string
+          p_points: number
+          p_reason: string
+          p_user_id: string
+        }
+        Returns: {
+          ledger_id: string
+          participant_id: string
+          total_points: number
+        }[]
+      }
       admin_change_program_schedule_from_date: {
         Args: {
           p_change_note?: string
@@ -1707,13 +3476,12 @@ export type Database = {
         }
         Returns: string
       }
-      correct_program_attendance_admin: {
-        Args: {
-          p_attendance_date: string
-          p_attendance_id: string
-          p_notes?: string
-          p_schedule_id: string
-        }
+      admin_close_ucapsa_competition_season: {
+        Args: { p_season_id: string }
+        Returns: string
+      }
+      admin_commit_ucapsa_exam_import_batch: {
+        Args: { p_batch_id: string }
         Returns: string
       }
       admin_create_basic_dog: {
@@ -1726,6 +3494,163 @@ export type Database = {
           updated_at: string
         }[]
       }
+      admin_create_ucapsa_competition_season: {
+        Args: {
+          p_code: string
+          p_ends_on: string
+          p_name: string
+          p_starts_on: string
+        }
+        Returns: string
+      }
+      admin_create_ucapsa_exam: {
+        Args: {
+          p_code: string
+          p_description?: string
+          p_exam_date?: string
+          p_is_required_for_ranking?: boolean
+          p_season_id: string
+          p_sort_order?: number
+          p_title: string
+        }
+        Returns: string
+      }
+      admin_create_ucapsa_exam_attempt: {
+        Args: { p_dog_id: string; p_exam_id: string; p_presented_at?: string }
+        Returns: string
+      }
+      admin_create_ucapsa_exam_import_batch: {
+        Args: { p_exam_id: string; p_file_name?: string }
+        Returns: string
+      }
+      admin_delete_ucapsa_exam_item: {
+        Args: { p_exam_item_id: string }
+        Returns: string
+      }
+      admin_delete_ucapsa_exam_item_result: {
+        Args: { p_attempt_id: string; p_exam_item_id: string }
+        Returns: string
+      }
+      admin_grant_ucapsa_dog_award: {
+        Args: {
+          p_award_code: string
+          p_dog_id: string
+          p_note?: string
+          p_season_id?: string
+        }
+        Returns: string
+      }
+      admin_grant_ucapsa_training_achievement: {
+        Args: { p_achievement_code: string; p_dog_id: string }
+        Returns: string
+      }
+      admin_publish_ucapsa_exam: {
+        Args: { p_exam_id: string }
+        Returns: string
+      }
+      admin_publish_ucapsa_exam_attempt: {
+        Args: { p_attempt_id: string; p_make_official?: boolean }
+        Returns: string
+      }
+      admin_publish_ucapsa_exam_import_batch: {
+        Args: { p_batch_id: string; p_make_official?: boolean }
+        Returns: string
+      }
+      admin_reopen_ucapsa_competition_season: {
+        Args: { p_season_id: string }
+        Returns: string
+      }
+      admin_reverse_ucapsa_competition_adjustment: {
+        Args: { p_adjustment_id: string; p_note?: string }
+        Returns: string
+      }
+      admin_revert_ucapsa_exam_import_batch: {
+        Args: { p_batch_id: string }
+        Returns: string
+      }
+      admin_review_ucapsa_exam_attempt: {
+        Args: { p_attempt_id: string }
+        Returns: string
+      }
+      admin_review_ucapsa_exam_import_batch: {
+        Args: { p_batch_id: string }
+        Returns: string
+      }
+      admin_revoke_ucapsa_dog_award: {
+        Args: { p_award_id: string; p_note?: string }
+        Returns: string
+      }
+      admin_revoke_ucapsa_training_achievement: {
+        Args: { p_achievement_code: string; p_dog_id: string }
+        Returns: string
+      }
+      admin_set_ucapsa_exam_official_attempt: {
+        Args: { p_attempt_id: string }
+        Returns: string
+      }
+      admin_update_ucapsa_competition_season: {
+        Args: {
+          p_code: string
+          p_ends_on: string
+          p_name: string
+          p_season_id: string
+          p_starts_on: string
+        }
+        Returns: string
+      }
+      admin_update_ucapsa_exam: {
+        Args: {
+          p_code: string
+          p_description: string
+          p_exam_date: string
+          p_exam_id: string
+          p_is_required_for_ranking: boolean
+          p_sort_order: number
+          p_title: string
+        }
+        Returns: string
+      }
+      admin_update_ucapsa_exam_item: {
+        Args: {
+          p_description: string
+          p_exam_item_id: string
+          p_item_number: number
+          p_max_points: number
+          p_sort_order: number
+          p_title: string
+        }
+        Returns: string
+      }
+      admin_upsert_ucapsa_exam_item_result: {
+        Args: {
+          p_attempt_id: string
+          p_evaluator_note?: string
+          p_exam_item_id: string
+          p_points_awarded: number
+        }
+        Returns: string
+      }
+      admin_validate_ucapsa_exam_import_batch: {
+        Args: { p_batch_id: string; p_rows: Json }
+        Returns: string
+      }
+      admin_void_ucapsa_exam_attempt: {
+        Args: { p_attempt_id: string }
+        Returns: string
+      }
+      correct_member_visit_admin: {
+        Args: { p_notes?: string; p_visit_id: string; p_visited_at: string }
+        Returns: undefined
+      }
+      correct_program_attendance_admin: {
+        Args: {
+          p_attendance_date: string
+          p_attendance_id: string
+          p_notes?: string
+          p_schedule_id: string
+        }
+        Returns: string
+      }
       create_my_basic_dog: {
         Args: { p_name: string }
         Returns: {
@@ -1736,9 +3661,21 @@ export type Database = {
           updated_at: string
         }[]
       }
+      delete_member_visit_admin: {
+        Args: { p_visit_id: string }
+        Returns: undefined
+      }
+      delete_program_attendance_admin: {
+        Args: { p_attendance_id: string }
+        Returns: undefined
+      }
       disable_notification_token: {
         Args: { p_expo_push_token: string }
         Returns: undefined
+      }
+      ensure_ucapsa_points_participant: {
+        Args: { p_dog_id: string; p_user_id: string }
+        Returns: string
       }
       get_admin_attendance_day: {
         Args: { p_date: string }
@@ -1760,6 +3697,14 @@ export type Database = {
           session_id: string
           source: string
           user_id: string
+        }[]
+      }
+      get_admin_member_visit_monthly_stats: {
+        Args: { p_months?: number }
+        Returns: {
+          month_start: string
+          total_visits: number
+          unique_members: number
         }[]
       }
       get_effective_program_schedule: {
@@ -1796,6 +3741,7 @@ export type Database = {
           version_id: string
         }[]
       }
+      get_internal_cron_secret: { Args: never; Returns: string }
       get_my_basic_dogs: {
         Args: never
         Returns: {
@@ -1810,6 +3756,19 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      get_ucapsa_points_leaderboard: {
+        Args: { p_limit?: number }
+        Returns: {
+          display_name: string
+          dog_id: string
+          is_current_user: boolean
+          is_tied: boolean
+          rank: number
+          tier_code: string
+          tier_label: string
+          total_points: number
+        }[]
+      }
       has_active_membership: { Args: never; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_feature_enabled: { Args: { p_code: string }; Returns: boolean }
@@ -1823,6 +3782,39 @@ export type Database = {
         Args: { p_enrollment_id: string }
         Returns: undefined
       }
+      register_member_visit_admin: {
+        Args: { p_notes?: string; p_user_id: string; p_visited_at?: string }
+        Returns: string
+      }
+      register_member_visit_from_qr:
+        | {
+            Args: { p_qr_token: string }
+            Returns: {
+              message: string
+              result: string
+              visit_id: string
+            }[]
+          }
+        | {
+            Args: { p_client_event_id: string; p_qr_token: string }
+            Returns: {
+              message: string
+              result: string
+              visit_id: string
+            }[]
+          }
+        | {
+            Args: {
+              p_captured_at: string
+              p_client_event_id: string
+              p_qr_token: string
+            }
+            Returns: {
+              message: string
+              result: string
+              visit_id: string
+            }[]
+          }
       register_my_practice_session: {
         Args: {
           p_client_event_id: string
@@ -1844,39 +3836,44 @@ export type Database = {
         }
         Returns: string
       }
-      register_program_attendance_from_qr: {
-        Args: { p_confirm_outside_window: boolean; p_enrollment_id: string; p_qr_token: string }
-        Returns: {
-          attendance_id: string | null
-          message: string
-          result: string
-          session_id: string | null
-        }[]
-      }
-      register_member_visit_from_qr: {
-        Args: { p_qr_token: string }
-        Returns: { message: string; result: string; visit_id: string | null }[]
-      }
-      get_admin_member_visit_monthly_stats: {
-        Args: { p_months?: number }
-        Returns: { month_start: string; total_visits: number; unique_members: number }[]
-      }
-      register_member_visit_admin: {
-        Args: { p_notes?: string; p_user_id: string; p_visited_at?: string }
-        Returns: string
-      }
-      correct_member_visit_admin: {
-        Args: { p_notes?: string; p_visit_id: string; p_visited_at: string }
-        Returns: undefined
-      }
-      delete_member_visit_admin: {
-        Args: { p_visit_id: string }
-        Returns: undefined
-      }
-      delete_program_attendance_admin: {
-        Args: { p_attendance_id: string }
-        Returns: undefined
-      }
+      register_program_attendance_from_qr:
+        | {
+            Args: { p_enrollment_id: string; p_qr_token: string }
+            Returns: {
+              attendance_id: string
+              message: string
+              result: string
+              session_id: string
+            }[]
+          }
+        | {
+            Args: {
+              p_confirm_outside_window: boolean
+              p_enrollment_id: string
+              p_qr_token: string
+            }
+            Returns: {
+              attendance_id: string
+              message: string
+              result: string
+              session_id: string
+            }[]
+          }
+        | {
+            Args: {
+              p_captured_at: string
+              p_client_event_id: string
+              p_confirm_outside_window: boolean
+              p_enrollment_id: string
+              p_qr_token: string
+            }
+            Returns: {
+              attendance_id: string
+              message: string
+              result: string
+              session_id: string
+            }[]
+          }
       rename_my_basic_dog: {
         Args: { p_dog_id: string; p_name: string }
         Returns: {
@@ -1892,6 +3889,51 @@ export type Database = {
         Returns: string
       }
       ucapsa_achievement_code_for_enrollment: {
+        Args: { p_enrollment_id: string }
+        Returns: string
+      }
+      ucapsa_assert_competition_date_mutable: {
+        Args: { p_event_date: string }
+        Returns: undefined
+      }
+      ucapsa_assert_competition_season_mutable: {
+        Args: { p_season_id: string }
+        Returns: undefined
+      }
+      ucapsa_assert_exam_attempt_mutable: {
+        Args: { p_attempt_id: string }
+        Returns: undefined
+      }
+      ucapsa_assert_exam_mutable: {
+        Args: { p_exam_id: string }
+        Returns: undefined
+      }
+      ucapsa_exam_admin_audit: {
+        Args: {
+          p_action: string
+          p_details?: Json
+          p_entity_id: string
+          p_entity_type: string
+        }
+        Returns: undefined
+      }
+      ucapsa_exam_import_snapshot: {
+        Args: { p_exam_id: string }
+        Returns: Json
+      }
+      ucapsa_program_completion_achievement_code: {
+        Args: { p_program_id: string; p_program_level: string }
+        Returns: string
+      }
+      ucapsa_unlock_next_comandos_level: {
+        Args: { p_enrollment_id: string }
+        Returns: string
+      }
+      ucapsa_unlock_next_program_stage: {
+        Args: { p_enrollment_id: string }
+        Returns: string
+      }
+      unlock_next_program_stage: {
         Args: { p_enrollment_id: string }
         Returns: string
       }
@@ -1955,12 +3997,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1984,11 +4026,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2009,11 +4051,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2034,11 +4076,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2051,11 +4093,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
