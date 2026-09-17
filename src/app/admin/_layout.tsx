@@ -54,6 +54,8 @@ export default function AdminLayout() {
       <Stack.Screen name="competition-exam-attempt-form" options={{ title: 'Nuevo intento' }} />
       <Stack.Screen name="competition-exam-attempt-detail" options={{ title: 'Intento' }} />
       <Stack.Screen name="competition-exam-result-form" options={{ title: 'Resultado' }} />
+      <Stack.Screen name="competition-exam-imports" options={{ title: 'Importar Excel' }} />
+      <Stack.Screen name="competition-exam-import-detail" options={{ title: 'Lote Excel' }} />
       <Stack.Screen name="points" options={{ title: 'Puntos UCAPSA' }} />
       <Stack.Screen name="tools-communication" options={{ title: 'Comunicacion' }} />
       <Stack.Screen name="tools-administration" options={{ title: 'Administracion' }} />
