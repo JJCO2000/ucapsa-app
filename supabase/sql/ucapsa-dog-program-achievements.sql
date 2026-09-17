@@ -169,6 +169,17 @@ revoke all on function public.trg_ucapsa_sync_dog_program_achievement() from pub
 revoke all on function public.trg_ucapsa_sync_dog_program_achievement() from anon;
 revoke all on function public.trg_ucapsa_sync_dog_program_achievement() from authenticated;
 
+-- Sustituye el trigger histórico que otorgaba la medalla a la cuenta y usaba la
+-- unicidad antigua (user_id, achievement_code). Dejarlo activo rompería nuevas
+-- finalizaciones después de migrar la unicidad a nivel perro.
+drop trigger if exists trg_ucapsa_award_program_achievement on public.program_enrollments;
+revoke all on function public.ucapsa_award_program_achievement() from public;
+revoke all on function public.ucapsa_award_program_achievement() from anon;
+revoke all on function public.ucapsa_award_program_achievement() from authenticated;
+revoke all on function public.ucapsa_achievement_code_for_enrollment(uuid) from public;
+revoke all on function public.ucapsa_achievement_code_for_enrollment(uuid) from anon;
+revoke all on function public.ucapsa_achievement_code_for_enrollment(uuid) from authenticated;
+
 drop trigger if exists trg_ucapsa_sync_dog_program_achievement on public.program_enrollments;
 create trigger trg_ucapsa_sync_dog_program_achievement
 after insert or update of status on public.program_enrollments
