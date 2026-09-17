@@ -1,13 +1,14 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { PracticeHistoryRow } from '../../components/domain/PracticeHistoryRow';
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
-import { ClientPageHeader } from '../../components/layout/ClientPageHeader';
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
-import { ucapsaBrand, withAlpha } from '../../constants/brand';
+import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
+import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import { getMyPracticeActivity, saveMyPracticeSession, type PracticeActivitySnapshot } from '../../services/practice.service';
@@ -44,18 +45,6 @@ function currentWeekDays(completedAtValues: string[], now = new Date()) {
   });
 }
 
-function formatPracticeDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-}
-
-function practiceDifficultyLabel(value: PracticeDifficulty) {
-  if (value === 'easy') return 'Fácil';
-  if (value === 'hard') return 'Difícil';
-  return 'Bien';
-}
-
 export default function PracticeActivityScreen() {
   const { user, role, isAdmin } = useSession();
   const [activity, setActivity] = useState<PracticeActivitySnapshot | null>(null);
@@ -64,32 +53,50 @@ export default function PracticeActivityScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedPractice, setSelectedPractice] = useState<PracticeActivitySnapshot['entries'][number] | null>(null);
   const [startedAt, setStartedAt] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<PracticeDifficulty | null>(null);
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [targetDays, setTargetDays] = useState<PracticeTargetDay[]>(DEFAULT_PRACTICE_TARGET_DAYS);
   const [savingTarget, setSavingTarget] = useState(false);
+  const loadRunRef = useRef(0);
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin, hasActivePrograms: Boolean(activeProgram) }), [activeProgram, isAdmin, role, user]);
   const premium = format.key === 'member';
 
   const load = useCallback(async () => {
+    const runId = loadRunRef.current + 1;
+    loadRunRef.current = runId;
+    const isCurrentRun = () => loadRunRef.current === runId;
     if (!user || isAdmin) return;
+
     setError(null);
-    try {
-      const [practice, programs, savedTargetDays] = await Promise.all([getMyPracticeActivity(user.id), getMyProgramEnrollments(), getPracticeTargetDays(user.id)]);
-      setActivity(practice);
-      setTargetDays(savedTargetDays);
-      setActiveProgram(programs.find((item) => item.enrollment.status === 'active') ?? null);
-    } catch {
+    const [practiceResult, programsResult, targetResult] = await Promise.allSettled([
+      getMyPracticeActivity(user.id),
+      getMyProgramEnrollments(),
+      getPracticeTargetDays(user.id),
+    ]);
+    if (!isCurrentRun()) return;
+
+    if (practiceResult.status === 'fulfilled') {
+      setActivity(practiceResult.value);
+    } else {
       setError('No pudimos cargar tu actividad de práctica.');
-    } finally {
-      setLoading(false);
     }
+
+    if (programsResult.status === 'fulfilled') {
+      setActiveProgram(programsResult.value.find((item) => item.enrollment.status === 'active') ?? null);
+    } else {
+      setActiveProgram(null);
+    }
+
+    if (targetResult.status === 'fulfilled') setTargetDays(targetResult.value);
+    setLoading(false);
   }, [isAdmin, user]);
 
-  useFocusEffect(useCallback(() => { void load(); return undefined; }, [load]));
+  useFocusEffect(useCallback(() => {
+    void load();
+    return () => { loadRunRef.current += 1; };
+  }, [load]));
 
   async function refresh() {
     setRefreshing(true);
@@ -130,7 +137,10 @@ export default function PracticeActivityScreen() {
       });
       setModalOpen(false);
       await load();
-      Alert.alert(result.syncStatus === 'synced' ? 'Práctica guardada' : 'Práctica guardada en el dispositivo', result.syncStatus === 'synced' ? 'Tu racha y actividad ya se actualizaron.' : 'Se sincronizará cuando vuelva la conexión.');
+      Alert.alert(
+        result.syncStatus === 'synced' ? 'Práctica guardada' : 'Práctica guardada en el dispositivo',
+        result.syncStatus === 'synced' ? 'Tu racha y actividad ya se actualizaron.' : 'Se sincronizará cuando vuelva la conexión.',
+      );
     } catch {
       Alert.alert('No pudimos guardar', 'La práctica no se registró. Intenta de nuevo.');
     } finally {
@@ -154,15 +164,17 @@ export default function PracticeActivityScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={format.accent} />}
     >
       <UcapsaAmbientBackground format={format} variant="home" />
-      <ClientPageHeader
-        format={format}
-        eyebrow="Hábito de entrenamiento"
-        title="Racha y práctica"
-        subtitle="Tu constancia fuera de clase, medida con prácticas reales."
-        icon="local-fire-department"
-      />
 
-      {loading ? <View style={styles.loading}><ActivityIndicator color={format.accent} /><Text style={[styles.muted, { color: format.muted }]}>Cargando práctica...</Text></View> : null}
+      {activity && activity.source !== 'remote' ? (
+        <OfflineDataNotice savedAt={activity.savedAt} onRetry={() => void refresh()} premium={premium} label="Mostrando actividad guardada" />
+      ) : null}
+
+      {loading ? (
+        <View style={styles.loading}>
+          <ActivityIndicator color={format.accent} />
+          <Text style={[styles.muted, { color: format.muted }]}>Cargando práctica...</Text>
+        </View>
+      ) : null}
       {error ? <View style={[styles.stateCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}><Text style={[styles.stateTitle, { color: format.cardText }]}>{error}</Text></View> : null}
 
       {stats ? (
@@ -229,36 +241,41 @@ export default function PracticeActivityScreen() {
             <StatCard format={format} premium={premium} value={activity?.entries.length ?? 0} label="prácticas registradas" />
           </View>
 
-          <Pressable style={[styles.badgesLink, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]} onPress={() => router.push('/client/activity-achievements' as never)}>
-            <View style={[styles.badgesIcon, { backgroundColor: format.accentSoft }]}><MaterialIcons name="stars" size={21} color={format.accentDark} /></View>
-            <View style={{ flex: 1 }}><Text style={[styles.badgesTitle, { color: format.cardText }]}>Insignias de actividad</Text><Text style={[styles.badgesMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{premium ? 'Rachas, prácticas, asistencias y visitas de socio' : 'Rachas, prácticas y asistencias'}</Text></View>
-            <MaterialIcons name="chevron-right" size={22} color={format.accentDark} />
-          </Pressable>
-
           <View style={styles.historySection}>
-            <Text style={[styles.sectionTitle, { color: format.text }]}>Prácticas recientes</Text>
-            {(activity?.entries ?? []).slice(0, 12).map((entry) => (
-              <Pressable
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: format.text }]}>Prácticas recientes</Text>
+              {(activity?.entries.length ?? 0) > 3 ? (
+                <Pressable accessibilityRole="button" accessibilityLabel="Ver todas las prácticas" onPress={() => router.push('/client/practice-history' as never)}>
+                  <Text style={[styles.sectionAction, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Ver todas</Text>
+                </Pressable>
+              ) : null}
+            </View>
+
+            {(activity?.entries ?? []).slice(0, 3).map((entry) => (
+              <PracticeHistoryRow
                 key={entry.id}
-                accessibilityRole="button"
-                accessibilityLabel={`Ver práctica de ${entry.dogName || 'tu perro'} del ${formatPracticeDate(entry.completedAt)}`}
-                onPress={() => setSelectedPractice(entry)}
-                style={({ pressed }) => [
-                  styles.historyRow,
-                  { borderColor: premium ? withAlpha(ucapsaBrand.colors.gold, 0.2) : format.cardBorder, backgroundColor: format.cardBackground },
-                  pressed && styles.historyRowPressed,
-                ]}
-              >
-                <View style={[styles.historyIcon, { backgroundColor: format.pillBackground }]}><MaterialIcons name="pets" size={18} color={format.pillText} /></View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={[styles.historyTitle, { color: format.cardText }]}>{formatPracticeDate(entry.completedAt)}</Text>
-                  <Text style={[styles.historyMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{entry.dogName || 'Tu perro'} · {practiceDifficultyLabel(entry.difficulty)}{entry.syncStatus === 'pending' ? ' · por sincronizar' : ''}</Text>
-                </View>
-                <MaterialIcons name="chevron-right" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-              </Pressable>
+                entry={entry}
+                premium={premium}
+                format={format}
+                onPress={() => router.push(`/client/practice-detail?practiceId=${encodeURIComponent(entry.id)}` as never)}
+              />
             ))}
             {activity?.entries.length === 0 ? <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Tu primera práctica aparecerá aquí.</Text> : null}
           </View>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Abrir insignias de actividad"
+            style={[styles.badgesLink, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}
+            onPress={() => router.push('/client/activity-achievements' as never)}
+          >
+            <View style={[styles.badgesIcon, { backgroundColor: format.accentSoft }]}><MaterialIcons name="stars" size={21} color={format.accentDark} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.badgesTitle, { color: format.cardText }]}>Insignias de actividad</Text>
+              <Text style={[styles.badgesMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{premium ? 'Rachas, prácticas, asistencias y visitas de socio' : 'Rachas, prácticas y asistencias'}</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={22} color={format.accentDark} />
+          </Pressable>
         </>
       ) : null}
 
@@ -274,48 +291,6 @@ export default function PracticeActivityScreen() {
           <TextInput multiline maxLength={500} placeholder="Nota opcional" placeholderTextColor={ucapsaBrand.colors.muted} value={note} onChangeText={setNote} style={styles.noteInput} />
           <Pressable disabled={!difficulty || saving} style={[styles.saveButton, (!difficulty || saving) && styles.disabled]} onPress={() => void savePractice()}><Text style={styles.saveButtonText}>{saving ? 'Guardando...' : 'Guardar práctica'}</Text></Pressable>
         </View>
-      </KeyboardAwareModal>
-
-      <KeyboardAwareModal visible={Boolean(selectedPractice)} onClose={() => setSelectedPractice(null)}>
-        {selectedPractice ? (
-          <View style={styles.practiceDetail}>
-            <View style={styles.practiceDetailHeader}>
-              <View style={[styles.practiceDetailIcon, { backgroundColor: format.pillBackground }]}>
-                <MaterialIcons name="pets" size={22} color={format.pillText} />
-              </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={[styles.modalEyebrow, { color: premium ? ucapsaBrand.colors.premiumActionText : ucapsaBrand.colors.redDark }]}>PRÁCTICA REGISTRADA</Text>
-                <Text style={[styles.practiceDetailTitle, { color: premium ? ucapsaBrand.colors.premiumText : ucapsaBrand.colors.text }]}>{selectedPractice.dogName || 'Tu perro'}</Text>
-              </View>
-              <Pressable accessibilityRole="button" accessibilityLabel="Cerrar detalle de práctica" onPress={() => setSelectedPractice(null)} style={styles.practiceDetailClose}>
-                <MaterialIcons name="close" size={23} color={premium ? ucapsaBrand.colors.premiumActionText : ucapsaBrand.colors.text} />
-              </Pressable>
-            </View>
-
-            <View style={[styles.practiceDetailSummary, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}>
-              <View style={styles.practiceDetailMetric}>
-                <Text style={[styles.practiceDetailLabel, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>FECHA</Text>
-                <Text style={[styles.practiceDetailValue, { color: format.cardText }]}>{formatPracticeDate(selectedPractice.completedAt)}</Text>
-              </View>
-              <View style={styles.practiceDetailMetric}>
-                <Text style={[styles.practiceDetailLabel, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>RESULTADO</Text>
-                <Text style={[styles.practiceDetailValue, { color: format.cardText }]}>{practiceDifficultyLabel(selectedPractice.difficulty)}</Text>
-              </View>
-            </View>
-
-            <View style={styles.practiceDetailNoteWrap}>
-              <Text style={[styles.practiceDetailLabel, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>COMENTARIO</Text>
-              <Text style={[styles.practiceDetailNote, { color: format.cardText }]}>{selectedPractice.note?.trim() || 'Sin comentario.'}</Text>
-            </View>
-
-            {selectedPractice.syncStatus === 'pending' ? (
-              <View style={[styles.practicePending, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}>
-                <MaterialIcons name="sync" size={18} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-                <Text style={[styles.practicePendingText, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Guardada en este dispositivo. Se sincronizará cuando vuelva la conexión.</Text>
-              </View>
-            ) : null}
-          </View>
-        ) : null}
       </KeyboardAwareModal>
     </KeyboardAwareScreen>
   );
@@ -348,21 +323,18 @@ const styles = StyleSheet.create({
   dayLabel: { fontSize: 10, fontWeight: '900' },
   practiceButton: { minHeight: 52, borderRadius: 17, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 14 },
   practiceButtonText: { fontSize: 14, fontWeight: '900' },
-  statsGrid: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  statsGrid: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   statCard: { flex: 1, minHeight: 104, borderWidth: 1, borderRadius: 20, padding: 13, justifyContent: 'center' },
   statValue: { fontSize: 27, lineHeight: 30, fontWeight: '900' },
   statLabel: { marginTop: 4, fontSize: 10, lineHeight: 14, fontWeight: '800' },
+  historySection: { gap: 8, marginBottom: 16 },
+  sectionHeader: { minHeight: 32, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  sectionTitle: { flex: 1, fontSize: 20, lineHeight: 24, fontWeight: '900' },
+  sectionAction: { fontSize: 12, lineHeight: 17, fontWeight: '900' },
   badgesLink: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 20, padding: 13, marginBottom: 16 },
   badgesIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   badgesTitle: { fontSize: 15, lineHeight: 19, fontWeight: '900' },
   badgesMeta: { marginTop: 2, fontSize: 11, lineHeight: 15, fontWeight: '700' },
-  historySection: { gap: 8 },
-  sectionTitle: { fontSize: 20, lineHeight: 24, fontWeight: '900', marginBottom: 2 },
-  historyRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 18, padding: 12 },
-  historyRowPressed: { opacity: 0.78 },
-  historyIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  historyTitle: { fontSize: 13, lineHeight: 17, fontWeight: '900' },
-  historyMeta: { marginTop: 2, fontSize: 10, lineHeight: 14, fontWeight: '700' },
   modal: { gap: 12 },
   modalEyebrow: { color: ucapsaBrand.colors.redDark, fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.7 },
   modalTitle: { color: ucapsaBrand.colors.text, fontSize: 24, fontWeight: '900' },
@@ -375,17 +347,4 @@ const styles = StyleSheet.create({
   saveButton: { alignItems: 'center', borderRadius: 17, backgroundColor: ucapsaBrand.colors.red, paddingVertical: 14 },
   saveButtonText: { color: ucapsaBrand.colors.surface, fontSize: 14, fontWeight: '900' },
   disabled: { opacity: 0.45 },
-  practiceDetail: { gap: 16 },
-  practiceDetailHeader: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  practiceDetailIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  practiceDetailTitle: { marginTop: 2, fontSize: 22, lineHeight: 27, fontWeight: '900' },
-  practiceDetailClose: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  practiceDetailSummary: { flexDirection: 'row', gap: 10, borderWidth: 1, borderRadius: 18, padding: 13 },
-  practiceDetailMetric: { flex: 1, gap: 4 },
-  practiceDetailLabel: { fontSize: 10, lineHeight: 14, fontWeight: '900', letterSpacing: 0.7 },
-  practiceDetailValue: { fontSize: 14, lineHeight: 19, fontWeight: '900' },
-  practiceDetailNoteWrap: { gap: 6 },
-  practiceDetailNote: { fontSize: 15, lineHeight: 22, fontWeight: '700' },
-  practicePending: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderWidth: 1, borderRadius: 16, padding: 12 },
-  practicePendingText: { flex: 1, fontSize: 12, lineHeight: 18, fontWeight: '700' },
 });

@@ -4,7 +4,6 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
-import { ClientPageHeader } from '../../components/layout/ClientPageHeader';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { activityAchievementDefinitions, activityAchievementValue, type ActivityAchievementMetric } from '../../constants/activityAchievements';
 import { ucapsaBrand } from '../../constants/brand';
@@ -57,13 +56,8 @@ export default function ActivityAchievementsScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={format.accent} />}
     >
       <UcapsaAmbientBackground format={format} variant="home" />
-      <ClientPageHeader
-        format={format}
-        eyebrow="Logros secundarios"
-        title="Insignias de actividad"
-        subtitle="Reconocen constancia real. No reemplazan tus 4 medallas principales de Puppy y Comandos."
-        icon="stars"
-      />
+
+      <Text style={[styles.intro, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Reconocen tu actividad real. Las 4 medallas de Puppy y Comandos se consultan en Mi perro.</Text>
 
       {loading ? <View style={styles.loading}><ActivityIndicator color={format.accent} /><Text style={[styles.muted, { color: format.muted }]}>Calculando insignias...</Text></View> : null}
       {error ? <View style={[styles.stateCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}><Text style={[styles.stateTitle, { color: format.cardText }]}>{error}</Text></View> : null}
@@ -119,6 +113,7 @@ function AchievementCategory({ metric, facts, format, premium }: { metric: Activ
 
 const styles = StyleSheet.create({
   premiumContent: { backgroundColor: ucapsaBrand.colors.premiumBackground },
+  intro: { fontSize: 13, lineHeight: 19, fontWeight: '700', marginBottom: 14 },
   loading: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 16 },
   muted: { fontSize: 13, lineHeight: 19, fontWeight: '700' },
   stateCard: { borderWidth: 1, borderRadius: 22, padding: 18 },
