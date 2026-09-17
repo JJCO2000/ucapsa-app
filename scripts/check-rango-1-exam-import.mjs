@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 
 const sql = fs.readFileSync('supabase/sql/ucapsa-rango-1-exam-excel-import.sql', 'utf8');
-const hardening = fs.readFileSync('supabase/sql/ucapsa-rango-1-exam-import-revert-hardening.sql', 'utf8');
+const revertHardening = fs.readFileSync('supabase/sql/ucapsa-rango-1-exam-import-revert-hardening.sql', 'utf8');
+const dogResolutionHardening = fs.readFileSync('supabase/sql/ucapsa-rango-1-exam-import-dog-resolution-hardening.sql', 'utf8');
 
 const required = [
   'create table if not exists public.ucapsa_exam_import_rows',
@@ -61,13 +62,29 @@ for (const token of [
   "set status='reverted'",
   "'voided_attempts'",
 ]) {
-  if (!hardening.includes(token)) {
+  if (!revertHardening.includes(token)) {
     throw new Error(`Rango 1 import reversion hardening missing: ${token}`);
   }
 }
 
-if (/delete\s+from\s+public\.ucapsa_exam_attempts/i.test(hardening)) {
+if (/delete\s+from\s+public\.ucapsa_exam_attempts/i.test(revertHardening)) {
   throw new Error('Reverting an import must void attempts, not erase their audit trail.');
+}
+
+for (const token of [
+  'select count(*) into v_match_count',
+  'if v_match_count=1 then',
+  'select d.id into v_dog_id',
+  'dog_ambiguous',
+  'dog_not_found',
+]) {
+  if (!dogResolutionHardening.includes(token)) {
+    throw new Error(`Rango 1 dog resolution hardening missing: ${token}`);
+  }
+}
+
+if (/min\s*\(\s*d\.id\s*\)/i.test(dogResolutionHardening)) {
+  throw new Error('Dog resolution must not use min(uuid); resolve the single match explicitly.');
 }
 
 console.log('Rango 1 exam import contract: PASS');
