@@ -80,7 +80,7 @@ if (!/openSection\('profile'\)/.test(accountSettings)) failures.push('Cuenta: Aj
 if (!/openSection\('notifications'\)/.test(accountSettings)) failures.push('Cuenta: Ajustes perdió la entrada a Notificaciones.');
 if (!/useLocalSearchParams/.test(accountSettings) || !/section/.test(accountSettings)) failures.push('Cuenta: Ajustes dejó de resolver la sección solicitada.');
 
-// 4) Ajustes -> Mi perro -> editar perro / abrir clase histórica.
+// 4) Ajustes -> Mi perro -> editar perro / logros / clase histórica.
 expectLink(
   'Mi perro',
   'src/app/account-settings.tsx',
@@ -96,6 +96,14 @@ expectLink(
   'Mi perro -> editar perro',
 );
 expectParam('Mi perro', 'src/app/client/dog-profile.tsx', 'dogId');
+expectLink(
+  'Mi perro/logros',
+  'src/components/domain/AchievementBadgeGrid.tsx',
+  /\/client\/dog-achievements\?dogId=/,
+  'src/app/client/dog-achievements.tsx',
+  'resumen de logros -> ficha completa del perro',
+);
+expectParam('Mi perro/logros', 'src/app/client/dog-achievements.tsx', 'dogId');
 expectLink(
   'Mi perro',
   'src/app/(tabs)/dog.tsx',
@@ -150,4 +158,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('NAVIGATION SMOKE OK: clases, práctica, cuenta, perros y pagos conservan sus recorridos críticos.');
+console.log('NAVIGATION SMOKE OK: clases, práctica, cuenta, perros/logros y pagos conservan sus recorridos críticos.');
