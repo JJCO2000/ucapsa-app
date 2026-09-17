@@ -114,8 +114,8 @@ async function cachePayments(userId: string): Promise<MyPaymentOverview> {
 
 async function cachePracticeActivity(userId: string): Promise<void> {
   // `getMyPracticeActivity` mantiene su propia caché y mezcla cualquier práctica
-  // pendiente durable. Llamarlo al recuperar sesión deja Racha lista aun si el
-  // usuario pierde conexión antes de abrir esa pantalla.
+  // pendiente durable. Se ejecuta después del flush para evitar dos reintentos
+  // concurrentes sobre la misma cola.
   await getMyPracticeActivity(userId);
 }
 
@@ -164,10 +164,11 @@ export async function warmClientOfflineData(userId: string): Promise<OfflineWarm
     cachePrograms(userId).then(() => { result.programs = true; }),
     cacheMembership(userId).then(() => { result.membership = true; }),
     cachePayments(userId).then(() => { result.payments = true; }),
-    cachePracticeActivity(userId).then(() => { result.practiceActivity = true; }),
-    flushPendingClientWrites(userId).then((flushResult) => {
+    flushPendingClientWrites(userId).then(async (flushResult) => {
       result.attendanceOutbox = flushResult.attendanceOutbox;
       result.practiceOutbox = flushResult.practiceOutbox;
+      await cachePracticeActivity(userId);
+      result.practiceActivity = true;
     }),
   ];
 
