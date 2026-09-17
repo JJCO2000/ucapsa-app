@@ -160,6 +160,13 @@ export default function AdminCompetitionExamDetailScreen() {
           ) : null}
 
           <View style={styles.actionRow}>
+            <Pressable
+              style={styles.secondaryButton}
+              onPress={() => router.push(`/admin/competition-exam-attempts?examId=${encodeURIComponent(detail.exam.id)}` as never)}
+            >
+              <MaterialIcons name="fact-check" size={18} color={ucapsaBrand.colors.redDark} />
+              <Text style={styles.secondaryButtonText}>Intentos y resultados</Text>
+            </Pressable>
             {canEditMetadata ? (
               <Pressable style={styles.secondaryButton} onPress={() => router.push(`/admin/competition-exam-form?examId=${encodeURIComponent(detail.exam.id)}` as never)}>
                 <MaterialIcons name="edit" size={18} color={ucapsaBrand.colors.redDark} />
