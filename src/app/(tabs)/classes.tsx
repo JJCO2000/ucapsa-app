@@ -11,25 +11,29 @@ import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import {
   getMyProgramEnrollments,
-  getNextProgramScheduleDate,
   getProgramCodeLabel,
   getProgramEnrollmentDogName,
   getProgramLevelDisplayLabel,
   getProgramStatusLabel,
 } from '../../services/programs.service';
+import {
+  getCanonicalNextProgramSessions,
+  type ProgramNextSession,
+} from '../../services/program-next-session.service';
 import { clientReadKeys, readClientResource, sanitizeProgramRowsForCache, writeClientResource } from '../../services/client-read-cache.service';
 import { DEFAULT_READ_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
 import type { ProgramEnrollmentWithDetails } from '../../types/app.types';
 
-const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const dayNamesLong = ['domingos', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábados'];
 const monthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
-function nextClassLabel(item: ProgramEnrollmentWithDetails) {
-  const date = getNextProgramScheduleDate(item.schedule);
-  if (!date) return 'Próxima clase por confirmar';
-  const time = String(item.schedule.start_time ?? '').slice(0, 5);
-  return `${dayNames[date.getDay()]} ${String(date.getDate()).padStart(2, '0')} ${monthNames[date.getMonth()]}${time ? `, ${time}` : ''}`;
+function nextClassLabel(session: ProgramNextSession | null, unavailable: boolean) {
+  if (unavailable) return 'Próxima sesión sin verificar';
+  if (!session) return 'Próxima clase por confirmar';
+  const [year, month, day] = session.dateKey.split('-').map(Number);
+  const date = new Date(year, month - 1, day, 12, 0, 0, 0);
+  if (Number.isNaN(date.getTime())) return session.dateKey;
+  return `${String(date.getDate()).padStart(2, '0')} ${monthNames[date.getMonth()]}${session.startTime ? `, ${session.startTime}` : ''}`;
 }
 
 function scheduleLabel(item: ProgramEnrollmentWithDetails) {
@@ -48,6 +52,8 @@ function visibleLevelLabel(item: ProgramEnrollmentWithDetails) {
 export default function ClassesTab() {
   const { user, role, isAdmin } = useSession();
   const [rows, setRows] = useState<ProgramEnrollmentWithDetails[]>([]);
+  const [nextSessions, setNextSessions] = useState<Record<string, ProgramNextSession>>({});
+  const [sessionWarning, setSessionWarning] = useState(false);
   const [localReady, setLocalReady] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [usingSavedData, setUsingSavedData] = useState(false);
@@ -65,6 +71,8 @@ export default function ClassesTab() {
     if (cacheScopeRef.current !== scope) {
       cacheScopeRef.current = scope;
       setRows([]);
+      setNextSessions({});
+      setSessionWarning(false);
       setLocalReady(false);
       setUsingSavedData(false);
       setSavedAt(null);
@@ -75,11 +83,13 @@ export default function ClassesTab() {
     if (!isCurrentRun()) return;
     setUsingSavedData(false);
     setOfflineEmpty(false);
+    setSessionWarning(false);
 
     const cached = await readClientResource<ProgramEnrollmentWithDetails[]>(user.id, clientReadKeys.programs);
     if (!isCurrentRun()) return;
+    let nextRows = cached?.data ?? [];
     if (cached) {
-      setRows(cached.data);
+      setRows(nextRows);
       setSavedAt(cached.saved_at);
     }
     setLocalReady(true);
@@ -87,6 +97,7 @@ export default function ClassesTab() {
     try {
       const fresh = await withOperationTimeout(getMyProgramEnrollments(), DEFAULT_READ_TIMEOUT_MS, 'programs');
       if (!isCurrentRun()) return;
+      nextRows = fresh;
       setRows(fresh);
       const stored = await writeClientResource(user.id, clientReadKeys.programs, sanitizeProgramRowsForCache(fresh));
       if (!isCurrentRun()) return;
@@ -97,6 +108,21 @@ export default function ClassesTab() {
       if (!isCurrentRun()) return;
       if (cached) setUsingSavedData(true);
       else setOfflineEmpty(true);
+    }
+
+    try {
+      const sessions = await withOperationTimeout(
+        getCanonicalNextProgramSessions(nextRows),
+        DEFAULT_READ_TIMEOUT_MS,
+        'program-next-sessions',
+      );
+      if (!isCurrentRun()) return;
+      setNextSessions(sessions);
+      setSessionWarning(false);
+    } catch {
+      if (!isCurrentRun()) return;
+      setNextSessions({});
+      setSessionWarning(nextRows.some((item) => item.enrollment.status === 'active'));
     }
   }, [isAdmin, user]);
 
@@ -147,6 +173,8 @@ export default function ClassesTab() {
         <ClassCard
           key={item.enrollment.id}
           item={item}
+          nextSession={nextSessions[item.enrollment.id] ?? null}
+          sessionUnavailable={sessionWarning}
           premium={premium}
           format={format}
           showAttendanceAction={index === 0}
@@ -156,7 +184,7 @@ export default function ClassesTab() {
       {previous.length > 0 ? (
         <View style={styles.historySection}>
           <Text style={[styles.sectionTitle, { color: format.text }]}>Anteriores</Text>
-          {previous.map((item) => <ClassCard key={item.enrollment.id} item={item} compact premium={premium} format={format} />)}
+          {previous.map((item) => <ClassCard key={item.enrollment.id} item={item} nextSession={null} sessionUnavailable={false} compact premium={premium} format={format} />)}
         </View>
       ) : null}
     </KeyboardAwareScreen>
@@ -179,12 +207,16 @@ function CompactClassesHeader({ premium, format }: { premium: boolean; format: R
 
 function ClassCard({
   item,
+  nextSession,
+  sessionUnavailable,
   compact = false,
   premium,
   format,
   showAttendanceAction = false,
 }: {
   item: ProgramEnrollmentWithDetails;
+  nextSession: ProgramNextSession | null;
+  sessionUnavailable: boolean;
   compact?: boolean;
   premium: boolean;
   format: ReturnType<typeof resolveUcapsaFormat>;
@@ -242,7 +274,7 @@ function ClassCard({
         </View>
         <View style={styles.sessionCopy}>
           <Text style={[styles.nextSessionLabel, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>PRÓXIMA SESIÓN</Text>
-          <Text style={[styles.nextClass, { color: format.cardText }]}>{nextClassLabel(item)}</Text>
+          <Text style={[styles.nextClass, { color: format.cardText }]}>{nextClassLabel(nextSession, sessionUnavailable)}</Text>
           <Text style={[styles.scheduleText, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{scheduleLabel(item)}</Text>
         </View>
       </View>
