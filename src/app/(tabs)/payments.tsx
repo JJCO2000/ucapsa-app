@@ -1,51 +1,44 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import * as Clipboard from 'expo-clipboard';
 import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Alert, Linking, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
-import { ClientPageHeader } from '../../components/layout/ClientPageHeader';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
+import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
-import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
-import { getMyPaymentOverview, getPaymentSettings, isValidClabe, normalizeClabe } from '../../services/payments.service';
-import { clientReadKeys, createPaymentOfflineSummary, readClientResource, writeClientResource, type PaymentOfflineSummary } from '../../services/client-read-cache.service';
+import {
+  clientReadKeys,
+  createPaymentOfflineSummary,
+  readClientResource,
+  writeClientResource,
+  type PaymentOfflineSummary,
+} from '../../services/client-read-cache.service';
+import { getMyPaymentOverview } from '../../services/payments.service';
+import type { MyPaymentOverview, PaymentObligationWithBalance } from '../../types/app.types';
 import { DEFAULT_READ_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
-import type { MyPaymentOverview, PaymentObligationWithBalance, PaymentSettings } from '../../types/app.types';
+import { money, obligationStatusLabel, paymentDateLabel } from '../../utils/paymentPresentation';
 
-const emptyOverview: MyPaymentOverview = { obligations: [], payments: [], outstanding_total: 0, attention_total: 0, future_total: 0, overdue_count: 0, legacy_membership_pending: false };
-const monthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-const whatsappUrl = ucapsaBrand.socialLinks.find((item) => item.key === 'whatsapp')?.url ?? 'https://wa.me/525522410679';
-
-function money(value: number) { return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 }).format(value); }
-function dateLabel(value: string | null | undefined) {
-  if (!value) return 'Sin fecha';
-  const date = new Date(`${value.slice(0, 10)}T12:00:00`);
-  if (Number.isNaN(date.getTime())) return value;
-  return `${String(date.getDate()).padStart(2, '0')} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
-}
-function obligationStatusLabel(item: PaymentObligationWithBalance) {
-  if (item.display_status === 'paid') return 'Pagado';
-  if (item.display_status === 'partial') return 'Parcial';
-  if (item.display_status === 'overdue') return 'Vencido';
-  if (item.display_status === 'future') return 'Futuro';
-  return 'Pendiente';
-}
+const emptyOverview: MyPaymentOverview = {
+  obligations: [],
+  payments: [],
+  outstanding_total: 0,
+  attention_total: 0,
+  future_total: 0,
+  overdue_count: 0,
+  legacy_membership_pending: false,
+};
 
 export default function PaymentsTab() {
   const { user, role, isAdmin } = useSession();
   const [overview, setOverview] = useState<MyPaymentOverview>(emptyOverview);
-  const [settings, setSettings] = useState<PaymentSettings | null>(null);
   const [localReady, setLocalReady] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [usingSavedData, setUsingSavedData] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [detailsAvailable, setDetailsAvailable] = useState(false);
-  const [bankLoadFailed, setBankLoadFailed] = useState(false);
-  const [bankChecking, setBankChecking] = useState(false);
   const [overviewAvailable, setOverviewAvailable] = useState(false);
   const cacheScopeRef = useRef<string | null>(null);
   const loadRunRef = useRef(0);
@@ -59,108 +52,64 @@ export default function PaymentsTab() {
     if (cacheScopeRef.current !== scope) {
       cacheScopeRef.current = scope;
       setOverview(emptyOverview);
-      setSettings(null);
       setLocalReady(false);
       setUsingSavedData(false);
       setSavedAt(null);
       setDetailsAvailable(false);
-      setBankLoadFailed(false);
-      setBankChecking(false);
       setOverviewAvailable(false);
     }
 
     if (!user || isAdmin) return;
-    if (!isCurrentRun()) return;
 
     setUsingSavedData(false);
-    setBankLoadFailed(false);
-    setBankChecking(true);
-    setOverviewAvailable(false);
     setDetailsAvailable(false);
-    // Los datos bancarios se verifican en vivo en cada carga. Nunca se conserva
-    // una CLABE anterior como si siguiera vigente cuando la red falla.
-    setSettings(null);
-
-    const summaryCache = await readClientResource<PaymentOfflineSummary>(user.id, clientReadKeys.paymentSummary);
+    const cached = await readClientResource<PaymentOfflineSummary>(user.id, clientReadKeys.paymentSummary);
     if (!isCurrentRun()) return;
 
-    if (summaryCache) {
-      setOverview({ ...emptyOverview, ...summaryCache.data });
+    if (cached) {
+      setOverview({ ...emptyOverview, ...cached.data });
       setOverviewAvailable(true);
-      setSavedAt(summaryCache.saved_at);
+      setSavedAt(cached.saved_at);
     }
     setLocalReady(true);
 
-    const [overviewResult, settingsResult] = await Promise.allSettled([
-      withOperationTimeout(getMyPaymentOverview(), DEFAULT_READ_TIMEOUT_MS, 'payments-overview'),
-      withOperationTimeout(getPaymentSettings(), DEFAULT_READ_TIMEOUT_MS, 'payment-settings'),
-    ]);
-    if (!isCurrentRun()) return;
-
-    if (overviewResult.status === 'fulfilled') {
-      setOverview(overviewResult.value);
+    try {
+      const fresh = await withOperationTimeout(getMyPaymentOverview(), DEFAULT_READ_TIMEOUT_MS, 'payments-overview');
+      if (!isCurrentRun()) return;
+      setOverview(fresh);
       setOverviewAvailable(true);
       setDetailsAvailable(true);
-      const stored = await writeClientResource(user.id, clientReadKeys.paymentSummary, createPaymentOfflineSummary(overviewResult.value));
+      const stored = await writeClientResource(user.id, clientReadKeys.paymentSummary, createPaymentOfflineSummary(fresh));
       if (!isCurrentRun()) return;
       setSavedAt(stored.saved_at);
-    } else if (!summaryCache) {
-      setOverview(emptyOverview);
-      setOverviewAvailable(false);
-      setDetailsAvailable(false);
+    } catch {
+      if (!isCurrentRun()) return;
+      if (cached) setUsingSavedData(true);
+      else {
+        setOverview(emptyOverview);
+        setOverviewAvailable(false);
+      }
     }
-
-    if (settingsResult.status === 'fulfilled') {
-      setSettings(settingsResult.value);
-      setBankLoadFailed(false);
-    } else {
-      setSettings(null);
-      setBankLoadFailed(true);
-    }
-    setBankChecking(false);
-
-    const usedCachedData = overviewResult.status === 'rejected' && Boolean(summaryCache);
-    setUsingSavedData(usedCachedData);
-    if (usedCachedData && summaryCache) setSavedAt(summaryCache.saved_at);
   }, [isAdmin, user]);
 
   useFocusEffect(useCallback(() => {
     void load();
-    return () => {
-      loadRunRef.current += 1;
-    };
+    return () => { loadRunRef.current += 1; };
   }, [load]));
 
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
   const premium = format.key === 'member';
 
-  async function refresh() { setRefreshing(true); try { await load(); } finally { setRefreshing(false); } }
-
-  async function copyValue(label: string, value: string) {
-    if (!value) return;
-    const safeValue = label === 'CLABE' ? normalizeClabe(value) : value;
-    if (label === 'CLABE' && !isValidClabe(safeValue)) {
-      Alert.alert('CLABE no verificada', 'No copies ni transfieras hasta que UCAPSA publique una CLABE válida de 18 dígitos.');
-      return;
-    }
-    await Clipboard.setStringAsync(safeValue);
-    Alert.alert(`${label} copiado`, label === 'CLABE'
-      ? 'Ya puedes pegarla en tu aplicación bancaria. Envía el comprobante por WhatsApp después de transferir.'
-      : 'Ya puedes pegar este dato donde lo necesites.');
-  }
-
-  async function openWhatsApp() {
-    try { await Linking.openURL(whatsappUrl); }
-    catch { Alert.alert('No se pudo abrir WhatsApp', 'Usa el canal de contacto de UCAPSA para enviar tu comprobante.'); }
+  async function refresh() {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
   }
 
   if (!user) return <Redirect href="/auth/login" />;
   if (isAdmin) return <Redirect href="/admin-payments" />;
 
-  const recentPayments = overview.payments.slice(0, 3);
   const recentObligations = overview.obligations.slice(0, 3);
-  const bankReady = Boolean(settings?.is_active && isValidClabe(settings.clabe) && settings.bank_name && settings.account_holder);
-  const bankInvalid = Boolean(settings?.is_active && settings.clabe && !isValidClabe(settings.clabe));
+  const recentPayments = overview.payments.slice(0, 3);
 
   return (
     <KeyboardAwareScreen
@@ -170,241 +119,188 @@ export default function PaymentsTab() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={format.accent} />}
     >
       <UcapsaAmbientBackground format={format} variant="payments" />
-      <ClientPageHeader
-        format={format}
-        eyebrow="Tu cuenta"
-        title="Pagos"
-        subtitle="Saldo, cargos, transferencias y comprobantes en un solo lugar."
-        icon="account-balance-wallet"
-      />
 
-      {usingSavedData ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} label="Mostrando saldo guardado" /> : null}
+      <View style={styles.header}>
+        <View style={[styles.headerIcon, premium && styles.headerIconPremium]}>
+          <MaterialIcons name="account-balance-wallet" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={[styles.headerTitle, premium && styles.textPremium]}>Pagos</Text>
+          <Text style={[styles.headerSubtitle, premium && styles.mutedPremium]}>Tu saldo y movimientos recientes</Text>
+        </View>
+      </View>
 
-      {localReady ? (
+      {usingSavedData ? (
+        <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} label="Mostrando saldo guardado" />
+      ) : null}
+
+      {localReady && overviewAvailable ? (
         <>
-          {overviewAvailable ? (
-            <>
-              <View style={[styles.balanceCard, premium && styles.balanceCardPremium]}>
-                <View style={styles.balanceTopRow}>
-                  <View style={[styles.balanceIcon, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : overview.outstanding_total > 0.005 ? ucapsaBrand.colors.warningSoft : ucapsaBrand.colors.successSoft }]}>
-                    <MaterialIcons name={overview.outstanding_total > 0.005 ? 'account-balance-wallet' : 'check-circle'} size={22} color={premium ? ucapsaBrand.colors.premiumActionText : overview.outstanding_total > 0.005 ? ucapsaBrand.colors.warningDark : ucapsaBrand.colors.successDark} />
-                  </View>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={[styles.balanceStatus, premium && styles.balanceStatusPremium]}>ESTADO DE CUENTA</Text>
-                    <Text style={[styles.balanceLabel, premium && styles.mutedPremium]}>{overview.outstanding_total > 0.005 ? 'Saldo abierto' : 'Sin cargos abiertos'}</Text>
-                  </View>
-                </View>
-                <Text style={[styles.balanceValue, premium && styles.textPremium]}>{overview.outstanding_total > 0.005 ? money(overview.outstanding_total) : 'Sin saldo'}</Text>
-                <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
-                  {overview.overdue_count > 0
-                    ? `${overview.overdue_count} cargo${overview.overdue_count === 1 ? '' : 's'} vencido${overview.overdue_count === 1 ? '' : 's'}.`
-                    : overview.future_total > 0.005
-                      ? `Cargos futuros: ${money(overview.future_total)}.`
-                      : overview.outstanding_total > 0.005
-                        ? 'Consulta el detalle de tus cargos abiertos.'
-                        : 'No tienes cargos abiertos registrados.'}
-                </Text>
+          <View style={[styles.balanceCard, premium && styles.cardPremium]}>
+            <View style={styles.balanceTopRow}>
+              <View style={[styles.balanceIcon, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : overview.outstanding_total > 0.005 ? ucapsaBrand.colors.warningSoft : ucapsaBrand.colors.successSoft }]}>
+                <MaterialIcons
+                  name={overview.outstanding_total > 0.005 ? 'account-balance-wallet' : 'check-circle'}
+                  size={22}
+                  color={premium ? ucapsaBrand.colors.premiumActionText : overview.outstanding_total > 0.005 ? ucapsaBrand.colors.warningDark : ucapsaBrand.colors.successDark}
+                />
               </View>
-
-              {overview.legacy_membership_pending ? (
-                <View style={[styles.reviewNote, { borderColor: premium ? ucapsaBrand.colors.premiumBorder : ucapsaBrand.colors.warningBorder, backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : ucapsaBrand.colors.warningSoft }]}>
-                  <MaterialIcons name="hourglass-top" size={20} color={premium ? ucapsaBrand.colors.premiumActionText : ucapsaBrand.colors.warningDark} />
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={[styles.reviewNoteTitle, { color: premium ? ucapsaBrand.colors.premiumText : ucapsaBrand.colors.text }]}>Comprobante en revisión</Text>
-                    <Text style={[styles.reviewNoteText, { color: premium ? ucapsaBrand.colors.premiumMuted : ucapsaBrand.colors.muted }]}>UCAPSA está revisando un pago de membresía.</Text>
-                  </View>
-                </View>
-              ) : null}
-            </>
-          ) : (
-            <View style={[styles.section, premium && styles.sectionPremium]}>
-              <MaterialIcons name="cloud-off" size={24} color={premium ? ucapsaBrand.colors.premiumActionText : format.accentDark} />
-              <Text style={[styles.sectionTitle, premium && styles.textPremium]}>Saldo aún no guardado</Text>
-              <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Conéctate una vez para guardar un resumen de tu saldo en este dispositivo. No asumiremos que tu saldo es cero cuando no podamos verificarlo.</Text>
-              <Pressable accessibilityRole="button" accessibilityLabel="Reintentar sincronización de pagos" style={[styles.secondaryButton, premium && styles.secondaryButtonPremium]} onPress={() => void refresh()}>
-                <Text style={[styles.secondaryButtonText, premium && styles.secondaryButtonTextPremium]}>Reintentar</Text>
-              </Pressable>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.eyebrow, premium && styles.goldText]}>ESTADO DE CUENTA</Text>
+                <Text style={[styles.balanceLabel, premium && styles.mutedPremium]}>{overview.outstanding_total > 0.005 ? 'Saldo abierto' : 'Sin cargos abiertos'}</Text>
+              </View>
             </View>
-          )}
-
-          {detailsAvailable && recentObligations.length > 0 ? (
-            <View style={[styles.section, premium && styles.sectionPremium]}>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, premium && styles.textPremium]}>Cargos abiertos</Text>
-                <Text style={[styles.count, premium && styles.countPremium]}>{overview.obligations.length}</Text>
-              </View>
-              {recentObligations.map((item) => (
-                <View key={item.id} style={[styles.row, premium && styles.rowPremium]}>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={[styles.rowTitle, premium && styles.textPremium]}>{item.concept}</Text>
-                    <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Vence: {dateLabel(item.due_date)} - {obligationStatusLabel(item)}</Text>
-                  </View>
-                  <Text style={[styles.amount, premium && styles.amountPremium]}>{money(item.remaining_amount)}</Text>
-                </View>
-              ))}
-              {overview.obligations.length > 3 ? <Text style={[styles.hint, premium && styles.mutedPremium]}>El historial completo está en la vista de historial.</Text> : null}
-            </View>
-          ) : null}
-
-          <View style={[styles.section, premium && styles.sectionPremium]}>
-            <Text style={[styles.sectionTitle, premium && styles.textPremium]}>Transferencia bancaria</Text>
-            {bankReady ? (
-              <>
-                {!overviewAvailable ? (
-                  <View style={[styles.bankWarning, { borderColor: premium ? ucapsaBrand.colors.premiumBorder : ucapsaBrand.colors.warningBorder, backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : ucapsaBrand.colors.warningSoft }]}>
-                    <MaterialIcons name="warning-amber" size={20} color={premium ? ucapsaBrand.colors.premiumActionText : ucapsaBrand.colors.warningDark} />
-                    <Text style={[styles.bankWarningText, { color: premium ? ucapsaBrand.colors.premiumText : ucapsaBrand.colors.warningDark }]}>La cuenta bancaria está verificada, pero tu saldo no. Confirma el monto antes de transferir.</Text>
-                  </View>
-                ) : null}
-                <BankRow label="Banco" value={settings?.bank_name ?? ''} premium={premium} />
-                <BankRow label="Titular" value={settings?.account_holder ?? ''} premium={premium} copy onCopy={() => void copyValue('Titular', settings?.account_holder ?? '')} />
-                <BankRow label="CLABE" value={normalizeClabe(settings?.clabe)} premium={premium} selectable />
-                {settings?.transfer_instructions ? <BankRow label="Concepto / referencia" value={settings.transfer_instructions} premium={premium} /> : null}
-
-                <View style={[styles.receiptBox, premium && styles.receiptBoxPremium]}>
-                  <MaterialIcons name="chat" size={20} color={premium ? ucapsaBrand.colors.premiumActionText : ucapsaBrand.colors.redDark} />
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={[styles.receiptTitle, premium && styles.textPremium]}>Después de transferir</Text>
-                    <Text style={[styles.receiptText, premium && styles.mutedPremium]}>Envía el comprobante por WhatsApp para que UCAPSA pueda identificar y registrar el pago.</Text>
-                  </View>
-                </View>
-                <Pressable accessibilityRole="button" accessibilityLabel="Copiar CLABE" style={[styles.copyButton, { backgroundColor: format.primaryButton }]} onPress={() => void copyValue('CLABE', settings?.clabe ?? '')}>
-                  <MaterialIcons name="content-copy" size={20} color={format.primaryButtonText} />
-                  <Text style={[styles.copyButtonText, { color: format.primaryButtonText }]}>Copiar CLABE</Text>
-                </Pressable>
-                <Pressable accessibilityRole="button" accessibilityLabel="Enviar comprobante por WhatsApp" style={[styles.whatsappButton, premium && styles.whatsappButtonPremium]} onPress={() => void openWhatsApp()}>
-                  <MaterialIcons name="chat" size={20} color={premium ? ucapsaBrand.colors.premiumActionText : ucapsaBrand.colors.redDark} />
-                  <Text style={[styles.whatsappButtonText, premium && styles.whatsappButtonTextPremium]}>Enviar comprobante por WhatsApp</Text>
-                </Pressable>
-                {settings?.clip_url ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Abrir enlace de pago"
-                    style={[styles.secondaryButton, premium && styles.secondaryButtonPremium]}
-                    onPress={() => void Linking.openURL(settings.clip_url as string).catch(() => Alert.alert('No se pudo abrir', 'Revisa el enlace de pago con UCAPSA.'))}
-                  >
-                    <Text style={[styles.secondaryButtonText, premium && styles.secondaryButtonTextPremium]}>Abrir enlace de pago</Text>
-                  </Pressable>
-                ) : null}
-              </>
-            ) : (
-              <View style={styles.bankUnavailableRow}>
-                <MaterialIcons name={bankChecking ? 'sync' : 'lock-outline'} size={20} color={premium ? ucapsaBrand.colors.premiumActionText : format.accentDark} />
-                <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
-                  {bankChecking
-                    ? 'Verificando los datos bancarios antes de mostrar una cuenta para transferir.'
-                    : bankLoadFailed
-                      ? 'No pudimos verificar los datos bancarios. Conéctate y reintenta antes de transferir.'
-                      : bankInvalid
-                        ? 'Los datos bancarios no pasaron la verificación. No transfieras hasta que UCAPSA publique una CLABE válida de 18 dígitos.'
-                        : 'Los datos bancarios todavía no están disponibles. Consulta con UCAPSA antes de transferir.'}
-                </Text>
-              </View>
-            )}
+            <Text style={[styles.balanceValue, premium && styles.textPremium]}>{overview.outstanding_total > 0.005 ? money(overview.outstanding_total) : 'Sin saldo'}</Text>
+            <Text style={[styles.muted, premium && styles.mutedPremium]}>
+              {overview.overdue_count > 0
+                ? `${overview.overdue_count} cargo${overview.overdue_count === 1 ? '' : 's'} vencido${overview.overdue_count === 1 ? '' : 's'}.`
+                : overview.future_total > 0.005
+                  ? `Cargos futuros: ${money(overview.future_total)}.`
+                  : overview.outstanding_total > 0.005
+                    ? 'Abre un cargo para revisar su detalle y pagar.'
+                    : 'No tienes cargos abiertos registrados.'}
+            </Text>
           </View>
 
-          {!detailsAvailable && overviewAvailable ? (
-            <View style={[styles.section, premium && styles.sectionPremium]}>
-              <Text style={[styles.sectionTitle, premium && styles.textPremium]}>Resumen disponible sin conexión</Text>
-              <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Tu saldo resumido está guardado. El historial completo de transacciones se consulta en línea para no conservar movimientos financieros detallados en almacenamiento local sin cifrar.</Text>
+          {overview.legacy_membership_pending ? (
+            <View style={[styles.notice, premium && styles.cardPremium]}>
+              <MaterialIcons name="hourglass-top" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.rowTitle, premium && styles.textPremium]}>Comprobante en revisión</Text>
+                <Text style={[styles.muted, premium && styles.mutedPremium]}>UCAPSA está revisando un pago de membresía.</Text>
+              </View>
             </View>
           ) : null}
 
           {detailsAvailable ? (
-            <View style={[styles.section, premium && styles.sectionPremium]}>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, premium && styles.textPremium]}>Pagos recientes</Text>
-                {overview.payments.length > 0 ? (
-                  <Pressable accessibilityRole="button" accessibilityLabel="Ver historial de pagos" onPress={() => router.push('/client/payment-history' as never)}>
-                    <Text style={[styles.link, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Ver historial</Text>
-                  </Pressable>
-                ) : null}
-              </View>
-              {recentPayments.length === 0 ? <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Todavía no hay pagos registrados.</Text> : recentPayments.map((payment) => (
-                <View key={payment.id} style={[styles.row, premium && styles.rowPremium]}>
+            <>
+              <SectionHeader
+                title="Cargos abiertos"
+                action={overview.obligations.length > 0 ? 'Ver todos' : undefined}
+                onPress={() => router.push('/client/payment-obligations' as never)}
+                premium={premium}
+                color={format.accentDark}
+              />
+              {recentObligations.length === 0 ? (
+                <View style={[styles.emptyCard, premium && styles.cardPremium]}>
+                  <Text style={[styles.muted, premium && styles.mutedPremium]}>No tienes cargos abiertos.</Text>
+                </View>
+              ) : recentObligations.map((item) => (
+                <ObligationRow
+                  key={item.id}
+                  item={item}
+                  premium={premium}
+                  onPress={() => router.push(`/client/payment-obligation-detail?obligationId=${encodeURIComponent(item.id)}` as never)}
+                />
+              ))}
+
+              <SectionHeader
+                title="Pagos recientes"
+                action={overview.payments.length > 0 ? 'Ver historial' : undefined}
+                onPress={() => router.push('/client/payment-history' as never)}
+                premium={premium}
+                color={format.accentDark}
+              />
+              {recentPayments.length === 0 ? (
+                <View style={[styles.emptyCard, premium && styles.cardPremium]}>
+                  <Text style={[styles.muted, premium && styles.mutedPremium]}>Todavía no hay pagos registrados.</Text>
+                </View>
+              ) : recentPayments.map((payment) => (
+                <Pressable
+                  key={payment.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Abrir pago ${payment.period_label || payment.concept}`}
+                  onPress={() => router.push(`/client/payment-detail?paymentId=${encodeURIComponent(payment.id)}` as never)}
+                  style={({ pressed }) => [styles.row, premium && styles.cardPremium, pressed && styles.pressed]}
+                >
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={[styles.rowTitle, premium && styles.textPremium]}>{payment.period_label || payment.concept}</Text>
-                    <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{dateLabel(payment.paid_at)}</Text>
+                    <Text style={[styles.muted, premium && styles.mutedPremium]}>{paymentDateLabel(payment.paid_at)}</Text>
                   </View>
-                  <Text style={[styles.paidAmount, premium && styles.paidAmountPremium]}>{money(Number(payment.amount ?? 0))}</Text>
-                </View>
+                  <Text style={[styles.paidAmount, premium && styles.goldText]}>{money(Number(payment.amount ?? 0))}</Text>
+                  <MaterialIcons name="chevron-right" size={21} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                </Pressable>
               ))}
+            </>
+          ) : (
+            <View style={[styles.emptyCard, premium && styles.cardPremium]}>
+              <Text style={[styles.rowTitle, premium && styles.textPremium]}>Resumen disponible sin conexión</Text>
+              <Text style={[styles.muted, premium && styles.mutedPremium]}>El detalle de cargos y pagos se consulta en línea y no se guarda completo en el dispositivo.</Text>
             </View>
-          ) : null}
+          )}
         </>
+      ) : null}
+
+      {localReady && !overviewAvailable ? (
+        <View style={[styles.emptyCard, premium && styles.cardPremium]}>
+          <MaterialIcons name="cloud-off" size={24} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+          <Text style={[styles.rowTitle, premium && styles.textPremium]}>Saldo aún no guardado</Text>
+          <Text style={[styles.muted, premium && styles.mutedPremium]}>Conéctate una vez para guardar un resumen de tu saldo. No asumiremos que tu saldo es cero cuando no podamos verificarlo.</Text>
+          <Pressable style={[styles.retryButton, { borderColor: format.cardBorder }]} onPress={() => void refresh()}>
+            <Text style={[styles.retryText, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Reintentar</Text>
+          </Pressable>
+        </View>
       ) : null}
     </KeyboardAwareScreen>
   );
 }
 
-function BankRow({ label, value, selectable = false, copy = false, onCopy, premium }: { label: string; value: string; selectable?: boolean; copy?: boolean; onCopy?: () => void; premium: boolean }) {
+function SectionHeader({ title, action, onPress, premium, color }: { title: string; action?: string; onPress: () => void; premium: boolean; color: string }) {
   return (
-    <View style={[styles.bankRow, premium && styles.rowPremium]}>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={[styles.bankLabel, premium && styles.mutedPremium]}>{label}</Text>
-        <Text selectable={selectable} style={[styles.bankValue, premium && styles.textPremium]}>{value}</Text>
-      </View>
-      {copy ? (
-        <Pressable accessibilityRole="button" accessibilityLabel={`Copiar ${label}`} style={[styles.smallCopy, premium && styles.smallCopyPremium]} onPress={onCopy}>
-          <MaterialIcons name="content-copy" size={19} color={premium ? ucapsaBrand.colors.premiumActionText : ucapsaBrand.colors.redDark} />
-        </Pressable>
-      ) : null}
+    <View style={styles.sectionHeader}>
+      <Text style={[styles.sectionTitle, premium && styles.textPremium]}>{title}</Text>
+      {action ? <Pressable onPress={onPress}><Text style={[styles.sectionAction, { color: premium ? ucapsaBrand.colors.premiumAction : color }]}>{action}</Text></Pressable> : null}
     </View>
+  );
+}
+
+function ObligationRow({ item, premium, onPress }: { item: PaymentObligationWithBalance; premium: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Abrir cargo ${item.concept}`}
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, premium && styles.cardPremium, pressed && styles.pressed]}
+    >
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={[styles.rowTitle, premium && styles.textPremium]}>{item.concept}</Text>
+        <Text style={[styles.muted, premium && styles.mutedPremium]}>Vence {paymentDateLabel(item.due_date)} · {obligationStatusLabel(item)}</Text>
+      </View>
+      <Text style={[styles.amount, premium && styles.goldText]}>{money(item.remaining_amount)}</Text>
+      <MaterialIcons name="chevron-right" size={21} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.redDark} />
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   screenContent: { position: 'relative' },
   premiumContent: { backgroundColor: ucapsaBrand.colors.premiumBackground },
-  muted: { color: ucapsaBrand.colors.muted, fontSize: 14, lineHeight: 20, fontWeight: '700' },
-  mutedPremium: { color: ucapsaBrand.colors.premiumMuted },
-  textPremium: { color: ucapsaBrand.colors.premiumText },
-  balanceCard: { gap: 8, borderRadius: 24, borderWidth: 1, borderColor: ucapsaBrand.colors.successBorder, backgroundColor: ucapsaBrand.colors.successSoft, padding: 16, marginBottom: 10 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 14 },
+  headerIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.surfaceAlt },
+  headerIconPremium: { backgroundColor: ucapsaBrand.colors.premiumSurfaceAlt },
+  headerTitle: { color: ucapsaBrand.colors.text, fontSize: 24, lineHeight: 28, fontWeight: '900' },
+  headerSubtitle: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 16, fontWeight: '700' },
+  balanceCard: { gap: 8, borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 22, padding: 16, backgroundColor: ucapsaBrand.colors.surface, marginBottom: 12 },
   balanceTopRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  balanceIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  balanceStatus: { color: ucapsaBrand.colors.successDark, fontSize: 11, lineHeight: 15, fontWeight: '900', letterSpacing: 0.8 },
-  balanceStatusPremium: { color: ucapsaBrand.colors.premiumActionText },
-  balanceCardPremium: { borderColor: ucapsaBrand.colors.premiumBorder, backgroundColor: ucapsaBrand.colors.premiumHero },
-  balanceLabel: { color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 18, fontWeight: '900', textTransform: 'uppercase' },
-  balanceValue: { color: ucapsaBrand.colors.text, fontSize: 29, lineHeight: 35, fontWeight: '900' },
-  reviewNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, borderRadius: 16, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 11, marginBottom: 14 },
-  reviewNoteTitle: { fontSize: 13, lineHeight: 18, fontWeight: '900' },
-  reviewNoteText: { marginTop: 2, fontSize: 12, lineHeight: 17, fontWeight: '700' },
-  section: { gap: 10, borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 16, marginBottom: 14 },
-  sectionPremium: { borderColor: ucapsaBrand.colors.premiumBorder, backgroundColor: ucapsaBrand.colors.premiumSurface },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 18, lineHeight: 23, fontWeight: '900' },
-  count: { minWidth: 32, minHeight: 32, textAlign: 'center', overflow: 'hidden', borderRadius: 999, backgroundColor: ucapsaBrand.colors.redSoft, color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900', paddingVertical: 7 },
-  countPremium: { backgroundColor: withAlpha(ucapsaBrand.colors.gold, 0.16), color: ucapsaBrand.colors.premiumActionText },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: ucapsaBrand.colors.borderNeutral, paddingTop: 10 },
-  rowPremium: { borderTopColor: ucapsaBrand.colors.premiumBorder },
-  rowTitle: { color: ucapsaBrand.colors.text, fontSize: 15, lineHeight: 20, fontWeight: '900' },
-  amount: { color: ucapsaBrand.colors.warningDark, fontSize: 14, lineHeight: 19, fontWeight: '900' },
-  amountPremium: { color: ucapsaBrand.colors.premiumActionText },
-  paidAmount: { color: ucapsaBrand.colors.successDark, fontSize: 14, lineHeight: 19, fontWeight: '900' },
-  paidAmountPremium: { color: ucapsaBrand.colors.successDark },
-  hint: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 17, fontWeight: '700' },
-  bankWarning: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 14, borderWidth: 1, padding: 11 },
-  bankWarningText: { flex: 1, fontSize: 12, lineHeight: 17, fontWeight: '800' },
-  bankUnavailableRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 9 },
-  bankRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: ucapsaBrand.colors.borderNeutral, paddingTop: 10 },
-  bankLabel: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 17, fontWeight: '900', textTransform: 'uppercase' },
-  bankValue: { color: ucapsaBrand.colors.text, fontSize: 15, lineHeight: 21, fontWeight: '900', marginTop: 2 },
-  smallCopy: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
-  smallCopyPremium: { backgroundColor: ucapsaBrand.colors.premiumSurfaceAlt, borderWidth: 1, borderColor: ucapsaBrand.colors.premiumBorder },
-  receiptBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, backgroundColor: ucapsaBrand.colors.redPale, padding: 12, marginTop: 2 },
-  receiptBoxPremium: { borderColor: ucapsaBrand.colors.premiumBorder, backgroundColor: ucapsaBrand.colors.premiumSurfaceAlt },
-  receiptTitle: { color: ucapsaBrand.colors.text, fontSize: 14, lineHeight: 19, fontWeight: '900' },
-  receiptText: { color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 19, fontWeight: '700', marginTop: 2 },
-  copyButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 16, paddingVertical: 12, marginTop: 2 },
-  copyButtonText: { fontSize: 14, lineHeight: 19, fontWeight: '900' },
-  whatsappButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingVertical: 12, paddingHorizontal: 12 },
-  whatsappButtonPremium: { borderColor: ucapsaBrand.colors.premiumBorder, backgroundColor: ucapsaBrand.colors.premiumSurface },
-  whatsappButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 14, lineHeight: 19, fontWeight: '900', textAlign: 'center' },
-  whatsappButtonTextPremium: { color: ucapsaBrand.colors.premiumActionText },
-  secondaryButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, paddingVertical: 12, paddingHorizontal: 12 },
-  secondaryButtonPremium: { borderColor: ucapsaBrand.colors.premiumBorder, backgroundColor: ucapsaBrand.colors.premiumSurfaceAlt },
-  secondaryButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 14, lineHeight: 19, fontWeight: '900' },
-  secondaryButtonTextPremium: { color: ucapsaBrand.colors.premiumActionText },
-  link: { fontSize: 14, lineHeight: 19, fontWeight: '900' },
+  balanceIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  eyebrow: { color: ucapsaBrand.colors.redDark, fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 0.9 },
+  balanceLabel: { color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 18, fontWeight: '800' },
+  balanceValue: { color: ucapsaBrand.colors.text, fontSize: 30, lineHeight: 34, fontWeight: '900' },
+  notice: { flexDirection: 'row', gap: 10, borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 18, padding: 13, backgroundColor: ucapsaBrand.colors.surface, marginBottom: 14 },
+  sectionHeader: { marginTop: 6, marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 18, lineHeight: 22, fontWeight: '900' },
+  sectionAction: { fontSize: 11, fontWeight: '900' },
+  row: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 18, padding: 13, marginBottom: 8, backgroundColor: ucapsaBrand.colors.surface },
+  rowTitle: { color: ucapsaBrand.colors.text, fontSize: 14, lineHeight: 19, fontWeight: '900' },
+  muted: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 17, fontWeight: '700' },
+  amount: { color: ucapsaBrand.colors.redDark, fontSize: 14, fontWeight: '900' },
+  paidAmount: { color: ucapsaBrand.colors.success, fontSize: 14, fontWeight: '900' },
+  emptyCard: { gap: 7, borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 18, padding: 15, marginBottom: 12, backgroundColor: ucapsaBrand.colors.surface },
+  retryButton: { alignSelf: 'flex-start', borderWidth: 1, borderRadius: 13, paddingHorizontal: 13, paddingVertical: 9 },
+  retryText: { fontSize: 12, fontWeight: '900' },
+  cardPremium: { borderColor: ucapsaBrand.colors.premiumBorder, backgroundColor: ucapsaBrand.colors.premiumSurface },
+  textPremium: { color: ucapsaBrand.colors.premiumText },
+  mutedPremium: { color: ucapsaBrand.colors.premiumMuted },
+  goldText: { color: ucapsaBrand.colors.premiumActionText },
+  pressed: { opacity: 0.78 },
 });

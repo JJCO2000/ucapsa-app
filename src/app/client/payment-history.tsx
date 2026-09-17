@@ -1,24 +1,18 @@
-import { Redirect, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { Redirect, router, useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
-import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { ucapsaBrand } from '../../constants/brand';
+import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import { getMyPaymentOverview } from '../../services/payments.service';
-import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
 import type { MyPaymentOverview } from '../../types/app.types';
+import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
+import { money, paymentDateLabel } from '../../utils/paymentPresentation';
 
 const emptyOverview: MyPaymentOverview = { obligations: [], payments: [], outstanding_total: 0, attention_total: 0, future_total: 0, overdue_count: 0, legacy_membership_pending: false };
-const monthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-function money(value: number) { return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 }).format(value); }
-function dateLabel(value: string | null | undefined) {
-  if (!value) return 'Sin fecha';
-  const date = new Date(`${value.slice(0, 10)}T12:00:00`);
-  if (Number.isNaN(date.getTime())) return value;
-  return `${String(date.getDate()).padStart(2, '0')} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
-}
 
 export default function PaymentHistoryScreen() {
   const { user, role, isAdmin } = useSession();
@@ -26,21 +20,32 @@ export default function PaymentHistoryScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const loadRunRef = useRef(0);
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
   const premium = format.key === 'member';
 
   const load = useCallback(async () => {
+    const runId = loadRunRef.current + 1;
+    loadRunRef.current = runId;
+    const isCurrentRun = () => loadRunRef.current === runId;
     if (!user || isAdmin) return;
     setError(null);
     try {
-      setOverview(await withOperationTimeout(getMyPaymentOverview(), DEFAULT_READ_TIMEOUT_MS, 'payment-history'));
+      const next = await withOperationTimeout(getMyPaymentOverview(), DEFAULT_READ_TIMEOUT_MS, 'payment-history');
+      if (!isCurrentRun()) return;
+      setOverview(next);
     } catch {
+      if (!isCurrentRun()) return;
       setError(friendlyReadError('No se pudo cargar el historial de pagos.'));
     } finally {
-      setLoading(false);
+      if (isCurrentRun()) setLoading(false);
     }
   }, [isAdmin, user]);
-  useFocusEffect(useCallback(() => { void load(); return undefined; }, [load]));
+
+  useFocusEffect(useCallback(() => {
+    void load();
+    return () => { loadRunRef.current += 1; };
+  }, [load]));
 
   async function refresh() { setRefreshing(true); try { await load(); } finally { setRefreshing(false); } }
 
@@ -49,21 +54,23 @@ export default function PaymentHistoryScreen() {
 
   return (
     <KeyboardAwareScreen backgroundColor={format.background} style={{ backgroundColor: format.background }} contentContainerStyle={premium ? styles.premiumContent : undefined} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={format.accent} />}>
-      <Text style={[styles.kicker, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Pagos</Text>
+      <Text style={[styles.kicker, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>PAGOS</Text>
       <Text style={[styles.title, { color: format.text }]}>Historial</Text>
       <Text style={[styles.subtitle, { color: format.muted }]}>Pagos que UCAPSA tiene registrados en tu cuenta.</Text>
+
       {loading ? <View style={styles.loading}><ActivityIndicator color={format.accent} /><Text style={[styles.muted, { color: format.muted }]}>Cargando...</Text></View> : null}
-      {error ? <View style={[styles.empty, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}><Text style={[styles.rowTitle, { color: format.cardText }]}>Se necesita conexion</Text><Text style={[styles.muted, { color: format.muted }]}>El historial detallado no se guarda en el dispositivo. {error}</Text>{overview.payments.length > 0 ? <Text style={[styles.muted, { color: format.muted }]}>Se mantienen los pagos que ya estaban cargados en esta sesion.</Text> : null}<Pressable style={[styles.retryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={() => void refresh()}><Text style={[styles.retryText, { color: format.secondaryButtonText }]}>Reintentar</Text></Pressable></View> : null}
-      {!loading && !error && overview.payments.length === 0 ? <View style={[styles.empty, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}><Text style={[styles.muted, { color: format.muted }]}>Todavia no hay pagos registrados.</Text></View> : null}
+      {error ? <View style={[styles.empty, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}><Text style={[styles.rowTitle, { color: format.cardText }]}>Se necesita conexión</Text><Text style={[styles.muted, { color: format.muted }]}>El historial detallado no se guarda en el dispositivo. {error}</Text><Pressable style={[styles.retryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={() => void refresh()}><Text style={[styles.retryText, { color: format.secondaryButtonText }]}>Reintentar</Text></Pressable></View> : null}
+      {!loading && !error && overview.payments.length === 0 ? <View style={[styles.empty, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}><Text style={[styles.muted, { color: format.muted }]}>Todavía no hay pagos registrados.</Text></View> : null}
+
       {overview.payments.map((payment) => (
-        <View key={payment.id} style={[styles.row, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
+        <Pressable key={payment.id} accessibilityRole="button" accessibilityLabel={`Abrir pago ${payment.period_label || payment.concept}`} onPress={() => router.push(`/client/payment-detail?paymentId=${encodeURIComponent(payment.id)}` as never)} style={({ pressed }) => [styles.row, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }, pressed && styles.pressed]}>
           <View style={{ flex: 1 }}>
             <Text style={[styles.rowTitle, { color: format.cardText }]}>{payment.period_label || payment.concept}</Text>
-            <Text style={[styles.muted, { color: format.muted }]}>{dateLabel(payment.paid_at)} - {payment.payment_method || 'Metodo no indicado'}</Text>
-            {payment.notes ? <Text style={[styles.note, { color: format.cardText }]}>{payment.notes}</Text> : null}
+            <Text style={[styles.muted, { color: format.muted }]}>{paymentDateLabel(payment.paid_at)} · {payment.payment_method || 'Método no indicado'}</Text>
           </View>
           <Text style={[styles.amount, premium && styles.amountPremium]}>{money(Number(payment.amount ?? 0))}</Text>
-        </View>
+          <MaterialIcons name="chevron-right" size={21} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+        </Pressable>
       ))}
     </KeyboardAwareScreen>
   );
@@ -81,7 +88,7 @@ const styles = StyleSheet.create({
   retryText: { fontSize: 12, fontWeight: '900' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 18, borderWidth: 1, padding: 15, marginBottom: 10 },
   rowTitle: { fontSize: 14, fontWeight: '900' },
-  note: { fontSize: 12, lineHeight: 18, marginTop: 4 },
   amount: { color: ucapsaBrand.colors.success, fontSize: 15, fontWeight: '900' },
   amountPremium: { color: ucapsaBrand.colors.gold },
+  pressed: { opacity: 0.78 },
 });

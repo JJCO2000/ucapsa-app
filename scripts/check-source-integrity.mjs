@@ -114,14 +114,19 @@ mustNot('src/app/(tabs)/services.tsx', /subtitle="Membresía, restaurante, compr
 
 must('src/services/payments.service.ts', /export function normalizeClabe/, 'Pagos perdió la normalización canónica de CLABE.');
 must('src/services/payments.service.ts', /export function isValidClabe/, 'Pagos perdió la validación canónica de CLABE.');
-must('src/app/(tabs)/payments.tsx', /withOperationTimeout\(getPaymentSettings\(\)/, 'Pagos dejó de verificar los datos bancarios en vivo.');
-must('src/app/(tabs)/payments.tsx', /setSettings\(null\)/, 'Pagos volvió a conservar datos bancarios anteriores durante una nueva verificación.');
-must('src/app/(tabs)/payments.tsx', /isValidClabe\(settings\.clabe\)/, 'Pagos volvió a habilitar transferencias sin validar la CLABE de 18 dígitos.');
-must('src/app/(tabs)/payments.tsx', /label === 'CLABE' && !isValidClabe/, 'La acción de copiar CLABE dejó de validar el dato antes de copiarlo.');
+mustNot('src/app/(tabs)/payments.tsx', /getPaymentSettings|CLABE|account_holder|bank_name/, 'El resumen de Pagos volvió a exponer datos bancarios o lógica de transferencia.');
+must('src/app/(tabs)/payments.tsx', /\/client\/payment-obligations/, 'Pagos perdió el acceso al listado de cargos.');
+must('src/app/(tabs)/payments.tsx', /\/client\/payment-obligation-detail\?obligationId=/, 'Pagos perdió el acceso a la ficha de cargo.');
+must('src/app/(tabs)/payments.tsx', /\/client\/payment-detail\?paymentId=/, 'Pagos perdió el acceso al detalle de pago.');
 must('src/app/(tabs)/payments.tsx', /loadRunRef/, 'Pagos perdió la guarda contra respuestas asíncronas obsoletas.');
 must('src/app/(tabs)/payments.tsx', /cacheScopeRef/, 'Pagos dejó de limpiar el estado al cambiar de usuario.');
+must('src/app/client/payment-obligation-detail.tsx', /\/client\/payment-transfer\?obligationId=/, 'La ficha de cargo perdió la acción concreta Transferir.');
+must('src/app/client/payment-transfer.tsx', /withOperationTimeout\(getPaymentSettings\(\)/, 'Transferir dejó de verificar los datos bancarios en vivo.');
+must('src/app/client/payment-transfer.tsx', /setSettings\(null\)/, 'Transferir volvió a conservar datos bancarios anteriores durante una nueva verificación.');
+must('src/app/client/payment-transfer.tsx', /isValidClabe\(settings\.clabe\)/, 'Transferir volvió a habilitar una cuenta sin validar la CLABE de 18 dígitos.');
+must('src/app/client/payment-transfer.tsx', /!isValidClabe\(clabe\)/, 'La acción de copiar CLABE dejó de validar el dato antes de copiarlo.');
+must('src/app/client/payment-transfer.tsx', /loadRunRef/, 'Transferir perdió la guarda contra respuestas asíncronas obsoletas.');
 mustNot('src/services/client-read-cache.service.ts', /paymentSettings/, 'Los datos bancarios volvieron a ser elegibles para caché local.');
-mustNot('src/app/(tabs)/payments.tsx', /BankRow label="CLABE"[^\n]*\bcopy\b/, 'Pagos volvió a mostrar una acción duplicada para copiar la CLABE.');
 
 const scanRoots = ['src', 'scripts'];
 function walk(dir) {

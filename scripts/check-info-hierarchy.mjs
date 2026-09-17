@@ -44,6 +44,17 @@ must('src/app/(tabs)/classes.tsx', /\/client\/class-detail\?enrollmentId=/, 'Cla
 must('src/app/client/class-detail.tsx', /router\.push\('\/attendance'/, 'Detalle de clase perdió la acción concreta Registrar asistencia.');
 must('src/app/client/class-detail.tsx', /getCanonicalNextProgramSessions/, 'Detalle de clase dejó de compartir la próxima sesión canónica.');
 
+// Pagos = resumen -> listado/ficha -> acción Transferir.
+mustNot('src/app/(tabs)/payments.tsx', /getPaymentSettings|CLABE|account_holder|bank_name/, 'Pagos volvió a mezclar la acción bancaria dentro del resumen.');
+must('src/app/(tabs)/payments.tsx', /\.slice\(0,\s*3\)/, 'Pagos dejó de limitar cargos y pagos recientes en el resumen.');
+must('src/app/(tabs)/payments.tsx', /\/client\/payment-obligations/, 'Pagos perdió el listado completo de cargos.');
+must('src/app/(tabs)/payments.tsx', /\/client\/payment-obligation-detail\?obligationId=/, 'Un cargo reciente dejó de abrir su ficha particular.');
+must('src/app/(tabs)/payments.tsx', /\/client\/payment-detail\?paymentId=/, 'Un pago reciente dejó de abrir su ficha particular.');
+must('src/app/client/payment-obligations.tsx', /\/client\/payment-obligation-detail\?obligationId=/, 'El listado de cargos dejó de abrir el detalle.');
+must('src/app/client/payment-obligation-detail.tsx', /\/client\/payment-transfer\?obligationId=/, 'El detalle de cargo perdió la acción concreta Transferir.');
+must('src/app/client/payment-transfer.tsx', /getPaymentSettings/, 'Transferir dejó de verificar la cuenta bancaria en el nivel de acción.');
+must('src/app/client/payment-transfer.tsx', /getMyPaymentOverview/, 'Transferir dejó de volver a verificar el cargo antes de pagar.');
+
 // Inicio = resumen general; enlaza a contextos y fichas, pero no ejecuta acciones profundas.
 must('src/screens/home/HomeCards.tsx', /const nextClass = snapshot\.whatIsNext\.nextClass/, 'Inicio dejó de alinear Tu programa con la próxima clase.');
 must('src/screens/home/HomeCards.tsx', /find\(\(item\) => item\.enrollmentId === nextClass\.enrollmentId\)/, 'Inicio volvió a elegir programs[0] sin priorizar la inscripción de la próxima clase.');
