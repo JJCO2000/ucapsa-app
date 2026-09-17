@@ -118,7 +118,14 @@ export default function AdminCompetitionScreen() {
       <Text style={styles.sectionTitle}>Competencia</Text>
       <View style={styles.card}>
         <FeatureRow icon="leaderboard" title="Ranking" subtitle="Clasificación oficial de perros elegibles" status="Escala pendiente" disabled />
-        <FeatureRow icon="workspace-premium" title="Rangos / Constancia" subtitle="Comandos y visitas de socio por perro" status="Escala pendiente" disabled last />
+        <FeatureRow
+          icon="workspace-premium"
+          title="Rangos / Constancia"
+          subtitle="Comandos y visitas de socio por perro"
+          status="Rango pendiente"
+          onPress={() => router.push('/admin/competition-constancy' as never)}
+          last
+        />
       </View>
 
       <Text style={styles.sectionTitle}>Operación</Text>
@@ -152,7 +159,7 @@ export default function AdminCompetitionScreen() {
 
       <View style={styles.noteCard}>
         <MaterialIcons name="info-outline" size={20} color={ucapsaBrand.colors.redDark} />
-        <Text style={styles.noteText}>Ranking y Rango no se calculan todavía: faltan la escala numérica y el criterio de desempate. No se muestran resultados inventados.</Text>
+        <Text style={styles.noteText}>Constancia ya muestra hechos reales por perro. Ranking y Rango siguen sin calcularse hasta definir escala numérica y criterio de desempate.</Text>
       </View>
     </KeyboardAwareScreen>
   );

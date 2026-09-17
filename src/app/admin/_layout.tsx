@@ -39,6 +39,8 @@ export default function AdminLayout() {
       <Stack.Screen name="events" options={{ title: 'Eventos' }} />
       <Stack.Screen name="notifications" options={{ title: 'Notificaciones' }} />
       <Stack.Screen name="competition" options={{ title: 'Competencia UCAPSA' }} />
+      <Stack.Screen name="competition-constancy" options={{ title: 'Rangos / Constancia' }} />
+      <Stack.Screen name="competition-constancy-detail" options={{ title: 'Constancia del perro' }} />
       <Stack.Screen name="competition-seasons" options={{ title: 'Temporadas' }} />
       <Stack.Screen name="competition-season-detail" options={{ title: 'Temporada' }} />
       <Stack.Screen name="competition-season-form" options={{ title: 'Configurar temporada' }} />
