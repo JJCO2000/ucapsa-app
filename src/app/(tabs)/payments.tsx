@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as Clipboard from 'expo-clipboard';
 import { Redirect, router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Alert, Linking, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
@@ -11,7 +11,7 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
-import { getMyPaymentOverview, getPaymentSettings } from '../../services/payments.service';
+import { getMyPaymentOverview, getPaymentSettings, isValidClabe, normalizeClabe } from '../../services/payments.service';
 import { clientReadKeys, createPaymentOfflineSummary, readClientResource, writeClientResource, type PaymentOfflineSummary } from '../../services/client-read-cache.service';
 import { DEFAULT_READ_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
 import type { MyPaymentOverview, PaymentObligationWithBalance, PaymentSettings } from '../../types/app.types';
@@ -47,19 +47,42 @@ export default function PaymentsTab() {
   const [bankLoadFailed, setBankLoadFailed] = useState(false);
   const [bankChecking, setBankChecking] = useState(false);
   const [overviewAvailable, setOverviewAvailable] = useState(false);
+  const cacheScopeRef = useRef<string | null>(null);
+  const loadRunRef = useRef(0);
 
   const load = useCallback(async () => {
+    const runId = loadRunRef.current + 1;
+    loadRunRef.current = runId;
+    const isCurrentRun = () => loadRunRef.current === runId;
+    const scope = user?.id ?? (isAdmin ? 'admin' : 'public');
+
+    if (cacheScopeRef.current !== scope) {
+      cacheScopeRef.current = scope;
+      setOverview(emptyOverview);
+      setSettings(null);
+      setLocalReady(false);
+      setUsingSavedData(false);
+      setSavedAt(null);
+      setDetailsAvailable(false);
+      setBankLoadFailed(false);
+      setBankChecking(false);
+      setOverviewAvailable(false);
+    }
+
     if (!user || isAdmin) return;
+    if (!isCurrentRun()) return;
+
     setUsingSavedData(false);
     setBankLoadFailed(false);
     setBankChecking(true);
     setOverviewAvailable(false);
     setDetailsAvailable(false);
-    // Los datos bancarios deben verificarse en vivo antes de transferir. No conserves
+    // Los datos bancarios se verifican en vivo en cada carga. Nunca se conserva
     // una CLABE anterior como si siguiera vigente cuando la red falla.
     setSettings(null);
 
     const summaryCache = await readClientResource<PaymentOfflineSummary>(user.id, clientReadKeys.paymentSummary);
+    if (!isCurrentRun()) return;
 
     if (summaryCache) {
       setOverview({ ...emptyOverview, ...summaryCache.data });
@@ -72,12 +95,14 @@ export default function PaymentsTab() {
       withOperationTimeout(getMyPaymentOverview(), DEFAULT_READ_TIMEOUT_MS, 'payments-overview'),
       withOperationTimeout(getPaymentSettings(), DEFAULT_READ_TIMEOUT_MS, 'payment-settings'),
     ]);
+    if (!isCurrentRun()) return;
 
     if (overviewResult.status === 'fulfilled') {
       setOverview(overviewResult.value);
       setOverviewAvailable(true);
       setDetailsAvailable(true);
       const stored = await writeClientResource(user.id, clientReadKeys.paymentSummary, createPaymentOfflineSummary(overviewResult.value));
+      if (!isCurrentRun()) return;
       setSavedAt(stored.saved_at);
     } else if (!summaryCache) {
       setOverview(emptyOverview);
@@ -99,7 +124,12 @@ export default function PaymentsTab() {
     if (usedCachedData && summaryCache) setSavedAt(summaryCache.saved_at);
   }, [isAdmin, user]);
 
-  useFocusEffect(useCallback(() => { void load(); return undefined; }, [load]));
+  useFocusEffect(useCallback(() => {
+    void load();
+    return () => {
+      loadRunRef.current += 1;
+    };
+  }, [load]));
 
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
   const premium = format.key === 'member';
@@ -108,7 +138,12 @@ export default function PaymentsTab() {
 
   async function copyValue(label: string, value: string) {
     if (!value) return;
-    await Clipboard.setStringAsync(value);
+    const safeValue = label === 'CLABE' ? normalizeClabe(value) : value;
+    if (label === 'CLABE' && !isValidClabe(safeValue)) {
+      Alert.alert('CLABE no verificada', 'No copies ni transfieras hasta que UCAPSA publique una CLABE válida de 18 dígitos.');
+      return;
+    }
+    await Clipboard.setStringAsync(safeValue);
     Alert.alert(`${label} copiado`, label === 'CLABE'
       ? 'Ya puedes pegarla en tu aplicación bancaria. Envía el comprobante por WhatsApp después de transferir.'
       : 'Ya puedes pegar este dato donde lo necesites.');
@@ -124,7 +159,8 @@ export default function PaymentsTab() {
 
   const recentPayments = overview.payments.slice(0, 3);
   const recentObligations = overview.obligations.slice(0, 3);
-  const bankReady = Boolean(settings?.is_active && settings.clabe && settings.bank_name && settings.account_holder);
+  const bankReady = Boolean(settings?.is_active && isValidClabe(settings.clabe) && settings.bank_name && settings.account_holder);
+  const bankInvalid = Boolean(settings?.is_active && settings.clabe && !isValidClabe(settings.clabe));
 
   return (
     <KeyboardAwareScreen
@@ -222,7 +258,7 @@ export default function PaymentsTab() {
                 ) : null}
                 <BankRow label="Banco" value={settings?.bank_name ?? ''} premium={premium} />
                 <BankRow label="Titular" value={settings?.account_holder ?? ''} premium={premium} copy onCopy={() => void copyValue('Titular', settings?.account_holder ?? '')} />
-                <BankRow label="CLABE" value={settings?.clabe ?? ''} premium={premium} selectable copy onCopy={() => void copyValue('CLABE', settings?.clabe ?? '')} />
+                <BankRow label="CLABE" value={normalizeClabe(settings?.clabe)} premium={premium} selectable />
                 {settings?.transfer_instructions ? <BankRow label="Concepto / referencia" value={settings.transfer_instructions} premium={premium} /> : null}
 
                 <View style={[styles.receiptBox, premium && styles.receiptBoxPremium]}>
@@ -259,7 +295,9 @@ export default function PaymentsTab() {
                     ? 'Verificando los datos bancarios antes de mostrar una cuenta para transferir.'
                     : bankLoadFailed
                       ? 'No pudimos verificar los datos bancarios. Conéctate y reintenta antes de transferir.'
-                      : 'Los datos bancarios todavía no están disponibles. Consulta con UCAPSA antes de transferir.'}
+                      : bankInvalid
+                        ? 'Los datos bancarios no pasaron la verificación. No transfieras hasta que UCAPSA publique una CLABE válida de 18 dígitos.'
+                        : 'Los datos bancarios todavía no están disponibles. Consulta con UCAPSA antes de transferir.'}
                 </Text>
               </View>
             )}
