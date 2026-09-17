@@ -50,6 +50,10 @@ export default function AdminLayout() {
       <Stack.Screen name="competition-exam-detail" options={{ title: 'Examen' }} />
       <Stack.Screen name="competition-exam-form" options={{ title: 'Configurar examen' }} />
       <Stack.Screen name="competition-exam-item-form" options={{ title: 'Ejercicio' }} />
+      <Stack.Screen name="competition-exam-attempts" options={{ title: 'Intentos y resultados' }} />
+      <Stack.Screen name="competition-exam-attempt-form" options={{ title: 'Nuevo intento' }} />
+      <Stack.Screen name="competition-exam-attempt-detail" options={{ title: 'Intento' }} />
+      <Stack.Screen name="competition-exam-result-form" options={{ title: 'Resultado' }} />
       <Stack.Screen name="points" options={{ title: 'Puntos UCAPSA' }} />
       <Stack.Screen name="tools-communication" options={{ title: 'Comunicacion' }} />
       <Stack.Screen name="tools-administration" options={{ title: 'Administracion' }} />
