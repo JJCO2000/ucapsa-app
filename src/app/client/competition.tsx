@@ -178,15 +178,26 @@ export default function ClientCompetitionScreen() {
                 </View>
               </View>
 
-              <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
-                <Text style={[styles.sectionEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>CONSTANCIA</Text>
-                <Text style={[styles.cardTitle, { color: format.cardText }]}>Actividad de la temporada</Text>
+              <Pressable
+                style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}
+                onPress={() => {
+                  if (!selectedSeason.season_id) return;
+                  router.push(`/client/competition-constancy?dogId=${encodeURIComponent(snapshot.dog_id)}&seasonId=${encodeURIComponent(selectedSeason.season_id)}` as never);
+                }}
+              >
+                <View style={styles.cardTitleLine}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.sectionEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>CONSTANCIA</Text>
+                    <Text style={[styles.cardTitle, { color: format.cardText }]}>Actividad de la temporada</Text>
+                  </View>
+                  <MaterialIcons name="chevron-right" size={21} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                </View>
                 <View style={styles.metricsRow}>
                   <Metric value={Number(selectedSeason.constancy_events_count ?? 0)} label="eventos" premium={premium} format={format} />
                   <Metric value={Number(selectedSeason.command_attendances_count ?? 0)} label="Comandos" premium={premium} format={format} />
                   <Metric value={Number(selectedSeason.member_visits_count ?? 0)} label="visitas" premium={premium} format={format} />
                 </View>
-              </View>
+              </Pressable>
 
               <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
                 <Text style={[styles.sectionEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>EXÁMENES</Text>
@@ -284,6 +295,7 @@ const styles = StyleSheet.create({
   muted: { fontSize: 11, lineHeight: 16, fontWeight: '700' },
   card: { gap: 9, borderRadius: 20, borderWidth: 1, padding: 14, marginBottom: 11 },
   cardTitle: { fontSize: 16, lineHeight: 21, fontWeight: '900' },
+  cardTitleLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   pills: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 11 },
   pill: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 8 },
   pillText: { fontSize: 9, fontWeight: '900' },
