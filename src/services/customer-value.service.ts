@@ -146,6 +146,8 @@ export type CustomerValueSnapshot = {
       awardedAt: string;
       sourceType: string | null;
       sourceId: string | null;
+      dogId: string | null;
+      dogName: string | null;
     }>;
   };
   whatIsNext: {
@@ -351,6 +353,11 @@ export async function getMyCustomerValueSnapshot(): Promise<CustomerValueSnapsho
   const events = eventsSource.value ?? [];
   const nextOccurrence = getUpcomingOccurrences(events, 1)[0] ?? null;
   const nextPayment = paymentOverview?.obligations[0] ?? null;
+  const dogNameById = new Map<string, string>();
+  for (const item of programs) {
+    const dogId = item.enrollment.dog_id;
+    if (dogId && !dogNameById.has(dogId)) dogNameById.set(dogId, getProgramEnrollmentDogName(item));
+  }
 
   const warnings: string[] = [];
   for (const item of programs) {
@@ -439,14 +446,19 @@ export async function getMyCustomerValueSnapshot(): Promise<CustomerValueSnapsho
       attendanceRequirementsMet: programValues.filter((item) => Boolean(item.attendanceRequirementsMetAt)),
       achievements: achievements
         .filter((item) => item.unlocked && item.achievement)
-        .map((item) => ({
-          code: item.definition.code,
-          title: item.definition.title,
-          unlockedTitle: item.definition.unlocked_title,
-          awardedAt: item.achievement?.awarded_at ?? '',
-          sourceType: item.achievement?.source_type ?? null,
-          sourceId: item.achievement?.source_id ?? null,
-        })),
+        .map((item) => {
+          const dogId = item.achievement?.dog_id ?? null;
+          return {
+            code: item.definition.code,
+            title: item.definition.title,
+            unlockedTitle: item.definition.unlocked_title,
+            awardedAt: item.achievement?.awarded_at ?? '',
+            sourceType: item.achievement?.source_type ?? null,
+            sourceId: item.achievement?.source_id ?? null,
+            dogId,
+            dogName: dogId ? dogNameById.get(dogId) ?? null : null,
+          };
+        }),
     },
     whatIsNext: {
       nextClass,
