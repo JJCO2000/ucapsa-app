@@ -26,6 +26,11 @@ must('src/services/client-offline-sync.service.ts', /Promise\.allSettled/, 'El w
 for (const key of ['announcements', 'dogs', 'programs', 'membership', 'paymentSummary']) {
   must('src/services/client-offline-sync.service.ts', new RegExp(`clientReadKeys\\.${key}`), `El warm offline dejó de preparar ${key}.`);
 }
+must('src/services/client-offline-sync.service.ts', /cacheCalendar\(userId\)/, 'El warm offline dejó de preparar Calendario.');
+must('src/services/client-offline-sync.service.ts', /clientReadKeys\.calendarEvents/, 'El warm offline dejó de guardar eventos del Calendario.');
+must('src/services/client-offline-sync.service.ts', /clientReadKeys\.calendarClasses/, 'El warm offline dejó de guardar clases del Calendario.');
+must('src/services/client-offline-sync.service.ts', /getMyMemberVisits\(userId, 500\)/, 'El warm offline dejó de preparar visitas de socio.');
+must('src/services/client-offline-sync.service.ts', /flushPendingClientWrites\(userId\)[\s\S]*await cachePracticeActivity\(userId\)/, 'El warm offline dejó de refrescar actividad después de vaciar las colas.');
 must('src/services/client-offline-sync.service.ts', /flushPendingAttendanceOperations/, 'El warm offline dejó de reintentar asistencias y visitas.');
 must('src/services/client-offline-sync.service.ts', /flushPendingPracticeSessions/, 'El warm offline dejó de reintentar prácticas.');
 must('src/services/client-offline-sync.service.ts', /practiceOutbox/, 'El resultado del warm dejó de reportar la cola de prácticas.');
@@ -91,7 +96,30 @@ must('src/app/client/payment-transfer.tsx', /setSettings\(null\)/, 'Transferir d
 must('src/app/client/payment-transfer.tsx', /getPaymentSettings\(\)/, 'Transferir dejó de consultar datos bancarios en vivo.');
 must('src/app/client/payment-transfer.tsx', /isValidClabe\(settings\.clabe\)/, 'Transferir dejó de exigir CLABE válida.');
 
-// Pantallas ya auditadas: deben conservar caché y sólo comunicar fallback tras fallo remoto.
+// 6.4: el warm y las pantallas secundarias también siguen cache-first -> refresh -> fallback.
+must('src/services/client-activity.service.ts', /\.select\('id,visit_date,visited_at,source'\)/, 'Visitas volvió a cachear campos que no necesita para el uso offline.');
+must('src/services/client-activity.service.ts', /writeClientResource\(userId, clientReadKeys\.memberVisits, visits\)/, 'Visitas dejó de actualizar su caché canónica tras una lectura remota correcta.');
+must('src/services/client-activity.service.ts', /Promise\.all\(\[[\s\S]*clientReadKeys\.programs[\s\S]*getCachedMyMemberVisits\(userId\)[\s\S]*getCachedMyPracticeActivity\(userId\)/, 'Insignias offline dejó de derivarse de programas, visitas y prácticas canónicas.');
+must('src/services/client-activity.service.ts', /if \(!programCache \|\| !visitCache \|\| !practice \|\| !practice\.savedAt\) return null;/, 'Insignias offline volvió a inventar ceros cuando falta una fuente canónica.');
+
+for (const rel of ['src/app/client/member-visits.tsx', 'src/app/client/activity-achievements.tsx']) {
+  must(rel, /setUsingSavedData\(false\)[\s\S]*const cached = await getCached/, `${rel} dejó de hidratar caché en estado neutro.`);
+  must(rel, /if \(cached\)[\s\S]*setLoading\(false\)/, `${rel} dejó de pintar la caché inmediatamente.`);
+  must(rel, /catch[\s\S]*if \(cached\)[\s\S]*setUsingSavedData\(true\)/, `${rel} dejó de reservar el aviso offline para un fallo remoto real.`);
+  must(rel, /OfflineDataNotice/, `${rel} perdió la comunicación explícita del fallback real.`);
+}
+
+must('src/app/(tabs)/calendar.tsx', /readClientResource<UcapsaEvent\[\]>\(cacheScope, clientReadKeys\.calendarEvents\)/, 'Calendario dejó de hidratar eventos guardados.');
+must('src/app/(tabs)/calendar.tsx', /readClientResource<CalendarClassesOfflineSnapshot>\(cacheScope, clientReadKeys\.calendarClasses\)/, 'Calendario dejó de hidratar clases guardadas.');
+must('src/app/(tabs)/calendar.tsx', /getCachedMyPracticeActivity/, 'Calendario dejó de hidratar prácticas guardadas.');
+must('src/app/(tabs)/calendar.tsx', /const staleSource =[\s\S]*if \(staleSource\)[\s\S]*setUsingSavedData\(true\)/, 'Calendario dejó de activar el aviso sólo después de fallos remotos reales.');
+
+must('src/app/achievements.tsx', /setUsingCachedData\(false\)[\s\S]*getCachedAchievementsForUser\(user\.id\)/, 'Logros globales volvió a marcar caché hidratada como offline antes del refresh.');
+must('src/app/achievements.tsx', /catch[\s\S]*setUsingCachedData\(Boolean\(cached\)\)/, 'Logros globales dejó de activar fallback sólo tras fallo remoto.');
+must('src/app/client/dog-achievements.tsx', /setUsingSavedData\(false\)[\s\S]*getCachedAchievementsForDog\(user\.id, dogId\)/, 'Logros del perro volvió a marcar caché hidratada como offline antes del refresh.');
+must('src/app/client/dog-achievements.tsx', /catch[\s\S]*if \(cachedAchievements\)[\s\S]*setUsingSavedData\(true\)/, 'Logros del perro dejó de activar fallback sólo tras fallo remoto.');
+
+// Pantallas auditadas previamente: conservan caché y sólo comunican fallback tras fallo remoto.
 must('src/app/(tabs)/classes.tsx', /Mostrando clases guardadas/, 'Clases perdió su aviso offline.');
 must('src/app/(tabs)/dog.tsx', /OfflineDataNotice/, 'Mi perro perdió su aviso offline.');
 must('src/app/(tabs)/payments.tsx', /Mostrando saldo guardado/, 'Pagos perdió su aviso de saldo guardado.');
@@ -106,4 +134,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('OFFLINE ROUNDTRIP OK: cache-first, refresh remoto, fallback real, colas, prácticas y seguridad bancaria revisados.');
+console.log('OFFLINE ROUNDTRIP OK: cache-first, refresh remoto, fallback real, warm global, colas y seguridad bancaria revisados.');
