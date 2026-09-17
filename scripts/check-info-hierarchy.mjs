@@ -22,11 +22,18 @@ must('src/app/account-settings.tsx', /NotificationSettingsCard/, 'Notificaciones
 mustNot('src/app/account-settings.tsx', />ABRIR</, 'Ajustes volvió a añadir el texto redundante ABRIR a tarjetas ya navegables.');
 mustNot('src/app/account-settings.tsx', /Socio UCAPSA/, 'Cuenta volvió a repetir una tarjeta de identidad antes de la tarea concreta.');
 
-// Mi perro = perro seleccionado -> entrenamiento/logros/historial -> detalle/edición.
+// Mi perro = perro seleccionado -> resumen compacto de logros -> ficha completa dog-specific.
 mustNot('src/app/(tabs)/dog.tsx', /ClientPageHeader/, 'Mi perro volvió al hero grande redundante.');
 must('src/app/(tabs)/dog.tsx', /\/client\/dog-profile\?dogId=/, 'Mi perro perdió la edición del perro seleccionado.');
 must('src/app/(tabs)/dog.tsx', /\/client\/class-detail\?enrollmentId=/, 'El historial de Mi perro dejó de bajar al detalle de clase.');
 must('src/app/(tabs)/dog.tsx', /LOGROS UCAPSA/, 'Mi perro perdió el bloque canónico de logros del perro.');
+must('src/app/(tabs)/dog.tsx', /AchievementBadgeGrid[\s\S]*maxItems=\{4\}/, 'Mi perro dejó de limitar los logros al resumen compacto de cuatro etapas.');
+must('src/components/domain/AchievementBadgeGrid.tsx', /if \(maxItems && visibleItems\[0\]\?\.dogId\)/, 'El resumen de Mi perro dejó de compactar la progresión dog-specific.');
+must('src/components/domain/AchievementBadgeGrid.tsx', /\/client\/dog-achievements\?dogId=/, 'El resumen de logros perdió el acceso a la ficha completa del perro.');
+must('src/app/client/dog-achievements.tsx', /useLocalSearchParams<\{ dogId\?/, 'La ficha de logros dejó de resolver un perro concreto por dogId.');
+must('src/app/client/dog-achievements.tsx', /getCachedAchievementsForDog\(user\.id, dogId\)/, 'La ficha de logros dejó de hidratar caché por perro.');
+must('src/app/client/dog-achievements.tsx', /getMyDogAchievements\(dogId,/, 'La ficha de logros dejó de refrescar la progresión del perro seleccionado.');
+must('src/app/client/dog-achievements.tsx', /AchievementBadgeGrid items=\{items\}/, 'La ficha de logros perdió el roadmap completo de progresión.');
 
 // Actividad = resumen -> listado -> ficha particular.
 mustNot('src/app/client/practice-activity.tsx', /ClientPageHeader/, 'Racha y práctica volvió a repetir un hero debajo del título de navegación.');
