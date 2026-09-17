@@ -9,7 +9,7 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
-import { getMyPracticeActivity, type PracticeActivityEntry, type PracticeActivitySnapshot } from '../../services/practice.service';
+import { getCachedMyPracticeActivity, getMyPracticeActivity, type PracticeActivityEntry, type PracticeActivitySnapshot } from '../../services/practice.service';
 import { formatPracticeDate, practiceDifficultyLabel } from '../../utils/practicePresentation';
 
 export default function PracticeDetailScreen() {
@@ -21,6 +21,7 @@ export default function PracticeDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [usingSavedData, setUsingSavedData] = useState(false);
   const loadRunRef = useRef(0);
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
   const premium = format.key === 'member';
@@ -32,17 +33,35 @@ export default function PracticeDetailScreen() {
     if (!user || isAdmin) return;
 
     setError(null);
+    setUsingSavedData(false);
+
+    const cached = await getCachedMyPracticeActivity(user.id);
+    if (!isCurrentRun()) return;
+    const cachedEntry = practiceId ? cached?.entries.find((item) => item.id === practiceId) ?? null : null;
+    if (cached) {
+      setActivity(cached);
+      setEntry(cachedEntry);
+      setLoading(false);
+    }
+
     try {
       const next = await getMyPracticeActivity(user.id);
       if (!isCurrentRun()) return;
       setActivity(next);
       const found = practiceId ? next.entries.find((item) => item.id === practiceId) ?? null : null;
       setEntry(found);
+      setUsingSavedData(next.source !== 'remote');
       if (!found) setError('No encontramos esta práctica en tu historial guardado.');
     } catch {
       if (!isCurrentRun()) return;
-      setEntry(null);
-      setError('No pudimos cargar esta práctica.');
+      if (cachedEntry) {
+        setActivity(cached);
+        setEntry(cachedEntry);
+        setUsingSavedData(true);
+      } else {
+        setEntry(null);
+        setError('No pudimos cargar esta práctica.');
+      }
     } finally {
       if (isCurrentRun()) setLoading(false);
     }
@@ -69,7 +88,7 @@ export default function PracticeDetailScreen() {
     >
       <UcapsaAmbientBackground format={format} variant="home" />
 
-      {activity && activity.source !== 'remote' ? (
+      {usingSavedData && activity ? (
         <OfflineDataNotice savedAt={activity.savedAt} onRetry={() => void refresh()} premium={premium} label="Mostrando práctica guardada" />
       ) : null}
 

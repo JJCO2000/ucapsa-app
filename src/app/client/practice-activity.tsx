@@ -11,10 +11,12 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
-import { getMyPracticeActivity, saveMyPracticeSession, type PracticeActivitySnapshot } from '../../services/practice.service';
+import { clientReadKeys, readClientResource, sanitizeProgramRowsForCache, writeClientResource } from '../../services/client-read-cache.service';
+import { getCachedMyPracticeActivity, getMyPracticeActivity, saveMyPracticeSession, type PracticeActivitySnapshot } from '../../services/practice.service';
 import { DEFAULT_PRACTICE_TARGET_DAYS, getPracticeGoalProgress, getPracticeTargetDays, togglePracticeTargetDay, type PracticeTargetDay } from '../../services/practice-goal-preference.service';
 import { getMyProgramEnrollments, getProgramEnrollmentDogName } from '../../services/programs.service';
 import type { PracticeDifficulty, ProgramEnrollmentWithDetails } from '../../types/app.types';
+import { DEFAULT_READ_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
 
 function localPracticeDateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -52,6 +54,8 @@ export default function PracticeActivityScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [usingSavedData, setUsingSavedData] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [startedAt, setStartedAt] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<PracticeDifficulty | null>(null);
@@ -70,26 +74,63 @@ export default function PracticeActivityScreen() {
     if (!user || isAdmin) return;
 
     setError(null);
-    const [practiceResult, programsResult, targetResult] = await Promise.allSettled([
-      getMyPracticeActivity(user.id),
-      getMyProgramEnrollments(),
+    setUsingSavedData(false);
+
+    const [cachedActivity, cachedPrograms, targetResult] = await Promise.all([
+      getCachedMyPracticeActivity(user.id),
+      readClientResource<ProgramEnrollmentWithDetails[]>(user.id, clientReadKeys.programs),
       getPracticeTargetDays(user.id),
     ]);
     if (!isCurrentRun()) return;
 
+    if (cachedActivity) {
+      setActivity(cachedActivity);
+      setSavedAt(cachedActivity.savedAt);
+      setLoading(false);
+    }
+    if (cachedPrograms) {
+      setActiveProgram(cachedPrograms.data.find((item) => item.enrollment.status === 'active') ?? null);
+    }
+    setTargetDays(targetResult);
+
+    const [practiceResult, programsResult] = await Promise.allSettled([
+      withOperationTimeout(getMyPracticeActivity(user.id), DEFAULT_READ_TIMEOUT_MS, 'practice-activity'),
+      withOperationTimeout(getMyProgramEnrollments(), DEFAULT_READ_TIMEOUT_MS, 'practice-programs'),
+    ]);
+    if (!isCurrentRun()) return;
+
+    let staleFallback = false;
+    let staleSavedAt: string | null = null;
+
     if (practiceResult.status === 'fulfilled') {
       setActivity(practiceResult.value);
+      if (practiceResult.value.source !== 'remote') {
+        staleFallback = true;
+        staleSavedAt = practiceResult.value.savedAt ?? cachedActivity?.savedAt ?? null;
+      }
+    } else if (cachedActivity) {
+      setActivity(cachedActivity);
+      staleFallback = true;
+      staleSavedAt = cachedActivity.savedAt;
     } else {
       setError('No pudimos cargar tu actividad de práctica.');
     }
 
     if (programsResult.status === 'fulfilled') {
-      setActiveProgram(programsResult.value.find((item) => item.enrollment.status === 'active') ?? null);
+      const remotePrograms = programsResult.value;
+      setActiveProgram(remotePrograms.find((item) => item.enrollment.status === 'active') ?? null);
+      await writeClientResource(user.id, clientReadKeys.programs, sanitizeProgramRowsForCache(remotePrograms));
+      if (!isCurrentRun()) return;
+    } else if (cachedPrograms) {
+      setActiveProgram(cachedPrograms.data.find((item) => item.enrollment.status === 'active') ?? null);
+      staleFallback = true;
+      staleSavedAt = staleSavedAt ?? cachedPrograms.saved_at;
     } else {
       setActiveProgram(null);
     }
 
-    if (targetResult.status === 'fulfilled') setTargetDays(targetResult.value);
+    setUsingSavedData(staleFallback);
+    if (staleFallback) setSavedAt(staleSavedAt);
     setLoading(false);
   }, [isAdmin, user]);
 
@@ -165,8 +206,8 @@ export default function PracticeActivityScreen() {
     >
       <UcapsaAmbientBackground format={format} variant="home" />
 
-      {activity && activity.source !== 'remote' ? (
-        <OfflineDataNotice savedAt={activity.savedAt} onRetry={() => void refresh()} premium={premium} label="Mostrando actividad guardada" />
+      {usingSavedData && activity ? (
+        <OfflineDataNotice savedAt={savedAt ?? activity.savedAt} onRetry={() => void refresh()} premium={premium} label="Mostrando información guardada" />
       ) : null}
 
       {loading ? (

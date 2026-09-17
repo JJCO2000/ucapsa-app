@@ -55,6 +55,28 @@ must('src/services/practice.service.ts', /if \(isLikelyNetworkError\(error\)\)[\
 must('src/services/practice.service.ts', /await removePending\(input\.userId, clientEventId\)[\s\S]*syncStatus: 'synced'/, 'Una práctica sincronizada dejó de retirarse de la cola tras confirmación.');
 must('src/services/practice.service.ts', /mergeActivityEntries\(cached\?\.entries \?\? \[\], pending/, 'La actividad offline dejó de incluir prácticas pendientes.');
 
+// 6.1: cache-first no significa offline. La caché se pinta silenciosamente y el aviso
+// sólo se activa después de que el intento remoto haya fallado o haya devuelto fallback.
+must('src/screens/home/HomeExperienceScreen.tsx', /'hydrated'/, 'Inicio perdió el estado neutro de caché hidratada.');
+must('src/screens/home/HomeExperienceScreen.tsx', /if \(savedSnapshot\)[\s\S]*setSnapshotState\('hydrated'\)/, 'Inicio volvió a marcar la caché como offline antes del refresh remoto.');
+must('src/screens/home/HomeExperienceScreen.tsx', /else if \(cachedSnapshot\)[\s\S]*setSnapshotState\('cached'\)/, 'Inicio dejó de marcar fallback guardado cuando sí falla el snapshot remoto.');
+must('src/screens/home/HomeExperienceScreen.tsx', /snapshotState === 'cached' \|\| snapshotState === 'partial'/, 'Inicio perdió el aviso posterior a un fallo real de actualización.');
+mustNot('src/screens/home/HomeExperienceScreen.tsx', /if \(savedSnapshot\)[\s\S]{0,220}setSnapshotState\('cached'\)/, 'Inicio vuelve a mostrar aviso offline durante la simple hidratación de caché.');
+
+for (const rel of [
+  'src/app/client/practice-activity.tsx',
+  'src/app/client/practice-history.tsx',
+  'src/app/client/practice-detail.tsx',
+]) {
+  must(rel, /getCachedMyPracticeActivity/, `${rel} dejó de hidratar actividad local antes de consultar red.`);
+  must(rel, /setUsingSavedData\(false\)[\s\S]*getCachedMyPracticeActivity/, `${rel} dejó de iniciar la hidratación local sin falso aviso offline.`);
+  must(rel, /setUsingSavedData\(true\)|source !== 'remote'/, `${rel} dejó de activar fallback sólo después del intento remoto.`);
+  mustNot(rel, /activity && activity\.source !== 'remote' \?/, `${rel} volvió a usar el origen de la caché hidratada como aviso offline inmediato.`);
+}
+must('src/app/client/practice-activity.tsx', /readClientResource<ProgramEnrollmentWithDetails\[\]>\(user\.id, clientReadKeys\.programs\)/, 'Racha dejó de hidratar el programa activo desde caché.');
+must('src/app/client/practice-activity.tsx', /cachedPrograms\.data\.find\(\(item\) => item\.enrollment\.status === 'active'\)/, 'Racha ya no puede conservar el programa activo sin conexión.');
+must('src/app/client/practice-activity.tsx', /writeClientResource\(user\.id, clientReadKeys\.programs, sanitizeProgramRowsForCache\(remotePrograms\)\)/, 'Racha dejó de actualizar la caché de programas después de una lectura remota correcta.');
+
 // Pagos offline: sólo resumen; banco/CLABE requieren red fresca en la acción.
 must('src/services/client-offline-sync.service.ts', /createPaymentOfflineSummary/, 'El resumen de pagos dejó de prepararse para offline.');
 mustNot('src/services/client-read-cache.service.ts', /paymentSettings/, 'Los datos bancarios volvieron a ser elegibles para caché.');
@@ -63,11 +85,14 @@ must('src/app/client/payment-transfer.tsx', /setSettings\(null\)/, 'Transferir d
 must('src/app/client/payment-transfer.tsx', /getPaymentSettings\(\)/, 'Transferir dejó de consultar datos bancarios en vivo.');
 must('src/app/client/payment-transfer.tsx', /isValidClabe\(settings\.clabe\)/, 'Transferir dejó de exigir CLABE válida.');
 
-// Las pantallas críticas deben comunicar fallback guardado en lugar de inventar estado fresco.
+// Pantallas ya auditadas: deben conservar caché y sólo comunicar fallback tras fallo remoto.
 must('src/app/(tabs)/classes.tsx', /Mostrando clases guardadas/, 'Clases perdió su aviso offline.');
 must('src/app/(tabs)/dog.tsx', /OfflineDataNotice/, 'Mi perro perdió su aviso offline.');
 must('src/app/(tabs)/payments.tsx', /Mostrando saldo guardado/, 'Pagos perdió su aviso de saldo guardado.');
-must('src/screens/home/HomeExperienceScreen.tsx', /Mostrando la última información guardada/, 'Inicio perdió su aviso de snapshot guardado.');
+must('src/app/(tabs)/announcements.tsx', /if \(localAnnouncements\)[\s\S]*setUsingSavedData\(true\)/, 'Anuncios dejó de activar fallback sólo después de fallar la red.');
+must('src/app/client/attendance-history.tsx', /catch[\s\S]*if \(cached\) setUsingSavedData\(true\)/, 'Asistencias dejó de reservar el aviso offline para un fallo remoto real.');
+must('src/app/client/membership.tsx', /membershipResult\.status === 'rejected' && membershipCache[\s\S]*setUsingSavedData\(true\)/, 'Membresía dejó de reservar el aviso offline para un fallo remoto real.');
+must('src/app/(tabs)/services.tsx', /catch[\s\S]*if \(cached\) setUsingSavedData\(true\)/, 'Servicios dejó de reservar el aviso offline para un fallo remoto real.');
 
 if (failures.length) {
   console.error('OFFLINE ROUNDTRIP FAIL:');
@@ -75,4 +100,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('OFFLINE ROUNDTRIP OK: caché, colas, foreground retry, prácticas y seguridad bancaria revisados.');
+console.log('OFFLINE ROUNDTRIP OK: cache-first, refresh remoto, fallback real, colas, prácticas y seguridad bancaria revisados.');
