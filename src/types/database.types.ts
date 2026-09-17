@@ -3,6 +3,7 @@ import type { Database as GeneratedDatabase } from './database.generated';
 type PublicSchema = GeneratedDatabase['public'];
 type MemberVisitsTable = PublicSchema['Tables']['member_visits'];
 type ProgramAttendancesTable = PublicSchema['Tables']['program_attendances'];
+type UserAchievementsTable = PublicSchema['Tables']['user_achievements'];
 
 type OfflineMemberVisitsTable = Omit<MemberVisitsTable, 'Row' | 'Insert' | 'Update'> & {
   Row: MemberVisitsTable['Row'] & { client_event_id: string | null };
@@ -14,6 +15,12 @@ type OfflineProgramAttendancesTable = Omit<ProgramAttendancesTable, 'Row' | 'Ins
   Row: ProgramAttendancesTable['Row'] & { client_event_id: string | null };
   Insert: ProgramAttendancesTable['Insert'] & { client_event_id?: string | null };
   Update: ProgramAttendancesTable['Update'] & { client_event_id?: string | null };
+};
+
+type DogScopedUserAchievementsTable = Omit<UserAchievementsTable, 'Row' | 'Insert' | 'Update'> & {
+  Row: UserAchievementsTable['Row'] & { dog_id: string | null };
+  Insert: UserAchievementsTable['Insert'] & { dog_id?: string | null };
+  Update: UserAchievementsTable['Update'] & { dog_id?: string | null };
 };
 
 type MemberVisitResult = {
@@ -68,9 +75,10 @@ type OfflineFunctions = Omit<
 };
 
 type OfflinePublicSchema = Omit<PublicSchema, 'Tables' | 'Functions'> & {
-  Tables: Omit<PublicSchema['Tables'], 'member_visits' | 'program_attendances'> & {
+  Tables: Omit<PublicSchema['Tables'], 'member_visits' | 'program_attendances' | 'user_achievements'> & {
     member_visits: OfflineMemberVisitsTable;
     program_attendances: OfflineProgramAttendancesTable;
+    user_achievements: DogScopedUserAchievementsTable;
   };
   Functions: OfflineFunctions;
 };
@@ -79,8 +87,9 @@ type OfflinePublicSchema = Omit<PublicSchema, 'Tables' | 'Functions'> & {
  * Tipos canónicos de la app.
  *
  * `database.generated.ts` sigue siendo la captura generada de Supabase. Este overlay
- * mantiene tipadas las adiciones de la migración offline mientras la captura completa
- * se regenera en el siguiente source-of-truth sync, sin desactivar tipos con `any`.
+ * mantiene tipadas las adiciones ya desplegadas (offline y logros por perro) mientras
+ * la captura completa se regenera en el siguiente source-of-truth sync, sin desactivar
+ * tipos con `any`.
  */
 export type Database = Omit<GeneratedDatabase, 'public'> & {
   public: OfflinePublicSchema;
