@@ -696,6 +696,7 @@ export type CompetitionExamDog = Pick<
 };
 
 export type AdminCompetitionExamAttemptRow = {
+  attempt: CompetitionExamAttempt;
   summary: CompetitionExamAttemptSummary;
   dogName: string;
   ownerName: string | null;
@@ -757,7 +758,7 @@ export async function getAdminCompetitionExamAttemptsWorkspace(
   const cleanExamId = examId.trim();
   if (!cleanExamId) throw new Error('Falta el examen.');
 
-  const [examResult, seasons, dogs, attemptsResult] = await Promise.all([
+  const [examResult, seasons, dogs, attemptsResult, rawAttemptsResult] = await Promise.all([
     supabase.from('ucapsa_exams').select('*').eq('id', cleanExamId).single(),
     getAdminCompetitionSeasons(),
     getCompetitionExamDogsWithOwners(),
@@ -766,24 +767,37 @@ export async function getAdminCompetitionExamAttemptsWorkspace(
       .select('*')
       .eq('exam_id', cleanExamId)
       .order('presented_at', { ascending: false }),
+    supabase
+      .from('ucapsa_exam_attempts')
+      .select('*')
+      .eq('exam_id', cleanExamId)
+      .order('presented_at', { ascending: false }),
   ]);
 
   if (examResult.error) throw examResult.error;
   if (attemptsResult.error) throw attemptsResult.error;
+  if (rawAttemptsResult.error) throw rawAttemptsResult.error;
 
   const dogById = new Map(dogs.map((dog) => [dog.id, dog]));
+  const rawAttemptById = new Map((rawAttemptsResult.data ?? []).map((attempt) => [attempt.id, attempt]));
+  const attempts = (attemptsResult.data ?? []).flatMap<AdminCompetitionExamAttemptRow>((summary) => {
+    if (!summary.attempt_id) return [];
+    const attempt = rawAttemptById.get(summary.attempt_id);
+    if (!attempt) return [];
+    const dog = summary.dog_id ? dogById.get(summary.dog_id) : null;
+    return [{
+      attempt,
+      summary,
+      dogName: dog?.name ?? 'Perro no disponible',
+      ownerName: dog?.ownerName ?? null,
+    }];
+  });
+
   return {
     exam: examResult.data,
     season: seasons.find((season) => season.id === examResult.data.season_id) ?? null,
     dogs,
-    attempts: (attemptsResult.data ?? []).map((summary) => {
-      const dog = summary.dog_id ? dogById.get(summary.dog_id) : null;
-      return {
-        summary,
-        dogName: dog?.name ?? 'Perro no disponible',
-        ownerName: dog?.ownerName ?? null,
-      };
-    }),
+    attempts,
   };
 }
 
