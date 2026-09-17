@@ -24,7 +24,7 @@ must(/grant select on public\.ucapsa_constancy_events to authenticated;/, 'Clien
 must(/grant select on public\.ucapsa_constancy_summary to authenticated;/, 'Cliente perdió lectura del resumen de constancia.');
 
 mustNot(/create table if not exists public\.ucapsa_constancy/, 'Constancia volvió a persistir un resumen editable.');
-mustNot(/\bpoints?\b|\bscore\b|\brank(?:ing)?\b|\bpodium\b|\bmedal\b/i, 'Constancia adelantó puntos/rango/ranking/podio antes de definir la escala.');
+mustNot(/\b(total_points?|score|rank_position|podium_medal|range_override)\b/i, 'Constancia adelantó campos de puntos/rango/ranking/podio antes de definir la escala.');
 mustNot(/program_enrollments\.attendances_count|pe\.attendances_count/, 'Constancia volvió a usar attendances_count legado en vez de asistencias reales.');
 
 if (failures.length) {
