@@ -1,20 +1,35 @@
 import type { Announcement, Membership, MyPaymentOverview, ProgramEnrollmentWithDetails } from '../types/app.types';
 import { getVisibleAnnouncements } from './announcements.service';
 import { flushPendingAttendanceOperations } from './attendance-outbox.service';
-import { clientReadKeys, createMembershipOfflineSummary, createPaymentOfflineSummary, sanitizeProgramRowsForCache, writeClientResource } from './client-read-cache.service';
+import {
+  clientReadKeys,
+  createMembershipOfflineSummary,
+  createPaymentOfflineSummary,
+  sanitizeProgramRowsForCache,
+  writeClientResource,
+  type CalendarClassesOfflineSnapshot,
+} from './client-read-cache.service';
 import { getMyDogs, type BasicDog } from './dogs.service';
+import { getVisibleEvents } from './events.service';
 import { createHomeCacheSource, mergeHomeCache, type HomeProgramSummary } from './home-cache.service';
 import { getMyMembership } from './memberships.service';
 import { getMyPaymentOverview } from './payments.service';
-import { flushPendingPracticeSessions } from './practice.service';
-import { getMyProgramEnrollments } from './programs.service';
+import { flushPendingPracticeSessions, getMyPracticeActivity } from './practice.service';
+import {
+  getMyProgramEnrollments,
+  getProgramClassCancellations,
+  getProgramScheduleTimeline,
+  getPrograms,
+} from './programs.service';
 
 export type OfflineWarmResult = {
   announcements: boolean;
+  calendar: boolean;
   dogs: boolean;
   programs: boolean;
   membership: boolean;
   payments: boolean;
+  practiceActivity: boolean;
   attendanceOutbox: boolean;
   practiceOutbox: boolean;
 };
@@ -42,6 +57,20 @@ async function cacheAnnouncements(userId: string): Promise<Announcement[]> {
     mergeHomeCache(userId, { announcements: createHomeCacheSource(rows) }),
   ]);
   return rows;
+}
+
+async function cacheCalendar(userId: string): Promise<void> {
+  const [events, programs, schedules, cancellations] = await Promise.all([
+    getVisibleEvents(),
+    getPrograms(),
+    getProgramScheduleTimeline(),
+    getProgramClassCancellations(),
+  ]);
+  const classes: CalendarClassesOfflineSnapshot = { programs, schedules, cancellations };
+  await Promise.all([
+    writeClientResource(userId, clientReadKeys.calendarEvents, events),
+    writeClientResource(userId, clientReadKeys.calendarClasses, classes),
+  ]);
 }
 
 async function cacheDogs(userId: string): Promise<BasicDog[]> {
@@ -83,6 +112,13 @@ async function cachePayments(userId: string): Promise<MyPaymentOverview> {
   return overview;
 }
 
+async function cachePracticeActivity(userId: string): Promise<void> {
+  // `getMyPracticeActivity` mantiene su propia caché y mezcla cualquier práctica
+  // pendiente durable. Llamarlo al recuperar sesión deja Racha lista aun si el
+  // usuario pierde conexión antes de abrir esa pantalla.
+  await getMyPracticeActivity(userId);
+}
+
 /**
  * Reintenta todas las escrituras locales durables. Cada cola es independiente:
  * un fallo de red o servidor en una no impide intentar la otra.
@@ -111,20 +147,24 @@ export async function flushPendingClientWrites(userId: string): Promise<OfflineW
 export async function warmClientOfflineData(userId: string): Promise<OfflineWarmResult> {
   const result: OfflineWarmResult = {
     announcements: false,
+    calendar: false,
     dogs: false,
     programs: false,
     membership: false,
     payments: false,
+    practiceActivity: false,
     attendanceOutbox: false,
     practiceOutbox: false,
   };
 
   const tasks = [
     cacheAnnouncements(userId).then(() => { result.announcements = true; }),
+    cacheCalendar(userId).then(() => { result.calendar = true; }),
     cacheDogs(userId).then(() => { result.dogs = true; }),
     cachePrograms(userId).then(() => { result.programs = true; }),
     cacheMembership(userId).then(() => { result.membership = true; }),
     cachePayments(userId).then(() => { result.payments = true; }),
+    cachePracticeActivity(userId).then(() => { result.practiceActivity = true; }),
     flushPendingClientWrites(userId).then((flushResult) => {
       result.attendanceOutbox = flushResult.attendanceOutbox;
       result.practiceOutbox = flushResult.practiceOutbox;
