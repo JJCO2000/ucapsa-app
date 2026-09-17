@@ -2,6 +2,7 @@ import type { Announcement, Membership, MyPaymentOverview, ProgramEnrollmentWith
 import { getVisibleAnnouncements } from './announcements.service';
 import { flushPendingAttendanceOperations } from './attendance-outbox.service';
 import { getMyMemberVisits } from './client-activity.service';
+import { refreshMyDogCompetition } from './client-competition.service';
 import {
   clientReadKeys,
   createMembershipOfflineSummary,
@@ -27,6 +28,7 @@ export type OfflineWarmResult = {
   announcements: boolean;
   calendar: boolean;
   dogs: boolean;
+  competition: boolean;
   programs: boolean;
   membership: boolean;
   payments: boolean;
@@ -79,6 +81,14 @@ async function cacheDogs(userId: string): Promise<BasicDog[]> {
   const rows = await getMyDogs();
   await writeClientResource(userId, clientReadKeys.dogs, rows);
   return rows;
+}
+
+async function cacheCompetition(userId: string, dogs: BasicDog[]): Promise<void> {
+  const results = await Promise.allSettled(
+    dogs.map((dog) => refreshMyDogCompetition(userId, dog.id)),
+  );
+  const failed = results.find((result) => result.status === 'rejected');
+  if (failed?.status === 'rejected') throw failed.reason;
 }
 
 async function cachePrograms(userId: string): Promise<ProgramEnrollmentWithDetails[]> {
@@ -151,6 +161,7 @@ export async function warmClientOfflineData(userId: string): Promise<OfflineWarm
     announcements: false,
     calendar: false,
     dogs: false,
+    competition: false,
     programs: false,
     membership: false,
     payments: false,
@@ -160,10 +171,15 @@ export async function warmClientOfflineData(userId: string): Promise<OfflineWarm
     practiceOutbox: false,
   };
 
+  const dogsTask = cacheDogs(userId);
+
   const tasks = [
     cacheAnnouncements(userId).then(() => { result.announcements = true; }),
     cacheCalendar(userId).then(() => { result.calendar = true; }),
-    cacheDogs(userId).then(() => { result.dogs = true; }),
+    dogsTask.then(() => { result.dogs = true; }),
+    dogsTask
+      .then((dogs) => cacheCompetition(userId, dogs))
+      .then(() => { result.competition = true; }),
     cachePrograms(userId).then(() => { result.programs = true; }),
     cacheMembership(userId).then(() => { result.membership = true; }),
     cachePayments(userId).then(() => { result.payments = true; }),
