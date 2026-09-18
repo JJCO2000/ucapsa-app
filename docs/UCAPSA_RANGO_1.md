@@ -51,8 +51,8 @@ La cuenta y la membresía pueden ser compartidas; la identidad competitiva siemp
 
 Un mismo usuario puede tener, por ejemplo:
 
-- Tuka → Diamante · #1
-- Luna → Esmeralda · #12
+- Tuka → Oro · #1
+- Luna → Plata · #12
 
 Nunca se copia rango, examen o posición entre perros del mismo dueño.
 
