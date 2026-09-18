@@ -3,7 +3,7 @@ import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
-import { supabase } from '../../lib/supabase';
+import { signInWithEmail } from '../../services/auth.service';
 import { DEFAULT_WRITE_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
 
 export default function LoginScreen() {
@@ -12,7 +12,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
   async function handleLogin() {
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanEmail = email.trim();
 
     if (!cleanEmail || !password) {
       Alert.alert('Faltan datos', 'Escribe tu correo y contrasena.');
@@ -22,10 +22,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const { error } = await withOperationTimeout(
-        supabase.auth.signInWithPassword({
-          email: cleanEmail,
-          password,
-        }),
+        signInWithEmail(cleanEmail, password),
         DEFAULT_WRITE_TIMEOUT_MS,
         'auth-login',
       );
