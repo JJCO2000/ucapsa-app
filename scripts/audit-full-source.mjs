@@ -119,8 +119,14 @@ const sourceSet = new Set(sourceFiles);
 const imported = new Set();
 
 function resolveImport(fromFile, specifier) {
-  if (!specifier.startsWith('.')) return null;
-  const base = path.posix.normalize(path.posix.join(path.posix.dirname(fromFile), specifier));
+  const base = specifier.startsWith('@/')
+    ? path.posix.normalize(path.posix.join('src', specifier.slice(2)))
+    : specifier.startsWith('.')
+      ? path.posix.normalize(path.posix.join(path.posix.dirname(fromFile), specifier))
+      : null;
+
+  if (!base) return null;
+
   const candidates = [
     base,
     `${base}.ts`,
