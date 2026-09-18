@@ -1,12 +1,14 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import type { ReactNode } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { MemberClubCrest } from '../domain/MemberClubCrest';
 import { ucapsaBrand } from '../../constants/brand';
 import type { UcapsaFormat } from '../../constants/ucapsaFormats';
 
 type IconFamily = 'material' | 'community';
+type MaterialIconName = ComponentProps<typeof MaterialIcons>['name'];
+type CommunityIconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 type HeroProps = {
   format: UcapsaFormat;
@@ -19,10 +21,10 @@ type HeroProps = {
 
 function Icon({ family = 'material', name, size, color }: { family?: IconFamily; name: string; size: number; color: string }) {
   if (family === 'community') {
-    return <MaterialCommunityIcons name={name as any} size={size} color={color} />;
+    return <MaterialCommunityIcons name={name as CommunityIconName} size={size} color={color} />;
   }
 
-  return <MaterialIcons name={name as any} size={size} color={color} />;
+  return <MaterialIcons name={name as MaterialIconName} size={size} color={color} />;
 }
 
 export function UcapsaRoleHero({ format, eyebrow, title, subtitle, right, icon }: HeroProps) {
