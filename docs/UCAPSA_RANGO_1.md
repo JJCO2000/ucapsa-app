@@ -1,6 +1,6 @@
 # Plan UCAPSA Rango 1 — arquitectura canónica
 
-Estado: **Rango 1 en implementación funcional**. La fuente canónica, el puntaje competitivo, los percentiles de Rango y el desempate determinista de Ranking ya están definidos.
+Estado: **Rango 1 funcionalmente cerrado**. Fuente canónica, temporadas, Constancia, Exámenes, importación, ajustes, premios, puntaje competitivo, Rangos, Ranking, Podio y superficies Admin/Cliente están implementados y protegidos por guards.
 
 Este documento reemplaza como fuente de producto a las decisiones anteriores de `UCAPSA_POINTS.md` y `UCAPSA_POINTS_UX_AUDIT.md` cuando exista contradicción.
 
@@ -283,9 +283,20 @@ program_attendance
 
 Ninguna pantalla recalcula una fórmula alternativa.
 
-## Fuera de alcance de esta fundación
+## Cierre de Rango 1
 
-Fuera de alcance deliberadamente:
+Rango 1 queda funcionalmente cerrado con estas superficies:
+
+- Admin: Temporadas, Rangos / Constancia, Ranking + Podio, Exámenes manuales/Excel, Ajustes y Premios.
+- Cliente: resumen dog-specific, Rango, Ranking + Podio, Constancia, Exámenes oficiales y temporadas anteriores mediante selector de temporada.
+- Offline cliente: caché silenciosa y refresh remoto para Competencia; el aviso de datos guardados sólo aparece ante fallback real.
+- SSOT: Rango, score, Ranking y Podio son derivados; ninguna pantalla mantiene copias editables.
+
+La base actual puede devolver listas vacías mientras no exista una temporada no-borrador con población competitiva real; eso es un estado de datos, no una funcionalidad pendiente.
+
+## Fuera de alcance deliberadamente
+
+
 
 - normalización porcentual de exámenes con máximos diferentes: Rango 1 usa los puntos oficiales capturados tal cual;
 - bonificaciones, topes o rachas adicionales;
