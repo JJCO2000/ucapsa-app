@@ -2,6 +2,7 @@ import { ucapsaBrand } from '../constants/brand';
 import { supabase } from '../lib/supabase';
 import type { TableUpdate } from '../types/database.helpers';
 import type { Profile } from '../types/app.types';
+import { requestMyAccountDeletion } from './account-deletion.service';
 
 
 type SupabaseErrorDetails = {
@@ -118,23 +119,9 @@ export async function updateAdminCustomerProfile(userId: string, input: ProfileU
   return data as Profile;
 }
 
+/** @deprecated Use requestMyAccountDeletion from account-deletion.service. */
 export async function requestAccountDeletion(reason?: string): Promise<void> {
-  const { data: authData, error: authError } = await supabase.auth.getUser();
-  if (authError) throw authError;
-
-  const userId = authData.user?.id;
-  if (!userId) throw new Error('No hay sesion activa.');
-
-  const { error } = await supabase
-    .from('profiles')
-    .update({
-      deletion_requested_at: new Date().toISOString(),
-      deletion_request_reason: reason?.trim() || 'Solicitud desde la app.',
-      updated_at: new Date().toISOString(),
-    })
-    .eq('user_id', userId);
-
-  if (error) throw error;
+  await requestMyAccountDeletion(reason);
 }
 
 export async function updateProfileDogName(userId: string, dogName: string): Promise<Profile> {
