@@ -310,6 +310,13 @@ export type Database = {
             foreignKeyName: "dog_awards_season_id_fkey"
             columns: ["season_id"]
             isOneToOne: false
+            referencedRelation: "ucapsa_continuity_observations"
+            referencedColumns: ["season_id"]
+          },
+          {
+            foreignKeyName: "dog_awards_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
             referencedRelation: "ucapsa_exam_eligibility"
             referencedColumns: ["season_id"]
           },
@@ -696,6 +703,13 @@ export type Database = {
             referencedRelation: "memberships"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "member_visits_membership_id_fkey"
+            columns: ["membership_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_continuity_observations"
+            referencedColumns: ["membership_id"]
+          },
         ]
       }
       membership_billing_profiles: {
@@ -742,6 +756,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "memberships"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "membership_billing_profiles_membership_id_fkey"
+            columns: ["membership_id"]
+            isOneToOne: true
+            referencedRelation: "ucapsa_continuity_observations"
+            referencedColumns: ["membership_id"]
           },
         ]
       }
@@ -1250,6 +1271,13 @@ export type Database = {
             referencedRelation: "memberships"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "payment_obligations_membership_id_fkey"
+            columns: ["membership_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_continuity_observations"
+            referencedColumns: ["membership_id"]
+          },
         ]
       }
       payment_settings: {
@@ -1344,6 +1372,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "memberships"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_membership_id_fkey"
+            columns: ["membership_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_continuity_observations"
+            referencedColumns: ["membership_id"]
           },
           {
             foreignKeyName: "payments_obligation_id_fkey"
@@ -2245,6 +2280,13 @@ export type Database = {
             foreignKeyName: "ucapsa_competition_adjustments_season_id_fkey"
             columns: ["season_id"]
             isOneToOne: false
+            referencedRelation: "ucapsa_continuity_observations"
+            referencedColumns: ["season_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_competition_adjustments_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
             referencedRelation: "ucapsa_exam_eligibility"
             referencedColumns: ["season_id"]
           },
@@ -2774,6 +2816,13 @@ export type Database = {
             foreignKeyName: "ucapsa_exams_season_id_fkey"
             columns: ["season_id"]
             isOneToOne: false
+            referencedRelation: "ucapsa_continuity_observations"
+            referencedColumns: ["season_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exams_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
             referencedRelation: "ucapsa_exam_eligibility"
             referencedColumns: ["season_id"]
           },
@@ -2878,6 +2927,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ucapsa_competition_seasons"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_import_batches_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_continuity_observations"
+            referencedColumns: ["season_id"]
           },
           {
             foreignKeyName: "ucapsa_import_batches_season_id_fkey"
@@ -3192,6 +3248,131 @@ export type Database = {
           },
         ]
       }
+      ucapsa_value_exposures: {
+        Row: {
+          created_at: string
+          dog_id: string
+          event_date: string
+          id: string
+          occurred_at: string
+          season_id: string
+          surface: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dog_id: string
+          event_date?: string
+          id?: string
+          occurred_at?: string
+          season_id: string
+          surface: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dog_id?: string
+          event_date?: string
+          id?: string
+          occurred_at?: string
+          season_id?: string
+          surface?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ucapsa_value_exposures_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_value_exposures_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_value_exposures_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_leaderboard"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_value_exposures_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_ranges"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_value_exposures_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_value_exposures_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_value_exposures_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["season_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_value_exposures_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_leaderboard"
+            referencedColumns: ["season_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_value_exposures_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_ranges"
+            referencedColumns: ["season_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_value_exposures_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
+            referencedColumns: ["season_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_value_exposures_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_seasons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_value_exposures_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_continuity_observations"
+            referencedColumns: ["season_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_value_exposures_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["season_id"]
+          },
+        ]
+      }
       user_achievements: {
         Row: {
           achievement_code: string
@@ -3366,6 +3547,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ucapsa_competition_seasons"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_competition_adjustments_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_continuity_observations"
+            referencedColumns: ["season_id"]
           },
           {
             foreignKeyName: "ucapsa_competition_adjustments_season_id_fkey"
@@ -3553,6 +3741,44 @@ export type Database = {
         }
         Relationships: []
       }
+      ucapsa_continuity_observations: {
+        Row: {
+          activity_events_after_exposure: number | null
+          command_attendances_count: number | null
+          constancy_events_count: number | null
+          current_payment_status: string | null
+          days_since_last_activity: number | null
+          days_to_next_activity: number | null
+          days_to_next_payment: number | null
+          delete_request_after_exposure: boolean | null
+          dog_count: number | null
+          email: string | null
+          first_delete_request_after_exposure: string | null
+          first_exposure_at: string | null
+          full_name: string | null
+          has_value_exposure: boolean | null
+          last_activity_date: string | null
+          last_exposure_at: string | null
+          last_payment_at: string | null
+          member_visits_count: number | null
+          membership_id: string | null
+          membership_is_active: boolean | null
+          membership_status: string | null
+          next_activity_date: string | null
+          next_paid_at: string | null
+          paid_payments_after_exposure: number | null
+          saw_constancy_detail: boolean | null
+          saw_constancy_summary: boolean | null
+          season_ends_at: string | null
+          season_id: string | null
+          season_name: string | null
+          season_starts_at: string | null
+          season_status: string | null
+          user_id: string | null
+          value_exposure_days: number | null
+        }
+        Relationships: []
+      }
       ucapsa_dog_award_summary: {
         Row: {
           award_code: string | null
@@ -3651,6 +3877,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ucapsa_competition_seasons"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dog_awards_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_continuity_observations"
+            referencedColumns: ["season_id"]
           },
           {
             foreignKeyName: "dog_awards_season_id_fkey"
@@ -3760,6 +3993,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ucapsa_competition_seasons"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exams_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_continuity_observations"
+            referencedColumns: ["season_id"]
           },
           {
             foreignKeyName: "ucapsa_exams_season_id_fkey"
@@ -3925,6 +4165,13 @@ export type Database = {
             foreignKeyName: "ucapsa_import_batches_season_id_fkey"
             columns: ["season_id"]
             isOneToOne: false
+            referencedRelation: "ucapsa_continuity_observations"
+            referencedColumns: ["season_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_import_batches_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
             referencedRelation: "ucapsa_exam_eligibility"
             referencedColumns: ["season_id"]
           },
@@ -4029,6 +4276,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ucapsa_competition_seasons"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exams_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_continuity_observations"
+            referencedColumns: ["season_id"]
           },
           {
             foreignKeyName: "ucapsa_exams_season_id_fkey"
@@ -4412,6 +4666,50 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_ucapsa_continuity_observations: {
+        Args: never
+        Returns: {
+          activity_events_after_exposure: number | null
+          command_attendances_count: number | null
+          constancy_events_count: number | null
+          current_payment_status: string | null
+          days_since_last_activity: number | null
+          days_to_next_activity: number | null
+          days_to_next_payment: number | null
+          delete_request_after_exposure: boolean | null
+          dog_count: number | null
+          email: string | null
+          first_delete_request_after_exposure: string | null
+          first_exposure_at: string | null
+          full_name: string | null
+          has_value_exposure: boolean | null
+          last_activity_date: string | null
+          last_exposure_at: string | null
+          last_payment_at: string | null
+          member_visits_count: number | null
+          membership_id: string | null
+          membership_is_active: boolean | null
+          membership_status: string | null
+          next_activity_date: string | null
+          next_paid_at: string | null
+          paid_payments_after_exposure: number | null
+          saw_constancy_detail: boolean | null
+          saw_constancy_summary: boolean | null
+          season_ends_at: string | null
+          season_id: string | null
+          season_name: string | null
+          season_starts_at: string | null
+          season_status: string | null
+          user_id: string | null
+          value_exposure_days: number | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "ucapsa_continuity_observations"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_ucapsa_points_leaderboard: {
         Args: { p_limit?: number }
         Returns: {
@@ -4433,6 +4731,10 @@ export type Database = {
       program_schedule_occurs_on_date: {
         Args: { p_date: string; p_schedule_id: string }
         Returns: boolean
+      }
+      record_ucapsa_value_exposure: {
+        Args: { p_dog_id: string; p_season_id: string; p_surface: string }
+        Returns: undefined
       }
       refresh_program_enrollment_progress: {
         Args: { p_enrollment_id: string }
