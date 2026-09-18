@@ -181,7 +181,7 @@ function PodiumCard({ row }: { row: CompetitionLeaderboardRow }) {
       <Text style={styles.medal}>{medal(position)}</Text>
       <Text numberOfLines={1} style={styles.podiumName}>{row.dog_name || 'Perro'}</Text>
       <Text style={styles.podiumScore}>{numberLabel(row.competitive_score)} pts</Text>
-      <Text style={styles.podiumRange}>{row.range_name || 'Bronce'}</Text>
+      <Text style={styles.podiumRange}>{row.range_name || 'Cobre'}</Text>
     </View>
   );
 }
@@ -196,7 +196,7 @@ function RankingRow({ row }: { row: CompetitionLeaderboardRow }) {
       <View style={{ flex: 1, minWidth: 0 }}>
         <View style={styles.titleLine}>
           <Text numberOfLines={1} style={styles.dogName}>{row.dog_name || 'Perro'}</Text>
-          <View style={styles.rangePill}><Text style={styles.rangePillText}>{row.range_name || 'Bronce'}</Text></View>
+          <View style={styles.rangePill}><Text style={styles.rangePillText}>{row.range_name || 'Cobre'}</Text></View>
         </View>
         <Text style={styles.score}>{numberLabel(row.competitive_score)} pts</Text>
         <Text style={styles.muted}>{Number(row.command_attendances_count ?? 0)} Comandos · {numberLabel(row.exam_points)} pts Exámenes</Text>
