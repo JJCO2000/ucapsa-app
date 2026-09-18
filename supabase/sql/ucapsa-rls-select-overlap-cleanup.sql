@@ -5,7 +5,7 @@
 -- Programas/Horarios public-calendar policies, which become anon-only because
 -- authenticated already has an active-or-admin SELECT policy.
 
-do $
+do $ucapsa$
 declare
   v_missing integer;
 begin
@@ -37,7 +37,7 @@ begin
     raise exception 'RLS overlap cleanup aborted: % canonical SELECT policies are missing.', v_missing;
   end if;
 end;
-$;
+$ucapsa$;
 
 -- member_visits
 drop policy if exists "member_visits_admin_all" on public.member_visits;
