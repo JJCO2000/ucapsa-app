@@ -64,6 +64,7 @@ must('src/screens/home/HomeExperienceScreen.tsx', /\/dog\?dogId=/, 'El logro for
 must('src/services/customer-value.service.ts', /sourceId: string \| null;\s*dogId: string \| null;\s*dogName: string \| null;/, 'El snapshot de Inicio dejó de conservar la identidad del perro en logros.');
 must('src/services/customer-value.service.ts', /dogId,\s*dogName:/, 'El snapshot de Inicio dejó de mapear el perro real del logro.');
 
+must('supabase/sql/ucapsa-server-generated-program-qr.sql', /alter column qr_token set default \(gen_random_uuid\(\)\)::text/i, 'Programas perdió la generación segura de QR en PostgreSQL.');
 must('src/services/attendance-outbox.service.ts', /AsyncStorage/, 'El QR perdió la cola local persistente.');
 must('src/services/attendance-outbox.service.ts', /p_client_event_id/, 'El QR perdió la clave idempotente de sincronización.');
 must('src/services/attendance-outbox.service.ts', /p_captured_at/, 'El QR dejó de conservar la hora real de captura offline.');
