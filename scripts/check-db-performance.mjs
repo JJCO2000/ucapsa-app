@@ -23,7 +23,7 @@ if (/drop\s+index[^;]*(memberships_qr_token_key|events_visibility_idx)/i.test(sq
 }
 
 const rlsRequired = [
-  "if v_missing <> 0",
+  'if v_missing <> 0',
   'drop policy if exists "member_visits_admin_all"',
   'drop policy if exists "membership_billing_profiles_admin_all"',
   'drop policy if exists "payment_obligations_admin_all"',
@@ -40,6 +40,10 @@ for (const token of rlsRequired) {
   if (!rlsSql.includes(token)) {
     throw new Error('RLS SELECT-overlap cleanup contract missing: ' + token);
   }
+}
+
+if (!rlsSql.includes('do $ucapsa$') || !rlsSql.includes('$ucapsa$;')) {
+  throw new Error('RLS cleanup must use the tagged $ucapsa$ DO delimiter.');
 }
 
 for (const canonicalReadPolicy of [
