@@ -82,7 +82,7 @@ export default function AdminCompetitionConstancyScreen() {
       <View style={styles.header}>
         <Text style={styles.kicker}>Competencia UCAPSA</Text>
         <Text style={styles.title}>Rangos / Constancia</Text>
-        <Text style={styles.subtitle}>Hechos reales de Comandos y visitas de socio por perro y temporada. La escala de Rango todavía no está definida.</Text>
+        <Text style={styles.subtitle}>Rango de Constancia por percentil de temporada. Todos los perros cuentan en la población; 0 actividad permanece Bronce.</Text>
       </View>
 
       {loading ? (
@@ -135,7 +135,7 @@ export default function AdminCompetitionConstancyScreen() {
 
               <View style={styles.noteCard}>
                 <MaterialIcons name="info-outline" size={19} color={ucapsaBrand.colors.redDark} />
-                <Text style={styles.noteText}>Esta pantalla muestra el puntaje competitivo canónico, pero sigue sin ordenar por posición ni asignar Rango.</Text>
+                <Text style={styles.noteText}>Rango se calcula sólo con Constancia. El puntaje competitivo se muestra aparte y no decide Bronce/Plata/Oro/Esmeralda/Platino/Diamante.</Text>
               </View>
 
               <View style={styles.searchBox}>
@@ -177,10 +177,12 @@ export default function AdminCompetitionConstancyScreen() {
                         <View style={{ flex: 1, minWidth: 0 }}>
                           <View style={styles.titleLine}>
                             <Text numberOfLines={1} style={styles.dogName}>{dog.dog_name || 'Perro sin nombre'}</Text>
+                            <View style={styles.rangePill}><Text style={styles.rangePillText}>{dog.range_name || 'Bronce'}</Text></View>
                             {!dog.dog_is_active ? <Text style={styles.inactivePill}>Inactivo</Text> : null}
                           </View>
                           <Text numberOfLines={1} style={styles.muted}>{dog.ownerName || 'Dueño sin nombre'}</Text>
-                          <Text style={styles.meta}>{Number(dog.competitive_score ?? 0)} pts · {events} eventos · {commands} Comandos · {visits} visitas</Text>
+                          <Text style={styles.meta}>{events} eventos de Constancia · {Number(dog.competitive_score ?? 0)} pts competitivos</Text>
+                          <Text style={styles.muted}>{commands} Comandos · {visits} visitas</Text>
                         </View>
                         <MaterialIcons name="chevron-right" size={22} color={ucapsaBrand.colors.redDark} />
                       </Pressable>
@@ -235,6 +237,8 @@ const styles = StyleSheet.create({
   dogIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
   titleLine: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   dogName: { flexShrink: 1, color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
+  rangePill: { borderRadius: 999, backgroundColor: ucapsaBrand.colors.redSoft, paddingHorizontal: 6, paddingVertical: 2 },
+  rangePillText: { color: ucapsaBrand.colors.redDark, fontSize: 8, fontWeight: '900' },
   inactivePill: { color: ucapsaBrand.colors.grayDark, backgroundColor: ucapsaBrand.colors.graySoft, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2, fontSize: 8, fontWeight: '900' },
   meta: { color: ucapsaBrand.colors.redDark, fontSize: 10, fontWeight: '900', marginTop: 3 },
 });
