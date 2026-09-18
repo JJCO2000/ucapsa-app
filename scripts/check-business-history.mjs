@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 
 const sql = fs.readFileSync('supabase/sql/ucapsa-business-history-no-delete.sql', 'utf8');
+const achievementHistorySql = fs.readFileSync('supabase/sql/ucapsa-training-achievement-history-hardening.sql', 'utf8');
+const trainingAchievementSql = fs.readFileSync('supabase/sql/ucapsa-rango-1-training-achievements.sql', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
 
 const files = {
@@ -65,6 +67,18 @@ if (!files.announcementsService.includes('archiveAnnouncement') || !files.events
 
 if (!files.cancellationsUi.includes('Reactivar') || !files.restaurantUi.includes('is_active') || !files.restaurantUi.includes('is_available')) {
   throw new Error('Lifecycle alternatives are missing for cancellation/restaurant records.');
+}
+
+if (/create or replace function public\.admin_revoke_ucapsa_training_achievement/i.test(trainingAchievementSql)) {
+  throw new Error('Destructive training-achievement revoke RPC was reintroduced.');
+}
+
+if (/delete\s+from\s+public\.user_achievements\b/i.test(trainingAchievementSql)) {
+  throw new Error('Training achievement SQL physically deletes historical awards.');
+}
+
+if (!/drop function if exists public\.admin_revoke_ucapsa_training_achievement\(uuid,text\)/i.test(achievementHistorySql)) {
+  throw new Error('Training achievement history hardening does not retire the destructive RPC.');
 }
 
 if (!pkg.includes('"check:business-history"')) {
