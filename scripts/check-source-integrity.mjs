@@ -165,7 +165,7 @@ for (const scanRoot of scanRoots) {
   }
 }
 
-must('supabase/sql/ucapsa-server-generated-program-qr.sql', /alter column qr_token set default \\(gen_random_uuid\\(\\)\\)::text/i, 'Programas perdió la generación segura de QR en PostgreSQL.');
+must('supabase/sql/ucapsa-server-generated-program-qr.sql', /alter column qr_token set default \(gen_random_uuid\(\)\)::text/i, 'Programas perdió la generación segura de QR en PostgreSQL.');
 mustNot('src/services/programs.service.ts', /Math\.random\(\)|qr_token:\s*createQrToken\(\)/, 'Programas volvió a generar QR permanentes en cliente.');
 mustNot('src/services/memberships.service.ts', /Math\.random\(\)|qr_token:\s*createQrToken\(\)/, 'Membresías volvió a generar QR permanentes en cliente.');
 
