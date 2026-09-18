@@ -69,7 +69,7 @@
     "check:rango-1-exam-admin-rpcs": "node scripts/check-rango-1-exam-admin-rpcs.mjs",
     "check:rango-1-exam-import": "node scripts/check-rango-1-exam-import.mjs",
     "check:ci-policy": "node scripts/check-ci-policy.mjs",
-    "verify": "npm run typecheck && npm run check:routes && npm run check:integrity && npm run check:ui-quality && npm run check:info-hierarchy && npm run check:navigation-smoke && npm run check:multi-dog && npm run check:offline-roundtrip && npm run check:rango-1-foundation && npm run check:rango-1-constancy && npm run check:rango-1-seasons && npm run check:rango-1-closed-freeze && npm run check:rango-1-exams && npm run check:rango-1-exam-admin-rpcs && npm run check:rango-1-exam-import && npm run check:rango-1-admin-adjustments && npm run check:rango-1-dog-awards && npm run check:rango-1-competition-inputs && npm run check:rango-1-competitive-score && npm run check:rango-1-training-achievements && npm run check:rango-1-db-types && npm run check:rango-1-admin-competition-ui && npm run check:rango-1-admin-adjustments-ui && npm run check:rango-1-admin-awards-ui && npm run check:rango-1-admin-exams-config-ui && npm run check:rango-1-admin-exam-attempts-ui && npm run check:rango-1-admin-exam-import-ui && npm run check:rango-1-admin-constancy-ui && npm run check:rango-1-client-competition-summary && npm run check:rango-1-client-exam-detail-ui && npm run check:rango-1-client-constancy-detail-ui",
+    "verify": "npm run typecheck && npm run check:routes && npm run check:integrity && npm run check:ui-quality && npm run check:info-hierarchy && npm run check:navigation-smoke && npm run check:multi-dog && npm run check:offline-roundtrip && npm run check:rango-1-foundation && npm run check:rango-1-constancy && npm run check:rango-1-seasons && npm run check:rango-1-closed-freeze && npm run check:rango-1-exams && npm run check:rango-1-exam-admin-rpcs && npm run check:rango-1-exam-import && npm run check:rango-1-admin-adjustments && npm run check:rango-1-dog-awards && npm run check:rango-1-competition-inputs && npm run check:rango-1-competitive-score && npm run check:rango-1-ranking-ranges && npm run check:rango-1-training-achievements && npm run check:rango-1-db-types && npm run check:rango-1-admin-competition-ui && npm run check:rango-1-admin-adjustments-ui && npm run check:rango-1-admin-awards-ui && npm run check:rango-1-admin-exams-config-ui && npm run check:rango-1-admin-exam-attempts-ui && npm run check:rango-1-admin-exam-import-ui && npm run check:rango-1-admin-constancy-ui && npm run check:rango-1-client-competition-summary && npm run check:rango-1-client-exam-detail-ui && npm run check:rango-1-client-constancy-detail-ui",
     "audit:report": "npm audit --omit=dev",
     "check:release": "node scripts/check-release.mjs",
     "verify:release": "npm run verify && npm run check:release && npm run check:nanoid-security && npm run check:ci-policy",
@@ -92,7 +92,8 @@
     "check:rango-1-client-competition-summary": "node scripts/check-rango-1-client-competition-summary.mjs",
     "check:rango-1-client-exam-detail-ui": "node scripts/check-rango-1-client-exam-detail-ui.mjs",
     "check:rango-1-client-constancy-detail-ui": "node scripts/check-rango-1-client-constancy-detail-ui.mjs",
-    "check:rango-1-competitive-score": "node scripts/check-rango-1-competitive-score.mjs"
+    "check:rango-1-competitive-score": "node scripts/check-rango-1-competitive-score.mjs",
+    "check:rango-1-ranking-ranges": "node scripts/check-rango-1-ranking-ranges.mjs"
   },
   "private": true,
   "overrides": {
