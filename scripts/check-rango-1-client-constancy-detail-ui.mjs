@@ -81,6 +81,12 @@ if (!/Cobre = constancia en desarrollo/.test(detail)
 if (!/Constancia sobresaliente · top 5%/.test(detail)) {
   failures.push('Detalle perdió la distinción top 5% de Constancia sobresaliente.');
 }
+if (/\bXP\b|Cobre\s+[IVX]+|Plata\s+[IVX]+|Oro\s+[IVX]+/i.test(summary + detail)) {
+  failures.push('Cliente Constancia no debe introducir XP ni subniveles tipo videojuego.');
+}
+if (/90\s*d[ií]as|100\s*d[ií]as|decay/i.test(summary + detail)) {
+  failures.push('Cliente Constancia no debe imponer decay por días sin regla validada.');
+}
 if (/podium_medal|leaderboard_position|ucapsa_points_/i.test(detail)) {
   failures.push('Constancia cliente no puede introducir Podio persistido ni UCAPSA Points legado.');
 }
