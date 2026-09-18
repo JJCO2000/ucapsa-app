@@ -31,7 +31,7 @@ for (const token of [
   ".from('dogs')",
   ".eq('id', cleanDogId)",
   ".eq('user_id', userId)",
-  ".from('ucapsa_competition_inputs')",
+  ".from('ucapsa_competition_scores')",
   ".eq('owner_user_id', userId)",
   ".from('ucapsa_exam_official_results')",
   "readClientResource",
@@ -69,14 +69,14 @@ for (const token of [
 ]) {
   if (!screen.includes(token)) failures.push(`Resumen cliente perdió dato canónico: ${token}`);
 }
-if (!/Todavía no disponibles/.test(screen)) {
-  failures.push('Cliente debe mantener Rango/posición sin inventar mientras no exista escala.');
+for (const token of ['competitive_score', 'constancy_points', 'exam_points', 'admin_adjustment_points']) {
+  if (!screen.includes(token)) failures.push(`Resumen cliente perdió componente del score: ${token}`);
 }
-if (/competitive_score|rank_position|podium_medal|leaderboard_position|ucapsa_points_/i.test(screen + service)) {
-  failures.push('Resumen cliente no puede inventar score/ranking/podio ni usar UCAPSA Points legado.');
+if (!/Rango y posición todavía no disponibles/.test(screen)) {
+  failures.push('Cliente debe mantener Rango/posición pendientes mientras no exista escala.');
 }
-if (/admin_adjustment_points/.test(screen)) {
-  failures.push('Resumen cliente no debe exponer ajustes Admin como si fueran score.');
+if (/rank_position|podium_medal|leaderboard_position|ucapsa_points_/i.test(screen + service)) {
+  failures.push('Resumen cliente no puede inventar Ranking/Podio ni usar UCAPSA Points legado.');
 }
 
 for (const token of [
