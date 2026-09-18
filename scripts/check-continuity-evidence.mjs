@@ -2,6 +2,7 @@ import fs from 'node:fs';
 
 const sql = fs.readFileSync('supabase/sql/ucapsa-continuity-evidence.sql', 'utf8');
 const cohortMigration = fs.readFileSync('supabase/sql/ucapsa-continuity-cohort-lower-bound.sql', 'utf8');
+const accountDeletionMigration = fs.readFileSync('supabase/sql/ucapsa-continuity-account-deletion-ssot.sql', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
 
 const required = [
@@ -39,6 +40,7 @@ const required = [
   "(timezone('America/Mexico_City', x.first_exposure_at))::date >= c.first_activity_date",
   "cohort_membership_payments_30d",
   "left join lateral (",
+  "from public.account_deletion_requests r",
   "order by m.created_at desc",
   'create or replace function public.get_ucapsa_continuity_observations',
   "p.role::text in ('admin', 'super_admin')",
@@ -56,6 +58,18 @@ if (!/\(timezone\('America\/Mexico_City', x\.first_exposure_at\)\)::date >= c\.f
 
 if (!/create or replace view public\.ucapsa_continuity_observations/i.test(cohortMigration)) {
   throw new Error('Continuity cohort migration must replace the canonical observation view.');
+}
+
+if (!/create or replace view public\.ucapsa_continuity_observations/i.test(accountDeletionMigration)) {
+  throw new Error('Continuity account deletion migration must replace the canonical observation view.');
+}
+
+if (!/from public\.account_deletion_requests r/i.test(accountDeletionMigration)) {
+  throw new Error('Continuity account deletion migration must read the canonical account deletion SSOT.');
+}
+
+if (/membership_delete_requests/i.test(sql) || /membership_delete_requests/i.test(accountDeletionMigration)) {
+  throw new Error('Continuity must not confuse membership cancellation with account deletion.');
 }
 
 if (!/v_occurred_at > now\(\) \+ interval '5 minutes'/.test(sql)) {
