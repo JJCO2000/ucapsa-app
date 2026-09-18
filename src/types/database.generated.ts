@@ -1442,6 +1442,9 @@ export type Database = {
           status: Database["public"]["Enums"]["payment_status"]
           updated_at: string
           user_id: string
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
         }
         Insert: {
           amount?: number
@@ -1458,6 +1461,9 @@ export type Database = {
           status?: Database["public"]["Enums"]["payment_status"]
           updated_at?: string
           user_id: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Update: {
           amount?: number
@@ -1474,6 +1480,9 @@ export type Database = {
           status?: Database["public"]["Enums"]["payment_status"]
           updated_at?: string
           user_id?: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Relationships: [
           {
@@ -1868,7 +1877,7 @@ export type Database = {
           physical_card_number?: string | null
           program_id: string
           program_level?: string
-          qr_token: string
+          qr_token?: string
           requirements_met_at?: string | null
           schedule_id: string
           started_at?: string | null
