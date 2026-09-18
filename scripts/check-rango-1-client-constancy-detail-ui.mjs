@@ -31,7 +31,7 @@ for (const token of [
   "competition-constancy:",
   ".from('dogs')",
   ".eq('user_id', userId)",
-  ".from('ucapsa_competition_scores')",
+  ".from('ucapsa_competition_ranges')",
   ".eq('owner_user_id', userId)",
   ".from('ucapsa_constancy_events')",
   ".eq('dog_id', cleanDogId)",
@@ -67,11 +67,17 @@ for (const token of [
 ]) {
   if (!detail.includes(token)) failures.push(`Detalle de Constancia perdió dato canónico: ${token}`);
 }
-if (!/No es un puntaje ni una posición de Ranking/.test(detail)) {
-  failures.push('Detalle debe declarar que Constancia no equivale a score/Ranking.');
+for (const token of ['range_name', 'constancy_percentile']) {
+  if (!detail.includes(token)) failures.push(`Detalle de Constancia perdió dato de Rango: ${token}`);
 }
-if (/rank_position|podium_medal|leaderboard_position|ucapsa_points_/i.test(detail + service)) {
-  failures.push('Constancia cliente no puede introducir Ranking/Podio ni UCAPSA Points legado.');
+if (!/0 eventos: Bronce por regla de actividad/.test(detail)) {
+  failures.push('Detalle de Constancia debe conservar la regla 0 actividad → Bronce.');
+}
+if (!/Tu Rango se deriva únicamente de esta Constancia/.test(detail)) {
+  failures.push('Detalle debe separar Rango de Constancia y Ranking.');
+}
+if (/podium_medal|leaderboard_position|ucapsa_points_/i.test(detail)) {
+  failures.push('Constancia cliente no puede introducir Podio persistido ni UCAPSA Points legado.');
 }
 if (/\.insert\(|\.update\(|\.delete\(|\.rpc\(/.test(detail)) {
   failures.push('Pantalla cliente de Constancia debe ser sólo lectura.');
