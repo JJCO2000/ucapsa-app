@@ -680,14 +680,6 @@ export async function setProgramEnrollmentAttendanceCount(
   }
 }
 
-export async function deleteProgramEnrollment(enrollmentId: string): Promise<void> {
-  const { error } = await supabase.from('program_enrollments').delete().eq('id', enrollmentId);
-  if (error) throw error;
-}
-
-
-
-
 export async function getProgramEnrollmentByQrToken(qrToken: string): Promise<ProgramEnrollmentWithDetails | null> {
   const cleanToken = qrToken.trim();
   if (!cleanToken) return null;

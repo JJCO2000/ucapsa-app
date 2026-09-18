@@ -44,6 +44,8 @@ must('src/services/achievements.service.ts', /getProgramCompletionAchievementCod
 mustNot('src/services/achievements.service.ts', /function\s+programCompletionAchievementCode/, 'Logros volvió a duplicar el mapeo programa -> medalla.');
 mustNot('src/services/memberships.service.ts', /from\('payments'\)\.delete\(\)/, 'La baja de membresía volvió a borrar pagos históricos.');
 mustNot('src/services/memberships.service.ts', /from\('memberships'\)\.delete\(\)/, 'La baja de membresía volvió a borrar la membresía histórica.');
+mustNot('src/services/programs.service.ts', /deleteProgramEnrollment|from\('program_enrollments'\)\.delete\(\)/, 'Programas volvió a borrar inscripciones y su historial dependiente.');
+must('supabase/sql/ucapsa-program-enrollment-history-protection.sql', /revoke delete on table public\.program_enrollments[\s\S]*from authenticated/i, 'Backend volvió a permitir DELETE físico de inscripciones.');
 must('src/services/memberships.service.ts', /payment_obligations[\s\S]*cancelled_at/, 'La baja de membresía dejó de cancelar obligaciones futuras sin borrar historial.');
 must('src/services/memberships.service.ts', /getMyMembershipEligibility/, 'Membresía no tiene una consulta canónica de elegibilidad.');
 must('src/services/memberships.service.ts', /program_completion_achievement/, 'Membresía perdió el fallback de evidencia histórica por logro de programa.');
