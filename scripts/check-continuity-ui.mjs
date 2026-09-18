@@ -32,13 +32,11 @@ if (!/name=["']continuity["']/.test(layout)) {
 }
 
 for (const token of [
-  'record_ucapsa_value_exposure',
   'get_ucapsa_continuity_observations',
   'summarizeContinuity',
   'summarizeContinuityWindow',
   'summarizeContinuityCohort30',
-  "'constancy_summary'",
-  "'constancy_detail'",
+  'recordValueExposureDurably',
 ]) {
   if (!service.includes(token)) failures.push('Servicio Continuidad perdió contrato: ' + token);
 }
@@ -77,6 +75,10 @@ for (const token of [
   'queueValueExposure',
   'recordValueExposureDurably',
   'flushPendingValueExposures',
+  "surface: ValueExposureSurface",
+  "'constancy_summary'",
+  "'constancy_detail'",
+  "supabase.rpc('record_ucapsa_value_exposure'",
   'p_occurred_at: operation.occurredAt',
 ]) {
   if (!outbox.includes(token)) failures.push('Outbox de exposición perdió contrato: ' + token);
