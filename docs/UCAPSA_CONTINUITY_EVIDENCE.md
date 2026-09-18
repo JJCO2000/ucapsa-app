@@ -64,7 +64,7 @@ Se observan hechos reales:
 - **cualquier pago UCAPSA** posterior;
 - **pago de membresía/mensualidad** posterior, separado del resto;
 - estado actual de membresía;
-- solicitud de eliminación posterior a la exposición;
+- solicitud de eliminación de cuenta posterior a la exposición;
 - última actividad y días desde esa actividad.
 
 Para evitar atribuir actividad previa del mismo día, **actividad posterior empieza al día siguiente de la primera exposición**.
