@@ -3,7 +3,7 @@ import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
-import { supabase } from '../../lib/supabase';
+import { AUTH_PASSWORD_MIN_LENGTH, signUpWithEmail, validateNewPassword } from '../../services/auth.service';
 
 export default function RegisterScreen() {
   const [fullName, setFullName] = useState('');
@@ -13,15 +13,16 @@ export default function RegisterScreen() {
 
   async function handleRegister() {
     const cleanName = fullName.trim();
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanEmail = email.trim();
 
     if (!cleanName || !cleanEmail || !password) {
       Alert.alert('Faltan datos', 'Escribe nombre, correo y contrasena.');
       return;
     }
 
-    if (password.length < 6) {
-      Alert.alert('Contrasena muy corta', 'Usa al menos 6 caracteres.');
+    const passwordError = validateNewPassword(password);
+    if (passwordError) {
+      Alert.alert('Contrasena muy corta', passwordError);
       return;
     }
 
@@ -29,14 +30,10 @@ export default function RegisterScreen() {
     try {
       // Crear una cuenta no usa un timeout artificial: Promise.race no cancela
       // una escritura ya enviada y podria reportar fallo aunque el alta termine despues.
-      const { error } = await supabase.auth.signUp({
+      const { error } = await signUpWithEmail({
         email: cleanEmail,
         password,
-        options: {
-          data: {
-            full_name: cleanName,
-          },
-        },
+        fullName: cleanName,
       });
 
       if (error) {
@@ -90,7 +87,7 @@ export default function RegisterScreen() {
         <TextInput
           value={password}
           onChangeText={setPassword}
-          placeholder="Minimo 6 caracteres"
+          placeholder={`Minimo ${AUTH_PASSWORD_MIN_LENGTH} caracteres`}
           secureTextEntry
           textContentType="newPassword"
           style={styles.input}
