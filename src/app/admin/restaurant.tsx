@@ -10,8 +10,6 @@ import { useSession } from '../../hooks/useSession';
 import {
   createRestaurantCategory,
   createRestaurantItem,
-  deleteRestaurantCategory,
-  deleteRestaurantItem,
   getAdminRestaurantMenu,
   updateRestaurantCategory,
   updateRestaurantItem,
@@ -151,20 +149,6 @@ export default function AdminRestaurantScreen() {
     }
   }
 
-  function askDeleteCategory(category: RestaurantMenuCategory) {
-    Alert.alert('Eliminar categoría', 'También se eliminarán los productos que contiene.', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: () => void runAndReload(() => deleteRestaurantCategory(category.id)) },
-    ]);
-  }
-
-  function askDeleteItem(item: RestaurantMenuItem) {
-    Alert.alert('Eliminar producto', `Se eliminará “${item.name}”.`, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: () => void runAndReload(() => deleteRestaurantItem(item.id)) },
-    ]);
-  }
-
   async function runAndReload(action: () => Promise<void>) {
     setSaving(true);
     try {
@@ -217,7 +201,6 @@ export default function AdminRestaurantScreen() {
               <Text style={styles.categoryMeta}>{section.category.is_active ? 'Visible' : 'Oculta'} · {section.items.length} productos</Text>
             </Pressable>
             <Switch value={section.category.is_active} disabled={saving} onValueChange={(value) => void runAndReload(() => updateRestaurantCategory(section.category.id, { is_active: value }).then(() => undefined))} />
-            <Pressable onPress={() => askDeleteCategory(section.category)} style={styles.iconButton}><MaterialIcons name="delete-outline" size={20} color={ucapsaBrand.colors.danger} /></Pressable>
           </View>
 
           {section.items.map((item, index) => (
@@ -260,7 +243,6 @@ export default function AdminRestaurantScreen() {
           <Switch value={itemAvailable} onValueChange={setItemAvailable} />
         </View>
         <Pressable disabled={saving} style={[styles.primaryButton, saving && styles.disabled]} onPress={() => void saveItem()}><Text style={styles.primaryText}>{saving ? 'Guardando...' : 'Guardar producto'}</Text></Pressable>
-        {itemEditing ? <Pressable disabled={saving} style={styles.deleteButton} onPress={() => { setItemOpen(false); askDeleteItem(itemEditing); }}><Text style={styles.deleteText}>Eliminar producto</Text></Pressable> : null}
       </KeyboardAwareModal>
     </KeyboardAwareScreen>
   );
