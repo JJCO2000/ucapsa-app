@@ -6,7 +6,8 @@ import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, TextInp
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
-import { supabase } from '../../lib/supabase';
+import { getActiveDogNamesByUserIds } from '../../services/dogs.service';
+import { getAdminClientProfiles } from '../../services/profiles.service';
 import type { Profile } from '../../types/app.types';
 import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
 
@@ -34,29 +35,8 @@ export default function AdminClientsTab() {
     if (!isAdmin) return;
     setError(null);
     const result = await withOperationTimeout((async () => {
-      const { data, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .in('role', ['client', 'member'])
-        .order('full_name', { ascending: true, nullsFirst: false });
-      if (profileError) throw profileError;
-      const profileRows = (data ?? []) as Profile[];
-      const userIds = profileRows.map((item) => item.user_id).filter(Boolean);
-      if (userIds.length === 0) return { profileRows, nextDogNames: {} as Record<string, string[]> };
-
-      const { data: dogRows, error: dogError } = await supabase
-        .from('dogs')
-        .select('user_id,name')
-        .in('user_id', userIds)
-        .eq('is_active', true)
-        .order('created_at', { ascending: true });
-      if (dogError) throw dogError;
-
-      const nextDogNames: Record<string, string[]> = {};
-      for (const row of (dogRows ?? []) as Array<{ user_id: string; name: string }>) {
-        nextDogNames[row.user_id] = nextDogNames[row.user_id] ?? [];
-        if (!nextDogNames[row.user_id].includes(row.name)) nextDogNames[row.user_id].push(row.name);
-      }
+      const profileRows = await getAdminClientProfiles();
+      const nextDogNames = await getActiveDogNamesByUserIds(profileRows.map((item) => item.user_id));
       return { profileRows, nextDogNames };
     })(), DEFAULT_READ_TIMEOUT_MS, 'admin-clients-load');
 
