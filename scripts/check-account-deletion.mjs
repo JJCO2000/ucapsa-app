@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 
 const sql = fs.readFileSync('supabase/sql/ucapsa-account-deletion-workflow.sql', 'utf8');
+const auditSql = fs.readFileSync('supabase/sql/ucapsa-account-deletion-audit-trail.sql', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
 const service = fs.readFileSync('src/services/account-deletion.service.ts', 'utf8');
 const settings = fs.readFileSync('src/app/account-settings.tsx', 'utf8');
@@ -20,6 +21,29 @@ const required = [
   'revoke all on function public.request_my_account_deletion(text)',
   'revoke all on function public.admin_update_account_deletion_request(uuid, text, text, date)',
 ];
+
+const auditRequired = [
+  'create table if not exists public.account_deletion_request_events',
+  "event_type in ('requested', 'status_changed', 'completed', 'snapshot')",
+  'create or replace function public.admin_complete_account_deletion_request',
+  "if p_status not in ('in_review', 'blocked', 'rejected')",
+  "if v_before.status <> 'blocked'",
+  'notification_method = v_method',
+  'notification_reference = v_reference',
+  'notified_at = v_now',
+  "event_type,\n    from_status,\n    to_status",
+  'revoke all on function public.admin_complete_account_deletion_request(uuid, text, text, text)',
+];
+
+for (const token of auditRequired) {
+  if (!auditSql.toLowerCase().includes(token.toLowerCase())) {
+    throw new Error('Account deletion audit contract missing: ' + token);
+  }
+}
+
+if (/p_status\s+not\s+in\s*\([^)]*completed/i.test(auditSql)) {
+  throw new Error('Generic account deletion status RPC can still complete a request.');
+}
 
 for (const token of required) {
   if (!sql.toLowerCase().includes(token.toLowerCase())) {
