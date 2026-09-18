@@ -45,7 +45,7 @@ export async function registerMyMemberVisitFromQr(
 export async function getAdminMemberVisitMonthlyStats(months = 12): Promise<MemberVisitMonthlyStat[]> {
   const { data, error } = await supabase.rpc('get_admin_member_visit_monthly_stats', { p_months: Math.max(2, Math.min(24, Math.round(months))) });
   if (error) throw error;
-  return (data ?? []).map((row: any) => ({
+  return (data ?? []).map((row) => ({
     month_start: String(row.month_start),
     total_visits: Number(row.total_visits ?? 0),
     unique_members: Number(row.unique_members ?? 0),

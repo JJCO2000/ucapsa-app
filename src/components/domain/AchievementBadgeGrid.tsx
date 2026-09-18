@@ -110,7 +110,7 @@ export function AchievementBadgeGrid({
                 styles.roadmapNode,
                 { backgroundColor: item.unlocked ? tone.soft : lockedBackground, borderColor: item.unlocked ? tone.main : premium ? ucapsaBrand.colors.premiumBorder : ucapsaBrand.colors.textLight },
               ]}>
-                <MaterialCommunityIcons name={item.definition.icon as any} size={24} color={item.unlocked ? tone.dark : lockedColor} />
+                <MaterialCommunityIcons name={item.definition.icon as keyof typeof MaterialCommunityIcons.glyphMap} size={24} color={item.unlocked ? tone.dark : lockedColor} />
               </View>
               {!isLast ? <View style={[styles.roadmapLine, { backgroundColor: item.unlocked ? tone.main : premium ? ucapsaBrand.colors.premiumBorder : ucapsaBrand.colors.borderNeutral }]} /> : null}
             </View>
@@ -183,7 +183,7 @@ export function AchievementMiniRow({
               item.unlocked ? { backgroundColor: tone.soft, borderColor: tone.main } : styles.miniSealLocked,
             ]}
           >
-            <MaterialCommunityIcons name={item.definition.icon as any} size={18} color={item.unlocked ? tone.dark : ucapsaBrand.colors.gray} />
+            <MaterialCommunityIcons name={item.definition.icon as keyof typeof MaterialCommunityIcons.glyphMap} size={18} color={item.unlocked ? tone.dark : ucapsaBrand.colors.gray} />
           </View>
         );
       })}
@@ -212,7 +212,7 @@ export function AchievementDetailModal({
       <View style={styles.modalBackdrop}>
         <View style={[styles.modalCard, premium && styles.modalCardPremium]}>
           <View style={[styles.modalIcon, { backgroundColor: item.unlocked ? tone.soft : ucapsaBrand.colors.graySoft, borderColor: item.unlocked ? tone.main : ucapsaBrand.colors.textLight }]}>
-            <MaterialCommunityIcons name={item.definition.icon as any} size={44} color={item.unlocked ? tone.dark : ucapsaBrand.colors.gray} />
+            <MaterialCommunityIcons name={item.definition.icon as keyof typeof MaterialCommunityIcons.glyphMap} size={44} color={item.unlocked ? tone.dark : ucapsaBrand.colors.gray} />
           </View>
 
           <Text style={[styles.modalKicker, premium && styles.modalKickerPremium]}>{item.unlocked ? 'Logro desbloqueado' : 'Logro pendiente'}</Text>
