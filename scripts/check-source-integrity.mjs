@@ -171,3 +171,5 @@ if (failures.length) {
   process.exit(1);
 }
 console.log('SOURCE INTEGRITY OK: tipos, perros, rutas críticas, offline, jerarquía de información, colores SSOT, próxima sesión, pagos bancarios, UTF-8, textos y CLABE revisados.');
+
+must('supabase/sql/ucapsa-server-generated-program-qr.sql', /alter column qr_token set default \\(gen_random_uuid\\(\\)\\)::text/i, 'Programas perdió la generación segura de QR en PostgreSQL.');
