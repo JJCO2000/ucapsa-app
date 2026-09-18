@@ -114,6 +114,52 @@ for (const file of files) {
   if (insecureHttp) addReview(file, 'URL http no local', insecureHttp);
 }
 
+const sourceFiles = files.filter((file) => file.startsWith('src/') && /\.(ts|tsx|js|jsx)$/.test(file));
+const sourceSet = new Set(sourceFiles);
+const imported = new Set();
+
+function resolveImport(fromFile, specifier) {
+  if (!specifier.startsWith('.')) return null;
+  const base = path.posix.normalize(path.posix.join(path.posix.dirname(fromFile), specifier));
+  const candidates = [
+    base,
+    `${base}.ts`,
+    `${base}.tsx`,
+    `${base}.js`,
+    `${base}.jsx`,
+    path.posix.join(base, 'index.ts'),
+    path.posix.join(base, 'index.tsx'),
+    path.posix.join(base, 'index.js'),
+    path.posix.join(base, 'index.jsx'),
+  ];
+  return candidates.find((candidate) => sourceSet.has(candidate)) ?? null;
+}
+
+for (const file of sourceFiles) {
+  const text = fs.readFileSync(path.join(root, file), 'utf8');
+  const importPatterns = [
+    /(?:import|export)\s+(?:[^'"]*?\s+from\s+)?['"]([^'"]+)['"]/g,
+    /require\(\s*['"]([^'"]+)['"]\s*\)/g,
+    /import\(\s*['"]([^'"]+)['"]\s*\)/g,
+  ];
+  for (const pattern of importPatterns) {
+    for (const match of text.matchAll(pattern)) {
+      const target = resolveImport(file, match[1]);
+      if (target) imported.add(target);
+    }
+  }
+}
+
+const orphanCandidates = sourceFiles
+  .filter((file) => /^(src\/(?:services|components|hooks|utils|screens)\/)/.test(file))
+  .filter((file) => !/\.d\.ts$/.test(file))
+  .filter((file) => !imported.has(file))
+  .sort();
+
+for (const file of orphanCandidates) {
+  addReview(file, 'Módulo sin importador interno detectado', 1);
+}
+
 const categoryCounts = files.reduce((acc, file) => {
   const category =
     file.startsWith('src/') ? 'src' :
@@ -133,6 +179,7 @@ console.log(JSON.stringify({
   bytes: totalBytes,
   categories: categoryCounts,
   reviewFindings: review.length,
+  orphanCandidates: orphanCandidates.length,
 }, null, 2));
 
 if (review.length) {
