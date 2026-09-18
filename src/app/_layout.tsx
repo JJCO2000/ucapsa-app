@@ -8,6 +8,7 @@ import { SessionProvider, useSession } from '../hooks/useSession';
 import { flushPendingAttendanceOperations } from '../services/attendance-outbox.service';
 import { warmClientOfflineData } from '../services/client-offline-sync.service';
 import { flushPendingPracticeSessions } from '../services/practice.service';
+import { flushPendingValueExposures } from '../services/value-exposure-outbox.service';
 
 function RootNavigator() {
   const { loading, startupError, retryStartup, user, isAdmin } = useSession();
@@ -34,6 +35,7 @@ function RootNavigator() {
       void Promise.allSettled([
         flushPendingAttendanceOperations(user.id),
         flushPendingPracticeSessions(user.id),
+        flushPendingValueExposures(user.id),
       ]).then((results) => {
         if (results.some((result) => result.status === 'rejected')) {
           console.warn('Could not retry one or more UCAPSA offline queues.');

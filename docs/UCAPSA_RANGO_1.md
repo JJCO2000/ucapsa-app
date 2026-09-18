@@ -87,11 +87,12 @@ Cada evento canónico de Constancia vale **1 punto** en el score competitivo:
 El **Rango** sigue siendo un sistema separado del Ranking: se deriva únicamente de la Constancia relativa del perro dentro de su temporada. Participan **todos los perros** de la temporada, incluso los de 0 actividad, para conservar el contexto completo del grupo.
 
 Presentación pública simplificada:
-- top 10% → **Oro** · constancia destacada;
+- con **menos de 10 perros** en la temporada → **Constancia en formación**; se muestran actividades reales, pero no se asigna todavía un nivel comparativo;
+- desde **10 perros**: top 10% → **Oro** · constancia destacada;
 - >10% a 40% → **Plata** · constancia sostenida;
 - >40% a 100% → **Cobre** · constancia en desarrollo.
 
-Dentro de Oro, el **top 5%** recibe la distinción derivada **Constancia sobresaliente**. No es un cuarto nivel ni un premio permanente.
+Dentro de Oro, el **top 5%** recibe la distinción derivada **Constancia sobresaliente** únicamente cuando la temporada tiene **20 o más perros**. No es un cuarto nivel ni un premio permanente.
 
 Los empates de Constancia comparten percentil/nivel; no se separan con un criterio secundario. Como regla de cordura, un perro con **0 eventos** siempre queda en Cobre aunque forme parte del denominador percentil.
 

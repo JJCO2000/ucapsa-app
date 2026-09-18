@@ -41,8 +41,8 @@ Los perros aportan hechos de uso. La membresía y los pagos pertenecen a la cuen
 
 Sólo se registran dos superficies con significado:
 
-- `constancy_summary`: el cliente vio su Nivel de Constancia en el resumen de Competencia;
-- `constancy_detail`: abrió el detalle de Constancia.
+- `constancy_summary`: el resumen de Competencia permaneció enfocado con el Nivel de Constancia ya renderizado durante al menos **750 ms**. Esto significa **resumen mostrado**, no prueba que la persona lo leyó;
+- `constancy_detail`: el cliente abrió explícitamente el detalle de Constancia y el contenido quedó disponible.
 
 La exposición se deduplica por:
 
@@ -52,6 +52,8 @@ cliente + perro + temporada + superficie + día
 
 Un refresh o varias aperturas el mismo día no inflan la métrica.
 
+La exposición usa un **outbox local durable**: primero se guarda en el dispositivo y después se intenta sincronizar. Si no hay conexión, conserva el `occurred_at` original y lo envía cuando vuelve la red; el servidor deriva el día en `America/Mexico_City`. Así, una exposición offline no desaparece ni se mueve artificialmente al día de sincronización.
+
 ## Resultados observables
 
 UCAPSA no tiene una “renovación de membresía” periódica: la membresía activa es de por vida del perro. Por eso no se crea una métrica ficticia de renovación.
@@ -59,12 +61,33 @@ UCAPSA no tiene una “renovación de membresía” periódica: la membresía ac
 Se observan hechos reales:
 
 - actividad posterior a la primera exposición;
-- pago real posterior a la primera exposición;
+- **cualquier pago UCAPSA** posterior;
+- **pago de membresía/mensualidad** posterior, separado del resto;
 - estado actual de membresía;
 - solicitud de eliminación posterior a la exposición;
 - última actividad y días desde esa actividad.
 
 Para evitar atribuir actividad previa del mismo día, **actividad posterior empieza al día siguiente de la primera exposición**.
+
+La pantalla Admin permite observar ventanas de **7, 30, 60 y 90 días** después de la exposición. Esas ventanas son periodos de medición, no umbrales de “cliente bueno/malo” ni reglas de inactividad.
+
+## Comparación expuesto / no expuesto
+
+Para evitar comparar clientes con tiempos de seguimiento distintos, la comparación principal usa una cohorte con ancla común:
+
+1. primera actividad del cliente en la temporada;
+2. ventana de exposición temprana: primeros **7 días** desde esa actividad;
+3. ventana de resultados: los **30 días siguientes** (días 8–37);
+4. sólo entran clientes que ya completaron los **37 días** de seguimiento.
+
+Se comparan:
+
+- **Exposición temprana:** tuvo al menos una exposición registrada dentro de los primeros 7 días;
+- **Sin exposición temprana:** no tuvo esa exposición en la misma ventana.
+
+Para ambos grupos se observa actividad, cualquier pago y mensualidad durante los días 8–37.
+
+Esto mejora la comparabilidad y evita que un cliente observado durante meses se compare directamente contra otro que apenas lleva días. Aun así, sigue siendo una comparación observacional: clientes más comprometidos pueden ser más propensos tanto a abrir la app como a seguir asistiendo/pagando.
 
 ## Qué NO concluye este modelo
 
@@ -97,7 +120,7 @@ No significa automáticamente:
 la pantalla causó la actividad o el pago
 ```
 
-Para aproximarse a causalidad, una fase posterior necesitaría comparación controlada entre grupos o un rollout experimental.
+La cohorte expuesto/no expuesto mejora la comparación temporal, pero no elimina sesgo de selección. Para aproximarse a causalidad, una fase posterior necesitaría asignación controlada, rollout escalonado u otro diseño experimental.
 
 ## Privacidad y acceso
 

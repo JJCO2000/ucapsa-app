@@ -30,36 +30,51 @@ with ranked_constancy as (
       order by coalesce(s.constancy_events_count, 0) desc
     ) as constancy_percent_rank
   from public.ucapsa_competition_scores s
+),
+population as (
+  select
+    s.season_id,
+    count(*)::integer as constancy_population_count
+  from public.ucapsa_competition_scores s
+  group by s.season_id
 )
 select
   r.*,
   round((r.constancy_percent_rank::numeric * 100), 2) as constancy_percentile,
   case
+    when p.constancy_population_count < 10 then 'forming'
     when coalesce(r.constancy_events_count, 0) = 0 then 'copper'
     when r.constancy_percent_rank < 0.10 then 'gold'
     when r.constancy_percent_rank < 0.40 then 'silver'
     else 'copper'
   end as range_code,
   case
+    when p.constancy_population_count < 10 then 'Constancia en formación'
     when coalesce(r.constancy_events_count, 0) = 0 then 'Cobre'
     when r.constancy_percent_rank < 0.10 then 'Oro'
     when r.constancy_percent_rank < 0.40 then 'Plata'
     else 'Cobre'
   end as range_name,
   case
+    when p.constancy_population_count < 10 then 0
     when coalesce(r.constancy_events_count, 0) = 0 then 1
     when r.constancy_percent_rank < 0.10 then 3
     when r.constancy_percent_rank < 0.40 then 2
     else 1
   end as range_level,
   (
-    coalesce(r.constancy_events_count, 0) > 0
+    p.constancy_population_count >= 20
+    and coalesce(r.constancy_events_count, 0) > 0
     and r.constancy_percent_rank < 0.05
-  ) as is_constancy_outstanding
-from ranked_constancy r;
+  ) as is_constancy_outstanding,
+  p.constancy_population_count,
+  (p.constancy_population_count >= 10) as has_sufficient_constancy_population
+from ranked_constancy r
+join population p
+  on p.season_id = r.season_id;
 
 comment on view public.ucapsa_competition_ranges is
-  'Nivel de Constancia por percentil de temporada: Oro top 10%, Plata 10%-40%, Cobre 40%-100%; 0 eventos queda Cobre. Top 5% recibe distinción sobresaliente. Empates comparten nivel.';
+  'Nivel de Constancia por percentil de temporada. Con menos de 10 perros se muestra Constancia en formación; desde 10: Oro top 10%, Plata 10%-40%, Cobre 40%-100%; 0 eventos queda Cobre. Constancia sobresaliente top 5% sólo se activa con 20+ perros. Empates comparten nivel.';
 
 revoke all on table public.ucapsa_competition_ranges
   from public, anon, authenticated;
@@ -114,7 +129,9 @@ select
   r.last_event_date,
   r.last_exam_published_at,
   r.last_adjustment_at,
-  r.is_constancy_outstanding
+  r.is_constancy_outstanding,
+  r.constancy_population_count,
+  r.has_sufficient_constancy_population
 from public.ucapsa_competition_ranges r
 where r.is_ranking_eligible is true;
 

@@ -70,8 +70,11 @@ for (const token of [
 for (const token of ['competitive_score', 'constancy_points', 'admin_adjustment_points']) {
   if (screen.includes(token)) failures.push(`Resumen cliente volvió a exponer profundidad competitiva: ${token}`);
 }
-for (const token of ['range_name', 'is_constancy_outstanding', 'last_event_date']) {
+for (const token of ['range_name', 'range_code', 'is_constancy_outstanding', 'last_event_date']) {
   if (!screen.includes(token)) failures.push(`Resumen cliente perdió dato útil de Constancia: ${token}`);
+}
+if (!/code === 'forming'/.test(screen) || !/suficiente población/.test(screen)) {
+  failures.push('Resumen cliente debe soportar Constancia en formación sin inventar nivel comparativo.');
 }
 if (!/NIVEL DE CONSTANCIA/.test(screen)
   || !/actividades registradas/.test(screen)

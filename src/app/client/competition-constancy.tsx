@@ -36,6 +36,7 @@ function sourceLabel(value: string | null | undefined) {
 }
 
 function constancyLevelDescription(code: string | null | undefined) {
+  if (code === 'forming') return 'Constancia en formación.';
   if (code === 'gold') return 'Constancia destacada esta temporada.';
   if (code === 'silver') return 'Constancia sostenida esta temporada.';
   return 'Constancia en desarrollo esta temporada.';
@@ -63,6 +64,7 @@ export default function ClientCompetitionConstancyScreen() {
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [screenFocused, setScreenFocused] = useState(false);
 
   const load = useCallback(async () => {
     if (!user || isAdmin || !dogId || !seasonId) {
@@ -98,8 +100,9 @@ export default function ClientCompetitionConstancyScreen() {
   }, [dogId, isAdmin, seasonId, user]);
 
   useFocusEffect(useCallback(() => {
+    setScreenFocused(true);
     void load();
-    return undefined;
+    return () => setScreenFocused(false);
   }, [load]));
 
   async function refresh() {
@@ -110,10 +113,10 @@ export default function ClientCompetitionConstancyScreen() {
   const season = detail?.season ?? null;
 
   useEffect(() => {
-    if (!detail?.dog_id || !season?.season_id || isAdmin) return;
-    void recordValueExposure(detail.dog_id, season.season_id, 'constancy_detail')
+    if (!user || isAdmin || !screenFocused || !localReady || error || !detail?.dog_id || !season?.season_id) return;
+    void recordValueExposure(user.id, detail.dog_id, season.season_id, 'constancy_detail')
       .catch(() => undefined);
-  }, [detail?.dog_id, isAdmin, season?.season_id]);
+  }, [detail?.dog_id, error, isAdmin, localReady, screenFocused, season?.season_id, user]);
 
   if (!user) return <Redirect href="/auth/login" />;
   if (isAdmin) return <Redirect href="/admin-home" />;
@@ -162,9 +165,11 @@ export default function ClientCompetitionConstancyScreen() {
             <Text style={[styles.sectionEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>NIVEL DE CONSTANCIA</Text>
             <Text style={[styles.rangeValue, { color: format.cardText }]}>{season.range_name || 'Cobre'}</Text>
             <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
-              {Number(season.constancy_events_count ?? 0) === 0
-                ? 'Sin actividad registrada en esta temporada. Tu perro permanece en Cobre y sigue contando dentro de la población de la temporada.'
-                : `${constancyLevelDescription(season.range_code)} Está dentro del ${topPercentLabel(season.constancy_percentile)}% de mayor constancia de la temporada.`}
+              {season.has_sufficient_constancy_population !== true
+                ? `${Number(season.constancy_events_count ?? 0)} actividades registradas. Todavía no hay suficiente población en la temporada para asignar un nivel comparativo.`
+                : Number(season.constancy_events_count ?? 0) === 0
+                  ? 'Sin actividad registrada en esta temporada. Tu perro permanece en Cobre y sigue contando dentro de la población de la temporada.'
+                  : `${constancyLevelDescription(season.range_code)} Está dentro del ${topPercentLabel(season.constancy_percentile)}% de mayor constancia de la temporada.`}
             </Text>
             {season.is_constancy_outstanding ? (
               <Text style={[styles.outstandingText, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Constancia sobresaliente · top 5%</Text>

@@ -3610,11 +3610,13 @@ export type Database = {
           completed_required_exams_count: number | null
           constancy_percentile: number | null
           constancy_points: number | null
+          constancy_population_count: number | null
           dog_id: string | null
           dog_is_active: boolean | null
           dog_name: string | null
           eligible_dogs_count: number | null
           exam_points: number | null
+          has_sufficient_constancy_population: boolean | null
           is_constancy_outstanding: boolean | null
           last_adjustment_at: string | null
           last_event_date: string | null
@@ -3646,12 +3648,14 @@ export type Database = {
           constancy_percent_rank: number | null
           constancy_percentile: number | null
           constancy_points: number | null
+          constancy_population_count: number | null
           dog_id: string | null
           dog_is_active: boolean | null
           dog_name: string | null
           exam_points: number | null
           first_event_date: string | null
           has_competition_activity: boolean | null
+          has_sufficient_constancy_population: boolean | null
           is_constancy_outstanding: boolean | null
           is_ranking_eligible: boolean | null
           last_adjustment_at: string | null
@@ -3744,15 +3748,30 @@ export type Database = {
       ucapsa_continuity_observations: {
         Row: {
           activity_events_after_exposure: number | null
+          activity_within_30d_after_exposure: number | null
+          activity_within_60d_after_exposure: number | null
+          activity_within_7d_after_exposure: number | null
+          activity_within_90d_after_exposure: number | null
+          any_payment_within_30d_after_exposure: number | null
+          any_payment_within_60d_after_exposure: number | null
+          any_payment_within_7d_after_exposure: number | null
+          any_payment_within_90d_after_exposure: number | null
+          cohort_activity_events_30d: number | null
+          cohort_any_payments_30d: number | null
+          cohort_followup_complete: boolean | null
+          cohort_membership_payments_30d: number | null
           command_attendances_count: number | null
           constancy_events_count: number | null
           current_payment_status: string | null
           days_since_last_activity: number | null
           days_to_next_activity: number | null
+          days_to_next_membership_payment: number | null
           days_to_next_payment: number | null
           delete_request_after_exposure: boolean | null
           dog_count: number | null
+          early_value_exposure: boolean | null
           email: string | null
+          first_activity_date: string | null
           first_delete_request_after_exposure: string | null
           first_exposure_at: string | null
           full_name: string | null
@@ -3763,8 +3782,14 @@ export type Database = {
           member_visits_count: number | null
           membership_id: string | null
           membership_is_active: boolean | null
+          membership_paid_payments_after_exposure: number | null
+          membership_payment_within_30d_after_exposure: number | null
+          membership_payment_within_60d_after_exposure: number | null
+          membership_payment_within_7d_after_exposure: number | null
+          membership_payment_within_90d_after_exposure: number | null
           membership_status: string | null
           next_activity_date: string | null
+          next_membership_paid_at: string | null
           next_paid_at: string | null
           paid_payments_after_exposure: number | null
           saw_constancy_detail: boolean | null
@@ -4636,11 +4661,13 @@ export type Database = {
           completed_required_exams_count: number | null
           constancy_percentile: number | null
           constancy_points: number | null
+          constancy_population_count: number | null
           dog_id: string | null
           dog_is_active: boolean | null
           dog_name: string | null
           eligible_dogs_count: number | null
           exam_points: number | null
+          has_sufficient_constancy_population: boolean | null
           is_constancy_outstanding: boolean | null
           last_adjustment_at: string | null
           last_event_date: string | null
@@ -4670,15 +4697,30 @@ export type Database = {
         Args: never
         Returns: {
           activity_events_after_exposure: number | null
+          activity_within_30d_after_exposure: number | null
+          activity_within_60d_after_exposure: number | null
+          activity_within_7d_after_exposure: number | null
+          activity_within_90d_after_exposure: number | null
+          any_payment_within_30d_after_exposure: number | null
+          any_payment_within_60d_after_exposure: number | null
+          any_payment_within_7d_after_exposure: number | null
+          any_payment_within_90d_after_exposure: number | null
+          cohort_activity_events_30d: number | null
+          cohort_any_payments_30d: number | null
+          cohort_followup_complete: boolean | null
+          cohort_membership_payments_30d: number | null
           command_attendances_count: number | null
           constancy_events_count: number | null
           current_payment_status: string | null
           days_since_last_activity: number | null
           days_to_next_activity: number | null
+          days_to_next_membership_payment: number | null
           days_to_next_payment: number | null
           delete_request_after_exposure: boolean | null
           dog_count: number | null
+          early_value_exposure: boolean | null
           email: string | null
+          first_activity_date: string | null
           first_delete_request_after_exposure: string | null
           first_exposure_at: string | null
           full_name: string | null
@@ -4689,8 +4731,14 @@ export type Database = {
           member_visits_count: number | null
           membership_id: string | null
           membership_is_active: boolean | null
+          membership_paid_payments_after_exposure: number | null
+          membership_payment_within_30d_after_exposure: number | null
+          membership_payment_within_60d_after_exposure: number | null
+          membership_payment_within_7d_after_exposure: number | null
+          membership_payment_within_90d_after_exposure: number | null
           membership_status: string | null
           next_activity_date: string | null
+          next_membership_paid_at: string | null
           next_paid_at: string | null
           paid_payments_after_exposure: number | null
           saw_constancy_detail: boolean | null
@@ -4733,7 +4781,12 @@ export type Database = {
         Returns: boolean
       }
       record_ucapsa_value_exposure: {
-        Args: { p_dog_id: string; p_season_id: string; p_surface: string }
+        Args: {
+          p_dog_id: string
+          p_occurred_at?: string
+          p_season_id: string
+          p_surface: string
+        }
         Returns: undefined
       }
       refresh_program_enrollment_progress: {

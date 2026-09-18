@@ -67,8 +67,11 @@ for (const token of [
 ]) {
   if (!detail.includes(token)) failures.push(`Detalle de Constancia perdió dato canónico: ${token}`);
 }
-for (const token of ['range_name', 'constancy_percentile', 'is_constancy_outstanding']) {
+for (const token of ['range_name', 'constancy_percentile', 'is_constancy_outstanding', 'has_sufficient_constancy_population']) {
   if (!detail.includes(token)) failures.push(`Detalle de Constancia perdió dato de Nivel: ${token}`);
+}
+if (!/suficiente población/.test(detail) || !/actividades registradas/.test(detail)) {
+  failures.push('Detalle debe mostrar Constancia en formación cuando la muestra es insuficiente.');
 }
 if (!/NIVEL DE CONSTANCIA/.test(detail) || !/permanece en Cobre/.test(detail)) {
   failures.push('Detalle debe conservar Nivel de Constancia y regla 0 actividad → Cobre.');

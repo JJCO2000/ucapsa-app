@@ -17,6 +17,7 @@ import { createHomeCacheSource, mergeHomeCache, type HomeProgramSummary } from '
 import { getMyMembership } from './memberships.service';
 import { getMyPaymentOverview } from './payments.service';
 import { flushPendingPracticeSessions, getMyPracticeActivity } from './practice.service';
+import { flushPendingValueExposures } from './value-exposure-outbox.service';
 import {
   getMyProgramEnrollments,
   getProgramClassCancellations,
@@ -36,9 +37,10 @@ export type OfflineWarmResult = {
   practiceActivity: boolean;
   attendanceOutbox: boolean;
   practiceOutbox: boolean;
+  valueExposureOutbox: boolean;
 };
 
-export type OfflineWriteFlushResult = Pick<OfflineWarmResult, 'attendanceOutbox' | 'practiceOutbox'>;
+export type OfflineWriteFlushResult = Pick<OfflineWarmResult, 'attendanceOutbox' | 'practiceOutbox' | 'valueExposureOutbox'>;
 
 function toHomeProgramSummary(rows: ProgramEnrollmentWithDetails[]): HomeProgramSummary[] {
   return rows.map((item) => ({
@@ -155,11 +157,13 @@ export async function flushPendingClientWrites(userId: string): Promise<OfflineW
   const result: OfflineWriteFlushResult = {
     attendanceOutbox: false,
     practiceOutbox: false,
+    valueExposureOutbox: false,
   };
 
   await Promise.allSettled([
     flushPendingAttendanceOperations(userId).then(() => { result.attendanceOutbox = true; }),
     flushPendingPracticeSessions(userId).then(() => { result.practiceOutbox = true; }),
+    flushPendingValueExposures(userId).then(() => { result.valueExposureOutbox = true; }),
   ]);
 
   return result;
@@ -185,6 +189,7 @@ export async function warmClientOfflineData(userId: string): Promise<OfflineWarm
     practiceActivity: false,
     attendanceOutbox: false,
     practiceOutbox: false,
+    valueExposureOutbox: false,
   };
 
   const dogsTask = cacheDogs(userId);
@@ -203,6 +208,7 @@ export async function warmClientOfflineData(userId: string): Promise<OfflineWarm
     flushPendingClientWrites(userId).then(async (flushResult) => {
       result.attendanceOutbox = flushResult.attendanceOutbox;
       result.practiceOutbox = flushResult.practiceOutbox;
+      result.valueExposureOutbox = flushResult.valueExposureOutbox;
       await cachePracticeActivity(userId);
       result.practiceActivity = true;
     }),
