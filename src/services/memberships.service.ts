@@ -127,12 +127,6 @@ export async function getMyMembershipEligibility(): Promise<MembershipEligibilit
   return getMembershipEligibilityForUser(userId);
 }
 
-function createQrToken() {
-  const randomA = Math.random().toString(36).slice(2, 12);
-  const randomB = Math.random().toString(36).slice(2, 12);
-  return `ucapsa_${Date.now()}_${randomA}${randomB}`;
-}
-
 export function getDisplayName(profile: Profile | null | undefined) {
   return profile?.full_name?.trim() || profile?.email?.trim() || 'Usuario';
 }
@@ -246,7 +240,6 @@ export async function requestMembership(): Promise<Membership> {
     .insert({
       user_id: userId,
       status: 'pending',
-      qr_token: createQrToken(),
       current_payment_status: 'pending',
     })
     .select('*')
@@ -581,8 +574,7 @@ export async function forceMembershipForProfile(profile: Profile): Promise<Membe
         status: 'active',
         start_date: now,
         end_date: null,
-        qr_token: createQrToken(),
-        approved_by: adminUserId,
+          approved_by: adminUserId,
         current_payment_status: 'pending',
         last_payment_at: null,
         payment_notes: 'Socio creado manualmente desde ficha de usuario.',
