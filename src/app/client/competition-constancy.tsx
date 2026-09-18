@@ -141,6 +141,16 @@ export default function ClientCompetitionConstancyScreen() {
 
       {localReady && !error && detail && season ? (
         <>
+          <View style={[styles.card, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
+            <Text style={[styles.sectionEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>RANGO DE CONSTANCIA</Text>
+            <Text style={[styles.rangeValue, { color: format.cardText }]}>{season.range_name || 'Bronce'}</Text>
+            <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+              {Number(season.constancy_events_count ?? 0) === 0
+                ? '0 eventos: Bronce por regla de actividad. Tu perro sí cuenta en la población de la temporada.'
+                : `Percentil desde la cima: ${Number(season.constancy_percentile ?? 0).toFixed(2)}%. Empates de Constancia comparten Rango.`}
+            </Text>
+          </View>
+
           <View style={styles.metricsRow}>
             <Metric value={Number(season.constancy_events_count ?? 0)} label="eventos" premium={premium} format={format} />
             <Metric value={Number(season.command_attendances_count ?? 0)} label="Comandos" premium={premium} format={format} />
@@ -184,7 +194,7 @@ export default function ClientCompetitionConstancyScreen() {
 
           <View style={[styles.noteCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
             <MaterialIcons name="info-outline" size={19} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-            <Text style={[styles.noteText, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Esta constancia se deriva de registros oficiales. No es un puntaje ni una posición de Ranking.</Text>
+            <Text style={[styles.noteText, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Tu Rango se deriva únicamente de esta Constancia. El Ranking usa además puntos de Exámenes y Ajustes Admin.</Text>
           </View>
         </>
       ) : null}
@@ -239,6 +249,8 @@ const styles = StyleSheet.create({
   muted: { fontSize: 11, lineHeight: 16, fontWeight: '700' },
   card: { gap: 7, borderRadius: 19, borderWidth: 1, padding: 14, marginBottom: 11 },
   cardTitle: { fontSize: 15, lineHeight: 20, fontWeight: '900' },
+  sectionEyebrow: { fontSize: 9, fontWeight: '900', letterSpacing: 0.7 },
+  rangeValue: { fontSize: 23, lineHeight: 29, fontWeight: '900' },
   metricsRow: { flexDirection: 'row', gap: 8, marginBottom: 11 },
   metric: { flex: 1, borderRadius: 16, borderWidth: 1, padding: 11 },
   metricValue: { fontSize: 20, fontWeight: '900' },

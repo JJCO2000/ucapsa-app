@@ -2,7 +2,7 @@ import type { Announcement, Membership, MyPaymentOverview, ProgramEnrollmentWith
 import { getVisibleAnnouncements } from './announcements.service';
 import { flushPendingAttendanceOperations } from './attendance-outbox.service';
 import { getMyMemberVisits } from './client-activity.service';
-import { refreshMyDogCompetition } from './client-competition.service';
+import { refreshCompetitionLeaderboard, refreshMyDogCompetition } from './client-competition.service';
 import {
   clientReadKeys,
   createMembershipOfflineSummary,
@@ -84,11 +84,27 @@ async function cacheDogs(userId: string): Promise<BasicDog[]> {
 }
 
 async function cacheCompetition(userId: string, dogs: BasicDog[]): Promise<void> {
-  const results = await Promise.allSettled(
+  const dogResults = await Promise.allSettled(
     dogs.map((dog) => refreshMyDogCompetition(userId, dog.id)),
   );
-  const failed = results.find((result) => result.status === 'rejected');
-  if (failed?.status === 'rejected') throw failed.reason;
+
+  const seasonIds = new Set<string>();
+  for (const result of dogResults) {
+    if (result.status !== 'fulfilled') continue;
+    for (const season of result.value.data.seasons) {
+      if (season.season_id) seasonIds.add(season.season_id);
+    }
+  }
+
+  const leaderboardResults = await Promise.allSettled(
+    [...seasonIds].map((seasonId) => refreshCompetitionLeaderboard(userId, seasonId)),
+  );
+
+  const failedDog = dogResults.find((result) => result.status === 'rejected');
+  if (failedDog?.status === 'rejected') throw failedDog.reason;
+
+  const failedLeaderboard = leaderboardResults.find((result) => result.status === 'rejected');
+  if (failedLeaderboard?.status === 'rejected') throw failedLeaderboard.reason;
 }
 
 async function cachePrograms(userId: string): Promise<ProgramEnrollmentWithDetails[]> {
