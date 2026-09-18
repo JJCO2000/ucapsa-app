@@ -29,6 +29,9 @@ mustNot('src/app/admin/classes.tsx', /TextInput\s+value=\{form\.dogName\}/, 'Adm
 mustNot('src/app/admin/classes.tsx', /TextInput\s+value=\{editForm\.dogName\}/, 'Admin Clases aún usa perro como texto libre al editar.');
 mustNot('src/app/admin/customer-class.tsx', /<Field label="Perro"/, 'Ficha de clase aún usa perro como texto libre.');
 
+must('supabase/functions/send-announcement-reminders/index.ts', /update\(\{ status: 'sending' \}\)[\s\S]{0,220}eq\('status', 'draft'\)[\s\S]{0,220}select\('id'\)[\s\S]{0,120}maybeSingle\(\)/, 'Recordatorios de anuncios perdió el claim atómico draft -> sending.');
+must('supabase/functions/send-announcement-reminders/index.ts', /if \(!claimedCampaign\) \{[\s\S]{0,180}continue;/, 'Recordatorios de anuncios puede volver a enviar una campaña tomada por otra ejecución.');
+
 mustNot('src/services/notifications.service.ts', /p_(device_name|device_id|app_ownership|app_version|project_id):[^\r\n]*\?\? null/, 'RPC de notificaciones envía null a argumentos opcionales tipados.');
 mustNot('src/services/programs.service.ts', /p_(cycle_start_date|schedule_id|change_note|notes):[^\r\n]*(\?\? null|\|\| null)/, 'RPC de programas envía null a argumentos opcionales tipados.');
 
