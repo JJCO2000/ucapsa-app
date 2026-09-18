@@ -5,6 +5,40 @@
 -- Programas/Horarios public-calendar policies, which become anon-only because
 -- authenticated already has an active-or-admin SELECT policy.
 
+do $
+declare
+  v_missing integer;
+begin
+  with required(tablename, policyname) as (
+    values
+      ('member_visits','member_visits_own_select'),
+      ('membership_billing_profiles','membership_billing_profiles_select_own_or_admin'),
+      ('payment_obligations','payment_obligations_select_own_or_admin'),
+      ('payments','payments_select_own_or_admin'),
+      ('user_achievements','user_achievements_select_own_or_admin'),
+      ('program_schedule_versions','program_schedule_versions_read'),
+      ('program_sessions','program_sessions_authenticated_select'),
+      ('programs','programs_select_active_or_admin'),
+      ('program_schedules','program_schedules_select_active_or_admin')
+  )
+  select count(*)
+    into v_missing
+  from required r
+  where not exists (
+    select 1
+    from pg_policies p
+    where p.schemaname='public'
+      and p.tablename=r.tablename
+      and p.policyname=r.policyname
+      and p.cmd='SELECT'
+  );
+
+  if v_missing <> 0 then
+    raise exception 'RLS overlap cleanup aborted: % canonical SELECT policies are missing.', v_missing;
+  end if;
+end;
+$;
+
 -- member_visits
 drop policy if exists "member_visits_admin_all" on public.member_visits;
 create policy "member_visits_admin_insert"
