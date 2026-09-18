@@ -117,14 +117,14 @@ export default function AdminUsersScreen() {
           text: 'Otorgar logro',
           onPress: async () => {
             try {
-              setSaving(true);
+              setSavingUserId(profile.user_id);
               await awardAchievementToUser(profile.user_id, item.definition.code);
               await loadAchievementsForProfile(profile.user_id);
               Alert.alert('Logro actualizado', 'El logro fue marcado como completado.');
             } catch (error) {
               Alert.alert('No se pudo actualizar logro', error instanceof Error ? error.message : 'Intenta de nuevo.');
             } finally {
-              setSaving(false);
+              setSavingUserId(null);
             }
           },
         },
