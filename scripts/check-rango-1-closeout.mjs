@@ -101,6 +101,16 @@ if (!/revoke all on function public\.admin_adjust_ucapsa_points\(uuid, uuid, int
   failures.push('El RPC de escritura del sistema legado UCAPSA Points volvió a quedar accesible.');
 }
 
+for (const legacyRuntime of [
+  'src/services/ucapsa-points.service.ts',
+  'src/components/domain/UcapsaPointsLeaderboard.tsx',
+  'src/types/ucapsa-points.types.ts',
+]) {
+  if (fs.existsSync(path.join(root, legacyRuntime))) {
+    failures.push('Reapareció runtime legado UCAPSA Points: ' + legacyRuntime);
+  }
+}
+
 if (!pkg.includes('check:rango-1-closeout')) {
   failures.push('npm verify no incluye guard de cierre Rango 1.');
 }
