@@ -64,7 +64,10 @@ if (/dense_rank\(|(?:^|[^a-z_])rank\(\) over/im.test(sql)) {
   throw new Error('Ranking must have one deterministic effective position, not shared positions.');
 }
 
-if (/owner_user_id/.test(sql.slice(sql.indexOf('create or replace view public.ucapsa_competition_leaderboard')))) {
+const leaderboardStart = sql.indexOf('create or replace view public.ucapsa_competition_leaderboard');
+const leaderboardEnd = sql.indexOf('comment on view public.ucapsa_competition_leaderboard');
+const leaderboardSql = sql.slice(leaderboardStart, leaderboardEnd);
+if (/owner_user_id/.test(leaderboardSql)) {
   throw new Error('Leaderboard safe surface must not expose owner_user_id.');
 }
 
