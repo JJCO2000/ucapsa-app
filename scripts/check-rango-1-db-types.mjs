@@ -23,6 +23,7 @@ const required = [
   'range_code: string | null',
   'range_name: string | null',
   'range_level: number | null',
+  'is_constancy_outstanding: boolean | null',
   'competitive_score: number | null',
   'constancy_points: number | null',
   'exam_points: number | null',
