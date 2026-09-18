@@ -21,6 +21,10 @@ drop trigger if exists trg_ucapsa_unlock_next_comandos_level on public.program_e
 drop trigger if exists trg_unlock_next_program_stage on public.program_enrollments;
 drop trigger if exists trg_ucapsa_unlock_next_program_stage on public.program_enrollments;
 
+-- Retira helpers específicos de Comandos ya supersedidos por la progresión única.
+drop function if exists public.trg_ucapsa_unlock_next_comandos_level();
+drop function if exists public.ucapsa_unlock_next_comandos_level(uuid);
+
 create or replace function public.ucapsa_unlock_next_program_stage(p_enrollment_id uuid)
 returns uuid
 language plpgsql
@@ -71,6 +75,33 @@ begin
 
   if v_next_program_id is null then
     raise exception 'No existe el siguiente programa activo para continuar la progresión.';
+  end if;
+
+  -- Si esta etapa ya había sido desbloqueada automáticamente, conserva su misma
+  -- identidad. Sólo reactiva una cancelación automática vacía; una etapa con
+  -- asistencias conserva cualquier cancelación administrativa.
+  select e.id
+    into v_existing_id
+  from public.program_enrollments e
+  where e.unlocked_from_enrollment_id = p_enrollment_id
+  order by e.created_at asc
+  limit 1;
+
+  if v_existing_id is not null then
+    update public.program_enrollments child
+    set
+      status = 'active',
+      cancelled_at = null,
+      updated_at = now()
+    where child.id = v_existing_id
+      and child.status = 'cancelled'
+      and not exists (
+        select 1
+        from public.program_attendances a
+        where a.enrollment_id = child.id
+      );
+
+    return v_existing_id;
   end if;
 
   -- Reutiliza una etapa ya creada para el mismo perro. Esto hace el backfill
@@ -184,7 +215,11 @@ begin
   elsif tg_op = 'UPDATE'
     and old.status = 'completed'
     and new.status is distinct from 'completed' then
-    delete from public.program_enrollments child
+    update public.program_enrollments child
+    set
+      status = 'cancelled',
+      cancelled_at = coalesce(child.cancelled_at, now()),
+      updated_at = now()
     where child.unlocked_from_enrollment_id = new.id
       and child.status = 'active'
       and not exists (
