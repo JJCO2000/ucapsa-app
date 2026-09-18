@@ -3,9 +3,10 @@
 -- Rango:
 -- - mide Constancia, no score competitivo;
 -- - participan todos los perros de la temporada, incluso con 0 actividad;
--- - 0 eventos siempre queda en Bronce;
--- - los empates de Constancia no se parten entre rangos;
--- - cortes acumulados: 5 / 10 / 20 / 40 / 70 / 100.
+-- - 0 eventos siempre queda en Cobre;
+-- - los empates de Constancia no se parten entre niveles;
+-- - presentación pública simple: Oro top 10%, Plata 10%-40%, Cobre 40%-100%;
+-- - top 5% recibe distinción derivada de Constancia sobresaliente.
 --
 -- Ranking:
 -- - sólo perros elegibles;
@@ -34,36 +35,31 @@ select
   r.*,
   round((r.constancy_percent_rank::numeric * 100), 2) as constancy_percentile,
   case
-    when coalesce(r.constancy_events_count, 0) = 0 then 'bronze'
-    when r.constancy_percent_rank < 0.05 then 'diamond'
-    when r.constancy_percent_rank < 0.10 then 'platinum'
-    when r.constancy_percent_rank < 0.20 then 'emerald'
-    when r.constancy_percent_rank < 0.40 then 'gold'
-    when r.constancy_percent_rank < 0.70 then 'silver'
-    else 'bronze'
+    when coalesce(r.constancy_events_count, 0) = 0 then 'copper'
+    when r.constancy_percent_rank < 0.10 then 'gold'
+    when r.constancy_percent_rank < 0.40 then 'silver'
+    else 'copper'
   end as range_code,
   case
-    when coalesce(r.constancy_events_count, 0) = 0 then 'Bronce'
-    when r.constancy_percent_rank < 0.05 then 'Diamante'
-    when r.constancy_percent_rank < 0.10 then 'Platino'
-    when r.constancy_percent_rank < 0.20 then 'Esmeralda'
-    when r.constancy_percent_rank < 0.40 then 'Oro'
-    when r.constancy_percent_rank < 0.70 then 'Plata'
-    else 'Bronce'
+    when coalesce(r.constancy_events_count, 0) = 0 then 'Cobre'
+    when r.constancy_percent_rank < 0.10 then 'Oro'
+    when r.constancy_percent_rank < 0.40 then 'Plata'
+    else 'Cobre'
   end as range_name,
   case
     when coalesce(r.constancy_events_count, 0) = 0 then 1
-    when r.constancy_percent_rank < 0.05 then 6
-    when r.constancy_percent_rank < 0.10 then 5
-    when r.constancy_percent_rank < 0.20 then 4
-    when r.constancy_percent_rank < 0.40 then 3
-    when r.constancy_percent_rank < 0.70 then 2
+    when r.constancy_percent_rank < 0.10 then 3
+    when r.constancy_percent_rank < 0.40 then 2
     else 1
-  end as range_level
+  end as range_level,
+  (
+    coalesce(r.constancy_events_count, 0) > 0
+    and r.constancy_percent_rank < 0.05
+  ) as is_constancy_outstanding
 from ranked_constancy r;
 
 comment on view public.ucapsa_competition_ranges is
-  'Rango por percentil de Constancia dentro de la temporada. Incluye a todos los perros; 0 eventos queda Bronce. Empates de Constancia comparten rango.';
+  'Nivel de Constancia por percentil de temporada: Oro top 10%, Plata 10%-40%, Cobre 40%-100%; 0 eventos queda Cobre. Top 5% recibe distinción sobresaliente. Empates comparten nivel.';
 
 revoke all on table public.ucapsa_competition_ranges
   from public, anon, authenticated;
@@ -114,6 +110,7 @@ select
   r.range_code,
   r.range_name,
   r.range_level,
+  r.is_constancy_outstanding,
 
   r.last_event_date,
   r.last_exam_published_at,
