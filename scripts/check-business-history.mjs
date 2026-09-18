@@ -1,0 +1,71 @@
+import fs from 'node:fs';
+
+const sql = fs.readFileSync('supabase/sql/ucapsa-business-history-no-delete.sql', 'utf8');
+const pkg = fs.readFileSync('package.json', 'utf8');
+
+const files = {
+  announcementsService: fs.readFileSync('src/services/announcements.mutations.ts', 'utf8'),
+  eventsService: fs.readFileSync('src/services/events.service.ts', 'utf8'),
+  programsService: fs.readFileSync('src/services/programs.service.ts', 'utf8'),
+  restaurantService: fs.readFileSync('src/services/restaurant-menu.service.ts', 'utf8'),
+  achievementsService: fs.readFileSync('src/services/achievements.service.ts', 'utf8'),
+  announcementsUi: fs.readFileSync('src/app/admin/announcements.tsx', 'utf8'),
+  eventsUi: fs.readFileSync('src/app/admin/events.tsx', 'utf8'),
+  cancellationsUi: fs.readFileSync('src/app/admin/class-cancellations.tsx', 'utf8'),
+  restaurantUi: fs.readFileSync('src/app/admin/restaurant.tsx', 'utf8'),
+};
+
+for (const token of [
+  'drop policy if exists "announcements_admin_delete"',
+  'drop policy if exists "events_admin_delete"',
+  'drop policy if exists "program_class_cancellations_admin_delete"',
+  'drop policy if exists "Admins can delete restaurant categories"',
+  'drop policy if exists "Admins can delete restaurant items"',
+  'drop policy if exists "user_achievements_admin_delete"',
+  'revoke delete on table public.announcements',
+  'revoke delete on table public.events',
+  'revoke delete on table public.program_class_cancellations',
+  'revoke delete on table public.restaurant_menu_categories',
+  'revoke delete on table public.restaurant_menu_items',
+  'revoke delete on table public.user_achievements',
+]) {
+  if (!sql.includes(token)) {
+    throw new Error('Business history SQL contract missing: ' + token);
+  }
+}
+
+for (const [name, text, forbidden] of [
+  ['announcements service', files.announcementsService, 'deleteAnnouncement'],
+  ['events service', files.eventsService, 'deleteEvent'],
+  ['programs service', files.programsService, 'deleteProgramClassCancellation'],
+  ['restaurant service', files.restaurantService, 'deleteRestaurantCategory'],
+  ['restaurant service', files.restaurantService, 'deleteRestaurantItem'],
+  ['achievements service', files.achievementsService, 'revokeAchievementFromUser'],
+  ['announcements UI', files.announcementsUi, 'deleteAnnouncement'],
+  ['events UI', files.eventsUi, 'deleteEvent'],
+  ['cancellations UI', files.cancellationsUi, 'deleteProgramClassCancellation'],
+  ['restaurant UI', files.restaurantUi, 'deleteRestaurantCategory'],
+  ['restaurant UI', files.restaurantUi, 'deleteRestaurantItem'],
+]) {
+  if (text.includes(forbidden)) {
+    throw new Error(name + ' reintroduced destructive business history action: ' + forbidden);
+  }
+}
+
+if (/\.from\(['"](?:announcements|events|program_class_cancellations|restaurant_menu_categories|restaurant_menu_items|user_achievements)['"]\)[\s\S]{0,180}\.delete\s*\(\s*\)/.test(Object.values(files).join('\n'))) {
+  throw new Error('A protected business-history table is physically deleted from app code.');
+}
+
+if (!files.announcementsService.includes('archiveAnnouncement') || !files.eventsService.includes('archiveEvent')) {
+  throw new Error('Archive lifecycle is missing for announcements/events.');
+}
+
+if (!files.cancellationsUi.includes('Reactivar') || !files.restaurantUi.includes('is_active') || !files.restaurantUi.includes('is_available')) {
+  throw new Error('Lifecycle alternatives are missing for cancellation/restaurant records.');
+}
+
+if (!pkg.includes('"check:business-history"')) {
+  throw new Error('npm verify does not include the business-history guard.');
+}
+
+console.log('UCAPSA business history preservation: PASS');
