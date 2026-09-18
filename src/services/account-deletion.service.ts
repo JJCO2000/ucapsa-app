@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 import type { TableRow } from '../types/database.helpers';
 
 export type AccountDeletionRequest = TableRow<'account_deletion_requests'>;
+export type AccountDeletionRequestEvent = TableRow<'account_deletion_request_events'>;
 export type AccountDeletionStatus = 'pending' | 'in_review' | 'blocked' | 'rejected' | 'completed';
 
 const OPEN_STATUSES: AccountDeletionStatus[] = ['pending', 'in_review', 'blocked'];
@@ -67,7 +68,7 @@ export async function getOpenAccountDeletionRequests(): Promise<AccountDeletionR
 
 export async function updateAccountDeletionRequest(input: {
   requestId: string;
-  status: Exclude<AccountDeletionStatus, 'pending'>;
+  status: 'in_review' | 'blocked' | 'rejected';
   resolutionNote?: string | null;
   retentionUntil?: string | null;
 }): Promise<AccountDeletionRequest> {
@@ -81,4 +82,32 @@ export async function updateAccountDeletionRequest(input: {
   if (error) throw error;
   if (!data) throw new Error('Supabase no devolvió la solicitud actualizada.');
   return data;
+}
+export async function completeAccountDeletionRequest(input: {
+  requestId: string;
+  resolutionNote: string;
+  notificationMethod: string;
+  notificationReference: string;
+}): Promise<AccountDeletionRequest> {
+  const { data, error } = await supabase.rpc('admin_complete_account_deletion_request', {
+    p_request_id: input.requestId,
+    p_resolution_note: input.resolutionNote.trim(),
+    p_notification_method: input.notificationMethod.trim(),
+    p_notification_reference: input.notificationReference.trim(),
+  });
+
+  if (error) throw error;
+  if (!data) throw new Error('Supabase no devolvió la solicitud cerrada.');
+  return data;
+}
+
+export async function getAccountDeletionRequestEvents(requestId: string): Promise<AccountDeletionRequestEvent[]> {
+  const { data, error } = await supabase
+    .from('account_deletion_request_events')
+    .select('*')
+    .eq('request_id', requestId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return data ?? [];
 }

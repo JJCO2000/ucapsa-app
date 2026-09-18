@@ -8,6 +8,7 @@ import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import {
+  completeAccountDeletionRequest,
   getAccountDeletionStatusLabel,
   getOpenAccountDeletionRequests,
   updateAccountDeletionRequest,
@@ -38,6 +39,8 @@ export default function AccountDeletionRequestsScreen() {
   const [mode, setMode] = useState<ActionMode>(null);
   const [note, setNote] = useState('');
   const [retentionUntil, setRetentionUntil] = useState('');
+  const [notificationMethod, setNotificationMethod] = useState('');
+  const [notificationReference, setNotificationReference] = useState('');
 
   const load = useCallback(async () => {
     if (!isSuperAdmin) return;
@@ -81,6 +84,8 @@ export default function AccountDeletionRequestsScreen() {
     setMode(nextMode);
     setNote('');
     setRetentionUntil(nextMode === 'complete' ? row.retention_until ?? '' : '');
+    setNotificationMethod('');
+    setNotificationReference('');
   }
 
   function closeAction() {
@@ -88,6 +93,8 @@ export default function AccountDeletionRequestsScreen() {
     setMode(null);
     setNote('');
     setRetentionUntil('');
+    setNotificationMethod('');
+    setNotificationReference('');
   }
 
   async function submitAction() {
@@ -108,14 +115,33 @@ export default function AccountDeletionRequestsScreen() {
       return;
     }
 
+    if (mode === 'complete' && !notificationMethod.trim()) {
+      Alert.alert('Falta medio de notificación', 'Registra cómo se informó al titular del cierre.');
+      return;
+    }
+
+    if (mode === 'complete' && !notificationReference.trim()) {
+      Alert.alert('Falta referencia', 'Registra un folio, evidencia o referencia verificable de la notificación.');
+      return;
+    }
+
     try {
       setSavingId(selected.id);
-      await updateAccountDeletionRequest({
-        requestId: selected.id,
-        status: mode === 'block' ? 'blocked' : mode === 'reject' ? 'rejected' : 'completed',
-        resolutionNote: note,
-        retentionUntil: mode === 'block' ? retentionUntil : selected.retention_until,
-      });
+      if (mode === 'complete') {
+        await completeAccountDeletionRequest({
+          requestId: selected.id,
+          resolutionNote: note,
+          notificationMethod,
+          notificationReference,
+        });
+      } else {
+        await updateAccountDeletionRequest({
+          requestId: selected.id,
+          status: mode === 'block' ? 'blocked' : 'rejected',
+          resolutionNote: note,
+          retentionUntil: mode === 'block' ? retentionUntil : selected.retention_until,
+        });
+      }
       closeAction();
       await load();
       Alert.alert(
@@ -229,9 +255,25 @@ export default function AccountDeletionRequestsScreen() {
         />
 
         {mode === 'complete' ? (
-          <View style={styles.warning}>
-            <Text style={styles.warningText}>Esta acción sólo registra que el proceso ya fue ejecutado. No elimina por sí misma Auth, pagos ni históricos.</Text>
-          </View>
+          <>
+            <Text style={styles.label}>Medio de notificación al titular</Text>
+            <TextInput
+              value={notificationMethod}
+              onChangeText={setNotificationMethod}
+              placeholder="Ej. correo electrónico, llamada documentada"
+              style={styles.input}
+            />
+            <Text style={styles.label}>Referencia verificable</Text>
+            <TextInput
+              value={notificationReference}
+              onChangeText={setNotificationReference}
+              placeholder="Ej. folio interno o referencia del correo enviado"
+              style={styles.input}
+            />
+            <View style={styles.warning}>
+              <Text style={styles.warningText}>Esta acción sólo registra que la supresión y el aviso ya fueron ejecutados. No elimina por sí misma Auth, pagos ni históricos.</Text>
+            </View>
+          </>
         ) : null}
 
         <Pressable disabled={Boolean(savingId)} style={[styles.primary, savingId && styles.disabled]} onPress={() => void submitAction()}>

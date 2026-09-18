@@ -79,6 +79,20 @@ if (/\.from\(['"]profiles['"]\)[\s\S]{0,500}deletion_requested_at/.test(profiles
   throw new Error('profiles.service.ts returned to writing account deletion state into profiles.');
 }
 
+if (!service.includes('completeAccountDeletionRequest') || !service.includes('admin_complete_account_deletion_request')) {
+  throw new Error('Account deletion service is not using the dedicated completion RPC.');
+}
+
+if (/status:\s*mode === ['"]block['"][\s\S]{0,120}completed/.test(adminQueue)) {
+  throw new Error('Admin deletion UI can still complete through the generic status RPC.');
+}
+
+for (const token of ['notificationMethod', 'notificationReference', 'completeAccountDeletionRequest']) {
+  if (!adminQueue.includes(token)) {
+    throw new Error('Admin deletion completion evidence missing: ' + token);
+  }
+}
+
 if (!/role === 'super_admin'/.test(adminQueue) || !/Redirect/.test(adminQueue)) {
   throw new Error('Account deletion review queue is no longer Superadmin-only.');
 }

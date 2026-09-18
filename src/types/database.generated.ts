@@ -14,10 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_deletion_request_events: {
+        Row: {
+          actor_user_id: string | null
+          created_at: string
+          event_type: string
+          from_status: string | null
+          id: string
+          note: string | null
+          notification_method: string | null
+          notification_reference: string | null
+          request_id: string
+          retention_until: string | null
+          to_status: string | null
+        }
+        Insert: {
+          actor_user_id?: string | null
+          created_at?: string
+          event_type: string
+          from_status?: string | null
+          id?: string
+          note?: string | null
+          notification_method?: string | null
+          notification_reference?: string | null
+          request_id: string
+          retention_until?: string | null
+          to_status?: string | null
+        }
+        Update: {
+          actor_user_id?: string | null
+          created_at?: string
+          event_type?: string
+          from_status?: string | null
+          id?: string
+          note?: string | null
+          notification_method?: string | null
+          notification_reference?: string | null
+          request_id?: string
+          retention_until?: string | null
+          to_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_deletion_request_events_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "account_deletion_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       account_deletion_requests: {
         Row: {
           created_at: string
           id: string
+          notification_method: string | null
+          notification_reference: string | null
+          notified_at: string | null
           reason: string | null
           requested_at: string
           requested_by: string | null
@@ -34,6 +87,9 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          notification_method?: string | null
+          notification_reference?: string | null
+          notified_at?: string | null
           reason?: string | null
           requested_at?: string
           requested_by?: string | null
@@ -50,6 +106,9 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          notification_method?: string | null
+          notification_reference?: string | null
+          notified_at?: string | null
           reason?: string | null
           requested_at?: string
           requested_by?: string | null
@@ -4431,6 +4490,39 @@ export type Database = {
         Args: { p_batch_id: string }
         Returns: string
       }
+      admin_complete_account_deletion_request: {
+        Args: {
+          p_notification_method: string
+          p_notification_reference: string
+          p_request_id: string
+          p_resolution_note: string
+        }
+        Returns: {
+          created_at: string
+          id: string
+          notification_method: string | null
+          notification_reference: string | null
+          notified_at: string | null
+          reason: string | null
+          requested_at: string
+          requested_by: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          retention_until: string | null
+          snapshot_email: string | null
+          snapshot_name: string | null
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "account_deletion_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       admin_create_basic_dog: {
         Args: { p_name: string; p_user_id: string }
         Returns: {
@@ -4545,6 +4637,9 @@ export type Database = {
         Returns: {
           created_at: string
           id: string
+          notification_method: string | null
+          notification_reference: string | null
+          notified_at: string | null
           reason: string | null
           requested_at: string
           requested_by: string | null
@@ -4981,6 +5076,9 @@ export type Database = {
         Returns: {
           created_at: string
           id: string
+          notification_method: string | null
+          notification_reference: string | null
+          notified_at: string | null
           reason: string | null
           requested_at: string
           requested_by: string | null
