@@ -2,6 +2,14 @@ import { supabase } from '../lib/supabase';
 import type { TableUpdate } from '../types/database.helpers';
 import type { MyPaymentOverview, Payment, PaymentObligation, PaymentObligationWithBalance, PaymentSettings } from '../types/app.types';
 
+export type AdminPaymentAttentionRow = {
+  userId: string;
+  balance: number;
+  overdue: boolean;
+  partial: boolean;
+  obligations: number;
+};
+
 export type RegisterCustomerPaymentInput = {
   userId: string;
   membershipId?: string | null;
@@ -34,6 +42,56 @@ export type UpdateCustomerPaymentInput = {
   paidAt?: string | null;
   concept?: string;
 };
+
+export async function getAdminPaymentAttentionRows(): Promise<AdminPaymentAttentionRow[]> {
+  const [obligationsResult, paymentsResult] = await Promise.all([
+    supabase
+      .from('payment_obligations')
+      .select('id, user_id, due_date, amount')
+      .is('cancelled_at', null),
+    supabase
+      .from('payments')
+      .select('obligation_id, amount')
+      .eq('status', 'paid')
+      .not('obligation_id', 'is', null),
+  ]);
+
+  if (obligationsResult.error) throw obligationsResult.error;
+  if (paymentsResult.error) throw paymentsResult.error;
+
+  const paidByObligation = new Map<string, number>();
+  for (const payment of paymentsResult.data ?? []) {
+    if (!payment.obligation_id) continue;
+    paidByObligation.set(
+      payment.obligation_id,
+      (paidByObligation.get(payment.obligation_id) ?? 0) + Number(payment.amount ?? 0),
+    );
+  }
+
+  const today = localDateKey();
+  const byUser = new Map<string, AdminPaymentAttentionRow>();
+  for (const obligation of obligationsResult.data ?? []) {
+    const amount = Number(obligation.amount ?? 0);
+    const paid = paidByObligation.get(obligation.id) ?? 0;
+    const balance = Math.max(0, amount - paid);
+    if (balance <= 0.005 || !obligation.user_id) continue;
+
+    const current = byUser.get(obligation.user_id) ?? {
+      userId: obligation.user_id,
+      balance: 0,
+      overdue: false,
+      partial: false,
+      obligations: 0,
+    };
+    current.balance += balance;
+    current.overdue = current.overdue || obligation.due_date < today;
+    current.partial = current.partial || paid > 0.005;
+    current.obligations += 1;
+    byUser.set(obligation.user_id, current);
+  }
+
+  return [...byUser.values()];
+}
 
 export async function getPaymentsByMembershipId(membershipId: string): Promise<Payment[]> {
   const { data, error } = await supabase
