@@ -42,7 +42,9 @@ export type Profile = {
   role: AppRole;
   dog_name?: string | null;
   avatar_color?: string | null;
+  /** @deprecated Legacy compatibility only. Account deletion SSOT is account_deletion_requests. */
   deletion_requested_at?: string | null;
+  /** @deprecated Legacy compatibility only. Account deletion SSOT is account_deletion_requests. */
   deletion_request_reason?: string | null;
   created_at: string;
   updated_at: string;

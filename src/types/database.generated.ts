@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_deletion_requests: {
+        Row: {
+          created_at: string
+          id: string
+          reason: string | null
+          requested_at: string
+          requested_by: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          retention_until: string | null
+          snapshot_email: string | null
+          snapshot_name: string | null
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reason?: string | null
+          requested_at?: string
+          requested_by?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          retention_until?: string | null
+          snapshot_email?: string | null
+          snapshot_name?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reason?: string | null
+          requested_at?: string
+          requested_by?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          retention_until?: string | null
+          snapshot_email?: string | null
+          snapshot_name?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       achievement_definitions: {
         Row: {
           code: string
@@ -4484,6 +4535,36 @@ export type Database = {
         Args: { p_attempt_id: string }
         Returns: string
       }
+      admin_update_account_deletion_request: {
+        Args: {
+          p_request_id: string
+          p_resolution_note?: string
+          p_retention_until?: string
+          p_status: string
+        }
+        Returns: {
+          created_at: string
+          id: string
+          reason: string | null
+          requested_at: string
+          requested_by: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          retention_until: string | null
+          snapshot_email: string | null
+          snapshot_name: string | null
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "account_deletion_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       admin_update_ucapsa_competition_season: {
         Args: {
           p_code: string
@@ -4894,6 +4975,31 @@ export type Database = {
           name: string
           updated_at: string
         }[]
+      }
+      request_my_account_deletion: {
+        Args: { p_reason?: string }
+        Returns: {
+          created_at: string
+          id: string
+          reason: string | null
+          requested_at: string
+          requested_by: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          retention_until: string | null
+          snapshot_email: string | null
+          snapshot_name: string | null
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "account_deletion_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       rotate_attendance_qr_code: {
         Args: { p_program_code: string }
