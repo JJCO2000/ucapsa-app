@@ -47,7 +47,7 @@ async function loadNotificationsModule() {
 }
 
 function getExpoProjectId() {
-  return Constants.expoConfig?.extra?.eas?.projectId ?? (Constants as any).easConfig?.projectId ?? null;
+  return Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId ?? null;
 }
 
 function getAppVersion() {
