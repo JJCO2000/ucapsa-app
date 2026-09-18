@@ -107,12 +107,6 @@ export const programLevelOptions: Array<{ value: ProgramLevel; label: string }> 
   { value: 'avanzado', label: 'Avanzado' },
 ];
 
-function createQrToken() {
-  const randomA = Math.random().toString(36).slice(2, 12);
-  const randomB = Math.random().toString(36).slice(2, 12);
-  return `program_${Date.now()}_${randomA}${randomB}`;
-}
-
 function normalizeProgram(row: unknown): UcapsaProgram {
   return row as UcapsaProgram;
 }
@@ -590,7 +584,6 @@ export async function createProgramEnrollment(input: CreateProgramEnrollmentInpu
       dog_id: input.dogId?.trim() || null,
       dog_name: input.dogName.trim(),
       physical_card_number: input.physicalCardNumber?.trim() || null,
-      qr_token: createQrToken(),
       status: 'active',
       attendances_count: 0,
       program_level: input.programLevel ?? 'base',
