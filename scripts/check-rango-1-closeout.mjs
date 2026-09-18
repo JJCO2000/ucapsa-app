@@ -22,6 +22,10 @@ const clientRanking = read('src/app/client/competition-ranking.tsx');
 const clientConstancy = read('src/app/client/competition-constancy.tsx');
 const scoreSql = read('supabase/sql/ucapsa-rango-1-competitive-score.sql');
 const rankingSql = read('supabase/sql/ucapsa-rango-1-ranking-ranges.sql');
+const services = read('src/app/(tabs)/services.tsx');
+const legacyClientPoints = read('src/app/client/points.tsx');
+const legacyAdminPoints = read('src/app/admin/points.tsx');
+const legacyPointsRetirementSql = read('supabase/sql/ucapsa-legacy-points-retirement.sql');
 const pkg = read('package.json');
 
 if (!/Rango 1 funcionalmente cerrado/.test(doc)) {
@@ -79,6 +83,22 @@ const competitionSurface = [
 
 if (/ucapsa_points_|get_ucapsa_points_leaderboard/.test(competitionSurface)) {
   failures.push('Competencia Rango 1 volvió a depender del sistema legado UCAPSA Points.');
+}
+
+if (services.includes('/client/points')) {
+  failures.push('Servicios volvió a abrir la pantalla histórica UCAPSA Points.');
+}
+if (!/Redirect/.test(legacyClientPoints) || !legacyClientPoints.includes("'/dog'") || /ucapsa-points\.service/.test(legacyClientPoints)) {
+  failures.push('La ruta cliente histórica /client/points dejó de redirigir al flujo canónico por perro.');
+}
+if (!/Redirect/.test(legacyAdminPoints) || !legacyAdminPoints.includes('/admin/competition-adjustments') || /ucapsa-points\.service/.test(legacyAdminPoints)) {
+  failures.push('La ruta Admin histórica /admin/points dejó de redirigir a Ajustes canónicos.');
+}
+if (!/drop trigger if exists award_ucapsa_point_after_program_attendance[\s\S]*on public\.program_attendances/i.test(legacyPointsRetirementSql)) {
+  failures.push('El trigger automático del sistema legado UCAPSA Points volvió a quedar activo en el contrato SQL.');
+}
+if (!/revoke all on function public\.admin_adjust_ucapsa_points\(uuid, uuid, integer, text\)[\s\S]*from public, anon, authenticated/i.test(legacyPointsRetirementSql)) {
+  failures.push('El RPC de escritura del sistema legado UCAPSA Points volvió a quedar accesible.');
 }
 
 if (!pkg.includes('check:rango-1-closeout')) {
