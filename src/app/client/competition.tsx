@@ -173,15 +173,43 @@ export default function ClientCompetitionScreen() {
               <View style={[styles.pendingCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
                 <MaterialIcons name="workspace-premium" size={24} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.cardTitle, { color: format.cardText }]}>Puntaje competitivo · {numberLabel(selectedSeason.competitive_score)} pts</Text>
+                  <Text style={[styles.sectionEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>RANGO DE CONSTANCIA</Text>
+                  <Text style={[styles.cardTitle, { color: format.cardText }]}>{selectedSeason.range_name || 'Bronce'}</Text>
                   <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
-                    Constancia {numberLabel(selectedSeason.constancy_points)}
-                    {' + '}Exámenes {numberLabel(selectedSeason.exam_points)}
-                    {' + '}Ajustes {numberLabel(selectedSeason.admin_adjustment_points)}.
-                    Rango y posición todavía no disponibles.
+                    {Number(selectedSeason.constancy_events_count ?? 0) === 0
+                      ? '0 eventos: Bronce. Tu perro sí cuenta dentro de la población de la temporada.'
+                      : `Percentil desde la cima: ${Number(selectedSeason.constancy_percentile ?? 0).toFixed(2)}%.`}
                   </Text>
                 </View>
               </View>
+
+              <Pressable
+                style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}
+                onPress={() => {
+                  if (!selectedSeason.season_id) return;
+                  router.push(`/client/competition-ranking?seasonId=${encodeURIComponent(selectedSeason.season_id)}&dogId=${encodeURIComponent(snapshot.dog_id)}` as never);
+                }}
+              >
+                <View style={styles.cardTitleLine}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.sectionEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>RANKING</Text>
+                    <Text style={[styles.cardTitle, { color: format.cardText }]}>
+                      {selectedSeason.is_ranking_eligible ? 'Ver posición y Podio' : 'Ver clasificación de la temporada'}
+                    </Text>
+                  </View>
+                  <MaterialIcons name="chevron-right" size={21} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                </View>
+                <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+                  Puntaje competitivo {numberLabel(selectedSeason.competitive_score)} pts · Constancia {numberLabel(selectedSeason.constancy_points)}
+                  {' + '} Exámenes {numberLabel(selectedSeason.exam_points)}
+                  {' + '} Ajustes {numberLabel(selectedSeason.admin_adjustment_points)}.
+                </Text>
+                {!selectedSeason.is_ranking_eligible ? (
+                  <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+                    Tu perro aún no ocupa posición porque faltan {Number(selectedSeason.missing_required_exams_count ?? 0)} examen(es) obligatorio(s).
+                  </Text>
+                ) : null}
+              </Pressable>
 
               <Pressable
                 style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}
