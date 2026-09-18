@@ -189,6 +189,7 @@ export async function reopenCompetitionSeason(seasonId: string) {
 }
 
 export type CompetitionInput = Database['public']['Views']['ucapsa_competition_inputs']['Row'];
+export type CompetitionScore = Database['public']['Views']['ucapsa_competition_scores']['Row'];
 export type CompetitionAdjustment = Database['public']['Tables']['ucapsa_competition_adjustments']['Row'];
 
 export type CompetitionAdjustmentOverview = {
@@ -1244,7 +1245,7 @@ export async function revertCompetitionExamImportBatch(batchId: string) {
 
 export type CompetitionConstancyEvent = Database['public']['Views']['ucapsa_constancy_events']['Row'];
 
-export type AdminCompetitionConstancyDog = CompetitionInput & {
+export type AdminCompetitionConstancyDog = CompetitionScore & {
   ownerName: string | null;
 };
 
@@ -1282,8 +1283,8 @@ function resolveReadableSeason(seasons: CompetitionSeason[], requestedSeasonId?:
   };
 }
 
-async function enrichCompetitionInputsWithOwners(
-  rows: CompetitionInput[],
+async function enrichCompetitionScoresWithOwners(
+  rows: CompetitionScore[],
 ): Promise<AdminCompetitionConstancyDog[]> {
   const ownerIds = [...new Set(
     rows
@@ -1329,7 +1330,7 @@ export async function getAdminCompetitionConstancyOverview(
   }
 
   const { data, error } = await supabase
-    .from('ucapsa_competition_inputs')
+    .from('ucapsa_competition_scores')
     .select('*')
     .eq('season_id', selected.id)
     .order('dog_name', { ascending: true });
@@ -1339,7 +1340,7 @@ export async function getAdminCompetitionConstancyOverview(
   return {
     seasons: readable,
     selectedSeason: selected,
-    dogs: await enrichCompetitionInputsWithOwners(data ?? []),
+    dogs: await enrichCompetitionScoresWithOwners(data ?? []),
   };
 }
 
@@ -1354,7 +1355,7 @@ export async function getAdminCompetitionConstancyDetail(input: {
   const [season, inputResult, eventsResult] = await Promise.all([
     getAdminCompetitionSeason(seasonId),
     supabase
-      .from('ucapsa_competition_inputs')
+      .from('ucapsa_competition_scores')
       .select('*')
       .eq('season_id', seasonId)
       .eq('dog_id', dogId)
@@ -1374,7 +1375,7 @@ export async function getAdminCompetitionConstancyDetail(input: {
   if (inputResult.error) throw inputResult.error;
   if (eventsResult.error) throw eventsResult.error;
 
-  const [dog] = await enrichCompetitionInputsWithOwners([inputResult.data]);
+  const [dog] = await enrichCompetitionScoresWithOwners([inputResult.data]);
 
   return {
     season,
