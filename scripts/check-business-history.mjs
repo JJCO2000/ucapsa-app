@@ -13,6 +13,7 @@ const files = {
   eventsUi: fs.readFileSync('src/app/admin/events.tsx', 'utf8'),
   cancellationsUi: fs.readFileSync('src/app/admin/class-cancellations.tsx', 'utf8'),
   restaurantUi: fs.readFileSync('src/app/admin/restaurant.tsx', 'utf8'),
+  usersUi: fs.readFileSync('src/app/admin/users.tsx', 'utf8'),
 };
 
 for (const token of [
@@ -46,6 +47,8 @@ for (const [name, text, forbidden] of [
   ['cancellations UI', files.cancellationsUi, 'deleteProgramClassCancellation'],
   ['restaurant UI', files.restaurantUi, 'deleteRestaurantCategory'],
   ['restaurant UI', files.restaurantUi, 'deleteRestaurantItem'],
+  ['users UI', files.usersUi, 'revokeAchievementFromUser'],
+  ['users UI', files.usersUi, 'Quitar logro'],
 ]) {
   if (text.includes(forbidden)) {
     throw new Error(name + ' reintroduced destructive business history action: ' + forbidden);
