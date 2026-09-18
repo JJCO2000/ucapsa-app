@@ -2,6 +2,7 @@ import fs from 'node:fs';
 
 const sql = fs.readFileSync('supabase/sql/ucapsa-db-performance-hardening.sql', 'utf8');
 const rlsSql = fs.readFileSync('supabase/sql/ucapsa-rls-select-overlap-cleanup.sql', 'utf8');
+const semanticSql = fs.readFileSync('supabase/sql/ucapsa-rls-semantic-merge-cleanup.sql', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
 
 const required = [
@@ -60,6 +61,63 @@ for (const canonicalReadPolicy of [
   const dropPattern = new RegExp('drop\\s+policy[^;]*"' + canonicalReadPolicy + '"', 'i');
   if (dropPattern.test(rlsSql)) {
     throw new Error('RLS cleanup is trying to drop canonical read policy: ' + canonicalReadPolicy);
+  }
+}
+
+const semanticRequired = [
+  'RLS semantic merge aborted',
+  'achievement_definitions_select_authenticated',
+  'announcements_select_canonical',
+  'dog_documents_select_canonical',
+  'dog_documents_insert_canonical',
+  'dogs_select_canonical',
+  'dogs_insert_canonical',
+  'dogs_update_canonical',
+  'events_select_canonical',
+  'memberships_insert_canonical',
+  'program_exams_select_canonical',
+  'program_exams_insert_canonical',
+];
+
+for (const token of semanticRequired) {
+  if (!semanticSql.includes(token)) {
+    throw new Error('RLS semantic merge contract missing: ' + token);
+  }
+}
+
+if (!semanticSql.includes('do $ucapsa$') || !semanticSql.includes('$ucapsa$;')) {
+  throw new Error('RLS semantic merge must use the tagged $ucapsa$ DO delimiter.');
+}
+
+for (const preservedPolicy of [
+  'memberships_select_own_or_admin',
+  'memberships_admin_update',
+  'memberships_super_admin_delete',
+]) {
+  const dropPattern = new RegExp('drop\\s+policy[^;]*"' + preservedPolicy + '"', 'i');
+  if (dropPattern.test(semanticSql)) {
+    throw new Error('RLS semantic merge is trying to drop preserved policy: ' + preservedPolicy);
+  }
+}
+
+for (const requiredAdminWrite of [
+  'achievement_definitions_admin_insert',
+  'achievement_definitions_admin_update',
+  'achievement_definitions_admin_delete',
+  'announcements_admin_insert',
+  'announcements_admin_update',
+  'announcements_admin_delete',
+  'dog_documents_admin_update',
+  'dog_documents_admin_delete',
+  'dogs_admin_delete',
+  'events_admin_insert',
+  'events_admin_update',
+  'events_admin_delete',
+  'program_exams_admin_update',
+  'program_exams_admin_delete',
+]) {
+  if (!semanticSql.includes(requiredAdminWrite)) {
+    throw new Error('RLS semantic merge lost admin write path: ' + requiredAdminWrite);
   }
 }
 
