@@ -8,7 +8,7 @@ const required = [
   'on all tables in schema public',
   'from anon, authenticated',
   'alter default privileges for role postgres in schema public',
-  'alter default privileges for role supabase_admin in schema public',
+  'cannot change supabase_admin-owned default privileges',
 ];
 
 for (const token of required) {
@@ -22,6 +22,10 @@ for (const privilege of ['select', 'insert', 'update', 'delete']) {
   if (revokePattern.test(sql)) {
     throw new Error('Global client grant hardening must not revoke CRUD privilege: ' + privilege);
   }
+}
+
+if (/alter\s+default\s+privileges\s+for\s+role\s+supabase_admin/i.test(sql)) {
+  throw new Error('Managed Supabase migrations run as postgres and cannot alter supabase_admin defaults.');
 }
 
 if (/alter\s+policy|drop\s+policy|create\s+policy/i.test(sql)) {
