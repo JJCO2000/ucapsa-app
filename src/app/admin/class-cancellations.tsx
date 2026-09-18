@@ -12,7 +12,6 @@ import { getVisibleEvents } from '../../services/events.service';
 import {
   createProgramClassCancellation,
   createProgramDayCancellations,
-  deleteProgramClassCancellation,
   formatProgramScheduleDetailLabel,
   formatProgramScheduleName,
   getProgramClassCancellations,
@@ -211,27 +210,6 @@ export default function AdminClassCancellationsScreen() {
     }
   }
 
-  function remove(cancellation: ProgramClassCancellation) {
-    Alert.alert('Eliminar cancelacion', 'El registro se eliminara y el anuncio automatico quedara oculto.', [
-      { text: 'Volver', style: 'cancel' },
-      {
-        text: 'Eliminar',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            setSaving(true);
-            await deleteProgramClassCancellation(cancellation.id);
-            await load();
-          } catch (cause) {
-            Alert.alert('No se pudo eliminar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
-          } finally {
-            setSaving(false);
-          }
-        },
-      },
-    ]);
-  }
-
   return (
     <KeyboardAwareScreen>
       <View style={styles.hero}>
@@ -304,19 +282,19 @@ export default function AdminClassCancellationsScreen() {
       {cancelledToday.length > 0 ? (
         <View style={styles.sectionBlock}>
           <Text style={styles.sectionTitle}>Canceladas este dia</Text>
-          {cancelledToday.map((item) => <CancellationRow key={item.id} item={item} programs={programs} saving={saving} onRestore={() => void restore(item)} onDelete={() => remove(item)} />)}
+          {cancelledToday.map((item) => <CancellationRow key={item.id} item={item} programs={programs} saving={saving} onRestore={() => void restore(item)} />)}
         </View>
       ) : null}
 
       <View style={styles.sectionBlock}>
         <Text style={styles.sectionTitle}>Proximas cancelaciones</Text>
-        {upcomingCancellations.length === 0 ? <Text style={styles.muted}>No hay cancelaciones activas.</Text> : upcomingCancellations.map((item) => <CancellationRow key={item.id} item={item} programs={programs} saving={saving} onRestore={() => void restore(item)} onDelete={() => remove(item)} />)}
+        {upcomingCancellations.length === 0 ? <Text style={styles.muted}>No hay cancelaciones activas.</Text> : upcomingCancellations.map((item) => <CancellationRow key={item.id} item={item} programs={programs} saving={saving} onRestore={() => void restore(item)} />)}
       </View>
     </KeyboardAwareScreen>
   );
 }
 
-function CancellationRow({ item, programs, saving, onRestore, onDelete }: { item: ProgramClassCancellation; programs: UcapsaProgram[]; saving: boolean; onRestore: () => void; onDelete: () => void }) {
+function CancellationRow({ item, programs, saving, onRestore }: { item: ProgramClassCancellation; programs: UcapsaProgram[]; saving: boolean; onRestore: () => void }) {
   const program = programFor(programs, item.schedule);
   return (
     <View style={styles.cancellationRow}>
@@ -327,7 +305,6 @@ function CancellationRow({ item, programs, saving, onRestore, onDelete }: { item
       </View>
       <View style={styles.rowActions}>
         <Pressable disabled={saving} style={styles.restoreButton} onPress={onRestore}><Text style={styles.restoreText}>Reactivar</Text></Pressable>
-        <Pressable disabled={saving} style={styles.deleteButton} onPress={onDelete}><Text style={styles.deleteText}>Eliminar</Text></Pressable>
       </View>
     </View>
   );
