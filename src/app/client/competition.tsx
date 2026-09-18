@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
@@ -15,6 +15,7 @@ import {
   type ClientDogCompetitionSnapshot,
   type ClientOfficialExamResult,
 } from '../../services/client-competition.service';
+import { recordValueExposure } from '../../services/continuity-evidence.service';
 
 function numberLabel(value: number | null | undefined) {
   const numeric = Number(value ?? 0);
@@ -115,6 +116,12 @@ export default function ClientCompetitionScreen() {
 
   const selectedSeason = snapshot?.seasons.find((season) => season.season_id === selectedSeasonId) ?? null;
   const officialExams = (snapshot?.official_exams ?? []).filter((exam) => exam.season_id === selectedSeasonId);
+
+  useEffect(() => {
+    if (!snapshot?.dog_id || !selectedSeason?.season_id || isAdmin) return;
+    void recordValueExposure(snapshot.dog_id, selectedSeason.season_id, 'constancy_summary')
+      .catch(() => undefined);
+  }, [isAdmin, selectedSeason?.season_id, snapshot?.dog_id]);
 
   return (
     <KeyboardAwareScreen
