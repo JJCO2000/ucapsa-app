@@ -60,17 +60,15 @@ if (!/OfflineDataNotice/.test(screen) || !/Mostrando competencia guardada/.test(
 
 for (const token of [
   'constancy_events_count',
-  'command_attendances_count',
-  'member_visits_count',
   'required_exams_count',
   'missing_required_exams_count',
   'total_points_awarded',
   'max_points',
 ]) {
-  if (!screen.includes(token)) failures.push(`Resumen cliente perdió dato canónico: ${token}`);
+  if (!screen.includes(token)) failures.push(`Resumen cliente perdió dato útil: ${token}`);
 }
-for (const token of ['competitive_score', 'constancy_points', 'exam_points', 'admin_adjustment_points']) {
-  if (!screen.includes(token)) failures.push(`Resumen cliente perdió componente del score: ${token}`);
+for (const token of ['competitive_score', 'constancy_points', 'admin_adjustment_points']) {
+  if (screen.includes(token)) failures.push(`Resumen cliente volvió a exponer profundidad competitiva: ${token}`);
 }
 for (const token of ['range_name', 'is_constancy_outstanding', 'last_event_date']) {
   if (!screen.includes(token)) failures.push(`Resumen cliente perdió dato útil de Constancia: ${token}`);
