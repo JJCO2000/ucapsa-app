@@ -111,9 +111,6 @@ export default function ClientCompetitionScreen() {
     try { await load(); } finally { setRefreshing(false); }
   }
 
-  if (!user) return <Redirect href="/auth/login" />;
-  if (isAdmin) return <Redirect href="/admin-home" />;
-
   const selectedSeason = snapshot?.seasons.find((season) => season.season_id === selectedSeasonId) ?? null;
   const officialExams = (snapshot?.official_exams ?? []).filter((exam) => exam.season_id === selectedSeasonId);
 
@@ -122,6 +119,9 @@ export default function ClientCompetitionScreen() {
     void recordValueExposure(snapshot.dog_id, selectedSeason.season_id, 'constancy_summary')
       .catch(() => undefined);
   }, [isAdmin, selectedSeason?.season_id, snapshot?.dog_id]);
+
+  if (!user) return <Redirect href="/auth/login" />;
+  if (isAdmin) return <Redirect href="/admin-home" />;
 
   return (
     <KeyboardAwareScreen
