@@ -117,12 +117,17 @@ export default function AdminCompetitionScreen() {
 
       <Text style={styles.sectionTitle}>Competencia</Text>
       <View style={styles.card}>
-        <FeatureRow icon="leaderboard" title="Ranking" subtitle="Clasificación oficial de perros elegibles" status="Escala pendiente" disabled />
+        <FeatureRow
+          icon="leaderboard"
+          title="Ranking"
+          subtitle="Clasificación oficial y Podio de perros elegibles"
+          onPress={() => router.push('/admin/competition-ranking' as never)}
+        />
         <FeatureRow
           icon="workspace-premium"
           title="Rangos / Constancia"
           subtitle="Comandos y visitas de socio por perro"
-          status="Rango pendiente"
+          status="Percentiles activos"
           onPress={() => router.push('/admin/competition-constancy' as never)}
           last
         />
@@ -159,7 +164,7 @@ export default function AdminCompetitionScreen() {
 
       <View style={styles.noteCard}>
         <MaterialIcons name="info-outline" size={20} color={ucapsaBrand.colors.redDark} />
-        <Text style={styles.noteText}>Constancia ya muestra hechos reales por perro. Ranking y Rango siguen sin calcularse hasta definir escala numérica y criterio de desempate.</Text>
+        <Text style={styles.noteText}>Rango = percentil de Constancia entre todos los perros. Ranking = puntaje competitivo de elegibles con desempate por Comandos, Exámenes y dog_id técnico.</Text>
       </View>
     </KeyboardAwareScreen>
   );

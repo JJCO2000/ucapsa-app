@@ -102,16 +102,22 @@ export default function AdminCompetitionConstancyDetailScreen() {
 
           <View style={styles.rangeCard}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.rangeLabel}>PUNTAJE COMPETITIVO</Text>
-              <Text style={styles.rangeValue}>{Number(detail.dog.competitive_score ?? 0)} pts</Text>
+              <Text style={styles.rangeLabel}>RANGO DE CONSTANCIA</Text>
+              <Text style={styles.rangeValue}>{detail.dog.range_name || 'Bronce'}</Text>
               <Text style={styles.muted}>
-                Constancia {Number(detail.dog.constancy_points ?? 0)}
-                {' + '}Exámenes {Number(detail.dog.exam_points ?? 0)}
-                {' + '}Ajustes {Number(detail.dog.admin_adjustment_points ?? 0)}.
-                Rango pendiente de escala.
+                {counts.total === 0
+                  ? '0 eventos: Bronce por regla de actividad. El perro sí cuenta en la población de la temporada.'
+                  : `Percentil desde la cima: ${Number(detail.dog.constancy_percentile ?? 0).toFixed(2)}%. Empates de Constancia comparten Rango.`}
               </Text>
             </View>
             <MaterialIcons name="workspace-premium" size={26} color={ucapsaBrand.colors.redDark} />
+          </View>
+
+          <View style={styles.infoCard}>
+            <InfoRow label="Puntaje competitivo" value={`${Number(detail.dog.competitive_score ?? 0)} pts`} />
+            <InfoRow label="Constancia" value={String(Number(detail.dog.constancy_points ?? 0))} />
+            <InfoRow label="Exámenes" value={String(Number(detail.dog.exam_points ?? 0))} />
+            <InfoRow label="Ajustes Admin" value={String(Number(detail.dog.admin_adjustment_points ?? 0))} />
           </View>
 
           <View style={styles.metricsRow}>

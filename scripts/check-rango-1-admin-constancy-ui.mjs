@@ -29,11 +29,11 @@ for (const route of ['competition-constancy', 'competition-constancy-detail']) {
 if (!/title="Rangos \/ Constancia"[\s\S]{0,360}\/admin\/competition-constancy/.test(hub)) {
   failures.push('Hub Competencia no abre Rangos / Constancia.');
 }
-if (!/status="Rango pendiente"/.test(hub)) {
-  failures.push('Hub debe distinguir Constancia disponible de Rango todavía pendiente.');
+if (!/status="Percentiles activos"/.test(hub)) {
+  failures.push('Hub debe mostrar Rangos activos por percentil.');
 }
-if (!/Ranking[\s\S]{0,180}disabled/.test(hub)) {
-  failures.push('Ranking debe seguir deshabilitado mientras no exista escala.');
+if (!/\/admin\/competition-ranking/.test(hub)) {
+  failures.push('Ranking debe estar habilitado desde el hub.');
 }
 
 if (!/getAdminCompetitionConstancyOverview/.test(overview)) {
@@ -45,15 +45,18 @@ if (!/competition-constancy-detail\?seasonId=/.test(overview) || !/&dogId=/.test
 if (!/ownerName/.test(overview)) {
   failures.push('Listado dejó de desambiguar perros con el dueño.');
 }
-if (!/puntaje competitivo canónico/.test(overview)) {
-  failures.push('UI dejó de explicar que el score es canónico y aún no es Ranking.');
+if (!/Rango se calcula sólo con Constancia/.test(overview)) {
+  failures.push('UI dejó de separar Rango de Constancia y puntaje competitivo.');
 }
 
 if (!/useLocalSearchParams/.test(detail) || !/seasonId/.test(detail) || !/dogId/.test(detail)) {
   failures.push('Detalle de Constancia no conserva season_id + dog_id.');
 }
-if (!/PUNTAJE COMPETITIVO/.test(detail) || !/Rango pendiente de escala/.test(detail)) {
-  failures.push('Detalle debe mostrar score canónico y mantener Rango pendiente.');
+if (!/RANGO DE CONSTANCIA/.test(detail) || !/range_name/.test(detail) || !/constancy_percentile/.test(detail)) {
+  failures.push('Detalle debe mostrar el Rango canónico y su percentil.');
+}
+if (!/Puntaje competitivo/.test(detail) || !/competitive_score/.test(detail)) {
+  failures.push('Detalle debe mantener el puntaje competitivo separado del Rango.');
 }
 if (!/se corrige en la asistencia o visita de origen/.test(detail)) {
   failures.push('Detalle dejó de explicar que la corrección ocurre en el hecho origen.');
@@ -63,7 +66,7 @@ for (const token of [
   "export type CompetitionConstancyEvent",
   "getAdminCompetitionConstancyOverview",
   "getAdminCompetitionConstancyDetail",
-  ".from('ucapsa_competition_scores')",
+  ".from('ucapsa_competition_ranges')",
   ".from('ucapsa_constancy_events')",
   ".from('profiles')",
   ".eq('season_id', seasonId)",
