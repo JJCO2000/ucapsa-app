@@ -99,9 +99,14 @@ function serializeMutation<T>(userId: string, mutation: () => Promise<T>): Promi
   const previous = mutationChains.get(userId) ?? Promise.resolve();
   const current = previous.catch(() => undefined).then(mutation);
   mutationChains.set(userId, current);
-  current.finally(() => {
-    if (mutationChains.get(userId) === current) mutationChains.delete(userId);
-  });
+  current.then(
+    () => {
+      if (mutationChains.get(userId) === current) mutationChains.delete(userId);
+    },
+    () => {
+      if (mutationChains.get(userId) === current) mutationChains.delete(userId);
+    },
+  );
   return current;
 }
 
@@ -185,9 +190,14 @@ function syncOperation(operation: PendingValueExposure): Promise<ValueExposureSy
 
   const current = syncOnce(operation);
   syncInFlight.set(operationKey, current);
-  current.finally(() => {
-    if (syncInFlight.get(operationKey) === current) syncInFlight.delete(operationKey);
-  });
+  current.then(
+    () => {
+      if (syncInFlight.get(operationKey) === current) syncInFlight.delete(operationKey);
+    },
+    () => {
+      if (syncInFlight.get(operationKey) === current) syncInFlight.delete(operationKey);
+    },
+  );
   return current;
 }
 
