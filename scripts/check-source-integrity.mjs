@@ -141,7 +141,7 @@ must('src/app/client/payment-transfer.tsx', /isValidClabe\(settings\.clabe\)/, '
 must('src/app/client/payment-transfer.tsx', /!isValidClabe\(clabe\)/, 'La acción de copiar CLABE dejó de validar el dato antes de copiarlo.');
 must('src/app/client/payment-transfer.tsx', /loadRunRef/, 'Transferir perdió la guarda contra respuestas asíncronas obsoletas.');
 mustNot('src/services/client-read-cache.service.ts', /paymentSettings/, 'Los datos bancarios volvieron a ser elegibles para caché local.');
-mustNot('src/components/domain/CustomerValueSnapshotCard.tsx', /renovaci[oó]n/i, 'Inicio volvió a presentar una renovación periódica que no existe en la membresía vitalicia.');
+mustNot('src/screens/home/HomeCards.tsx', /renovaci[oó]n/i, 'Inicio volvió a presentar una renovación periódica que no existe en la membresía vitalicia.');
 
 const scanRoots = ['src', 'scripts'];
 function walk(dir) {
