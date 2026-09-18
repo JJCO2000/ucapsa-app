@@ -97,6 +97,8 @@ Los empates de Constancia comparten percentil/nivel; no se separan con un criter
 
 La interfaz Cliente no debe exponer mecánicas tipo XP, subniveles I/II/III ni castigos arbitrarios por inactividad. Debe demostrar hechos útiles: nivel de Constancia, actividades registradas, Comandos, visitas y última actividad. El percentil exacto pertenece al detalle, no al resumen.
 
+La inactividad se comunica inicialmente como **última actividad registrada**, sin degradación por un número arbitrario de días. Un umbral de 30/60/90/100 días sólo podrá convertirse en regla de producto cuando exista evidencia operativa de la cadencia real de UCAPSA y su relación con abandono/renovación.
+
 Una clase cancelada es neutral. Una misma sesión sólo puede contar una vez por perro. Cambiar de Básico a Intermedio o Avanzado dentro de la temporada no reinicia la constancia del perro.
 
 ## Exámenes
