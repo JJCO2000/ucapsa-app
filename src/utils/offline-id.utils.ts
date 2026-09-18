@@ -35,7 +35,7 @@ function toHex32(value: number) {
  * This is not a secret/token generator. Uniqueness comes from Expo's per-session
  * Constants.sessionId, the current millisecond and a monotonic in-process
  * sequence. The 128-bit hash only encodes that unique material into PostgreSQL's
- * UUID shape without depending on Math.random().
+ * UUID shape without a pseudo-random JS fallback.
  */
 export function createOfflineUuid(scope: string) {
   const now = Date.now();
