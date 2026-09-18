@@ -8,7 +8,10 @@ import { ucapsaBrand } from '../../constants/brand';
 import {
   getAdminContinuityObservations,
   summarizeContinuity,
+  summarizeContinuityCohort30,
+  summarizeContinuityWindow,
   type ContinuityObservation,
+  type ContinuityWindowDays,
 } from '../../services/continuity-evidence.service';
 
 type SeasonOption = {
@@ -44,6 +47,7 @@ export default function AdminContinuityScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [windowDays, setWindowDays] = useState<ContinuityWindowDays>(30);
 
   const load = useCallback(async () => {
     setError(null);
@@ -93,6 +97,11 @@ export default function AdminContinuityScreen() {
     [rows, selectedSeasonId],
   );
   const summary = useMemo(() => summarizeContinuity(visibleRows), [visibleRows]);
+  const windowSummary = useMemo(
+    () => summarizeContinuityWindow(visibleRows, windowDays),
+    [visibleRows, windowDays],
+  );
+  const cohortSummary = useMemo(() => summarizeContinuityCohort30(visibleRows), [visibleRows]);
 
   return (
     <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={ucapsaBrand.colors.red} />}>
@@ -168,7 +177,7 @@ export default function AdminContinuityScreen() {
                   icon="people"
                 />
                 <MetricCard
-                  label="Vieron su valor"
+                  label="Exposición registrada"
                   value={String(summary.exposedCustomers)}
                   detail={percentLabel(summary.exposedCustomers, summary.observedCustomers)}
                   icon="visibility"
@@ -180,12 +189,73 @@ export default function AdminContinuityScreen() {
                   icon="directions-run"
                 />
                 <MetricCard
-                  label="Pago posterior"
-                  value={String(summary.paymentAfterExposure)}
-                  detail={percentLabel(summary.paymentAfterExposure, summary.exposedCustomers)}
+                  label="Mensualidad posterior"
+                  value={String(summary.membershipPaymentAfterExposure)}
+                  detail={percentLabel(summary.membershipPaymentAfterExposure, summary.exposedCustomers)}
                   icon="payments"
                 />
               </View>
+
+              <Text style={styles.sectionTitle}>Ventana después de exposición</Text>
+              <View style={styles.pills}>
+                {([7, 30, 60, 90] as ContinuityWindowDays[]).map((days) => {
+                  const selected = days === windowDays;
+                  return (
+                    <Pressable
+                      key={days}
+                      style={[styles.pill, selected && styles.pillSelected]}
+                      onPress={() => setWindowDays(days)}
+                    >
+                      <Text style={[styles.pillText, selected && styles.pillTextSelected]}>{days} días</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <View style={styles.metricsGrid}>
+                <MetricCard
+                  label="Actividad"
+                  value={String(windowSummary.activityCustomers)}
+                  detail={percentLabel(windowSummary.activityCustomers, windowSummary.exposedCustomers)}
+                  icon="directions-run"
+                />
+                <MetricCard
+                  label="Cualquier pago"
+                  value={String(windowSummary.anyPaymentCustomers)}
+                  detail={percentLabel(windowSummary.anyPaymentCustomers, windowSummary.exposedCustomers)}
+                  icon="receipt-long"
+                />
+                <MetricCard
+                  label="Mensualidad"
+                  value={String(windowSummary.membershipPaymentCustomers)}
+                  detail={percentLabel(windowSummary.membershipPaymentCustomers, windowSummary.exposedCustomers)}
+                  icon="payments"
+                />
+              </View>
+
+              <Text style={styles.sectionTitle}>Comparación 30 días</Text>
+              <View style={styles.methodCard}>
+                <MaterialIcons name="compare-arrows" size={21} color={ucapsaBrand.colors.redDark} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.methodTitle}>Cohorte comparable</Text>
+                  <Text style={styles.muted}>
+                    Sólo clientes con seguimiento completo: exposición durante los primeros 7 días desde su primera actividad y resultados observados en los 30 días siguientes.
+                  </Text>
+                </View>
+              </View>
+              {cohortSummary.eligibleCustomers === 0 ? (
+                <View style={styles.emptyCard}>
+                  <MaterialIcons name="hourglass-empty" size={24} color={ucapsaBrand.colors.redDark} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.emptyTitle}>Aún no hay seguimiento completo</Text>
+                    <Text style={styles.muted}>Se necesitan 37 días desde la primera actividad para comparar ambos grupos sin recortar la ventana.</Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.cohortGrid}>
+                  <CohortCard title="Exposición temprana" group={cohortSummary.earlyExposure} />
+                  <CohortCard title="Sin exposición temprana" group={cohortSummary.noEarlyExposure} />
+                </View>
+              )}
 
               {summary.deleteRequestAfterExposure > 0 ? (
                 <View style={styles.warningCard}>
@@ -238,6 +308,7 @@ function ObservationRow({ row }: { row: ContinuityObservation }) {
   const exposed = row.has_value_exposure === true;
   const activityAfter = Number(row.activity_events_after_exposure ?? 0);
   const paymentAfter = Number(row.paid_payments_after_exposure ?? 0);
+  const membershipPaymentAfter = Number(row.membership_paid_payments_after_exposure ?? 0);
 
   return (
     <View style={styles.observationCard}>
@@ -250,7 +321,7 @@ function ObservationRow({ row }: { row: ContinuityObservation }) {
         </View>
         <View style={[styles.exposurePill, !exposed && styles.exposurePillMuted]}>
           <Text style={[styles.exposureText, !exposed && styles.exposureTextMuted]}>
-            {exposed ? `${Number(row.value_exposure_days ?? 0)} día(s) visto` : 'Sin exposición'}
+            {exposed ? `${Number(row.value_exposure_days ?? 0)} día(s) de exposición` : 'Sin exposición'}
           </Text>
         </View>
       </View>
@@ -270,11 +341,38 @@ function ObservationRow({ row }: { row: ContinuityObservation }) {
             {row.next_activity_date ? ` · primera: ${dateLabel(row.next_activity_date)}` : ''}
           </Text>
           <Text style={styles.afterText}>
-            {paymentAfter} pago(s) posterior(es)
+            {paymentAfter} pago(s) UCAPSA posterior(es)
             {row.next_paid_at ? ` · primero: ${dateLabel(row.next_paid_at)}` : ''}
+          </Text>
+          <Text style={styles.afterText}>
+            {membershipPaymentAfter} mensualidad(es) posterior(es)
+            {row.next_membership_paid_at ? ` · primera: ${dateLabel(row.next_membership_paid_at)}` : ''}
           </Text>
         </View>
       ) : null}
+    </View>
+  );
+}
+
+function CohortCard({
+  title,
+  group,
+}: {
+  title: string;
+  group: {
+    customers: number;
+    activityCustomers: number;
+    anyPaymentCustomers: number;
+    membershipPaymentCustomers: number;
+  };
+}) {
+  return (
+    <View style={styles.cohortCard}>
+      <Text style={styles.cohortTitle}>{title}</Text>
+      <Text style={styles.cohortN}>{group.customers} cliente(s)</Text>
+      <Text style={styles.cohortLine}>Actividad · {percentLabel(group.activityCustomers, group.customers)}</Text>
+      <Text style={styles.cohortLine}>Cualquier pago · {percentLabel(group.anyPaymentCustomers, group.customers)}</Text>
+      <Text style={styles.cohortLine}>Mensualidad · {percentLabel(group.membershipPaymentCustomers, group.customers)}</Text>
     </View>
   );
 }
@@ -314,6 +412,11 @@ const styles = StyleSheet.create({
   metricDetail: { color: ucapsaBrand.colors.muted, fontSize: 10, fontWeight: '700' },
   warningCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 15, borderWidth: 1, borderColor: ucapsaBrand.colors.dangerBorder, backgroundColor: ucapsaBrand.colors.dangerSoft, padding: 11, marginBottom: 12 },
   warningText: { flex: 1, color: ucapsaBrand.colors.danger, fontSize: 10, lineHeight: 15, fontWeight: '800' },
+  cohortGrid: { flexDirection: 'row', gap: 9, marginBottom: 14 },
+  cohortCard: { flex: 1, borderRadius: 17, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 11, gap: 4 },
+  cohortTitle: { color: ucapsaBrand.colors.text, fontSize: 11, fontWeight: '900' },
+  cohortN: { color: ucapsaBrand.colors.redDark, fontSize: 17, fontWeight: '900' },
+  cohortLine: { color: ucapsaBrand.colors.muted, fontSize: 9, lineHeight: 14, fontWeight: '800' },
   list: { gap: 9 },
   observationCard: { borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 12, gap: 10 },
   observationHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
