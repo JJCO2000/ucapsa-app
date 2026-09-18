@@ -464,11 +464,32 @@ export async function approveMembershipDeleteRequest(row: MembershipDeleteReques
   if (authError) throw authError;
 
   const now = new Date().toISOString();
+  const resolverId = authData.user?.id ?? null;
 
-  const { error: paymentsError } = await supabase.from('payments').delete().eq('membership_id', row.request.membership_id);
-  if (paymentsError) throw paymentsError;
+  // Una baja de membresía termina el beneficio; no destruye evidencia financiera
+  // ni el historial de la relación con UCAPSA.
+  const { error: obligationError } = await supabase
+    .from('payment_obligations')
+    .update({
+      cancelled_at: now,
+      cancelled_by: resolverId,
+      updated_at: now,
+    })
+    .eq('membership_id', row.request.membership_id)
+    .is('cancelled_at', null);
 
-  const { error: membershipError } = await supabase.from('memberships').delete().eq('id', row.request.membership_id);
+  if (obligationError) throw obligationError;
+
+  const { error: membershipError } = await supabase
+    .from('memberships')
+    .update({
+      status: 'cancelled',
+      current_payment_status: 'not_required',
+      payment_notes: 'Baja definitiva de membresía aprobada; historial conservado.',
+      updated_at: now,
+    })
+    .eq('id', row.request.membership_id);
+
   if (membershipError) throw membershipError;
 
   const { error: profileError } = await supabase
@@ -481,7 +502,7 @@ export async function approveMembershipDeleteRequest(row: MembershipDeleteReques
 
   const { error: requestError } = await supabase
     .from('membership_delete_requests')
-    .update({ status: 'approved', resolved_by: authData.user?.id ?? null, resolved_at: now, updated_at: now })
+    .update({ status: 'approved', resolved_by: resolverId, resolved_at: now, updated_at: now })
     .eq('id', row.request.id);
 
   if (requestError) throw requestError;

@@ -39,6 +39,9 @@ for (const rel of ['src/app/admin/classes.tsx', 'src/app/admin/customer-class.ts
 must('src/constants/programCompletion.ts', /PROGRAM_COMPLETION_ACHIEVEMENT_CODES/, 'Falta el registro central de logros por programa.');
 must('src/services/achievements.service.ts', /getProgramCompletionAchievementCode/, 'Logros no usa el registro central de finalización de programas.');
 mustNot('src/services/achievements.service.ts', /function\s+programCompletionAchievementCode/, 'Logros volvió a duplicar el mapeo programa -> medalla.');
+mustNot('src/services/memberships.service.ts', /from\('payments'\)\.delete\(\)/, 'La baja de membresía volvió a borrar pagos históricos.');
+mustNot('src/services/memberships.service.ts', /from\('memberships'\)\.delete\(\)/, 'La baja de membresía volvió a borrar la membresía histórica.');
+must('src/services/memberships.service.ts', /payment_obligations[\s\S]*cancelled_at/, 'La baja de membresía dejó de cancelar obligaciones futuras sin borrar historial.');
 must('src/services/memberships.service.ts', /getMyMembershipEligibility/, 'Membresía no tiene una consulta canónica de elegibilidad.');
 must('src/services/memberships.service.ts', /program_completion_achievement/, 'Membresía perdió el fallback de evidencia histórica por logro de programa.');
 must('src/app/client/membership.tsx', /getMyMembershipEligibility/, 'Pantalla de membresía no usa la elegibilidad canónica.');
