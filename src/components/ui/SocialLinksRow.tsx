@@ -25,7 +25,7 @@ export function SocialLinksRow({ title = 'Canales oficiales', subtitle = 'Sitio 
       <View style={styles.row}>
         {ucapsaBrand.socialLinks.map((item) => (
           <Pressable accessibilityRole="link" accessibilityLabel={`Abrir ${item.label}`} key={item.key} style={[styles.item, premium && styles.itemPremium]} onPress={() => void openLink(item.url)}>
-            <MaterialCommunityIcons name={item.icon as any} size={20} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.red} />
+            <MaterialCommunityIcons name={item.icon as keyof typeof MaterialCommunityIcons.glyphMap} size={20} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.red} />
             <Text style={[styles.label, premium && styles.labelPremium]}>{item.label}</Text>
           </Pressable>
         ))}
