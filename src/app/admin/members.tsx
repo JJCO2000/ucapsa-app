@@ -129,7 +129,6 @@ function Metric({ label, value, active, onPress }: { label: string; value: numbe
 
 function MemberRow({ row, last }: { row: MembershipAdminRow; last: boolean }) {
   const userId = encodeURIComponent(row.membership.user_id);
-  const warning = row.profile?.deletion_requested_at ? 'Eliminacion solicitada' : null;
   return (
     <View style={[styles.row, last && styles.rowLast]}>
       <Pressable style={styles.rowMain} onPress={() => router.push(`/admin/customer?userId=${userId}` as never)}>
@@ -138,7 +137,6 @@ function MemberRow({ row, last }: { row: MembershipAdminRow; last: boolean }) {
           <Text style={styles.rowTitle}>{getDisplayName(row.profile)}</Text>
           <Text style={styles.rowMeta}>{row.membership.member_number || 'Numero pendiente'} - {getMembershipStatusLabel(row.membership.status)}</Text>
           <Text style={styles.rowMeta}>Pago: {getPaymentStatusLabel(row.membership.current_payment_status)} - Duracion: toda la vida del perro</Text>
-          {warning ? <Text style={styles.warning}>{warning}</Text> : null}
         </View>
         <MaterialIcons name="chevron-right" size={23} color={ucapsaBrand.colors.redDark} />
       </Pressable>
@@ -181,7 +179,6 @@ const styles = StyleSheet.create({
   avatarText: { color: ucapsaBrand.colors.redDark, fontSize: 16, fontWeight: '900' },
   rowTitle: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
   rowMeta: { color: ucapsaBrand.colors.muted, fontSize: 10, lineHeight: 15, fontWeight: '700', marginTop: 2 },
-  warning: { color: ucapsaBrand.colors.redDark, fontSize: 10, fontWeight: '900', marginTop: 3 },
   actions: { flexDirection: 'row', gap: 7, marginTop: 9, marginLeft: 50 },
   action: { borderRadius: 11, backgroundColor: ucapsaBrand.colors.redSoft, paddingHorizontal: 11, paddingVertical: 8 },
   actionText: { color: ucapsaBrand.colors.redDark, fontSize: 10, fontWeight: '900' },
