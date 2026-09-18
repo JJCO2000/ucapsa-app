@@ -33,11 +33,20 @@ must('src/services/client-offline-sync.service.ts', /getMyMemberVisits\(userId, 
 must('src/services/client-offline-sync.service.ts', /flushPendingClientWrites\(userId\)[\s\S]*await cachePracticeActivity\(userId\)/, 'El warm offline dejó de refrescar actividad después de vaciar las colas.');
 must('src/services/client-offline-sync.service.ts', /flushPendingAttendanceOperations/, 'El warm offline dejó de reintentar asistencias y visitas.');
 must('src/services/client-offline-sync.service.ts', /flushPendingPracticeSessions/, 'El warm offline dejó de reintentar prácticas.');
+must('src/services/client-offline-sync.service.ts', /flushPendingValueExposures/, 'El warm offline dejó de reintentar exposiciones de valor.');
 must('src/services/client-offline-sync.service.ts', /practiceOutbox/, 'El resultado del warm dejó de reportar la cola de prácticas.');
+must('src/services/client-offline-sync.service.ts', /valueExposureOutbox/, 'El resultado del warm dejó de reportar la cola de exposiciones de valor.');
 
 // Regreso a primer plano: ambas colas vuelven a intentarse, cada una de forma independiente.
 must('src/app/_layout.tsx', /AppState\.addEventListener\('change'/, 'La app dejó de detectar el regreso a primer plano.');
-must('src/app/_layout.tsx', /Promise\.allSettled\(\[[\s\S]*flushPendingAttendanceOperations\(user\.id\)[\s\S]*flushPendingPracticeSessions\(user\.id\)/, 'Foreground dejó de reintentar asistencias/visitas y prácticas juntas.');
+must('src/app/_layout.tsx', /Promise\.allSettled\(\[[\s\S]*flushPendingAttendanceOperations\(user\.id\)[\s\S]*flushPendingPracticeSessions\(user\.id\)[\s\S]*flushPendingValueExposures\(user\.id\)/, 'Foreground dejó de reintentar asistencias/visitas, prácticas y exposiciones juntas.');
+
+// Exposición de valor offline: local-first, hora real y retry durable.
+must('src/services/value-exposure-outbox.service.ts', /AsyncStorage/, 'Exposición de valor dejó de usar outbox durable.');
+must('src/services/value-exposure-outbox.service.ts', /p_occurred_at: operation\.occurredAt/, 'Exposición de valor dejó de conservar la hora original.');
+must('src/services/value-exposure-outbox.service.ts', /recordValueExposureDurably/, 'Exposición de valor dejó de persistir antes de intentar red.');
+must('src/services/value-exposure-outbox.service.ts', /flushPendingValueExposures/, 'Exposición de valor perdió retry de la cola.');
+
 
 // QR offline: cola durable, identidad idempotente y hora real de captura.
 must('src/services/attendance-outbox.service.ts', /AsyncStorage/, 'La cola QR dejó de ser persistente.');
