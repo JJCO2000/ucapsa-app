@@ -19,6 +19,8 @@ const admin = read('src/app/admin/continuity.tsx');
 const summary = read('src/app/client/competition.tsx');
 const detail = read('src/app/client/competition-constancy.tsx');
 const service = read('src/services/continuity-evidence.service.ts');
+const outbox = read('src/services/value-exposure-outbox.service.ts');
+const offline = read('src/services/client-offline-sync.service.ts');
 const docs = read('docs/UCAPSA_CONTINUITY_EVIDENCE.md');
 const pkg = read('package.json');
 
@@ -33,17 +35,22 @@ for (const token of [
   'record_ucapsa_value_exposure',
   'get_ucapsa_continuity_observations',
   'summarizeContinuity',
+  'summarizeContinuityWindow',
+  'summarizeContinuityCohort30',
   "'constancy_summary'",
   "'constancy_detail'",
 ]) {
   if (!service.includes(token)) failures.push('Servicio Continuidad perdió contrato: ' + token);
 }
 
-if (!/recordValueExposure\(snapshot\.dog_id, selectedSeason\.season_id, 'constancy_summary'\)/.test(summary)) {
-  failures.push('Resumen Cliente no registra exposición al Nivel de Constancia.');
+if (!/recordValueExposure\(user\.id, snapshot\.dog_id, selectedSeason\.season_id!, 'constancy_summary'\)/.test(summary)) {
+  failures.push('Resumen Cliente no registra exposición durable al Nivel de Constancia.');
 }
-if (!/recordValueExposure\(detail\.dog_id, season\.season_id, 'constancy_detail'\)/.test(detail)) {
-  failures.push('Detalle Cliente no registra exposición a Constancia.');
+if (!/setTimeout\([\s\S]{0,260}750/.test(summary) || !/screenFocused/.test(summary)) {
+  failures.push('Resumen Cliente debe exigir foco estable durante 750 ms antes de registrar exposición.');
+}
+if (!/recordValueExposure\(user\.id, detail\.dog_id, season\.season_id, 'constancy_detail'\)/.test(detail)) {
+  failures.push('Detalle Cliente no registra apertura durable de Constancia.');
 }
 if (!/\.catch\(\(\) => undefined\)/.test(summary) || !/\.catch\(\(\) => undefined\)/.test(detail)) {
   failures.push('Tracking de exposición debe ser no bloqueante para Cliente.');
@@ -53,12 +60,32 @@ for (const token of [
   'Lectura observacional',
   'Esto no demuestra causalidad',
   'Clientes observados',
-  'Vieron su valor',
+  'Exposición registrada',
   'Actividad posterior',
-  'Pago posterior',
+  'Mensualidad posterior',
+  'Ventana después de exposición',
+  'Comparación 30 días',
+  'Exposición temprana',
+  'Sin exposición temprana',
   'Después de la primera exposición',
 ]) {
   if (!admin.includes(token)) failures.push('Admin Continuidad perdió evidencia/metodología: ' + token);
+}
+
+for (const token of [
+  'ucapsa:value-exposure-outbox:v1:',
+  'queueValueExposure',
+  'recordValueExposureDurably',
+  'flushPendingValueExposures',
+  'p_occurred_at: operation.occurredAt',
+]) {
+  if (!outbox.includes(token)) failures.push('Outbox de exposición perdió contrato: ' + token);
+}
+for (const token of ['flushPendingValueExposures', 'valueExposureOutbox']) {
+  if (!offline.includes(token)) failures.push('Sync offline no vacía exposiciones pendientes: ' + token);
+}
+if (!/recordValueExposureDurably/.test(service)) {
+  failures.push('Servicio Continuidad debe guardar localmente antes de sincronizar.');
 }
 
 if (/risk score|churn score|riesgo alto|riesgo medio|riesgo bajo/i.test(admin + service)) {
@@ -67,7 +94,11 @@ if (/risk score|churn score|riesgo alto|riesgo medio|riesgo bajo/i.test(admin + 
 
 if (!/cliente\/pagador \+ temporada/.test(docs)
   || !/no se crea una métrica ficticia de renovación/i.test(docs)
-  || !/actividad posterior empieza al día siguiente/i.test(docs)) {
+  || !/actividad posterior empieza al día siguiente/i.test(docs)
+  || !/750 ms/.test(docs)
+  || !/outbox local durable/.test(docs)
+  || !/primeros \*\*7 días\*\*/.test(docs)
+  || !/\*\*37 días\*\*/.test(docs)) {
   failures.push('Documentación perdió unidad o límites metodológicos.');
 }
 
