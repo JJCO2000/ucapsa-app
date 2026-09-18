@@ -6,23 +6,13 @@ import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, TextInp
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
-import { supabase } from '../../lib/supabase';
 import { getAdminMembershipRows } from '../../services/memberships.service';
+import { getAdminPaymentAttentionRows } from '../../services/payments.service';
+import { getAdminClientProfiles } from '../../services/profiles.service';
 import type { Profile } from '../../types/app.types';
 import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
 
 type PaymentView = 'attention' | 'overdue' | 'partial';
-
-type ObligationRow = {
-  id: string;
-  user_id: string;
-  concept: string;
-  due_date: string;
-  amount: number;
-  cancelled_at: string | null;
-};
-
-type PaidRow = { obligation_id: string | null; amount: number; status: string };
 
 type CustomerBalance = {
   userId: string;
@@ -51,48 +41,24 @@ export default function AdminPaymentsTab() {
   const load = useCallback(async () => {
     if (!isAdmin) return;
     setError(null);
-    const [obligationsResult, paymentsResult, profilesResult, memberships] = await withOperationTimeout(Promise.all([
-      supabase.from('payment_obligations').select('id, user_id, concept, due_date, amount, cancelled_at').is('cancelled_at', null),
-      supabase.from('payments').select('obligation_id, amount, status').eq('status', 'paid').not('obligation_id', 'is', null),
-      supabase.from('profiles').select('*').in('role', ['client', 'member']),
+    const [attentionRows, profiles, memberships] = await withOperationTimeout(Promise.all([
+      getAdminPaymentAttentionRows(),
+      getAdminClientProfiles(),
       getAdminMembershipRows(),
     ]), DEFAULT_READ_TIMEOUT_MS, 'admin-payments-load');
-    if (obligationsResult.error) throw obligationsResult.error;
-    if (paymentsResult.error) throw paymentsResult.error;
-    if (profilesResult.error) throw profilesResult.error;
 
-    const obligations = (obligationsResult.data ?? []) as ObligationRow[];
-    const payments = (paymentsResult.data ?? []) as PaidRow[];
-    const profiles = (profilesResult.data ?? []) as Profile[];
     const profileByUser = new Map(profiles.map((profile) => [profile.user_id, profile]));
-    const paidByObligation = new Map<string, number>();
-    for (const payment of payments) {
-      if (!payment.obligation_id) continue;
-      paidByObligation.set(payment.obligation_id, (paidByObligation.get(payment.obligation_id) ?? 0) + Number(payment.amount ?? 0));
-    }
-
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const byUser = new Map<string, CustomerBalance>();
-    for (const obligation of obligations) {
-      const amount = Number(obligation.amount ?? 0);
-      const paid = paidByObligation.get(obligation.id) ?? 0;
-      const balance = Math.max(0, amount - paid);
-      if (balance <= 0.005) continue;
-      const current = byUser.get(obligation.user_id) ?? {
-        userId: obligation.user_id,
-        profile: profileByUser.get(obligation.user_id) ?? null,
-        balance: 0,
-        overdue: false,
-        partial: false,
-        obligations: 0,
+    for (const row of attentionRows) {
+      byUser.set(row.userId, {
+        userId: row.userId,
+        profile: profileByUser.get(row.userId) ?? null,
+        balance: row.balance,
+        overdue: row.overdue,
+        partial: row.partial,
+        obligations: row.obligations,
         legacyPending: false,
-      };
-      current.balance = (current.balance ?? 0) + balance;
-      current.overdue = current.overdue || obligation.due_date < today;
-      current.partial = current.partial || paid > 0.005;
-      current.obligations += 1;
-      byUser.set(obligation.user_id, current);
+      });
     }
 
     for (const membershipRow of memberships) {
