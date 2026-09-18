@@ -102,12 +102,13 @@ export default function AdminCompetitionConstancyDetailScreen() {
 
           <View style={styles.rangeCard}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.rangeLabel}>RANGO DE CONSTANCIA</Text>
-              <Text style={styles.rangeValue}>{detail.dog.range_name || 'Bronce'}</Text>
+              <Text style={styles.rangeLabel}>NIVEL DE CONSTANCIA</Text>
+              <Text style={styles.rangeValue}>{detail.dog.range_name || 'Cobre'}</Text>
               <Text style={styles.muted}>
                 {counts.total === 0
-                  ? '0 eventos: Bronce por regla de actividad. El perro sí cuenta en la población de la temporada.'
-                  : `Percentil desde la cima: ${Number(detail.dog.constancy_percentile ?? 0).toFixed(2)}%. Empates de Constancia comparten Rango.`}
+                  ? '0 eventos: Cobre por regla de actividad. El perro sí cuenta en la población de la temporada.'
+                  : `Percentil desde la cima: ${Number(detail.dog.constancy_percentile ?? 0).toFixed(2)}%. Empates de Constancia comparten Nivel.`}
+                {detail.dog.is_constancy_outstanding ? ' · Constancia sobresaliente (top 5%).' : ''}
               </Text>
             </View>
             <MaterialIcons name="workspace-premium" size={26} color={ucapsaBrand.colors.redDark} />
