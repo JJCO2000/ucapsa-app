@@ -135,7 +135,7 @@ export default function AdminCompetitionConstancyScreen() {
 
               <View style={styles.noteCard}>
                 <MaterialIcons name="info-outline" size={19} color={ucapsaBrand.colors.redDark} />
-                <Text style={styles.noteText}>Esta pantalla no ordena perros por “mejor constancia” ni calcula Rango. Sólo muestra hechos canónicos.</Text>
+                <Text style={styles.noteText}>Esta pantalla muestra el puntaje competitivo canónico, pero sigue sin ordenar por posición ni asignar Rango.</Text>
               </View>
 
               <View style={styles.searchBox}>
@@ -180,7 +180,7 @@ export default function AdminCompetitionConstancyScreen() {
                             {!dog.dog_is_active ? <Text style={styles.inactivePill}>Inactivo</Text> : null}
                           </View>
                           <Text numberOfLines={1} style={styles.muted}>{dog.ownerName || 'Dueño sin nombre'}</Text>
-                          <Text style={styles.meta}>{events} eventos · {commands} Comandos · {visits} visitas</Text>
+                          <Text style={styles.meta}>{Number(dog.competitive_score ?? 0)} pts · {events} eventos · {commands} Comandos · {visits} visitas</Text>
                         </View>
                         <MaterialIcons name="chevron-right" size={22} color={ucapsaBrand.colors.redDark} />
                       </Pressable>
