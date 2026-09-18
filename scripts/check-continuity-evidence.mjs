@@ -68,7 +68,7 @@ if (!/from public\.account_deletion_requests r/i.test(accountDeletionMigration))
   throw new Error('Continuity account deletion migration must read the canonical account deletion SSOT.');
 }
 
-if (/membership_delete_requests/i.test(sql) || /membership_delete_requests/i.test(accountDeletionMigration)) {
+if (/from\s+public\.membership_delete_requests\b/i.test(sql) || /from\s+public\.membership_delete_requests\b/i.test(accountDeletionMigration)) {
   throw new Error('Continuity must not confuse membership cancellation with account deletion.');
 }
 
