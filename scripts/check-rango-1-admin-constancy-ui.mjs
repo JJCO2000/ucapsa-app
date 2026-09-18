@@ -45,8 +45,8 @@ if (!/competition-constancy-detail\?seasonId=/.test(overview) || !/&dogId=/.test
 if (!/ownerName/.test(overview)) {
   failures.push('Listado dejó de desambiguar perros con el dueño.');
 }
-if (!/Rango se calcula sólo con Constancia/.test(overview)) {
-  failures.push('UI dejó de separar Rango de Constancia y puntaje competitivo.');
+if (!/El Nivel se calcula sólo con Constancia/.test(overview)) {
+  failures.push('UI dejó de separar Nivel de Constancia y puntaje competitivo.');
 }
 
 if (!/useLocalSearchParams/.test(detail) || !/seasonId/.test(detail) || !/dogId/.test(detail)) {
