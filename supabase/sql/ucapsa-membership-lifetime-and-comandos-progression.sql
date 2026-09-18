@@ -168,7 +168,11 @@ begin
   elsif tg_op = 'UPDATE'
     and old.status = 'completed'
     and new.status is distinct from 'completed' then
-    delete from public.program_enrollments child
+    update public.program_enrollments child
+    set
+      status = 'cancelled',
+      cancelled_at = coalesce(child.cancelled_at, now()),
+      updated_at = now()
     where child.unlocked_from_enrollment_id = new.id
       and child.status = 'active'
       and not exists (
