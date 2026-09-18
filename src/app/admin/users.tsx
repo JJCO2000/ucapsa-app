@@ -12,7 +12,6 @@ import { getAdminProfiles, getProfileByUserId } from '../../services/profiles.se
 import {
   awardAchievementToUser,
   getAchievementsForUser,
-  revokeAchievementFromUser,
   type AchievementWithState,
 } from '../../services/achievements.service';
 import type { AppRole, Profile } from '../../types/app.types';
@@ -106,36 +105,31 @@ export default function AdminUsersScreen() {
     }
   }
 
-  function handleToggleAchievement(profile: Profile, item: AchievementWithState) {
-    const title = item.unlocked ? 'Quitar logro' : 'Marcar logro completado';
-    const message = item.unlocked
-      ? `Esto quitara ${item.definition.title} de los logros del usuario. Usalo solo si fue un error.`
-      : `Esto marcara como completado: ${item.definition.unlocked_title}.`;
-    const confirmLabel = item.unlocked ? 'Quitar' : 'Marcar completado';
+  function handleAwardAchievement(profile: Profile, item: AchievementWithState) {
+    if (item.unlocked) return;
 
-    Alert.alert(title, message, [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: confirmLabel,
-        style: item.unlocked ? 'destructive' : 'default',
-        onPress: async () => {
-          try {
-            setSavingUserId(profile.user_id);
-            if (item.unlocked) {
-              await revokeAchievementFromUser(profile.user_id, item.definition.code);
-            } else {
+    Alert.alert(
+      'Marcar logro completado',
+      `Se otorgara ${item.definition.title} al usuario. El otorgamiento quedara como parte de su historial.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Otorgar logro',
+          onPress: async () => {
+            try {
+              setSavingUserId(profile.user_id);
               await awardAchievementToUser(profile.user_id, item.definition.code);
+              await loadAchievementsForProfile(profile.user_id);
+              Alert.alert('Logro actualizado', 'El logro fue marcado como completado.');
+            } catch (error) {
+              Alert.alert('No se pudo actualizar logro', error instanceof Error ? error.message : 'Intenta de nuevo.');
+            } finally {
+              setSavingUserId(null);
             }
-            await loadAchievementsForProfile(profile.user_id);
-            Alert.alert('Logros actualizados', item.unlocked ? 'El logro fue quitado.' : 'El logro fue marcado como completado.');
-          } catch (error) {
-            Alert.alert('No se pudo actualizar logro', error instanceof Error ? error.message : 'Intenta de nuevo.');
-          } finally {
-            setSavingUserId(null);
-          }
+          },
         },
-      },
-    ]);
+      ],
+    );
   }
 
   function handleForceMember(profile: Profile) {
@@ -293,7 +287,7 @@ export default function AdminUsersScreen() {
         onBackToClient={handleBackToClient}
         achievements={selectedAchievements}
         loadingAchievements={loadingAchievements}
-        onToggleAchievement={handleToggleAchievement}
+        onAwardAchievement={handleAwardAchievement}
       />
     </KeyboardAwareScreen>
   );
@@ -308,7 +302,7 @@ function Summary({ label, value }: { label: string; value: number }) {
   );
 }
 
-function UserDetailModal({ profile, saving, onClose, onForceMember, onBackToClient, achievements, loadingAchievements, onToggleAchievement }: { profile: Profile | null; saving: boolean; onClose: () => void; onForceMember: (profile: Profile) => void; onBackToClient: (profile: Profile) => void; achievements: AchievementWithState[]; loadingAchievements: boolean; onToggleAchievement: (profile: Profile, item: AchievementWithState) => void }) {
+function UserDetailModal({ profile, saving, onClose, onForceMember, onBackToClient, achievements, loadingAchievements, onAwardAchievement }: { profile: Profile | null; saving: boolean; onClose: () => void; onForceMember: (profile: Profile) => void; onBackToClient: (profile: Profile) => void; achievements: AchievementWithState[]; loadingAchievements: boolean; onAwardAchievement: (profile: Profile, item: AchievementWithState) => void }) {
 
   if (!profile) return null;
 
@@ -342,9 +336,9 @@ function UserDetailModal({ profile, saving, onClose, onForceMember, onBackToClie
                   {achievements.map((item) => (
                     <Pressable
                       key={item.definition.code}
-                      disabled={saving || loadingAchievements}
+                      disabled={saving || loadingAchievements || item.unlocked}
                       style={[styles.achievementAdminChip, item.unlocked && styles.achievementAdminChipActive]}
-                      onPress={() => onToggleAchievement(profile, item)}
+                      onPress={() => onAwardAchievement(profile, item)}
                     >
                       <MaterialCommunityIcons name={item.definition.icon as never} size={22} color={item.unlocked ? ucapsaBrand.colors.premiumActionText : ucapsaBrand.colors.muted} />
                       <View style={{ flex: 1 }}>

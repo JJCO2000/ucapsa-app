@@ -10,7 +10,6 @@ import { ucapsaBrand } from '../../constants/brand';
 import {
   archiveEvent,
   createEvent,
-  deleteEvent,
   getAdminEvents,
   restoreEvent,
   setEventPublished,
@@ -265,13 +264,6 @@ export default function AdminEventsScreen() {
     }
   }
 
-  function askDelete(item: UcapsaEvent) {
-    Alert.alert('Eliminar evento', 'Esta accion no se puede deshacer.', [
-      { text: 'Volver', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: () => void run(() => deleteEvent(item.id)) },
-    ]);
-  }
-
   return (
     <KeyboardAwareScreen>
       <View style={styles.hero}>
@@ -378,7 +370,6 @@ export default function AdminEventsScreen() {
           <View style={styles.actionRow}>
             {!selected.archived_at ? <Pressable disabled={saving} style={styles.secondaryAction} onPress={() => void run(() => setEventPublished(selected.id, !selected.is_published))}><Text style={styles.secondaryActionText}>{selected.is_published ? 'Pasar a borrador' : 'Publicar'}</Text></Pressable> : null}
             <Pressable disabled={saving} style={styles.secondaryAction} onPress={() => void run(() => selected.archived_at ? restoreEvent(selected.id) : archiveEvent(selected.id))}><Text style={styles.secondaryActionText}>{selected.archived_at ? 'Restaurar' : 'Archivar'}</Text></Pressable>
-            <Pressable disabled={saving} style={styles.dangerAction} onPress={() => askDelete(selected)}><Text style={styles.dangerActionText}>Eliminar</Text></Pressable>
           </View>
         ) : null}
         <Pressable disabled={saving} style={styles.closeButton} onPress={() => setEditorOpen(false)}><Text style={styles.closeText}>Cerrar</Text></Pressable>

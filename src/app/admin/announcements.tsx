@@ -15,7 +15,6 @@ import {
 import {
   archiveAnnouncement,
   createAnnouncement,
-  deleteAnnouncement,
   getAdminAnnouncements,
   restoreAnnouncement,
   setAnnouncementPublished,
@@ -317,28 +316,6 @@ export default function AdminAnnouncementsScreen() {
     }
   }
 
-  async function askDelete(item: Announcement) {
-    try {
-      setSaving(true);
-      const cancellation = await getProgramClassCancellationByAnnouncementId(item.id);
-      setSaving(false);
-      if (cancellation && !cancellation.restored_at) {
-        Alert.alert('Anuncio ligado a una cancelación', 'Primero administra la cancelación de la clase.', [
-          { text: 'Cerrar', style: 'cancel' },
-          { text: 'Ir a cancelaciones', onPress: () => router.push(`/admin/class-cancellations?date=${cancellation.cancellation_date}` as never) },
-        ]);
-        return;
-      }
-      Alert.alert('Eliminar anuncio', 'Esta acción no se puede deshacer.', [
-        { text: 'Volver', style: 'cancel' },
-        { text: 'Eliminar', style: 'destructive', onPress: () => void run(() => deleteAnnouncement(item.id)) },
-      ]);
-    } catch (cause) {
-      setSaving(false);
-      Alert.alert('No se pudo revisar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
-    }
-  }
-
   return (
     <KeyboardAwareScreen>
       <View style={styles.hero}>
@@ -454,7 +431,6 @@ export default function AdminAnnouncementsScreen() {
             <View style={styles.actionRow}>
               {!selected.archived_at ? <Pressable disabled={saving} style={styles.secondaryAction} onPress={() => void run(() => setAnnouncementPublished(selected.id, !selected.is_published))}><Text style={styles.secondaryActionText}>{selected.is_published ? 'Pasar a borrador' : 'Publicar'}</Text></Pressable> : null}
               <Pressable disabled={saving} style={styles.secondaryAction} onPress={() => void run(() => selected.archived_at ? restoreAnnouncement(selected.id) : archiveAnnouncement(selected.id))}><Text style={styles.secondaryActionText}>{selected.archived_at ? 'Restaurar' : 'Archivar'}</Text></Pressable>
-              <Pressable disabled={saving} style={styles.dangerAction} onPress={() => void askDelete(selected)}><MaterialIcons name="delete-outline" size={17} color={ucapsaBrand.colors.danger} /><Text style={styles.dangerActionText}>Eliminar</Text></Pressable>
             </View>
           </View>
         ) : null}

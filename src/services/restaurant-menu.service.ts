@@ -136,10 +136,6 @@ export async function updateRestaurantCategory(categoryId: string, input: Partia
   return normalizeCategory(data);
 }
 
-export async function deleteRestaurantCategory(categoryId: string) {
-  const { error } = await db().from('restaurant_menu_categories').delete().eq('id', categoryId);
-  if (error) throw error;
-}
 
 export async function createRestaurantItem(input: RestaurantItemInput) {
   const { data: authResult } = await supabase.auth.getUser();
@@ -176,7 +172,3 @@ export async function updateRestaurantItem(itemId: string, input: Partial<Restau
   return normalizeItem(data);
 }
 
-export async function deleteRestaurantItem(itemId: string) {
-  const { error } = await db().from('restaurant_menu_items').delete().eq('id', itemId);
-  if (error) throw error;
-}

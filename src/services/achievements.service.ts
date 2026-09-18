@@ -357,17 +357,6 @@ export async function awardAchievementToUser(userId: string, achievementCode: st
   await clearAchievementCacheForUser(userId);
 }
 
-export async function revokeAchievementFromUser(userId: string, achievementCode: string): Promise<void> {
-  const { error } = await supabase
-    .from('user_achievements')
-    .delete()
-    .eq('user_id', userId)
-    .eq('achievement_code', achievementCode)
-    .is('dog_id', null);
-
-  if (error) throw error;
-  await clearAchievementCacheForUser(userId);
-}
 
 export function formatAchievementDate(value: string | null | undefined) {
   if (!value) return 'Sin fecha';

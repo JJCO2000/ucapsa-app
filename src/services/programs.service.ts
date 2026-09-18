@@ -946,34 +946,5 @@ export async function restoreProgramClassCancellation(cancellationId: string): P
 
 
 
-export async function deleteProgramClassCancellation(cancellationId: string): Promise<void> {
-  const { data, error: loadError } = await supabase
-    .from('program_class_cancellations')
-    .select('*')
-    .eq('id', cancellationId)
-    .single();
-
-  if (loadError) throw loadError;
-
-  const cancellation = normalizeClassCancellation(data);
-  const now = new Date().toISOString();
-
-  const { error } = await supabase
-    .from('program_class_cancellations')
-    .delete()
-    .eq('id', cancellationId);
-
-  if (error) throw error;
-
-  if (cancellation.announcement_id) {
-    const { error: announcementError } = await supabase
-      .from('announcements')
-      .update({ is_published: false, archived_at: now })
-      .eq('id', cancellation.announcement_id);
-
-    if (announcementError) throw announcementError;
-  }
-}
-
 
 

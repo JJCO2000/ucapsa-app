@@ -101,11 +101,3 @@ export async function restoreAnnouncement(announcementId: string): Promise<void>
   if (error) throw error;
 }
 
-export async function deleteAnnouncement(announcementId: string): Promise<void> {
-  const { error } = await supabase
-    .from('announcements')
-    .delete()
-    .eq('id', announcementId);
-
-  if (error) throw error;
-}
