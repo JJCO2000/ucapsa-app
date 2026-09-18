@@ -110,11 +110,11 @@ select
   r.range_code,
   r.range_name,
   r.range_level,
-  r.is_constancy_outstanding,
 
   r.last_event_date,
   r.last_exam_published_at,
-  r.last_adjustment_at
+  r.last_adjustment_at,
+  r.is_constancy_outstanding
 from public.ucapsa_competition_ranges r
 where r.is_ranking_eligible is true;
 
