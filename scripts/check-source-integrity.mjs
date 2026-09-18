@@ -55,7 +55,8 @@ mustNot('src/app/attendance.tsx', /isMembershipActiveToday/, 'Escáner volvió a
 must('src/app/attendance.tsx', /cachedMembership\?\.data\.status === 'active'/, 'Escáner no permite usar la membresía activa guardada sin conexión.');
 mustNot('src/app/client/attendance-history.tsx', /!enrollmentId\)\s*return/, 'Historial de asistencias volvió a exigir enrollmentId y rompe APROVECHASTE desde Home.');
 must('src/app/client/attendance-history.tsx', /Historial de asistencias/, 'Falta la vista agregada de asistencias desde APROVECHASTE.');
-mustNot('src/components/domain/CustomerValueSnapshotCard.tsx', /parts\.push\(`Membresía vencida/, 'TIENES volvió a presentar una membresía vencida como valor disponible.');
+must('src/screens/home/HomeCards.tsx', /membership\?\.isValidToday/, 'Inicio dejó de condicionar el valor de membresía a la vigencia canónica de hoy.');
+mustNot('src/screens/home/HomeCards.tsx', /Membresía vencida/, 'Inicio volvió a presentar una membresía vencida como valor disponible.');
 must('supabase/sql/ucapsa-membership-lifetime-and-comandos-progression.sql', /new\.end_date := null/, 'Backend perdió la regla de membresía activa sin vencimiento por fecha.');
 must('src/services/customer-value-merge.service.ts', /membership_lifetime_normalized/, 'Snapshot de Inicio perdió la normalización de membresía vitalicia.');
 
