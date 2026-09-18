@@ -10,7 +10,8 @@ import { OfflineDataNotice } from '../components/ui/OfflineDataNotice';
 import { resolveUcapsaFormat } from '../constants/ucapsaFormats';
 import { ucapsaBrand, withAlpha } from '../constants/brand';
 import { useSession } from '../hooks/useSession';
-import { requestAccountDeletion, requestMyEmailChange, updateMyProfile } from '../services/profiles.service';
+import { getAccountDeletionStatusLabel, getMyAccountDeletionRequest, isAccountDeletionOpen, requestMyAccountDeletion, type AccountDeletionRequest } from '../services/account-deletion.service';
+import { requestMyEmailChange, updateMyProfile } from '../services/profiles.service';
 import { DEFAULT_WRITE_TIMEOUT_MS, friendlyWriteError, withOperationTimeout } from '../utils/async.utils';
 
 type SettingsSection = 'notifications' | 'profile' | 'delete';
@@ -28,10 +29,15 @@ export default function AccountSettingsScreen() {
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [deletionRequest, setDeletionRequest] = useState<AccountDeletionRequest | null>(null);
+  const [deletionLoading, setDeletionLoading] = useState(false);
 
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [user, role, isAdmin]);
   const premium = Boolean(user) && format.key === 'member' && !isAdmin;
-  const deletionRequested = Boolean(profile?.deletion_requested_at);
+  const deletionOpen = isAccountDeletionOpen(deletionRequest);
+  const deletionCompleted = deletionRequest?.status === 'completed';
+  const deletionLocked = deletionOpen || deletionCompleted;
+  const deletionStatusLabel = getAccountDeletionStatusLabel(deletionRequest?.status);
   const profileComplete = Boolean((profile?.full_name ?? '').trim() && (profile?.phone ?? '').trim());
 
   useEffect(() => {
@@ -41,17 +47,51 @@ export default function AccountSettingsScreen() {
     setAvatarColor(profile?.avatar_color ?? ucapsaBrand.colors.red);
   }, [profile, user?.email]);
 
+  const refreshDeletionRequest = useCallback(async () => {
+    if (!user || isAdmin) {
+      setDeletionRequest(null);
+      return;
+    }
+    const request = await getMyAccountDeletionRequest();
+    setDeletionRequest(request);
+  }, [isAdmin, user]);
+
+  useEffect(() => {
+    let active = true;
+    if (!user || isAdmin) {
+      setDeletionRequest(null);
+      setDeletionLoading(false);
+      return undefined;
+    }
+
+    setDeletionLoading(true);
+    void getMyAccountDeletionRequest()
+      .then((request) => {
+        if (active) setDeletionRequest(request);
+      })
+      .catch(() => {
+        // La sección sigue disponible aunque temporalmente no pueda leer el estado remoto.
+      })
+      .finally(() => {
+        if (active) setDeletionLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isAdmin, user]);
+
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await refreshProfile();
-    } catch {
-      // El perfil local sigue siendo util sin conexion; el aviso de datos guardados
-      // lo comunica sin convertir el gesto de actualizar en un error no manejado.
+      await Promise.allSettled([
+        refreshProfile(),
+        refreshDeletionRequest(),
+      ]);
     } finally {
       setRefreshing(false);
     }
-  }, [refreshProfile]);
+  }, [refreshDeletionRequest, refreshProfile]);
 
   async function handleSaveProfile() {
     if (!user) {
@@ -95,10 +135,10 @@ export default function AccountSettingsScreen() {
   }
 
   function handleDeleteRequest() {
-    if (deletionRequested) return;
+    if (deletionLocked) return;
     Alert.alert(
-      'Solicitar eliminacion de cuenta',
-      'Esto no borra la cuenta automaticamente. Administracion revisara membresía, pagos y datos relacionados.',
+      'Solicitar eliminación de cuenta',
+      'La solicitud entra a revisión. Si existe una obligación de conservación, tus datos deberán bloquearse antes de su supresión.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -106,17 +146,13 @@ export default function AccountSettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await withOperationTimeout(
-                requestAccountDeletion('Solicitud desde Ajustes de cuenta.'),
+              const request = await withOperationTimeout(
+                requestMyAccountDeletion('Solicitud desde Ajustes de cuenta.'),
                 DEFAULT_WRITE_TIMEOUT_MS,
                 'account-delete-request',
               );
-              try {
-                await refreshProfile();
-              } catch {
-                // La solicitud ya fue confirmada por el servidor; no la conviertas en un falso fallo.
-              }
-              Alert.alert('Solicitud enviada', 'Administracion revisara la eliminacion de tu cuenta.');
+              setDeletionRequest(request);
+              Alert.alert('Solicitud registrada', 'Puedes consultar aquí su estado. Superadmin revisará si procede bloqueo o cierre.');
             } catch (error) {
               Alert.alert('No se pudo solicitar', friendlyWriteError(error));
             }
@@ -205,8 +241,8 @@ export default function AccountSettingsScreen() {
             <SettingsButton
               icon="delete-outline"
               title="Eliminar cuenta"
-              subtitle={deletionRequested ? 'Solicitud ya registrada.' : 'Crear una solicitud para administración.'}
-              badge={deletionRequested ? 'Solicitada' : undefined}
+              subtitle={deletionLoading ? 'Consultando estado...' : deletionRequest ? deletionStatusLabel : 'Crear una solicitud para revisión.'}
+              badge={deletionRequest ? deletionStatusLabel : undefined}
               premium={premium}
               danger
               onPress={() => openSection('delete')}
@@ -246,10 +282,20 @@ export default function AccountSettingsScreen() {
 
       {section === 'delete' && !isAdmin ? (
         <View style={[styles.sectionCard, premium && styles.premiumCard, styles.deleteCard]}>
-          <Text style={[styles.sectionTitle, premium && styles.premiumTitle]}>{deletionRequested ? 'Solicitud registrada' : 'Solicitar eliminacion'}</Text>
-          <Text style={[styles.muted, premium && styles.premiumText]}>{deletionRequested ? 'Administración debe revisar la solicitud antes de cualquier baja definitiva.' : 'No se borra automáticamente para evitar errores con membresía, pagos o registros.'}</Text>
-          <Pressable disabled={deletionRequested} style={[styles.dangerButton, premium && styles.premiumDangerButton, deletionRequested && styles.disabled]} onPress={handleDeleteRequest}>
-            <Text style={[styles.dangerButtonText, premium && styles.premiumDangerButtonText]}>{deletionRequested ? 'Eliminacion solicitada' : 'Solicitar eliminacion de cuenta'}</Text>
+          <Text style={[styles.sectionTitle, premium && styles.premiumTitle]}>{deletionRequest ? deletionStatusLabel : 'Solicitar eliminación'}</Text>
+          <Text style={[styles.muted, premium && styles.premiumText]}>
+            {deletionRequest
+              ? deletionRequest.status === 'blocked'
+                ? `Tus datos están en periodo de bloqueo${deletionRequest.retention_until ? ` hasta ${deletionRequest.retention_until}` : ''}. Durante ese periodo no deben usarse para otras finalidades.`
+                : deletionRequest.status === 'rejected'
+                  ? deletionRequest.resolution_note || 'La solicitud fue revisada y no procedió. Puedes presentar una nueva si cambian las condiciones.'
+                  : deletionRequest.status === 'completed'
+                    ? 'La solicitud fue marcada como atendida por Superadmin.'
+                    : 'La solicitud está registrada y pendiente de resolución.'
+              : 'La solicitud no borra datos de inmediato. UCAPSA debe revisar qué información puede suprimirse y cuál requiere bloqueo o conservación.'}
+          </Text>
+          <Pressable disabled={deletionLocked || deletionLoading} style={[styles.dangerButton, premium && styles.premiumDangerButton, (deletionLocked || deletionLoading) && styles.disabled]} onPress={handleDeleteRequest}>
+            <Text style={[styles.dangerButtonText, premium && styles.premiumDangerButtonText]}>{deletionLocked ? deletionStatusLabel : deletionLoading ? 'Consultando...' : 'Solicitar eliminación de cuenta'}</Text>
           </Pressable>
         </View>
       ) : null}
