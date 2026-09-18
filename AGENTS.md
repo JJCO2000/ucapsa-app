@@ -20,7 +20,7 @@ A normal push must cause:
 
 Rules:
 
-1. Do not add automatic EAS Workflows for push, pull request, workflow_run, repository_dispatch, or schedule unless the user explicitly asks for that exact automation.
+1. Do not add automatic EAS Workflows for push, pull request, workflow_run, repository_dispatch, schedule, or issue_comment unless the user explicitly asks for that exact automation.
 2. GitHub Actions may run normal code-quality checks on push/PR.
 3. OTA publication is deliberate only. First verify runtime/native compatibility; even when compatible, wait for explicit authorization before publishing.
 4. If a change needs a new native binary, report that OTA cannot deliver it and wait for explicit authorization before running EAS Build.
@@ -28,4 +28,4 @@ Rules:
 6. Do not hide EAS/build/publish commands in npm scripts, post-push hooks, chained workflows, workflow_run, repository_dispatch, or other indirect automation.
 7. Keep `npm run check:ci-policy` passing. Any intentional exception requires an explicit policy change, not a bypass.
 
-The manual GitHub workflow `.github/workflows/publish-preview.yml` is allowed because it is `workflow_dispatch` only and still requires a deliberate user-triggered publication.
+The Preview OTA workflow `.github/workflows/publish-preview.yml` has one explicit exception: besides `workflow_dispatch`, it may react to the deliberate command `/publish-preview` only when the comment is created by `JJCO2000` on issue `#28`. The workflow must continue checking the exact event, action, issue number, actor and command, must check out canonical `main`, and must publish only to the `preview` channel/environment. Any broader `issue_comment` publication trigger requires an explicit policy change.
