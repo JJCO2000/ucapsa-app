@@ -3,7 +3,7 @@ import { Link } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
-import { supabase } from '../../lib/supabase';
+import { resetPasswordForEmail } from '../../services/auth.service';
 import { DEFAULT_WRITE_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
 
 export default function ForgotPasswordScreen() {
@@ -11,7 +11,7 @@ export default function ForgotPasswordScreen() {
   const [loading, setLoading] = useState(false);
 
   async function handleResetPassword() {
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanEmail = email.trim();
 
     if (!cleanEmail) {
       Alert.alert('Falta correo', 'Escribe tu correo para recuperar tu contrasena.');
@@ -21,7 +21,7 @@ export default function ForgotPasswordScreen() {
     setLoading(true);
     try {
       const { error } = await withOperationTimeout(
-        supabase.auth.resetPasswordForEmail(cleanEmail),
+        resetPasswordForEmail(cleanEmail),
         DEFAULT_WRITE_TIMEOUT_MS,
         'auth-reset-password',
       );
