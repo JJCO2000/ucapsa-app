@@ -53,6 +53,7 @@ export async function getAdminPaymentAttentionRows(): Promise<AdminPaymentAttent
       .from('payments')
       .select('obligation_id, amount')
       .eq('status', 'paid')
+      .is('voided_at', null)
       .not('obligation_id', 'is', null),
   ]);
 
@@ -117,6 +118,7 @@ export async function syncMembershipPaymentSummary(membershipId: string): Promis
       .select('id, obligation_id, amount, paid_at, notes, status')
       .eq('membership_id', membershipId)
       .eq('status', 'paid')
+      .is('voided_at', null)
       .order('paid_at', { ascending: false }),
   ]);
 
@@ -199,7 +201,13 @@ export async function updateCustomerPayment(paymentId: string, input: UpdateCust
   if ('paidAt' in input) payload.paid_at = input.paidAt || new Date().toISOString();
   if ('concept' in input) payload.concept = input.concept?.trim() || 'Pago manual';
 
-  const { data, error } = await supabase.from('payments').update(payload as TableUpdate<'payments'>).eq('id', paymentId).select('*').single();
+  const { data, error } = await supabase
+    .from('payments')
+    .update(payload as TableUpdate<'payments'>)
+    .eq('id', paymentId)
+    .is('voided_at', null)
+    .select('*')
+    .single();
   if (error) throw error;
   const payment = data as Payment;
   if (payment.membership_id) await syncMembershipPaymentSummary(payment.membership_id);
@@ -209,28 +217,41 @@ export async function updateCustomerPayment(paymentId: string, input: UpdateCust
 export async function updateMembershipPayment(paymentId: string, membershipId: string, input: UpdateCustomerPaymentInput): Promise<Payment> {
   const { data: current, error: currentError } = await supabase
     .from('payments')
-    .select('id, membership_id')
+    .select('id, membership_id, voided_at')
     .eq('id', paymentId)
     .maybeSingle();
   if (currentError) throw currentError;
   if (!current || current.membership_id !== membershipId) throw new Error('El pago no pertenece a la membresia esperada.');
+  if (current.voided_at) throw new Error('El pago ya está anulado y no puede corregirse.');
   return updateCustomerPayment(paymentId, input);
 }
 
-export async function deleteCustomerPayment(paymentId: string): Promise<void> {
-  const { data: current, error: currentError } = await supabase.from('payments').select('id, membership_id').eq('id', paymentId).maybeSingle();
-  if (currentError) throw currentError;
+export async function voidCustomerPayment(paymentId: string, reason: string): Promise<Payment> {
+  const cleanReason = reason.trim();
+  if (cleanReason.length < 5) throw new Error('Escribe un motivo de anulación de al menos 5 caracteres.');
 
-  const { error } = await supabase.from('payments').delete().eq('id', paymentId);
+  const { data, error } = await supabase.rpc('admin_void_payment', {
+    p_payment_id: paymentId,
+    p_reason: cleanReason,
+  });
   if (error) throw error;
-  if (current?.membership_id) await syncMembershipPaymentSummary(current.membership_id);
+  if (!data) throw new Error('Supabase no devolvió el pago anulado.');
+
+  const payment = data as Payment;
+  if (payment.membership_id) await syncMembershipPaymentSummary(payment.membership_id);
+  return payment;
 }
 
-export async function deleteMembershipPayment(paymentId: string, membershipId: string): Promise<void> {
-  const { data: current, error: currentError } = await supabase.from('payments').select('id, membership_id').eq('id', paymentId).maybeSingle();
+export async function voidMembershipPayment(paymentId: string, membershipId: string, reason: string): Promise<Payment> {
+  const { data: current, error: currentError } = await supabase
+    .from('payments')
+    .select('id, membership_id, voided_at')
+    .eq('id', paymentId)
+    .maybeSingle();
   if (currentError) throw currentError;
-  if (current?.membership_id && current.membership_id !== membershipId) throw new Error('El pago no pertenece a la membresia esperada.');
-  await deleteCustomerPayment(paymentId);
+  if (!current || current.membership_id !== membershipId) throw new Error('El pago no pertenece a la membresia esperada.');
+  if (current.voided_at) return current as Payment;
+  return voidCustomerPayment(paymentId, reason);
 }
 
 export type UpdatePaymentSettingsInput = {
@@ -311,6 +332,7 @@ export async function getMyPaymentOverview(): Promise<MyPaymentOverview> {
       .select('*')
       .eq('user_id', userId)
       .eq('status', 'paid')
+      .is('voided_at', null)
       .order('paid_at', { ascending: false }),
     supabase
       .from('memberships')
