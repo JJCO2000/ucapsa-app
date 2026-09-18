@@ -315,6 +315,8 @@ Rango 1 queda funcionalmente cerrado con estas superficies:
 
 La base actual puede devolver listas vacías mientras no exista una temporada no-borrador con población competitiva real; eso es un estado de datos, no una funcionalidad pendiente.
 
+El sistema histórico `UCAPSA Points` queda retirado como superficie y como fuente de nuevos movimientos: las rutas antiguas redirigen a Competencia/Rango 1, y el trigger que sumaba puntos por asistencia se elimina sin borrar su ledger histórico.
+
 ## Fuera de alcance deliberadamente
 
 
