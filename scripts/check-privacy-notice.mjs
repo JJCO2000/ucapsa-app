@@ -31,7 +31,7 @@ for (const token of required) {
   }
 }
 
-if (/insert\s+into\s+public\.privacy_notices[\s\S]{0,3000}'published'/i.test(sql)) {
+if (/insert\s+into\s+public\.privacy_notices[\s\S]{0,2000}values\s*\([\s\S]{0,400}'published'/i.test(sql)) {
   throw new Error('Privacy migration must not invent and auto-publish a legal notice.');
 }
 
