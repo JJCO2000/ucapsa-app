@@ -14,7 +14,7 @@ import {
   type AdminCustomerPaymentObligation,
   type AdminCustomerRecord,
 } from '../../services/admin-customer.service';
-import { deleteCustomerPayment, registerCustomerPayment, updateCustomerPayment } from '../../services/payments.service';
+import { registerCustomerPayment, updateCustomerPayment, voidCustomerPayment } from '../../services/payments.service';
 
 function money(value: number) {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 }).format(value);
@@ -52,6 +52,7 @@ export default function CustomerPaymentsScreen() {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [form, setForm] = useState<PaymentForm>(emptyForm);
   const [visibleCount, setVisibleCount] = useState(8);
+  const [voidReason, setVoidReason] = useState('');
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -68,7 +69,7 @@ export default function CustomerPaymentsScreen() {
     if (!record) return [];
     const paid = new Map<string, number>();
     for (const payment of record.payments) {
-      if (!payment.obligation_id || payment.status !== 'paid') continue;
+      if (!payment.obligation_id || payment.status !== 'paid' || payment.voided_at) continue;
       paid.set(payment.obligation_id, (paid.get(payment.obligation_id) ?? 0) + Number(payment.amount ?? 0));
     }
     return record.obligations
@@ -91,11 +92,13 @@ export default function CustomerPaymentsScreen() {
       concept: obligation?.concept || 'Pago manual',
       obligationId: obligation?.id || '',
     });
+    setVoidReason('');
     setCalendarOpen(false);
     setModalOpen(true);
   }
 
   function openCorrection(payment: AdminCustomerPayment) {
+    if (payment.voided_at) return;
     setForm({
       payment,
       amount: String(Number(payment.amount ?? 0)),
@@ -105,6 +108,7 @@ export default function CustomerPaymentsScreen() {
       concept: payment.concept || 'Pago manual',
       obligationId: payment.obligation_id || '',
     });
+    setVoidReason('');
     setCalendarOpen(false);
     setModalOpen(true);
   }
@@ -159,17 +163,25 @@ export default function CustomerPaymentsScreen() {
     }
   }
 
-  function removePayment(payment: AdminCustomerPayment) {
-    Alert.alert('Eliminar pago', 'El pago se eliminara del historial y el saldo se recalculara.', [
+  function voidPayment(payment: AdminCustomerPayment) {
+    const reason = voidReason.trim();
+    if (reason.length < 5) {
+      Alert.alert('Falta motivo', 'Escribe un motivo de anulación de al menos 5 caracteres.');
+      return;
+    }
+
+    Alert.alert('Anular pago', 'El pago dejará de contar para el saldo, pero permanecerá en el historial como evidencia.', [
       { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: async () => {
+      { text: 'Anular', style: 'destructive', onPress: async () => {
         try {
           setSaving(true);
-          await deleteCustomerPayment(payment.id);
+          await voidCustomerPayment(payment.id, reason);
           setModalOpen(false);
+          setVoidReason('');
           await load();
+          Alert.alert('Pago anulado', 'El saldo fue recalculado y el registro histórico se conservó.');
         } catch (cause) {
-          Alert.alert('No se pudo eliminar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+          Alert.alert('No se pudo anular', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
         } finally {
           setSaving(false);
         }
@@ -203,12 +215,27 @@ export default function CustomerPaymentsScreen() {
           <Text style={styles.sectionTitle}>Historial</Text>
           {record.payments.length === 0 ? <View style={styles.empty}><Text style={styles.emptyTitle}>Sin pagos</Text><Text style={styles.muted}>Todavia no hay pagos registrados.</Text></View> : null}
           <View style={styles.list}>
-            {record.payments.slice(0, visibleCount).map((payment, index) => (
-              <Pressable key={payment.id} style={[styles.row, index === Math.min(record.payments.length, visibleCount) - 1 && styles.rowLast]} onPress={() => openCorrection(payment)}>
-                <View style={{ flex: 1 }}><Text style={styles.rowTitle}>{payment.concept}</Text><Text style={styles.rowMeta}>{dateKey(payment.paid_at || payment.created_at)} - {payment.payment_method || 'manual'}</Text></View>
-                <View style={styles.balanceBox}><Text style={styles.balance}>{money(Number(payment.amount ?? 0))}</Text><Text style={styles.linkText}>Corregir</Text></View>
-              </Pressable>
-            ))}
+            {record.payments.slice(0, visibleCount).map((payment, index) => {
+              const voided = Boolean(payment.voided_at);
+              return (
+                <Pressable
+                  key={payment.id}
+                  disabled={voided}
+                  style={[styles.row, voided && styles.voidedRow, index === Math.min(record.payments.length, visibleCount) - 1 && styles.rowLast]}
+                  onPress={() => openCorrection(payment)}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.rowTitle, voided && styles.voidedText]}>{payment.concept}</Text>
+                    <Text style={styles.rowMeta}>{dateKey(payment.paid_at || payment.created_at)} - {payment.payment_method || 'manual'}{voided ? ' · Anulado' : ''}</Text>
+                    {voided && payment.void_reason ? <Text style={styles.rowMeta}>Motivo: {payment.void_reason}</Text> : null}
+                  </View>
+                  <View style={styles.balanceBox}>
+                    <Text style={[styles.balance, voided && styles.voidedText]}>{money(Number(payment.amount ?? 0))}</Text>
+                    <Text style={styles.linkText}>{voided ? 'Histórico' : 'Corregir'}</Text>
+                  </View>
+                </Pressable>
+              );
+            })}
           </View>
           {record.payments.length > visibleCount ? <Pressable style={styles.moreButton} onPress={() => setVisibleCount((value) => value + 8)}><Text style={styles.moreText}>Ver 8 mas</Text></Pressable> : null}
         </>
@@ -243,7 +270,14 @@ export default function CustomerPaymentsScreen() {
         <TextInput value={form.notes} onChangeText={(notes) => setForm((current) => ({ ...current, notes }))} placeholder="Nota opcional" multiline style={[styles.input, styles.textArea]} />
 
         <Pressable disabled={saving} style={styles.primary} onPress={savePayment}><Text style={styles.primaryText}>{saving ? 'Guardando...' : form.payment ? 'Guardar correccion' : 'Registrar pago'}</Text></Pressable>
-        {form.payment ? <Pressable disabled={saving} style={styles.deleteFull} onPress={() => removePayment(form.payment as AdminCustomerPayment)}><Text style={styles.deleteFullText}>Eliminar pago</Text></Pressable> : null}
+        {form.payment ? (
+          <>
+            <Text style={styles.label}>Motivo de anulación</Text>
+            <TextInput value={voidReason} onChangeText={setVoidReason} placeholder="Ej. captura duplicada o monto incorrecto" multiline style={[styles.input, styles.textArea]} />
+            <Text style={styles.muted}>Anular no borra el pago: lo conserva como histórico y lo excluye del saldo.</Text>
+            <Pressable disabled={saving} style={styles.deleteFull} onPress={() => voidPayment(form.payment as AdminCustomerPayment)}><Text style={styles.deleteFullText}>Anular pago</Text></Pressable>
+          </>
+        ) : null}
         <Pressable disabled={saving} style={styles.secondary} onPress={() => setModalOpen(false)}><Text style={styles.secondaryText}>Cancelar</Text></Pressable>
       </KeyboardAwareModal>
     </KeyboardAwareScreen>
@@ -278,6 +312,8 @@ const styles = StyleSheet.create({
   moreHint: { color: ucapsaBrand.colors.muted, fontSize: 11, marginBottom: 8 },
   list: { borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 13, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.premiumMuted },
+  voidedRow: { opacity: 0.72 },
+  voidedText: { textDecorationLine: 'line-through', color: ucapsaBrand.colors.muted },
   rowLast: { borderBottomWidth: 0 },
   moreButton: { alignItems: 'center', paddingVertical: 12 },
   moreText: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900' },
