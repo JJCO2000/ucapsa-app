@@ -37,6 +37,7 @@ function dateLabel(value: string | null | undefined) {
 }
 
 function constancyLevelDescription(code: string | null | undefined) {
+  if (code === 'forming') return 'Todavía no hay suficiente población en la temporada para asignar un nivel comparativo.';
   if (code === 'gold') return 'Constancia destacada esta temporada.';
   if (code === 'silver') return 'Constancia sostenida esta temporada.';
   return 'Constancia en desarrollo esta temporada.';
@@ -56,6 +57,7 @@ export default function ClientCompetitionScreen() {
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [screenFocused, setScreenFocused] = useState(false);
 
   const applySnapshot = useCallback((next: ClientDogCompetitionSnapshot) => {
     setSnapshot(next);
@@ -102,8 +104,9 @@ export default function ClientCompetitionScreen() {
   }, [applySnapshot, dogId, isAdmin, user]);
 
   useFocusEffect(useCallback(() => {
+    setScreenFocused(true);
     void load();
-    return undefined;
+    return () => setScreenFocused(false);
   }, [load]));
 
   async function refresh() {
@@ -115,10 +118,15 @@ export default function ClientCompetitionScreen() {
   const officialExams = (snapshot?.official_exams ?? []).filter((exam) => exam.season_id === selectedSeasonId);
 
   useEffect(() => {
-    if (!snapshot?.dog_id || !selectedSeason?.season_id || isAdmin) return;
-    void recordValueExposure(snapshot.dog_id, selectedSeason.season_id, 'constancy_summary')
-      .catch(() => undefined);
-  }, [isAdmin, selectedSeason?.season_id, snapshot?.dog_id]);
+    if (!user || isAdmin || !screenFocused || !localReady || error || !snapshot?.dog_id || !selectedSeason?.season_id) return;
+
+    const timer = setTimeout(() => {
+      void recordValueExposure(user.id, snapshot.dog_id, selectedSeason.season_id!, 'constancy_summary')
+        .catch(() => undefined);
+    }, 750);
+
+    return () => clearTimeout(timer);
+  }, [error, isAdmin, localReady, screenFocused, selectedSeason?.season_id, snapshot?.dog_id, user]);
 
   if (!user) return <Redirect href="/auth/login" />;
   if (isAdmin) return <Redirect href="/admin-home" />;
