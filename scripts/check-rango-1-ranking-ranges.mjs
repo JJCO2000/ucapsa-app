@@ -8,11 +8,15 @@ const required = [
   'percent_rank() over',
   'partition by s.season_id',
   'order by coalesce(s.constancy_events_count, 0) desc',
+  "when p.constancy_population_count < 10 then 'forming'",
   "when coalesce(r.constancy_events_count, 0) = 0 then 'copper'",
   "when r.constancy_percent_rank < 0.10 then 'gold'",
   "when r.constancy_percent_rank < 0.40 then 'silver'",
+  "p.constancy_population_count >= 20",
   "and r.constancy_percent_rank < 0.05",
   "as is_constancy_outstanding",
+  "p.constancy_population_count",
+  "as has_sufficient_constancy_population",
   'create or replace view public.ucapsa_competition_leaderboard',
   'where r.is_ranking_eligible is true',
   'coalesce(r.competitive_score, 0::numeric) desc',
@@ -52,6 +56,12 @@ if (/percent_rank\(\)[\s\S]{0,220}(dog_id|competitive_score|exam_points|command_
   throw new Error('Range percentile must not split constancy ties with secondary ordering.');
 }
 
+if (!/Constancia en formación/.test(sql)) {
+  throw new Error('Small populations must render Constancia en formación.');
+}
+if (!/constancy_population_count < 10/.test(sql) || !/constancy_population_count >= 20/.test(sql)) {
+  throw new Error('Population sufficiency thresholds changed.');
+}
 if (/diamond|platinum|emerald|bronze/i.test(sql)) {
   throw new Error('Public Constancia levels must stay simplified to Cobre/Plata/Oro.');
 }
