@@ -161,6 +161,9 @@ export type Payment = {
   registered_by: string | null;
   notes?: string | null;
   period_label?: string | null;
+  voided_at?: string | null;
+  voided_by?: string | null;
+  void_reason?: string | null;
   created_at: string;
   updated_at: string;
 };
