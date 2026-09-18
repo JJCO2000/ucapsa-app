@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 
 const sql = fs.readFileSync('supabase/sql/ucapsa-security-definer-hardening.sql', 'utf8');
+const anonRpcSql = fs.readFileSync('supabase/sql/ucapsa-anon-rpc-hardening.sql', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
 
 const required = [
@@ -17,6 +18,29 @@ const required = [
 for (const token of required) {
   if (!sql.toLowerCase().includes(token.toLowerCase())) {
     throw new Error('SECURITY DEFINER hardening contract missing: ' + token);
+  }
+}
+
+const anonRpcRequired = [
+  'public.get_effective_program_schedule(uuid, date)',
+  'public.program_schedule_occurs_on_date(uuid, date)',
+  'public.register_program_attendance_from_qr(text, uuid, boolean, uuid, timestamptz)',
+  'public.register_program_attendance_from_qr(text, uuid, boolean)',
+  'public.register_program_attendance_from_qr(text, uuid)',
+  'public.register_member_visit_from_qr(text, uuid, timestamptz)',
+  'public.register_member_visit_from_qr(text, uuid)',
+  'public.register_member_visit_from_qr(text)',
+  'public.rotate_attendance_qr_code(text)',
+];
+
+for (const signature of anonRpcRequired) {
+  const revoke = ('revoke all on function ' + signature + ' from public, anon;').toLowerCase();
+  const grant = ('grant execute on function ' + signature + ' to authenticated, service_role;').toLowerCase();
+  if (!anonRpcSql.toLowerCase().includes(revoke)) {
+    throw new Error('Anonymous SECURITY DEFINER RPC is not closed: ' + signature);
+  }
+  if (!anonRpcSql.toLowerCase().includes(grant)) {
+    throw new Error('Authenticated/service_role access is not explicit: ' + signature);
   }
 }
 
