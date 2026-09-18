@@ -2,8 +2,10 @@ import fs from 'node:fs';
 
 const sql = fs.readFileSync('supabase/sql/ucapsa-payment-void-foundation.sql', 'utf8');
 const workflow = fs.readFileSync('supabase/sql/ucapsa-payment-void-workflow.sql', 'utf8');
+const paymentLinkSql = fs.readFileSync('supabase/sql/ucapsa-payment-link-https.sql', 'utf8');
 const service = fs.readFileSync('src/services/payments.service.ts', 'utf8');
 const adminUi = fs.readFileSync('src/app/admin/customer-payments.tsx', 'utf8');
+const transferUi = fs.readFileSync('src/app/client/payment-transfer.tsx', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
 
 for (const token of ['voided_at timestamptz', 'voided_by uuid', 'void_reason text']) {
@@ -55,6 +57,29 @@ for (const token of ['Anular pago', 'voidReason', 'void_reason', 'Histórico']) 
 
 if (/Eliminar pago/.test(adminUi)) {
   throw new Error('Admin UI returned to destructive payment deletion language.');
+}
+
+for (const token of [
+  'isSecurePaymentUrl',
+  "url.protocol === 'https:'",
+  'El enlace de pago debe usar HTTPS',
+]) {
+  if (!service.includes(token)) {
+    throw new Error('Secure payment-link service contract missing: ' + token);
+  }
+}
+
+if (!transferUi.includes('isSecurePaymentUrl(settings?.clip_url)')) {
+  throw new Error('Client transfer UI can expose a payment link without HTTPS validation.');
+}
+
+for (const token of [
+  'payment_settings_clip_url_https_check',
+  "'^https://",
+]) {
+  if (!paymentLinkSql.includes(token)) {
+    throw new Error('Payment-link database HTTPS contract missing: ' + token);
+  }
 }
 
 if (!pkg.includes('"check:payment-history"')) {
