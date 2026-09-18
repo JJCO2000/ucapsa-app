@@ -271,6 +271,17 @@ export function isValidClabe(value: string | null | undefined) {
   return normalizeClabe(value).length === 18;
 }
 
+export function isSecurePaymentUrl(value: string | null | undefined) {
+  const clean = value?.trim();
+  if (!clean) return false;
+  try {
+    const url = new URL(clean);
+    return url.protocol === 'https:' && Boolean(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 function localDateKey(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
@@ -291,7 +302,7 @@ export async function updatePaymentSettings(input: UpdatePaymentSettingsInput): 
   const clabe = normalizedClabe || null;
   const clipUrl = input.clipUrl?.trim() || null;
   if (clabe && !isValidClabe(clabe)) throw new Error('La CLABE debe tener exactamente 18 digitos.');
-  if (clipUrl && !/^https?:\/\//i.test(clipUrl)) throw new Error('El enlace de pago debe comenzar con http:// o https://.');
+  if (clipUrl && !isSecurePaymentUrl(clipUrl)) throw new Error('El enlace de pago debe usar HTTPS y tener un dominio valido.');
 
   const payload: Record<string, unknown> = {};
   if ('bankName' in input) payload.bank_name = input.bankName?.trim() || null;
