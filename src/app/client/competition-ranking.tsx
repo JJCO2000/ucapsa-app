@@ -150,7 +150,7 @@ export default function ClientCompetitionRankingScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.myLabel, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>TU PERRO</Text>
                   <Text style={[styles.cardTitle, { color: format.cardText }]}>{myRow.dog_name || 'Tu perro'} · {numberLabel(myRow.competitive_score)} pts</Text>
-                  <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{myRow.range_name || 'Bronce'} · {Number(myRow.command_attendances_count ?? 0)} Comandos</Text>
+                  <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{myRow.range_name || 'Cobre'} · {Number(myRow.command_attendances_count ?? 0)} Comandos</Text>
                 </View>
               </View>
             ) : (
@@ -192,7 +192,7 @@ export default function ClientCompetitionRankingScreen() {
                         <Text numberOfLines={1} style={[styles.dogName, { color: format.cardText }]}>{row.dog_name || 'Perro'}</Text>
                         {mine ? <Text style={[styles.minePill, { color: premium ? ucapsaBrand.colors.premiumActionText : format.accentDark }]}>Tú</Text> : null}
                       </View>
-                      <Text style={[styles.score, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>{numberLabel(row.competitive_score)} pts · {row.range_name || 'Bronce'}</Text>
+                      <Text style={[styles.score, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>{numberLabel(row.competitive_score)} pts · {row.range_name || 'Cobre'}</Text>
                       <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{Number(row.command_attendances_count ?? 0)} Comandos · {numberLabel(row.exam_points)} pts Exámenes</Text>
                     </View>
                     {position <= 3 ? <Text style={styles.rowMedal}>{medal(position)}</Text> : null}
