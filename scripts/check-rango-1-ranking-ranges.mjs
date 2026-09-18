@@ -8,12 +8,11 @@ const required = [
   'percent_rank() over',
   'partition by s.season_id',
   'order by coalesce(s.constancy_events_count, 0) desc',
-  "when coalesce(r.constancy_events_count, 0) = 0 then 'bronze'",
-  "when r.constancy_percent_rank < 0.05 then 'diamond'",
-  "when r.constancy_percent_rank < 0.10 then 'platinum'",
-  "when r.constancy_percent_rank < 0.20 then 'emerald'",
-  "when r.constancy_percent_rank < 0.40 then 'gold'",
-  "when r.constancy_percent_rank < 0.70 then 'silver'",
+  "when coalesce(r.constancy_events_count, 0) = 0 then 'copper'",
+  "when r.constancy_percent_rank < 0.10 then 'gold'",
+  "when r.constancy_percent_rank < 0.40 then 'silver'",
+  "and r.constancy_percent_rank < 0.05",
+  "as is_constancy_outstanding",
   'create or replace view public.ucapsa_competition_leaderboard',
   'where r.is_ranking_eligible is true',
   'coalesce(r.competitive_score, 0::numeric) desc',
@@ -34,11 +33,8 @@ for (const token of required) {
 }
 
 const percentileOrder = [
-  "0.05 then 'diamond'",
-  "0.10 then 'platinum'",
-  "0.20 then 'emerald'",
-  "0.40 then 'gold'",
-  "0.70 then 'silver'",
+  "0.10 then 'gold'",
+  "0.40 then 'silver'",
 ];
 
 let last = -1;
@@ -54,6 +50,10 @@ if (!/percent_rank\(\) over\s*\(\s*partition by s\.season_id\s*order by coalesce
 
 if (/percent_rank\(\)[\s\S]{0,220}(dog_id|competitive_score|exam_points|command_attendances_count)/i.test(sql)) {
   throw new Error('Range percentile must not split constancy ties with secondary ordering.');
+}
+
+if (/diamond|platinum|emerald|bronze/i.test(sql)) {
+  throw new Error('Public Constancia levels must stay simplified to Cobre/Plata/Oro.');
 }
 
 if (!/row_number\(\) over[\s\S]*competitive_score[\s\S]*command_attendances_count[\s\S]*exam_points[\s\S]*dog_id asc/s.test(sql)) {
