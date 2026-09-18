@@ -7,7 +7,7 @@ Este documento reemplaza como fuente de producto a las decisiones anteriores de 
 ## Tres reglas obligatorias
 
 1. **General → particular.** Resumen → contexto/listado → ficha concreta → detalle/acción.
-2. **No saturar.** Si un producto necesita profundidad, se divide en tabs/subpantallas; no se concentra todo en Inicio, Mi perro o el Home de Admin.
+2. **Una pantalla = un trabajo principal útil.** No saturar: cada pantalla responde una necesidad clara; si un producto necesita profundidad, baja a tabs/subpantallas en lugar de concentrarlo todo en Inicio, Mi perro o el Home de Admin.
 3. **Una sola fuente verdadera por producto.** Totales, rango, ranking y podio se derivan de hechos canónicos. No se mantienen copias editables que puedan divergir.
 
 ## Productos y fuente verdadera
@@ -28,14 +28,31 @@ Este documento reemplaza como fuente de producto a las decisiones anteriores de 
 
 No existe una tabla canónica de `total_points`, `rank_position` o `podium_medal`.
 
+## Propósito estratégico del Rango de Constancia
+
+UCAPSA usa esta capa para apoyar una estrategia de **sostener y mantener** haciendo visible el valor ya entregado. El Rango no existe para gamificar por gamificar: convierte hechos de participación en una lectura simple de aprovechamiento y continuidad.
+
+La cadena de información debe conservar esta jerarquía:
+
+```text
+TIENES → APROVECHASTE → CONSEGUISTE → SIGUE
+```
+
+- **Tienes:** membresía, programa y servicios disponibles.
+- **Aprovechaste:** asistencias, visitas y frecuencia real. Aquí vive Constancia.
+- **Conseguiste:** exámenes, progresión y reconocimientos realmente registrados.
+- **Sigue:** próxima actividad o acción útil.
+
+Una asistencia demuestra participación/aprovechamiento; por sí sola no demuestra aprendizaje ni mejora. Esos resultados requieren sus propios hechos canónicos.
+
 ## Multi-perro
 
 La cuenta y la membresía pueden ser compartidas; la identidad competitiva siempre es **`dog_id + season_id`**.
 
 Un mismo usuario puede tener, por ejemplo:
 
-- Tuka → Diamante · #1
-- Luna → Esmeralda · #12
+- Tuka → Oro · #1
+- Luna → Plata · #12
 
 Nunca se copia rango, examen o posición entre perros del mismo dueño.
 
@@ -69,15 +86,18 @@ Cada evento canónico de Constancia vale **1 punto** en el score competitivo:
 
 El **Rango** sigue siendo un sistema separado del Ranking: se deriva únicamente de la Constancia relativa del perro dentro de su temporada. Participan **todos los perros** de la temporada, incluso los de 0 actividad, para conservar el contexto completo del grupo.
 
-Cortes acumulados:
-- top 5% → Diamante;
-- >5% a 10% → Platino;
-- >10% a 20% → Esmeralda;
-- >20% a 40% → Oro;
-- >40% a 70% → Plata;
-- >70% a 100% → Bronce.
+Presentación pública simplificada:
+- top 10% → **Oro** · constancia destacada;
+- >10% a 40% → **Plata** · constancia sostenida;
+- >40% a 100% → **Cobre** · constancia en desarrollo.
 
-Los empates de Constancia comparten percentil/rango; no se separan con un criterio secundario. Como regla de cordura, un perro con **0 eventos** siempre queda en Bronce aunque forme parte del denominador percentil.
+Dentro de Oro, el **top 5%** recibe la distinción derivada **Constancia sobresaliente**. No es un cuarto nivel ni un premio permanente.
+
+Los empates de Constancia comparten percentil/nivel; no se separan con un criterio secundario. Como regla de cordura, un perro con **0 eventos** siempre queda en Cobre aunque forme parte del denominador percentil.
+
+La interfaz Cliente no debe exponer mecánicas tipo XP, subniveles I/II/III ni castigos arbitrarios por inactividad. Debe demostrar hechos útiles: nivel de Constancia, actividades registradas, Comandos, visitas y última actividad. El percentil exacto pertenece al detalle, no al resumen.
+
+La inactividad se comunica inicialmente como **última actividad registrada**, sin degradación por un número arbitrario de días. Un umbral de 30/60/90/100 días sólo podrá convertirse en regla de producto cuando exista evidencia operativa de la cadencia real de UCAPSA y su relación con abandono/renovación.
 
 Una clase cancelada es neutral. Una misma sesión sólo puede contar una vez por perro. Cambiar de Básico a Intermedio o Avanzado dentro de la temporada no reinicia la constancia del perro.
 

@@ -82,7 +82,7 @@ export default function AdminCompetitionConstancyScreen() {
       <View style={styles.header}>
         <Text style={styles.kicker}>Competencia UCAPSA</Text>
         <Text style={styles.title}>Rangos / Constancia</Text>
-        <Text style={styles.subtitle}>Rango de Constancia por percentil de temporada. Todos los perros cuentan en la población; 0 actividad permanece Bronce.</Text>
+        <Text style={styles.subtitle}>Nivel de Constancia por percentil de temporada. Todos los perros cuentan en la población; 0 actividad permanece Cobre.</Text>
       </View>
 
       {loading ? (
@@ -135,7 +135,7 @@ export default function AdminCompetitionConstancyScreen() {
 
               <View style={styles.noteCard}>
                 <MaterialIcons name="info-outline" size={19} color={ucapsaBrand.colors.redDark} />
-                <Text style={styles.noteText}>Rango se calcula sólo con Constancia. El puntaje competitivo se muestra aparte y no decide Bronce/Plata/Oro/Esmeralda/Platino/Diamante.</Text>
+                <Text style={styles.noteText}>El Nivel se calcula sólo con Constancia: Cobre, Plata u Oro. El puntaje competitivo se muestra aparte y no decide este nivel.</Text>
               </View>
 
               <View style={styles.searchBox}>
@@ -177,7 +177,7 @@ export default function AdminCompetitionConstancyScreen() {
                         <View style={{ flex: 1, minWidth: 0 }}>
                           <View style={styles.titleLine}>
                             <Text numberOfLines={1} style={styles.dogName}>{dog.dog_name || 'Perro sin nombre'}</Text>
-                            <View style={styles.rangePill}><Text style={styles.rangePillText}>{dog.range_name || 'Bronce'}</Text></View>
+                            <View style={styles.rangePill}><Text style={styles.rangePillText}>{dog.range_name || 'Cobre'}</Text></View>
                             {!dog.dog_is_active ? <Text style={styles.inactivePill}>Inactivo</Text> : null}
                           </View>
                           <Text numberOfLines={1} style={styles.muted}>{dog.ownerName || 'Dueño sin nombre'}</Text>

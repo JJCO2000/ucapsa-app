@@ -28,6 +28,19 @@ function statusLabel(status: string | null | undefined) {
   return status || 'Temporada';
 }
 
+function dateLabel(value: string | null | undefined) {
+  if (!value) return 'sin actividad registrada';
+  const date = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function constancyLevelDescription(code: string | null | undefined) {
+  if (code === 'gold') return 'Constancia destacada esta temporada.';
+  if (code === 'silver') return 'Constancia sostenida esta temporada.';
+  return 'Constancia en desarrollo esta temporada.';
+}
+
 export default function ClientCompetitionScreen() {
   const params = useLocalSearchParams<{ dogId?: string | string[] }>();
   const dogId = Array.isArray(params.dogId) ? params.dogId[0] ?? '' : params.dogId ?? '';
@@ -170,18 +183,29 @@ export default function ClientCompetitionScreen() {
             </View>
           ) : (
             <>
-              <View style={[styles.pendingCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
+              <Pressable
+                style={[styles.pendingCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}
+                onPress={() => {
+                  if (!selectedSeason.season_id) return;
+                  router.push(`/client/competition-constancy?dogId=${encodeURIComponent(snapshot.dog_id)}&seasonId=${encodeURIComponent(selectedSeason.season_id)}` as never);
+                }}
+              >
                 <MaterialIcons name="workspace-premium" size={24} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.sectionEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>RANGO DE CONSTANCIA</Text>
-                  <Text style={[styles.cardTitle, { color: format.cardText }]}>{selectedSeason.range_name || 'Bronce'}</Text>
+                  <Text style={[styles.sectionEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>NIVEL DE CONSTANCIA</Text>
+                  <Text style={[styles.cardTitle, { color: format.cardText }]}>{selectedSeason.range_name || 'Cobre'}</Text>
                   <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
-                    {Number(selectedSeason.constancy_events_count ?? 0) === 0
-                      ? '0 eventos: Bronce. Tu perro sí cuenta dentro de la población de la temporada.'
-                      : `Percentil desde la cima: ${Number(selectedSeason.constancy_percentile ?? 0).toFixed(2)}%.`}
+                    {constancyLevelDescription(selectedSeason.range_code)}
+                  </Text>
+                  {selectedSeason.is_constancy_outstanding ? (
+                    <Text style={[styles.outstandingText, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Constancia sobresaliente</Text>
+                  ) : null}
+                  <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+                    {Number(selectedSeason.constancy_events_count ?? 0)} actividades registradas · última actividad {dateLabel(selectedSeason.last_event_date)}
                   </Text>
                 </View>
-              </View>
+                <MaterialIcons name="chevron-right" size={21} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+              </Pressable>
 
               <Pressable
                 style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}
@@ -200,36 +224,10 @@ export default function ClientCompetitionScreen() {
                   <MaterialIcons name="chevron-right" size={21} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
                 </View>
                 <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
-                  Puntaje competitivo {numberLabel(selectedSeason.competitive_score)} pts · Constancia {numberLabel(selectedSeason.constancy_points)}
-                  {' + '} Exámenes {numberLabel(selectedSeason.exam_points)}
-                  {' + '} Ajustes {numberLabel(selectedSeason.admin_adjustment_points)}.
+                  {selectedSeason.is_ranking_eligible
+                    ? 'Tu perro participa en la clasificación oficial de esta temporada.'
+                    : 'Tu perro todavía no ocupa una posición oficial.'}
                 </Text>
-                {!selectedSeason.is_ranking_eligible ? (
-                  <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
-                    Tu perro aún no ocupa posición porque faltan {Number(selectedSeason.missing_required_exams_count ?? 0)} examen(es) obligatorio(s).
-                  </Text>
-                ) : null}
-              </Pressable>
-
-              <Pressable
-                style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}
-                onPress={() => {
-                  if (!selectedSeason.season_id) return;
-                  router.push(`/client/competition-constancy?dogId=${encodeURIComponent(snapshot.dog_id)}&seasonId=${encodeURIComponent(selectedSeason.season_id)}` as never);
-                }}
-              >
-                <View style={styles.cardTitleLine}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.sectionEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>CONSTANCIA</Text>
-                    <Text style={[styles.cardTitle, { color: format.cardText }]}>Actividad de la temporada</Text>
-                  </View>
-                  <MaterialIcons name="chevron-right" size={21} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-                </View>
-                <View style={styles.metricsRow}>
-                  <Metric value={Number(selectedSeason.constancy_events_count ?? 0)} label="eventos" premium={premium} format={format} />
-                  <Metric value={Number(selectedSeason.command_attendances_count ?? 0)} label="Comandos" premium={premium} format={format} />
-                  <Metric value={Number(selectedSeason.member_visits_count ?? 0)} label="visitas" premium={premium} format={format} />
-                </View>
               </Pressable>
 
               <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
@@ -261,25 +259,6 @@ export default function ClientCompetitionScreen() {
         </>
       ) : null}
     </KeyboardAwareScreen>
-  );
-}
-
-function Metric({
-  value,
-  label,
-  premium,
-  format,
-}: {
-  value: number;
-  label: string;
-  premium: boolean;
-  format: ReturnType<typeof resolveUcapsaFormat>;
-}) {
-  return (
-    <View style={[styles.metric, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
-      <Text style={[styles.metricValue, { color: format.cardText }]}>{value}</Text>
-      <Text style={[styles.metricLabel, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{label}</Text>
-    </View>
   );
 }
 
@@ -334,10 +313,7 @@ const styles = StyleSheet.create({
   pillText: { fontSize: 9, fontWeight: '900' },
   pendingCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 18, borderWidth: 1, padding: 13, marginBottom: 11 },
   sectionEyebrow: { fontSize: 9, fontWeight: '900', letterSpacing: 0.7 },
-  metricsRow: { flexDirection: 'row', gap: 8 },
-  metric: { flex: 1, borderRadius: 14, borderWidth: 1, padding: 10 },
-  metricValue: { fontSize: 19, fontWeight: '900' },
-  metricLabel: { fontSize: 9, fontWeight: '800', marginTop: 2 },
+  outstandingText: { fontSize: 10, lineHeight: 15, fontWeight: '900', marginTop: 2 },
   emptyRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 14, padding: 11 },
   examList: { gap: 7 },
   examRow: { minHeight: 60, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 15, borderWidth: 1, padding: 10 },

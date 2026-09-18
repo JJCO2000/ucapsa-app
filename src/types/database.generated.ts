@@ -3427,6 +3427,7 @@ export type Database = {
           dog_name: string | null
           eligible_dogs_count: number | null
           exam_points: number | null
+          is_constancy_outstanding: boolean | null
           last_adjustment_at: string | null
           last_event_date: string | null
           last_exam_published_at: string | null
@@ -3463,6 +3464,7 @@ export type Database = {
           exam_points: number | null
           first_event_date: string | null
           has_competition_activity: boolean | null
+          is_constancy_outstanding: boolean | null
           is_ranking_eligible: boolean | null
           last_adjustment_at: string | null
           last_event_date: string | null
@@ -4385,6 +4387,7 @@ export type Database = {
           dog_name: string | null
           eligible_dogs_count: number | null
           exam_points: number | null
+          is_constancy_outstanding: boolean | null
           last_adjustment_at: string | null
           last_event_date: string | null
           last_exam_published_at: string | null

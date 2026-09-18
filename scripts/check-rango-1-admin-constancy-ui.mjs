@@ -45,15 +45,18 @@ if (!/competition-constancy-detail\?seasonId=/.test(overview) || !/&dogId=/.test
 if (!/ownerName/.test(overview)) {
   failures.push('Listado dejó de desambiguar perros con el dueño.');
 }
-if (!/Rango se calcula sólo con Constancia/.test(overview)) {
-  failures.push('UI dejó de separar Rango de Constancia y puntaje competitivo.');
+if (!/El Nivel se calcula sólo con Constancia/.test(overview)) {
+  failures.push('UI dejó de separar Nivel de Constancia y puntaje competitivo.');
 }
 
 if (!/useLocalSearchParams/.test(detail) || !/seasonId/.test(detail) || !/dogId/.test(detail)) {
   failures.push('Detalle de Constancia no conserva season_id + dog_id.');
 }
-if (!/RANGO DE CONSTANCIA/.test(detail) || !/range_name/.test(detail) || !/constancy_percentile/.test(detail)) {
-  failures.push('Detalle debe mostrar el Rango canónico y su percentil.');
+if (!/NIVEL DE CONSTANCIA/.test(detail) || !/range_name/.test(detail) || !/constancy_percentile/.test(detail)) {
+  failures.push('Detalle debe mostrar el Nivel canónico y su percentil.');
+}
+if (!/is_constancy_outstanding/.test(detail) || !/top 5%/.test(detail)) {
+  failures.push('Admin debe identificar Constancia sobresaliente sin crear un cuarto nivel.');
 }
 if (!/Puntaje competitivo/.test(detail) || !/competitive_score/.test(detail)) {
   failures.push('Detalle debe mantener el puntaje competitivo separado del Rango.');

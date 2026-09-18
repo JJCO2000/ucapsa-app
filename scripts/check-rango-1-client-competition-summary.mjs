@@ -60,20 +60,31 @@ if (!/OfflineDataNotice/.test(screen) || !/Mostrando competencia guardada/.test(
 
 for (const token of [
   'constancy_events_count',
-  'command_attendances_count',
-  'member_visits_count',
   'required_exams_count',
   'missing_required_exams_count',
   'total_points_awarded',
   'max_points',
 ]) {
-  if (!screen.includes(token)) failures.push(`Resumen cliente perdió dato canónico: ${token}`);
+  if (!screen.includes(token)) failures.push(`Resumen cliente perdió dato útil: ${token}`);
 }
-for (const token of ['competitive_score', 'constancy_points', 'exam_points', 'admin_adjustment_points']) {
-  if (!screen.includes(token)) failures.push(`Resumen cliente perdió componente del score: ${token}`);
+for (const token of ['competitive_score', 'constancy_points', 'admin_adjustment_points']) {
+  if (screen.includes(token)) failures.push(`Resumen cliente volvió a exponer profundidad competitiva: ${token}`);
 }
-for (const token of ['range_name', 'constancy_percentile']) {
-  if (!screen.includes(token)) failures.push(`Resumen cliente perdió dato de Rango: ${token}`);
+for (const token of ['range_name', 'is_constancy_outstanding', 'last_event_date']) {
+  if (!screen.includes(token)) failures.push(`Resumen cliente perdió dato útil de Constancia: ${token}`);
+}
+if (!/NIVEL DE CONSTANCIA/.test(screen)
+  || !/actividades registradas/.test(screen)
+  || !/última actividad/.test(screen)
+  || !/Constancia sobresaliente/.test(screen)) {
+  failures.push('Resumen cliente debe demostrar Nivel + actividad + última actividad sin mecánicas gamer.');
+}
+if (/constancy_percentile/.test(screen) || /Percentil desde la cima/.test(screen)) {
+  failures.push('El percentil exacto pertenece al detalle, no al resumen Cliente.');
+}
+const constancyRouteCount = (screen.match(/competition-constancy\?dogId=/g) ?? []).length;
+if (constancyRouteCount !== 1) {
+  failures.push('Resumen Cliente debe tener una sola entrada útil a Constancia, sin tarjeta duplicada.');
 }
 if (!/competition-ranking\?seasonId=/.test(screen) || !/&dogId=/.test(screen)) {
   failures.push('Resumen cliente no abre Ranking con seasonId + dogId.');

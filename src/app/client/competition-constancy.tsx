@@ -34,6 +34,16 @@ function sourceLabel(value: string | null | undefined) {
   return value;
 }
 
+function constancyLevelDescription(code: string | null | undefined) {
+  if (code === 'gold') return 'Constancia destacada esta temporada.';
+  if (code === 'silver') return 'Constancia sostenida esta temporada.';
+  return 'Constancia en desarrollo esta temporada.';
+}
+
+function topPercentLabel(value: number | null | undefined) {
+  return Math.max(1, Math.ceil(Number(value ?? 0)));
+}
+
 export default function ClientCompetitionConstancyScreen() {
   const params = useLocalSearchParams<{
     dogId?: string | string[];
@@ -142,13 +152,16 @@ export default function ClientCompetitionConstancyScreen() {
       {localReady && !error && detail && season ? (
         <>
           <View style={[styles.card, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
-            <Text style={[styles.sectionEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>RANGO DE CONSTANCIA</Text>
-            <Text style={[styles.rangeValue, { color: format.cardText }]}>{season.range_name || 'Bronce'}</Text>
+            <Text style={[styles.sectionEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>NIVEL DE CONSTANCIA</Text>
+            <Text style={[styles.rangeValue, { color: format.cardText }]}>{season.range_name || 'Cobre'}</Text>
             <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
               {Number(season.constancy_events_count ?? 0) === 0
-                ? '0 eventos: Bronce por regla de actividad. Tu perro sí cuenta en la población de la temporada.'
-                : `Percentil desde la cima: ${Number(season.constancy_percentile ?? 0).toFixed(2)}%. Empates de Constancia comparten Rango.`}
+                ? 'Sin actividad registrada en esta temporada. Tu perro permanece en Cobre y sigue contando dentro de la población de la temporada.'
+                : `${constancyLevelDescription(season.range_code)} Está dentro del ${topPercentLabel(season.constancy_percentile)}% de mayor constancia de la temporada.`}
             </Text>
+            {season.is_constancy_outstanding ? (
+              <Text style={[styles.outstandingText, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Constancia sobresaliente · top 5%</Text>
+            ) : null}
           </View>
 
           <View style={styles.metricsRow}>
@@ -194,7 +207,7 @@ export default function ClientCompetitionConstancyScreen() {
 
           <View style={[styles.noteCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
             <MaterialIcons name="info-outline" size={19} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-            <Text style={[styles.noteText, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Tu Rango se deriva únicamente de esta Constancia. El Ranking usa además puntos de Exámenes y Ajustes Admin.</Text>
+            <Text style={[styles.noteText, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Cobre = constancia en desarrollo · Plata = constancia sostenida · Oro = constancia destacada. El nivel se deriva únicamente de esta Constancia; el Ranking usa además Exámenes y Ajustes Admin.</Text>
           </View>
         </>
       ) : null}
@@ -251,6 +264,7 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 15, lineHeight: 20, fontWeight: '900' },
   sectionEyebrow: { fontSize: 9, fontWeight: '900', letterSpacing: 0.7 },
   rangeValue: { fontSize: 23, lineHeight: 29, fontWeight: '900' },
+  outstandingText: { fontSize: 10, lineHeight: 15, fontWeight: '900', marginTop: 2 },
   metricsRow: { flexDirection: 'row', gap: 8, marginBottom: 11 },
   metric: { flex: 1, borderRadius: 16, borderWidth: 1, padding: 11 },
   metricValue: { fontSize: 20, fontWeight: '900' },
