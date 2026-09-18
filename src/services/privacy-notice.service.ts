@@ -78,3 +78,37 @@ export async function publishPrivacyNotice(id: string): Promise<PrivacyNotice> {
   if (!data) throw new Error('Supabase no devolvió el aviso publicado.');
   return data;
 }
+
+export const PRIVACY_NOTICE_REQUIRED_FIELDS: Array<keyof PrivacyNotice> = [
+  'responsible_name',
+  'responsible_address',
+  'contact_email',
+  'data_categories',
+  'sensitive_data_categories',
+  'purposes',
+  'consent_required_purposes',
+  'limitation_mechanisms',
+  'arco_procedure',
+  'change_notice_method',
+  'transfer_clause',
+  'simplified_notice',
+  'integral_notice',
+];
+
+export function getPrivacyNoticeMissingFields(notice: PrivacyNotice): string[] {
+  return PRIVACY_NOTICE_REQUIRED_FIELDS.filter((field) => {
+    const value = notice[field];
+    return typeof value !== 'string' || value.trim().length === 0;
+  });
+}
+
+export async function getPrivacyNoticeAdminById(id: string): Promise<PrivacyNotice | null> {
+  const { data, error } = await supabase
+    .from('privacy_notices')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
