@@ -91,7 +91,9 @@ for (const file of files) {
     addCritical(file, 'Pantalla salta la frontera de servicios y toca Supabase directamente.');
   }
 
-  if (file === self) continue;\n\n  const anyCasts = countMatches(text, /\\bas\\s+any\\b|:\\s*any\\b/g);
+  if (file === self) continue;
+
+  const anyCasts = countMatches(text, /\bas\s+any\b|:\s*any\b/g);
   if (anyCasts) addReview(file, 'Uso de any', anyCasts);
 
   const consoles = countMatches(text, /\bconsole\.(?:log|warn|error|debug)\s*\(/g);
