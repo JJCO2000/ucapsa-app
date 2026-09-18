@@ -206,7 +206,7 @@ export default function ServicesTab() {
           <Text style={styles.memberAccessEyebrow}>TU ACCESO DE SOCIO</Text>
           <View style={styles.memberAccessGrid}>
             <MemberShortcut icon="badge" label="Credencial" onPress={() => router.push('/client/membership' as never)} />
-            <MemberShortcut icon="emoji-events" label="Perro del Año" onPress={() => router.push('/client/points' as never)} />
+            <MemberShortcut icon="emoji-events" label="Competencia" onPress={() => router.push('/dog' as never)} />
             <MemberShortcut icon="history" label="Visitas" onPress={() => router.push('/client/member-visits' as never)} />
           </View>
         </View>
