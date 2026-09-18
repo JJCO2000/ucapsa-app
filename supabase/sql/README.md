@@ -46,6 +46,11 @@ La captura actualiza tipos desde el remoto y guarda `migration list` y `db lint`
 
 No guardar `CRON_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, secretos de Vault ni `EXPO_ACCESS_TOKEN` en este repositorio.
 
+## Retiro del sistema histórico UCAPSA Points
+
+- `supabase/sql/ucapsa-legacy-points-retirement.sql` detiene la generación automática y los ajustes manuales del ledger histórico sin borrar sus datos.
+- Rango 1 queda como fuente canónica de Constancia, score, Rango, Ranking y Podio.
+
 ## Hardening de funciones internas
 
 - `supabase/sql/ucapsa-security-definer-hardening.sql` revoca `EXECUTE` de `public`, `anon` y `authenticated` para helpers internos `SECURITY DEFINER` que no forman parte de la API cliente.
