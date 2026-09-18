@@ -45,6 +45,15 @@ must('src/app/client/practice-detail.tsx', /useLocalSearchParams/, 'Detalle de p
 must('src/app/client/practice-detail.tsx', /getMyPracticeActivity/, 'Detalle de práctica dejó de usar la fuente canónica de actividad.');
 mustNot('src/app/client/activity-achievements.tsx', /ClientPageHeader/, 'Insignias de actividad volvió a repetir un hero redundante.');
 
+// Admin Clases = una sola tarea: inscripciones. Horarios, cancelaciones y asistencias
+// viven en pantallas canónicas separadas para evitar dos fuentes de UI/estado.
+must('src/app/admin/classes.tsx', />Inscripciones</, 'Admin Clases perdió su trabajo principal de inscripciones.');
+must('src/app/admin/classes.tsx', /\/admin\/customer-class\?userId=/, 'Admin Clases dejó de bajar a la ficha particular de inscripción.');
+mustNot('src/app/admin/classes.tsx', /ClassCancellationModal|SchedulesModal|AttendanceModal|updateProgramSchedule|registerProgramAttendance/, 'Admin Clases volvió a mezclar horarios, cancelaciones o asistencias dentro de Inscripciones.');
+must('src/app/(tabs)/admin-classes.tsx', /\/admin\/class-schedules/, 'Hub de Clases perdió la entrada separada a Horarios.');
+must('src/app/(tabs)/admin-classes.tsx', /\/admin\/class-cancellations/, 'Hub de Clases perdió la entrada separada a Cancelaciones.');
+must('src/app/(tabs)/admin-classes.tsx', /admin-clients\?intent=attendance/, 'Hub de Clases perdió la entrada separada a Asistencia manual.');
+
 // Clases = contexto/listado -> ficha de inscripción -> acción QR.
 mustNot('src/app/(tabs)/classes.tsx', /router\.push\('\/attendance'/, 'Clases volvió a saltarse la ficha antes de Registrar asistencia.');
 must('src/app/(tabs)/classes.tsx', /\/client\/class-detail\?enrollmentId=/, 'Clases perdió la navegación a la ficha particular.');
