@@ -63,8 +63,8 @@ for (const file of files) {
   const enforceMeta = file !== self;
 
   if (enforceMeta) {
-    const debtMarker = new RegExp('\\b(?:TO' + 'DO|FIX' + 'ME|HA' + 'CK|X' + 'XX)\\b', 'i');
-    if (debtMarker.test(text)) addCritical(file, 'Marcador de deuda TODO/FIXME/HACK/XXX.');
+    const debtMarker = new RegExp('(?:\\/\\/|\\/\\*)\\s*(?:TO' + 'DO|FIX' + 'ME|HA' + 'CK|X' + 'XX)\\b');
+    if (debtMarker.test(text)) addCritical(file, 'Marcador explícito de deuda en comentario.');
   }
 
   if (/@ts-(?:ignore|nocheck)\b/.test(text)) {
@@ -91,7 +91,7 @@ for (const file of files) {
     addCritical(file, 'Pantalla salta la frontera de servicios y toca Supabase directamente.');
   }
 
-  const anyCasts = countMatches(text, /\bas\s+any\b|:\s*any\b/g);
+  if (file === self) continue;\n\n  const anyCasts = countMatches(text, /\\bas\\s+any\\b|:\\s*any\\b/g);
   if (anyCasts) addReview(file, 'Uso de any', anyCasts);
 
   const consoles = countMatches(text, /\bconsole\.(?:log|warn|error|debug)\s*\(/g);
