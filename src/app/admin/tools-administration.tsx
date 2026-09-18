@@ -22,6 +22,7 @@ export default function AdministrationToolsScreen() {
       <View style={styles.card}>
         <Row icon="badge" title="Membresías" subtitle="Buscar socios y gestionar su vigencia" onPress={() => router.push('/admin/members' as never)} />
         {isSuperAdmin ? <Row icon="admin-panel-settings" title="Administradores" subtitle="Cuentas, roles y permisos administrativos" onPress={() => router.push('/admin/users?filter=admins' as never)} /> : null}
+        {isSuperAdmin ? <Row icon="privacy-tip" title="Bajas de cuenta" subtitle="Revisar solicitudes, bloqueo y resolución de datos" onPress={() => router.push('/admin/account-deletion-requests' as never)} /> : null}
         <Row icon="settings" title="Ajustes" subtitle="Preferencias y configuración de cuenta" onPress={() => router.push('/account-settings' as never)} last />
       </View>
 
