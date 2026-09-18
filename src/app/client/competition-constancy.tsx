@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
@@ -15,6 +15,7 @@ import {
   type ClientConstancyDetail,
   type ClientConstancyEvent,
 } from '../../services/client-competition.service';
+import { recordValueExposure } from '../../services/continuity-evidence.service';
 
 function dateLabel(value: string | null | undefined) {
   if (!value) return '—';
@@ -106,10 +107,16 @@ export default function ClientCompetitionConstancyScreen() {
     try { await load(); } finally { setRefreshing(false); }
   }
 
+  const season = detail?.season ?? null;
+
+  useEffect(() => {
+    if (!detail?.dog_id || !season?.season_id || isAdmin) return;
+    void recordValueExposure(detail.dog_id, season.season_id, 'constancy_detail')
+      .catch(() => undefined);
+  }, [detail?.dog_id, isAdmin, season?.season_id]);
+
   if (!user) return <Redirect href="/auth/login" />;
   if (isAdmin) return <Redirect href="/admin-home" />;
-
-  const season = detail?.season ?? null;
 
   return (
     <KeyboardAwareScreen
