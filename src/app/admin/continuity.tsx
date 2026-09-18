@@ -261,7 +261,7 @@ export default function AdminContinuityScreen() {
                 <View style={styles.warningCard}>
                   <MaterialIcons name="info-outline" size={20} color={ucapsaBrand.colors.danger} />
                   <Text style={styles.warningText}>
-                    {summary.deleteRequestAfterExposure} cliente(s) solicitaron eliminación después de una exposición. Es un hecho observado, no una atribución causal.
+                    {summary.deleteRequestAfterExposure} cliente(s) solicitaron eliminación de cuenta después de una exposición. Es un hecho observado, no una atribución causal.
                   </Text>
                 </View>
               ) : null}
