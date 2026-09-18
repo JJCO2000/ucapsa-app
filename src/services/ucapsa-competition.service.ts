@@ -190,6 +190,8 @@ export async function reopenCompetitionSeason(seasonId: string) {
 
 export type CompetitionInput = Database['public']['Views']['ucapsa_competition_inputs']['Row'];
 export type CompetitionScore = Database['public']['Views']['ucapsa_competition_scores']['Row'];
+export type CompetitionRange = Database['public']['Views']['ucapsa_competition_ranges']['Row'];
+export type CompetitionLeaderboardRow = Database['public']['Views']['ucapsa_competition_leaderboard']['Row'];
 export type CompetitionAdjustment = Database['public']['Tables']['ucapsa_competition_adjustments']['Row'];
 
 export type CompetitionAdjustmentOverview = {
@@ -1245,7 +1247,7 @@ export async function revertCompetitionExamImportBatch(batchId: string) {
 
 export type CompetitionConstancyEvent = Database['public']['Views']['ucapsa_constancy_events']['Row'];
 
-export type AdminCompetitionConstancyDog = CompetitionScore & {
+export type AdminCompetitionConstancyDog = CompetitionRange & {
   ownerName: string | null;
 };
 
@@ -1283,8 +1285,8 @@ function resolveReadableSeason(seasons: CompetitionSeason[], requestedSeasonId?:
   };
 }
 
-async function enrichCompetitionScoresWithOwners(
-  rows: CompetitionScore[],
+async function enrichCompetitionRangesWithOwners(
+  rows: CompetitionRange[],
 ): Promise<AdminCompetitionConstancyDog[]> {
   const ownerIds = [...new Set(
     rows
@@ -1330,7 +1332,7 @@ export async function getAdminCompetitionConstancyOverview(
   }
 
   const { data, error } = await supabase
-    .from('ucapsa_competition_scores')
+    .from('ucapsa_competition_ranges')
     .select('*')
     .eq('season_id', selected.id)
     .order('dog_name', { ascending: true });
@@ -1340,7 +1342,7 @@ export async function getAdminCompetitionConstancyOverview(
   return {
     seasons: readable,
     selectedSeason: selected,
-    dogs: await enrichCompetitionScoresWithOwners(data ?? []),
+    dogs: await enrichCompetitionRangesWithOwners(data ?? []),
   };
 }
 
@@ -1355,7 +1357,7 @@ export async function getAdminCompetitionConstancyDetail(input: {
   const [season, inputResult, eventsResult] = await Promise.all([
     getAdminCompetitionSeason(seasonId),
     supabase
-      .from('ucapsa_competition_scores')
+      .from('ucapsa_competition_ranges')
       .select('*')
       .eq('season_id', seasonId)
       .eq('dog_id', dogId)
@@ -1375,12 +1377,48 @@ export async function getAdminCompetitionConstancyDetail(input: {
   if (inputResult.error) throw inputResult.error;
   if (eventsResult.error) throw eventsResult.error;
 
-  const [dog] = await enrichCompetitionScoresWithOwners([inputResult.data]);
+  const [dog] = await enrichCompetitionRangesWithOwners([inputResult.data]);
 
   return {
     season,
     dog,
     events: eventsResult.data ?? [],
+  };
+}
+
+
+export type AdminCompetitionRankingOverview = {
+  seasons: CompetitionSeason[];
+  selectedSeason: CompetitionSeason | null;
+  rows: CompetitionLeaderboardRow[];
+};
+
+export async function getAdminCompetitionRankingOverview(
+  requestedSeasonId?: string | null,
+): Promise<AdminCompetitionRankingOverview> {
+  const allSeasons = await getAdminCompetitionSeasons();
+  const { readable, selected } = resolveReadableSeason(allSeasons, requestedSeasonId);
+
+  if (!selected) {
+    return {
+      seasons: readable,
+      selectedSeason: null,
+      rows: [],
+    };
+  }
+
+  const { data, error } = await supabase
+    .from('ucapsa_competition_leaderboard')
+    .select('*')
+    .eq('season_id', selected.id)
+    .order('ranking_position', { ascending: true });
+
+  if (error) throw error;
+
+  return {
+    seasons: readable,
+    selectedSeason: selected,
+    rows: data ?? [],
   };
 }
 
