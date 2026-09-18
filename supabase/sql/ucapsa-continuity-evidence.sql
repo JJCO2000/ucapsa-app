@@ -386,7 +386,7 @@ left join lateral (
 left join lateral (
   select
     min(r.requested_at) as first_delete_request_after_exposure
-  from public.membership_delete_requests r
+  from public.account_deletion_requests r
   where x.first_exposure_at is not null
     and r.user_id = c.user_id
     and r.requested_at > x.first_exposure_at
