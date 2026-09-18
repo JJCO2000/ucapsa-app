@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 
 const sql = fs.readFileSync('supabase/sql/ucapsa-continuity-evidence.sql', 'utf8');
+const cohortMigration = fs.readFileSync('supabase/sql/ucapsa-continuity-cohort-lower-bound.sql', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
 
 const required = [
@@ -47,6 +48,14 @@ const required = [
 
 for (const token of required) {
   if (!sql.includes(token)) throw new Error('Continuity evidence contract missing: ' + token);
+}
+
+if (!/\(timezone\('America\/Mexico_City', x\.first_exposure_at\)\)::date >= c\.first_activity_date/.test(cohortMigration)) {
+  throw new Error('Continuity cohort migration must require exposure on/after first activity.');
+}
+
+if (!/create or replace view public\.ucapsa_continuity_observations/i.test(cohortMigration)) {
+  throw new Error('Continuity cohort migration must replace the canonical observation view.');
 }
 
 if (!/v_occurred_at > now\(\) \+ interval '5 minutes'/.test(sql)) {
