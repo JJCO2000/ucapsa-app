@@ -1,6 +1,9 @@
 import fs from 'node:fs';
 
 const sql = fs.readFileSync('supabase/sql/ucapsa-business-history-no-delete.sql', 'utf8');
+const progressionSql = fs.readFileSync('supabase/sql/ucapsa-program-progression-history-preservation.sql', 'utf8');
+const coursePathSql = fs.readFileSync('supabase/sql/ucapsa-course-path-and-points-access.sql', 'utf8');
+const legacyProgressionSql = fs.readFileSync('supabase/sql/ucapsa-membership-lifetime-and-comandos-progression.sql', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
 
 const files = {
@@ -65,6 +68,32 @@ if (!files.announcementsService.includes('archiveAnnouncement') || !files.events
 
 if (!files.cancellationsUi.includes('Reactivar') || !files.restaurantUi.includes('is_active') || !files.restaurantUi.includes('is_available')) {
   throw new Error('Lifecycle alternatives are missing for cancellation/restaurant records.');
+}
+
+for (const [name, text] of [
+  ['canonical course progression', coursePathSql],
+  ['legacy Comandos setup', legacyProgressionSql],
+  ['production progression migration', progressionSql],
+]) {
+  if (/delete\s+from\s+public\.program_enrollments\b/i.test(text)) {
+    throw new Error(name + ' physically deletes program enrollment history.');
+  }
+}
+
+for (const token of [
+  "status = 'cancelled'",
+  'cancelled_at = coalesce(child.cancelled_at, now())',
+  "status = 'active'",
+  'cancelled_at = null',
+  'unlocked_from_enrollment_id = p_enrollment_id',
+]) {
+  if (!progressionSql.includes(token)) {
+    throw new Error('Program progression history contract missing: ' + token);
+  }
+}
+
+if (!/drop function if exists public\.ucapsa_unlock_next_comandos_level\(uuid\)/i.test(progressionSql)) {
+  throw new Error('Legacy Comandos-only progression helper is not retired.');
 }
 
 if (!pkg.includes('"check:business-history"')) {
