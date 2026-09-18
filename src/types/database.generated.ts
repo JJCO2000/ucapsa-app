@@ -1594,6 +1594,81 @@ export type Database = {
           },
         ]
       }
+      privacy_notices: {
+        Row: {
+          arco_procedure: string | null
+          change_notice_method: string | null
+          consent_required_purposes: string | null
+          contact_email: string | null
+          created_at: string
+          created_by: string | null
+          data_categories: string | null
+          effective_from: string | null
+          id: string
+          integral_notice: string | null
+          limitation_mechanisms: string | null
+          published_at: string | null
+          published_by: string | null
+          purposes: string | null
+          responsible_address: string | null
+          responsible_name: string | null
+          sensitive_data_categories: string | null
+          simplified_notice: string | null
+          status: string
+          transfer_clause: string | null
+          updated_at: string
+          version: string
+        }
+        Insert: {
+          arco_procedure?: string | null
+          change_notice_method?: string | null
+          consent_required_purposes?: string | null
+          contact_email?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_categories?: string | null
+          effective_from?: string | null
+          id?: string
+          integral_notice?: string | null
+          limitation_mechanisms?: string | null
+          published_at?: string | null
+          published_by?: string | null
+          purposes?: string | null
+          responsible_address?: string | null
+          responsible_name?: string | null
+          sensitive_data_categories?: string | null
+          simplified_notice?: string | null
+          status?: string
+          transfer_clause?: string | null
+          updated_at?: string
+          version: string
+        }
+        Update: {
+          arco_procedure?: string | null
+          change_notice_method?: string | null
+          consent_required_purposes?: string | null
+          contact_email?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_categories?: string | null
+          effective_from?: string | null
+          id?: string
+          integral_notice?: string | null
+          limitation_mechanisms?: string | null
+          published_at?: string | null
+          published_by?: string | null
+          purposes?: string | null
+          responsible_address?: string | null
+          responsible_name?: string | null
+          sensitive_data_categories?: string | null
+          simplified_notice?: string | null
+          status?: string
+          transfer_clause?: string | null
+          updated_at?: string
+          version?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_color: string
@@ -4583,6 +4658,39 @@ export type Database = {
         Args: { p_achievement_code: string; p_dog_id: string }
         Returns: string
       }
+      admin_publish_privacy_notice: {
+        Args: { p_id: string }
+        Returns: {
+          arco_procedure: string | null
+          change_notice_method: string | null
+          consent_required_purposes: string | null
+          contact_email: string | null
+          created_at: string
+          created_by: string | null
+          data_categories: string | null
+          effective_from: string | null
+          id: string
+          integral_notice: string | null
+          limitation_mechanisms: string | null
+          published_at: string | null
+          published_by: string | null
+          purposes: string | null
+          responsible_address: string | null
+          responsible_name: string | null
+          sensitive_data_categories: string | null
+          simplified_notice: string | null
+          status: string
+          transfer_clause: string | null
+          updated_at: string
+          version: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "privacy_notices"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       admin_publish_ucapsa_exam: {
         Args: { p_exam_id: string }
         Returns: string
@@ -4622,6 +4730,56 @@ export type Database = {
       admin_revoke_ucapsa_training_achievement: {
         Args: { p_achievement_code: string; p_dog_id: string }
         Returns: string
+      }
+      admin_save_privacy_notice: {
+        Args: {
+          p_arco_procedure: string
+          p_change_notice_method: string
+          p_consent_required_purposes: string
+          p_contact_email: string
+          p_data_categories: string
+          p_effective_from?: string
+          p_id: string
+          p_integral_notice: string
+          p_limitation_mechanisms: string
+          p_purposes: string
+          p_responsible_address: string
+          p_responsible_name: string
+          p_sensitive_data_categories: string
+          p_simplified_notice: string
+          p_transfer_clause: string
+          p_version: string
+        }
+        Returns: {
+          arco_procedure: string | null
+          change_notice_method: string | null
+          consent_required_purposes: string | null
+          contact_email: string | null
+          created_at: string
+          created_by: string | null
+          data_categories: string | null
+          effective_from: string | null
+          id: string
+          integral_notice: string | null
+          limitation_mechanisms: string | null
+          published_at: string | null
+          published_by: string | null
+          purposes: string | null
+          responsible_address: string | null
+          responsible_name: string | null
+          sensitive_data_categories: string | null
+          simplified_notice: string | null
+          status: string
+          transfer_clause: string | null
+          updated_at: string
+          version: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "privacy_notices"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       admin_set_ucapsa_exam_official_attempt: {
         Args: { p_attempt_id: string }
