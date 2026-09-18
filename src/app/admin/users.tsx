@@ -7,8 +7,8 @@ import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
-import { supabase } from '../../lib/supabase';
 import { deactivateMembershipForProfile, forceMembershipForProfile } from '../../services/memberships.service';
+import { getAdminProfiles, getProfileByUserId } from '../../services/profiles.service';
 import {
   awardAchievementToUser,
   getAchievementsForUser,
@@ -66,27 +66,21 @@ export default function AdminUsersScreen() {
 
   async function loadProfiles() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('full_name', { ascending: true, nullsFirst: false });
-
-    if (error) throw error;
-    setProfiles((data ?? []) as Profile[]);
-    setLoading(false);
+    try {
+      setProfiles(await getAdminProfiles());
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
-    loadProfiles().catch((error) => {
-      setLoading(false);
-      console.warn('No se pudieron cargar usuarios:', error instanceof Error ? error.message : error);
+    void loadProfiles().catch((error) => {
+      Alert.alert('No se pudieron cargar usuarios', error instanceof Error ? error.message : 'Intenta de nuevo.');
     });
   }, []);
 
   async function refreshSelectedProfile(userId: string) {
-    const { data, error } = await supabase.from('profiles').select('*').eq('user_id', userId).maybeSingle();
-    if (error) throw error;
-    const nextProfile = data as Profile | null;
+    const nextProfile = await getProfileByUserId(userId);
     if (nextProfile) setSelectedProfile(nextProfile);
   }
 
@@ -331,7 +325,6 @@ function UserDetailModal({ profile, saving, onClose, onForceMember, onBackToClie
             <Detail label="Correo" value={profile.email} />
             <Detail label="Telefono" value={profile.phone} />
             <Detail label="Rol" value={getRoleLabel(profile.role)} />
-            <Detail label="Solicitud eliminacion" value={profile.deletion_requested_at ? 'Si' : 'No'} />
           </View>
 
           {profile.role === 'client' || profile.role === 'member' ? (

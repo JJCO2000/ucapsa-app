@@ -188,6 +188,27 @@ export async function createDogForUserAdmin(userId: string, name: string): Promi
   return rows[0];
 }
 
+export async function getActiveDogNamesByUserIds(userIds: string[]): Promise<Record<string, string[]>> {
+  const ids = [...new Set(userIds.map((value) => value.trim()).filter(Boolean))];
+  if (ids.length === 0) return {};
+
+  const { data, error } = await supabase
+    .from('dogs')
+    .select('user_id,name')
+    .in('user_id', ids)
+    .eq('is_active', true)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+
+  const namesByUser: Record<string, string[]> = {};
+  for (const row of (data ?? []) as Array<{ user_id: string; name: string }>) {
+    namesByUser[row.user_id] = namesByUser[row.user_id] ?? [];
+    if (!namesByUser[row.user_id].includes(row.name)) namesByUser[row.user_id].push(row.name);
+  }
+  return namesByUser;
+}
+
 export async function getDogsForUser(userId: string): Promise<BasicDog[]> {
   const cleanUserId = userId.trim();
   if (!cleanUserId) return [];

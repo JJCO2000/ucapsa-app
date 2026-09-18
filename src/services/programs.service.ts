@@ -438,6 +438,19 @@ export async function getProgramSchedules(dateKey = localTodayKey()): Promise<Pr
   );
 }
 
+export async function getProgramSessionScheduleMap(sessionIds: string[]): Promise<Record<string, string>> {
+  const ids = [...new Set(sessionIds.map((value) => value.trim()).filter(Boolean))];
+  if (ids.length === 0) return {};
+
+  const { data, error } = await supabase
+    .from('program_sessions')
+    .select('id, schedule_id')
+    .in('id', ids);
+
+  if (error) throw error;
+  return Object.fromEntries((data ?? []).map((item) => [item.id, item.schedule_id]));
+}
+
 export async function getProgramScheduleTimeline(): Promise<ProgramSchedule[]> {
   const bundle = await loadScheduleBasesAndVersions();
   const bySchedule = new Map(bundle.schedules.map((schedule) => [schedule.id, schedule]));
