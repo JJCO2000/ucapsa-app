@@ -57,6 +57,21 @@ export async function requestMyEmailChange(nextEmail: string): Promise<EmailChan
   };
 }
 
+export async function getAdminProfiles(): Promise<Profile[]> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .order('full_name', { ascending: true, nullsFirst: false });
+
+  if (error) throw error;
+  return (data ?? []) as Profile[];
+}
+
+export async function getAdminClientProfiles(): Promise<Profile[]> {
+  const rows = await getAdminProfiles();
+  return rows.filter((profile) => profile.role === 'client' || profile.role === 'member');
+}
+
 export async function getProfileByUserId(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
     .from('profiles')
