@@ -39,7 +39,8 @@ export type PracticeActivityEntry = {
   completedAt: string;
   difficulty: PracticeDifficulty;
   note: string | null;
-  syncStatus: 'synced' | 'pending';
+  syncStatus: 'synced' | 'pending' | 'rejected';
+  syncError: string | null;
 };
 
 export type PracticeEngagementStats = {
@@ -72,6 +73,8 @@ type PendingPracticeSession = {
   difficulty: PracticeDifficulty;
   note: string | null;
   durationSeconds: number | null;
+  syncState: 'pending' | 'rejected';
+  syncError: string | null;
 };
 
 const PENDING_PRACTICE_PREFIX = 'ucapsa:practice-pending:v1:';
@@ -119,7 +122,9 @@ async function readPending(userId: string): Promise<PendingPracticeSession[]> {
         typeof value.enrollmentId === 'string' &&
         typeof value.startedAt === 'string' &&
         typeof value.completedAt === 'string' &&
-        (value.difficulty === 'easy' || value.difficulty === 'good' || value.difficulty === 'hard')
+        (value.difficulty === 'easy' || value.difficulty === 'good' || value.difficulty === 'hard') &&
+        (value.syncState == null || value.syncState === 'pending' || value.syncState === 'rejected') &&
+        (value.syncError == null || typeof value.syncError === 'string')
       );
     });
   } catch {
@@ -148,6 +153,14 @@ async function enqueuePending(item: PendingPracticeSession) {
 async function removePending(userId: string, clientEventId: string) {
   const current = await readPending(userId);
   await writePending(userId, current.filter((item) => item.clientEventId !== clientEventId));
+}
+
+async function replacePending(userId: string, next: PendingPracticeSession) {
+  const current = await readPending(userId);
+  await writePending(
+    userId,
+    current.map((item) => (item.clientEventId === next.clientEventId ? next : item)),
+  );
 }
 
 
@@ -206,7 +219,8 @@ function mergeActivityEntries(remote: PracticeActivityEntry[], pending: PendingP
       completedAt: item.completedAt,
       difficulty: item.difficulty,
       note: item.note,
-      syncStatus: 'pending',
+      syncStatus: item.syncState === 'rejected' ? 'rejected' : 'pending',
+      syncError: item.syncError ?? null,
     });
   }
   return [...byKey.values()].sort((a, b) => b.completedAt.localeCompare(a.completedAt));
@@ -226,7 +240,8 @@ function dayBefore(dateKey: string) {
 }
 
 export function buildPracticeEngagementStats(entries: PracticeActivityEntry[]): PracticeEngagementStats {
-  const practicedDays = new Set(entries.map((item) => dateKeyFromIso(item.completedAt)).filter((value): value is string => Boolean(value)));
+  const acceptedEntries = entries.filter((item) => item.syncStatus !== 'rejected');
+  const practicedDays = new Set(acceptedEntries.map((item) => dateKeyFromIso(item.completedAt)).filter((value): value is string => Boolean(value)));
   const today = new Date();
   const todayKey = localDateKey(today);
   const yesterday = dayBefore(todayKey);
@@ -251,11 +266,11 @@ export function buildPracticeEngagementStats(entries: PracticeActivityEntry[]): 
 
   const weekStart = startOfLocalWeek().getTime();
   const monthPrefix = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-`;
-  const thisWeekCount = entries.filter((item) => {
+  const thisWeekCount = acceptedEntries.filter((item) => {
     const time = new Date(item.completedAt).getTime();
     return Number.isFinite(time) && time >= weekStart;
   }).length;
-  const thisMonthEntries = entries.filter((item) => dateKeyFromIso(item.completedAt)?.startsWith(monthPrefix));
+  const thisMonthEntries = acceptedEntries.filter((item) => dateKeyFromIso(item.completedAt)?.startsWith(monthPrefix));
   const activeDaysThisMonth = new Set(thisMonthEntries.map((item) => dateKeyFromIso(item.completedAt)).filter(Boolean)).size;
 
   const recentDays: PracticeEngagementStats['recentDays'] = [];
@@ -273,7 +288,7 @@ export function buildPracticeEngagementStats(entries: PracticeActivityEntry[]): 
     thisWeekCount,
     thisMonthCount: thisMonthEntries.length,
     activeDaysThisMonth,
-    lastPracticeAt: entries[0]?.completedAt ?? null,
+    lastPracticeAt: acceptedEntries[0]?.completedAt ?? null,
     recentDays,
   };
 }
@@ -344,6 +359,7 @@ export async function getMyPracticeActivity(userId: string, daysBack = PRACTICE_
       difficulty: item.difficulty,
       note: item.note,
       syncStatus: 'synced',
+      syncError: null,
     }));
     const stored = await writePracticeActivityCache(userId, remote);
     const entries = mergeActivityEntries(remote, pending, dogNames);
@@ -382,15 +398,20 @@ export async function flushPendingPracticeSessions(userId: string): Promise<numb
   let synced = 0;
 
   for (const item of pending) {
+    if (item.syncState === 'rejected') continue;
+
     try {
       await withOperationTimeout(syncOne(item), DEFAULT_WRITE_TIMEOUT_MS, 'practice-sync');
       await removePending(userId, item.clientEventId);
       synced += 1;
     } catch (error) {
-      // Si no hay red, conserva absolutamente todo y vuelve a intentar más tarde.
-      // Si el servidor rechaza un registro, también se conserva para no perder una
-      // práctica silenciosamente; un guardado nuevo sí mostrará el error al usuario.
       if (isLikelyNetworkError(error)) break;
+
+      await replacePending(userId, {
+        ...item,
+        syncState: 'rejected',
+        syncError: getErrorMessage(error),
+      });
     }
   }
 
@@ -400,6 +421,7 @@ export async function flushPendingPracticeSessions(userId: string): Promise<numb
 export async function getPendingPracticeCounts(userId: string): Promise<PendingPracticeCount[]> {
   const weekStart = startOfLocalWeek().getTime();
   const pending = (await readPending(userId)).filter((item) => {
+    if (item.syncState === 'rejected') return false;
     const completedAt = new Date(item.completedAt).getTime();
     return Number.isFinite(completedAt) && completedAt >= weekStart;
   });
@@ -472,6 +494,8 @@ export async function saveMyPracticeSession(input: {
     difficulty: input.difficulty,
     note: input.note?.trim() || null,
     durationSeconds,
+    syncState: 'pending',
+    syncError: null,
   };
 
   // Primero se guarda localmente. Así una caída de red después de tocar Guardar
