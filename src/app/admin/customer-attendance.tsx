@@ -8,7 +8,6 @@ import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../components/domain/AdminCustomerContextHeader';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
-import { supabase } from '../../lib/supabase';
 import { getAdminCustomerRecord, type AdminCustomerRecord } from '../../services/admin-customer.service';
 import {
   correctProgramAttendance,
@@ -16,6 +15,7 @@ import {
   formatProgramScheduleDisplayLabel,
   getProgramLevelLabel,
   getProgramScheduleTimeline,
+  getProgramSessionScheduleMap,
   getProgramSchedulesForDate,
   registerProgramAttendance,
 } from '../../services/programs.service';
@@ -66,13 +66,7 @@ export default function CustomerAttendanceScreen() {
     setSelectedEnrollmentId((current) => current || firstId);
 
     const sessionIds = [...new Set(nextRecord.enrollments.flatMap((item) => item.attendances.map((attendance) => attendance.session_id).filter(Boolean) as string[]))];
-    if (sessionIds.length === 0) {
-      setSessionScheduleById({});
-      return;
-    }
-    const { data, error } = await supabase.from('program_sessions').select('id, schedule_id').in('id', sessionIds);
-    if (error) throw error;
-    setSessionScheduleById(Object.fromEntries((data ?? []).map((item) => [item.id, item.schedule_id])));
+    setSessionScheduleById(await getProgramSessionScheduleMap(sessionIds));
   }, [initialEnrollmentId, userId]);
 
   useFocusEffect(useCallback(() => {
