@@ -1,6 +1,6 @@
 # Plan UCAPSA Rango 1 — arquitectura canónica
 
-Estado: **fundación estructural**. Esta fase no define valores de puntos, umbrales de rango, desempates, UI final ni publica cambios en Supabase remoto.
+Estado: **Rango 1 en implementación funcional**. La fuente canónica, el puntaje competitivo, los percentiles de Rango y el desempate determinista de Ranking ya están definidos.
 
 Este documento reemplaza como fuente de producto a las decisiones anteriores de `UCAPSA_POINTS.md` y `UCAPSA_POINTS_UX_AUDIT.md` cuando exista contradicción.
 
@@ -63,7 +63,21 @@ La constancia dog-specific de una temporada consume dos fuentes independientes:
 - asistencias válidas a Comandos;
 - visitas de socio acreditadas al perro.
 
-Todavía no se decide cuánto pesa cada fuente ni los umbrales de Bronce/Plata/Oro/Esmeralda/Platino/Diamante.
+Cada evento canónico de Constancia vale **1 punto** en el score competitivo:
+- una asistencia válida a Comandos = 1 punto;
+- una visita de socio acreditada al perro = 1 punto.
+
+El **Rango** sigue siendo un sistema separado del Ranking: se deriva únicamente de la Constancia relativa del perro dentro de su temporada. Participan **todos los perros** de la temporada, incluso los de 0 actividad, para conservar el contexto completo del grupo.
+
+Cortes acumulados:
+- top 5% → Diamante;
+- >5% a 10% → Platino;
+- >10% a 20% → Esmeralda;
+- >20% a 40% → Oro;
+- >40% a 70% → Plata;
+- >70% a 100% → Bronce.
+
+Los empates de Constancia comparten percentil/rango; no se separan con un criterio secundario. Como regla de cordura, un perro con **0 eventos** siempre queda en Bronce aunque forme parte del denominador percentil.
 
 Una clase cancelada es neutral. Una misma sesión sólo puede contar una vez por perro. Cambiar de Básico a Intermedio o Avanzado dentro de la temporada no reinicia la constancia del perro.
 
@@ -148,13 +162,24 @@ Constancia
 = score competitivo efectivo
 ```
 
-La escala numérica se define después.
+La fórmula canónica es:
+
+```text
+1 punto por evento de Constancia
++ puntos oficiales de Exámenes
++ Ajustes Admin
+= score competitivo efectivo
+```
 
 Sólo perros elegibles entran a la clasificación oficial. Un perro no elegible conserva toda su constancia, exámenes parciales y ajustes; simplemente no ocupa posición hasta cumplir los exámenes obligatorios.
 
-🥇🥈🥉 son posiciones dinámicas, no logros permanentes. Si cambia un hecho canónico, cambia el score y el podio se reordena automáticamente.
+Orden determinista del Ranking:
+1. score competitivo DESC;
+2. asistencias válidas a Comandos DESC;
+3. puntos oficiales de Exámenes DESC;
+4. `dog_id ASC` únicamente como desempate técnico estable.
 
-El criterio exacto de desempate queda pendiente junto con la escala, pero Rango 1 exige posiciones deterministas: no puede haber dos #1 efectivos.
+🥇🥈🥉 son las posiciones dinámicas 1, 2 y 3 del Ranking, no logros permanentes. Si cambia un hecho canónico, cambia el score y el podio se reordena automáticamente.
 
 ## Ajustes Admin
 
@@ -260,18 +285,14 @@ Ninguna pantalla recalcula una fórmula alternativa.
 
 ## Fuera de alcance de esta fundación
 
-Todavía no se define:
+Fuera de alcance deliberadamente:
 
-- valor de una asistencia a Comandos;
-- valor de una visita de socio;
-- ponderación de exámenes;
-- normalización de exámenes con máximos diferentes;
-- umbrales de cada rango;
-- criterio definitivo de desempate;
-- bonificaciones, topes o rachas;
-- UI visual final;
-- RPC final de leaderboard;
-- aplicación remota de SQL;
+- normalización porcentual de exámenes con máximos diferentes: Rango 1 usa los puntos oficiales capturados tal cual;
+- bonificaciones, topes o rachas adicionales;
+- automatizar `Perro del Año` desde el #1;
+- convertir Podio en logro permanente;
 - OTA/EAS Build/AAB/Google Play.
+
+La UI de Ranking/Rango/Podio y el leaderboard seguro forman parte de la implementación actual de Rango 1.
 
 La fundación SQL versionada para estas decisiones está en `supabase/sql/ucapsa-rango-1-foundation.sql`.
