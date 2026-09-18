@@ -173,8 +173,13 @@ export default function ClientCompetitionScreen() {
               <View style={[styles.pendingCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
                 <MaterialIcons name="workspace-premium" size={24} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.cardTitle, { color: format.cardText }]}>Rango y posición</Text>
-                  <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Todavía no disponibles: UCAPSA aún no ha publicado la escala competitiva ni el criterio de desempate.</Text>
+                  <Text style={[styles.cardTitle, { color: format.cardText }]}>Puntaje competitivo · {numberLabel(selectedSeason.competitive_score)} pts</Text>
+                  <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+                    Constancia {numberLabel(selectedSeason.constancy_points)}
+                    {' + '}Exámenes {numberLabel(selectedSeason.exam_points)}
+                    {' + '}Ajustes {numberLabel(selectedSeason.admin_adjustment_points)}.
+                    Rango y posición todavía no disponibles.
+                  </Text>
                 </View>
               </View>
 

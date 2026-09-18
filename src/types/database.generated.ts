@@ -247,6 +247,13 @@ export type Database = {
             foreignKeyName: "dog_awards_dog_id_fkey"
             columns: ["dog_id"]
             isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "dog_awards_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
             referencedRelation: "ucapsa_exam_eligibility"
             referencedColumns: ["dog_id"]
           },
@@ -255,6 +262,13 @@ export type Database = {
             columns: ["season_id"]
             isOneToOne: false
             referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["season_id"]
+          },
+          {
+            foreignKeyName: "dog_awards_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
             referencedColumns: ["season_id"]
           },
           {
@@ -338,6 +352,13 @@ export type Database = {
             columns: ["dog_id"]
             isOneToOne: false
             referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "dog_documents_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
             referencedColumns: ["dog_id"]
           },
           {
@@ -546,6 +567,13 @@ export type Database = {
             columns: ["dog_id"]
             isOneToOne: false
             referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "member_visit_dogs_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
             referencedColumns: ["dog_id"]
           },
           {
@@ -1332,6 +1360,13 @@ export type Database = {
             foreignKeyName: "practice_sessions_dog_id_fkey"
             columns: ["dog_id"]
             isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "practice_sessions_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
             referencedRelation: "ucapsa_exam_eligibility"
             referencedColumns: ["dog_id"]
           },
@@ -1589,6 +1624,13 @@ export type Database = {
             columns: ["dog_id"]
             isOneToOne: false
             referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "program_enrollments_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
             referencedColumns: ["dog_id"]
           },
           {
@@ -2035,6 +2077,13 @@ export type Database = {
             foreignKeyName: "ucapsa_competition_adjustments_dog_id_fkey"
             columns: ["dog_id"]
             isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_competition_adjustments_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
             referencedRelation: "ucapsa_exam_eligibility"
             referencedColumns: ["dog_id"]
           },
@@ -2064,6 +2113,13 @@ export type Database = {
             columns: ["season_id"]
             isOneToOne: false
             referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["season_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_competition_adjustments_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
             referencedColumns: ["season_id"]
           },
           {
@@ -2213,6 +2269,13 @@ export type Database = {
             foreignKeyName: "ucapsa_exam_attempts_dog_id_fkey"
             columns: ["dog_id"]
             isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_attempts_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
             referencedRelation: "ucapsa_exam_eligibility"
             referencedColumns: ["dog_id"]
           },
@@ -2347,6 +2410,13 @@ export type Database = {
             columns: ["dog_id"]
             isOneToOne: false
             referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_import_rows_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
             referencedColumns: ["dog_id"]
           },
           {
@@ -2536,6 +2606,13 @@ export type Database = {
             foreignKeyName: "ucapsa_exams_season_id_fkey"
             columns: ["season_id"]
             isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
+            referencedColumns: ["season_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exams_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
             referencedRelation: "ucapsa_competition_seasons"
             referencedColumns: ["id"]
           },
@@ -2618,6 +2695,13 @@ export type Database = {
             columns: ["season_id"]
             isOneToOne: false
             referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["season_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_import_batches_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
             referencedColumns: ["season_id"]
           },
           {
@@ -2765,6 +2849,13 @@ export type Database = {
             columns: ["dog_id"]
             isOneToOne: false
             referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_points_participants_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
             referencedColumns: ["dog_id"]
           },
           {
@@ -2979,6 +3070,13 @@ export type Database = {
             foreignKeyName: "user_achievements_dog_id_fkey"
             columns: ["dog_id"]
             isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "user_achievements_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
             referencedRelation: "ucapsa_exam_eligibility"
             referencedColumns: ["dog_id"]
           },
@@ -3014,6 +3112,13 @@ export type Database = {
             foreignKeyName: "ucapsa_competition_adjustments_dog_id_fkey"
             columns: ["dog_id"]
             isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_competition_adjustments_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
             referencedRelation: "ucapsa_exam_eligibility"
             referencedColumns: ["dog_id"]
           },
@@ -3022,6 +3127,13 @@ export type Database = {
             columns: ["season_id"]
             isOneToOne: false
             referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["season_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_competition_adjustments_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
             referencedColumns: ["season_id"]
           },
           {
@@ -3067,6 +3179,43 @@ export type Database = {
           owner_user_id: string | null
           required_exam_max_points: number | null
           required_exam_points_awarded: number | null
+          required_exams_count: number | null
+          required_official_exams_count: number | null
+          season_code: string | null
+          season_ends_at: string | null
+          season_id: string | null
+          season_name: string | null
+          season_starts_at: string | null
+          season_status: string | null
+        }
+        Relationships: []
+      }
+      ucapsa_competition_scores: {
+        Row: {
+          admin_adjustment_movement_count: number | null
+          admin_adjustment_points: number | null
+          command_attendances_count: number | null
+          competitive_score: number | null
+          completed_required_exams_count: number | null
+          constancy_events_count: number | null
+          constancy_points: number | null
+          dog_id: string | null
+          dog_is_active: boolean | null
+          dog_name: string | null
+          exam_points: number | null
+          first_event_date: string | null
+          has_competition_activity: boolean | null
+          is_ranking_eligible: boolean | null
+          last_adjustment_at: string | null
+          last_event_date: string | null
+          last_exam_published_at: string | null
+          member_visits_count: number | null
+          missing_required_exams_count: number | null
+          official_exam_max_points: number | null
+          official_exam_points_awarded: number | null
+          official_exams_count: number | null
+          optional_official_exams_count: number | null
+          owner_user_id: string | null
           required_exams_count: number | null
           required_official_exams_count: number | null
           season_code: string | null
@@ -3144,6 +3293,13 @@ export type Database = {
             foreignKeyName: "dog_awards_dog_id_fkey"
             columns: ["dog_id"]
             isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "dog_awards_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
             referencedRelation: "ucapsa_exam_eligibility"
             referencedColumns: ["dog_id"]
           },
@@ -3152,6 +3308,13 @@ export type Database = {
             columns: ["season_id"]
             isOneToOne: false
             referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["season_id"]
+          },
+          {
+            foreignKeyName: "dog_awards_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
             referencedColumns: ["season_id"]
           },
           {
@@ -3211,6 +3374,13 @@ export type Database = {
             foreignKeyName: "ucapsa_exam_attempts_dog_id_fkey"
             columns: ["dog_id"]
             isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_attempts_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
             referencedRelation: "ucapsa_exam_eligibility"
             referencedColumns: ["dog_id"]
           },
@@ -3219,6 +3389,13 @@ export type Database = {
             columns: ["season_id"]
             isOneToOne: false
             referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["season_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exams_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
             referencedColumns: ["season_id"]
           },
           {
@@ -3308,6 +3485,13 @@ export type Database = {
             foreignKeyName: "ucapsa_exam_import_rows_dog_id_fkey"
             columns: ["dog_id"]
             isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_import_rows_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
             referencedRelation: "ucapsa_exam_eligibility"
             referencedColumns: ["dog_id"]
           },
@@ -3337,6 +3521,13 @@ export type Database = {
             columns: ["season_id"]
             isOneToOne: false
             referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["season_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_import_batches_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
             referencedColumns: ["season_id"]
           },
           {
@@ -3396,6 +3587,13 @@ export type Database = {
             foreignKeyName: "ucapsa_exam_attempts_dog_id_fkey"
             columns: ["dog_id"]
             isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exam_attempts_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
             referencedRelation: "ucapsa_exam_eligibility"
             referencedColumns: ["dog_id"]
           },
@@ -3404,6 +3602,13 @@ export type Database = {
             columns: ["season_id"]
             isOneToOne: false
             referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["season_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_exams_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
             referencedColumns: ["season_id"]
           },
           {

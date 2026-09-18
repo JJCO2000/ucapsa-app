@@ -6,7 +6,7 @@ import {
   type CachedResource,
 } from './client-read-cache.service';
 
-export type ClientCompetitionInput = Database['public']['Views']['ucapsa_competition_inputs']['Row'];
+export type ClientCompetitionInput = Database['public']['Views']['ucapsa_competition_scores']['Row'];
 export type ClientOfficialExamResult = Database['public']['Views']['ucapsa_exam_official_results']['Row'];
 
 export type ClientDogCompetitionSnapshot = {
@@ -62,7 +62,7 @@ async function fetchMyDogCompetition(
 
   const [inputsResult, examsResult] = await Promise.all([
     supabase
-      .from('ucapsa_competition_inputs')
+      .from('ucapsa_competition_scores')
       .select('*')
       .eq('dog_id', cleanDogId)
       .eq('owner_user_id', userId)
@@ -327,7 +327,7 @@ async function fetchMyConstancyDetail(
 
   const [inputResult, eventsResult] = await Promise.all([
     supabase
-      .from('ucapsa_competition_inputs')
+      .from('ucapsa_competition_scores')
       .select('*')
       .eq('dog_id', cleanDogId)
       .eq('season_id', cleanSeasonId)

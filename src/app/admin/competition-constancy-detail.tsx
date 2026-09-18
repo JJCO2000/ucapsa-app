@@ -102,9 +102,14 @@ export default function AdminCompetitionConstancyDetailScreen() {
 
           <View style={styles.rangeCard}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.rangeLabel}>RANGO</Text>
-              <Text style={styles.rangeValue}>Pendiente de escala</Text>
-              <Text style={styles.muted}>No se asigna Bronce/Plata/Oro/etc. hasta que exista una regla formal aprobada.</Text>
+              <Text style={styles.rangeLabel}>PUNTAJE COMPETITIVO</Text>
+              <Text style={styles.rangeValue}>{Number(detail.dog.competitive_score ?? 0)} pts</Text>
+              <Text style={styles.muted}>
+                Constancia {Number(detail.dog.constancy_points ?? 0)}
+                {' + '}Exámenes {Number(detail.dog.exam_points ?? 0)}
+                {' + '}Ajustes {Number(detail.dog.admin_adjustment_points ?? 0)}.
+                Rango pendiente de escala.
+              </Text>
             </View>
             <MaterialIcons name="workspace-premium" size={26} color={ucapsaBrand.colors.redDark} />
           </View>

@@ -31,7 +31,7 @@ for (const token of [
   "competition-constancy:",
   ".from('dogs')",
   ".eq('user_id', userId)",
-  ".from('ucapsa_competition_inputs')",
+  ".from('ucapsa_competition_scores')",
   ".eq('owner_user_id', userId)",
   ".from('ucapsa_constancy_events')",
   ".eq('dog_id', cleanDogId)",
@@ -70,8 +70,8 @@ for (const token of [
 if (!/No es un puntaje ni una posición de Ranking/.test(detail)) {
   failures.push('Detalle debe declarar que Constancia no equivale a score/Ranking.');
 }
-if (/competitive_score|rank_position|podium_medal|leaderboard_position|ucapsa_points_/i.test(detail + service)) {
-  failures.push('Constancia cliente no puede introducir score/ranking/podio ni UCAPSA Points legado.');
+if (/rank_position|podium_medal|leaderboard_position|ucapsa_points_/i.test(detail + service)) {
+  failures.push('Constancia cliente no puede introducir Ranking/Podio ni UCAPSA Points legado.');
 }
 if (/\.insert\(|\.update\(|\.delete\(|\.rpc\(/.test(detail)) {
   failures.push('Pantalla cliente de Constancia debe ser sólo lectura.');
