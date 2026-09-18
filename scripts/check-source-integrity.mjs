@@ -101,7 +101,7 @@ mustNot('src/app/client/class-detail.tsx', /getNextProgramScheduleDate/, 'Detall
 must('src/app/(tabs)/services.tsx', /Tu membresía y accesos UCAPSA/, 'Servicios perdió el encabezado compacto orientado al acceso del cliente.');
 must('src/app/(tabs)/services.tsx', /TU ACCESO DE SOCIO/, 'Servicios perdió los accesos rápidos de socio.');
 must('src/app/(tabs)/services.tsx', /\/client\/membership/, 'Servicios perdió el acceso a Membresía.');
-must('src/app/(tabs)/services.tsx', /\/client\/points/, 'Servicios perdió el acceso a Perro del Año.');
+must('src/app/(tabs)/services.tsx', /label="Competencia"[\s\S]{0,120}router\.push\('\/dog'/, 'Servicios perdió el acceso canónico a Competencia por perro.');
 must('src/app/(tabs)/services.tsx', /\/client\/member-visits/, 'Servicios perdió el historial de visitas.');
 must('src/app/(tabs)/services.tsx', /router\.push\('\/restaurant'/, 'Servicios perdió el menú del restaurante.');
 must('src/app/(tabs)/services.tsx', /router\.push\('\/reviews'/, 'Servicios perdió el flujo de reseña en Google.');
