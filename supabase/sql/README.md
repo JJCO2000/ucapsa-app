@@ -46,6 +46,12 @@ La captura actualiza tipos desde el remoto y guarda `migration list` y `db lint`
 
 No guardar `CRON_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, secretos de Vault ni `EXPO_ACCESS_TOKEN` en este repositorio.
 
+## Hardening de funciones internas
+
+- `supabase/sql/ucapsa-security-definer-hardening.sql` revoca `EXECUTE` de `public`, `anon` y `authenticated` para helpers internos `SECURITY DEFINER` que no forman parte de la API cliente.
+- `ucapsa_unlock_next_comandos_level(uuid)` conserva acceso explícito para `service_role` además del propietario de la función; el flujo normal sigue ejecutándose por trigger.
+- Toda nueva función `SECURITY DEFINER` debe declarar explícitamente quién puede ejecutarla. No depender del privilegio `PUBLIC` por defecto.
+
 ## Sistemas que deben conservarse
 
 - 3 QR oficiales permanentes: Puppy, Comandos y Socios; Socios registra visitas separadas de las asistencias de clase
