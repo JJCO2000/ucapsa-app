@@ -36,10 +36,13 @@ revoke all on table public.ucapsa_value_exposures from public, anon, authenticat
 grant select, insert, update, delete on table public.ucapsa_value_exposures to service_role;
 
 
+drop function if exists public.record_ucapsa_value_exposure(uuid, uuid, text);
+
 create or replace function public.record_ucapsa_value_exposure(
   p_dog_id uuid,
   p_season_id uuid,
-  p_surface text
+  p_surface text,
+  p_occurred_at timestamptz default now()
 )
 returns void
 language plpgsql
@@ -48,6 +51,8 @@ set search_path = public, pg_temp
 as $$
 declare
   v_user_id uuid := auth.uid();
+  v_occurred_at timestamptz := coalesce(p_occurred_at, now());
+  v_event_date date;
 begin
   if v_user_id is null then
     raise exception 'Authentication required';
@@ -55,6 +60,10 @@ begin
 
   if p_surface not in ('constancy_summary', 'constancy_detail') then
     raise exception 'Unsupported value exposure surface';
+  end if;
+
+  if v_occurred_at > now() + interval '5 minutes' then
+    raise exception 'Exposure timestamp cannot be in the future';
   end if;
 
   if not exists (
@@ -76,28 +85,34 @@ begin
     raise exception 'Dog is not part of requested competition season';
   end if;
 
+  v_event_date := (timezone('America/Mexico_City', v_occurred_at))::date;
+
   insert into public.ucapsa_value_exposures (
     user_id,
     dog_id,
     season_id,
-    surface
+    surface,
+    event_date,
+    occurred_at
   )
   values (
     v_user_id,
     p_dog_id,
     p_season_id,
-    p_surface
+    p_surface,
+    v_event_date,
+    v_occurred_at
   )
   on conflict (user_id, dog_id, season_id, surface, event_date)
   do nothing;
 end;
 $$;
 
-revoke all on function public.record_ucapsa_value_exposure(uuid, uuid, text)
+revoke all on function public.record_ucapsa_value_exposure(uuid, uuid, text, timestamptz)
   from public, anon, authenticated;
-grant execute on function public.record_ucapsa_value_exposure(uuid, uuid, text)
+grant execute on function public.record_ucapsa_value_exposure(uuid, uuid, text, timestamptz)
   to authenticated;
-grant execute on function public.record_ucapsa_value_exposure(uuid, uuid, text)
+grant execute on function public.record_ucapsa_value_exposure(uuid, uuid, text, timestamptz)
   to service_role;
 
 
@@ -116,6 +131,7 @@ with customer_seasons as (
     sum(coalesce(r.constancy_events_count, 0))::integer as constancy_events_count,
     sum(coalesce(r.command_attendances_count, 0))::integer as command_attendances_count,
     sum(coalesce(r.member_visits_count, 0))::integer as member_visits_count,
+    min(r.first_event_date) as first_activity_date,
     max(r.last_event_date) as last_activity_date
   from public.ucapsa_competition_ranges r
   where r.owner_user_id is not null
@@ -185,7 +201,47 @@ select
   end as days_to_next_payment,
 
   (delete_request.first_delete_request_after_exposure is not null) as delete_request_after_exposure,
-  delete_request.first_delete_request_after_exposure
+  delete_request.first_delete_request_after_exposure,
+
+  c.first_activity_date,
+
+  coalesce(post_activity.activity_within_7d_after_exposure, 0)::integer as activity_within_7d_after_exposure,
+  coalesce(post_activity.activity_within_30d_after_exposure, 0)::integer as activity_within_30d_after_exposure,
+  coalesce(post_activity.activity_within_60d_after_exposure, 0)::integer as activity_within_60d_after_exposure,
+  coalesce(post_activity.activity_within_90d_after_exposure, 0)::integer as activity_within_90d_after_exposure,
+
+  coalesce(post_payment.any_payment_within_7d_after_exposure, 0)::integer as any_payment_within_7d_after_exposure,
+  coalesce(post_payment.any_payment_within_30d_after_exposure, 0)::integer as any_payment_within_30d_after_exposure,
+  coalesce(post_payment.any_payment_within_60d_after_exposure, 0)::integer as any_payment_within_60d_after_exposure,
+  coalesce(post_payment.any_payment_within_90d_after_exposure, 0)::integer as any_payment_within_90d_after_exposure,
+
+  coalesce(post_payment.membership_paid_payments_after_exposure, 0)::integer as membership_paid_payments_after_exposure,
+  post_payment.next_membership_paid_at,
+  case
+    when x.first_exposure_at is null or post_payment.next_membership_paid_at is null then null
+    else (
+      (timezone('America/Mexico_City', post_payment.next_membership_paid_at))::date
+      - (timezone('America/Mexico_City', x.first_exposure_at))::date
+    )
+  end as days_to_next_membership_payment,
+  coalesce(post_payment.membership_payment_within_7d_after_exposure, 0)::integer as membership_payment_within_7d_after_exposure,
+  coalesce(post_payment.membership_payment_within_30d_after_exposure, 0)::integer as membership_payment_within_30d_after_exposure,
+  coalesce(post_payment.membership_payment_within_60d_after_exposure, 0)::integer as membership_payment_within_60d_after_exposure,
+  coalesce(post_payment.membership_payment_within_90d_after_exposure, 0)::integer as membership_payment_within_90d_after_exposure,
+
+  (
+    c.first_activity_date is not null
+    and (timezone('America/Mexico_City', now()))::date >= c.first_activity_date + 37
+  ) as cohort_followup_complete,
+  (
+    c.first_activity_date is not null
+    and x.first_exposure_at is not null
+    and (timezone('America/Mexico_City', x.first_exposure_at))::date >= c.season_starts_at::date
+    and (timezone('America/Mexico_City', x.first_exposure_at))::date <= c.first_activity_date + 7
+  ) as early_value_exposure,
+  coalesce(cohort_activity.activity_events_followup_30d, 0)::integer as cohort_activity_events_30d,
+  coalesce(cohort_payment.any_payments_followup_30d, 0)::integer as cohort_any_payments_30d,
+  coalesce(cohort_payment.membership_payments_followup_30d, 0)::integer as cohort_membership_payments_30d
 
 from customer_seasons c
 left join public.profiles p
@@ -193,13 +249,31 @@ left join public.profiles p
 left join exposure x
   on x.user_id = c.user_id
  and x.season_id = c.season_id
-left join public.memberships m
-  on m.user_id = c.user_id
+
+left join lateral (
+  select m.*
+  from public.memberships m
+  where m.user_id = c.user_id
+  order by m.created_at desc
+  limit 1
+) m on true
 
 left join lateral (
   select
     count(*)::integer as activity_events_after_exposure,
-    min(ev.event_date) as next_activity_date
+    min(ev.event_date) as next_activity_date,
+    count(*) filter (
+      where ev.event_date <= (timezone('America/Mexico_City', x.first_exposure_at))::date + 7
+    )::integer as activity_within_7d_after_exposure,
+    count(*) filter (
+      where ev.event_date <= (timezone('America/Mexico_City', x.first_exposure_at))::date + 30
+    )::integer as activity_within_30d_after_exposure,
+    count(*) filter (
+      where ev.event_date <= (timezone('America/Mexico_City', x.first_exposure_at))::date + 60
+    )::integer as activity_within_60d_after_exposure,
+    count(*) filter (
+      where ev.event_date <= (timezone('America/Mexico_City', x.first_exposure_at))::date + 90
+    )::integer as activity_within_90d_after_exposure
   from public.ucapsa_constancy_events ev
   join public.dogs d
     on d.id = ev.dog_id
@@ -212,13 +286,101 @@ left join lateral (
 left join lateral (
   select
     count(*)::integer as paid_payments_after_exposure,
-    min(pay.paid_at) as next_paid_at
+    min(pay.paid_at) as next_paid_at,
+    count(*) filter (
+      where (timezone('America/Mexico_City', pay.paid_at))::date
+        <= (timezone('America/Mexico_City', x.first_exposure_at))::date + 7
+    )::integer as any_payment_within_7d_after_exposure,
+    count(*) filter (
+      where (timezone('America/Mexico_City', pay.paid_at))::date
+        <= (timezone('America/Mexico_City', x.first_exposure_at))::date + 30
+    )::integer as any_payment_within_30d_after_exposure,
+    count(*) filter (
+      where (timezone('America/Mexico_City', pay.paid_at))::date
+        <= (timezone('America/Mexico_City', x.first_exposure_at))::date + 60
+    )::integer as any_payment_within_60d_after_exposure,
+    count(*) filter (
+      where (timezone('America/Mexico_City', pay.paid_at))::date
+        <= (timezone('America/Mexico_City', x.first_exposure_at))::date + 90
+    )::integer as any_payment_within_90d_after_exposure,
+    count(*) filter (
+      where coalesce(po.obligation_type, '') = 'membership'
+         or lower(trim(coalesce(pay.concept, ''))) = 'mensualidad de socio'
+    )::integer as membership_paid_payments_after_exposure,
+    min(pay.paid_at) filter (
+      where coalesce(po.obligation_type, '') = 'membership'
+         or lower(trim(coalesce(pay.concept, ''))) = 'mensualidad de socio'
+    ) as next_membership_paid_at,
+    count(*) filter (
+      where (
+        coalesce(po.obligation_type, '') = 'membership'
+        or lower(trim(coalesce(pay.concept, ''))) = 'mensualidad de socio'
+      )
+      and (timezone('America/Mexico_City', pay.paid_at))::date
+        <= (timezone('America/Mexico_City', x.first_exposure_at))::date + 7
+    )::integer as membership_payment_within_7d_after_exposure,
+    count(*) filter (
+      where (
+        coalesce(po.obligation_type, '') = 'membership'
+        or lower(trim(coalesce(pay.concept, ''))) = 'mensualidad de socio'
+      )
+      and (timezone('America/Mexico_City', pay.paid_at))::date
+        <= (timezone('America/Mexico_City', x.first_exposure_at))::date + 30
+    )::integer as membership_payment_within_30d_after_exposure,
+    count(*) filter (
+      where (
+        coalesce(po.obligation_type, '') = 'membership'
+        or lower(trim(coalesce(pay.concept, ''))) = 'mensualidad de socio'
+      )
+      and (timezone('America/Mexico_City', pay.paid_at))::date
+        <= (timezone('America/Mexico_City', x.first_exposure_at))::date + 60
+    )::integer as membership_payment_within_60d_after_exposure,
+    count(*) filter (
+      where (
+        coalesce(po.obligation_type, '') = 'membership'
+        or lower(trim(coalesce(pay.concept, ''))) = 'mensualidad de socio'
+      )
+      and (timezone('America/Mexico_City', pay.paid_at))::date
+        <= (timezone('America/Mexico_City', x.first_exposure_at))::date + 90
+    )::integer as membership_payment_within_90d_after_exposure
   from public.payments pay
+  left join public.payment_obligations po
+    on po.id = pay.obligation_id
   where x.first_exposure_at is not null
     and pay.user_id = c.user_id
     and pay.status = 'paid'
     and pay.paid_at > x.first_exposure_at
 ) post_payment on true
+
+left join lateral (
+  select
+    count(*)::integer as activity_events_followup_30d
+  from public.ucapsa_constancy_events ev
+  join public.dogs d
+    on d.id = ev.dog_id
+  where c.first_activity_date is not null
+    and d.user_id = c.user_id
+    and ev.season_id = c.season_id
+    and ev.event_date > c.first_activity_date + 7
+    and ev.event_date <= c.first_activity_date + 37
+) cohort_activity on true
+
+left join lateral (
+  select
+    count(*)::integer as any_payments_followup_30d,
+    count(*) filter (
+      where coalesce(po.obligation_type, '') = 'membership'
+         or lower(trim(coalesce(pay.concept, ''))) = 'mensualidad de socio'
+    )::integer as membership_payments_followup_30d
+  from public.payments pay
+  left join public.payment_obligations po
+    on po.id = pay.obligation_id
+  where c.first_activity_date is not null
+    and pay.user_id = c.user_id
+    and pay.status = 'paid'
+    and (timezone('America/Mexico_City', pay.paid_at))::date > c.first_activity_date + 7
+    and (timezone('America/Mexico_City', pay.paid_at))::date <= c.first_activity_date + 37
+) cohort_payment on true
 
 left join lateral (
   select
@@ -230,7 +392,7 @@ left join lateral (
 ) delete_request on true;
 
 comment on view public.ucapsa_continuity_observations is
-  'Observaciones cliente+temporada para estudiar asociación entre valor visible, actividad, pago y continuidad. No implica causalidad ni genera score de riesgo.';
+  'Observaciones cliente+temporada para estudiar asociación entre exposición al Nivel de Constancia, actividad y pagos. Incluye ventanas 7/30/60/90 días y una cohorte comparable: exposición dentro de los primeros 7 días desde la primera actividad, seguida por 30 días completos de seguimiento. No implica causalidad ni genera score de riesgo.';
 
 revoke all on table public.ucapsa_continuity_observations
   from public, anon, authenticated;
