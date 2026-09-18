@@ -60,7 +60,7 @@ if (!/row_number\(\) over[\s\S]*competitive_score[\s\S]*command_attendances_coun
   throw new Error('Ranking tiebreak order changed.');
 }
 
-if (/dense_rank\(|rank\(\) over/i.test(sql)) {
+if (/dense_rank\(|(?:^|[^a-z_])rank\(\) over/im.test(sql)) {
   throw new Error('Ranking must have one deterministic effective position, not shared positions.');
 }
 
