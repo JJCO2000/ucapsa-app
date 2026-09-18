@@ -5,6 +5,7 @@ import {
   DEFAULT_WRITE_TIMEOUT_MS,
   withOperationTimeout,
 } from '../utils/async.utils';
+import { createOfflineUuid } from '../utils/offline-id.utils';
 
 export type ValueExposureSurface = 'constancy_summary' | 'constancy_detail';
 
@@ -29,14 +30,6 @@ const syncInFlight = new Map<string, Promise<ValueExposureSyncResult>>();
 
 function key(userId: string) {
   return `${VALUE_EXPOSURE_OUTBOX_PREFIX}${userId}`;
-}
-
-function createOperationId() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (token) => {
-    const random = Math.floor(Math.random() * 16);
-    const value = token === 'x' ? random : (random & 0x3) | 0x8;
-    return value.toString(16);
-  });
 }
 
 function mexicoCityDateKey(value: string) {
@@ -149,7 +142,7 @@ export async function queueValueExposure(input: {
 
     const operation: PendingValueExposure = {
       version: 1,
-      id: createOperationId(),
+      id: createOfflineUuid('value-exposure'),
       userId: input.userId,
       dogId: input.dogId,
       seasonId: input.seasonId,
