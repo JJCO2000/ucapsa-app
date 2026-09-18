@@ -274,9 +274,19 @@ Deno.serve(async (req) => {
       continue;
     }
 
-    const { error: lockError } = await serviceClient.from('notification_campaigns').update({ status: 'sending' }).eq('id', campaign.id).eq('status', 'draft');
+    const { data: claimedCampaign, error: lockError } = await serviceClient
+      .from('notification_campaigns')
+      .update({ status: 'sending' })
+      .eq('id', campaign.id)
+      .eq('status', 'draft')
+      .select('id')
+      .maybeSingle();
     if (lockError) {
       failedCampaigns += 1;
+      continue;
+    }
+    if (!claimedCampaign) {
+      // Otra ejecución ganó el compare-and-set draft -> sending.
       continue;
     }
 
