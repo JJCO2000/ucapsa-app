@@ -67,14 +67,19 @@ for (const token of [
 ]) {
   if (!detail.includes(token)) failures.push(`Detalle de Constancia perdió dato canónico: ${token}`);
 }
-for (const token of ['range_name', 'constancy_percentile']) {
-  if (!detail.includes(token)) failures.push(`Detalle de Constancia perdió dato de Rango: ${token}`);
+for (const token of ['range_name', 'constancy_percentile', 'is_constancy_outstanding']) {
+  if (!detail.includes(token)) failures.push(`Detalle de Constancia perdió dato de Nivel: ${token}`);
 }
-if (!/0 eventos: Bronce por regla de actividad/.test(detail)) {
-  failures.push('Detalle de Constancia debe conservar la regla 0 actividad → Bronce.');
+if (!/NIVEL DE CONSTANCIA/.test(detail) || !/permanece en Cobre/.test(detail)) {
+  failures.push('Detalle debe conservar Nivel de Constancia y regla 0 actividad → Cobre.');
 }
-if (!/Tu Rango se deriva únicamente de esta Constancia/.test(detail)) {
-  failures.push('Detalle debe separar Rango de Constancia y Ranking.');
+if (!/Cobre = constancia en desarrollo/.test(detail)
+  || !/Plata = constancia sostenida/.test(detail)
+  || !/Oro = constancia destacada/.test(detail)) {
+  failures.push('Detalle debe explicar los tres niveles públicos.');
+}
+if (!/Constancia sobresaliente · top 5%/.test(detail)) {
+  failures.push('Detalle perdió la distinción top 5% de Constancia sobresaliente.');
 }
 if (/podium_medal|leaderboard_position|ucapsa_points_/i.test(detail)) {
   failures.push('Constancia cliente no puede introducir Podio persistido ni UCAPSA Points legado.');
