@@ -163,7 +163,7 @@ const orphanCandidates = sourceFiles
   .sort();
 
 for (const file of orphanCandidates) {
-  addReview(file, 'Módulo sin importador interno detectado', 1);
+  addCritical(file, 'Módulo sin importador interno detectado.');
 }
 
 const categoryCounts = files.reduce((acc, file) => {
