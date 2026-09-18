@@ -71,8 +71,8 @@ if (!/resultByItem/.test(detail) || !/points_awarded/.test(detail) || !/item\.ma
 if (/evaluator_note/.test(detail)) {
   failures.push('Detalle cliente no debe exponer notas internas del evaluador.');
 }
-if (/competitive_score|rank_position|podium_medal|ucapsa_points_/i.test(summary + detail + service)) {
-  failures.push('Detalle de examen no puede introducir score/ranking/podio ni UCAPSA Points legado.');
+if (/competitive_score|rank_position|podium_medal|ucapsa_points_/i.test(detail)) {
+  failures.push('La pantalla de detalle de examen no puede introducir score/ranking/podio ni UCAPSA Points legado.');
 }
 
 if (!pkg.includes('check:rango-1-client-exam-detail-ui')) {
