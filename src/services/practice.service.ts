@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WEEKLY_PRACTICE_GOAL } from '../constants/practice';
 import { supabase } from '../lib/supabase';
 import type { PracticeDifficulty, PracticeSession } from '../types/app.types';
+import { createOfflineUuid } from '../utils/offline-id.utils';
 import {
   DEFAULT_WRITE_TIMEOUT_MS,
   getErrorMessage,
@@ -95,11 +96,7 @@ function startOfLocalWeek() {
 }
 
 function createClientEventId() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (token) => {
-    const random = Math.floor(Math.random() * 16);
-    const value = token === 'x' ? random : (random & 0x3) | 0x8;
-    return value.toString(16);
-  });
+  return createOfflineUuid('practice');
 }
 
 async function readPending(userId: string): Promise<PendingPracticeSession[]> {

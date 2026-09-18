@@ -9,6 +9,7 @@ import {
   isLikelyNetworkError,
   withOperationTimeout,
 } from '../utils/async.utils';
+import { createOfflineUuid } from '../utils/offline-id.utils';
 
 export type AttendanceOutboxState = 'pending' | 'needs_confirmation' | 'rejected';
 
@@ -47,14 +48,6 @@ const syncInFlightByOperation = new Map<string, Promise<AttendanceSyncResult>>()
 
 function outboxKey(userId: string) {
   return `${ATTENDANCE_OUTBOX_PREFIX}${userId}`;
-}
-
-function createOperationId() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (token) => {
-    const random = Math.floor(Math.random() * 16);
-    const value = token === 'x' ? random : (random & 0x3) | 0x8;
-    return value.toString(16);
-  });
 }
 
 function localDateKey(value: string) {
@@ -166,7 +159,7 @@ export async function queueClassAttendance(input: {
 
     const operation: PendingClassAttendanceOperation = {
       version: 1,
-      id: createOperationId(),
+      id: createOfflineUuid('attendance-class'),
       userId: input.userId,
       kind: 'class',
       token: input.token.trim(),
@@ -189,7 +182,7 @@ export async function queueMemberVisit(input: {
     const current = await getPendingAttendanceOperations(input.userId);
     const operation: PendingMemberVisitOperation = {
       version: 1,
-      id: createOperationId(),
+      id: createOfflineUuid('member-visit'),
       userId: input.userId,
       kind: 'member_visit',
       token: input.token.trim(),

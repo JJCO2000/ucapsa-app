@@ -48,6 +48,19 @@ must('src/services/value-exposure-outbox.service.ts', /recordValueExposureDurabl
 must('src/services/value-exposure-outbox.service.ts', /flushPendingValueExposures/, 'Exposición de valor perdió retry de la cola.');
 
 
+// Identidad offline: un solo generador determinista, válido para UUID de PostgreSQL.
+must('src/utils/offline-id.utils.ts', /Constants\.sessionId/, 'IDs offline dejaron de incorporar el namespace único de sesión Expo.');
+must('src/utils/offline-id.utils.ts', /UUID v8/, 'IDs offline dejaron de documentar su formato UUID de aplicación.');
+mustNot('src/utils/offline-id.utils.ts', /Math\.random\s*\(/, 'El generador offline volvió a depender de Math.random().');
+for (const rel of [
+  'src/services/attendance-outbox.service.ts',
+  'src/services/practice.service.ts',
+  'src/services/value-exposure-outbox.service.ts',
+]) {
+  must(rel, /createOfflineUuid/, `${rel} dejó de usar el generador offline canónico.`);
+  mustNot(rel, /Math\.random\s*\(/, `${rel} volvió a generar identificadores con un generador pseudoaleatorio JS.`);
+}
+
 // QR offline: cola durable, identidad idempotente y hora real de captura.
 must('src/services/attendance-outbox.service.ts', /AsyncStorage/, 'La cola QR dejó de ser persistente.');
 must('src/services/attendance-outbox.service.ts', /p_client_event_id/, 'La cola QR perdió client_event_id.');
