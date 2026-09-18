@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const root = process.cwd();
 const failures = [];
-const automaticTriggers = new Set(['push', 'pull_request', 'pull_request_target', 'workflow_run', 'repository_dispatch', 'schedule']);
+const automaticTriggers = new Set(['push', 'pull_request', 'pull_request_target', 'workflow_run', 'repository_dispatch', 'schedule', 'issue_comment']);
 const ignoredDirs = new Set(['.git', '.expo', '.next', 'node_modules', 'dist', 'dist-ci', 'coverage', 'build']);
 
 function normalizeRel(file) {
@@ -318,20 +318,45 @@ function detectExecutableJavaScript(source) {
   return [...labels];
 }
 
+function isAuthorizedPreviewCommentWorkflow(rel, source, events) {
+  if (rel !== '.github/workflows/publish-preview.yml') return false;
+  if (!events.has('workflow_dispatch') || !events.has('issue_comment')) return false;
+  if ([...events].some((event) => !['workflow_dispatch', 'issue_comment'].includes(event))) return false;
+
+  const required = [
+    "github.event_name == 'issue_comment'",
+    "github.event.action == 'created'",
+    'github.event.issue.number == 28',
+    "github.event.comment.user.login == 'JJCO2000'",
+    "github.event.comment.body == '/publish-preview'",
+    'ref: main',
+    'persist-credentials: false',
+    'environment:',
+    'name: preview',
+    'eas update --channel preview --platform android',
+  ];
+
+  return required.every((token) => source.includes(token));
+}
+
 function inspectWorkflow(rel) {
   const source = read(rel);
   const events = parseOnEvents(source);
   const automatic = [...events].filter((event) => automaticTriggers.has(event));
+  const authorizedPreviewComment = isAuthorizedPreviewCommentWorkflow(rel, source, events);
+  const disallowedAutomatic = automatic.filter(
+    (event) => event !== 'issue_comment' || !authorizedPreviewComment,
+  );
   const commands = new Set();
   for (const run of extractRunBlocks(source)) for (const label of detectExecutableShell(run)) commands.add(label);
 
-  if (commands.size > 0 && (automatic.length > 0 || !events.has('workflow_dispatch'))) {
-    failures.push(`${rel}: comandos de publicacion/build/dispatch (${[...commands].join(', ')}) solo se permiten en workflow_dispatch sin triggers automaticos.`);
+  if (commands.size > 0 && (disallowedAutomatic.length > 0 || (!events.has('workflow_dispatch') && !authorizedPreviewComment))) {
+    failures.push(`${rel}: comandos de publicacion/build/dispatch (${[...commands].join(', ')}) requieren workflow_dispatch o la excepcion exacta /publish-preview autorizada.`);
   }
 
   const reusable = extractUses(source).filter((value) => value.includes('.github/workflows/'));
-  if (automatic.length > 0 && reusable.length > 0) {
-    failures.push(`${rel}: workflow automatico (${automatic.join(', ')}) encadena workflow reutilizable (${reusable.join(', ')}).`);
+  if (disallowedAutomatic.length > 0 && reusable.length > 0) {
+    failures.push(`${rel}: workflow automatico (${disallowedAutomatic.join(', ')}) encadena workflow reutilizable (${reusable.join(', ')}).`);
   }
 }
 
@@ -359,6 +384,25 @@ function runSelfTests() {
   const manual = 'on:\n  workflow_dispatch:\njobs:\n  x:\n    steps:\n      - run: eas update --channel preview\n';
   assert(parseOnEvents(auto).has('push'));
   assert(parseOnEvents(manual).has('workflow_dispatch'));
+
+  const previewComment = `on:
+  workflow_dispatch:
+  issue_comment:
+    types: [created]
+jobs:
+  publish:
+    if: github.event_name == 'issue_comment' && github.event.action == 'created' && github.event.issue.number == 28 && github.event.comment.user.login == 'JJCO2000' && github.event.comment.body == '/publish-preview'
+    environment:
+      name: preview
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          persist-credentials: false
+      - run: eas update --channel preview --platform android
+`;
+  assert(isAuthorizedPreviewCommentWorkflow('.github/workflows/publish-preview.yml', previewComment, parseOnEvents(previewComment)));
+  assert(!isAuthorizedPreviewCommentWorkflow('.github/workflows/other.yml', previewComment, parseOnEvents(previewComment)));
   assert(detectExecutableShell(extractRunBlocks(auto)[0]).length > 0);
   assert(detectExecutableShell(extractRunBlocks(manual)[0]).length > 0);
   assert(extractUses('steps:\n  - uses: ./.github/actions/release').includes('./.github/actions/release'));
