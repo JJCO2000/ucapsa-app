@@ -132,6 +132,7 @@ must('src/app/client/payment-transfer.tsx', /isValidClabe\(settings\.clabe\)/, '
 must('src/app/client/payment-transfer.tsx', /!isValidClabe\(clabe\)/, 'La acción de copiar CLABE dejó de validar el dato antes de copiarlo.');
 must('src/app/client/payment-transfer.tsx', /loadRunRef/, 'Transferir perdió la guarda contra respuestas asíncronas obsoletas.');
 mustNot('src/services/client-read-cache.service.ts', /paymentSettings/, 'Los datos bancarios volvieron a ser elegibles para caché local.');
+mustNot('src/components/domain/CustomerValueSnapshotCard.tsx', /renovaci[oó]n/i, 'Inicio volvió a presentar una renovación periódica que no existe en la membresía vitalicia.');
 
 const scanRoots = ['src', 'scripts'];
 function walk(dir) {
@@ -147,6 +148,9 @@ for (const scanRoot of scanRoots) {
     const relFile = path.relative(root, file).replaceAll('\\', '/');
     const text = fs.readFileSync(file, 'utf8');
     if (/\d{18}/.test(text)) failures.push(`CLABE de 18 dígitos hardcodeada en ${relFile}.`);
+    if (relFile.startsWith('src/') && relFile !== 'src/constants/brand.ts' && /#[0-9A-Fa-f]{6}\b/.test(text)) {
+      failures.push(`Color HEX duplicado fuera de la fuente canónica src/constants/brand.ts en ${relFile}.`);
+    }
     const replacementChar = String.fromCharCode(0xfffd);
     const mojibakeLead = new RegExp(`[${String.fromCharCode(0xc3)}${String.fromCharCode(0xc2)}].`);
     if (text.includes(replacementChar) || mojibakeLead.test(text)) failures.push(`Texto UTF-8 dañado o mojibake detectado en ${relFile}.`);
@@ -160,4 +164,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log('SOURCE INTEGRITY OK: tipos, perros, rutas críticas, offline, jerarquía de información, próxima sesión, pagos bancarios, UTF-8, textos y CLABE revisados.');
+console.log('SOURCE INTEGRITY OK: tipos, perros, rutas críticas, offline, jerarquía de información, colores SSOT, próxima sesión, pagos bancarios, UTF-8, textos y CLABE revisados.');

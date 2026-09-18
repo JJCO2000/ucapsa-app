@@ -54,6 +54,13 @@ export const ucapsaBrand = {
     black: '#000000',
     cameraDark: '#111827',
 
+    // Superficies administrativas. Se centralizan aqui para evitar una segunda paleta.
+    adminBackground: '#F8FAFC',
+    adminSurfaceAlt: '#ECFDF5',
+    adminBorder: '#CBD5E1',
+    adminText: '#0F172A',
+    adminMuted: '#475569',
+
     // Estados con contraste AA sobre su superficie asociada.
     success: '#157347',
     successDark: '#166534',
@@ -81,6 +88,7 @@ export const ucapsaBrand = {
     premiumActionSoft: '#E6C982',
     premiumActionText: '#6D0817',
     premiumBurgundySoft: '#F1E1E3',
+    premiumPillBackground: '#EFE0C3',
   },
   socialLinks: [
     { key: 'whatsapp', label: 'WhatsApp', url: 'https://wa.me/525522410679', icon: 'whatsapp' },

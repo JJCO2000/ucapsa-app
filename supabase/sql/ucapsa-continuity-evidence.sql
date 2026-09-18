@@ -237,6 +237,7 @@ select
     c.first_activity_date is not null
     and x.first_exposure_at is not null
     and (timezone('America/Mexico_City', x.first_exposure_at))::date >= c.season_starts_at::date
+    and (timezone('America/Mexico_City', x.first_exposure_at))::date >= c.first_activity_date
     and (timezone('America/Mexico_City', x.first_exposure_at))::date <= c.first_activity_date + 7
   ) as early_value_exposure,
   coalesce(cohort_activity.activity_events_followup_30d, 0)::integer as cohort_activity_events_30d,

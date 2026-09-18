@@ -165,8 +165,8 @@ function nextPresentation(snapshot: CustomerValueSnapshot, action: CustomerValue
     if (end && end < today) {
       return {
         eyebrow: 'MEMBRESÍA',
-        title: 'Revisa tu renovación',
-        detail: `Venció el ${formatDate(membership.endDate, true) ?? end}.`,
+        title: 'Revisa tu membresía',
+        detail: `La vigencia registrada terminó el ${formatDate(membership.endDate, true) ?? end}.`,
         icon: 'workspace-premium' as const,
       };
     }

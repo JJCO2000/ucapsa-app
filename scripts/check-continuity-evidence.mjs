@@ -35,6 +35,7 @@ const required = [
   "cohort_followup_complete",
   "early_value_exposure",
   "c.first_activity_date + 37",
+  "(timezone('America/Mexico_City', x.first_exposure_at))::date >= c.first_activity_date",
   "cohort_membership_payments_30d",
   "left join lateral (",
   "order by m.created_at desc",
