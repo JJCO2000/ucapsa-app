@@ -45,15 +45,15 @@ if (!/competition-constancy-detail\?seasonId=/.test(overview) || !/&dogId=/.test
 if (!/ownerName/.test(overview)) {
   failures.push('Listado dejó de desambiguar perros con el dueño.');
 }
-if (!/Esta pantalla no ordena perros por “mejor constancia”/.test(overview)) {
-  failures.push('UI dejó de declarar que Constancia no es un ranking.');
+if (!/puntaje competitivo canónico/.test(overview)) {
+  failures.push('UI dejó de explicar que el score es canónico y aún no es Ranking.');
 }
 
 if (!/useLocalSearchParams/.test(detail) || !/seasonId/.test(detail) || !/dogId/.test(detail)) {
   failures.push('Detalle de Constancia no conserva season_id + dog_id.');
 }
-if (!/Pendiente de escala/.test(detail)) {
-  failures.push('Detalle debe mantener el Rango sin calcular hasta definir escala.');
+if (!/PUNTAJE COMPETITIVO/.test(detail) || !/Rango pendiente de escala/.test(detail)) {
+  failures.push('Detalle debe mostrar score canónico y mantener Rango pendiente.');
 }
 if (!/se corrige en la asistencia o visita de origen/.test(detail)) {
   failures.push('Detalle dejó de explicar que la corrección ocurre en el hecho origen.');
@@ -63,7 +63,7 @@ for (const token of [
   "export type CompetitionConstancyEvent",
   "getAdminCompetitionConstancyOverview",
   "getAdminCompetitionConstancyDetail",
-  ".from('ucapsa_competition_inputs')",
+  ".from('ucapsa_competition_scores')",
   ".from('ucapsa_constancy_events')",
   ".from('profiles')",
   ".eq('season_id', seasonId)",
@@ -74,11 +74,11 @@ for (const token of [
 }
 
 const constancyUi = overview + '\n' + detail;
-if (/competitive_score|rank_position|podium_medal|leaderboard_position|total_points/i.test(constancyUi)) {
-  failures.push('Constancia Admin no puede inventar score, posición, podio ni total competitivo.');
+for (const token of ['competitive_score', 'constancy_points', 'exam_points', 'admin_adjustment_points']) {
+  if (!constancyUi.includes(token)) failures.push(`Constancia Admin perdió componente de score: ${token}`);
 }
-if (/admin_adjustment_points|official_exam_points_awarded|required_exam_points_awarded/.test(constancyUi)) {
-  failures.push('Constancia Admin no debe mezclar Exámenes/Ajustes en una pseudo-fórmula.');
+if (/rank_position|podium_medal|leaderboard_position/i.test(constancyUi)) {
+  failures.push('Constancia Admin todavía no debe inventar posición ni podio.');
 }
 if (/\.insert\(|\.update\(|\.delete\(|\.rpc\(/.test(constancyUi)) {
   failures.push('Las pantallas de Constancia deben ser sólo lectura.');
