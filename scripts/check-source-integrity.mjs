@@ -165,6 +165,10 @@ for (const scanRoot of scanRoots) {
   }
 }
 
+must('supabase/sql/ucapsa-server-generated-program-qr.sql', /alter column qr_token set default \\(gen_random_uuid\\(\\)\\)::text/i, 'Programas perdió la generación segura de QR en PostgreSQL.');
+mustNot('src/services/programs.service.ts', /Math\.random\(\)|qr_token:\s*createQrToken\(\)/, 'Programas volvió a generar QR permanentes en cliente.');
+mustNot('src/services/memberships.service.ts', /Math\.random\(\)|qr_token:\s*createQrToken\(\)/, 'Membresías volvió a generar QR permanentes en cliente.');
+
 if (failures.length) {
   console.error('SOURCE INTEGRITY FAIL:');
   for (const failure of failures) console.error(`- ${failure}`);
@@ -172,4 +176,3 @@ if (failures.length) {
 }
 console.log('SOURCE INTEGRITY OK: tipos, perros, rutas críticas, offline, jerarquía de información, colores SSOT, próxima sesión, pagos bancarios, UTF-8, textos y CLABE revisados.');
 
-must('supabase/sql/ucapsa-server-generated-program-qr.sql', /alter column qr_token set default \\(gen_random_uuid\\(\\)\\)::text/i, 'Programas perdió la generación segura de QR en PostgreSQL.');
