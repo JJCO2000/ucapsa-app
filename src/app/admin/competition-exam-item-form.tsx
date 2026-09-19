@@ -71,7 +71,7 @@ export default function AdminCompetitionExamItemFormScreen() {
     return undefined;
   }, [load]));
 
-  const locked = Boolean(detail?.season?.status === 'closed' || detail?.exam.status === 'archived' || detail?.structureLocked);
+  const locked = Boolean(detail?.season?.status === 'closed' || detail?.structureLocked);
   const editing = Boolean(itemId);
 
   async function save() {
@@ -139,7 +139,13 @@ export default function AdminCompetitionExamItemFormScreen() {
           {locked ? (
             <View style={styles.lockCard}>
               <MaterialIcons name="lock" size={19} color={ucapsaBrand.colors.redDark} />
-              <Text style={styles.lockText}>La estructura no puede modificarse: la temporada está cerrada, el examen está archivado o ya existen intentos revisados/publicados.</Text>
+              <Text style={styles.lockText}>
+                {detail.exam.status !== 'draft'
+                  ? 'La estructura quedó congelada al publicar el examen.'
+                  : detail.season?.status === 'closed'
+                    ? 'La estructura no puede modificarse mientras la temporada esté cerrada.'
+                    : 'La estructura está congelada por intentos revisados, publicados o anulados.'}
+              </Text>
             </View>
           ) : (
             <>
