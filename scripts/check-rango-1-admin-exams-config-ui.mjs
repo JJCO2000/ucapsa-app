@@ -65,7 +65,16 @@ for (const token of [
 }
 
 if (!/\.from\('ucapsa_exam_attempts'\)[\s\S]{0,350}\.select\('id'\)[\s\S]{0,350}reviewed[\s\S]{0,100}published/.test(service)) {
-  failures.push('Detalle dejó de leer intentos bloqueados sólo para decidir mutabilidad estructural.');
+  failures.push('Detalle dejó de conservar el bloqueo defensivo por intentos revisados/publicados.');
+}
+if (!/structureLocked:\s*exam\.status !== 'draft'\s*\|\|/.test(service)) {
+  failures.push('Servicio dejó de congelar estructura inmediatamente al publicar el examen.');
+}
+if (!/detail\.exam\.status !== 'draft'/.test(detail) || !/quedó congelada al publicar el examen/.test(detail)) {
+  failures.push('Detalle no comunica que publicar congela la estructura.');
+}
+if (!/detail\.exam\.status !== 'draft'/.test(itemForm) || !/quedó congelada al publicar el examen/.test(itemForm)) {
+  failures.push('Formulario de ejercicios no respeta/comunica el lock de publicación.');
 }
 
 const configUi = [list, detail, form, itemForm].join('\n');
