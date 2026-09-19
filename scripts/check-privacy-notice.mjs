@@ -4,6 +4,7 @@ const sql = fs.readFileSync('supabase/sql/ucapsa-privacy-notice-foundation.sql',
 const pkg = fs.readFileSync('package.json', 'utf8');
 const service = fs.readFileSync('src/services/privacy-notice.service.ts', 'utf8');
 const publicScreen = fs.readFileSync('src/app/privacy.tsx', 'utf8');
+const register = fs.readFileSync('src/app/auth/register.tsx', 'utf8');
 const adminList = fs.readFileSync('src/app/admin/privacy-notices.tsx', 'utf8');
 const adminForm = fs.readFileSync('src/app/admin/privacy-notice-form.tsx', 'utf8');
 const adminTools = fs.readFileSync('src/app/admin/tools-administration.tsx', 'utf8');
@@ -44,6 +45,8 @@ for (const [name, text, token] of [
   ['privacy service', service, 'getPublishedPrivacyNotice'],
   ['privacy service', service, 'admin_publish_privacy_notice'],
   ['public privacy screen', publicScreen, 'getPublishedPrivacyNotice'],
+  ['registration', register, 'getPublishedPrivacyNotice'],
+  ['registration', register, "router.push('/privacy')"],
   ['admin notice list', adminList, 'getPrivacyNoticesAdmin'],
   ['admin notice form', adminForm, 'savePrivacyNoticeDraft'],
   ['admin notice form', adminForm, 'publishPrivacyNotice'],
@@ -64,6 +67,29 @@ if (!/role === ['"]super_admin['"]/.test(adminForm) || !/Redirect/.test(adminFor
 
 if (/responsibleName:\s*['"][^'"]+['"]/.test(adminForm) || /responsibleAddress:\s*['"][^'"]+['"]/.test(adminForm)) {
   throw new Error('Privacy form started hardcoding legal identity or address.');
+}
+
+
+if (!/registrationAvailable\s*&&\s*privacyNotice\s*\?\s*\(/.test(register)) {
+  throw new Error('Registration no longer gates personal-data inputs behind a published notice.');
+}
+
+for (const token of [
+  'if (!privacyNotice)',
+  'const latestNotice = await getPublishedPrivacyNotice()',
+  'latestNotice.id !== privacyNotice.id',
+  'Registro temporalmente no disponible',
+  'No pediremos tus datos',
+]) {
+  if (!register.includes(token)) {
+    throw new Error('Registration privacy fail-closed contract missing: ' + token);
+  }
+}
+
+const latestNoticeIndex = register.indexOf('const latestNotice = await getPublishedPrivacyNotice()');
+const signUpIndex = register.indexOf('await signUpWithEmail(');
+if (latestNoticeIndex < 0 || signUpIndex < 0 || latestNoticeIndex > signUpIndex) {
+  throw new Error('Registration must revalidate the published notice immediately before sign-up.');
 }
 
 if (!pkg.includes('"check:privacy-notice"')) {
