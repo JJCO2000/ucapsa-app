@@ -19,7 +19,7 @@ const attempts = read('src/app/admin/competition-exam-attempts.tsx');
 const attemptForm = read('src/app/admin/competition-exam-attempt-form.tsx');
 const attemptDetail = read('src/app/admin/competition-exam-attempt-detail.tsx');
 const resultForm = read('src/app/admin/competition-exam-result-form.tsx');
-const service = read('src/services/admin-competition-exams.service.ts');
+const service = read('src/services/admin-competition-exam-attempts.service.ts');
 const pkg = read('package.json');
 
 for (const route of [
