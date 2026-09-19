@@ -36,6 +36,7 @@ const requiredContracts = [
   'set is_official=true',
   "status='voided',is_official=false",
   "v_exam_status is distinct from 'draft'",
+  "v_exam.status <> 'draft'",
   'grant execute on function',
   'from public, anon, authenticated',
 ];
@@ -59,12 +60,12 @@ if (!sql.includes("v_attempt.status <> 'draft'")) {
 }
 
 for (const [rpc, pattern] of [
-  ['admin_add_ucapsa_exam_item', /admin_add_ucapsa_exam_item[\s\S]{0,2200}v_exam\.status <> 'draft'/],
-  ['admin_update_ucapsa_exam_item', /admin_update_ucapsa_exam_item[\s\S]{0,2400}v_exam_status is distinct from 'draft'/],
-  ['admin_delete_ucapsa_exam_item', /admin_delete_ucapsa_exam_item[\s\S]{0,1800}v_exam_status is distinct from 'draft'/],
+  ['admin_add_ucapsa_exam_item', /admin_add_ucapsa_exam_item[\s\S]{0,2600}ucapsa_assert_competition_season_mutable\(v_exam\.season_id\)[\s\S]{0,500}v_exam\.status <> 'draft'/],
+  ['admin_update_ucapsa_exam_item', /admin_update_ucapsa_exam_item[\s\S]{0,3200}ucapsa_assert_competition_season_mutable\(v_exam\.season_id\)[\s\S]{0,500}v_exam\.status <> 'draft'/],
+  ['admin_delete_ucapsa_exam_item', /admin_delete_ucapsa_exam_item[\s\S]{0,2600}ucapsa_assert_competition_season_mutable\(v_exam\.season_id\)[\s\S]{0,500}v_exam\.status <> 'draft'/],
 ]) {
   if (!pattern.test(sql)) {
-    throw new Error(`${rpc} must remain limited to draft exam structure.`);
+    throw new Error(`${rpc} must remain limited to draft exams in mutable seasons.`);
   }
 }
 
