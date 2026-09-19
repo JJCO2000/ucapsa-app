@@ -40,6 +40,7 @@ export type AttendanceSyncResult = {
   operationId: string;
   status: 'synced' | AttendanceOutboxState;
   message: string;
+  networkFailure?: boolean;
 };
 
 const ATTENDANCE_OUTBOX_PREFIX = 'ucapsa:attendance-outbox:v1:';
@@ -270,12 +271,18 @@ async function syncOperationOnce(operation: PendingAttendanceOperation): Promise
     await replaceOperation(operation.userId, next);
     return { operationId: operation.id, status: 'rejected', message: next.message ?? '' };
   } catch (error) {
-    const message = isLikelyNetworkError(error)
+    const networkFailure = isLikelyNetworkError(error);
+    const message = networkFailure
       ? 'Guardado en este dispositivo. Se confirmará cuando vuelva la conexión.'
       : `Aún no se pudo sincronizar: ${getErrorMessage(error)}`;
     const next = { ...operation, state: 'pending' as const, message };
     await replaceOperation(operation.userId, next);
-    return { operationId: operation.id, status: 'pending', message };
+    return {
+      operationId: operation.id,
+      status: 'pending',
+      message,
+      networkFailure,
+    };
   }
 }
 
@@ -335,7 +342,9 @@ export async function flushPendingAttendanceOperations(userId: string): Promise<
     if (operation.state !== 'pending') continue;
     const result = await syncOperation(operation);
     if (result.status === 'synced') synced += 1;
-    if (result.status === 'pending') break;
+    // Si la red está caída, seguir sólo genera más fallos iguales. En cambio,
+    // un error no-red de una operación concreta no debe bloquear toda la cola.
+    if (result.status === 'pending' && result.networkFailure) break;
   }
 
   const remaining = await getPendingAttendanceOperations(userId);
