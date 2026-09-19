@@ -247,11 +247,32 @@ set search_path = public
 as $$
 declare
   v_exam_id uuid;
+  v_exam_status text;
+  v_target_exam_status text;
   v_has_locked_attempt boolean;
   v_has_results boolean;
   v_max_awarded numeric;
 begin
-  if tg_op = 'INSERT' then v_exam_id := new.exam_id; else v_exam_id := old.exam_id; end if;
+  if tg_op = 'INSERT' then
+    v_exam_id := new.exam_id;
+  else
+    v_exam_id := old.exam_id;
+  end if;
+
+  select e.status
+    into v_exam_status
+  from public.ucapsa_exams e
+  where e.id = v_exam_id;
+
+  if not found then
+    raise exception 'Examen UCAPSA no encontrado.'
+      using errcode = '55000';
+  end if;
+
+  if v_exam_status <> 'draft' then
+    raise exception 'La estructura de un examen publicado/archivado esta congelada. Crea una nueva version en borrador para cambiar ejercicios.'
+      using errcode = '55000';
+  end if;
 
   select exists (
     select 1
@@ -272,6 +293,21 @@ begin
 
   if tg_op = 'UPDATE' then
     if new.exam_id is distinct from old.exam_id then
+      select e.status
+        into v_target_exam_status
+      from public.ucapsa_exams e
+      where e.id = new.exam_id;
+
+      if not found then
+        raise exception 'Examen destino UCAPSA no encontrado.'
+          using errcode = '55000';
+      end if;
+
+      if v_target_exam_status <> 'draft' then
+        raise exception 'No se puede mover un ejercicio a un examen publicado/archivado.'
+          using errcode = '55000';
+      end if;
+
       select exists (
         select 1 from public.ucapsa_exam_item_results r
         where r.exam_item_id = old.id
