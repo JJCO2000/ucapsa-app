@@ -25,12 +25,17 @@ const service = read('src/services/ucapsa-competition.service.ts');
 for (const pair of [
   ['expo-file-system', '~57.0.7'],
   ['fflate', '^0.8.3'],
-  ['@xmldom/xmldom', '^0.8.14'],
 ]) {
   const name = pair[0];
   const expected = pair[1];
   if (pkg.dependencies?.[name] !== expected) failures.push('package.json perdió ' + name + '@' + expected + '.');
   if (lock.packages?.['']?.dependencies?.[name] !== expected) failures.push('package-lock raíz perdió ' + name + '@' + expected + '.');
+}
+
+const xmldomRange = pkg.dependencies?.['@xmldom/xmldom'];
+if (!xmldomRange) failures.push('package.json perdió @xmldom/xmldom.');
+if (lock.packages?.['']?.dependencies?.['@xmldom/xmldom'] !== xmldomRange) {
+  failures.push('package-lock raíz no coincide con el rango declarado de @xmldom/xmldom.');
 }
 
 const fflateLock = lock.packages?.['node_modules/fflate'];
