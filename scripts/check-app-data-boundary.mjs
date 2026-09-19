@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const root = 'src/app';
+const roots = ['src/app', 'src/hooks'];
 const pkg = fs.readFileSync('package.json', 'utf8');
 
 function walk(dir) {
@@ -13,7 +13,7 @@ function walk(dir) {
 }
 
 const violations = [];
-for (const file of walk(root)) {
+for (const file of roots.flatMap((root) => walk(root))) {
   const text = fs.readFileSync(file, 'utf8');
   if (
     /(?:from|require\()\s*['"][^'"]*lib\/supabase['"]/.test(text) ||
@@ -26,7 +26,7 @@ for (const file of walk(root)) {
 
 if (violations.length) {
   throw new Error(
-    'App screen bypassed the service/data boundary:\n' + violations.map((file) => ' - ' + file).join('\n'),
+    'App/hook module bypassed the service/data boundary:\n' + violations.map((file) => ' - ' + file).join('\n'),
   );
 }
 
@@ -34,4 +34,4 @@ if (!pkg.includes('"check:app-data-boundary"')) {
   throw new Error('npm verify does not include the app data-boundary guard.');
 }
 
-console.log('UCAPSA app screens -> service/data boundary: PASS');
+console.log('UCAPSA app/hooks -> service/data boundary: PASS');
