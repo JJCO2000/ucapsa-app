@@ -1,26 +1,13 @@
 import { ucapsaBrand } from '../constants/brand';
+import { devWarn } from '../lib/client-diagnostics';
 import { supabase } from '../lib/supabase';
 import type { TableUpdate } from '../types/database.helpers';
 import type { Profile } from '../types/app.types';
 import { requestMyAccountDeletion } from './account-deletion.service';
 
 
-type SupabaseErrorDetails = {
-  code?: unknown;
-  message?: unknown;
-  details?: unknown;
-  hint?: unknown;
-};
-
 function logProfileMutationError(operation: string, error: unknown) {
-  const details = (error ?? {}) as SupabaseErrorDetails;
-  if (!__DEV__) return;
-  console.log(`[UCAPSA][profiles] ${operation} failed`, {
-    code: details.code ?? null,
-    message: details.message ?? (error instanceof Error ? error.message : String(error)),
-    details: details.details ?? null,
-    hint: details.hint ?? null,
-  });
+  devWarn(`profiles: ${operation} failed`, error);
 }
 
 export type ProfileUpdateInput = {

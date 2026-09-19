@@ -12,6 +12,7 @@ const scanRoots = [
 const rootFiles = ['app.json', 'package.json', 'tsconfig.json', 'eas.json'];
 const extensions = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.sql', '.yml', '.yaml', '.json']);
 const self = 'scripts/audit-full-source.mjs';
+const clientDiagnostics = 'src/lib/client-diagnostics.ts';
 
 function walk(rel) {
   const absolute = path.join(root, rel);
@@ -91,6 +92,21 @@ for (const file of files) {
     addCritical(file, 'Pantalla salta la frontera de servicios y toca Supabase directamente.');
   }
 
+  if (file.startsWith('src/') && file !== clientDiagnostics &&
+      /\bconsole\.(?:log|warn|error|debug)\s*\(/.test(text)) {
+    addCritical(file, 'Console runtime fuera del diagnóstico cliente centralizado.');
+  }
+
+  if (file === clientDiagnostics) {
+    const devOnlyGuards = countMatches(text, /if\s*\(\s*!__DEV__\s*\)\s*return\s*;/g);
+    if (devOnlyGuards < 1) {
+      addCritical(file, 'Diagnóstico cliente perdió su guarda __DEV__.');
+    }
+    if (!/sanitizeDiagnostic\s*\(/.test(text)) {
+      addCritical(file, 'Diagnóstico cliente perdió sanitización de detalles.');
+    }
+  }
+
   if (file === self) continue;
 
   const runtimeCode = file.startsWith('src/') || file.startsWith('supabase/functions/');
@@ -98,7 +114,9 @@ for (const file of files) {
   const anyCasts = runtimeCode ? countMatches(text, /\bas\s+any\b|:\s*any\b/g) : 0;
   if (anyCasts) addReview(file, 'Uso de any', anyCasts);
 
-  const consoles = runtimeCode ? countMatches(text, /\bconsole\.(?:log|warn|error|debug)\s*\(/g) : 0;
+  const consoles = (file.startsWith('supabase/functions/') || (file.startsWith('src/') && file !== clientDiagnostics))
+    ? countMatches(text, /\bconsole\.(?:log|warn|error|debug)\s*\(/g)
+    : 0;
   if (consoles) addReview(file, 'Console call', consoles);
 
   const clientDeletes = file.startsWith('src/') ? countMatches(text, /\.delete\s*\(\s*\)/g) : 0;
