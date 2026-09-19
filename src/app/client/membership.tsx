@@ -11,7 +11,7 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
-import { getMembershipEffectiveStatus, getMembershipStatusLabel, getMyMembership, getMyMembershipEligibility, isMembershipDateExpired, requestMembership, type MembershipEligibility } from '../../services/memberships.service';
+import { getMembershipEffectiveStatus, getMembershipStatusLabel, getMyMembership, getMyMembershipEligibility, requestMembership, type MembershipEligibility } from '../../services/memberships.service';
 import { clientReadKeys, createMembershipOfflineSummary, readClientResource, sanitizeProgramRowsForCache, writeClientResource, type MembershipOfflineSummary } from '../../services/client-read-cache.service';
 import { getMyProgramEnrollments } from '../../services/programs.service';
 import type { Membership, ProgramEnrollmentWithDetails } from '../../types/app.types';
@@ -249,7 +249,7 @@ export default function ClientMembershipScreen() {
             {scheduled
               ? `Tu membresia inicia el ${offlineDateLabel(membership?.start_date ?? cachedMembership?.start_date)}. El QR estara disponible cuando entre en vigencia.`
               : effectiveMembershipStatus === 'expired'
-                ? `La vigencia termino el ${offlineDateLabel(membership?.end_date ?? cachedMembership?.end_date)}. Administracion debe revisar las fechas antes de reactivarla.`
+                ? 'La membresia conserva un estado historico vencido. Administracion debe revisarla antes de reactivarla.'
                 : 'Si necesitas revision, puedes solicitarla desde aqui.'}
           </Text>
           {eligible === true && membershipStatus !== 'active' ? <Pressable style={[styles.primaryButton, { backgroundColor: format.primaryButton }]} disabled={saving || usingSavedData} onPress={() => void requestReview()}><Text style={[styles.primaryButtonText, { color: format.primaryButtonText }]}>{saving ? 'Enviando...' : usingSavedData ? 'Conectate para solicitar' : 'Solicitar revision'}</Text></Pressable> : null}
@@ -258,7 +258,7 @@ export default function ClientMembershipScreen() {
 
       {active && membership && membershipFresh ? (
         <>
-          <MemberCredentialCard membership={membership} profile={profile} displayName={displayName} expiredByDate={isMembershipDateExpired(membership)} />
+          <MemberCredentialCard membership={membership} profile={profile} displayName={displayName} />
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Registrar visita de socio"
@@ -281,7 +281,7 @@ export default function ClientMembershipScreen() {
           <MaterialIcons name="verified" size={28} color={format.accent} />
           <Text style={[styles.cardTitle, { color: format.cardText }]}>Membresia vigente</Text>
           <Text style={[styles.muted, { color: format.muted }]}>Socio: {cachedMembership.member_number || 'Sin numero'}</Text>
-          <Text style={[styles.muted, { color: format.muted }]}>Vigencia: {offlineDateLabel(cachedMembership.start_date)} - {offlineDateLabel(cachedMembership.end_date)}</Text>
+          <Text style={[styles.muted, { color: format.muted }]}>Inicio: {offlineDateLabel(cachedMembership.start_date)} · Sin vencimiento por fecha</Text>
           <Text style={[styles.muted, { color: format.muted }]}>La credencial QR requiere conexion para mostrar un token vigente.</Text>
         </View>
       ) : null}

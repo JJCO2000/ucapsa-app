@@ -9,10 +9,10 @@ import { MemberCredentialCard } from '../../components/domain/MemberCredentialCa
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import {
-  formatDate,
   getDisplayName,
   getMembershipByQrToken,
-  getMembershipStatusLabel,
+  getMembershipEffectiveStatus,
+  getMembershipEffectiveStatusLabel,
   type MembershipAdminRow,
 } from '../../services/memberships.service';
 import {
@@ -240,18 +240,17 @@ export default function AdminScannerScreen() {
         <View style={styles.resultBox}>
           <Text style={styles.kickerDark}>Socio</Text>
           <Text style={styles.modalTitle}>{getDisplayName(result.row.profile)}</Text>
-          <Text style={styles.muted}>Estado: {getMembershipStatusLabel(result.row.membership.status)}</Text>
+          <Text style={styles.muted}>Estado: {getMembershipEffectiveStatusLabel(getMembershipEffectiveStatus(result.row.membership))}</Text>
           <MemberCredentialCard
             membership={result.row.membership}
             profile={result.row.profile}
             displayName={result.row.profile?.full_name?.trim() || result.row.profile?.email?.trim() || 'Socio UCAPSA'}
-            expiredByDate={Boolean(result.row.membership.end_date && new Date(result.row.membership.end_date).getTime() < Date.now())}
           />
           <View style={styles.detailBox}>
             <Detail label="Numero de socio" value={result.row.membership.member_number || 'Pendiente'} />
             <Detail label="Correo" value={result.row.profile?.email || 'Sin correo'} />
             <Detail label="Telefono" value={result.row.profile?.phone || 'Sin telefono'} />
-            <Detail label="Vigencia" value={formatDate(result.row.membership.end_date)} />
+            <Detail label="Duracion" value="Toda la vida de tu perro" />
           </View>
           <Pressable style={styles.primaryButton} onPress={() => router.push(`/admin/customer?userId=${encodeURIComponent(result.row.membership.user_id)}` as never)}>
             <Text style={styles.primaryButtonText}>Ver cliente</Text>

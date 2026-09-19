@@ -11,10 +11,9 @@ type MemberCredentialCardProps = {
   membership: Membership;
   profile: Profile | null;
   displayName: string;
-  expiredByDate: boolean;
 };
 
-export function MemberCredentialCard({ membership, profile: _profile, displayName, expiredByDate: _expiredByDate }: MemberCredentialCardProps) {
+export function MemberCredentialCard({ membership, profile: _profile, displayName }: MemberCredentialCardProps) {
   return (
     <View style={styles.card}>
       <View style={styles.textureRingOne} />

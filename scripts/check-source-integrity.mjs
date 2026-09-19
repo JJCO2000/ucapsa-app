@@ -57,6 +57,13 @@ mustNot('src/app/client/attendance-history.tsx', /!enrollmentId\)\s*return/, 'Hi
 must('src/app/client/attendance-history.tsx', /Historial de asistencias/, 'Falta la vista agregada de asistencias desde APROVECHASTE.');
 must('supabase/sql/ucapsa-membership-lifetime-and-comandos-progression.sql', /new\.end_date := null/, 'Backend perdió la regla de membresía activa sin vencimiento por fecha.');
 must('src/services/customer-value-merge.service.ts', /membership_lifetime_normalized/, 'Snapshot de Inicio perdió la normalización de membresía vitalicia.');
+mustNot('src/services/memberships.service.ts', /todayKey\s*>\s*end|return\s+'expired'\s*;[\s\S]{0,80}end_date/, 'El servicio canónico volvió a expirar una membresía activa por end_date.');
+mustNot('src/app/(tabs)/services.tsx', /getLifetimeMembershipStatus|effective\s*===\s*'expired'[\s\S]{0,120}return\s*'active'/, 'Servicios volvió a crear una segunda normalización de membresía vitalicia.');
+mustNot('src/app/client/membership.tsx', /La vigencia termino|Vigencia:\s*\{offlineDateLabel\(cachedMembership\.start_date\)\}/, 'La pantalla de membresía volvió a presentar una fecha de fin como vencimiento de una membresía activa.');
+must('src/app/admin/scanner.tsx', /getMembershipEffectiveStatusLabel\(getMembershipEffectiveStatus\(result\.row\.membership\)\)/, 'Scanner dejó de usar el estado efectivo canónico de membresía.');
+mustNot('src/app/admin/scanner.tsx', /expiredByDate|membership\.end_date/, 'Scanner volvió a inferir vencimiento de una membresía activa por fecha.');
+must('src/app/admin/scanner.tsx', /label="Duracion" value="Toda la vida de tu perro"/, 'Scanner dejó de comunicar la duración vitalicia de la membresía.');
+
 
 must('src/screens/home/HomeExperienceScreen.tsx', /loadRunRef/, 'Inicio perdió la guarda contra respuestas asíncronas obsoletas.');
 must('src/screens/home/HomeExperienceScreen.tsx', /mergeCustomerValueSnapshotWithCache/, 'Inicio volvió al fallback todo-o-nada en vez de mezclar por fuente.');
@@ -116,7 +123,6 @@ must('src/app/(tabs)/services.tsx', /readClientResource<MembershipOfflineSummary
 must('src/app/(tabs)/services.tsx', /OfflineDataNotice/, 'Servicios perdió el aviso de datos guardados.');
 must('src/app/(tabs)/services.tsx', /loadRunRef/, 'Servicios perdió la guarda contra respuestas asíncronas obsoletas.');
 must('src/app/(tabs)/services.tsx', /cacheScopeRef/, 'Servicios dejó de limpiar el estado al cambiar de usuario.');
-must('src/app/(tabs)/services.tsx', /membership\?\.status === 'active' && effective === 'expired'/, 'Servicios volvió a expirar automáticamente una membresía que Administración mantiene activa.');
 mustNot('src/app/(tabs)/services.tsx', /subtitle="Membresía, restaurante, compras y contacto directo con UCAPSA\."/, 'Servicios volvió al hero grande y redundante del diseño anterior.');
 
 must('src/services/payments.service.ts', /export function normalizeClabe/, 'Pagos perdió la normalización canónica de CLABE.');
