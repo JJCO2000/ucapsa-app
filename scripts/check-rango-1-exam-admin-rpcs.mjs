@@ -34,6 +34,8 @@ const requiredContracts = [
   'set is_official=false',
   'set is_official=true',
   "status='voided',is_official=false",
+  "v_exam.status <> 'draft'",
+  "v_exam_status <> 'draft'",
   'grant execute on function',
   'from public, anon, authenticated',
 ];
@@ -54,6 +56,18 @@ if (/add\s+column[\s\S]{0,80}\b(total|score_total|total_score)\b/i.test(sql)) {
 
 if (!sql.includes("v_attempt.status <> 'draft'")) {
   throw new Error('Deleting an item result must remain limited to draft attempts.');
+}
+
+if (!/admin_add_ucapsa_exam_item[\s\S]{0,2200}v_exam\.status <> 'draft'/.test(sql)) {
+  throw new Error('Adding exam items must remain limited to draft exams.');
+}
+
+if (!/admin_update_ucapsa_exam_item[\s\S]{0,2200}v_exam_status <> 'draft'/.test(sql)) {
+  throw new Error('Updating exam items must remain limited to draft exams.');
+}
+
+if (!/admin_delete_ucapsa_exam_item[\s\S]{0,1800}v_exam_status <> 'draft'/.test(sql)) {
+  throw new Error('Deleting exam items must remain limited to draft exams.');
 }
 
 console.log('Rango 1 canonical exam Admin RPCs: PASS');
