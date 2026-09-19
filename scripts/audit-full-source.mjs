@@ -98,8 +98,17 @@ for (const file of files) {
   const anyCasts = runtimeCode ? countMatches(text, /\bas\s+any\b|:\s*any\b/g) : 0;
   if (anyCasts) addReview(file, 'Uso de any', anyCasts);
 
-  const consoles = runtimeCode ? countMatches(text, /\bconsole\.(?:log|warn|error|debug)\s*\(/g) : 0;
+  const consoles = runtimeCode && file !== runtimeDiagnosticsModule
+    ? countMatches(text, /\bconsole\.(?:log|warn|error|debug)\s*\(/g)
+    : 0;
   if (consoles) addReview(file, 'Console call', consoles);
+
+  if (file === runtimeDiagnosticsModule) {
+    const devOnlyGuards = countMatches(text, /if\s*\(\s*!__DEV__\s*\)\s*return\s*;/g);
+    if (devOnlyGuards < 2) {
+      addCritical(file, 'Diagnóstico runtime perdió guardas __DEV__');
+    }
+  }
 
   const clientDeletes = file.startsWith('src/') ? countMatches(text, /\.delete\s*\(\s*\)/g) : 0;
   if (clientDeletes) addReview(file, 'DELETE desde código cliente/servicio', clientDeletes);
