@@ -67,7 +67,7 @@ export default function AdminCompetitionExamDetailScreen() {
   const seasonClosed = detail?.season?.status === 'closed';
   const archived = detail?.exam.status === 'archived';
   const canEditMetadata = Boolean(detail && !seasonClosed && !archived);
-  const canEditStructure = Boolean(detail && !seasonClosed && !archived && !detail.structureLocked);
+  const canEditStructure = Boolean(detail && !seasonClosed && !detail.structureLocked);
   const canPublish = Boolean(detail && detail.exam.status === 'draft' && !seasonClosed && detail.items.length > 0);
 
   function confirmPublish() {
@@ -156,7 +156,14 @@ export default function AdminCompetitionExamDetailScreen() {
           {seasonClosed ? (
             <View style={styles.lockCard}><MaterialIcons name="lock" size={20} color={ucapsaBrand.colors.redDark} /><Text style={styles.lockText}>La temporada está cerrada. Reábrela antes de modificar examen o ejercicios.</Text></View>
           ) : detail.structureLocked ? (
-            <View style={styles.lockCard}><MaterialIcons name="lock-outline" size={20} color={ucapsaBrand.colors.redDark} /><Text style={styles.lockText}>La estructura está congelada porque ya existen intentos revisados o publicados. Los ejercicios no se agregan, eliminan ni reestructuran.</Text></View>
+            <View style={styles.lockCard}>
+              <MaterialIcons name="lock-outline" size={20} color={ucapsaBrand.colors.redDark} />
+              <Text style={styles.lockText}>
+                {detail.exam.status !== 'draft'
+                  ? 'La estructura quedó congelada al publicar el examen. Los ejercicios no se agregan, eliminan ni reestructuran.'
+                  : 'La estructura está congelada porque existen intentos revisados o publicados.'}
+              </Text>
+            </View>
           ) : null}
 
           <View style={styles.actionRow}>
