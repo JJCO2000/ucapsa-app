@@ -136,6 +136,30 @@ registerSafeRawDeleteContract(
   importRowSafetyChecks,
 );
 
+
+registerSafeRawDeleteContract(
+  'supabase/sql/ucapsa-attendance-visit-delete-audit.sql',
+  2,
+  [
+    {
+      pattern: /create or replace function public\.delete_program_attendance_admin[\s\S]*?if not public\.is_admin\(\)[\s\S]*?for update[\s\S]*?'program_attendance\.delete'[\s\S]*?'before', to_jsonb\(v_attendance\)[\s\S]*?delete from public\.program_attendances/i,
+      label: 'Corrección de asistencia perdió rol Admin, lock, snapshot completo o audit-before-delete.',
+    },
+    {
+      pattern: /create or replace function public\.delete_member_visit_admin[\s\S]*?if not public\.is_admin\(\)[\s\S]*?for update[\s\S]*?'member_visit\.delete'[\s\S]*?'before', to_jsonb\(v_visit\)[\s\S]*?delete from public\.member_visits/i,
+      label: 'Corrección de visita perdió rol Admin, lock, snapshot completo o audit-before-delete.',
+    },
+    {
+      pattern: /revoke all on function public\.delete_program_attendance_admin\(uuid\)[\s\S]{0,160}from public, anon[\s\S]{0,180}grant execute on function public\.delete_program_attendance_admin\(uuid\)[\s\S]{0,120}to authenticated, service_role/i,
+      label: 'RPC de corrección de asistencia perdió mínimo privilegio.',
+    },
+    {
+      pattern: /revoke all on function public\.delete_member_visit_admin\(uuid\)[\s\S]{0,160}from public, anon[\s\S]{0,180}grant execute on function public\.delete_member_visit_admin\(uuid\)[\s\S]{0,120}to authenticated, service_role/i,
+      label: 'RPC de corrección de visita perdió mínimo privilegio.',
+    },
+  ],
+);
+
 for (const file of files) {
   const absolute = path.join(root, file);
   const text = fs.readFileSync(absolute, 'utf8');
