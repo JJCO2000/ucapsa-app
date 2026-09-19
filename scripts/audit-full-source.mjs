@@ -54,6 +54,88 @@ function countMatches(text, regex) {
   return [...text.matchAll(regex)].length;
 }
 
+const safeRawDeleteCounts = new Map();
+
+function registerSafeRawDeleteContract(file, expectedCount, checks) {
+  const absolute = path.join(root, file);
+  if (!fs.existsSync(absolute)) {
+    addCritical(file, 'Contrato de DELETE transitorio perdió su archivo canónico.');
+    return;
+  }
+
+  const text = fs.readFileSync(absolute, 'utf8');
+  const deleteCount = countMatches(text, /\bdelete\s+from\s+public\./gi);
+  if (deleteCount !== expectedCount) {
+    addCritical(file, `Contrato de DELETE transitorio esperaba ${expectedCount} DELETE físico(s) y encontró ${deleteCount}.`);
+    return;
+  }
+
+  for (const check of checks) {
+    const sourceFile = check.file ?? file;
+    const sourcePath = path.join(root, sourceFile);
+    if (!fs.existsSync(sourcePath)) {
+      addCritical(sourceFile, 'Protección requerida para DELETE transitorio perdió su archivo.');
+      continue;
+    }
+    const source = fs.readFileSync(sourcePath, 'utf8');
+    if (!check.pattern.test(source)) {
+      addCritical(sourceFile, check.label);
+    }
+  }
+
+  safeRawDeleteCounts.set(file, expectedCount);
+}
+
+registerSafeRawDeleteContract(
+  'supabase/sql/ucapsa-rango-1-exam-admin-rpcs.sql',
+  2,
+  [
+    {
+      file: 'supabase/sql/ucapsa-rango-1-foundation.sql',
+      pattern: /references\s+public\.ucapsa_exam_items\(id\)\s+on\s+delete\s+restrict/i,
+      label: 'Resultados de examen perdieron ON DELETE RESTRICT hacia exam_items.',
+    },
+    {
+      file: 'supabase/sql/ucapsa-rango-1-exam-derivations.sql',
+      pattern: /if\s+tg_op\s*=\s*'DELETE'\s+and\s+v_has_locked_attempt[\s\S]{0,220}No se pueden eliminar ejercicios/i,
+      label: 'Eliminar ejercicios dejó de bloquearse cuando existe historia reviewed/published.',
+    },
+    {
+      pattern: /if\s+v_attempt\.status\s*<>\s*'draft'[\s\S]{0,260}delete\s+from\s+public\.ucapsa_exam_item_results/i,
+      label: 'Eliminar resultados dejó de estar limitado a intentos draft.',
+    },
+    {
+      pattern: /ucapsa_exam_result\.delete[\s\S]{0,220}ucapsa_exam_admin_audit|ucapsa_exam_admin_audit[\s\S]{0,220}ucapsa_exam_result\.delete/i,
+      label: 'Eliminar resultado draft perdió auditoría administrativa.',
+    },
+  ],
+);
+
+const importRowSafetyChecks = [
+  {
+    file: 'supabase/sql/ucapsa-rango-1-exam-excel-import.sql',
+    pattern: /if\s+v_status\s+not\s+in\s*\('draft','validated'\)[\s\S]{0,220}Las filas de un lote/i,
+    label: 'Staging de importación dejó de limitar mutaciones a draft/validated.',
+  },
+  {
+    file: 'supabase/sql/ucapsa-rango-1-exam-excel-import.sql',
+    pattern: /before\s+insert\s+or\s+update\s+or\s+delete\s+on\s+public\.ucapsa_exam_import_rows[\s\S]{0,160}ucapsa_guard_exam_import_row_state/i,
+    label: 'Staging de importación perdió el trigger que protege su ciclo de vida.',
+  },
+];
+
+registerSafeRawDeleteContract(
+  'supabase/sql/ucapsa-rango-1-exam-excel-import.sql',
+  1,
+  importRowSafetyChecks,
+);
+
+registerSafeRawDeleteContract(
+  'supabase/sql/ucapsa-rango-1-exam-import-dog-resolution-hardening.sql',
+  1,
+  importRowSafetyChecks,
+);
+
 for (const file of files) {
   const absolute = path.join(root, file);
   const text = fs.readFileSync(absolute, 'utf8');
@@ -123,7 +205,10 @@ for (const file of files) {
   if (clientDeletes) addReview(file, 'DELETE desde código cliente/servicio', clientDeletes);
 
   const rawDeletes = file.endsWith('.sql') ? countMatches(text, /\bdelete\s+from\s+public\./gi) : 0;
-  if (rawDeletes) addReview(file, 'DELETE físico SQL', rawDeletes);
+  const safeRawDeletes = safeRawDeleteCounts.get(file) ?? 0;
+  if (rawDeletes > safeRawDeletes) {
+    addReview(file, 'DELETE físico SQL', rawDeletes - safeRawDeletes);
+  }
 
   const randomCalls = runtimeCode ? countMatches(text, /\bMath\.random\s*\(/g) : 0;
   if (randomCalls) addReview(file, 'Math.random()', randomCalls);
