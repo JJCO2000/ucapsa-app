@@ -33,6 +33,8 @@ const requiredContracts = [
   "v_status in ('reviewed', 'published', 'voided')",
   "v_exam_status is distinct from 'draft'",
   "v_target_exam_status is distinct from 'draft'",
+  'ucapsa_assert_competition_season_mutable(v_season_id)',
+  'ucapsa_assert_competition_season_mutable(v_target_season_id)',
   'new.max_points < v_max_awarded',
   "v_attempt.status in ('reviewed','published')",
   'set is_official=false',
