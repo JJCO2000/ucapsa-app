@@ -1,19 +1,55 @@
 import { ucapsaBrand } from '../../constants/brand';
 import { Link, router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { AUTH_PASSWORD_MIN_LENGTH, signUpWithEmail, validateNewPassword } from '../../services/auth.service';
+import { getPublishedPrivacyNotice, type PrivacyNotice } from '../../services/privacy-notice.service';
 
 export default function RegisterScreen() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [privacyNotice, setPrivacyNotice] = useState<PrivacyNotice | null>(null);
+  const [privacyChecked, setPrivacyChecked] = useState(false);
+  const [privacyLoadError, setPrivacyLoadError] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void getPublishedPrivacyNotice()
+      .then((notice) => {
+        if (!active) return;
+        setPrivacyNotice(notice);
+        setPrivacyLoadError(false);
+      })
+      .catch(() => {
+        if (!active) return;
+        setPrivacyNotice(null);
+        setPrivacyLoadError(true);
+      })
+      .finally(() => {
+        if (active) setPrivacyChecked(true);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function handleRegister() {
     const cleanName = fullName.trim();
     const cleanEmail = email.trim();
+
+    if (!privacyNotice) {
+      Alert.alert(
+        'Aviso de privacidad no disponible',
+        privacyLoadError
+          ? 'No se pudo verificar el aviso publicado. Intenta de nuevo cuando tengas conexión.'
+          : 'UCAPSA debe publicar el aviso de privacidad antes de crear nuevas cuentas.',
+      );
+      return;
+    }
 
     if (!cleanName || !cleanEmail || !password) {
       Alert.alert('Faltan datos', 'Escribe nombre, correo y contrasena.');
@@ -95,7 +131,27 @@ export default function RegisterScreen() {
           onSubmitEditing={handleRegister}
         />
 
-        <Pressable style={[styles.button, loading && styles.buttonDisabled]} onPress={handleRegister} disabled={loading}>
+        <View style={[styles.privacyBox, privacyChecked && !privacyNotice && styles.privacyWarning]}>
+          <Text style={styles.privacyTitle}>
+            {privacyNotice ? `Aviso de privacidad · Versión ${privacyNotice.version}` : 'Aviso de privacidad'}
+          </Text>
+          <Text style={styles.privacyText}>
+            {!privacyChecked
+              ? 'Consultando el aviso publicado...'
+              : privacyNotice
+                ? privacyNotice.simplified_notice
+                : privacyLoadError
+                  ? 'No se pudo verificar el aviso publicado. La creación de cuentas queda deshabilitada hasta poder consultarlo.'
+                  : 'UCAPSA aún no tiene un aviso de privacidad publicado. La creación de cuentas queda deshabilitada hasta publicar la versión jurídica aprobada.'}
+          </Text>
+          <Link href="/privacy" style={styles.privacyLink}>Consultar aviso integral</Link>
+        </View>
+
+        <Pressable
+          style={[styles.button, (loading || !privacyNotice) && styles.buttonDisabled]}
+          onPress={handleRegister}
+          disabled={loading || !privacyNotice}
+        >
           <Text style={styles.buttonText}>{loading ? 'Creando...' : 'Crear cuenta'}</Text>
         </Pressable>
 
@@ -157,6 +213,34 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     backgroundColor: ucapsaBrand.colors.redPale,
+  },
+  privacyBox: {
+    gap: 5,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: ucapsaBrand.colors.border,
+    backgroundColor: ucapsaBrand.colors.surfaceAlt,
+    padding: 12,
+  },
+  privacyWarning: {
+    borderColor: ucapsaBrand.colors.redBorder,
+    backgroundColor: ucapsaBrand.colors.redSoft,
+  },
+  privacyTitle: {
+    color: ucapsaBrand.colors.text,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  privacyText: {
+    color: ucapsaBrand.colors.muted,
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: '700',
+  },
+  privacyLink: {
+    color: ucapsaBrand.colors.redDark,
+    fontSize: 12,
+    fontWeight: '900',
   },
   button: {
     marginTop: 8,
