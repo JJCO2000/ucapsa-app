@@ -53,8 +53,9 @@ No guardar `CRON_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, secretos de Vault ni `EXP
 
 ## Hardening de funciones internas
 
-- `supabase/sql/ucapsa-security-definer-hardening.sql` revoca `EXECUTE` de `public`, `anon` y `authenticated` para helpers internos `SECURITY DEFINER` que no forman parte de la API cliente.
-- `ucapsa_unlock_next_comandos_level(uuid)` conserva acceso explícito para `service_role` además del propietario de la función; el flujo normal sigue ejecutándose por trigger.
+- `supabase/sql/ucapsa-security-definer-hardening.sql` documenta el hardening histórico de helpers `SECURITY DEFINER`; migraciones posteriores pueden retirar o sustituir funciones antiguas.
+- `ucapsa_unlock_next_comandos_level(uuid)` y su trigger legado fueron retirados por `ucapsa-course-path-and-points-access.sql`.
+- El flujo actual de progresión usa `ucapsa_unlock_next_program_stage(uuid)` mediante `trg_ucapsa_unlock_next_program_stage`; los roles cliente no reciben `EXECUTE` directo sobre esos helpers internos.
 - Toda nueva función `SECURITY DEFINER` debe declarar explícitamente quién puede ejecutarla. No depender del privilegio `PUBLIC` por defecto.
 
 ## Sistemas que deben conservarse
