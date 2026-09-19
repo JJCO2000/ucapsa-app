@@ -122,6 +122,8 @@ mustNot('src/app/(tabs)/services.tsx', /subtitle="Membresía, restaurante, compr
 
 must('src/services/payments.service.ts', /export function normalizeClabe/, 'Pagos perdió la normalización canónica de CLABE.');
 must('src/services/payments.service.ts', /export function isValidClabe/, 'Pagos perdió la validación canónica de CLABE.');
+must('src/services/payments.service.ts', /\!\/\^https:\\\/\\\/\/i\.test\(clipUrl\)/, 'Pagos volvió a aceptar enlaces bancarios sin HTTPS.');
+mustNot('src/services/payments.service.ts', /https\?:\\\/\\\//, 'Pagos volvió a aceptar http:// para enlaces bancarios.');
 must('src/app/(tabs)/payments.tsx', /withOperationTimeout\(getPaymentSettings\(\), DEFAULT_READ_TIMEOUT_MS, 'payments-bank-settings'\)/, 'Pagos dejó de leer la CLABE vigente desde la configuración administrada.');
 must('src/app/(tabs)/payments.tsx', /setBankSettings\(null\)/, 'Pagos volvió a conservar datos bancarios anteriores durante una nueva verificación.');
 must('src/app/(tabs)/payments.tsx', /settings\?\.is_active[\s\S]*isValidClabe\(settings\.clabe\)[\s\S]*settings\.bank_name\?\.trim\(\)[\s\S]*settings\.account_holder\?\.trim\(\)/, 'Pagos dejó de exigir banco, titular y CLABE válida antes de mostrar el dato.');
