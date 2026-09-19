@@ -89,6 +89,54 @@ if (/\b(?:get_my_role|has_active_membership|is_admin|is_feature_enabled|is_super
   throw new Error('Anonymous RLS policy still calls a privileged helper.');
 }
 
+
+const sqlFiles = fs.readdirSync('supabase/sql')
+  .filter((name) => name.endsWith('.sql'))
+  .sort();
+
+const adminRoleGuard = /\b(?:public\.)?(?:is_ucapsa_admin|is_admin|is_super_admin)\s*\(/i;
+let adminFunctionDefinitions = 0;
+
+for (const file of sqlFiles) {
+  const text = fs.readFileSync(`supabase/sql/${file}`, 'utf8');
+  const marker = /create\s+or\s+replace\s+function\s+public\.(admin_[a-z0-9_]+)\s*\(/gi;
+  let match;
+
+  while ((match = marker.exec(text)) !== null) {
+    const functionName = match[1];
+    const nextFunctionIndex = text.toLowerCase().indexOf('create or replace function public.', match.index + match[0].length);
+
+    const asPattern = /\bas\s+(\$[a-z0-9_]*\$)/gi;
+    asPattern.lastIndex = match.index;
+    const asMatch = asPattern.exec(text);
+
+    if (!asMatch || (nextFunctionIndex >= 0 && asMatch.index > nextFunctionIndex)) {
+      throw new Error(`Could not parse Admin function body: ${file} -> ${functionName}`);
+    }
+
+    const tag = asMatch[1];
+    const bodyEnd = text.indexOf(`${tag};`, asMatch.index + asMatch[0].length);
+    if (bodyEnd < 0 || (nextFunctionIndex >= 0 && bodyEnd > nextFunctionIndex)) {
+      throw new Error(`Admin function body is unterminated: ${file} -> ${functionName}`);
+    }
+
+    const block = text.slice(match.index, bodyEnd + tag.length + 1);
+    adminFunctionDefinitions += 1;
+
+    if (/security\s+definer/i.test(block) && !adminRoleGuard.test(block)) {
+      throw new Error(
+        `SECURITY DEFINER Admin function lacks an internal role guard: ${file} -> ${functionName}`,
+      );
+    }
+
+    marker.lastIndex = bodyEnd + tag.length + 1;
+  }
+}
+
+if (adminFunctionDefinitions === 0) {
+  throw new Error('No versioned admin_* function definitions were found to audit.');
+}
+
 if (!pkg.includes('"check:security-definer"')) {
   throw new Error('npm verify does not include the SECURITY DEFINER hardening guard.');
 }
