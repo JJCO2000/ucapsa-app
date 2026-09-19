@@ -11,6 +11,7 @@ import { clearPracticeActivityCache } from '../services/practice.service';
 import { disableStoredExpoPushToken } from '../services/notifications.service';
 import { getProfileByUserId } from '../services/profiles.service';
 import type { AppRole, UserProfile } from '../types/app.types';
+import { devWarn } from '../utils/dev-diagnostics';
 
 const SESSION_BOOT_TIMEOUT_MS = 4_000;
 const FIRST_PROFILE_TIMEOUT_MS = 3_500;
@@ -94,7 +95,7 @@ async function readCachedProfile(userId: string): Promise<CachedProfileRecord | 
       profile: cachedProfile,
     };
   } catch (error) {
-    console.warn('Could not read cached UCAPSA profile:', error);
+    devWarn('Could not read cached UCAPSA profile:', error);
     return null;
   }
 }
@@ -110,7 +111,7 @@ async function writeCachedProfile(profile: UserProfile): Promise<string> {
   try {
     await AsyncStorage.setItem(profileCacheKey(profile.user_id), JSON.stringify(record));
   } catch (error) {
-    console.warn('Could not cache UCAPSA profile:', error);
+    devWarn('Could not cache UCAPSA profile:', error);
   }
 
   return cachedAt;
@@ -120,7 +121,7 @@ async function removeCachedProfile(userId: string) {
   try {
     await AsyncStorage.removeItem(profileCacheKey(userId));
   } catch (error) {
-    console.warn('Could not remove cached UCAPSA profile:', error);
+    devWarn('Could not remove cached UCAPSA profile:', error);
   }
 }
 
@@ -186,7 +187,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       await applyFreshProfile(user.id, nextProfile);
     } catch (error) {
       setIsOfflineFallback(true);
-      console.warn('Could not refresh profile; keeping local data:', error);
+      devWarn('Could not refresh profile; keeping local data:', error);
       throw error;
     }
   }
@@ -202,7 +203,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
     try {
       await disableStoredExpoPushToken();
     } catch (error) {
-      console.warn(
+      devWarn(
         'Could not disable push token before sign out:',
         error instanceof Error ? error.message : error,
       );
@@ -280,7 +281,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
             .catch((error) => {
               if (!isMounted || startupRunRef.current !== runId) return;
               setIsOfflineFallback(true);
-              console.warn('UCAPSA started with cached profile:', error);
+              devWarn('UCAPSA started with cached profile:', error);
             });
 
           return;
@@ -304,7 +305,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
           setUsingCachedProfile(false);
           setLastProfileSyncAt(null);
           setIsOfflineFallback(true);
-          console.warn('UCAPSA opened without a remote profile; offline fallback active:', error);
+          devWarn('UCAPSA opened without a remote profile; offline fallback active:', error);
         } finally {
           if (isMounted && startupRunRef.current === runId) setLoading(false);
         }
@@ -314,7 +315,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
         // Supabase getSession reads local storage and only needs the network when the
         // stored session requires a refresh. Do not pretend we can safely recover an
         // authenticated identity here when no valid session snapshot was returned.
-        console.warn('UCAPSA could not recover the local session:', error);
+        devWarn('UCAPSA could not recover the local session:', error);
         setIsOfflineFallback(true);
         setStartupError(STARTUP_ERROR_MESSAGE);
         setLoading(false);
@@ -376,7 +377,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
         } catch (error) {
           if (!isMounted || authEventAttemptRef.current !== eventAttempt) return;
           setIsOfflineFallback(true);
-          console.warn(`Could not refresh profile after ${event}; keeping local data:`, error);
+          devWarn(`Could not refresh profile after ${event}; keeping local data:`, error);
         }
       })();
     });
