@@ -20,7 +20,7 @@ const examDetail = read('src/app/admin/competition-exam-detail.tsx');
 const imports = read('src/app/admin/competition-exam-imports.tsx');
 const importDetail = read('src/app/admin/competition-exam-import-detail.tsx');
 const parser = read('src/services/ucapsa-exam-xlsx.ts');
-const service = read('src/services/ucapsa-competition.service.ts');
+const service = read('src/services/admin-competition-exams.service.ts');
 
 for (const pair of [
   ['expo-file-system', '~57.0.7'],
