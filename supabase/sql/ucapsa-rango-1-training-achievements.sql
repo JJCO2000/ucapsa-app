@@ -140,80 +140,15 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
--- Admin: revocar/corregir logro formal.
--- user_achievements representa el estado vigente; la auditoría conserva el rastro.
+-- Historial de logros formales.
+-- Los otorgamientos son evidencia histórica: no existe RPC destructiva de revocación.
+-- Correcciones futuras deben usar un lifecycle explícito, no DELETE.
 -- ---------------------------------------------------------------------------
 
-create or replace function public.admin_revoke_ucapsa_training_achievement(
-  p_dog_id uuid,
-  p_achievement_code text
-)
-returns uuid
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_achievement public.user_achievements%rowtype;
-  v_code text := nullif(btrim(p_achievement_code), '');
-begin
-  if not public.is_ucapsa_admin() then
-    raise exception 'Solo Admin puede revocar logros de entrenamiento UCAPSA.';
-  end if;
-
-  if v_code not in (
-    'puppy_completed',
-    'comandos_basico_completed',
-    'comandos_medio_completed',
-    'comandos_avanzado_completed'
-  ) then
-    raise exception 'Ese código no es un logro formal de entrenamiento UCAPSA.';
-  end if;
-
-  select *
-  into v_achievement
-  from public.user_achievements ua
-  where ua.dog_id = p_dog_id
-    and ua.achievement_code = v_code
-  for update;
-
-  if not found then
-    raise exception 'El perro no tiene ese logro de entrenamiento.';
-  end if;
-
-  insert into public.admin_audit_logs (
-    admin_user_id,
-    action,
-    entity_type,
-    entity_id,
-    details
-  ) values (
-    auth.uid(),
-    'ucapsa_training_achievement.revoke',
-    'user_achievement',
-    v_achievement.id,
-    jsonb_build_object(
-      'dog_id', v_achievement.dog_id,
-      'user_id', v_achievement.user_id,
-      'achievement_code', v_achievement.achievement_code,
-      'source_type', v_achievement.source_type,
-      'awarded_at', v_achievement.awarded_at
-    )
-  );
-
-  delete from public.user_achievements
-  where id = v_achievement.id;
-
-  return v_achievement.id;
-end;
-$$;
+drop function if exists public.admin_revoke_ucapsa_training_achievement(uuid,text);
 
 revoke all on function public.admin_grant_ucapsa_training_achievement(uuid,text)
   from public, anon, authenticated;
-revoke all on function public.admin_revoke_ucapsa_training_achievement(uuid,text)
-  from public, anon, authenticated;
-
 grant execute on function public.admin_grant_ucapsa_training_achievement(uuid,text)
   to authenticated;
-grant execute on function public.admin_revoke_ucapsa_training_achievement(uuid,text)
-  to authenticated;
+

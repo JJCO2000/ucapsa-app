@@ -14,6 +14,7 @@ drop policy if exists "program_class_cancellations_admin_delete" on public.progr
 drop policy if exists "Admins can delete restaurant categories" on public.restaurant_menu_categories;
 drop policy if exists "Admins can delete restaurant items" on public.restaurant_menu_items;
 drop policy if exists "user_achievements_admin_delete" on public.user_achievements;
+drop function if exists public.admin_revoke_ucapsa_training_achievement(uuid,text);
 
 revoke delete on table public.announcements from anon, authenticated;
 revoke delete on table public.events from anon, authenticated;
