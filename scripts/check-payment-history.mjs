@@ -2,8 +2,10 @@ import fs from 'node:fs';
 
 const sql = fs.readFileSync('supabase/sql/ucapsa-payment-void-foundation.sql', 'utf8');
 const workflow = fs.readFileSync('supabase/sql/ucapsa-payment-void-workflow.sql', 'utf8');
+const paymentLinkHardening = fs.readFileSync('supabase/sql/ucapsa-payment-link-https-hardening.sql', 'utf8');
 const service = fs.readFileSync('src/services/payments.service.ts', 'utf8');
 const adminUi = fs.readFileSync('src/app/admin/customer-payments.tsx', 'utf8');
+const transferUi = fs.readFileSync('src/app/client/payment-transfer.tsx', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
 
 for (const token of ['voided_at timestamptz', 'voided_by uuid', 'void_reason text']) {
@@ -45,6 +47,33 @@ for (const token of [
 
 if (/\.from\(['"]payments['"]\)\.delete\(\)/.test(service) || /deleteCustomerPayment|deleteMembershipPayment/.test(service)) {
   throw new Error('Payment service returned to physical deletion.');
+}
+
+for (const token of [
+  'isValidPaymentLink',
+  "url.protocol === 'https:'",
+  'El enlace de pago debe usar HTTPS',
+]) {
+  if (!service.includes(token)) {
+    throw new Error('Payment link transport hardening missing: ' + token);
+  }
+}
+
+for (const token of [
+  'payment_settings_clip_url_https_check',
+  "btrim(clip_url) ~* '^https://'",
+]) {
+  if (!paymentLinkHardening.includes(token)) {
+    throw new Error('Payment link database hardening missing: ' + token);
+  }
+}
+
+if (!transferUi.includes('isValidPaymentLink(settings.clip_url)') || !transferUi.includes('Linking.openURL(paymentLink)')) {
+  throw new Error('Client payment transfer must validate the persisted link again before opening it.');
+}
+
+if (/Linking\.openURL\(settings\.clip_url/.test(transferUi)) {
+  throw new Error('Client payment transfer must not open raw persisted payment URLs.');
 }
 
 for (const token of ['Anular pago', 'voidReason', 'void_reason', 'Histórico']) {
