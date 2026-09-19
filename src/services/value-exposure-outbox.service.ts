@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import {
   DEFAULT_WRITE_TIMEOUT_MS,
+  isLikelyNetworkError,
   withOperationTimeout,
 } from '../utils/async.utils';
 import { createOfflineUuid } from '../utils/offline-id.utils';
@@ -22,6 +23,7 @@ export type PendingValueExposure = {
 export type ValueExposureSyncResult = {
   operationId: string;
   status: 'synced' | 'pending';
+  networkFailure?: boolean;
 };
 
 const VALUE_EXPOSURE_OUTBOX_PREFIX = 'ucapsa:value-exposure-outbox:v1:';
@@ -171,8 +173,12 @@ async function syncOnce(operation: PendingValueExposure): Promise<ValueExposureS
     if (response.error) throw response.error;
     await discardValueExposure(operation.userId, operation.id);
     return { operationId: operation.id, status: 'synced' };
-  } catch {
-    return { operationId: operation.id, status: 'pending' };
+  } catch (error) {
+    return {
+      operationId: operation.id,
+      status: 'pending',
+      networkFailure: isLikelyNetworkError(error),
+    };
   }
 }
 
@@ -218,7 +224,9 @@ export async function flushPendingValueExposures(userId: string): Promise<{
       synced += 1;
       continue;
     }
-    break;
+    // Una caída de red afecta previsiblemente al resto del lote. Un error
+    // específico de una exposición queda pendiente, pero no bloquea las demás.
+    if (result.networkFailure) break;
   }
 
   return {
