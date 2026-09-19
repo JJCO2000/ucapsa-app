@@ -35,6 +35,7 @@ const requiredContracts = [
   'set is_official=false',
   'set is_official=true',
   "status='voided',is_official=false",
+  "v_exam_status is distinct from 'draft'",
   'grant execute on function',
   'from public, anon, authenticated',
 ];
@@ -55,6 +56,20 @@ if (/add\s+column[\s\S]{0,80}\b(total|score_total|total_score)\b/i.test(sql)) {
 
 if (!sql.includes("v_attempt.status <> 'draft'")) {
   throw new Error('Deleting an item result must remain limited to draft attempts.');
+}
+
+for (const [rpc, pattern] of [
+  ['admin_add_ucapsa_exam_item', /admin_add_ucapsa_exam_item[\s\S]{0,2200}v_exam\.status <> 'draft'/],
+  ['admin_update_ucapsa_exam_item', /admin_update_ucapsa_exam_item[\s\S]{0,2400}v_exam_status is distinct from 'draft'/],
+  ['admin_delete_ucapsa_exam_item', /admin_delete_ucapsa_exam_item[\s\S]{0,1800}v_exam_status is distinct from 'draft'/],
+]) {
+  if (!pattern.test(sql)) {
+    throw new Error(`${rpc} must remain limited to draft exam structure.`);
+  }
+}
+
+if (!/a\.status in \('reviewed', 'published', 'voided'\)/.test(sql)) {
+  throw new Error('Voided attempts must remain part of the exam structure lock.');
 }
 
 console.log('Rango 1 canonical exam Admin RPCs: PASS');
