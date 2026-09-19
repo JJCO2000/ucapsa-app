@@ -3,12 +3,13 @@ import type { Session, User } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
-import { supabase } from '../lib/supabase';
 import { clearAchievementCacheForUser } from '../services/achievements.service';
+import { getCurrentSession, signOutLocal, subscribeToAuthState } from '../services/auth.service';
 import { clearHomeCache } from '../services/home-cache.service';
 import { clearClientReadCache } from '../services/client-read-cache.service';
 import { clearPracticeActivityCache } from '../services/practice.service';
 import { disableStoredExpoPushToken } from '../services/notifications.service';
+import { getProfileByUserId } from '../services/profiles.service';
 import type { AppRole, UserProfile } from '../types/app.types';
 
 const SESSION_BOOT_TIMEOUT_MS = 4_000;
@@ -67,17 +68,6 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, phase: str
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
   }
-}
-
-async function fetchProfile(userId: string): Promise<UserProfile | null> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  if (error) throw error;
-  return data as UserProfile | null;
 }
 
 async function readCachedProfile(userId: string): Promise<CachedProfileRecord | null> {
@@ -189,7 +179,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
 
     try {
       const nextProfile = await withTimeout(
-        fetchProfile(user.id),
+        getProfileByUserId(user.id),
         PROFILE_REFRESH_TIMEOUT_MS,
         'profile refresh',
       );
@@ -219,7 +209,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
     }
 
     const currentUserId = session?.user.id ?? null;
-    const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' });
+    const { error: signOutError } = await signOutLocal();
     if (signOutError) throw signOutError;
 
     if (currentUserId) {
@@ -252,7 +242,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
 
       try {
         const { data, error } = await withTimeout(
-          supabase.auth.getSession(),
+          getCurrentSession(),
           SESSION_BOOT_TIMEOUT_MS,
           'local session',
         );
@@ -282,7 +272,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
           setLastProfileSyncAt(cached.cachedAt);
           setLoading(false);
 
-          void withTimeout(fetchProfile(userId), PROFILE_REFRESH_TIMEOUT_MS, 'background profile refresh')
+          void withTimeout(getProfileByUserId(userId), PROFILE_REFRESH_TIMEOUT_MS, 'background profile refresh')
             .then(async (nextProfile) => {
               if (!isMounted || startupRunRef.current !== runId) return;
               await applyFreshProfile(userId, nextProfile);
@@ -298,7 +288,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
 
         try {
           const nextProfile = await withTimeout(
-            fetchProfile(userId),
+            getProfileByUserId(userId),
             FIRST_PROFILE_TIMEOUT_MS,
             'first profile load',
           );
@@ -341,7 +331,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
   useEffect(() => {
     let isMounted = true;
 
-    const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
+    const { data: listener } = subscribeToAuthState((event, nextSession) => {
       if (!isMounted || event === 'INITIAL_SESSION') return;
 
       if (!nextSession?.user) {
@@ -377,7 +367,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
 
         try {
           const nextProfile = await withTimeout(
-            fetchProfile(userId),
+            getProfileByUserId(userId),
             PROFILE_REFRESH_TIMEOUT_MS,
             `auth:${event}`,
           );
