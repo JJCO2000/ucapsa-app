@@ -28,6 +28,7 @@ const required = [
   "v_season_status not in ('active', 'reopened')",
   "a.status in ('reviewed', 'published')",
   "v_status in ('reviewed', 'published')",
+  "v_exam_status <> 'draft'",
   'new.max_points < v_max_awarded',
 ];
 
