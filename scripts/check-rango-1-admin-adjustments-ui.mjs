@@ -17,7 +17,7 @@ const hub = read('src/app/admin/competition.tsx');
 const layout = read('src/app/admin/_layout.tsx');
 const overview = read('src/app/admin/competition-adjustments.tsx');
 const detail = read('src/app/admin/competition-adjustment-detail.tsx');
-const service = read('src/services/ucapsa-competition.service.ts');
+const service = read('src/services/admin-competition-core.service.ts');
 const pkg = read('package.json');
 
 if (!/title="Puntos y ajustes"[\s\S]{0,260}\/admin\/competition-adjustments/.test(hub)) {
