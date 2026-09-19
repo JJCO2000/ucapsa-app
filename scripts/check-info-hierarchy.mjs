@@ -45,6 +45,13 @@ must('src/app/client/practice-detail.tsx', /useLocalSearchParams/, 'Detalle de p
 must('src/app/client/practice-detail.tsx', /getMyPracticeActivity/, 'Detalle de práctica dejó de usar la fuente canónica de actividad.');
 mustNot('src/app/client/activity-achievements.tsx', /ClientPageHeader/, 'Insignias de actividad volvió a repetir un hero redundante.');
 
+// Admin Usuarios = directorio general. Cliente/socio baja a su ficha canónica;
+// las cuentas administrativas pueden mostrar detalle local. Logros viven en ficha particular.
+must('src/app/admin/users.tsx', /\/admin\/customer\?userId=/, 'Usuarios dejó de bajar clientes/socios a la ficha canónica.');
+mustNot('src/app/admin/users.tsx', /awardAchievementToUser|forceMembershipForProfile|deactivateMembershipForProfile/, 'Usuarios volvió a mezclar logros o membresía dentro del directorio.');
+must('src/app/admin/customer.tsx', /\/admin\/customer-achievements\?userId=/, 'Cliente perdió la ficha particular de Logros.');
+must('src/app/admin/customer-achievements.tsx', /awardAchievementToUser/, 'La ficha de Logros perdió la acción administrativa canónica.');
+
 // Admin Clases = una sola tarea: inscripciones. Horarios, cancelaciones y asistencias
 // viven en pantallas canónicas separadas para evitar dos fuentes de UI/estado.
 must('src/app/admin/classes.tsx', />Inscripciones</, 'Admin Clases perdió su trabajo principal de inscripciones.');
