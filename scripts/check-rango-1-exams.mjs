@@ -26,8 +26,8 @@ const required = [
   's.id as season_id',
   'is_ranking_eligible',
   "v_season_status not in ('active', 'reopened')",
-  "a.status in ('reviewed', 'published')",
-  "v_status in ('reviewed', 'published')",
+  "a.status in ('reviewed', 'published', 'voided')",
+  "v_status in ('reviewed', 'published', 'voided')",
   'new.max_points < v_max_awarded',
 ];
 
