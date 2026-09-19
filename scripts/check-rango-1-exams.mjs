@@ -29,7 +29,7 @@ const required = [
   "a.status in ('reviewed', 'published', 'voided')",
   "v_status in ('reviewed', 'published', 'voided')",
   "v_exam_status is distinct from 'draft'",
-  "a.status in ('reviewed', 'published', 'voided')",
+  'public.ucapsa_assert_competition_season_mutable',
   'new.max_points < v_max_awarded',
 ];
 
@@ -64,6 +64,14 @@ function extractFunction(text, name) {
   }
 
   return text.slice(start, end + 4).replace(/\s+/g, ' ').trim();
+}
+
+const structureGuard = extractFunction(sql, 'ucapsa_guard_exam_item_structure_after_publish');
+if (!structureGuard.includes('ucapsa_assert_competition_season_mutable(v_season_id)')) {
+  throw new Error('Exam structure guard must enforce current season mutability.');
+}
+if (!structureGuard.includes('ucapsa_assert_competition_season_mutable(v_target_season_id)')) {
+  throw new Error('Exam structure guard must enforce target season mutability when moving an item.');
 }
 
 for (const name of [
