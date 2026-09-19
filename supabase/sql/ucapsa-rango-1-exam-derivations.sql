@@ -211,7 +211,7 @@ begin
   from public.ucapsa_exam_attempts a
   where a.id = old.attempt_id;
 
-  if v_status in ('reviewed', 'published') then
+  if v_status in ('reviewed', 'published', 'voided') then
     raise exception 'No se puede eliminar o reasignar un ejercicio de un resultado revisado/publicado. Corrige su puntuacion o anula el intento.'
       using errcode = '55000';
   end if;
@@ -257,7 +257,7 @@ begin
     select 1
     from public.ucapsa_exam_attempts a
     where a.exam_id = v_exam_id
-      and a.status in ('reviewed', 'published')
+      and a.status in ('reviewed', 'published', 'voided')
   ) into v_has_locked_attempt;
 
   if tg_op = 'INSERT' and v_has_locked_attempt then
@@ -300,7 +300,7 @@ begin
       if v_has_locked_attempt or exists (
         select 1 from public.ucapsa_exam_attempts a
         where a.exam_id = new.exam_id
-          and a.status in ('reviewed', 'published')
+          and a.status in ('reviewed', 'published', 'voided')
       ) then
         raise exception 'No se puede cambiar la estructura o puntaje maximo de un examen con intentos revisados/publicados.'
           using errcode = '55000';
