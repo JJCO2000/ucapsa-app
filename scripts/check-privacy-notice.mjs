@@ -7,6 +7,8 @@ const publicScreen = fs.readFileSync('src/app/privacy.tsx', 'utf8');
 const adminList = fs.readFileSync('src/app/admin/privacy-notices.tsx', 'utf8');
 const adminForm = fs.readFileSync('src/app/admin/privacy-notice-form.tsx', 'utf8');
 const adminTools = fs.readFileSync('src/app/admin/tools-administration.tsx', 'utf8');
+const register = fs.readFileSync('src/app/auth/register.tsx', 'utf8');
+const accountSettings = fs.readFileSync('src/app/account-settings.tsx', 'utf8');
 
 const required = [
   'create table if not exists public.privacy_notices',
@@ -64,6 +66,21 @@ if (!/role === ['"]super_admin['"]/.test(adminForm) || !/Redirect/.test(adminFor
 
 if (/responsibleName:\s*['"][^'"]+['"]/.test(adminForm) || /responsibleAddress:\s*['"][^'"]+['"]/.test(adminForm)) {
   throw new Error('Privacy form started hardcoding legal identity or address.');
+}
+
+for (const token of [
+  'getPublishedPrivacyNotice',
+  'privacyNotice.simplified_notice',
+  'href="/privacy"',
+  'disabled={loading || !privacyNotice}',
+]) {
+  if (!register.includes(token)) {
+    throw new Error('Registration no longer presents/gates on the published privacy notice: ' + token);
+  }
+}
+
+if (!accountSettings.includes("router.push('/privacy' as never)")) {
+  throw new Error('Account settings lost the canonical privacy notice entry.');
 }
 
 if (!pkg.includes('"check:privacy-notice"')) {
