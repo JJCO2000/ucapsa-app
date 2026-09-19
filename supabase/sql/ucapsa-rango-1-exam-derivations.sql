@@ -247,11 +247,33 @@ set search_path = public
 as $$
 declare
   v_exam_id uuid;
+  v_exam_status text;
+  v_target_exam_status text;
   v_has_locked_attempt boolean;
   v_has_results boolean;
   v_max_awarded numeric;
 begin
   if tg_op = 'INSERT' then v_exam_id := new.exam_id; else v_exam_id := old.exam_id; end if;
+
+  select e.status into v_exam_status
+  from public.ucapsa_exams e
+  where e.id = v_exam_id;
+
+  if v_exam_status is distinct from 'draft' then
+    raise exception 'La estructura de un examen publicado o archivado no puede modificarse.'
+      using errcode = '55000';
+  end if;
+
+  if tg_op = 'UPDATE' and new.exam_id is distinct from old.exam_id then
+    select e.status into v_target_exam_status
+    from public.ucapsa_exams e
+    where e.id = new.exam_id;
+
+    if v_target_exam_status is distinct from 'draft' then
+      raise exception 'Un ejercicio solo puede moverse a otro examen en borrador.'
+        using errcode = '55000';
+    end if;
+  end if;
 
   select exists (
     select 1
@@ -298,7 +320,8 @@ begin
       or new.item_number is distinct from old.item_number
       or new.max_points is distinct from old.max_points) then
       if v_has_locked_attempt or exists (
-        select 1 from public.ucapsa_exam_attempts a
+        select 1
+        from public.ucapsa_exam_attempts a
         where a.exam_id = new.exam_id
           and a.status in ('reviewed', 'published')
       ) then
