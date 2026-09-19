@@ -125,8 +125,8 @@ must('src/app/(tabs)/services.tsx', /loadRunRef/, 'Servicios perdió la guarda c
 must('src/app/(tabs)/services.tsx', /cacheScopeRef/, 'Servicios dejó de limpiar el estado al cambiar de usuario.');
 mustNot('src/app/(tabs)/services.tsx', /subtitle="Membresía, restaurante, compras y contacto directo con UCAPSA\."/, 'Servicios volvió al hero grande y redundante del diseño anterior.');
 
-must('src/services/payments.service.ts', /export function normalizeClabe/, 'Pagos perdió la normalización canónica de CLABE.');
-must('src/services/payments.service.ts', /export function isValidClabe/, 'Pagos perdió la validación canónica de CLABE.');
+must('src/services/payment-settings.service.ts', /export function normalizeClabe/, 'Pagos perdió la normalización canónica de CLABE.');
+must('src/services/payment-settings.service.ts', /export function isValidClabe/, 'Pagos perdió la validación canónica de CLABE.');
 must('src/app/(tabs)/payments.tsx', /withOperationTimeout\(getPaymentSettings\(\), DEFAULT_READ_TIMEOUT_MS, 'payments-bank-settings'\)/, 'Pagos dejó de leer la CLABE vigente desde la configuración administrada.');
 must('src/app/(tabs)/payments.tsx', /setBankSettings\(null\)/, 'Pagos volvió a conservar datos bancarios anteriores durante una nueva verificación.');
 must('src/app/(tabs)/payments.tsx', /settings\?\.is_active[\s\S]*isValidClabe\(settings\.clabe\)[\s\S]*settings\.bank_name\?\.trim\(\)[\s\S]*settings\.account_holder\?\.trim\(\)/, 'Pagos dejó de exigir banco, titular y CLABE válida antes de mostrar el dato.');
