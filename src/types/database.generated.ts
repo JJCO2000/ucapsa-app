@@ -4736,10 +4736,6 @@ export type Database = {
         Args: { p_award_id: string; p_note?: string }
         Returns: string
       }
-      admin_revoke_ucapsa_training_achievement: {
-        Args: { p_achievement_code: string; p_dog_id: string }
-        Returns: string
-      }
       admin_save_privacy_notice: {
         Args: {
           p_arco_procedure: string
@@ -5333,10 +5329,6 @@ export type Database = {
       }
       ucapsa_program_completion_achievement_code: {
         Args: { p_program_id: string; p_program_level: string }
-        Returns: string
-      }
-      ucapsa_unlock_next_comandos_level: {
-        Args: { p_enrollment_id: string }
         Returns: string
       }
       ucapsa_unlock_next_program_stage: {
