@@ -104,6 +104,12 @@ export default function AdminCustomerScreen() {
             <MenuRow icon="badge" title="Membresia" subtitle="Estado, vigencia, numero y visitas" section="membership" userId={userId} />
             <MenuRow icon="school" title="Clases" subtitle="Programas, nivel, horario y tarjeta" section="classes" userId={userId} />
             <MenuRow icon="fact-check" title="Asistencias" subtitle="Historial real de clases" section="attendance" userId={userId} />
+            <DirectMenuRow
+              icon="emoji-events"
+              title="Logros"
+              subtitle="Reconocimientos y completados"
+              onPress={() => router.push(`/admin/customer-achievements?userId=${encodeURIComponent(userId)}` as never)}
+            />
             <MenuRow icon="payments" title="Pagos" subtitle="Obligaciones, pagos y saldo" section="payments" userId={userId} last />
           </View>
         </>
@@ -114,6 +120,16 @@ export default function AdminCustomerScreen() {
 
 function Metric({ label, value, small = false }: { label: string; value: string; small?: boolean }) {
   return <View style={styles.metric}><Text style={[styles.metricValue, small && styles.metricValueSmall]} numberOfLines={1}>{value}</Text><Text style={styles.metricLabel}>{label}</Text></View>;
+}
+
+function DirectMenuRow({ icon, title, subtitle, onPress }: { icon: keyof typeof MaterialIcons.glyphMap; title: string; subtitle: string; onPress: () => void }) {
+  return (
+    <Pressable style={styles.row} onPress={onPress}>
+      <View style={styles.iconBox}><MaterialIcons name={icon} size={21} color={ucapsaBrand.colors.redDark} /></View>
+      <View style={{ flex: 1 }}><Text style={styles.rowTitle}>{title}</Text><Text style={styles.rowSubtitle}>{subtitle}</Text></View>
+      <MaterialIcons name="chevron-right" size={24} color={ucapsaBrand.colors.redDark} />
+    </Pressable>
+  );
 }
 
 function MenuRow({ icon, title, subtitle, section, userId, last = false }: { icon: keyof typeof MaterialIcons.glyphMap; title: string; subtitle: string; section: string; userId: string; last?: boolean }) {
