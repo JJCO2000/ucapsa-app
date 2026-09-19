@@ -62,16 +62,13 @@ if (!sql.includes("v_attempt.status <> 'draft'")) {
   throw new Error('Deleting an item result must remain limited to draft attempts.');
 }
 
-const structureGuardStart = sql.indexOf('create or replace function public.ucapsa_guard_exam_item_structure_after_publish()');
-if (structureGuardStart < 0) {
-  throw new Error('Exam structure guard definition missing.');
+const structureGuardMatch = sql.match(
+  /create or replace function public\.ucapsa_guard_exam_item_structure_after_publish\(\)[\s\S]*?\n\$\$;/,
+);
+if (!structureGuardMatch) {
+  throw new Error('Exam structure guard definition missing or unterminated.');
 }
-const structureGuardBodyStart = sql.indexOf('as $', structureGuardStart);
-const structureGuardEnd = sql.indexOf('\n$;', structureGuardBodyStart);
-if (structureGuardBodyStart < 0 || structureGuardEnd < 0) {
-  throw new Error('Exam structure guard definition is unterminated.');
-}
-const structureGuard = sql.slice(structureGuardStart, structureGuardEnd + 4);
+const structureGuard = structureGuardMatch[0];
 
 for (const token of [
   "v_exam_status is distinct from 'draft'",
