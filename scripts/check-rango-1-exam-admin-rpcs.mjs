@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 
 const sql = fs.readFileSync('supabase/sql/ucapsa-rango-1-exam-admin-rpcs.sql', 'utf8');
+const freezeSql = fs.readFileSync('supabase/sql/ucapsa-exam-published-structure-freeze.sql', 'utf8');
 
 const requiredRpcs = [
   'admin_create_ucapsa_exam',
@@ -30,6 +31,8 @@ const requiredContracts = [
   "v_season_status not in ('active', 'reopened')",
   "a.status in ('reviewed', 'published', 'voided')",
   "v_status in ('reviewed', 'published', 'voided')",
+  "v_exam_status is distinct from 'draft'",
+  "v_target_exam_status is distinct from 'draft'",
   'new.max_points < v_max_awarded',
   "v_attempt.status in ('reviewed','published')",
   'set is_official=false',
@@ -55,6 +58,20 @@ if (/add\s+column[\s\S]{0,80}\b(total|score_total|total_score)\b/i.test(sql)) {
 
 if (!sql.includes("v_attempt.status <> 'draft'")) {
   throw new Error('Deleting an item result must remain limited to draft attempts.');
+}
+
+if (!/select e\.status into v_exam_status[\s\S]{0,220}v_exam_status is distinct from 'draft'/.test(sql)) {
+  throw new Error('Published/archived exams must freeze item structure at the database boundary.');
+}
+
+for (const token of [
+  "v_exam_status is distinct from 'draft'",
+  "v_target_exam_status is distinct from 'draft'",
+  "a.status in ('reviewed', 'published', 'voided')",
+]) {
+  if (!freezeSql.includes(token)) {
+    throw new Error(`Published exam structure migration lost contract: ${token}`);
+  }
 }
 
 console.log('Rango 1 canonical exam Admin RPCs: PASS');

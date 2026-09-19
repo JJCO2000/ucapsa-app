@@ -545,7 +545,7 @@ export async function getAdminCompetitionExamDetail(examId: string): Promise<Adm
       .from('ucapsa_exam_attempts')
       .select('id')
       .eq('exam_id', cleanId)
-      .in('status', ['reviewed', 'published'])
+      .in('status', ['reviewed', 'published', 'voided'])
       .limit(1),
   ]);
 
@@ -556,7 +556,7 @@ export async function getAdminCompetitionExamDetail(examId: string): Promise<Adm
     exam,
     season: seasons.find((season) => season.id === exam.season_id) ?? null,
     items: itemsResult.data ?? [],
-    structureLocked: (lockedAttemptResult.data?.length ?? 0) > 0,
+    structureLocked: exam.status !== 'draft' || (lockedAttemptResult.data?.length ?? 0) > 0,
   };
 }
 
