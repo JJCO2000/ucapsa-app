@@ -26,6 +26,7 @@ export default function AdminLayout() {
       <Stack.Screen name="customer-class" options={{ title: 'Clase' }} />
       <Stack.Screen name="customer-attendance" options={{ title: 'Asistencias' }} />
       <Stack.Screen name="customer-payments" options={{ title: 'Pagos' }} />
+      <Stack.Screen name="customer-achievements" options={{ title: 'Logros' }} />
       <Stack.Screen name="classes" options={{ title: 'Clases' }} />
       <Stack.Screen name="class-schedules" options={{ title: 'Horarios' }} />
       <Stack.Screen name="class-cancellations" options={{ title: 'Cancelaciones' }} />
