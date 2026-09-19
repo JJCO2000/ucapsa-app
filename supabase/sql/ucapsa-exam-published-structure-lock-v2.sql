@@ -1,5 +1,8 @@
--- Freeze UCAPSA exam structure once an exam leaves draft.
--- Preserves the existing voided-history lock: annulled attempts remain immutable.
+-- UCAPSA Rango 1 — freeze exam structure after publication.
+--
+-- Audited production state before this migration: zero exams/items/attempts/results.
+-- Only draft exams in mutable seasons may change exercises. Reviewed, published
+-- and voided attempt history remains immutable.
 
 create or replace function public.ucapsa_guard_exam_item_structure_after_publish()
 returns trigger
@@ -10,7 +13,9 @@ as $$
 declare
   v_exam_id uuid;
   v_exam_status text;
+  v_season_id uuid;
   v_target_exam_status text;
+  v_target_season_id uuid;
   v_has_locked_attempt boolean;
   v_has_results boolean;
   v_max_awarded numeric;
@@ -21,9 +26,17 @@ begin
     v_exam_id := old.exam_id;
   end if;
 
-  select e.status into v_exam_status
+  select e.status, e.season_id
+    into v_exam_status, v_season_id
   from public.ucapsa_exams e
   where e.id = v_exam_id;
+
+  if not found then
+    raise exception 'Examen UCAPSA no encontrado.'
+      using errcode = '55000';
+  end if;
+
+  perform public.ucapsa_assert_competition_season_mutable(v_season_id);
 
   if v_exam_status is distinct from 'draft' then
     raise exception 'La estructura de un examen publicado o archivado no puede modificarse.'
@@ -31,9 +44,17 @@ begin
   end if;
 
   if tg_op = 'UPDATE' and new.exam_id is distinct from old.exam_id then
-    select e.status into v_target_exam_status
+    select e.status, e.season_id
+      into v_target_exam_status, v_target_season_id
     from public.ucapsa_exams e
     where e.id = new.exam_id;
+
+    if not found then
+      raise exception 'Examen destino UCAPSA no encontrado.'
+        using errcode = '55000';
+    end if;
+
+    perform public.ucapsa_assert_competition_season_mutable(v_target_season_id);
 
     if v_target_exam_status is distinct from 'draft' then
       raise exception 'Un ejercicio solo puede moverse a otro examen en borrador.'
@@ -101,54 +122,8 @@ begin
 end;
 $$;
 
-create or replace function public.admin_add_ucapsa_exam_item(
-  p_exam_id uuid,
-  p_title text,
-  p_max_points numeric,
-  p_description text default null,
-  p_item_number integer default null,
-  p_sort_order integer default null
-)
-returns uuid
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_exam public.ucapsa_exams%rowtype;
-  v_id uuid;
-  v_number integer;
-  v_title text := nullif(btrim(p_title), '');
-begin
-  if not public.is_ucapsa_admin() then raise exception 'Solo Admin puede configurar ejercicios UCAPSA.'; end if;
-  if v_title is null then raise exception 'El titulo del ejercicio es obligatorio.'; end if;
-  if p_max_points is null or p_max_points <= 0 then raise exception 'max_points debe ser mayor que cero.'; end if;
-
-  select * into v_exam from public.ucapsa_exams where id=p_exam_id for update;
-  if not found then raise exception 'Examen UCAPSA no encontrado.'; end if;
-  perform public.ucapsa_assert_competition_season_mutable(v_exam.season_id);
-  if v_exam.status <> 'draft' then raise exception 'Solo un examen en borrador puede cambiar su estructura.'; end if;
-
-  if p_item_number is null then
-    select coalesce(max(item_number),0)+1 into v_number
-    from public.ucapsa_exam_items where exam_id=p_exam_id;
-  else
-    v_number := p_item_number;
-  end if;
-
-  insert into public.ucapsa_exam_items (
-    exam_id,item_number,title,description,max_points,sort_order
-  ) values (
-    p_exam_id,v_number,v_title,nullif(btrim(p_description),''),p_max_points,coalesce(p_sort_order,v_number)
-  ) returning id into v_id;
-
-  perform public.ucapsa_exam_admin_audit(
-    'ucapsa_exam_item.create','ucapsa_exam_item',v_id,
-    jsonb_build_object('exam_id',p_exam_id,'item_number',v_number,'max_points',p_max_points)
-  );
-  return v_id;
-end;
-$$;
+revoke all on function public.ucapsa_guard_exam_item_structure_after_publish()
+  from public, anon, authenticated;
 
 create or replace function public.admin_update_ucapsa_exam_item(
   p_exam_item_id uuid,
@@ -165,7 +140,7 @@ set search_path = public
 as $$
 declare
   v_before public.ucapsa_exam_items%rowtype;
-  v_exam_status text;
+  v_exam public.ucapsa_exams%rowtype;
   v_title text := nullif(btrim(p_title), '');
 begin
   if not public.is_ucapsa_admin() then raise exception 'Solo Admin puede configurar ejercicios UCAPSA.'; end if;
@@ -173,13 +148,25 @@ begin
   if p_item_number is null or p_item_number <= 0 then raise exception 'item_number debe ser mayor que cero.'; end if;
   if p_max_points is null or p_max_points <= 0 then raise exception 'max_points debe ser mayor que cero.'; end if;
 
-  select * into v_before from public.ucapsa_exam_items where id=p_exam_item_id for update;
+  select * into v_before
+  from public.ucapsa_exam_items
+  where id = p_exam_item_id
+  for update;
+
   if not found then raise exception 'Ejercicio UCAPSA no encontrado.'; end if;
 
-  select e.status into v_exam_status
-  from public.ucapsa_exams e
-  where e.id=v_before.exam_id;
-  if v_exam_status is distinct from 'draft' then raise exception 'Solo un examen en borrador puede cambiar su estructura.'; end if;
+  select * into v_exam
+  from public.ucapsa_exams
+  where id = v_before.exam_id
+  for update;
+
+  if not found then raise exception 'Examen UCAPSA no encontrado.'; end if;
+
+  perform public.ucapsa_assert_competition_season_mutable(v_exam.season_id);
+
+  if v_exam.status <> 'draft' then
+    raise exception 'Solo un examen en borrador puede cambiar su estructura.';
+  end if;
 
   update public.ucapsa_exam_items
   set item_number=p_item_number,
@@ -205,18 +192,32 @@ set search_path = public
 as $$
 declare
   v_item public.ucapsa_exam_items%rowtype;
-  v_exam_status text;
+  v_exam public.ucapsa_exams%rowtype;
 begin
   if not public.is_ucapsa_admin() then raise exception 'Solo Admin puede eliminar ejercicios UCAPSA.'; end if;
-  select * into v_item from public.ucapsa_exam_items where id=p_exam_item_id for update;
+
+  select * into v_item
+  from public.ucapsa_exam_items
+  where id = p_exam_item_id
+  for update;
+
   if not found then raise exception 'Ejercicio UCAPSA no encontrado.'; end if;
 
-  select e.status into v_exam_status
-  from public.ucapsa_exams e
-  where e.id=v_item.exam_id;
-  if v_exam_status is distinct from 'draft' then raise exception 'Solo un examen en borrador puede cambiar su estructura.'; end if;
+  select * into v_exam
+  from public.ucapsa_exams
+  where id = v_item.exam_id
+  for update;
+
+  if not found then raise exception 'Examen UCAPSA no encontrado.'; end if;
+
+  perform public.ucapsa_assert_competition_season_mutable(v_exam.season_id);
+
+  if v_exam.status <> 'draft' then
+    raise exception 'Solo un examen en borrador puede cambiar su estructura.';
+  end if;
 
   delete from public.ucapsa_exam_items where id=p_exam_item_id;
+
   perform public.ucapsa_exam_admin_audit(
     'ucapsa_exam_item.delete','ucapsa_exam_item',p_exam_item_id,
     jsonb_build_object('exam_id',v_item.exam_id,'item_number',v_item.item_number,'max_points',v_item.max_points)
@@ -225,3 +226,5 @@ begin
 end;
 $$;
 
+-- admin_add_ucapsa_exam_item is already draft-only + season-mutable in the
+-- canonical Admin RPC definition carried by this release.
