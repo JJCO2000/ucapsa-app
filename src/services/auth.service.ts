@@ -1,3 +1,5 @@
+import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
+
 import { supabase } from '../lib/supabase';
 
 export const AUTH_PASSWORD_MIN_LENGTH = 12;
@@ -46,6 +48,16 @@ export async function signOut() {
   return supabase.auth.signOut();
 }
 
+export async function signOutLocal() {
+  return supabase.auth.signOut({ scope: 'local' });
+}
+
 export async function getCurrentSession() {
   return supabase.auth.getSession();
+}
+
+export function subscribeToAuthState(
+  callback: (event: AuthChangeEvent, session: Session | null) => void,
+) {
+  return supabase.auth.onAuthStateChange(callback);
 }
