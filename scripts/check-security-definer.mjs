@@ -2,6 +2,7 @@ import fs from 'node:fs';
 
 const sql = fs.readFileSync('supabase/sql/ucapsa-security-definer-hardening.sql', 'utf8');
 const anonRpcSql = fs.readFileSync('supabase/sql/ucapsa-anon-rpc-hardening.sql', 'utf8');
+const anonHelperSql = fs.readFileSync('supabase/sql/ucapsa-anon-helper-policy-hardening.sql', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
 
 const required = [
@@ -42,6 +43,50 @@ for (const signature of anonRpcRequired) {
   if (!anonRpcSql.toLowerCase().includes(grant)) {
     throw new Error('Authenticated/service_role access is not explicit: ' + signature);
   }
+}
+
+const anonHelperRequired = [
+  'public.get_my_role()',
+  'public.has_active_membership()',
+  'public.is_admin()',
+  'public.is_feature_enabled(text)',
+  'public.is_super_admin()',
+  'public.is_ucapsa_admin()',
+];
+
+for (const signature of anonHelperRequired) {
+  const revoke = ('revoke all on function ' + signature + '\n  from public, anon;').toLowerCase();
+  const grant = ('grant execute on function ' + signature + '\n  to authenticated, service_role;').toLowerCase();
+  if (!anonHelperSql.toLowerCase().includes(revoke)) {
+    throw new Error('Anonymous SECURITY DEFINER helper is not closed: ' + signature);
+  }
+  if (!anonHelperSql.toLowerCase().includes(grant)) {
+    throw new Error('Authenticated/service_role helper access is not explicit: ' + signature);
+  }
+}
+
+for (const policy of [
+  'achievement_definitions_anon_select_active',
+  'announcements_anon_select_public',
+  'events_anon_select_public',
+  'privacy_notices_anon_read_published',
+  'achievement_definitions_authenticated_select',
+  'announcements_authenticated_select_by_audience',
+  'events_authenticated_select_by_audience',
+  'privacy_notices_authenticated_read_published_or_superadmin',
+]) {
+  if (!anonHelperSql.includes(`"${policy}"`)) {
+    throw new Error('Anon/authenticated RLS split missing policy: ' + policy);
+  }
+}
+
+const policyStatements = anonHelperSql.match(/create\s+policy[\s\S]*?;/gi) ?? [];
+const anonPolicyStatements = policyStatements
+  .filter((statement) => /\bto\s+anon\b/i.test(statement))
+  .join('\n');
+
+if (/\b(?:get_my_role|has_active_membership|is_admin|is_feature_enabled|is_super_admin|is_ucapsa_admin)\s*\(/i.test(anonPolicyStatements)) {
+  throw new Error('Anonymous RLS policy still calls a privileged helper.');
 }
 
 if (!pkg.includes('"check:security-definer"')) {
