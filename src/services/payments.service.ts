@@ -291,7 +291,7 @@ export async function updatePaymentSettings(input: UpdatePaymentSettingsInput): 
   const clabe = normalizedClabe || null;
   const clipUrl = input.clipUrl?.trim() || null;
   if (clabe && !isValidClabe(clabe)) throw new Error('La CLABE debe tener exactamente 18 digitos.');
-  if (clipUrl && !/^https?:\/\//i.test(clipUrl)) throw new Error('El enlace de pago debe comenzar con http:// o https://.');
+  if (clipUrl && !/^https:\/\//i.test(clipUrl)) throw new Error('El enlace de pago debe usar https://.');
 
   const payload: Record<string, unknown> = {};
   if ('bankName' in input) payload.bank_name = input.bankName?.trim() || null;
