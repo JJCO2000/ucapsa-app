@@ -20,7 +20,11 @@ const hub = read('src/app/admin/competition.tsx');
 const seasons = read('src/app/admin/competition-seasons.tsx');
 const detail = read('src/app/admin/competition-season-detail.tsx');
 const form = read('src/app/admin/competition-season-form.tsx');
-const service = read('src/services/ucapsa-competition.service.ts');
+const service = [
+  read('src/services/admin-competition-core.service.ts'),
+  read('src/services/admin-competition-exams.service.ts'),
+  read('src/services/admin-competition-read.service.ts'),
+].join('\n');
 
 if (!/\/admin\/competition/.test(home)) failures.push('Admin Home perdió la entrada única a Competencia UCAPSA.');
 if (!/\/admin\/competition/.test(more)) failures.push('Admin Más perdió la entrada a Competencia UCAPSA.');

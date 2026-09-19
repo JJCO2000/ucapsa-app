@@ -19,7 +19,7 @@ const list = read('src/app/admin/competition-exams.tsx');
 const detail = read('src/app/admin/competition-exam-detail.tsx');
 const form = read('src/app/admin/competition-exam-form.tsx');
 const itemForm = read('src/app/admin/competition-exam-item-form.tsx');
-const service = read('src/services/ucapsa-competition.service.ts');
+const service = read('src/services/admin-competition-exams.service.ts');
 const pkg = read('package.json');
 
 if (!/title="Exámenes"[\s\S]{0,260}\/admin\/competition-exams/.test(hub)) {

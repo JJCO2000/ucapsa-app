@@ -17,7 +17,7 @@ const hub = read('src/app/admin/competition.tsx');
 const layout = read('src/app/admin/_layout.tsx');
 const overview = read('src/app/admin/competition-awards.tsx');
 const form = read('src/app/admin/competition-award-form.tsx');
-const service = read('src/services/ucapsa-competition.service.ts');
+const service = read('src/services/admin-competition-core.service.ts');
 const awardsStart = service.indexOf('export type CompetitionAwardDefinition');
 const awardsEnd = service.indexOf('export type CompetitionExam');
 const awardService = awardsStart >= 0

@@ -17,7 +17,7 @@ const hub = read('src/app/admin/competition.tsx');
 const layout = read('src/app/admin/_layout.tsx');
 const overview = read('src/app/admin/competition-constancy.tsx');
 const detail = read('src/app/admin/competition-constancy-detail.tsx');
-const service = read('src/services/ucapsa-competition.service.ts');
+const service = read('src/services/admin-competition-read.service.ts');
 const pkg = read('package.json');
 
 for (const route of ['competition-constancy', 'competition-constancy-detail']) {
