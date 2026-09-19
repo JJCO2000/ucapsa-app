@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 
 const sql = fs.readFileSync('supabase/sql/ucapsa-rango-1-ranking-ranges.sql', 'utf8');
+const visibilitySql = fs.readFileSync('supabase/sql/ucapsa-rango-1-leaderboard-visibility-hardening.sql', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
 
 const required = [
@@ -83,6 +84,21 @@ if (/owner_user_id/.test(leaderboardSql)) {
 
 if (/create\s+table\s+public\.(ucapsa_competition_ranges|ucapsa_competition_leaderboard)/i.test(sql)) {
   throw new Error('Rango/Ranking must stay derived views, not editable tables.');
+}
+
+for (const token of [
+  'create or replace function public.get_ucapsa_competition_leaderboard',
+  "and l.season_status <> 'draft'",
+  'security definer',
+  'grant execute on function public.get_ucapsa_competition_leaderboard(uuid)',
+]) {
+  if (!visibilitySql.includes(token)) {
+    throw new Error('Client leaderboard visibility hardening missing: ' + token);
+  }
+}
+
+if (/owner_user_id/.test(visibilitySql)) {
+  throw new Error('Client leaderboard hardening must not expose owner_user_id.');
 }
 
 if (/podium_medal|create\s+table.*podium/i.test(sql)) {
