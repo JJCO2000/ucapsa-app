@@ -125,6 +125,55 @@ $$;
 revoke all on function public.ucapsa_guard_exam_item_structure_after_publish()
   from public, anon, authenticated;
 
+create or replace function public.admin_add_ucapsa_exam_item(
+  p_exam_id uuid,
+  p_title text,
+  p_max_points numeric,
+  p_description text default null,
+  p_item_number integer default null,
+  p_sort_order integer default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_exam public.ucapsa_exams%rowtype;
+  v_id uuid;
+  v_number integer;
+  v_title text := nullif(btrim(p_title), '');
+begin
+  if not public.is_ucapsa_admin() then raise exception 'Solo Admin puede configurar ejercicios UCAPSA.'; end if;
+  if v_title is null then raise exception 'El titulo del ejercicio es obligatorio.'; end if;
+  if p_max_points is null or p_max_points <= 0 then raise exception 'max_points debe ser mayor que cero.'; end if;
+
+  select * into v_exam from public.ucapsa_exams where id=p_exam_id for update;
+  if not found then raise exception 'Examen UCAPSA no encontrado.'; end if;
+  perform public.ucapsa_assert_competition_season_mutable(v_exam.season_id);
+  if v_exam.status <> 'draft' then raise exception 'Solo un examen en borrador puede cambiar su estructura.'; end if;
+
+  if p_item_number is null then
+    select coalesce(max(item_number),0)+1 into v_number
+    from public.ucapsa_exam_items where exam_id=p_exam_id;
+  else
+    v_number := p_item_number;
+  end if;
+
+  insert into public.ucapsa_exam_items (
+    exam_id,item_number,title,description,max_points,sort_order
+  ) values (
+    p_exam_id,v_number,v_title,nullif(btrim(p_description),''),p_max_points,coalesce(p_sort_order,v_number)
+  ) returning id into v_id;
+
+  perform public.ucapsa_exam_admin_audit(
+    'ucapsa_exam_item.create','ucapsa_exam_item',v_id,
+    jsonb_build_object('exam_id',p_exam_id,'item_number',v_number,'max_points',p_max_points)
+  );
+  return v_id;
+end;
+$$;
+
 create or replace function public.admin_update_ucapsa_exam_item(
   p_exam_item_id uuid,
   p_item_number integer,
@@ -225,6 +274,3 @@ begin
   return p_exam_item_id;
 end;
 $$;
-
--- admin_add_ucapsa_exam_item is already draft-only + season-mutable in the
--- canonical Admin RPC definition carried by this release.
