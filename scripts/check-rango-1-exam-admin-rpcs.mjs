@@ -63,9 +63,13 @@ if (!sql.includes("v_attempt.status <> 'draft'")) {
 }
 
 const structureGuardStart = sql.indexOf('create or replace function public.ucapsa_guard_exam_item_structure_after_publish()');
-const structureGuardEnd = sql.indexOf('\n$;', structureGuardStart);
-if (structureGuardStart < 0 || structureGuardEnd < 0) {
-  throw new Error('Exam structure guard definition missing or unterminated.');
+if (structureGuardStart < 0) {
+  throw new Error('Exam structure guard definition missing.');
+}
+const structureGuardBodyStart = sql.indexOf('as $', structureGuardStart);
+const structureGuardEnd = sql.indexOf('\n$;', structureGuardBodyStart);
+if (structureGuardBodyStart < 0 || structureGuardEnd < 0) {
+  throw new Error('Exam structure guard definition is unterminated.');
 }
 const structureGuard = sql.slice(structureGuardStart, structureGuardEnd + 4);
 
