@@ -247,11 +247,55 @@ set search_path = public
 as $$
 declare
   v_exam_id uuid;
+  v_exam_status text;
+  v_season_id uuid;
+  v_target_exam_status text;
+  v_target_season_id uuid;
   v_has_locked_attempt boolean;
   v_has_results boolean;
   v_max_awarded numeric;
 begin
-  if tg_op = 'INSERT' then v_exam_id := new.exam_id; else v_exam_id := old.exam_id; end if;
+  if tg_op = 'INSERT' then
+    v_exam_id := new.exam_id;
+  else
+    v_exam_id := old.exam_id;
+  end if;
+
+  select e.status, e.season_id
+    into v_exam_status, v_season_id
+  from public.ucapsa_exams e
+  where e.id = v_exam_id;
+
+  if not found then
+    raise exception 'Examen UCAPSA no encontrado.'
+      using errcode = '55000';
+  end if;
+
+  perform public.ucapsa_assert_competition_season_mutable(v_season_id);
+
+  if v_exam_status is distinct from 'draft' then
+    raise exception 'La estructura de un examen publicado o archivado no puede modificarse.'
+      using errcode = '55000';
+  end if;
+
+  if tg_op = 'UPDATE' and new.exam_id is distinct from old.exam_id then
+    select e.status, e.season_id
+      into v_target_exam_status, v_target_season_id
+    from public.ucapsa_exams e
+    where e.id = new.exam_id;
+
+    if not found then
+      raise exception 'Examen destino UCAPSA no encontrado.'
+        using errcode = '55000';
+    end if;
+
+    perform public.ucapsa_assert_competition_season_mutable(v_target_season_id);
+
+    if v_target_exam_status is distinct from 'draft' then
+      raise exception 'Un ejercicio solo puede moverse a otro examen en borrador.'
+        using errcode = '55000';
+    end if;
+  end if;
 
   select exists (
     select 1
@@ -261,12 +305,12 @@ begin
   ) into v_has_locked_attempt;
 
   if tg_op = 'INSERT' and v_has_locked_attempt then
-    raise exception 'No se pueden agregar ejercicios a un examen con intentos revisados/publicados.'
+    raise exception 'No se pueden agregar ejercicios a un examen con intentos revisados/publicados/anulados.'
       using errcode = '55000';
   end if;
 
   if tg_op = 'DELETE' and v_has_locked_attempt then
-    raise exception 'No se pueden eliminar ejercicios de un examen con intentos revisados/publicados.'
+    raise exception 'No se pueden eliminar ejercicios de un examen con intentos revisados/publicados/anulados.'
       using errcode = '55000';
   end if;
 
@@ -302,7 +346,7 @@ begin
         where a.exam_id = new.exam_id
           and a.status in ('reviewed', 'published', 'voided')
       ) then
-        raise exception 'No se puede cambiar la estructura o puntaje maximo de un examen con intentos revisados/publicados.'
+        raise exception 'No se puede cambiar la estructura o puntaje maximo de un examen con intentos revisados/publicados/anulados.'
           using errcode = '55000';
       end if;
     end if;
