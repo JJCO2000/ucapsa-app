@@ -42,7 +42,7 @@ export default function AdminMoreTab() {
         <>
           <Text style={styles.sectionTitle}>Sistema · solo superadmin</Text>
           <View style={styles.card}>
-            <MenuRow icon="manage-accounts" title="Usuarios y permisos" subtitle="Administradores, roles y accesos" onPress={() => router.push('/admin/users' as never)} />
+            <MenuRow icon="manage-accounts" title="Usuarios" subtitle="Clientes, socios y cuentas administrativas" onPress={() => router.push('/admin/users' as never)} />
             <MenuRow icon="tune" title="Configuración administrativa" subtitle="Herramientas de control menos frecuentes" onPress={() => router.push('/admin/tools-administration' as never)} last />
           </View>
         </>
