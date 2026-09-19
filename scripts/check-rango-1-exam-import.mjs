@@ -71,6 +71,14 @@ if (/delete\s+from\s+public\.ucapsa_exam_attempts/i.test(revertHardening)) {
   throw new Error('Reverting an import must void attempts, not erase their audit trail.');
 }
 
+if (/delete\s+from\s+public\.ucapsa_exam_attempts/i.test(sql)) {
+  throw new Error('Base exam import SQL must not erase canonical attempts during revert.');
+}
+
+if (!sql.includes('admin_void_ucapsa_exam_attempt') || !sql.includes("'voided_attempts'")) {
+  throw new Error('Base exam import SQL drifted away from the canonical void-on-revert flow.');
+}
+
 for (const token of [
   'select count(*) into v_match_count',
   'if v_match_count=1 then',
