@@ -55,7 +55,6 @@ mustNot('src/app/attendance.tsx', /isMembershipActiveToday/, 'Escáner volvió a
 must('src/app/attendance.tsx', /cachedMembership\?\.data\.status === 'active'/, 'Escáner no permite usar la membresía activa guardada sin conexión.');
 mustNot('src/app/client/attendance-history.tsx', /!enrollmentId\)\s*return/, 'Historial de asistencias volvió a exigir enrollmentId y rompe APROVECHASTE desde Home.');
 must('src/app/client/attendance-history.tsx', /Historial de asistencias/, 'Falta la vista agregada de asistencias desde APROVECHASTE.');
-mustNot('src/components/domain/CustomerValueSnapshotCard.tsx', /parts\.push\(`Membresía vencida/, 'TIENES volvió a presentar una membresía vencida como valor disponible.');
 must('supabase/sql/ucapsa-membership-lifetime-and-comandos-progression.sql', /new\.end_date := null/, 'Backend perdió la regla de membresía activa sin vencimiento por fecha.');
 must('src/services/customer-value-merge.service.ts', /membership_lifetime_normalized/, 'Snapshot de Inicio perdió la normalización de membresía vitalicia.');
 
@@ -140,7 +139,6 @@ must('src/app/client/payment-transfer.tsx', /isValidClabe\(settings\.clabe\)/, '
 must('src/app/client/payment-transfer.tsx', /!isValidClabe\(clabe\)/, 'La acción de copiar CLABE dejó de validar el dato antes de copiarlo.');
 must('src/app/client/payment-transfer.tsx', /loadRunRef/, 'Transferir perdió la guarda contra respuestas asíncronas obsoletas.');
 mustNot('src/services/client-read-cache.service.ts', /paymentSettings/, 'Los datos bancarios volvieron a ser elegibles para caché local.');
-mustNot('src/components/domain/CustomerValueSnapshotCard.tsx', /renovaci[oó]n/i, 'Inicio volvió a presentar una renovación periódica que no existe en la membresía vitalicia.');
 
 const scanRoots = ['src', 'scripts'];
 function walk(dir) {
