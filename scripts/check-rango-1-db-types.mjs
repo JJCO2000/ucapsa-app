@@ -50,7 +50,6 @@ const required = [
   'admin_create_ucapsa_exam_import_batch:',
   'admin_grant_ucapsa_dog_award:',
   'admin_grant_ucapsa_training_achievement:',
-  'admin_revoke_ucapsa_training_achievement:',
   'client_event_id: string | null',
   'dog_id: string | null',
   'register_member_visit_from_qr:',
@@ -60,6 +59,17 @@ const required = [
 for (const token of required) {
   if (!generated.includes(token)) {
     throw new Error(`database.generated.ts is missing deployed Rango 1 contract: ${token}`);
+  }
+}
+
+const retired = [
+  'admin_revoke_ucapsa_training_achievement:',
+  'ucapsa_unlock_next_comandos_level:',
+];
+
+for (const token of retired) {
+  if (generated.includes(token)) {
+    throw new Error(`database.generated.ts contains retired production RPC: ${token}`);
   }
 }
 
