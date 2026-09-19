@@ -237,6 +237,13 @@ export default function AccountSettingsScreen() {
             premium={premium}
             onPress={() => openSection('notifications')}
           />
+          <SettingsButton
+            icon="policy"
+            title="Aviso de privacidad"
+            subtitle="Consulta cómo UCAPSA trata y protege tus datos."
+            premium={premium}
+            onPress={() => router.push('/privacy' as never)}
+          />
           {!isAdmin ? (
             <SettingsButton
               icon="delete-outline"
