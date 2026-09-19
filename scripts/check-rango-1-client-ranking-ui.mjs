@@ -16,7 +16,7 @@ function read(rel) {
 const layout = read('src/app/client/_layout.tsx');
 const summary = read('src/app/client/competition.tsx');
 const ranking = read('src/app/client/competition-ranking.tsx');
-const service = read('src/services/client-competition.service.ts');
+const service = read('src/services/client-competition-ranking.service.ts');
 const warm = read('src/services/client-offline-sync.service.ts');
 const pkg = read('package.json');
 
