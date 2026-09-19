@@ -97,8 +97,17 @@ registerSafeRawDeleteContract(
     },
     {
       file: 'supabase/sql/ucapsa-rango-1-exam-derivations.sql',
-      pattern: /if\s+tg_op\s*=\s*'DELETE'\s+and\s+v_has_locked_attempt[\s\S]{0,220}No se pueden eliminar ejercicios/i,
-      label: 'Eliminar ejercicios dejó de bloquearse cuando existe historia reviewed/published.',
+      pattern: /v_exam_status\s+is\s+distinct\s+from\s+'draft'[\s\S]{0,500}a\.status\s+in\s*\('reviewed',\s*'published',\s*'voided'\)/i,
+      label: 'Estructura de examen dejó de congelarse al publicar o perdió protección de intentos voided.',
+    },
+    {
+      pattern: /admin_delete_ucapsa_exam_item[\s\S]{0,1800}v_exam_status\s+is\s+distinct\s+from\s+'draft'[\s\S]{0,500}delete\s+from\s+public\.ucapsa_exam_items/i,
+      label: 'Eliminar ejercicios dejó de estar limitado a exámenes draft.',
+    },
+    {
+      file: 'supabase/sql/ucapsa-rango-1-exam-derivations.sql',
+      pattern: /if\s+tg_op\s*=\s*'DELETE'\s+and\s+v_has_locked_attempt[\s\S]{0,260}No se pueden eliminar ejercicios/i,
+      label: 'Eliminar ejercicios dejó de bloquearse cuando existe historia reviewed/published/voided.',
     },
     {
       pattern: /if\s+v_attempt\.status\s*<>\s*'draft'[\s\S]{0,260}delete\s+from\s+public\.ucapsa_exam_item_results/i,
