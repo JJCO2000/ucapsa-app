@@ -24,7 +24,8 @@ if (/create\s+table/i.test(sql)) {
   throw new Error('Training achievements must reuse user_achievements; do not create a second medal table.');
 }
 
-if (/admin_revoke_ucapsa_training_achievement/i.test(sql)) {
+if (/create\s+or\s+replace\s+function\s+public\.admin_revoke_ucapsa_training_achievement/i.test(sql) ||
+    /grant\s+execute\s+on\s+function\s+public\.admin_revoke_ucapsa_training_achievement/i.test(sql)) {
   throw new Error('Training achievements must not expose a destructive revoke RPC.');
 }
 
