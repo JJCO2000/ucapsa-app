@@ -3,7 +3,8 @@ import fs from 'node:fs';
 const sql = fs.readFileSync('supabase/sql/ucapsa-payment-void-foundation.sql', 'utf8');
 const workflow = fs.readFileSync('supabase/sql/ucapsa-payment-void-workflow.sql', 'utf8');
 const paymentLinkHardening = fs.readFileSync('supabase/sql/ucapsa-payment-link-https-hardening.sql', 'utf8');
-const service = fs.readFileSync('src/services/payments.service.ts', 'utf8');
+const adminService = fs.readFileSync('src/services/payments-admin.service.ts', 'utf8');
+const settingsService = fs.readFileSync('src/services/payment-settings.service.ts', 'utf8');
 const adminUi = fs.readFileSync('src/app/admin/customer-payments.tsx', 'utf8');
 const transferUi = fs.readFileSync('src/app/client/payment-transfer.tsx', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
@@ -40,12 +41,12 @@ for (const token of [
   "is('voided_at', null)",
   'voidCustomerPayment',
 ]) {
-  if (!service.includes(token)) {
-    throw new Error('Payment service void contract missing: ' + token);
+  if (!adminService.includes(token)) {
+    throw new Error('Payment admin service void contract missing: ' + token);
   }
 }
 
-if (/\.from\(['"]payments['"]\)\.delete\(\)/.test(service) || /deleteCustomerPayment|deleteMembershipPayment/.test(service)) {
+if (/\.from\(['"]payments['"]\)\.delete\(\)/.test(adminService) || /deleteCustomerPayment|deleteMembershipPayment/.test(adminService)) {
   throw new Error('Payment service returned to physical deletion.');
 }
 
@@ -54,7 +55,7 @@ for (const token of [
   "url.protocol === 'https:'",
   'El enlace de pago debe usar HTTPS',
 ]) {
-  if (!service.includes(token)) {
+  if (!settingsService.includes(token)) {
     throw new Error('Payment link transport hardening missing: ' + token);
   }
 }
