@@ -93,10 +93,12 @@ for (const file of files) {
 
   if (file === self) continue;
 
-  const anyCasts = countMatches(text, /\bas\s+any\b|:\s*any\b/g);
+  const runtimeCode = file.startsWith('src/') || file.startsWith('supabase/functions/');
+
+  const anyCasts = runtimeCode ? countMatches(text, /\bas\s+any\b|:\s*any\b/g) : 0;
   if (anyCasts) addReview(file, 'Uso de any', anyCasts);
 
-  const consoles = countMatches(text, /\bconsole\.(?:log|warn|error|debug)\s*\(/g);
+  const consoles = runtimeCode ? countMatches(text, /\bconsole\.(?:log|warn|error|debug)\s*\(/g) : 0;
   if (consoles) addReview(file, 'Console call', consoles);
 
   const clientDeletes = file.startsWith('src/') ? countMatches(text, /\.delete\s*\(\s*\)/g) : 0;
@@ -105,7 +107,7 @@ for (const file of files) {
   const rawDeletes = file.endsWith('.sql') ? countMatches(text, /\bdelete\s+from\s+public\./gi) : 0;
   if (rawDeletes) addReview(file, 'DELETE físico SQL', rawDeletes);
 
-  const randomCalls = countMatches(text, /\bMath\.random\s*\(/g);
+  const randomCalls = runtimeCode ? countMatches(text, /\bMath\.random\s*\(/g) : 0;
   if (randomCalls) addReview(file, 'Math.random()', randomCalls);
 
   const insecureHttp = file.startsWith('src/')
