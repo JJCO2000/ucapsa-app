@@ -110,8 +110,11 @@ for (const file of files) {
   const randomCalls = runtimeCode ? countMatches(text, /\bMath\.random\s*\(/g) : 0;
   if (randomCalls) addReview(file, 'Math.random()', randomCalls);
 
+  const httpScanText = text
+    // OOXML relationship namespaces are identifiers, not outbound network URLs.
+    .replaceAll('http://schemas.openxmlformats.org/', 'urn:ooxml:');
   const insecureHttp = file.startsWith('src/')
-    ? countMatches(text, /http:\/\/(?!localhost|127\.0\.0\.1)/g)
+    ? countMatches(httpScanText, /http:\/\/(?!localhost|127\.0\.0\.1)/g)
     : 0;
   if (insecureHttp) addReview(file, 'URL http no local', insecureHttp);
 }

@@ -9,7 +9,7 @@ import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
-import { getMyPaymentOverview, getPaymentSettings, isValidClabe, normalizeClabe } from '../../services/payments.service';
+import { getMyPaymentOverview, getPaymentSettings, isValidClabe, isValidPaymentLink, normalizeClabe } from '../../services/payments.service';
 import type { PaymentObligationWithBalance, PaymentSettings } from '../../types/app.types';
 import { DEFAULT_READ_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
 import { money, paymentDateLabel } from '../../utils/paymentPresentation';
@@ -95,6 +95,7 @@ export default function PaymentTransferScreen() {
   if (isAdmin) return <Redirect href="/admin-payments" />;
 
   const bankReady = Boolean(settings?.is_active && isValidClabe(settings.clabe) && settings.bank_name && settings.account_holder);
+  const paymentLink = settings?.clip_url && isValidPaymentLink(settings.clip_url) ? settings.clip_url : null;
 
   return (
     <KeyboardAwareScreen style={{ backgroundColor: format.background }} contentContainerStyle={premium ? styles.premiumContent : undefined} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={format.accent} />}>
@@ -131,7 +132,7 @@ export default function PaymentTransferScreen() {
             <MaterialIcons name="chat" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
             <Text style={[styles.secondaryText, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Enviar comprobante</Text>
           </Pressable>
-          {settings?.clip_url ? <Pressable accessibilityRole="button" accessibilityLabel="Abrir enlace de pago" onPress={() => void Linking.openURL(settings.clip_url as string).catch(() => Alert.alert('No se pudo abrir', 'Revisa el enlace de pago con UCAPSA.'))}><Text style={[styles.linkCenter, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Abrir enlace de pago</Text></Pressable> : null}
+          {paymentLink ? <Pressable accessibilityRole="button" accessibilityLabel="Abrir enlace de pago" onPress={() => void Linking.openURL(paymentLink).catch(() => Alert.alert('No se pudo abrir', 'Revisa el enlace de pago con UCAPSA.'))}><Text style={[styles.linkCenter, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Abrir enlace de pago</Text></Pressable> : null}
         </>
       ) : null}
 
