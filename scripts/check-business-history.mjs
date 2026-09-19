@@ -3,6 +3,7 @@ import fs from 'node:fs';
 const sql = fs.readFileSync('supabase/sql/ucapsa-business-history-no-delete.sql', 'utf8');
 const progressionSql = fs.readFileSync('supabase/sql/ucapsa-program-progression-history-preservation.sql', 'utf8');
 const achievementHistorySql = fs.readFileSync('supabase/sql/ucapsa-training-achievement-history-hardening.sql', 'utf8');
+const attendanceVisitAuditSql = fs.readFileSync('supabase/sql/ucapsa-attendance-visit-delete-audit.sql', 'utf8');
 const trainingAchievementSql = fs.readFileSync('supabase/sql/ucapsa-rango-1-training-achievements.sql', 'utf8');
 const coursePathSql = fs.readFileSync('supabase/sql/ucapsa-course-path-and-points-access.sql', 'utf8');
 const legacyProgressionSql = fs.readFileSync('supabase/sql/ucapsa-membership-lifetime-and-comandos-progression.sql', 'utf8');
@@ -108,6 +109,34 @@ for (const token of [
 
 if (!/drop function if exists public\.ucapsa_unlock_next_comandos_level\(uuid\)/i.test(progressionSql)) {
   throw new Error('Legacy Comandos-only progression helper is not retired.');
+}
+
+for (const token of [
+  'create or replace function public.delete_program_attendance_admin',
+  'create or replace function public.delete_member_visit_admin',
+  "'program_attendance.delete'",
+  "'member_visit.delete'",
+  'insert into public.admin_audit_logs',
+  'v_attendance public.program_attendances%rowtype',
+  'v_visit public.member_visits%rowtype',
+]) {
+  if (!attendanceVisitAuditSql.toLowerCase().includes(token.toLowerCase())) {
+    throw new Error('Attendance/visit correction audit contract missing: ' + token);
+  }
+}
+
+for (const [name, startToken, actionToken, deleteToken] of [
+  ['program attendance', 'create or replace function public.delete_program_attendance_admin', "'program_attendance.delete'", 'delete from public.program_attendances'],
+  ['member visit', 'create or replace function public.delete_member_visit_admin', "'member_visit.delete'", 'delete from public.member_visits'],
+]) {
+  const start = attendanceVisitAuditSql.toLowerCase().indexOf(startToken);
+  const nextFunction = attendanceVisitAuditSql.toLowerCase().indexOf('create or replace function public.', start + startToken.length);
+  const body = attendanceVisitAuditSql.slice(start, nextFunction >= 0 ? nextFunction : undefined).toLowerCase();
+  const auditAt = body.indexOf(actionToken);
+  const deleteAt = body.indexOf(deleteToken);
+  if (start < 0 || auditAt < 0 || deleteAt < 0 || auditAt > deleteAt) {
+    throw new Error(name + ' correction must snapshot audit evidence before physical delete.');
+  }
 }
 
 if (!pkg.includes('"check:business-history"')) {
