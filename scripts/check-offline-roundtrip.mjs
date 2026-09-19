@@ -46,6 +46,8 @@ must('src/services/value-exposure-outbox.service.ts', /AsyncStorage/, 'Exposici�
 must('src/services/value-exposure-outbox.service.ts', /p_occurred_at: operation\.occurredAt/, 'Exposición de valor dejó de conservar la hora original.');
 must('src/services/value-exposure-outbox.service.ts', /recordValueExposureDurably/, 'Exposición de valor dejó de persistir antes de intentar red.');
 must('src/services/value-exposure-outbox.service.ts', /flushPendingValueExposures/, 'Exposición de valor perdió retry de la cola.');
+must('src/services/value-exposure-outbox.service.ts', /networkFailure: isLikelyNetworkError\(error\)/, 'Exposición de valor dejó de clasificar fallos de red.');
+must('src/services/value-exposure-outbox.service.ts', /if \(result\.networkFailure\) break/, 'Una exposición fallida volvió a bloquear todas las posteriores aunque hubiera red.');
 
 
 // Identidad offline: un solo generador determinista, válido para UUID de PostgreSQL.
@@ -67,6 +69,8 @@ must('src/services/attendance-outbox.service.ts', /p_client_event_id/, 'La cola 
 must('src/services/attendance-outbox.service.ts', /p_captured_at/, 'La cola QR dejó de conservar la hora de captura.');
 must('src/services/attendance-outbox.service.ts', /outboxMutationChains/, 'La cola QR perdió serialización de mutaciones.');
 must('src/services/attendance-outbox.service.ts', /syncInFlightByOperation/, 'La cola QR perdió deduplicación de sincronizaciones simultáneas.');
+must('src/services/attendance-outbox.service.ts', /networkFailure = isLikelyNetworkError\(error\)/, 'La cola QR dejó de distinguir caída de red de error específico de una operación.');
+must('src/services/attendance-outbox.service.ts', /result\.status === 'pending' && result\.networkFailure[\s\S]{0,80}break/, 'La cola QR volvió a bloquear el lote ante cualquier error pendiente.');
 must('src/app/attendance.tsx', /queueClassAttendance/, 'El escáner de clases dejó de encolar offline.');
 must('src/app/attendance.tsx', /queueMemberVisit/, 'El escáner de socio dejó de encolar offline.');
 must('supabase/sql/ucapsa-offline-attendance-outbox.sql', /program_attendances_enrollment_client_event_unique_idx/, 'Backend perdió idempotencia de asistencia por client_event_id.');
