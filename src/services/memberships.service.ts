@@ -34,7 +34,7 @@ export type UpdateMembershipDetailsInput = {
 
 export type MembershipEffectiveStatus = MembershipStatus | 'scheduled';
 
-type MembershipValidityInput = Pick<Membership, 'status' | 'start_date' | 'end_date'>;
+type MembershipValidityInput = Pick<Membership, 'status' | 'start_date'>;
 
 function localDateKey(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -54,10 +54,11 @@ export function getMembershipEffectiveStatus(
   if (membership.status !== 'active') return membership.status;
 
   const start = normalizedDateKey(membership.start_date);
-  const end = normalizedDateKey(membership.end_date);
 
+  // Active memberships are lifetime memberships. Historical end_date values are
+  // deliberately not part of effective-status calculation; PostgreSQL also
+  // normalizes active rows to end_date = null.
   if (start && todayKey < start) return 'scheduled';
-  if (end && todayKey > end) return 'expired';
   return 'active';
 }
 
@@ -173,8 +174,9 @@ export function formatDate(value: string | null | undefined) {
   });
 }
 
+/** @deprecated Active memberships do not expire by date. Kept for legacy status compatibility only. */
 export function isMembershipDateExpired(membership: Membership | null | undefined) {
-  return getMembershipEffectiveStatus(membership) === 'expired';
+  return membership?.status === 'expired';
 }
 
 function dateKeyToIso(value: string | null | undefined) {
