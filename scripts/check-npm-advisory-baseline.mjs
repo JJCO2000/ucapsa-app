@@ -1,10 +1,10 @@
 import { spawnSync } from 'node:child_process';
 
 const allowedAdvisories = new Set([
-  'GHSA-w3rx-r6r6-pgpr', // image-size: ICNS parser DoS; no published patched release yet
-  'GHSA-5p2g-fcmc-qvqq', // image-size: JXL/HEIF parser DoS; no published patched release yet
-  'GHSA-vcc3-ghjq-m6fr', // decode-uri-component DoS; safe remediation depends on upstream chain
-  'GHSA-w5hq-g745-h8pq', // uuid bounds check; transitive build-tool chain
+  'GHSA-W3RX-R6R6-PGPR', // image-size: ICNS parser DoS; no published patched release yet
+  'GHSA-5P2G-FCMC-QVQQ', // image-size: JXL/HEIF parser DoS; no published patched release yet
+  'GHSA-VCC3-GHJQ-M6FR', // decode-uri-component DoS; safe remediation depends on upstream chain
+  'GHSA-W5HQ-G745-H8PQ', // uuid bounds check; transitive build-tool chain
 ]);
 
 const baselineMaximums = {
