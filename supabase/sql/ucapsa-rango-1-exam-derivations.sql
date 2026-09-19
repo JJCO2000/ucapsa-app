@@ -248,7 +248,9 @@ as $$
 declare
   v_exam_id uuid;
   v_exam_status text;
+  v_season_id uuid;
   v_target_exam_status text;
+  v_target_season_id uuid;
   v_has_locked_attempt boolean;
   v_has_results boolean;
   v_max_awarded numeric;
@@ -259,9 +261,17 @@ begin
     v_exam_id := old.exam_id;
   end if;
 
-  select e.status into v_exam_status
+  select e.status, e.season_id
+    into v_exam_status, v_season_id
   from public.ucapsa_exams e
   where e.id = v_exam_id;
+
+  if not found then
+    raise exception 'Examen UCAPSA no encontrado.'
+      using errcode = '55000';
+  end if;
+
+  perform public.ucapsa_assert_competition_season_mutable(v_season_id);
 
   if v_exam_status is distinct from 'draft' then
     raise exception 'La estructura de un examen publicado o archivado no puede modificarse.'
@@ -269,9 +279,17 @@ begin
   end if;
 
   if tg_op = 'UPDATE' and new.exam_id is distinct from old.exam_id then
-    select e.status into v_target_exam_status
+    select e.status, e.season_id
+      into v_target_exam_status, v_target_season_id
     from public.ucapsa_exams e
     where e.id = new.exam_id;
+
+    if not found then
+      raise exception 'Examen destino UCAPSA no encontrado.'
+        using errcode = '55000';
+    end if;
+
+    perform public.ucapsa_assert_competition_season_mutable(v_target_season_id);
 
     if v_target_exam_status is distinct from 'draft' then
       raise exception 'Un ejercicio solo puede moverse a otro examen en borrador.'
