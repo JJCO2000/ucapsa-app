@@ -139,7 +139,7 @@ export default function AdminCompetitionExamItemFormScreen() {
           {locked ? (
             <View style={styles.lockCard}>
               <MaterialIcons name="lock" size={19} color={ucapsaBrand.colors.redDark} />
-              <Text style={styles.lockText}>La estructura no puede modificarse: la temporada está cerrada, el examen está archivado o ya existen intentos revisados/publicados.</Text>
+              <Text style={styles.lockText}>La estructura sólo puede modificarse mientras el examen esté en borrador y la temporada siga abierta.</Text>
             </View>
           ) : (
             <>
