@@ -192,7 +192,9 @@ as $$
 declare
   v_exam_id uuid;
   v_exam_status text;
+  v_season_id uuid;
   v_target_exam_status text;
+  v_target_season_id uuid;
   v_has_locked_attempt boolean;
   v_has_results boolean;
   v_max_awarded numeric;
@@ -203,9 +205,17 @@ begin
     v_exam_id := old.exam_id;
   end if;
 
-  select e.status into v_exam_status
+  select e.status, e.season_id
+    into v_exam_status, v_season_id
   from public.ucapsa_exams e
   where e.id = v_exam_id;
+
+  if not found then
+    raise exception 'Examen UCAPSA no encontrado.'
+      using errcode = '55000';
+  end if;
+
+  perform public.ucapsa_assert_competition_season_mutable(v_season_id);
 
   if v_exam_status is distinct from 'draft' then
     raise exception 'La estructura de un examen publicado o archivado no puede modificarse.'
@@ -213,9 +223,17 @@ begin
   end if;
 
   if tg_op = 'UPDATE' and new.exam_id is distinct from old.exam_id then
-    select e.status into v_target_exam_status
+    select e.status, e.season_id
+      into v_target_exam_status, v_target_season_id
     from public.ucapsa_exams e
     where e.id = new.exam_id;
+
+    if not found then
+      raise exception 'Examen destino UCAPSA no encontrado.'
+        using errcode = '55000';
+    end if;
+
+    perform public.ucapsa_assert_competition_season_mutable(v_target_season_id);
 
     if v_target_exam_status is distinct from 'draft' then
       raise exception 'Un ejercicio solo puede moverse a otro examen en borrador.'
@@ -482,7 +500,7 @@ set search_path = public
 as $$
 declare
   v_before public.ucapsa_exam_items%rowtype;
-  v_exam_status text;
+  v_exam public.ucapsa_exams%rowtype;
   v_title text := nullif(btrim(p_title), '');
 begin
   if not public.is_ucapsa_admin() then raise exception 'Solo Admin puede configurar ejercicios UCAPSA.'; end if;
@@ -490,13 +508,25 @@ begin
   if p_item_number is null or p_item_number <= 0 then raise exception 'item_number debe ser mayor que cero.'; end if;
   if p_max_points is null or p_max_points <= 0 then raise exception 'max_points debe ser mayor que cero.'; end if;
 
-  select * into v_before from public.ucapsa_exam_items where id=p_exam_item_id for update;
+  select * into v_before
+  from public.ucapsa_exam_items
+  where id = p_exam_item_id
+  for update;
+
   if not found then raise exception 'Ejercicio UCAPSA no encontrado.'; end if;
 
-  select e.status into v_exam_status
-  from public.ucapsa_exams e
-  where e.id=v_before.exam_id;
-  if v_exam_status is distinct from 'draft' then raise exception 'Solo un examen en borrador puede cambiar su estructura.'; end if;
+  select * into v_exam
+  from public.ucapsa_exams
+  where id = v_before.exam_id
+  for update;
+
+  if not found then raise exception 'Examen UCAPSA no encontrado.'; end if;
+
+  perform public.ucapsa_assert_competition_season_mutable(v_exam.season_id);
+
+  if v_exam.status <> 'draft' then
+    raise exception 'Solo un examen en borrador puede cambiar su estructura.';
+  end if;
 
   update public.ucapsa_exam_items
   set item_number=p_item_number,
@@ -522,18 +552,32 @@ set search_path = public
 as $$
 declare
   v_item public.ucapsa_exam_items%rowtype;
-  v_exam_status text;
+  v_exam public.ucapsa_exams%rowtype;
 begin
   if not public.is_ucapsa_admin() then raise exception 'Solo Admin puede eliminar ejercicios UCAPSA.'; end if;
-  select * into v_item from public.ucapsa_exam_items where id=p_exam_item_id for update;
+
+  select * into v_item
+  from public.ucapsa_exam_items
+  where id = p_exam_item_id
+  for update;
+
   if not found then raise exception 'Ejercicio UCAPSA no encontrado.'; end if;
 
-  select e.status into v_exam_status
-  from public.ucapsa_exams e
-  where e.id=v_item.exam_id;
-  if v_exam_status is distinct from 'draft' then raise exception 'Solo un examen en borrador puede cambiar su estructura.'; end if;
+  select * into v_exam
+  from public.ucapsa_exams
+  where id = v_item.exam_id
+  for update;
+
+  if not found then raise exception 'Examen UCAPSA no encontrado.'; end if;
+
+  perform public.ucapsa_assert_competition_season_mutable(v_exam.season_id);
+
+  if v_exam.status <> 'draft' then
+    raise exception 'Solo un examen en borrador puede cambiar su estructura.';
+  end if;
 
   delete from public.ucapsa_exam_items where id=p_exam_item_id;
+
   perform public.ucapsa_exam_admin_audit(
     'ucapsa_exam_item.delete','ucapsa_exam_item',p_exam_item_id,
     jsonb_build_object('exam_id',v_item.exam_id,'item_number',v_item.item_number,'max_points',v_item.max_points)
