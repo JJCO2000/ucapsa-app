@@ -156,7 +156,7 @@ export default function AdminCompetitionExamDetailScreen() {
           {seasonClosed ? (
             <View style={styles.lockCard}><MaterialIcons name="lock" size={20} color={ucapsaBrand.colors.redDark} /><Text style={styles.lockText}>La temporada está cerrada. Reábrela antes de modificar examen o ejercicios.</Text></View>
           ) : detail.structureLocked ? (
-            <View style={styles.lockCard}><MaterialIcons name="lock-outline" size={20} color={ucapsaBrand.colors.redDark} /><Text style={styles.lockText}>La estructura está congelada porque ya existen intentos revisados o publicados. Los ejercicios no se agregan, eliminan ni reestructuran.</Text></View>
+            <View style={styles.lockCard}><MaterialIcons name="lock-outline" size={20} color={ucapsaBrand.colors.redDark} /><Text style={styles.lockText}>La estructura queda congelada desde que el examen se publica. Para cambiar ejercicios, crea una nueva versión en borrador.</Text></View>
           ) : null}
 
           <View style={styles.actionRow}>
