@@ -9,6 +9,7 @@ import { flushPendingAttendanceOperations } from '../services/attendance-outbox.
 import { warmClientOfflineData } from '../services/client-offline-sync.service';
 import { flushPendingPracticeSessions } from '../services/practice.service';
 import { flushPendingValueExposures } from '../services/value-exposure-outbox.service';
+import { devWarn } from '../utils/dev-diagnostics';
 
 function RootNavigator() {
   const { loading, startupError, retryStartup, user, isAdmin } = useSession();
@@ -20,7 +21,7 @@ function RootNavigator() {
     warmedUserRef.current = user.id;
 
     void warmClientOfflineData(user.id).catch((error) => {
-      console.warn('Could not warm UCAPSA offline data:', error);
+      devWarn('Could not warm UCAPSA offline data:', error);
     });
   }, [isAdmin, loading, startupError, user]);
 
@@ -38,7 +39,7 @@ function RootNavigator() {
         flushPendingValueExposures(user.id),
       ]).then((results) => {
         if (results.some((result) => result.status === 'rejected')) {
-          console.warn('Could not retry one or more UCAPSA offline queues.');
+          devWarn('Could not retry one or more UCAPSA offline queues.');
         }
       });
     });
