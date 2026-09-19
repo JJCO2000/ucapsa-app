@@ -9,7 +9,6 @@ import { MemberCredentialCard } from '../../components/domain/MemberCredentialCa
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import {
-  formatDate,
   getDisplayName,
   getMembershipByQrToken,
   getMembershipEffectiveStatus,
