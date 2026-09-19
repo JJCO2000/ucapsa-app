@@ -545,7 +545,7 @@ export async function getAdminCompetitionExamDetail(examId: string): Promise<Adm
       .from('ucapsa_exam_attempts')
       .select('id')
       .eq('exam_id', cleanId)
-      .in('status', ['reviewed', 'published'])
+      .in('status', ['reviewed', 'published', 'voided'])
       .limit(1),
   ]);
 
