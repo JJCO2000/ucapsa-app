@@ -19,6 +19,7 @@ set search_path = public
 as $$
 declare
   v_items_count bigint;
+  v_season_status text;
 begin
   if tg_op = 'INSERT' then
     if new.status <> 'draft' then
@@ -33,6 +34,15 @@ begin
   end if;
 
   if old.status = 'draft' and new.status = 'published' then
+    select s.status into v_season_status
+    from public.ucapsa_competition_seasons s
+    where s.id = new.season_id;
+
+    if v_season_status not in ('active', 'reopened') then
+      raise exception 'El examen sólo puede publicarse cuando la temporada está activa o reabierta.'
+        using errcode = '55000';
+    end if;
+
     select count(*) into v_items_count
     from public.ucapsa_exam_items i
     where i.exam_id = old.id;
@@ -74,6 +84,9 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_items_count bigint;
+  v_results_count bigint;
 begin
   if tg_op = 'INSERT' then
     if new.status <> 'draft' then
@@ -87,8 +100,25 @@ begin
     return new;
   end if;
 
-  if (old.status = 'draft' and new.status = 'reviewed')
-    or (old.status = 'reviewed' and new.status = 'published')
+  if old.status = 'draft' and new.status = 'reviewed' then
+    select count(*) into v_items_count
+    from public.ucapsa_exam_items i
+    where i.exam_id = new.exam_id;
+
+    select count(*) into v_results_count
+    from public.ucapsa_exam_item_results r
+    join public.ucapsa_exam_items i on i.id = r.exam_item_id
+    where r.attempt_id = new.id
+      and i.exam_id = new.exam_id;
+
+    if v_items_count = 0 or v_results_count <> v_items_count then
+      raise exception 'No se puede revisar un intento incompleto: % de % ejercicios calificados.', v_results_count, v_items_count
+        using errcode = '55000';
+    end if;
+    return new;
+  end if;
+
+  if (old.status = 'reviewed' and new.status = 'published')
     or (old.status in ('draft', 'reviewed', 'published') and new.status = 'voided') then
     return new;
   end if;
@@ -181,8 +211,8 @@ begin
   from public.ucapsa_exam_attempts a
   where a.id = old.attempt_id;
 
-  if v_status = 'published' then
-    raise exception 'No se puede eliminar o reasignar un ejercicio de un resultado publicado. Corrige su puntuacion o anula el intento.'
+  if v_status in ('reviewed', 'published') then
+    raise exception 'No se puede eliminar o reasignar un ejercicio de un resultado revisado/publicado. Corrige su puntuacion o anula el intento.'
       using errcode = '55000';
   end if;
 
@@ -217,42 +247,64 @@ set search_path = public
 as $$
 declare
   v_exam_id uuid;
-  v_has_published boolean;
+  v_has_locked_attempt boolean;
+  v_has_results boolean;
+  v_max_awarded numeric;
 begin
-  if tg_op = 'INSERT' then
-    v_exam_id := new.exam_id;
-  else
-    v_exam_id := old.exam_id;
-  end if;
+  if tg_op = 'INSERT' then v_exam_id := new.exam_id; else v_exam_id := old.exam_id; end if;
 
   select exists (
     select 1
     from public.ucapsa_exam_attempts a
     where a.exam_id = v_exam_id
-      and a.status = 'published'
-  ) into v_has_published;
+      and a.status in ('reviewed', 'published')
+  ) into v_has_locked_attempt;
 
-  if tg_op = 'INSERT' and v_has_published then
-    raise exception 'No se pueden agregar ejercicios a un examen con resultados publicados.'
+  if tg_op = 'INSERT' and v_has_locked_attempt then
+    raise exception 'No se pueden agregar ejercicios a un examen con intentos revisados/publicados.'
       using errcode = '55000';
   end if;
 
-  if tg_op = 'DELETE' and v_has_published then
-    raise exception 'No se pueden eliminar ejercicios de un examen con resultados publicados.'
+  if tg_op = 'DELETE' and v_has_locked_attempt then
+    raise exception 'No se pueden eliminar ejercicios de un examen con intentos revisados/publicados.'
       using errcode = '55000';
   end if;
 
-  if tg_op = 'UPDATE'
-    and (new.exam_id is distinct from old.exam_id
+  if tg_op = 'UPDATE' then
+    if new.exam_id is distinct from old.exam_id then
+      select exists (
+        select 1 from public.ucapsa_exam_item_results r
+        where r.exam_item_id = old.id
+      ) into v_has_results;
+
+      if v_has_results then
+        raise exception 'No se puede mover a otro examen un ejercicio que ya tiene resultados.'
+          using errcode = '55000';
+      end if;
+    end if;
+
+    if new.max_points is distinct from old.max_points then
+      select max(r.points_awarded) into v_max_awarded
+      from public.ucapsa_exam_item_results r
+      where r.exam_item_id = old.id;
+
+      if v_max_awarded is not null and new.max_points < v_max_awarded then
+        raise exception 'El nuevo maximo (%) es menor que una puntuacion ya capturada (%).', new.max_points, v_max_awarded
+          using errcode = '55000';
+      end if;
+    end if;
+
+    if (new.exam_id is distinct from old.exam_id
       or new.item_number is distinct from old.item_number
       or new.max_points is distinct from old.max_points) then
-
-    if v_has_published or exists (
-      select 1 from public.ucapsa_exam_attempts a
-      where a.exam_id = new.exam_id and a.status = 'published'
-    ) then
-      raise exception 'No se puede cambiar la estructura o puntaje maximo de un examen con resultados publicados.'
-        using errcode = '55000';
+      if v_has_locked_attempt or exists (
+        select 1 from public.ucapsa_exam_attempts a
+        where a.exam_id = new.exam_id
+          and a.status in ('reviewed', 'published')
+      ) then
+        raise exception 'No se puede cambiar la estructura o puntaje maximo de un examen con intentos revisados/publicados.'
+          using errcode = '55000';
+      end if;
     end if;
   end if;
 
