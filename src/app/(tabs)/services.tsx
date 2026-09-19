@@ -29,17 +29,6 @@ async function openExternal(url: string) {
   }
 }
 
-function getLifetimeMembershipStatus(
-  membership: Parameters<typeof getMembershipEffectiveStatus>[0],
-): MembershipEffectiveStatus {
-  const effective = getMembershipEffectiveStatus(membership);
-  // Una membresía que Administración mantiene como active sigue siendo de socio.
-  // end_date histórico no puede revocar el acceso; una fecha de inicio futura sí
-  // conserva el estado scheduled hasta que llegue su inicio.
-  if (membership?.status === 'active' && effective === 'expired') return 'active';
-  return effective;
-}
-
 export default function ServicesTab() {
   const { user, role, isAdmin } = useSession();
   const [membershipStatus, setMembershipStatus] = useState<MembershipEffectiveStatus | null>(null);
@@ -80,10 +69,9 @@ export default function ServicesTab() {
     const cached = await readClientResource<MembershipOfflineSummary>(user.id, clientReadKeys.membership);
     if (!isCurrentRun()) return;
     if (cached) {
-      setMembershipStatus(getLifetimeMembershipStatus(cached.data.status ? {
+      setMembershipStatus(getMembershipEffectiveStatus(cached.data.status ? {
         status: cached.data.status,
         start_date: cached.data.start_date,
-        end_date: cached.data.end_date,
       } : null));
       setSavedAt(cached.saved_at);
       setLoading(false);
@@ -92,7 +80,7 @@ export default function ServicesTab() {
     try {
       const membership = await withOperationTimeout(getMyMembership(), DEFAULT_READ_TIMEOUT_MS, 'services-membership');
       if (!isCurrentRun()) return;
-      setMembershipStatus(getLifetimeMembershipStatus(membership));
+      setMembershipStatus(getMembershipEffectiveStatus(membership));
       const stored = await writeClientResource(user.id, clientReadKeys.membership, createMembershipOfflineSummary(membership));
       if (!isCurrentRun()) return;
       setSavedAt(stored.saved_at);
