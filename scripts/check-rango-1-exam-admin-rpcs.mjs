@@ -33,6 +33,8 @@ const requiredContracts = [
   "v_status in ('reviewed', 'published', 'voided')",
   "v_exam_status is distinct from 'draft'",
   "v_target_exam_status is distinct from 'draft'",
+  'ucapsa_assert_competition_season_mutable(v_season_id)',
+  'ucapsa_assert_competition_season_mutable(v_target_season_id)',
   'new.max_points < v_max_awarded',
   "v_attempt.status in ('reviewed','published')",
   'set is_official=false',
@@ -60,8 +62,25 @@ if (!sql.includes("v_attempt.status <> 'draft'")) {
   throw new Error('Deleting an item result must remain limited to draft attempts.');
 }
 
-if (!/select e\.status into v_exam_status[\s\S]{0,220}v_exam_status is distinct from 'draft'/.test(sql)) {
-  throw new Error('Published/archived exams must freeze item structure at the database boundary.');
+const structureGuardMarker = 'create or replace function public.ucapsa_guard_exam_item_structure_after_publish()';
+const structureGuardStart = sql.indexOf(structureGuardMarker);
+const structureGuardEnd = sql.indexOf(
+  'revoke all on function public.ucapsa_guard_exam_item_structure_after_publish()',
+  structureGuardStart,
+);
+if (structureGuardStart < 0 || structureGuardEnd < 0) {
+  throw new Error('Exam structure guard definition missing or unterminated.');
+}
+const structureGuard = sql.slice(structureGuardStart, structureGuardEnd);
+
+for (const token of [
+  "v_exam_status is distinct from 'draft'",
+  'ucapsa_assert_competition_season_mutable(v_season_id)',
+  'ucapsa_assert_competition_season_mutable(v_target_season_id)',
+]) {
+  if (!structureGuard.includes(token)) {
+    throw new Error(`Exam structure guard lost contract: ${token}`);
+  }
 }
 
 for (const token of [
