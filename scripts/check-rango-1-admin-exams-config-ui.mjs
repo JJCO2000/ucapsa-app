@@ -64,8 +64,11 @@ for (const token of [
   if (!service.includes(token)) failures.push(`Servicio de configuración de exámenes perdió contrato: ${token}`);
 }
 
-if (!/\.from\('ucapsa_exam_attempts'\)[\s\S]{0,350}\.select\('id'\)[\s\S]{0,350}reviewed[\s\S]{0,100}published/.test(service)) {
-  failures.push('Detalle dejó de leer intentos bloqueados sólo para decidir mutabilidad estructural.');
+if (!/\.from\('ucapsa_exam_attempts'\)[\s\S]{0,350}\.select\('id'\)[\s\S]{0,400}reviewed[\s\S]{0,140}published[\s\S]{0,140}voided/.test(service)) {
+  failures.push('Detalle dejó de conservar el lock defensivo por intentos reviewed/published/voided.');
+}
+if (!/structureLocked:\s*exam\.status !== 'draft'\s*\|\|/.test(service)) {
+  failures.push('Servicio dejó de congelar estructura inmediatamente al publicar el examen.');
 }
 
 const configUi = [list, detail, form, itemForm].join('\n');
