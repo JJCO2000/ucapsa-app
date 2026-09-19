@@ -16,7 +16,7 @@ function read(rel) {
 const hub = read('src/app/admin/competition.tsx');
 const layout = read('src/app/admin/_layout.tsx');
 const ranking = read('src/app/admin/competition-ranking.tsx');
-const service = read('src/services/ucapsa-competition.service.ts');
+const service = read('src/services/admin-competition-read.service.ts');
 const pkg = read('package.json');
 
 if (!/name=["']competition-ranking["']/.test(layout)) {
