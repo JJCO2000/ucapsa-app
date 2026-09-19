@@ -8,15 +8,31 @@ Centralizar comunicación oficial, calendario, socios, credencial digital con QR
 
 ## Módulos actuales
 
+### Cliente / socio
+
 - Inicio
-- Anuncios
-- Calendario
-- Mi UCAPSA
-- Perfil
-- Admin de anuncios
-- Admin de eventos
-- Admin de socios
-- Registro manual de pagos
+- Servicios
+- Clases
+- Pagos
+- Perros
+- Competencia / Ranking / Constancia
+- Membresía y credencial QR
+- Anuncios y calendario
+- Perfil y ajustes de cuenta
+
+### Administración
+
+- Inicio
+- Clientes
+- Inscripciones y clases
+- Horarios, cancelaciones y asistencias
+- Pagos manuales y configuración bancaria
+- Anuncios, eventos y notificaciones
+- Membresías y visitas por QR
+- Competencia UCAPSA: temporadas, ranking, constancia, ajustes, premios y exámenes
+- Continuidad / evidencia de valor
+- Bajas de cuenta
+- Versionado y publicación del aviso de privacidad
 
 ## Tecnologías
 
@@ -68,14 +84,17 @@ No subir `.env` ni llaves privadas al repositorio.
 
 ## Estado
 
-MVP en desarrollo. Antes de producción se debe validar:
+La app continúa en desarrollo, pero la arquitectura crítica ya tiene guards de CI y migraciones versionadas para RLS, roles, historial, pagos, membresías, competencia, continuidad y bajas de cuenta.
 
-- RLS/policies de Supabase
-- Flujos por rol: visitante, cliente, socio, admin y super_admin
-- Assets reales de icono/splash
-- Política de privacidad
-- Eliminación de cuenta
-- Build Android/iOS
+Antes de considerar una salida a producción todavía deben resolverse o verificarse explícitamente:
+
+- Publicar en la app una versión **real y jurídicamente aprobada** del aviso de privacidad. El sistema de versiones ya existe, pero producción no tiene una versión publicada.
+- Activar en Supabase Auth la **protección contra contraseñas filtradas** y revisar que la política de contraseña del servidor esté alineada con la regla de cliente.
+- Ejecutar la validación final por rol en dispositivos reales: visitante, cliente, socio, admin y super_admin.
+- Validar assets finales de icono/splash y comportamiento Android/iOS.
+- Generar builds o publicar en tiendas **sólo por instrucción explícita**; CI no debe disparar EAS Build/Update automáticamente.
+
+La existencia de guards y CI verde no sustituye la revisión jurídica ni la validación operativa final.
 
 ## Decisiones MVP
 
