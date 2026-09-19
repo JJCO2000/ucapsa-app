@@ -1,19 +1,13 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
-import { deactivateMembershipForProfile, forceMembershipForProfile } from '../../services/memberships.service';
-import { getAdminProfiles, getProfileByUserId } from '../../services/profiles.service';
-import {
-  awardAchievementToUser,
-  getAchievementsForUser,
-  type AchievementWithState,
-} from '../../services/achievements.service';
+import { getAdminProfiles } from '../../services/profiles.service';
 import type { AppRole, Profile } from '../../types/app.types';
 
 type UserFilter = 'clients_and_members' | 'clients' | 'members' | 'admins';
@@ -21,8 +15,8 @@ type UserFilter = 'clients_and_members' | 'clients' | 'members' | 'admins';
 const filterOptions: Array<{ value: UserFilter; label: string; helper: string }> = [
   { value: 'clients_and_members', label: 'Todos', helper: 'Clientes y socios' },
   { value: 'clients', label: 'Clientes', helper: 'Sin rol de socio' },
-  { value: 'members', label: 'Socios', helper: 'Con membresia' },
-  { value: 'admins', label: 'Admins', helper: 'Administracion' },
+  { value: 'members', label: 'Socios', helper: 'Con membresía' },
+  { value: 'admins', label: 'Admins', helper: 'Administración' },
 ];
 
 function getRoleLabel(role: AppRole) {
@@ -43,162 +37,100 @@ function getFilterLabel(filter: UserFilter) {
   return filterOptions.find((item) => item.value === filter)?.label ?? 'Todos';
 }
 
+function isCustomer(profile: Profile) {
+  return profile.role === 'client' || profile.role === 'member';
+}
+
 export default function AdminUsersScreen() {
   const { user, role } = useSession();
-  const adminFormat = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin: true }), [user, role]);
+  const adminFormat = useMemo(
+    () => resolveUcapsaFormat({ user, role, isAdmin: true }),
+    [user, role],
+  );
   const params = useLocalSearchParams<{ filter?: string; userId?: string }>();
   const adminsOnly = params.filter === 'admins';
+
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [filter, setFilter] = useState<UserFilter>(params.filter === 'admins' ? 'admins' : 'clients_and_members');
+  const [filter, setFilter] = useState<UserFilter>(adminsOnly ? 'admins' : 'clients_and_members');
   const [loading, setLoading] = useState(true);
-  const [savingUserId, setSavingUserId] = useState<string | null>(null);
-  const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
-  const [selectedAchievements, setSelectedAchievements] = useState<AchievementWithState[]>([]);
-  const [loadingAchievements, setLoadingAchievements] = useState(false);
+  const [selectedAdmin, setSelectedAdmin] = useState<Profile | null>(null);
   const handledRouteUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (typeof params.filter === 'string' && filterOptions.some((item) => item.value === params.filter)) {
+    if (
+      typeof params.filter === 'string'
+      && filterOptions.some((item) => item.value === params.filter)
+    ) {
       setFilter(params.filter as UserFilter);
     }
   }, [params.filter]);
 
-  async function loadProfiles() {
-    setLoading(true);
-    try {
-      setProfiles(await getAdminProfiles());
-    } finally {
-      setLoading(false);
-    }
-  }
-
   useEffect(() => {
-    void loadProfiles().catch((error) => {
-      Alert.alert('No se pudieron cargar usuarios', error instanceof Error ? error.message : 'Intenta de nuevo.');
-    });
+    let active = true;
+    setLoading(true);
+    void getAdminProfiles()
+      .then((rows) => {
+        if (active) setProfiles(rows);
+      })
+      .catch((error) => {
+        if (active) {
+          Alert.alert(
+            'No se pudieron cargar usuarios',
+            error instanceof Error ? error.message : 'Intenta de nuevo.',
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
-  async function refreshSelectedProfile(userId: string) {
-    const nextProfile = await getProfileByUserId(userId);
-    if (nextProfile) setSelectedProfile(nextProfile);
-  }
-
-
-  async function loadAchievementsForProfile(userId: string) {
-    setLoadingAchievements(true);
-    try {
-      const rows = await getAchievementsForUser(userId);
-      setSelectedAchievements(rows);
-    } catch (error) {
-      Alert.alert('No se pudieron cargar logros', error instanceof Error ? error.message : 'Intenta de nuevo.');
-    } finally {
-      setLoadingAchievements(false);
+  useEffect(() => {
+    const routeUserId = typeof params.userId === 'string' ? params.userId.trim() : '';
+    if (
+      !routeUserId
+      || profiles.length === 0
+      || handledRouteUserIdRef.current === routeUserId
+    ) {
+      return;
     }
-  }
 
-  function openUserDetail(profile: Profile) {
-    setSelectedProfile(profile);
-    if (profile.role === 'client' || profile.role === 'member') {
-      void loadAchievementsForProfile(profile.user_id);
-    } else {
-      setSelectedAchievements([]);
+    const profile = profiles.find((item) => item.user_id === routeUserId);
+    if (!profile) return;
+
+    handledRouteUserIdRef.current = routeUserId;
+    if (isCustomer(profile)) {
+      router.replace(`/admin/customer?userId=${encodeURIComponent(profile.user_id)}` as never);
+      return;
     }
-  }
-
-  function handleAwardAchievement(profile: Profile, item: AchievementWithState) {
-    if (item.unlocked) return;
-
-    Alert.alert(
-      'Marcar logro completado',
-      `Se otorgara ${item.definition.title} al usuario. El otorgamiento quedara como parte de su historial.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Otorgar logro',
-          onPress: async () => {
-            try {
-              setSavingUserId(profile.user_id);
-              await awardAchievementToUser(profile.user_id, item.definition.code);
-              await loadAchievementsForProfile(profile.user_id);
-              Alert.alert('Logro actualizado', 'El logro fue marcado como completado.');
-            } catch (error) {
-              Alert.alert('No se pudo actualizar logro', error instanceof Error ? error.message : 'Intenta de nuevo.');
-            } finally {
-              setSavingUserId(null);
-            }
-          },
-        },
-      ],
-    );
-  }
-
-  function handleForceMember(profile: Profile) {
-    Alert.alert('Forzar socio', 'Esto activa o crea una membresia de socio para este cliente. El pago quedara pendiente si no estaba pagado.', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Activar socio',
-        onPress: async () => {
-          try {
-            setSavingUserId(profile.user_id);
-            await forceMembershipForProfile(profile);
-            await loadProfiles();
-            await refreshSelectedProfile(profile.user_id);
-            Alert.alert('Socio activado', 'La persona ya aparece como socio.');
-          } catch (error) {
-            Alert.alert('No se pudo activar socio', error instanceof Error ? error.message : 'Intenta de nuevo.');
-          } finally {
-            setSavingUserId(null);
-          }
-        },
-      },
-    ]);
-  }
-
-
-  function handleBackToClient(profile: Profile) {
-    Alert.alert('Volver a cliente', 'Esto desactiva la membresia visible y cambia el rol a cliente. No borra historial.', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Volver a cliente',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            setSavingUserId(profile.user_id);
-            await deactivateMembershipForProfile(profile);
-            await loadProfiles();
-            await refreshSelectedProfile(profile.user_id);
-            Alert.alert('Actualizado', 'La persona volvio a cliente.');
-          } catch (error) {
-            Alert.alert('No se pudo actualizar', error instanceof Error ? error.message : 'Intenta de nuevo.');
-          } finally {
-            setSavingUserId(null);
-          }
-        },
-      },
-    ]);
-  }
+    setSelectedAdmin(profile);
+  }, [params.userId, profiles]);
 
   const filteredProfiles = useMemo(
     () => profiles.filter((profile) => matchesFilter(profile, filter)),
     [profiles, filter],
   );
 
-  useEffect(() => {
-    const routeUserId = typeof params.userId === 'string' ? params.userId.trim() : '';
-    if (!routeUserId || profiles.length === 0 || handledRouteUserIdRef.current === routeUserId) return;
-    const profile = profiles.find((item) => item.user_id === routeUserId);
-    if (!profile) return;
-    handledRouteUserIdRef.current = routeUserId;
-    openUserDetail(profile);
-  }, [params.userId, profiles]);
-
   const counts = useMemo(() => ({
-    clientsAndMembers: profiles.filter((profile) => profile.role === 'client' || profile.role === 'member').length,
+    clientsAndMembers: profiles.filter((profile) => isCustomer(profile)).length,
     clients: profiles.filter((profile) => profile.role === 'client').length,
     members: profiles.filter((profile) => profile.role === 'member').length,
-    admins: profiles.filter((profile) => profile.role === 'admin' || profile.role === 'super_admin').length,
+    admins: profiles.filter(
+      (profile) => profile.role === 'admin' || profile.role === 'super_admin',
+    ).length,
   }), [profiles]);
 
+  function openProfile(profile: Profile) {
+    if (isCustomer(profile)) {
+      router.push(`/admin/customer?userId=${encodeURIComponent(profile.user_id)}` as never);
+      return;
+    }
+    setSelectedAdmin(profile);
+  }
 
   return (
     <KeyboardAwareScreen style={{ backgroundColor: adminFormat.background }}>
@@ -208,12 +140,16 @@ export default function AdminUsersScreen() {
             <MaterialCommunityIcons name="account-group" size={24} color={ucapsaBrand.colors.red} />
           </View>
           <Pressable style={styles.backButton} onPress={() => router.push('/admin-more' as never)}>
-            <Text style={styles.backButtonText}>Mas</Text>
+            <Text style={styles.backButtonText}>Más</Text>
           </Pressable>
         </View>
-        <Text style={styles.eyebrow}>Administracion</Text>
-        <Text style={styles.title}>{filter === 'admins' ? 'Administradores' : 'Clientes'}</Text>
-        <Text style={styles.subtitle}>{adminsOnly ? `${filteredProfiles.length} cuentas administrativas` : `${getFilterLabel(filter)} - ${filteredProfiles.length} registros`}</Text>
+        <Text style={styles.eyebrow}>Administración</Text>
+        <Text style={styles.title}>{adminsOnly ? 'Administradores' : 'Usuarios'}</Text>
+        <Text style={styles.subtitle}>
+          {adminsOnly
+            ? `${filteredProfiles.length} cuentas administrativas`
+            : `${getFilterLabel(filter)} · ${filteredProfiles.length} registros`}
+        </Text>
       </View>
 
       {!adminsOnly ? (
@@ -229,9 +165,17 @@ export default function AdminUsersScreen() {
             {filterOptions.map((option) => {
               const active = filter === option.value;
               return (
-                <Pressable key={option.value} style={[styles.filterChip, active && styles.filterChipActive]} onPress={() => setFilter(option.value)}>
-                  <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>{option.label}</Text>
-                  <Text style={[styles.filterChipHelper, active && styles.filterChipTextActive]}>{option.helper}</Text>
+                <Pressable
+                  key={option.value}
+                  style={[styles.filterChip, active && styles.filterChipActive]}
+                  onPress={() => setFilter(option.value)}
+                >
+                  <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                    {option.label}
+                  </Text>
+                  <Text style={[styles.filterChipHelper, active && styles.filterChipTextActive]}>
+                    {option.helper}
+                  </Text>
                 </Pressable>
               );
             })}
@@ -258,16 +202,12 @@ export default function AdminUsersScreen() {
           <Pressable
             key={item.id}
             style={styles.userRow}
-            onPress={() => {
-              if (item.role === 'client' || item.role === 'member') {
-                router.push(`/admin/customer?userId=${encodeURIComponent(item.user_id)}` as never);
-                return;
-              }
-              openUserDetail(item);
-            }}
+            onPress={() => openProfile(item)}
           >
             <View style={[styles.avatar, { backgroundColor: item.avatar_color || ucapsaBrand.colors.red }]}>
-              <Text style={styles.avatarText}>{(item.full_name || item.email || 'U').slice(0, 1).toUpperCase()}</Text>
+              <Text style={styles.avatarText}>
+                {(item.full_name || item.email || 'U').slice(0, 1).toUpperCase()}
+              </Text>
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.userName}>{item.full_name || 'Sin nombre'}</Text>
@@ -279,15 +219,9 @@ export default function AdminUsersScreen() {
         ))}
       </View>
 
-      <UserDetailModal
-        profile={selectedProfile}
-        saving={selectedProfile ? savingUserId === selectedProfile.user_id : false}
-        onClose={() => setSelectedProfile(null)}
-        onForceMember={handleForceMember}
-        onBackToClient={handleBackToClient}
-        achievements={selectedAchievements}
-        loadingAchievements={loadingAchievements}
-        onAwardAchievement={handleAwardAchievement}
+      <AdminAccountDetailModal
+        profile={selectedAdmin}
+        onClose={() => setSelectedAdmin(null)}
       />
     </KeyboardAwareScreen>
   );
@@ -302,85 +236,29 @@ function Summary({ label, value }: { label: string; value: number }) {
   );
 }
 
-function UserDetailModal({ profile, saving, onClose, onForceMember, onBackToClient, achievements, loadingAchievements, onAwardAchievement }: { profile: Profile | null; saving: boolean; onClose: () => void; onForceMember: (profile: Profile) => void; onBackToClient: (profile: Profile) => void; achievements: AchievementWithState[]; loadingAchievements: boolean; onAwardAchievement: (profile: Profile, item: AchievementWithState) => void }) {
-
+function AdminAccountDetailModal({
+  profile,
+  onClose,
+}: {
+  profile: Profile | null;
+  onClose: () => void;
+}) {
   if (!profile) return null;
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalBackdrop}>
         <KeyboardAwareScreen contentContainerStyle={styles.modalContent}>
-          <Text style={styles.eyebrow}>Ficha de usuario</Text>
+          <Text style={styles.eyebrow}>Cuenta administrativa</Text>
           <Text style={styles.modalTitle}>{profile.full_name || 'Sin nombre'}</Text>
           <Text style={styles.subtitle}>{getRoleLabel(profile.role)}</Text>
 
           <View style={styles.detailBox}>
             <Detail label="Nombre" value={profile.full_name} />
             <Detail label="Correo" value={profile.email} />
-            <Detail label="Telefono" value={profile.phone} />
+            <Detail label="Teléfono" value={profile.phone} />
             <Detail label="Rol" value={getRoleLabel(profile.role)} />
           </View>
-
-          {profile.role === 'client' || profile.role === 'member' ? (
-            <>
-              <View style={styles.achievementsAdminBox}>
-                <View style={styles.achievementsHeaderRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.detailLabel}>Logros del cliente</Text>
-                    <Text style={styles.achievementsAdminHint}>Marca manualmente programas ya completados. Tambien se otorgan solos al completar Puppy o Comandos.</Text>
-                  </View>
-                  {loadingAchievements ? <ActivityIndicator color={ucapsaBrand.colors.red} /> : null}
-                </View>
-
-                <View style={styles.achievementAdminGrid}>
-                  {achievements.map((item) => (
-                    <Pressable
-                      key={item.definition.code}
-                      disabled={saving || loadingAchievements || item.unlocked}
-                      style={[styles.achievementAdminChip, item.unlocked && styles.achievementAdminChipActive]}
-                      onPress={() => onAwardAchievement(profile, item)}
-                    >
-                      <MaterialCommunityIcons name={item.definition.icon as never} size={22} color={item.unlocked ? ucapsaBrand.colors.premiumActionText : ucapsaBrand.colors.muted} />
-                      <View style={{ flex: 1 }}>
-                            <Text style={[styles.achievementAdminTitle, item.unlocked && styles.achievementAdminTitleActive]}>{item.definition.title}</Text>
-                            <Text style={[styles.achievementAdminStatus, item.unlocked && styles.achievementAdminStatusActive]}>{item.unlocked ? 'Completado' : 'Marcar completado'}</Text>
-                      </View>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-            </>
-          ) : null}
-
-          {profile.role === 'client' || profile.role === 'member' ? (
-            <Pressable
-              style={styles.primaryButton}
-              onPress={() => {
-                onClose();
-                router.push(`/admin/customer?userId=${encodeURIComponent(profile.user_id)}` as never);
-              }}
-            >
-              <Text style={styles.primaryButtonText}>Ver cliente</Text>
-            </Pressable>
-          ) : null}
-
-          {profile.role === 'member' ? (
-            <Pressable style={styles.primaryButton} onPress={() => { onClose(); router.push(`/admin/customer-membership?userId=${encodeURIComponent(profile.user_id)}` as never); }}>
-              <Text style={styles.primaryButtonText}>Abrir membresia</Text>
-            </Pressable>
-          ) : null}
-
-          {profile.role === 'client' ? (
-            <Pressable disabled={saving} style={styles.primaryButton} onPress={() => onForceMember(profile)}>
-              <Text style={styles.primaryButtonText}>{saving ? 'Guardando...' : 'Forzar socio'}</Text>
-            </Pressable>
-          ) : null}
-
-          {profile.role === 'member' ? (
-            <Pressable disabled={saving} style={styles.secondaryButton} onPress={() => onBackToClient(profile)}>
-              <Text style={styles.secondaryButtonText}>{saving ? 'Guardando...' : 'Volver a cliente'}</Text>
-            </Pressable>
-          ) : null}
 
           <Pressable style={styles.closeButton} onPress={onClose}>
             <Text style={styles.closeButtonText}>Cerrar</Text>
@@ -401,9 +279,6 @@ function Detail({ label, value }: { label: string; value?: string | null }) {
 }
 
 const styles = StyleSheet.create({
-  deniedBox: { flex: 1, minHeight: 420, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
-  deniedTitle: { color: ucapsaBrand.colors.redDark, fontSize: 24, fontWeight: '900', textAlign: 'center' },
-  deniedText: { color: ucapsaBrand.colors.muted, fontSize: 14, lineHeight: 20, textAlign: 'center', fontWeight: '700' },
   hero: { backgroundColor: ucapsaBrand.colors.surface, borderRadius: 30, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 20 },
   heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   iconBubble: { width: 46, height: 46, borderRadius: 23, backgroundColor: ucapsaBrand.colors.redSoft, alignItems: 'center', justifyContent: 'center' },
@@ -440,21 +315,6 @@ const styles = StyleSheet.create({
   detailRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.redSoft },
   detailLabel: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
   detailValue: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '700', marginTop: 3 },
-  achievementsAdminBox: { gap: 12, backgroundColor: ucapsaBrand.colors.surface, borderRadius: 22, padding: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginTop: 14 },
-  achievementsHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  achievementsAdminHint: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 4 },
-  achievementAdminGrid: { gap: 8 },
-  achievementAdminChip: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 18, backgroundColor: ucapsaBrand.colors.background, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
-  achievementAdminChipActive: { backgroundColor: ucapsaBrand.colors.goldPale, borderColor: ucapsaBrand.colors.gold },
-  achievementAdminTitle: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
-  achievementAdminTitleActive: { color: ucapsaBrand.colors.premiumActionText },
-  achievementAdminStatus: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '800', marginTop: 2 },
-  achievementAdminStatusActive: { color: ucapsaBrand.colors.warningDark },
-  primaryButton: { backgroundColor: ucapsaBrand.colors.red, borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 16 },
-  primaryButtonText: { color: ucapsaBrand.colors.surface, fontSize: 14, fontWeight: '900' },
-  secondaryButton: { backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 12 },
-  secondaryButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 14, fontWeight: '900' },
   closeButton: { backgroundColor: ucapsaBrand.colors.text, borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 12 },
   closeButtonText: { color: ucapsaBrand.colors.surface, fontSize: 14, fontWeight: '900' },
 });
-
