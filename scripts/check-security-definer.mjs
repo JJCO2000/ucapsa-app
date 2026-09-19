@@ -80,8 +80,9 @@ for (const policy of [
   }
 }
 
-const anonPolicyStatements = [...anonHelperSql.matchAll(/create\s+policy[\s\S]*?\bto\s+anon\b[\s\S]*?;/gi)]
-  .map((match) => match[0])
+const policyStatements = anonHelperSql.match(/create\s+policy[\s\S]*?;/gi) ?? [];
+const anonPolicyStatements = policyStatements
+  .filter((statement) => /\bto\s+anon\b/i.test(statement))
   .join('\n');
 
 if (/\b(?:get_my_role|has_active_membership|is_admin|is_feature_enabled|is_super_admin|is_ucapsa_admin)\s*\(/i.test(anonPolicyStatements)) {
