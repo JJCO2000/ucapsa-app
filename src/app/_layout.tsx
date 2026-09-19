@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 
 import { LoadingScreen } from '../components/ui/LoadingScreen';
+import { devWarn } from '../lib/client-diagnostics';
 import { SessionProvider, useSession } from '../hooks/useSession';
 import { flushPendingAttendanceOperations } from '../services/attendance-outbox.service';
 import { warmClientOfflineData } from '../services/client-offline-sync.service';
@@ -20,7 +21,7 @@ function RootNavigator() {
     warmedUserRef.current = user.id;
 
     void warmClientOfflineData(user.id).catch((error) => {
-      console.warn('Could not warm UCAPSA offline data:', error);
+      devWarn('Could not warm UCAPSA offline data.', error);
     });
   }, [isAdmin, loading, startupError, user]);
 
@@ -38,7 +39,7 @@ function RootNavigator() {
         flushPendingValueExposures(user.id),
       ]).then((results) => {
         if (results.some((result) => result.status === 'rejected')) {
-          console.warn('Could not retry one or more UCAPSA offline queues.');
+          devWarn('Could not retry one or more UCAPSA offline queues.');
         }
       });
     });
