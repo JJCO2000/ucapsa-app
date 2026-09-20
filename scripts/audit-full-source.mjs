@@ -138,6 +138,21 @@ registerSafeRawDeleteContract(
 
 
 registerSafeRawDeleteContract(
+  'supabase/sql/ucapsa-announcement-reminder-atomicity.sql',
+  1,
+  [
+    {
+      pattern: /delete\s+from\s+public\.notification_campaigns\s+c[\s\S]{0,260}c\.category\s*=\s*'announcements_events'[\s\S]{0,200}c\.status\s*=\s*'draft'[\s\S]{0,260}'source'\s*,\s*'announcement_reminder'[\s\S]{0,220}'announcement_id'\s*,\s*v_announcement\.id::text/i,
+      label: 'Reemplazo de recordatorios perdió el alcance exacto a drafts del anuncio.',
+    },
+    {
+      pattern: /delete\s+from\s+public\.notification_campaigns[\s\S]{0,1200}insert\s+into\s+public\.notification_campaigns/i,
+      label: 'Reemplazo de recordatorios dejó de mantener delete + insert dentro de la misma función transaccional.',
+    },
+  ],
+);
+
+registerSafeRawDeleteContract(
   'supabase/sql/ucapsa-attendance-visit-delete-audit.sql',
   2,
   [
