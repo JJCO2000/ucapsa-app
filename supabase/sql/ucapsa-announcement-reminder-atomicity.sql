@@ -66,9 +66,17 @@ begin
     raise exception 'El anuncio necesita una fecha para programar recordatorios.';
   end if;
 
-  delete from public.notification_campaigns c
+  update public.notification_campaigns c
+  set
+    archived_at = coalesce(c.archived_at, now()),
+    updated_at = now(),
+    metadata = coalesce(c.metadata, '{}'::jsonb) || jsonb_build_object(
+      'superseded_at', now()::text,
+      'superseded_reason', 'announcement_reminder_replaced'
+    )
   where c.category = 'announcements_events'
     and c.status = 'draft'
+    and c.archived_at is null
     and c.metadata @> jsonb_build_object(
       'source', 'announcement_reminder',
       'announcement_id', v_announcement.id::text
@@ -166,6 +174,7 @@ begin
       updated_at = now()
     where c.category = 'announcements_events'
       and c.status = 'draft'
+      and c.archived_at is null
       and c.metadata @> jsonb_build_object(
         'source', 'announcement_reminder',
         'announcement_id', new.id::text
@@ -198,6 +207,7 @@ begin
     updated_at = now()
   where c.category = 'announcements_events'
     and c.status = 'draft'
+    and c.archived_at is null
     and c.metadata @> jsonb_build_object(
       'source', 'announcement_reminder',
       'announcement_id', new.id::text
