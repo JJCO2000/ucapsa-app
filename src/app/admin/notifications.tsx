@@ -6,9 +6,12 @@ import { Alert, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } f
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import {
+  ADMIN_NOTIFICATION_BODY_MAX_LENGTH,
+  ADMIN_NOTIFICATION_TITLE_MAX_LENGTH,
   deleteAdminNotificationCampaign,
   getAdminNotificationCampaigns,
-  sendAdminNotification,
+  prepareAdminNotification,
+  sendPreparedAdminNotification,
   type AdminNotificationCategory,
   type NotificationCampaign,
 } from '../../services/admin-notifications.service';
@@ -58,6 +61,7 @@ export default function AdminNotificationsScreen() {
   const [visibleCount, setVisibleCount] = useState(8);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [sending, setSending] = useState(false);
+  const [pendingSend, setPendingSend] = useState<{ campaignId: string; signature: string } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const selectedAudience = useMemo(() => audienceOptions.find((item) => item.value === audience) ?? audienceOptions[0], [audience]);
@@ -92,20 +96,54 @@ export default function AdminNotificationsScreen() {
   }
 
   async function send() {
+    const signature = JSON.stringify({
+      title: title.trim(),
+      body: body.trim(),
+      audience,
+      category,
+    });
+
     try {
       setSending(true);
-      const result = await sendAdminNotification({ title, body, audience, category });
+
+      let campaignId = pendingSend?.signature === signature ? pendingSend.campaignId : null;
+
+      if (!campaignId) {
+        const prepared = await prepareAdminNotification({ title, body, audience, category });
+        campaignId = prepared.id;
+        setPendingSend({ campaignId, signature });
+      }
+
+      const result = await sendPreparedAdminNotification(campaignId);
       await loadHistory();
+
+      if (result.status === 'sending') {
+        Alert.alert(
+          'Envio ya iniciado',
+          result.message ?? 'La campana ya estaba reclamada. No se envio de nuevo; revisa el historial antes de intentar otro envio.',
+        );
+        return;
+      }
+
+      setPendingSend(null);
+
       if (result.status === 'no_targets') {
         Alert.alert('Sin destinatarios', result.message ?? 'No hay dispositivos activos para esa audiencia.');
         return;
       }
-      Alert.alert('Envio registrado', `Destinatarios: ${result.total_targets}\nEnviadas: ${result.success_count}\nFallidas: ${result.failure_count}`);
+
+      Alert.alert(
+        result.reused ? 'Envio ya procesado' : 'Envio registrado',
+        `Destinatarios: ${result.total_targets}\nEnviadas: ${result.success_count}\nFallidas: ${result.failure_count}`,
+      );
       setTitle('');
       setBody('');
       setMode('history');
     } catch (cause) {
-      Alert.alert('No se pudo enviar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+      Alert.alert(
+        'No se pudo confirmar el envio',
+        `${cause instanceof Error ? cause.message : 'Intenta de nuevo.'}\n\nSi vuelves a intentar sin cambiar el contenido, UCAPSA reutilizara la misma campana y no duplicara el push.`,
+      );
     } finally {
       setSending(false);
     }
@@ -151,9 +189,9 @@ export default function AdminNotificationsScreen() {
           <Text style={styles.muted}>Usa mensajes cortos y solo cuando aporten valor.</Text>
 
           <Text style={styles.label}>Titulo</Text>
-          <TextInput value={title} onChangeText={setTitle} placeholder="Ej. Cambio de clase" maxLength={120} style={styles.input} />
+          <TextInput value={title} onChangeText={setTitle} placeholder="Ej. Cambio de clase" maxLength={ADMIN_NOTIFICATION_TITLE_MAX_LENGTH} style={styles.input} />
           <Text style={styles.label}>Mensaje</Text>
-          <TextInput value={body} onChangeText={setBody} placeholder="Mensaje para el usuario" maxLength={500} multiline style={[styles.input, styles.textArea]} />
+          <TextInput value={body} onChangeText={setBody} placeholder="Mensaje para el usuario" maxLength={ADMIN_NOTIFICATION_BODY_MAX_LENGTH} multiline style={[styles.input, styles.textArea]} />
 
           <Text style={styles.label}>Audiencia</Text>
           <View style={styles.choiceGrid}>{audienceOptions.map((option) => <Choice key={option.value} label={option.label} active={audience === option.value} onPress={() => setAudience(option.value)} />)}</View>
@@ -169,7 +207,7 @@ export default function AdminNotificationsScreen() {
             <Text style={styles.previewBody}>{body.trim() || 'El mensaje aparecera aqui.'}</Text>
           </View>
 
-          <Pressable disabled={sending || !title.trim() || !body.trim()} style={[styles.primary, (sending || !title.trim() || !body.trim()) && styles.disabled]} onPress={askSend}><Text style={styles.primaryText}>{sending ? 'Enviando...' : 'Revisar y enviar'}</Text></Pressable>
+          <Pressable disabled={sending || !title.trim() || !body.trim()} style={[styles.primary, (sending || !title.trim() || !body.trim()) && styles.disabled]} onPress={askSend}><Text style={styles.primaryText}>{sending ? 'Enviando...' : pendingSend?.signature === JSON.stringify({ title: title.trim(), body: body.trim(), audience, category }) ? 'Reintentar sin duplicar' : 'Revisar y enviar'}</Text></Pressable>
         </View>
       ) : (
         <View>
