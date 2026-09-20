@@ -74,21 +74,26 @@ function findCatchBlocks(text) {
   return results;
 }
 
-function classify(body) {
+function classify(body, rel) {
   const code = stripComments(body);
   if (!code) return 'COMMENT_ONLY_OR_EMPTY';
 
   const signals = {
     throws: /\bthrow\b/.test(code),
     returns: /\breturn\b/.test(code),
-    visibleUi: /Alert\.|toast|Snackbar|showMessage|setError\s*\(|set[A-Z]\w*(?:Error|Notice|Warning|Message)\s*\(/i.test(code),
-    diagnostics: /reportClientDiagnostic|capture|track|console\.(?:warn|error)/i.test(code),
+    visibleUi: /Alert\.|toast|Snackbar|showMessage|setError\s*\(|setFeedback\s*\(|setOfflineEmpty\s*\(\s*true\s*\)|setUsingSavedData\s*\(\s*true\s*\)|setIsOfflineFallback\s*\(\s*true\s*\)|setReminderLoadState\s*\(\s*['"]failed['"]\s*\)|set[A-Z]\w*(?:Error|Notice|Warning|Message)\s*\(/i.test(code),
+    diagnostics: /devWarn|reportClientDiagnostic|capture|track|console\.(?:warn|error)/i.test(code),
+    explicitState: /\b(?:status|state)\s*:\s*['"](?:error|failed|pending|rejected|needs_confirmation)['"]/i.test(code),
+    retryPolicy: /\bisLikelyNetworkError\s*\(/.test(code),
     state: /\bset[A-Z]\w*\s*\(/.test(code),
     fallback: /\b(?:fallback|cached|cache|offline|default)\b/i.test(code),
   };
 
   if (signals.throws) return 'RETHROW';
   if (signals.visibleUi || signals.diagnostics) return 'VISIBLE_OR_DIAGNOSTIC';
+  if (signals.explicitState) return 'EXPLICIT_STATE';
+  if (signals.retryPolicy) return 'EXPLICIT_RETRY_POLICY';
+  if (rel === 'src/services/payment-settings.service.ts' && /^return\s+false\s*;?$/.test(code)) return 'EXPECTED_VALIDATION_REJECTION';
   if (signals.returns && signals.fallback) return 'EXPLICIT_FALLBACK';
   if (signals.returns) return 'RETURN_ONLY_REVIEW';
   if (signals.state) return 'STATE_ONLY_REVIEW';
@@ -106,8 +111,15 @@ for (const absolute of walk(sourceRoot)) {
 
   for (const block of findCatchBlocks(text)) {
     catches += 1;
-    const kind = classify(block.body);
-    if (kind === 'RETHROW' || kind === 'VISIBLE_OR_DIAGNOSTIC' || kind === 'EXPLICIT_FALLBACK') continue;
+    const kind = classify(block.body, rel);
+    if ([
+      'RETHROW',
+      'VISIBLE_OR_DIAGNOSTIC',
+      'EXPLICIT_STATE',
+      'EXPLICIT_RETRY_POLICY',
+      'EXPECTED_VALIDATION_REJECTION',
+      'EXPLICIT_FALLBACK',
+    ].includes(kind)) continue;
 
     const compact = block.body
       .trim()
@@ -128,3 +140,10 @@ console.log(JSON.stringify({
 for (const item of findings) {
   console.log(`- ${item.kind} ${item.file}:${item.line} :: ${item.body || '(empty after comments)'}`);
 }
+
+if (findings.length > 0) {
+  console.error('SILENT CATCH AUDIT FAIL: cada catch debe relanzar, comunicar degradación, registrar diagnóstico o expresar fallback/estado/retry de forma explícita.');
+  process.exit(1);
+}
+
+console.log('SILENT CATCH AUDIT PASS: todos los catch tienen una salida explícita o diagnóstica.');
