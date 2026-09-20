@@ -82,7 +82,8 @@ async function readPracticeActivityCache(userId: string): Promise<PracticeActivi
     const parsed = JSON.parse(raw) as Partial<PracticeActivityCache>;
     if (parsed.version !== 1 || parsed.userId !== userId || typeof parsed.savedAt !== 'string' || !Array.isArray(parsed.entries)) return null;
     return parsed as PracticeActivityCache;
-  } catch {
+  } catch (error) {
+    devWarn('Practice activity cache could not be read; continuing without cached activity.', error);
     return null;
   }
 }
@@ -96,8 +97,9 @@ async function writePracticeActivityCache(userId: string, entries: PracticeActiv
   };
   try {
     await AsyncStorage.setItem(practiceActivityCacheKey(userId), JSON.stringify(payload));
-  } catch {
+  } catch (error) {
     // La actividad es una lectura offline; no bloquear la experiencia por la cache.
+    devWarn('Practice activity cache could not be written; continuing without persistence.', error);
   }
   return payload;
 }
@@ -129,8 +131,9 @@ function mergeActivityEntries(remote: PracticeActivityEntry[], pending: PendingP
 export async function clearPracticeActivityCache(userId: string): Promise<void> {
   try {
     await AsyncStorage.removeItem(practiceActivityCacheKey(userId));
-  } catch {
+  } catch (error) {
     // No bloquear logout por un fallo de cache.
+    devWarn('Practice activity cache could not be cleared during logout.', error);
   }
 }
 
@@ -153,7 +156,9 @@ export async function getCachedMyPracticeActivity(userId: string): Promise<Pract
 
 export async function getMyPracticeActivity(userId: string, daysBack = PRACTICE_ACTIVITY_DAYS): Promise<PracticeActivitySnapshot> {
   const cached = await readPracticeActivityCache(userId);
-  await flushPendingPracticeSessions(userId).catch(() => undefined);
+  await flushPendingPracticeSessions(userId).catch((error) => {
+    devWarn('Best-effort practice flush failed before activity read; continuing with local/remote merge.', error);
+  });
   const pending = await readPending(userId);
   const cachedDogNames = new Map<string, string>();
   for (const item of cached?.entries ?? []) {
@@ -306,7 +311,9 @@ export async function getMyWeeklyPracticeSummary(input?: { enrollmentId?: string
 
   // La sincronización es idempotente por client_event_id. No bloquea la lectura si
   // seguimos offline; la Home puede combinar la caché remota con la cola local.
-  await flushPendingPracticeSessions(userId).catch(() => undefined);
+  await flushPendingPracticeSessions(userId).catch((error) => {
+    devWarn('Best-effort practice flush failed before weekly summary read; continuing with the current remote/local view.', error);
+  });
 
   const weekStart = startOfLocalWeek();
   let query = supabase

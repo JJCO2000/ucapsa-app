@@ -85,6 +85,11 @@ for (const token of [
   "La inscripción ya no está activa o no pertenece a tu cuenta.",
   "Practice sync failed with an unclassified error; preserving pending operation.",
   "Practice save was not confirmed; preserving pending operation.",
+  "Practice activity cache could not be read; continuing without cached activity.",
+  "Practice activity cache could not be written; continuing without persistence.",
+  "Practice activity cache could not be cleared during logout.",
+  "Best-effort practice flush failed before activity read; continuing with local/remote merge.",
+  "Best-effort practice flush failed before weekly summary read; continuing with the current remote/local view.",
 ]) {
   if (!service.includes(token)) {
     throw new Error('Practice transient-vs-permanent classification missing: ' + token);
@@ -97,6 +102,10 @@ if (/catch \(error\)[\s\S]{0,220}if \(isLikelyNetworkError\(error\)\)[\s\S]{0,22
 
 if (!/if \(isPermanentPracticeRejection\(error\)\)[\s\S]{0,260}removePending\(input\.userId, clientEventId\)[\s\S]{0,120}throw error/.test(service)) {
   throw new Error('Practice save lost the explicit permanent-rejection removal path.');
+}
+
+if (/flushPendingPracticeSessions\([^)]*\)\.catch\(\(\) => undefined\)/.test(service)) {
+  throw new Error('Practice service returned to a silent best-effort flush.');
 }
 
 if (!domain.includes("'synced' | 'pending' | 'rejected'")) {
