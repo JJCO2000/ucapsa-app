@@ -35,7 +35,7 @@ begin
     into v_announcement
   from public.announcements
   where id = p_announcement_id
-  for share;
+  for update;
 
   if not found then
     raise exception 'No se encontro el anuncio.';
