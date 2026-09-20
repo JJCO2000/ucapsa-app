@@ -10,7 +10,7 @@ const sqlRequired = [
   'create or replace function public.admin_prepare_notification_campaign',
   'pg_advisory_xact_lock',
   "now() - interval '5 minutes'",
-  "'status',\n    0,\n    0,\n    0",
+  "'draft',\n    0,\n    0,\n    0",
   "'source', 'admin_manual'",
   'revoke all on function public.admin_prepare_notification_campaign',
 ];
