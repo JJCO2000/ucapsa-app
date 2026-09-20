@@ -336,7 +336,7 @@ export async function confirmPendingClassAttendance(
   userId: string,
   operationId: string,
 ): Promise<AttendanceSyncResult | null> {
-  const operation = (await getPendingAttendanceOperations(userId)).find((item) => item.id === operationId);
+  const operation = (await readAttendanceOutboxStrict(userId)).find((item) => item.id === operationId);
   if (!operation || operation.kind !== 'class') return null;
   const confirmed: PendingClassAttendanceOperation = {
     ...operation,
