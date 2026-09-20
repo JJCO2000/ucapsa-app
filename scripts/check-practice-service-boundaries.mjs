@@ -34,6 +34,20 @@ if (!service.includes("export { buildPracticeEngagementStats } from './practice.
   throw new Error('Practice service lost compatibility re-export for engagement stats.');
 }
 
+for (const token of [
+  'createKeyedMutationSerializer',
+  'serializePracticeMutation(item.userId',
+  'serializePracticeMutation(userId',
+  'createKeyedInFlightCoalescer<void>',
+  'coalescePracticeSync',
+  "p_client_event_id: item.clientEventId",
+]) {
+  if (!service.includes(token)) {
+    throw new Error('Practice durable outbox concurrency contract missing: ' + token);
+  }
+}
+
+
 if (/export function buildPracticeEngagementStats/.test(service)) {
   throw new Error('Practice engagement rules were duplicated back into practice.service.ts.');
 }

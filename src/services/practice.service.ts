@@ -4,6 +4,7 @@ import { WEEKLY_PRACTICE_GOAL } from '../constants/practice';
 import { supabase } from '../lib/supabase';
 import type { PracticeDifficulty, PracticeSession } from '../types/app.types';
 import { createOfflineUuid } from '../utils/offline-id.utils';
+import { createKeyedInFlightCoalescer, createKeyedMutationSerializer } from '../utils/keyed-async.utils';
 import {
   DEFAULT_WRITE_TIMEOUT_MS,
   getErrorMessage,
@@ -64,6 +65,9 @@ const PENDING_PRACTICE_PREFIX = 'ucapsa:practice-pending:v1:';
 const PRACTICE_ACTIVITY_CACHE_PREFIX = 'ucapsa:practice-activity:v1:';
 const PRACTICE_ACTIVITY_DAYS = 400;
 
+const serializePracticeMutation = createKeyedMutationSerializer();
+const coalescePracticeSync = createKeyedInFlightCoalescer<void>();
+
 
 function pendingPracticeKey(userId: string) {
   return `${PENDING_PRACTICE_PREFIX}${userId}`;
@@ -111,14 +115,18 @@ async function writePending(userId: string, items: PendingPracticeSession[]) {
 }
 
 async function enqueuePending(item: PendingPracticeSession) {
-  const current = await readPending(item.userId);
-  if (current.some((candidate) => candidate.clientEventId === item.clientEventId)) return;
-  await writePending(item.userId, [...current, item]);
+  return serializePracticeMutation(item.userId, async () => {
+    const current = await readPending(item.userId);
+    if (current.some((candidate) => candidate.clientEventId === item.clientEventId)) return;
+    await writePending(item.userId, [...current, item]);
+  });
 }
 
 async function removePending(userId: string, clientEventId: string) {
-  const current = await readPending(userId);
-  await writePending(userId, current.filter((item) => item.clientEventId !== clientEventId));
+  return serializePracticeMutation(userId, async () => {
+    const current = await readPending(userId);
+    await writePending(userId, current.filter((item) => item.clientEventId !== clientEventId));
+  });
 }
 
 
@@ -267,7 +275,7 @@ export async function getMyPracticeActivity(userId: string, daysBack = PRACTICE_
   }
 }
 
-async function syncOne(item: PendingPracticeSession) {
+async function syncOneOnce(item: PendingPracticeSession) {
   const { data, error } = await supabase.rpc('register_my_practice_session', {
     p_client_event_id: item.clientEventId,
     p_enrollment_id: item.enrollmentId,
@@ -280,6 +288,13 @@ async function syncOne(item: PendingPracticeSession) {
 
   if (error) throw error;
   if (!data) throw new Error('El servidor no confirmó la práctica.');
+}
+
+function syncOne(item: PendingPracticeSession): Promise<void> {
+  return coalescePracticeSync(
+    `${item.userId}:${item.clientEventId}`,
+    () => syncOneOnce(item),
+  );
 }
 
 export async function flushPendingPracticeSessions(userId: string): Promise<number> {
