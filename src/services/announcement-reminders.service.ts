@@ -50,11 +50,15 @@ export async function getAnnouncementReminders(announcementId: string) {
 }
 
 export async function saveAnnouncementReminders(input: SaveAnnouncementRemindersInput) {
-  const { data, error } = await supabase.rpc('admin_replace_announcement_reminders', {
-    p_announcement_id: input.announcement_id,
-    p_reminders: input.reminders,
+  const { data, error } = await supabase.functions.invoke('send-announcement-reminders', {
+    body: {
+      action: 'save',
+      announcement_id: input.announcement_id,
+      reminders: input.reminders,
+    },
   });
 
   if (error) throw error;
-  return campaignRowsToSettings(data);
+  if (data?.error) throw new Error(String(data.error));
+  return normalizeSettings(data?.reminders);
 }
