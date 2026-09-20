@@ -4,7 +4,6 @@ import type { TableUpdate } from '../types/database.helpers';
 import type {
   Membership,
   MembershipStatus,
-  Payment,
   Profile,
 } from '../types/app.types';
 import { isMembershipActiveToday } from './memberships.domain';
@@ -25,7 +24,6 @@ export type { MembershipEffectiveStatus } from './memberships.domain';
 export type MembershipAdminRow = {
   membership: Membership;
   profile: Profile | null;
-  payments: Payment[];
 };
 
 export type UpdateMembershipDetailsInput = {
@@ -147,7 +145,6 @@ export async function requestMembership(): Promise<Membership> {
     .insert({
       user_id: userId,
       status: 'pending',
-      current_payment_status: 'pending',
     })
     .select('*')
     .single();
@@ -168,7 +165,6 @@ export async function getAdminMembershipRows(): Promise<MembershipAdminRow[]> {
   if (memberships.length === 0) return [];
 
   const userIds = [...new Set(memberships.map((item) => item.user_id))];
-  const membershipIds = memberships.map((item) => item.id);
 
   const { data: profilesData, error: profilesError } = await supabase
     .from('profiles')
@@ -177,30 +173,14 @@ export async function getAdminMembershipRows(): Promise<MembershipAdminRow[]> {
 
   if (profilesError) throw profilesError;
 
-  const { data: paymentsData, error: paymentsError } = await supabase
-    .from('payments')
-    .select('*')
-    .in('membership_id', membershipIds)
-    .order('paid_at', { ascending: false });
-
-  if (paymentsError) throw paymentsError;
-
   const profiles = ((profilesData ?? []) as Profile[]).reduce<Record<string, Profile>>((acc, profile) => {
     acc[profile.user_id] = profile;
-    return acc;
-  }, {});
-
-  const paymentsByMembership = ((paymentsData ?? []) as Payment[]).reduce<Record<string, Payment[]>>((acc, payment) => {
-    if (!payment.membership_id) return acc;
-    acc[payment.membership_id] = acc[payment.membership_id] ?? [];
-    acc[payment.membership_id].push(payment);
     return acc;
   }, {});
 
   return memberships.map((membership) => ({
     membership,
     profile: profiles[membership.user_id] ?? null,
-    payments: paymentsByMembership[membership.id] ?? [],
   }));
 }
 
@@ -281,8 +261,6 @@ export async function forceMembershipForProfile(profile: Profile): Promise<Membe
         status: 'active',
         member_number: current.member_number || buildForcedMemberNumber(profile),
         start_date: current.start_date || now,
-        current_payment_status: current.current_payment_status === 'paid' ? 'paid' : 'pending',
-        payment_notes: 'Socio activado manualmente desde ficha de usuario.',
         approved_by: adminUserId,
         updated_at: now,
       })
@@ -301,10 +279,7 @@ export async function forceMembershipForProfile(profile: Profile): Promise<Membe
         status: 'active',
         start_date: now,
         end_date: null,
-          approved_by: adminUserId,
-        current_payment_status: 'pending',
-        last_payment_at: null,
-        payment_notes: 'Socio creado manualmente desde ficha de usuario.',
+        approved_by: adminUserId,
       })
       .select('*')
       .single();
@@ -339,8 +314,6 @@ export async function deactivateMembershipForProfile(profile: Profile): Promise<
       .from('memberships')
       .update({
         status: 'cancelled',
-        current_payment_status: 'not_required',
-        payment_notes: 'Socio desactivado manualmente desde ficha de usuario.',
         updated_at: now,
       } as never)
       .eq('id', membership.id);
@@ -368,17 +341,16 @@ export async function getMembershipByQrToken(qrToken: string): Promise<Membershi
 
   const membership = membershipData as Membership;
 
-  const [profileResult, paymentsResult] = await Promise.all([
-    supabase.from('profiles').select('*').eq('user_id', membership.user_id).maybeSingle(),
-    supabase.from('payments').select('*').eq('membership_id', membership.id).order('paid_at', { ascending: false }),
-  ]);
+  const { data: profileData, error: profileError } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('user_id', membership.user_id)
+    .maybeSingle();
 
-  if (profileResult.error) throw profileResult.error;
-  if (paymentsResult.error) throw paymentsResult.error;
+  if (profileError) throw profileError;
 
   return {
     membership,
-    profile: (profileResult.data as Profile | null) ?? null,
-    payments: (paymentsResult.data ?? []) as Payment[],
+    profile: (profileData as Profile | null) ?? null,
   };
 }
