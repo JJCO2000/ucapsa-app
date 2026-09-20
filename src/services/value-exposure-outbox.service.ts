@@ -50,8 +50,9 @@ function mexicoCityDateKey(value: string) {
     const month = parts.find((part) => part.type === 'month')?.value;
     const day = parts.find((part) => part.type === 'day')?.value;
     if (year && month && day) return `${year}-${month}-${day}`;
-  } catch {
+  } catch (error) {
     // Fallback estable si el runtime no expone timeZone/formatToParts.
+    devWarn('Could not format Mexico City date key; using ISO prefix fallback.', error);
   }
 
   return value.slice(0, 10);
@@ -128,8 +129,9 @@ export async function clearValueExposureOutbox(userId: string): Promise<void> {
   await serializeMutation(userId, async () => {
     try {
       await AsyncStorage.removeItem(key(userId));
-    } catch {
+    } catch (error) {
       // No bloquear logout por un fallo local de telemetría.
+      devWarn('Could not clear value-exposure outbox.', error);
     }
   });
 }
