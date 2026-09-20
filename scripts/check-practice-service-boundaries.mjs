@@ -147,8 +147,11 @@ for (const token of [
   }
 }
 
-if (/catch \(error\)[\s\S]{0,220}if \(isLikelyNetworkError\(error\)\)[\s\S]{0,220}removePending\(input\.userId, clientEventId\)[\s\S]{0,120}throw error/.test(sync)) {
-  throw new Error('Practice save can still delete local evidence for an unclassified non-network failure.');
+const saveStart = sync.indexOf('export async function saveMyPracticeSession');
+const saveContract = saveStart >= 0 ? sync.slice(saveStart) : '';
+const saveRemovals = saveContract.match(/await removePending\(input\.userId, clientEventId\);/g) ?? [];
+if (saveRemovals.length !== 2) {
+  throw new Error('Practice save must remove local evidence only after confirmed sync or explicit permanent rejection.');
 }
 
 if (!/if \(isPermanentPracticeRejection\(error\)\)[\s\S]{0,260}removePending\(input\.userId, clientEventId\)[\s\S]{0,120}throw error/.test(sync)) {
