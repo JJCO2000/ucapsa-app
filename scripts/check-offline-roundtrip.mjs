@@ -71,7 +71,7 @@ must('src/services/attendance-outbox.service.ts', /outboxMutationChains/, 'La co
 must('src/services/attendance-outbox.service.ts', /syncInFlightByOperation/, 'La cola QR perdió deduplicación de sincronizaciones simultáneas.');
 must('src/services/attendance-outbox.service.ts', /networkFailure = isLikelyNetworkError\(error\)/, 'La cola QR dejó de distinguir caída de red de error específico de una operación.');
 must('src/services/attendance-outbox.service.ts', /result\.status === 'pending' && result\.networkFailure[\s\S]{0,80}break/, 'La cola QR volvió a bloquear el lote ante cualquier error pendiente.');
-must('src/services/attendance-outbox.service.ts', /try \{[\s\S]{0,120}await replaceOperation\(operation\.userId, next\)[\s\S]{0,120}catch \{[\s\S]{0,180}no conviertas ese fallo[\s\S]{0,180}return \{/, 'Un fallo al actualizar metadatos locales volvió a poder abortar el sync QR.');
+must('src/services/attendance-outbox.service.ts', /try \{[\s\S]{0,120}await replaceOperation\(operation\.userId, next\)[\s\S]{0,120}catch(?:\s*\([^)]*\))?\s*\{[\s\S]{0,260}no conviertas ese fallo[\s\S]{0,260}return \{/, 'Un fallo al actualizar metadatos locales volvió a poder abortar el sync QR.');
 must('src/app/attendance.tsx', /queueClassAttendance/, 'El escáner de clases dejó de encolar offline.');
 must('src/app/attendance.tsx', /queueMemberVisit/, 'El escáner de socio dejó de encolar offline.');
 must('supabase/sql/ucapsa-offline-attendance-outbox.sql', /program_attendances_enrollment_client_event_unique_idx/, 'Backend perdió idempotencia de asistencia por client_event_id.');
