@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { WEEKLY_PRACTICE_GOAL } from '../constants/practice';
+import { devWarn } from '../lib/client-diagnostics';
 import { supabase } from '../lib/supabase';
 import type { PracticeDifficulty, PracticeSession } from '../types/app.types';
 import { createOfflineUuid } from '../utils/offline-id.utils';
@@ -81,7 +82,8 @@ async function readPracticeActivityCache(userId: string): Promise<PracticeActivi
     const parsed = JSON.parse(raw) as Partial<PracticeActivityCache>;
     if (parsed.version !== 1 || parsed.userId !== userId || typeof parsed.savedAt !== 'string' || !Array.isArray(parsed.entries)) return null;
     return parsed as PracticeActivityCache;
-  } catch {
+  } catch (error) {
+    devWarn('Could not read practice activity cache.', error);
     return null;
   }
 }
@@ -95,8 +97,9 @@ async function writePracticeActivityCache(userId: string, entries: PracticeActiv
   };
   try {
     await AsyncStorage.setItem(practiceActivityCacheKey(userId), JSON.stringify(payload));
-  } catch {
+  } catch (error) {
     // La actividad es una lectura offline; no bloquear la experiencia por la cache.
+    devWarn('Could not persist practice activity cache.', error);
   }
   return payload;
 }
@@ -128,8 +131,9 @@ function mergeActivityEntries(remote: PracticeActivityEntry[], pending: PendingP
 export async function clearPracticeActivityCache(userId: string): Promise<void> {
   try {
     await AsyncStorage.removeItem(practiceActivityCacheKey(userId));
-  } catch {
+  } catch (error) {
     // No bloquear logout por un fallo de cache.
+    devWarn('Could not clear practice activity cache.', error);
   }
 }
 
