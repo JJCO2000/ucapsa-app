@@ -4667,6 +4667,38 @@ export type Database = {
         Args: { p_achievement_code: string; p_dog_id: string }
         Returns: string
       }
+      admin_prepare_notification_campaign: {
+        Args: {
+          p_audience: string
+          p_body: string
+          p_category: string
+          p_reuse_recent?: boolean
+          p_title: string
+        }
+        Returns: {
+          archived_at: string | null
+          audience: string
+          body: string
+          category: string
+          created_at: string
+          created_by: string | null
+          failure_count: number
+          id: string
+          metadata: Json
+          sent_at: string | null
+          status: string
+          success_count: number
+          title: string
+          total_targets: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "notification_campaigns"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       admin_publish_privacy_notice: {
         Args: { p_id: string }
         Returns: {
