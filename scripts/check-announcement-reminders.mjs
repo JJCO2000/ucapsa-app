@@ -11,7 +11,9 @@ for (const token of [
   'if not public.is_admin()',
   "jsonb_typeof(v_reminders) <> 'array'",
   'jsonb_array_length(v_reminders) > 5',
-  'delete from public.notification_campaigns',
+  'for update',
+  "superseded_reason', 'announcement_reminder_replaced'",
+  'archived_at = coalesce(c.archived_at, now())',
   'insert into public.notification_campaigns',
   'revoke all on function public.admin_replace_announcement_reminders(uuid, jsonb)',
   'to authenticated, service_role',
@@ -25,10 +27,18 @@ for (const token of [
   }
 }
 
-const deleteIndex = sql.toLowerCase().indexOf('delete from public.notification_campaigns');
+if (/delete\s+from\s+public\.notification_campaigns/i.test(sql)) {
+  throw new Error('Announcement reminder replacement must archive superseded campaigns instead of deleting history.');
+}
+
+const archiveIndex = sql.toLowerCase().indexOf('archived_at = coalesce(c.archived_at, now())');
 const insertIndex = sql.toLowerCase().indexOf('insert into public.notification_campaigns');
-if (deleteIndex < 0 || insertIndex < 0 || deleteIndex > insertIndex) {
-  throw new Error('Announcement reminder replacement lost its single transactional delete -> insert flow.');
+if (archiveIndex < 0 || insertIndex < 0 || archiveIndex > insertIndex) {
+  throw new Error('Announcement reminder replacement lost its single transactional archive -> insert flow.');
+}
+
+if (!/select \*[\s\S]{0,180}from public\.announcements[\s\S]{0,120}for update/i.test(sql)) {
+  throw new Error('Concurrent reminder replacement is no longer serialized on the announcement row.');
 }
 
 if (!/metadata\s*=\s*c\.metadata\s*\|\|\s*jsonb_build_object[\s\S]*['"]remind_at['"]/i.test(sql)) {
@@ -37,6 +47,20 @@ if (!/metadata\s*=\s*c\.metadata\s*\|\|\s*jsonb_build_object[\s\S]*['"]remind_at
 
 if (!/new\.announcement_date is null[\s\S]*status\s*=\s*['"]no_targets['"][\s\S]*archived_at/i.test(sql)) {
   throw new Error('Removing an announcement date no longer retires existing draft reminders.');
+}
+
+if (!/\.eq\(['"]status['"], ['"]draft['"]\)[\s\S]{0,120}\.is\(['"]archived_at['"], null\)/.test(service)) {
+  throw new Error('Reminder editor can see superseded archived drafts.');
+}
+
+const listBlock = edge.slice(edge.indexOf("if (action === 'list')"), edge.indexOf("if (action === 'save')"));
+if (!/\.eq\(['"]status['"], ['"]draft['"]\)[\s\S]{0,120}\.is\(['"]archived_at['"], null\)/.test(listBlock)) {
+  throw new Error('Edge reminder list can see superseded archived drafts.');
+}
+
+const dueBlock = edge.slice(edge.indexOf("const { data: drafts"), edge.indexOf("if (draftsError)"));
+if (!/\.eq\(['"]status['"], ['"]draft['"]\)[\s\S]{0,120}\.is\(['"]archived_at['"], null\)/.test(dueBlock)) {
+  throw new Error('Reminder scheduler can resend superseded archived drafts.');
 }
 
 if (!service.includes(".from('notification_campaigns')") || !service.includes("action: 'save'")) {
