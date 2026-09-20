@@ -132,3 +132,10 @@ console.log(JSON.stringify({
 for (const item of findings) {
   console.log(`- ${item.kind} ${item.file}:${item.line} :: ${item.body || '(empty after comments)'}`);
 }
+
+if (findings.length > 0) {
+  console.error('SILENT CATCH AUDIT FAIL: cada catch debe relanzar, comunicar degradación, registrar diagnóstico o expresar fallback/estado/retry de forma explícita.');
+  process.exit(1);
+}
+
+console.log('SILENT CATCH AUDIT PASS: todos los catch tienen una salida explícita o diagnóstica.');
