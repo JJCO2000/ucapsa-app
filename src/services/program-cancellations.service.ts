@@ -12,7 +12,7 @@ import {
   getProgramScheduleTimeline,
   getProgramSchedules,
   getPrograms,
-} from './programs-core.service';
+} from './program-schedules.service';
 import { getProgramServiceCurrentUserId } from './programs-session.internal';
 
 export type CreateProgramClassCancellationInput = {

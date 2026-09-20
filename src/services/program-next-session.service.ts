@@ -1,10 +1,10 @@
 import type { ProgramClassCancellation, ProgramEnrollmentWithDetails, ProgramSchedule } from '../types/app.types';
+import { getProgramClassCancellations } from './program-cancellations.service';
 import {
-  getProgramClassCancellations,
   getProgramScheduleFromTimeline,
   getProgramScheduleTimeline,
-  isProgramScheduleActiveOnDate,
-} from './programs.service';
+} from './program-schedules.service';
+import { isProgramScheduleActiveOnDate } from './programs.domain';
 
 export type ProgramNextSession = {
   enrollmentId: string;

@@ -2,7 +2,12 @@ import fs from 'node:fs';
 
 const service = fs.readFileSync('src/services/programs.service.ts', 'utf8');
 const core = fs.readFileSync('src/services/programs-core.service.ts', 'utf8');
+const schedules = fs.readFileSync('src/services/program-schedules.service.ts', 'utf8');
+const enrollments = fs.readFileSync('src/services/program-enrollments.service.ts', 'utf8');
+const attendance = fs.readFileSync('src/services/program-attendance.service.ts', 'utf8');
 const cancellations = fs.readFileSync('src/services/program-cancellations.service.ts', 'utf8');
+const nextSession = fs.readFileSync('src/services/program-next-session.service.ts', 'utf8');
+const attendanceOutbox = fs.readFileSync('src/services/attendance-outbox.service.ts', 'utf8');
 const sessionInternal = fs.readFileSync('src/services/programs-session.internal.ts', 'utf8');
 const domain = fs.readFileSync('src/services/programs.domain.ts', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
@@ -14,6 +19,7 @@ if (/lib\/supabase|\bsupabase\.(?:from|rpc|auth|storage)\b|\bcreateClient\s*\(/.
 for (const token of [
   'buildOfficialAttendanceQrValue',
   'parseOfficialAttendanceQrValue',
+  'getProgramEnrollmentDogName',
   'getProgramStatusLabel',
   'getProgramLevelLabel',
   'sortProgramSchedules',
@@ -25,33 +31,96 @@ for (const token of [
     throw new Error('Program domain contract missing: ' + token);
   }
   if (!core.includes(token)) {
-    throw new Error('programs-core.service.ts stopped re-exporting/using domain contract: ' + token);
+    throw new Error('programs-core.service.ts stopped re-exporting domain contract: ' + token);
   }
 }
 
-for (const token of [
-  'export function getProgramStatusLabel',
-  'export function getProgramLevelLabel',
-  'export function sortProgramSchedules',
-  'export function formatProgramScheduleDetailLabel',
-  'export function isProgramScheduleActiveOnDate',
+for (const [name, text] of [
+  ['program schedules', schedules],
+  ['program enrollments', enrollments],
+  ['program attendance', attendance],
+  ['program cancellations', cancellations],
 ]) {
-  if (core.includes(token) || cancellations.includes(token)) {
-    throw new Error('Pure program rule moved back into an I/O service: ' + token);
+  for (const token of [
+    'export function getProgramEnrollmentDogName',
+    'export function getProgramStatusLabel',
+    'export function getProgramLevelLabel',
+    'export function sortProgramSchedules',
+    'export function formatProgramScheduleDetailLabel',
+    'export function isProgramScheduleActiveOnDate',
+  ]) {
+    if (text.includes(token)) {
+      throw new Error(name + ' regained a pure program rule: ' + token);
+    }
   }
 }
 
-for (const token of [
+for (const line of [
+  "export * from './program-schedules.service';",
+  "export * from './program-enrollments.service';",
+  "export * from './program-attendance.service';",
+]) {
+  if (!core.includes(line)) {
+    throw new Error('programs-core compatibility barrel lost export: ' + line);
+  }
+}
+
+if (/lib\/supabase|\bsupabase\.|\bfunction\s+|\bconst\s+|\btype\s+[A-Za-z0-9_]+\s*=/.test(core)) {
+  throw new Error('programs-core.service.ts must remain a compatibility barrel without implementation.');
+}
+
+for (const line of [
   "export * from './programs-core.service';",
   "export * from './program-cancellations.service';",
 ]) {
-  if (!service.includes(token)) {
-    throw new Error('programs.service.ts facade lost canonical export: ' + token);
+  if (!service.includes(line)) {
+    throw new Error('programs.service.ts facade lost canonical export: ' + line);
   }
 }
 
 if (/lib\/supabase|\bsupabase\.|\bfunction\s+|\bconst\s+/.test(service)) {
   throw new Error('programs.service.ts facade regained implementation logic.');
+}
+
+for (const token of [
+  'getPrograms',
+  'getProgramSchedules',
+  'getProgramScheduleTimeline',
+  'getProgramScheduleFromTimeline',
+  'changeProgramScheduleFromDate',
+  'updateProgramSchedule',
+]) {
+  if (!schedules.includes(token)) {
+    throw new Error('Program schedules boundary missing operation: ' + token);
+  }
+}
+
+for (const token of [
+  'getMyProgramEnrollments',
+  'getAdminProgramRows',
+  'getProgramClientProfiles',
+  'createProgramEnrollment',
+  'updateProgramEnrollment',
+  'setProgramEnrollmentStatus',
+  'getProgramEnrollmentByQrToken',
+]) {
+  if (!enrollments.includes(token)) {
+    throw new Error('Program enrollments boundary missing operation: ' + token);
+  }
+}
+
+for (const token of [
+  'getProgramSessionScheduleMap',
+  'getOfficialAttendanceQrCodes',
+  'registerMyProgramAttendanceFromQr',
+  'registerProgramAttendance',
+  'correctProgramAttendance',
+  'deleteProgramAttendance',
+  'setProgramEnrollmentAttendanceCount',
+]) {
+  if (!attendance.includes(token)) {
+    throw new Error('Program attendance boundary missing operation: ' + token);
+  }
 }
 
 for (const token of [
@@ -64,40 +133,67 @@ for (const token of [
   if (!cancellations.includes('export async function ' + token)) {
     throw new Error('Program cancellation boundary missing operation: ' + token);
   }
-  if (core.includes('function ' + token)) {
-    throw new Error('Program cancellation operation moved back into programs-core.service.ts: ' + token);
+}
+
+if (!/from ['"]\.\/program-schedules\.service['"]/.test(enrollments)) {
+  throw new Error('Program enrollments must depend on canonical schedules.');
+}
+if (!/from ['"]\.\/programs-session\.internal['"]/.test(enrollments)) {
+  throw new Error('Program enrollments stopped sharing the internal user-session lookup.');
+}
+if (!/from ['"]\.\/program-schedules\.service['"]/.test(cancellations)) {
+  throw new Error('Program cancellations must depend on canonical schedules.');
+}
+if (!/from ['"]\.\/programs-session\.internal['"]/.test(cancellations)) {
+  throw new Error('Program cancellations stopped sharing the internal user-session lookup.');
+}
+
+for (const [name, text] of [
+  ['program schedules', schedules],
+  ['program enrollments', enrollments],
+  ['program attendance', attendance],
+  ['program cancellations', cancellations],
+  ['program next-session', nextSession],
+  ['attendance outbox', attendanceOutbox],
+  ['program domain', domain],
+]) {
+  if (/from ['"]\.\/programs\.service['"]/.test(text)) {
+    throw new Error(name + ' created a reverse dependency through the public programs facade.');
+  }
+  if (/from ['"]\.\/programs-core\.service['"]/.test(text)) {
+    throw new Error(name + ' depends on the programs compatibility barrel instead of a focused module.');
   }
 }
 
-if (!cancellations.includes("from './programs-core.service'")) {
-  throw new Error('Cancellation module stopped consuming the internal program core.');
-}
-if (/from ['"]\.\/programs\.service['"]/.test(cancellations)) {
-  throw new Error('Cancellation module created a circular dependency through the public facade.');
+if (!/from ['"]\.\/program-cancellations\.service['"]/.test(nextSession)
+    || !/from ['"]\.\/program-schedules\.service['"]/.test(nextSession)
+    || !/from ['"]\.\/programs\.domain['"]/.test(nextSession)) {
+  throw new Error('Program next-session must consume focused cancellation/schedule/domain modules.');
 }
 
-if (!core.includes("from './programs-session.internal'") || !cancellations.includes("from './programs-session.internal'")) {
-  throw new Error('Program modules stopped sharing the internal user-session lookup.');
+if (!/from ['"]\.\/program-attendance\.service['"]/.test(attendanceOutbox)) {
+  throw new Error('Attendance outbox must consume the canonical program attendance contract directly.');
 }
+
 if (service.includes('programs-session.internal')) {
   throw new Error('Internal program session helper leaked through the public facade.');
 }
 
-if (/from ['"]\.\/programs\.service['"]/.test(domain)) {
-  throw new Error('Program domain has a reverse dependency on programs.service.ts.');
-}
+const limits = [
+  ['program facade', service, 20],
+  ['program core barrel', core, 45],
+  ['program schedules', schedules, 230],
+  ['program enrollments', enrollments, 280],
+  ['program attendance', attendance, 190],
+  ['program cancellations', cancellations, 320],
+  ['program next-session', nextSession, 190],
+];
 
-const facadeLines = service.split(/\r?\n/).length;
-const coreLines = core.split(/\r?\n/).length;
-const cancellationLines = cancellations.split(/\r?\n/).length;
-if (facadeLines > 20) {
-  throw new Error('programs.service.ts facade grew implementation again: ' + facadeLines + ' lines.');
-}
-if (coreLines > 520) {
-  throw new Error('programs-core.service.ts grew past the current boundary: ' + coreLines + ' lines.');
-}
-if (cancellationLines > 320) {
-  throw new Error('program-cancellations.service.ts grew past the current boundary: ' + cancellationLines + ' lines.');
+for (const [name, text, maxLines] of limits) {
+  const lines = text.split(/\r?\n/).length;
+  if (lines > maxLines) {
+    throw new Error(name + ' grew past its responsibility boundary: ' + lines + ' lines.');
+  }
 }
 
 if (!/supabase\.auth\.getUser\(\)/.test(sessionInternal)) {
@@ -108,4 +204,4 @@ if (!pkg.includes('"check:program-service-boundaries"')) {
   throw new Error('npm verify does not include the program service-boundary guard.');
 }
 
-console.log('UCAPSA program facade/core/cancellation/domain boundaries: PASS');
+console.log('UCAPSA program responsibility boundaries: PASS');

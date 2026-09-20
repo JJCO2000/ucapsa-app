@@ -3,6 +3,7 @@ import type {
   ProgramClassCancellation,
   ProgramCode,
   ProgramEnrollment,
+  ProgramEnrollmentWithDetails,
   ProgramEnrollmentStatus,
   ProgramLevel,
   ProgramSchedule,
@@ -90,6 +91,10 @@ export function normalizeEnrollment(row: unknown): ProgramEnrollment {
 
 export function normalizeClassCancellation(row: unknown): ProgramClassCancellation {
   return row as ProgramClassCancellation;
+}
+
+export function getProgramEnrollmentDogName(item: ProgramEnrollmentWithDetails | null | undefined) {
+  return item?.dog?.name?.trim() || item?.enrollment.dog_name?.trim() || item?.profile?.dog_name?.trim() || 'Perro';
 }
 
 export function getProgramStatusLabel(status: ProgramEnrollmentStatus) {
