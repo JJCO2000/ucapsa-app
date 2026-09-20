@@ -18,7 +18,9 @@ for (const file of roots.flatMap((root) => walk(root))) {
   if (
     /(?:from|require\()\s*['"][^'"]*lib\/supabase['"]/.test(text) ||
     /\bsupabase\.(?:from|rpc|auth|storage)\b/.test(text) ||
-    /\bcreateClient\s*\(/.test(text)
+    /\bcreateClient\s*\(/.test(text) ||
+    /@react-native-async-storage\/async-storage/.test(text) ||
+    /\bAsyncStorage\./.test(text)
   ) {
     violations.push(file);
   }
