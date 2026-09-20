@@ -3,6 +3,7 @@ import * as Device from 'expo-device';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 
+import { devWarn } from '../lib/client-diagnostics';
 import {
   disableStoredExpoPushToken,
   getNotificationPreferences,
@@ -92,7 +93,10 @@ export function useNotifications() {
       }
 
       const Notifications = await loadNotificationsModule();
-      const permissions = await Notifications.getPermissionsAsync().catch(() => null);
+      const permissions = await Notifications.getPermissionsAsync().catch((cause) => {
+        devWarn('Could not read notification permission status.', cause);
+        return null;
+      });
       setPermissionStatus(permissions?.status ?? 'unknown');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'No se pudieron cargar las notificaciones.');
