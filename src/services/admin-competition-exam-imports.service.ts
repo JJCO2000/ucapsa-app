@@ -4,7 +4,7 @@ import type { Database } from '../types/database.types';
 import {
   getAdminCompetitionSeasons,
   type CompetitionSeason,
-} from './admin-competition-core.service';
+} from './admin-competition-seasons.service';
 import {
   type CompetitionExam,
   type CompetitionExamItem,
