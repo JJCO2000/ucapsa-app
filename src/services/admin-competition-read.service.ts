@@ -4,10 +4,12 @@ import type { Database } from '../types/database.types';
 import {
   getAdminCompetitionSeason,
   getAdminCompetitionSeasons,
-  type CompetitionLeaderboardRow,
-  type CompetitionRange,
   type CompetitionSeason,
-} from './admin-competition-core.service';
+} from './admin-competition-seasons.service';
+import type {
+  CompetitionLeaderboardRow,
+  CompetitionRange,
+} from './admin-competition-adjustments.service';
 
 export type CompetitionConstancyEvent = Database['public']['Views']['ucapsa_constancy_events']['Row'];
 
