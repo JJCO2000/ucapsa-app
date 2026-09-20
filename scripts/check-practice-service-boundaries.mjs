@@ -1,11 +1,16 @@
 import fs from 'node:fs';
 
-const servicePath = 'src/services/practice.service.ts';
+const facadePath = 'src/services/practice.service.ts';
+const activityPath = 'src/services/practice-activity.service.ts';
+const syncPath = 'src/services/practice-sync.service.ts';
 const domainPath = 'src/services/practice.domain.ts';
+const outboxPath = 'src/services/practice-outbox.service.ts';
 
-const service = fs.readFileSync(servicePath, 'utf8');
+const facade = fs.readFileSync(facadePath, 'utf8');
+const activity = fs.readFileSync(activityPath, 'utf8');
+const sync = fs.readFileSync(syncPath, 'utf8');
 const domain = fs.readFileSync(domainPath, 'utf8');
-const outbox = fs.readFileSync('src/services/practice-outbox.service.ts', 'utf8');
+const outbox = fs.readFileSync(outboxPath, 'utf8');
 const detail = fs.readFileSync('src/app/client/practice-detail.tsx', 'utf8');
 const historyRow = fs.readFileSync('src/components/domain/PracticeHistoryRow.tsx', 'utf8');
 const sql = fs.readFileSync('supabase/sql/ucapsa-practice-session-rpc.sql', 'utf8');
@@ -30,22 +35,62 @@ for (const token of [
   }
 }
 
-if (!service.includes("from './practice.domain'")) {
-  throw new Error('Practice service no longer consumes the canonical practice domain.');
+for (const line of [
+  "export { buildPracticeEngagementStats } from './practice.domain';",
+  "export * from './practice-activity.service';",
+  "export * from './practice-sync.service';",
+]) {
+  if (!facade.includes(line)) {
+    throw new Error('Practice compatibility facade lost export: ' + line);
+  }
 }
 
-if (!service.includes("export { buildPracticeEngagementStats } from './practice.domain';")) {
-  throw new Error('Practice service lost compatibility re-export for engagement stats.');
+if (/AsyncStorage|lib\/supabase|\bsupabase\.|\bfunction\s+|\bconst\s+/.test(facade)) {
+  throw new Error('practice.service.ts must remain a compatibility facade without implementation.');
+}
+
+for (const token of [
+  'getCachedMyPracticeActivity',
+  'getMyPracticeActivity',
+  'getMyWeeklyPracticeSummary',
+  'readPracticeActivityCache',
+  'writePracticeActivityCache',
+  'mergeActivityEntries',
+]) {
+  if (!activity.includes(token)) {
+    throw new Error('Practice activity boundary missing: ' + token);
+  }
 }
 
 for (const token of [
   'createKeyedInFlightCoalescer<void>',
   'coalescePracticeSync',
   "p_client_event_id: item.clientEventId",
+  'flushPendingPracticeSessions',
+  'getPendingPracticeCounts',
+  'saveMyPracticeSession',
   "from './practice-outbox.service'",
 ]) {
-  if (!service.includes(token)) {
-    throw new Error('Practice service I/O contract missing: ' + token);
+  if (!sync.includes(token)) {
+    throw new Error('Practice sync boundary missing: ' + token);
+  }
+}
+
+if (!activity.includes("from './practice-sync.service'")) {
+  throw new Error('Practice activity reads must consume the canonical sync boundary.');
+}
+if (!activity.includes("from './practice-outbox.service'")) {
+  throw new Error('Practice activity reads must merge canonical pending outbox entries.');
+}
+
+for (const [name, text] of [
+  ['practice activity', activity],
+  ['practice sync', sync],
+  ['practice domain', domain],
+  ['practice outbox', outbox],
+]) {
+  if (/from ['"]\.\/practice\.service['"]/.test(text)) {
+    throw new Error(name + ' created a reverse dependency through the compatibility facade.');
   }
 }
 
@@ -61,9 +106,8 @@ for (const token of [
   }
 }
 
-
-if (/export function buildPracticeEngagementStats/.test(service)) {
-  throw new Error('Practice engagement rules were duplicated back into practice.service.ts.');
+if (/export function buildPracticeEngagementStats/.test(activity) || /export function buildPracticeEngagementStats/.test(sync)) {
+  throw new Error('Practice engagement rules were duplicated outside practice.domain.ts.');
 }
 
 if (!outbox.includes("state?: 'pending' | 'rejected'")) {
@@ -74,7 +118,7 @@ for (const token of [
   "state: 'rejected'",
   "message: getErrorMessage(error)",
 ]) {
-  if (!service.includes(token)) {
+  if (!sync.includes(token)) {
     throw new Error('Practice rejected-sync contract missing: ' + token);
   }
 }
@@ -85,27 +129,37 @@ for (const token of [
   "La inscripción ya no está activa o no pertenece a tu cuenta.",
   "Practice sync failed with an unclassified error; preserving pending operation.",
   "Practice save was not confirmed; preserving pending operation.",
+]) {
+  if (!sync.includes(token)) {
+    throw new Error('Practice transient-vs-permanent classification missing: ' + token);
+  }
+}
+
+for (const token of [
   "Practice activity cache could not be read; continuing without cached activity.",
   "Practice activity cache could not be written; continuing without persistence.",
   "Practice activity cache could not be cleared during logout.",
   "Best-effort practice flush failed before activity read; continuing with local/remote merge.",
   "Best-effort practice flush failed before weekly summary read; continuing with the current remote/local view.",
 ]) {
-  if (!service.includes(token)) {
-    throw new Error('Practice transient-vs-permanent classification missing: ' + token);
+  if (!activity.includes(token)) {
+    throw new Error('Practice activity fallback contract missing: ' + token);
   }
 }
 
-if (/catch \(error\)[\s\S]{0,220}if \(isLikelyNetworkError\(error\)\)[\s\S]{0,220}removePending\(input\.userId, clientEventId\)[\s\S]{0,120}throw error/.test(service)) {
-  throw new Error('Practice save can still delete local evidence for an unclassified non-network failure.');
+const saveStart = sync.indexOf('export async function saveMyPracticeSession');
+const saveContract = saveStart >= 0 ? sync.slice(saveStart) : '';
+const saveRemovals = saveContract.match(/await removePending\(input\.userId, clientEventId\);/g) ?? [];
+if (saveRemovals.length !== 2) {
+  throw new Error('Practice save must remove local evidence only after confirmed sync or explicit permanent rejection.');
 }
 
-if (!/if \(isPermanentPracticeRejection\(error\)\)[\s\S]{0,260}removePending\(input\.userId, clientEventId\)[\s\S]{0,120}throw error/.test(service)) {
+if (!/if \(isPermanentPracticeRejection\(error\)\)[\s\S]{0,260}removePending\(input\.userId, clientEventId\)[\s\S]{0,120}throw error/.test(sync)) {
   throw new Error('Practice save lost the explicit permanent-rejection removal path.');
 }
 
-if (/flushPendingPracticeSessions\([^)]*\)\.catch\(\(\) => undefined\)/.test(service)) {
-  throw new Error('Practice service returned to a silent best-effort flush.');
+if (/flushPendingPracticeSessions\([^)]*\)\.catch\(\(\) => undefined\)/.test(activity)) {
+  throw new Error('Practice activity reads returned to a silent best-effort flush.');
 }
 
 if (!domain.includes("'synced' | 'pending' | 'rejected'")) {
@@ -129,22 +183,21 @@ for (const token of [
   }
 }
 
-
-const serviceLines = service.split(/\r?\n/).length;
-const domainLines = domain.split(/\r?\n/).length;
-const outboxLines = outbox.split(/\r?\n/).length;
-if (serviceLines > 430) {
-  throw new Error('Practice service grew beyond its I/O responsibility boundary: ' + serviceLines + ' > 430.');
-}
-if (domainLines > 190) {
-  throw new Error('Practice domain grew beyond its pure-rule responsibility boundary: ' + domainLines + ' > 190.');
-}
-if (outboxLines > 150) {
-  throw new Error('Practice outbox grew beyond its persistence responsibility boundary: ' + outboxLines + ' > 150.');
+for (const [name, text, maxLines] of [
+  ['practice facade', facade, 30],
+  ['practice activity', activity, 300],
+  ['practice sync', sync, 240],
+  ['practice domain', domain, 190],
+  ['practice outbox', outbox, 150],
+]) {
+  const lines = text.split(/\r?\n/).length;
+  if (lines > maxLines) {
+    throw new Error(name + ' grew beyond its responsibility boundary: ' + lines + ' > ' + maxLines + '.');
+  }
 }
 
 if (!pkg.includes('"check:practice-service-boundaries"')) {
   throw new Error('npm verify does not include the practice service boundary guard.');
 }
 
-console.log('UCAPSA practice domain/service boundary: PASS');
+console.log('UCAPSA practice domain/activity/sync/outbox boundaries: PASS');
