@@ -22,6 +22,7 @@ const detail = read('src/app/admin/competition-season-detail.tsx');
 const form = read('src/app/admin/competition-season-form.tsx');
 const service = [
   read('src/services/admin-competition-core.service.ts'),
+  read('src/services/admin-competition-seasons.service.ts'),
   read('src/services/admin-competition-exams.service.ts'),
   read('src/services/admin-competition-read.service.ts'),
 ].join('\n');
