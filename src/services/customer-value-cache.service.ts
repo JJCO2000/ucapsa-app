@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { devWarn } from '../lib/client-diagnostics';
+
 import { normalizeLifetimeMembershipSnapshot } from './customer-value-merge.service';
 import type { CustomerValueSnapshot } from './customer-value.service';
 
@@ -46,7 +48,8 @@ export async function readCustomerValueSnapshotCache(
       savedAt: parsed.saved_at,
       snapshot: normalizeLifetimeMembershipSnapshot(parsed.snapshot),
     };
-  } catch {
+  } catch (error) {
+    devWarn('Could not read customer value cache.', error);
     return null;
   }
 }
@@ -62,15 +65,17 @@ export async function writeCustomerValueSnapshotCache(snapshot: CustomerValueSna
 
   try {
     await AsyncStorage.setItem(cacheKey(normalizedSnapshot.userId), JSON.stringify(payload));
-  } catch {
+  } catch (error) {
     // La caché local es una mejora. Nunca convierte una lectura correcta en error.
+    devWarn('Could not persist customer value cache.', error);
   }
 }
 
 export async function clearCustomerValueSnapshotCache(userId: string): Promise<void> {
   try {
     await AsyncStorage.removeItem(cacheKey(userId));
-  } catch {
+  } catch (error) {
     // No bloquear logout ni otros flujos por un fallo del almacenamiento local.
+    devWarn('Could not clear customer value cache.', error);
   }
 }
