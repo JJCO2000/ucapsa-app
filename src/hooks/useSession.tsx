@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session, User } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
@@ -11,20 +10,14 @@ import { clearClientReadCache } from '../services/client-read-cache.service';
 import { clearPracticeActivityCache } from '../services/practice.service';
 import { disableStoredExpoPushToken } from '../services/notifications.service';
 import { getProfileByUserId } from '../services/profiles.service';
+import { readCachedProfile, removeCachedProfile, writeCachedProfile } from '../services/profile-cache.service';
 import type { AppRole, UserProfile } from '../types/app.types';
 
 const SESSION_BOOT_TIMEOUT_MS = 4_000;
 const FIRST_PROFILE_TIMEOUT_MS = 3_500;
 const PROFILE_REFRESH_TIMEOUT_MS = 6_000;
-const PROFILE_CACHE_PREFIX = 'ucapsa:profile-cache:v1:';
 const STARTUP_ERROR_MESSAGE =
   'No pudimos recuperar tu sesion. Si estas sin internet y tu sesion necesita renovarse, conecta una vez y toca Reintentar.';
-
-type CachedProfileRecord = {
-  version: 1;
-  cachedAt: string;
-  profile: UserProfile;
-};
 
 type SessionContextValue = {
   session: Session | null;
@@ -48,82 +41,6 @@ const SessionContext = createContext<SessionContextValue | undefined>(undefined)
 type SessionProviderProps = {
   children: ReactNode;
 };
-
-function profileCacheKey(userId: string) {
-  return `${PROFILE_CACHE_PREFIX}${userId}`;
-}
-
-function createTimeoutError(phase: string) {
-  return new Error(`UCAPSA timeout during ${phase}.`);
-}
-
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, phase: string): Promise<T> {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutId = setTimeout(() => reject(createTimeoutError(phase)), timeoutMs);
-  });
-
-  try {
-    return await Promise.race([promise, timeoutPromise]);
-  } finally {
-    if (timeoutId) clearTimeout(timeoutId);
-  }
-}
-
-async function readCachedProfile(userId: string): Promise<CachedProfileRecord | null> {
-  try {
-    const raw = await AsyncStorage.getItem(profileCacheKey(userId));
-    if (!raw) return null;
-
-    const parsed = JSON.parse(raw) as Partial<CachedProfileRecord> | null;
-    const cachedProfile = parsed?.profile as UserProfile | undefined;
-
-    if (
-      parsed?.version !== 1 ||
-      typeof parsed.cachedAt !== 'string' ||
-      !cachedProfile ||
-      cachedProfile.user_id !== userId
-    ) {
-      await AsyncStorage.removeItem(profileCacheKey(userId));
-      return null;
-    }
-
-    return {
-      version: 1,
-      cachedAt: parsed.cachedAt,
-      profile: cachedProfile,
-    };
-  } catch (error) {
-    devWarn('Could not read cached UCAPSA profile.', error);
-    return null;
-  }
-}
-
-async function writeCachedProfile(profile: UserProfile): Promise<string> {
-  const cachedAt = new Date().toISOString();
-  const record: CachedProfileRecord = {
-    version: 1,
-    cachedAt,
-    profile,
-  };
-
-  try {
-    await AsyncStorage.setItem(profileCacheKey(profile.user_id), JSON.stringify(record));
-  } catch (error) {
-    devWarn('Could not cache UCAPSA profile.', error);
-  }
-
-  return cachedAt;
-}
-
-async function removeCachedProfile(userId: string) {
-  try {
-    await AsyncStorage.removeItem(profileCacheKey(userId));
-  } catch (error) {
-    devWarn('Could not remove cached UCAPSA profile.', error);
-  }
-}
 
 function shouldReloadProfile(event: string) {
   return event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'MFA_CHALLENGE_VERIFIED';
