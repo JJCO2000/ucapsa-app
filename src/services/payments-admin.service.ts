@@ -23,17 +23,6 @@ export type RegisterCustomerPaymentInput = {
   paidAt?: string | null;
 };
 
-export type RegisterMembershipPaymentInput = {
-  userId: string;
-  membershipId: string;
-  amount?: number;
-  notes?: string | null;
-  periodLabel?: string | null;
-  paymentMethod?: string | null;
-  obligationId?: string | null;
-  paidAt?: string | null;
-};
-
 export type UpdateCustomerPaymentInput = {
   amount?: number;
   notes?: string | null;
