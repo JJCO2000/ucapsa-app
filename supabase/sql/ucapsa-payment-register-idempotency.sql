@@ -178,6 +178,7 @@ begin
        or v_existing.amount is distinct from p_amount
        or coalesce(v_existing.concept, '') is distinct from v_concept
        or coalesce(v_existing.payment_method, '') is distinct from v_method
+       or (p_paid_at is not null and v_existing.paid_at is distinct from p_paid_at)
        or coalesce(v_existing.notes, '') is distinct from coalesce(nullif(btrim(coalesce(p_notes, '')), ''), '')
        or coalesce(v_existing.period_label, '') is distinct from coalesce(nullif(btrim(coalesce(p_period_label, '')), ''), '') then
       raise exception 'El identificador idempotente ya fue usado con datos distintos.';
@@ -251,7 +252,10 @@ begin
          or v_payment.obligation_id is distinct from p_obligation_id
          or v_payment.amount is distinct from p_amount
          or coalesce(v_payment.concept, '') is distinct from v_concept
-         or coalesce(v_payment.payment_method, '') is distinct from v_method then
+         or coalesce(v_payment.payment_method, '') is distinct from v_method
+         or (p_paid_at is not null and v_payment.paid_at is distinct from p_paid_at)
+         or coalesce(v_payment.notes, '') is distinct from coalesce(nullif(btrim(coalesce(p_notes, '')), ''), '')
+         or coalesce(v_payment.period_label, '') is distinct from coalesce(nullif(btrim(coalesce(p_period_label, '')), ''), '') then
         raise exception 'El identificador idempotente ya fue usado con datos distintos.';
       end if;
   end;
