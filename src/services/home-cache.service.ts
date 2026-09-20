@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { devWarn } from '../lib/client-diagnostics';
+
 import type {
   Announcement,
   EventOccurrence,
@@ -100,7 +102,8 @@ export async function readHomeCache(scope: string): Promise<HomeReadCache | null
     }
 
     return parsed;
-  } catch {
+  } catch (error) {
+    devWarn('Could not read home cache.', error);
     return null;
   }
 }
@@ -116,8 +119,9 @@ export async function mergeHomeCache(scope: string, updates: HomeCacheUpdates): 
 
   try {
     await AsyncStorage.setItem(homeCacheKey(scope), JSON.stringify(next));
-  } catch {
+  } catch (error) {
     // La cache offline es una mejora. Nunca debe convertir una lectura remota correcta en error.
+    devWarn('Could not persist home cache.', error);
   }
 
   return next;
@@ -126,7 +130,8 @@ export async function mergeHomeCache(scope: string, updates: HomeCacheUpdates): 
 export async function clearHomeCache(scope: string): Promise<void> {
   try {
     await AsyncStorage.removeItem(homeCacheKey(scope));
-  } catch {
+  } catch (error) {
     // No bloquear logout ni otros flujos por un fallo del almacenamiento local.
+    devWarn('Could not clear home cache.', error);
   }
 }
