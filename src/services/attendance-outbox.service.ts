@@ -276,7 +276,13 @@ async function syncOperationOnce(operation: PendingAttendanceOperation): Promise
       ? 'Guardado en este dispositivo. Se confirmará cuando vuelva la conexión.'
       : `Aún no se pudo sincronizar: ${getErrorMessage(error)}`;
     const next = { ...operation, state: 'pending' as const, message };
-    await replaceOperation(operation.userId, next);
+    try {
+      await replaceOperation(operation.userId, next);
+    } catch {
+      // La operación original ya estaba persistida antes de intentar red.
+      // Si falla actualizar sólo su mensaje local, no conviertas ese fallo
+      // secundario en un bloqueo de toda la cola.
+    }
     return {
       operationId: operation.id,
       status: 'pending',
