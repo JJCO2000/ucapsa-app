@@ -11,9 +11,10 @@
  * - This loader performs reads only; it never registers attendance, practice, payments or visits.
  */
 
-import { supabase } from '../lib/supabase';
 import type { MembershipPaymentStatus, MembershipStatus, ProgramCode, ProgramEnrollmentStatus, ProgramLevel } from '../types/app.types';
 import { getAchievementsForUser } from './achievements.service';
+import { getCurrentSession } from './auth.service';
+import { getMemberVisitSummaryForUser } from './member-visits.service';
 import { getVisibleEvents } from './events.service';
 import { getMyMembership, isMembershipActiveToday } from './memberships.service';
 import { getMyPaymentOverview } from './payments.service';
@@ -199,10 +200,6 @@ function dateKeyIsWithinRange(dateKey: string, startDate: string | null | undefi
   return true;
 }
 
-function startOfCurrentMonthKey(date = new Date()) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
-}
-
 function toProgramValue(item: Awaited<ReturnType<typeof getMyProgramEnrollments>>[number]): CustomerValueProgram {
   const attendanceCount = item.attendances.length;
   const requiredAttendances = Math.max(0, Number(item.program.required_attendances ?? 0));
@@ -229,25 +226,6 @@ function toProgramValue(item: Awaited<ReturnType<typeof getMyProgramEnrollments>
     cardStartedOn,
     cardExpiresOn,
     cardIsValidToday,
-  };
-}
-
-async function getMyMemberVisitSummary(userId: string) {
-  const monthStart = startOfCurrentMonthKey();
-  const [totalResult, monthResult, latestResult] = await Promise.all([
-    supabase.from('member_visits').select('id', { count: 'exact', head: true }).eq('user_id', userId),
-    supabase.from('member_visits').select('id', { count: 'exact', head: true }).eq('user_id', userId).gte('visit_date', monthStart),
-    supabase.from('member_visits').select('visited_at').eq('user_id', userId).order('visited_at', { ascending: false }).limit(1).maybeSingle(),
-  ]);
-
-  if (totalResult.error) throw totalResult.error;
-  if (monthResult.error) throw monthResult.error;
-  if (latestResult.error) throw latestResult.error;
-
-  return {
-    total: totalResult.count ?? 0,
-    thisMonth: monthResult.count ?? 0,
-    lastVisitedAt: latestResult.data?.visited_at ?? null,
   };
 }
 
@@ -325,7 +303,7 @@ export function getCustomerValuePrimaryNextAction(
 }
 
 export async function getMyCustomerValueSnapshot(): Promise<CustomerValueSnapshot> {
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  const { data: sessionData, error: sessionError } = await getCurrentSession();
   if (sessionError) throw sessionError;
   const userId = sessionData.session?.user.id;
   if (!userId) throw new Error('No hay sesion activa.');
@@ -335,7 +313,7 @@ export async function getMyCustomerValueSnapshot(): Promise<CustomerValueSnapsho
     safeSource(() => getMyMembership()),
     safeSource(() => getMyProgramEnrollments()),
     safeSource(() => getMyPaymentOverview()),
-    safeSource(() => getMyMemberVisitSummary(userId)),
+    safeSource(() => getMemberVisitSummaryForUser(userId)),
     safeSource(() => getAchievementsForUser(userId)),
     safeSource(() => getCachedMyPracticeActivity(userId)),
     safeSource(() => getVisibleEvents()),
