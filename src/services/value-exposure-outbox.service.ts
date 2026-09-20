@@ -7,6 +7,7 @@ import {
   isLikelyNetworkError,
   withOperationTimeout,
 } from '../utils/async.utils';
+import { createKeyedInFlightCoalescer, createKeyedMutationSerializer } from '../utils/keyed-async.utils';
 import { createOfflineUuid } from '../utils/offline-id.utils';
 
 export type ValueExposureSurface = 'constancy_summary' | 'constancy_detail';
@@ -28,8 +29,8 @@ export type ValueExposureSyncResult = {
 };
 
 const VALUE_EXPOSURE_OUTBOX_PREFIX = 'ucapsa:value-exposure-outbox:v1:';
-const mutationChains = new Map<string, Promise<unknown>>();
-const syncInFlight = new Map<string, Promise<ValueExposureSyncResult>>();
+const serializeMutation = createKeyedMutationSerializer();
+const coalesceValueExposureSync = createKeyedInFlightCoalescer<ValueExposureSyncResult>();
 
 function key(userId: string) {
   return `${VALUE_EXPOSURE_OUTBOX_PREFIX}${userId}`;
@@ -101,21 +102,6 @@ async function writeOutbox(userId: string, items: PendingValueExposure[]) {
     return;
   }
   await AsyncStorage.setItem(key(userId), JSON.stringify(items));
-}
-
-function serializeMutation<T>(userId: string, mutation: () => Promise<T>): Promise<T> {
-  const previous = mutationChains.get(userId) ?? Promise.resolve();
-  const current = previous.catch(() => undefined).then(mutation);
-  mutationChains.set(userId, current);
-  current.then(
-    () => {
-      if (mutationChains.get(userId) === current) mutationChains.delete(userId);
-    },
-    () => {
-      if (mutationChains.get(userId) === current) mutationChains.delete(userId);
-    },
-  );
-  return current;
 }
 
 async function discardValueExposure(userId: string, operationId: string) {
@@ -198,20 +184,7 @@ async function syncOnce(operation: PendingValueExposure): Promise<ValueExposureS
 
 function syncOperation(operation: PendingValueExposure): Promise<ValueExposureSyncResult> {
   const operationKey = `${operation.userId}:${operation.id}`;
-  const inFlight = syncInFlight.get(operationKey);
-  if (inFlight) return inFlight;
-
-  const current = syncOnce(operation);
-  syncInFlight.set(operationKey, current);
-  current.then(
-    () => {
-      if (syncInFlight.get(operationKey) === current) syncInFlight.delete(operationKey);
-    },
-    () => {
-      if (syncInFlight.get(operationKey) === current) syncInFlight.delete(operationKey);
-    },
-  );
-  return current;
+  return coalesceValueExposureSync(operationKey, () => syncOnce(operation));
 }
 
 export async function recordValueExposureDurably(input: {
