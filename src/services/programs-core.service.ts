@@ -65,7 +65,6 @@ export type UpdateProgramEnrollmentInput = {
   dogId?: string | null;
   dogName?: string;
   physicalCardNumber?: string | null;
-  attendancesCount?: number;
   programLevel?: ProgramLevel;
   status?: ProgramEnrollmentStatus;
   notes?: string | null;
@@ -388,7 +387,6 @@ export async function updateProgramEnrollment(enrollmentId: string, input: Updat
   if ('dogId' in input) payload.dog_id = input.dogId?.trim() || null;
   if ('dogName' in input) payload.dog_name = input.dogName?.trim() || null;
   if ('physicalCardNumber' in input) payload.physical_card_number = input.physicalCardNumber?.trim() || null;
-  if ('attendancesCount' in input) payload.attendances_count = Math.max(0, Number(input.attendancesCount ?? 0));
   if ('programLevel' in input && input.programLevel) payload.program_level = input.programLevel;
   if ('status' in input && input.status) {
     payload.status = input.status;

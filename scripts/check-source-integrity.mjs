@@ -44,6 +44,7 @@ must('src/services/achievements.service.ts', /getProgramCompletionAchievementCod
 mustNot('src/services/achievements.service.ts', /function\s+programCompletionAchievementCode/, 'Logros volvió a duplicar el mapeo programa -> medalla.');
 mustNot('src/services/memberships.service.ts', /from\('payments'\)\.delete\(\)/, 'La baja de membresía volvió a borrar pagos históricos.');
 mustNot('src/services/memberships.service.ts', /from\('memberships'\)\.delete\(\)/, 'La baja de membresía volvió a borrar la membresía histórica.');
+mustNot('src/services/programs-core.service.ts', /attendancesCount\?:|payload\.attendances_count\s*=/, 'Programas volvió a permitir editar el contador derivado de asistencias.');
 mustNot('src/services/programs-core.service.ts', /deleteProgramEnrollment|from\('program_enrollments'\)\.delete\(\)/, 'Programas volvió a borrar inscripciones y su historial dependiente.');
 must('supabase/sql/ucapsa-program-enrollment-history-protection.sql', /revoke delete on table public\.program_enrollments[\s\S]*from authenticated/i, 'Backend volvió a permitir DELETE físico de inscripciones.');
 must('supabase/sql/ucapsa-membership-status-lifecycle.sql', /payment_obligations[\s\S]*cancelled_at[\s\S]*due_date > current_date/i, 'La baja canónica dejó de cancelar sólo obligaciones futuras.');
