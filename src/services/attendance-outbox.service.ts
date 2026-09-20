@@ -147,8 +147,9 @@ export async function clearAttendanceOutbox(userId: string): Promise<void> {
   await serializeOutboxMutation(userId, async () => {
     try {
       await AsyncStorage.removeItem(outboxKey(userId));
-    } catch {
+    } catch (error) {
       // No bloquear un borrado explícito por un fallo de almacenamiento local.
+      devWarn('Could not clear attendance outbox.', error);
     }
   });
 }
@@ -291,10 +292,11 @@ async function syncOperationOnce(operation: PendingAttendanceOperation): Promise
     const next = { ...operation, state: 'pending' as const, message };
     try {
       await replaceOperation(operation.userId, next);
-    } catch {
+    } catch (metadataError) {
       // La operación original ya estaba persistida antes de intentar red.
       // Si falla actualizar sólo su mensaje local, no conviertas ese fallo
       // secundario en un bloqueo de toda la cola.
+      devWarn('Could not update attendance outbox retry metadata; preserving original operation.', metadataError);
     }
     return {
       operationId: operation.id,
