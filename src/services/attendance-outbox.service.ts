@@ -10,6 +10,7 @@ import {
   isLikelyNetworkError,
   withOperationTimeout,
 } from '../utils/async.utils';
+import { createKeyedInFlightCoalescer, createKeyedMutationSerializer } from '../utils/keyed-async.utils';
 import { createOfflineUuid } from '../utils/offline-id.utils';
 
 export type AttendanceOutboxState = 'pending' | 'needs_confirmation' | 'rejected';
@@ -45,8 +46,8 @@ export type AttendanceSyncResult = {
 };
 
 const ATTENDANCE_OUTBOX_PREFIX = 'ucapsa:attendance-outbox:v1:';
-const outboxMutationChains = new Map<string, Promise<unknown>>();
-const syncInFlightByOperation = new Map<string, Promise<AttendanceSyncResult>>();
+const serializeOutboxMutation = createKeyedMutationSerializer();
+const coalesceAttendanceSync = createKeyedInFlightCoalescer<AttendanceSyncResult>();
 
 function outboxKey(userId: string) {
   return `${ATTENDANCE_OUTBOX_PREFIX}${userId}`;
@@ -110,23 +111,6 @@ async function writeOutbox(userId: string, items: PendingAttendanceOperation[]) 
   } catch (error) {
     throw new Error(`No se pudo guardar el registro pendiente en este dispositivo: ${getErrorMessage(error)}`);
   }
-}
-
-function serializeOutboxMutation<T>(userId: string, mutation: () => Promise<T>): Promise<T> {
-  const previous = outboxMutationChains.get(userId) ?? Promise.resolve();
-  const current = previous.catch(() => undefined).then(mutation);
-  outboxMutationChains.set(userId, current);
-
-  current.then(
-    () => {
-      if (outboxMutationChains.get(userId) === current) outboxMutationChains.delete(userId);
-    },
-    () => {
-      if (outboxMutationChains.get(userId) === current) outboxMutationChains.delete(userId);
-    },
-  );
-
-  return current;
 }
 
 async function replaceOperation(userId: string, next: PendingAttendanceOperation) {
@@ -309,20 +293,7 @@ async function syncOperationOnce(operation: PendingAttendanceOperation): Promise
 
 function syncOperation(operation: PendingAttendanceOperation): Promise<AttendanceSyncResult> {
   const key = `${operation.userId}:${operation.id}`;
-  const inFlight = syncInFlightByOperation.get(key);
-  if (inFlight) return inFlight;
-
-  const current = syncOperationOnce(operation);
-  syncInFlightByOperation.set(key, current);
-  current.then(
-    () => {
-      if (syncInFlightByOperation.get(key) === current) syncInFlightByOperation.delete(key);
-    },
-    () => {
-      if (syncInFlightByOperation.get(key) === current) syncInFlightByOperation.delete(key);
-    },
-  );
-  return current;
+  return coalesceAttendanceSync(key, () => syncOperationOnce(operation));
 }
 
 export async function syncAttendanceOperation(
