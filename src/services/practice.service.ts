@@ -4,6 +4,7 @@ import { WEEKLY_PRACTICE_GOAL } from '../constants/practice';
 import { supabase } from '../lib/supabase';
 import type { PracticeDifficulty, PracticeSession } from '../types/app.types';
 import { createOfflineUuid } from '../utils/offline-id.utils';
+import { readValidatedAsyncStorageQueue } from '../utils/async-storage-queue.utils';
 import { createKeyedInFlightCoalescer, createKeyedMutationSerializer } from '../utils/keyed-async.utils';
 import {
   DEFAULT_WRITE_TIMEOUT_MS,
@@ -77,29 +78,31 @@ function createClientEventId() {
   return createOfflineUuid('practice');
 }
 
-async function readPending(userId: string): Promise<PendingPracticeSession[]> {
-  try {
-    const raw = await AsyncStorage.getItem(pendingPracticeKey(userId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is PendingPracticeSession => {
-      if (!item || typeof item !== 'object') return false;
-      const value = item as Partial<PendingPracticeSession>;
-      return (
-        value.version === 1 &&
-        value.userId === userId &&
-        typeof value.clientEventId === 'string' &&
-        (value.dogName == null || typeof value.dogName === 'string') &&
-        typeof value.enrollmentId === 'string' &&
-        typeof value.startedAt === 'string' &&
-        typeof value.completedAt === 'string' &&
-        (value.difficulty === 'easy' || value.difficulty === 'good' || value.difficulty === 'hard')
-      );
-    });
-  } catch {
-    return [];
-  }
+function isValidPendingPracticeSession(value: unknown, userId: string): value is PendingPracticeSession {
+  if (!value || typeof value !== 'object') return false;
+  const item = value as Partial<PendingPracticeSession>;
+  return (
+    item.version === 1 &&
+    item.userId === userId &&
+    typeof item.clientEventId === 'string' &&
+    (item.dogName == null || typeof item.dogName === 'string') &&
+    typeof item.enrollmentId === 'string' &&
+    typeof item.startedAt === 'string' &&
+    typeof item.completedAt === 'string' &&
+    (item.difficulty === 'easy' || item.difficulty === 'good' || item.difficulty === 'hard')
+  );
+}
+
+async function readPending(
+  userId: string,
+  mode: 'tolerant' | 'strict' = 'tolerant',
+): Promise<PendingPracticeSession[]> {
+  return readValidatedAsyncStorageQueue({
+    storageKey: pendingPracticeKey(userId),
+    label: 'Cola local de prácticas',
+    isValid: (value): value is PendingPracticeSession => isValidPendingPracticeSession(value, userId),
+    mode,
+  });
 }
 
 async function writePending(userId: string, items: PendingPracticeSession[]) {
@@ -116,7 +119,7 @@ async function writePending(userId: string, items: PendingPracticeSession[]) {
 
 async function enqueuePending(item: PendingPracticeSession) {
   return serializePracticeMutation(item.userId, async () => {
-    const current = await readPending(item.userId);
+    const current = await readPending(item.userId, 'strict');
     if (current.some((candidate) => candidate.clientEventId === item.clientEventId)) return;
     await writePending(item.userId, [...current, item]);
   });
@@ -124,7 +127,7 @@ async function enqueuePending(item: PendingPracticeSession) {
 
 async function removePending(userId: string, clientEventId: string) {
   return serializePracticeMutation(userId, async () => {
-    const current = await readPending(userId);
+    const current = await readPending(userId, 'strict');
     await writePending(userId, current.filter((item) => item.clientEventId !== clientEventId));
   });
 }
@@ -298,7 +301,7 @@ function syncOne(item: PendingPracticeSession): Promise<void> {
 }
 
 export async function flushPendingPracticeSessions(userId: string): Promise<number> {
-  const pending = await readPending(userId);
+  const pending = await readPending(userId, 'strict');
   let synced = 0;
 
   for (const item of pending) {
