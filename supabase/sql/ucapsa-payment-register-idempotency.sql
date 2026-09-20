@@ -91,6 +91,40 @@ revoke all on function public.refresh_membership_payment_summary(uuid)
 grant execute on function public.refresh_membership_payment_summary(uuid)
   to service_role;
 
+
+create or replace function public.sync_payment_membership_summary_trigger()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $
+begin
+  if tg_op = 'UPDATE'
+     and old.membership_id is distinct from new.membership_id
+     and old.membership_id is not null then
+    perform public.refresh_membership_payment_summary(old.membership_id);
+  end if;
+
+  if new.membership_id is not null then
+    perform public.refresh_membership_payment_summary(new.membership_id);
+  end if;
+
+  return new;
+end;
+$;
+
+drop trigger if exists trg_sync_payment_membership_summary on public.payments;
+create trigger trg_sync_payment_membership_summary
+after insert or update of membership_id, obligation_id, amount, paid_at, notes, status, voided_at
+on public.payments
+for each row
+execute function public.sync_payment_membership_summary_trigger();
+
+revoke all on function public.sync_payment_membership_summary_trigger()
+  from public, anon, authenticated;
+grant execute on function public.sync_payment_membership_summary_trigger()
+  to service_role;
+
 create or replace function public.admin_register_payment(
   p_payment_id uuid,
   p_user_id uuid,
@@ -195,10 +229,7 @@ begin
       end if;
   end;
 
-  if v_payment.membership_id is not null then
-    perform public.refresh_membership_payment_summary(v_payment.membership_id);
-  end if;
-
+  -- The payments trigger refreshes the membership summary in this same transaction.
   return v_payment;
 end;
 $$;
