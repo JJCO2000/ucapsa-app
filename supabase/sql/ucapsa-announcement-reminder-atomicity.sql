@@ -66,7 +66,14 @@ begin
     raise exception 'El anuncio necesita una fecha para programar recordatorios.';
   end if;
 
-  delete from public.notification_campaigns c
+  update public.notification_campaigns c
+  set
+    status = 'no_targets',
+    archived_at = coalesce(c.archived_at, now()),
+    metadata = c.metadata || jsonb_build_object(
+      'retired_reason', 'announcement_reminder_replaced'
+    ),
+    updated_at = now()
   where c.category = 'announcements_events'
     and c.status = 'draft'
     and c.metadata @> jsonb_build_object(
