@@ -1,3 +1,4 @@
+import { devWarn } from '../lib/client-diagnostics';
 import { supabase } from '../lib/supabase';
 import type { AudienceType } from '../types/app.types';
 
@@ -82,8 +83,9 @@ async function invokePreparedCampaign(campaignId: string): Promise<SendAdminNoti
       } else if (details?.message) {
         message = details.message;
       }
-    } catch {
+    } catch (parseError) {
       // Keep the original Edge Function error message when the response body cannot be parsed.
+      devWarn('Could not parse notification Edge Function error body.', parseError);
     }
 
     throw new Error(message);
