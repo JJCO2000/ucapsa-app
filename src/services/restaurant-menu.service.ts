@@ -1,3 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import { devWarn } from '../lib/client-diagnostics';
 import { supabase } from '../lib/supabase';
 import type { TableRow, TableUpdate } from '../types/database.helpers';
 
@@ -8,6 +11,8 @@ export type RestaurantMenuSection = {
   category: RestaurantMenuCategory;
   items: RestaurantMenuItem[];
 };
+
+const RESTAURANT_MENU_CACHE_KEY = '@ucapsa:restaurant-menu:v1';
 
 export type RestaurantCategoryInput = {
   name: string;
@@ -49,6 +54,36 @@ function groupMenu(categories: RestaurantMenuCategory[], items: RestaurantMenuIt
       .filter((item) => item.category_id === category.id)
       .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name, 'es')),
   }));
+}
+
+function isRestaurantMenuSection(value: unknown): value is RestaurantMenuSection {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const candidate = value as Partial<RestaurantMenuSection>;
+  return Boolean(candidate.category && Array.isArray(candidate.items));
+}
+
+export async function getCachedRestaurantMenu(): Promise<RestaurantMenuSection[] | null> {
+  try {
+    const raw = await AsyncStorage.getItem(RESTAURANT_MENU_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed) || !parsed.every(isRestaurantMenuSection)) {
+      devWarn('Restaurant menu cache had an invalid payload; ignoring it.');
+      return null;
+    }
+    return parsed;
+  } catch (error) {
+    devWarn('Could not read restaurant menu cache.', error);
+    return null;
+  }
+}
+
+export async function cacheRestaurantMenu(sections: RestaurantMenuSection[]): Promise<void> {
+  try {
+    await AsyncStorage.setItem(RESTAURANT_MENU_CACHE_KEY, JSON.stringify(sections));
+  } catch (error) {
+    devWarn('Could not persist restaurant menu cache.', error);
+  }
 }
 
 export async function getRestaurantMenu(): Promise<RestaurantMenuSection[]> {
