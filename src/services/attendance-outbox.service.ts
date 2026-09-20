@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { devWarn } from '../lib/client-diagnostics';
 import { supabase } from '../lib/supabase';
 import { registerMyMemberVisitFromQr } from './member-visits.service';
-import type { RegisterAttendanceFromQrResult } from './programs.service';
+import type { RegisterAttendanceFromQrResult } from './program-attendance.service';
 import {
   DEFAULT_WRITE_TIMEOUT_MS,
   getErrorMessage,
