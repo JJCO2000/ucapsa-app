@@ -6,6 +6,7 @@ import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } 
 
 import { KeyboardAwareScreen } from '../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../constants/brand';
+import { devWarn } from '../lib/client-diagnostics';
 import { getRestaurantMenu, type RestaurantMenuSection } from '../services/restaurant-menu.service';
 
 const CACHE_KEY = '@ucapsa:restaurant-menu:v1';
@@ -36,7 +37,8 @@ export default function RestaurantScreen() {
           setLoading(false);
         }
       }
-    } catch {
+    } catch (error) {
+      devWarn('Could not read cached restaurant menu; falling back to remote.', error);
       cached = null;
     }
 
