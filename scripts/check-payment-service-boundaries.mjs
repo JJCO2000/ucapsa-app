@@ -120,10 +120,19 @@ for (const token of [
   'check (amount > 0)',
   'v_obligation_cancelled_at is not null',
   'No se puede vincular un pago a una obligacion cancelada.',
+  'Resolve an already-created business event before revalidating mutable',
+  'New payments must point to a currently active obligation.',
+  'for share',
 ]) {
   if (!invariantsSql.includes(token)) {
     throw new Error('Payment data invariant missing: ' + token);
   }
+}
+
+const existingLookupIndex = invariantsSql.indexOf('where p.id = p_payment_id');
+const activeObligationIndex = invariantsSql.indexOf('and o.cancelled_at is null', existingLookupIndex);
+if (existingLookupIndex < 0 || activeObligationIndex < 0 || existingLookupIndex > activeObligationIndex) {
+  throw new Error('Payment idempotency must resolve an existing event before validating current obligation state.');
 }
 
 if (/syncMembershipPaymentSummary|registerMembershipPayment/.test(admin)) {
