@@ -1,5 +1,4 @@
 import { supabase } from '../lib/supabase';
-import type { AudienceType } from '../types/app.types';
 
 export type AnnouncementReminderSetting = {
   days_before: number;
@@ -11,10 +10,6 @@ export type AnnouncementReminderSetting = {
 
 export type SaveAnnouncementRemindersInput = {
   announcement_id: string;
-  announcement_date: string;
-  title: string;
-  body: string;
-  audience: AudienceType;
   reminders: AnnouncementReminderSetting[];
 };
 
@@ -32,28 +27,34 @@ function normalizeSettings(value: unknown): AnnouncementReminderSetting[] {
     }));
 }
 
+function campaignRowsToSettings(rows: Array<{ status: string | null; metadata: unknown }> | null | undefined) {
+  return normalizeSettings((rows ?? []).map((row) => {
+    const metadata = row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)
+      ? row.metadata as Record<string, unknown>
+      : {};
+    return { ...metadata, status: row.status ?? undefined };
+  }));
+}
+
 export async function getAnnouncementReminders(announcementId: string) {
-  const { data, error } = await supabase.functions.invoke('send-announcement-reminders', {
-    body: { action: 'list', announcement_id: announcementId },
-  });
+  const { data, error } = await supabase
+    .from('notification_campaigns')
+    .select('status,metadata,created_at')
+    .eq('category', 'announcements_events')
+    .eq('status', 'draft')
+    .contains('metadata', { source: 'announcement_reminder', announcement_id: announcementId })
+    .order('created_at', { ascending: true });
+
   if (error) throw error;
-  if (data?.error) throw new Error(String(data.error));
-  return normalizeSettings(data?.reminders);
+  return campaignRowsToSettings(data);
 }
 
 export async function saveAnnouncementReminders(input: SaveAnnouncementRemindersInput) {
-  const { data, error } = await supabase.functions.invoke('send-announcement-reminders', {
-    body: {
-      action: 'save',
-      announcement_id: input.announcement_id,
-      announcement_date: input.announcement_date,
-      title: input.title,
-      body: input.body,
-      audience: input.audience,
-      reminders: input.reminders,
-    },
+  const { data, error } = await supabase.rpc('admin_replace_announcement_reminders', {
+    p_announcement_id: input.announcement_id,
+    p_reminders: input.reminders,
   });
+
   if (error) throw error;
-  if (data?.error) throw new Error(String(data.error));
-  return normalizeSettings(data?.reminders);
+  return campaignRowsToSettings(data);
 }
