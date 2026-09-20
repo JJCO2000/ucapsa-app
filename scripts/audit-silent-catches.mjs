@@ -81,14 +81,18 @@ function classify(body) {
   const signals = {
     throws: /\bthrow\b/.test(code),
     returns: /\breturn\b/.test(code),
-    visibleUi: /Alert\.|toast|Snackbar|showMessage|setError\s*\(|set[A-Z]\w*(?:Error|Notice|Warning|Message)\s*\(/i.test(code),
-    diagnostics: /reportClientDiagnostic|capture|track|console\.(?:warn|error)/i.test(code),
+    visibleUi: /Alert\.|toast|Snackbar|showMessage|setError\s*\(|setFeedback\s*\(|setOfflineEmpty\s*\(\s*true\s*\)|setUsingSavedData\s*\(\s*true\s*\)|setReminderLoadState\s*\(\s*['"]failed['"]\s*\)|set[A-Z]\w*(?:Error|Notice|Warning|Message)\s*\(/i.test(code),
+    diagnostics: /devWarn|reportClientDiagnostic|capture|track|console\.(?:warn|error)/i.test(code),
+    explicitState: /\bstatus\s*:\s*['"](?:error|failed|pending|rejected|needs_confirmation)['"]/i.test(code),
+    retryPolicy: /\bisLikelyNetworkError\s*\(/.test(code),
     state: /\bset[A-Z]\w*\s*\(/.test(code),
     fallback: /\b(?:fallback|cached|cache|offline|default)\b/i.test(code),
   };
 
   if (signals.throws) return 'RETHROW';
   if (signals.visibleUi || signals.diagnostics) return 'VISIBLE_OR_DIAGNOSTIC';
+  if (signals.explicitState) return 'EXPLICIT_STATE';
+  if (signals.retryPolicy) return 'EXPLICIT_RETRY_POLICY';
   if (signals.returns && signals.fallback) return 'EXPLICIT_FALLBACK';
   if (signals.returns) return 'RETURN_ONLY_REVIEW';
   if (signals.state) return 'STATE_ONLY_REVIEW';
@@ -107,7 +111,7 @@ for (const absolute of walk(sourceRoot)) {
   for (const block of findCatchBlocks(text)) {
     catches += 1;
     const kind = classify(block.body);
-    if (kind === 'RETHROW' || kind === 'VISIBLE_OR_DIAGNOSTIC' || kind === 'EXPLICIT_FALLBACK') continue;
+    if (['RETHROW', 'VISIBLE_OR_DIAGNOSTIC', 'EXPLICIT_STATE', 'EXPLICIT_RETRY_POLICY', 'EXPLICIT_FALLBACK'].includes(kind)) continue;
 
     const compact = block.body
       .trim()
