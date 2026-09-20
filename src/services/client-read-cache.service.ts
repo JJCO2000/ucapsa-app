@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { devWarn } from '../lib/client-diagnostics';
+
 import type {
   MemberVisit,
   Membership,
@@ -77,7 +79,8 @@ export async function readClientResource<T>(scope: string, resource: string): Pr
       return null;
     }
     return parsed as CachedResource<T>;
-  } catch {
+  } catch (error) {
+    devWarn('Could not read client offline cache.', error);
     return null;
   }
 }
@@ -92,8 +95,9 @@ export async function writeClientResource<T>(scope: string, resource: string, da
   };
   try {
     await AsyncStorage.setItem(key(scope, resource), JSON.stringify(payload));
-  } catch {
+  } catch (error) {
     // La cache offline nunca debe convertir una lectura remota correcta en error.
+    devWarn('Could not persist client offline cache.', error);
   }
   return payload;
 }
@@ -104,8 +108,9 @@ export async function clearClientReadCache(scope: string): Promise<void> {
     const prefix = `${CACHE_PREFIX}${scope}:`;
     const matches = keys.filter((item) => item.startsWith(prefix));
     if (matches.length > 0) await AsyncStorage.multiRemove(matches);
-  } catch {
+  } catch (error) {
     // No bloquear logout por un fallo del almacenamiento local.
+    devWarn('Could not clear client offline cache.', error);
   }
 }
 
