@@ -46,7 +46,9 @@ mustNot('src/services/memberships.service.ts', /from\('payments'\)\.delete\(\)/,
 mustNot('src/services/memberships.service.ts', /from\('memberships'\)\.delete\(\)/, 'La baja de membresía volvió a borrar la membresía histórica.');
 mustNot('src/services/programs-core.service.ts', /deleteProgramEnrollment|from\('program_enrollments'\)\.delete\(\)/, 'Programas volvió a borrar inscripciones y su historial dependiente.');
 must('supabase/sql/ucapsa-program-enrollment-history-protection.sql', /revoke delete on table public\.program_enrollments[\s\S]*from authenticated/i, 'Backend volvió a permitir DELETE físico de inscripciones.');
-must('src/services/memberships.service.ts', /payment_obligations[\s\S]*cancelled_at/, 'La baja de membresía dejó de cancelar obligaciones futuras sin borrar historial.');
+must('supabase/sql/ucapsa-membership-status-lifecycle.sql', /payment_obligations[\s\S]*cancelled_at[\s\S]*due_date > current_date/i, 'La baja canónica dejó de cancelar sólo obligaciones futuras.');
+must('supabase/sql/ucapsa-membership-status-lifecycle.sql', /payments[\s\S]*status = 'paid'[\s\S]*voided_at is null[\s\S]*> 0\.005/i, 'La baja canónica dejó de preservar saldo histórico y pagos efectivos al cancelar futuro.');
+mustNot('src/services/memberships.service.ts', /membership_delete_requests|requestPermanentMembershipDeletion|approveMembershipDeleteRequest|rejectMembershipDeleteRequest/, 'Membresía volvió a mantener un segundo flujo de baja fuera del lifecycle canónico.');
 must('src/services/memberships.service.ts', /getMyMembershipEligibility/, 'Membresía no tiene una consulta canónica de elegibilidad.');
 must('src/services/memberships.service.ts', /program_completion_achievement/, 'Membresía perdió el fallback de evidencia histórica por logro de programa.');
 must('src/app/client/membership.tsx', /getMyMembershipEligibility/, 'Pantalla de membresía no usa la elegibilidad canónica.');
