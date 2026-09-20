@@ -9,6 +9,7 @@ import { KeyboardAwareScreen } from '../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand, withAlpha } from '../constants/brand';
 import { resolveUcapsaFormat } from '../constants/ucapsaFormats';
 import { useSession } from '../hooks/useSession';
+import { devWarn } from '../lib/client-diagnostics';
 import {
   confirmPendingClassAttendance,
   discardAttendanceOperation,
@@ -183,8 +184,9 @@ export default function AttendanceScanScreen() {
       const refreshed = await withOperationTimeout(getMyProgramEnrollments(), DEFAULT_READ_TIMEOUT_MS, 'attendance-refresh');
       setEnrollments(refreshed);
       await writeClientResource(userId, clientReadKeys.programs, sanitizeProgramRowsForCache(refreshed));
-    } catch {
+    } catch (error) {
       // La escritura ya fue confirmada por Supabase. No convertir éxito en error por el refresco.
+      devWarn('Could not refresh programs after confirmed attendance write.', error);
     }
   }
 
@@ -249,7 +251,7 @@ export default function AttendanceScanScreen() {
         title: 'Asistencia guardada sin conexión',
         message: 'La captura ya quedó en este dispositivo y se volverá a intentar cuando haya conexión.',
       });
-      await refreshOutbox(userId).catch(() => undefined);
+      await refreshOutbox(userId).catch((error) => devWarn('Could not refresh attendance outbox after sync fallback.', error));
     } finally {
       setRegistering(false);
       setChoices([]);
@@ -303,7 +305,7 @@ export default function AttendanceScanScreen() {
         title: 'Visita guardada sin conexión',
         message: 'La captura ya quedó en este dispositivo y se volverá a intentar cuando haya conexión.',
       });
-      await refreshOutbox(userId).catch(() => undefined);
+      await refreshOutbox(userId).catch((error) => devWarn('Could not refresh attendance outbox after sync fallback.', error));
     } finally {
       setRegistering(false);
     }
