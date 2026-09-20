@@ -138,6 +138,11 @@ export default function PracticeDetailScreen() {
               <MaterialIcons name="sync" size={18} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
               <Text style={[styles.pendingText, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Guardada en este dispositivo. Se sincronizará cuando vuelva la conexión.</Text>
             </View>
+          ) : entry.syncStatus === 'rejected' ? (
+            <View style={[styles.pending, { borderColor: ucapsaBrand.colors.dangerBorder, backgroundColor: ucapsaBrand.colors.dangerSoft }]}>
+              <MaterialIcons name="error-outline" size={18} color={ucapsaBrand.colors.danger} />
+              <Text style={[styles.pendingText, { color: ucapsaBrand.colors.danger }]}>No pudo sincronizarse automáticamente. {entry.syncMessage || 'Revisa la inscripción con UCAPSA.'}</Text>
+            </View>
           ) : null}
         </View>
       ) : null}
