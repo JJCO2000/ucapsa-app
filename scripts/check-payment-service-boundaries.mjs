@@ -70,7 +70,8 @@ for (const token of [
   'p_payment_id uuid',
   'return v_existing',
   'refresh_membership_payment_summary',
-  'perform public.refresh_membership_payment_summary(v_payment.membership_id)',
+  'create trigger trg_sync_payment_membership_summary',
+  'execute function public.sync_payment_membership_summary_trigger()',
   'revoke all on function public.admin_register_payment',
 ]) {
   if (!registerSql.toLowerCase().includes(token.toLowerCase())) {
