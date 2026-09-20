@@ -39,6 +39,10 @@ if (/from ['"]\.\/memberships\.service['"]/.test(domain)) {
   throw new Error('Membership domain has a reverse dependency on memberships.service.ts.');
 }
 
+if (/membership_delete_requests|requestPermanentMembershipDeletion|approveMembershipDeleteRequest|rejectMembershipDeleteRequest|MembershipDeleteRequestRow/.test(service)) {
+  throw new Error('Membership service reintroduced the retired deletion-request runtime.');
+}
+
 if (/end_date[\s\S]{0,200}(?:expired|Vencid)/i.test(domain)) {
   throw new Error('Membership domain reintroduced active expiry by historical end_date.');
 }
@@ -68,7 +72,7 @@ if (/\.from\(['"]profiles['"]\)[\s\S]{0,220}\.update\([\s\S]{0,160}role\s*:/.tes
 }
 
 const serviceLines = service.split(/\r?\n/).length;
-if (serviceLines > 640) {
+if (serviceLines > 500) {
   throw new Error('memberships.service.ts grew past the current boundary: ' + serviceLines + ' lines.');
 }
 
