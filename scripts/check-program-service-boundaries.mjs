@@ -2,6 +2,7 @@ import fs from 'node:fs';
 
 const service = fs.readFileSync('src/services/programs.service.ts', 'utf8');
 const core = fs.readFileSync('src/services/programs-core.service.ts', 'utf8');
+const attendance = fs.readFileSync('src/services/program-attendance.service.ts', 'utf8');
 const cancellations = fs.readFileSync('src/services/program-cancellations.service.ts', 'utf8');
 const sessionInternal = fs.readFileSync('src/services/programs-session.internal.ts', 'utf8');
 const domain = fs.readFileSync('src/services/programs.domain.ts', 'utf8');
@@ -43,6 +44,7 @@ for (const token of [
 
 for (const token of [
   "export * from './programs-core.service';",
+  "export * from './program-attendance.service';",
   "export * from './program-cancellations.service';",
 ]) {
   if (!service.includes(token)) {
@@ -52,6 +54,26 @@ for (const token of [
 
 if (/lib\/supabase|\bsupabase\.|\bfunction\s+|\bconst\s+/.test(service)) {
   throw new Error('programs.service.ts facade regained implementation logic.');
+}
+
+for (const token of [
+  'getOfficialAttendanceQrCodes',
+  'registerMyProgramAttendanceFromQr',
+  'registerProgramAttendance',
+  'correctProgramAttendance',
+  'deleteProgramAttendance',
+  'setProgramEnrollmentAttendanceCount',
+]) {
+  if (!attendance.includes('function ' + token)) {
+    throw new Error('Program attendance boundary missing operation: ' + token);
+  }
+  if (core.includes('function ' + token)) {
+    throw new Error('Program attendance operation moved back into programs-core.service.ts: ' + token);
+  }
+}
+
+if (/from ['"]\.\/programs(?:-core)?\.service['"]/.test(attendance)) {
+  throw new Error('Program attendance service must not depend on core/facade; it owns independent attendance I/O.');
 }
 
 for (const token of [
@@ -89,12 +111,16 @@ if (/from ['"]\.\/programs\.service['"]/.test(domain)) {
 
 const facadeLines = service.split(/\r?\n/).length;
 const coreLines = core.split(/\r?\n/).length;
+const attendanceLines = attendance.split(/\r?\n/).length;
 const cancellationLines = cancellations.split(/\r?\n/).length;
 if (facadeLines > 20) {
   throw new Error('programs.service.ts facade grew implementation again: ' + facadeLines + ' lines.');
 }
-if (coreLines > 520) {
+if (coreLines > 420) {
   throw new Error('programs-core.service.ts grew past the current boundary: ' + coreLines + ' lines.');
+}
+if (attendanceLines > 150) {
+  throw new Error('program-attendance.service.ts grew past the current boundary: ' + attendanceLines + ' lines.');
 }
 if (cancellationLines > 320) {
   throw new Error('program-cancellations.service.ts grew past the current boundary: ' + cancellationLines + ' lines.');
