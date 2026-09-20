@@ -11,6 +11,7 @@ const admin = fs.readFileSync(adminPath, 'utf8');
 const settings = fs.readFileSync(settingsPath, 'utf8');
 const read = fs.readFileSync(readPath, 'utf8');
 const registerSql = fs.readFileSync(registerSqlPath, 'utf8');
+const summarySsotSql = fs.readFileSync('supabase/sql/ucapsa-payment-summary-ssot.sql', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
 
 for (const line of [
@@ -93,6 +94,24 @@ for (const token of [
   }
 }
 
+
+for (const token of [
+  'create trigger trg_sync_obligation_membership_summary',
+  'execute function public.sync_obligation_membership_summary_trigger()',
+  'v_effective_membership_id uuid := p_membership_id',
+  'v_effective_membership_id := v_obligation.membership_id',
+  'v_existing.membership_id is distinct from v_effective_membership_id',
+  'v_payment.membership_id is distinct from v_effective_membership_id',
+  'revoke all on function public.sync_obligation_membership_summary_trigger()',
+]) {
+  if (!summarySsotSql.toLowerCase().includes(token.toLowerCase())) {
+    throw new Error('Payment summary SSOT contract missing: ' + token);
+  }
+}
+
+if (!/after insert or delete or update of membership_id, amount, obligation_type, cancelled_at/i.test(summarySsotSql)) {
+  throw new Error('Payment obligation summary trigger lost a balance-relevant mutation.');
+}
 
 if (/\.from\(['"]payment_settings['"]\)/.test(admin + read)) {
   throw new Error('Payment settings table leaked outside payment-settings.service.ts.');
