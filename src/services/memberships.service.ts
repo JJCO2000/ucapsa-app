@@ -3,17 +3,13 @@ import { supabase } from '../lib/supabase';
 import type { TableUpdate } from '../types/database.helpers';
 import type {
   Membership,
-  MembershipDeleteRequest,
   MembershipPaymentStatus,
   MembershipStatus,
   Payment,
   Profile,
 } from '../types/app.types';
 import { registerMembershipPayment } from './payments.service';
-import {
-  getDisplayName,
-  isMembershipActiveToday,
-} from './memberships.domain';
+import { isMembershipActiveToday } from './memberships.domain';
 
 export {
   formatDate,
@@ -34,11 +30,6 @@ export type MembershipAdminRow = {
   payments: Payment[];
 };
 
-export type MembershipDeleteRequestRow = {
-  request: MembershipDeleteRequest;
-  membership: Membership | null;
-  profile: Profile | null;
-};
 
 export type UpdateMembershipDetailsInput = {
   memberNumber?: string | null;
@@ -307,148 +298,6 @@ export async function markMembershipPaidFast(row: MembershipAdminRow): Promise<v
   });
 }
 
-export async function requestPermanentMembershipDeletion(row: MembershipAdminRow, reason?: string | null): Promise<void> {
-  const { data: authData, error: authError } = await supabase.auth.getUser();
-  if (authError) throw authError;
-
-  const now = new Date().toISOString();
-
-  const { error: requestError } = await supabase.from('membership_delete_requests').insert({
-    membership_id: row.membership.id,
-    user_id: row.membership.user_id,
-    requested_by: authData.user?.id ?? null,
-    status: 'pending',
-    reason: reason?.trim() || 'Solicitud de eliminacion definitiva desde ficha de socio.',
-    snapshot_member_number: row.membership.member_number,
-    snapshot_name: getDisplayName(row.profile),
-    snapshot_email: row.profile?.email ?? null,
-  });
-
-  if (requestError) throw requestError;
-
-  const { error: membershipError } = await supabase
-    .from('memberships')
-    .update({
-      status: 'cancelled',
-      current_payment_status: 'not_required',
-      payment_notes: 'Desactivado mientras super_admin revisa eliminacion definitiva.',
-      updated_at: now,
-    })
-    .eq('id', row.membership.id);
-
-  if (membershipError) throw membershipError;
-  await syncProfileRoleForMembership(row.membership, 'cancelled');
-}
-
-export async function getMembershipDeleteRequests(): Promise<MembershipDeleteRequestRow[]> {
-  const { data: requestsData, error: requestsError } = await supabase
-    .from('membership_delete_requests')
-    .select('*')
-    .eq('status', 'pending')
-    .order('requested_at', { ascending: true });
-
-  if (requestsError) throw requestsError;
-
-  const requests = (requestsData ?? []) as MembershipDeleteRequest[];
-  if (requests.length === 0) return [];
-
-  const membershipIds = [...new Set(requests.map((item) => item.membership_id))];
-  const userIds = [...new Set(requests.map((item) => item.user_id))];
-
-  const { data: membershipsData, error: membershipsError } = await supabase
-    .from('memberships')
-    .select('*')
-    .in('id', membershipIds);
-
-  if (membershipsError) throw membershipsError;
-
-  const { data: profilesData, error: profilesError } = await supabase
-    .from('profiles')
-    .select('*')
-    .in('user_id', userIds);
-
-  if (profilesError) throw profilesError;
-
-  const memberships = ((membershipsData ?? []) as Membership[]).reduce<Record<string, Membership>>((acc, item) => {
-    acc[item.id] = item;
-    return acc;
-  }, {});
-
-  const profiles = ((profilesData ?? []) as Profile[]).reduce<Record<string, Profile>>((acc, item) => {
-    acc[item.user_id] = item;
-    return acc;
-  }, {});
-
-  return requests.map((request) => ({
-    request,
-    membership: memberships[request.membership_id] ?? null,
-    profile: profiles[request.user_id] ?? null,
-  }));
-}
-
-export async function approveMembershipDeleteRequest(row: MembershipDeleteRequestRow): Promise<void> {
-  const { data: authData, error: authError } = await supabase.auth.getUser();
-  if (authError) throw authError;
-
-  const now = new Date().toISOString();
-  const resolverId = authData.user?.id ?? null;
-
-  // Una baja de membresía termina el beneficio; no destruye evidencia financiera
-  // ni el historial de la relación con UCAPSA.
-  const { error: obligationError } = await supabase
-    .from('payment_obligations')
-    .update({
-      cancelled_at: now,
-      cancelled_by: resolverId,
-      updated_at: now,
-    })
-    .eq('membership_id', row.request.membership_id)
-    .is('cancelled_at', null);
-
-  if (obligationError) throw obligationError;
-
-  const { error: membershipError } = await supabase
-    .from('memberships')
-    .update({
-      status: 'cancelled',
-      current_payment_status: 'not_required',
-      payment_notes: 'Baja definitiva de membresía aprobada; historial conservado.',
-      updated_at: now,
-    })
-    .eq('id', row.request.membership_id);
-
-  if (membershipError) throw membershipError;
-
-  const { error: profileError } = await supabase
-    .from('profiles')
-    .update({ role: 'client', updated_at: now })
-    .eq('user_id', row.request.user_id)
-    .not('role', 'in', '(admin,super_admin)');
-
-  if (profileError) throw profileError;
-
-  const { error: requestError } = await supabase
-    .from('membership_delete_requests')
-    .update({ status: 'approved', resolved_by: resolverId, resolved_at: now, updated_at: now })
-    .eq('id', row.request.id);
-
-  if (requestError) throw requestError;
-}
-
-export async function rejectMembershipDeleteRequest(row: MembershipDeleteRequestRow): Promise<void> {
-  const { data: authData, error: authError } = await supabase.auth.getUser();
-  if (authError) throw authError;
-
-  const now = new Date().toISOString();
-  const { error } = await supabase
-    .from('membership_delete_requests')
-    .update({ status: 'rejected', resolved_by: authData.user?.id ?? null, resolved_at: now, updated_at: now })
-    .eq('id', row.request.id);
-
-  if (error) throw error;
-}
-
-
 function buildForcedMemberNumber(profile: Profile) {
   const now = new Date();
   const year = now.getFullYear();
@@ -570,8 +419,6 @@ export async function deactivateMembershipForProfile(profile: Profile): Promise<
 
   if (profileError) throw profileError;
 }
-
-
 
 
 export async function getMembershipByQrToken(qrToken: string): Promise<MembershipAdminRow | null> {
