@@ -10,6 +10,7 @@ import {
   withOperationTimeout,
 } from '../utils/async.utils';
 import { createOfflineUuid } from '../utils/offline-id.utils';
+import { readValidatedAsyncStorageQueue } from '../utils/async-storage-queue.utils';
 
 export type AttendanceOutboxState = 'pending' | 'needs_confirmation' | 'rejected';
 
@@ -75,16 +76,24 @@ function isValidOperation(value: unknown, userId: string): value is PendingAtten
   return item.kind === 'member_visit';
 }
 
+async function readAttendanceOutbox(
+  userId: string,
+  mode: 'tolerant' | 'strict',
+): Promise<PendingAttendanceOperation[]> {
+  return readValidatedAsyncStorageQueue({
+    storageKey: outboxKey(userId),
+    label: 'Cola local de asistencia',
+    isValid: (value): value is PendingAttendanceOperation => isValidOperation(value, userId),
+    mode,
+  });
+}
+
 export async function getPendingAttendanceOperations(userId: string): Promise<PendingAttendanceOperation[]> {
-  try {
-    const raw = await AsyncStorage.getItem(outboxKey(userId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item) => isValidOperation(item, userId));
-  } catch {
-    return [];
-  }
+  return readAttendanceOutbox(userId, 'tolerant');
+}
+
+async function getPendingAttendanceOperationsStrict(userId: string): Promise<PendingAttendanceOperation[]> {
+  return readAttendanceOutbox(userId, 'strict');
 }
 
 async function writeOutbox(userId: string, items: PendingAttendanceOperation[]) {
@@ -118,14 +127,14 @@ function serializeOutboxMutation<T>(userId: string, mutation: () => Promise<T>):
 
 async function replaceOperation(userId: string, next: PendingAttendanceOperation) {
   return serializeOutboxMutation(userId, async () => {
-    const current = await getPendingAttendanceOperations(userId);
+    const current = await getPendingAttendanceOperationsStrict(userId);
     await writeOutbox(userId, current.map((item) => item.id === next.id ? next : item));
   });
 }
 
 export async function discardAttendanceOperation(userId: string, operationId: string) {
   return serializeOutboxMutation(userId, async () => {
-    const current = await getPendingAttendanceOperations(userId);
+    const current = await getPendingAttendanceOperationsStrict(userId);
     await writeOutbox(userId, current.filter((item) => item.id !== operationId));
   });
 }
@@ -148,7 +157,7 @@ export async function queueClassAttendance(input: {
 }): Promise<PendingClassAttendanceOperation> {
   return serializeOutboxMutation(input.userId, async () => {
     const capturedAt = new Date().toISOString();
-    const current = await getPendingAttendanceOperations(input.userId);
+    const current = await getPendingAttendanceOperationsStrict(input.userId);
     const dateKey = localDateKey(capturedAt);
     const existing = current.find((item): item is PendingClassAttendanceOperation => (
       item.kind === 'class'
@@ -180,7 +189,7 @@ export async function queueMemberVisit(input: {
   token: string;
 }): Promise<PendingMemberVisitOperation> {
   return serializeOutboxMutation(input.userId, async () => {
-    const current = await getPendingAttendanceOperations(input.userId);
+    const current = await getPendingAttendanceOperationsStrict(input.userId);
     const operation: PendingMemberVisitOperation = {
       version: 1,
       id: createOfflineUuid('member-visit'),
@@ -314,7 +323,7 @@ export async function syncAttendanceOperation(
   userId: string,
   operationId: string,
 ): Promise<AttendanceSyncResult | null> {
-  const operation = (await getPendingAttendanceOperations(userId)).find((item) => item.id === operationId);
+  const operation = (await getPendingAttendanceOperationsStrict(userId)).find((item) => item.id === operationId);
   if (!operation) return null;
   return syncOperation(operation);
 }
@@ -323,7 +332,7 @@ export async function confirmPendingClassAttendance(
   userId: string,
   operationId: string,
 ): Promise<AttendanceSyncResult | null> {
-  const operation = (await getPendingAttendanceOperations(userId)).find((item) => item.id === operationId);
+  const operation = (await getPendingAttendanceOperationsStrict(userId)).find((item) => item.id === operationId);
   if (!operation || operation.kind !== 'class') return null;
   const confirmed: PendingClassAttendanceOperation = {
     ...operation,
@@ -341,7 +350,7 @@ export async function flushPendingAttendanceOperations(userId: string): Promise<
   needsConfirmation: number;
   rejected: number;
 }> {
-  const current = await getPendingAttendanceOperations(userId);
+  const current = await getPendingAttendanceOperationsStrict(userId);
   let synced = 0;
 
   for (const operation of current) {
@@ -353,7 +362,7 @@ export async function flushPendingAttendanceOperations(userId: string): Promise<
     if (result.status === 'pending' && result.networkFailure) break;
   }
 
-  const remaining = await getPendingAttendanceOperations(userId);
+  const remaining = await getPendingAttendanceOperationsStrict(userId);
   return {
     synced,
     pending: remaining.filter((item) => item.state === 'pending').length,
