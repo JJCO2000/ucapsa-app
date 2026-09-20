@@ -56,7 +56,7 @@ must('src/utils/offline-id.utils.ts', /UUID v8/, 'IDs offline dejaron de documen
 mustNot('src/utils/offline-id.utils.ts', /Math\.random\s*\(/, 'El generador offline volvió a depender de Math.random().');
 for (const rel of [
   'src/services/attendance-outbox.service.ts',
-  'src/services/practice.service.ts',
+  'src/services/practice-sync.service.ts',
   'src/services/value-exposure-outbox.service.ts',
 ]) {
   must(rel, /createOfflineUuid/, `${rel} dejó de usar el generador offline canónico.`);
@@ -89,7 +89,7 @@ must('src/services/practice-outbox.service.ts', /function readPendingPracticeSes
 must('src/services/practice-outbox.service.ts', /enqueuePendingPractice[\s\S]{0,260}readPendingPracticeSessionsStrict/, 'Prácticas volvió a encolar desde una lectura tolerante.');
 must('src/services/practice-outbox.service.ts', /removePendingPractice[\s\S]{0,260}readPendingPracticeSessionsStrict/, 'Prácticas volvió a retirar eventos desde una lectura tolerante.');
 must('src/services/practice-outbox.service.ts', /replacePendingPractice[\s\S]{0,260}readPendingPracticeSessionsStrict/, 'Prácticas volvió a reemplazar eventos desde una lectura tolerante.');
-must('src/services/practice.service.ts', /flushPendingPracticeSessions[\s\S]{0,180}readPendingStrict/, 'Prácticas volvió a sincronizar desde un falso arreglo vacío.');
+must('src/services/practice-sync.service.ts', /flushPendingPracticeSessions[\s\S]{0,180}readPendingStrict/, 'Prácticas volvió a sincronizar desde un falso arreglo vacío.');
 
 must('src/services/value-exposure-outbox.service.ts', /async function readValueExposureOutboxStrict[\s\S]*parsed\.every[\s\S]*throw new Error/, 'Exposición de valor perdió la lectura estricta de su outbox.');
 must('src/services/value-exposure-outbox.service.ts', /discardValueExposure[\s\S]{0,220}readValueExposureOutboxStrict/, 'Exposición de valor volvió a descartar desde una lectura tolerante.');
@@ -99,14 +99,14 @@ must('src/services/value-exposure-outbox.service.ts', /flushPendingValueExposure
 // Prácticas offline: primero local, luego red; una caída de red conserva el evento para retry.
 must('src/services/practice-outbox.service.ts', /PENDING_PRACTICE_PREFIX/, 'Prácticas perdió su cola local persistente.');
 must('src/services/practice-outbox.service.ts', /AsyncStorage\.setItem\(pendingPracticeKey\(userId\)/, 'Prácticas dejó de persistir la cola por usuario.');
-must('src/services/practice.service.ts', /await enqueuePending\(pending\)[\s\S]*await withOperationTimeout\(syncOne\(pending\)/, 'Guardar práctica dejó de persistir local antes de intentar red.');
-must('src/services/practice.service.ts', /p_client_event_id: item\.clientEventId/, 'Prácticas perdió client_event_id al sincronizar.');
-must('src/services/practice.service.ts', /p_completed_at: item\.completedAt/, 'Prácticas dejó de conservar la hora real de finalización.');
-must('src/services/practice.service.ts', /if \(isLikelyNetworkError\(error\)\)[\s\S]*syncStatus: 'pending'/, 'Una caída de red dejó de devolver práctica pendiente.');
-must('src/services/practice.service.ts', /await removePending\(input\.userId, clientEventId\)[\s\S]*syncStatus: 'synced'/, 'Una práctica sincronizada dejó de retirarse de la cola tras confirmación.');
-must('src/services/practice.service.ts', /mergeActivityEntries\(cached\?\.entries \?\? \[\], pending/, 'La actividad offline dejó de incluir prácticas pendientes.');
-must('src/services/practice.service.ts', /if \(item\.state === 'rejected'\) continue;/, 'Prácticas volvió a reintentar rechazos permanentes.');
-must('src/services/practice.service.ts', /if \(isPermanentPracticeRejection\(error\)\)[\s\S]{0,420}replacePending\(userId,[\s\S]{0,320}state: 'rejected'[\s\S]{0,220}message: getErrorMessage\(error\)/, 'Prácticas dejó de conservar el rechazo permanente con diagnóstico.');
+must('src/services/practice-sync.service.ts', /await enqueuePending\(pending\)[\s\S]*await withOperationTimeout\(syncOne\(pending\)/, 'Guardar práctica dejó de persistir local antes de intentar red.');
+must('src/services/practice-sync.service.ts', /p_client_event_id: item\.clientEventId/, 'Prácticas perdió client_event_id al sincronizar.');
+must('src/services/practice-sync.service.ts', /p_completed_at: item\.completedAt/, 'Prácticas dejó de conservar la hora real de finalización.');
+must('src/services/practice-sync.service.ts', /if \(isLikelyNetworkError\(error\)\)[\s\S]*syncStatus: 'pending'/, 'Una caída de red dejó de devolver práctica pendiente.');
+must('src/services/practice-sync.service.ts', /await removePending\(input\.userId, clientEventId\)[\s\S]*syncStatus: 'synced'/, 'Una práctica sincronizada dejó de retirarse de la cola tras confirmación.');
+must('src/services/practice-activity.service.ts', /mergeActivityEntries\(cached\?\.entries \?\? \[\], pending/, 'La actividad offline dejó de incluir prácticas pendientes.');
+must('src/services/practice-sync.service.ts', /if \(item\.state === 'rejected'\) continue;/, 'Prácticas volvió a reintentar rechazos permanentes.');
+must('src/services/practice-sync.service.ts', /if \(isPermanentPracticeRejection\(error\)\)[\s\S]{0,420}replacePending\(userId,[\s\S]{0,320}state: 'rejected'[\s\S]{0,220}message: getErrorMessage\(error\)/, 'Prácticas dejó de conservar el rechazo permanente con diagnóstico.');
 
 
 // 6.1: cache-first no significa offline. La caché se pinta silenciosamente y el aviso
