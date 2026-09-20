@@ -4,11 +4,13 @@ const barrelPath = 'src/services/payments.service.ts';
 const adminPath = 'src/services/payments-admin.service.ts';
 const settingsPath = 'src/services/payment-settings.service.ts';
 const readPath = 'src/services/payments-read.service.ts';
+const registerSqlPath = 'supabase/sql/ucapsa-payment-register-idempotency.sql';
 
 const barrel = fs.readFileSync(barrelPath, 'utf8');
 const admin = fs.readFileSync(adminPath, 'utf8');
 const settings = fs.readFileSync(settingsPath, 'utf8');
 const read = fs.readFileSync(readPath, 'utf8');
+const registerSql = fs.readFileSync(registerSqlPath, 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
 
 for (const line of [
@@ -62,6 +64,35 @@ for (const token of [
 if (!read.includes('getMyPaymentOverview')) {
   throw new Error('Payments read boundary lost getMyPaymentOverview.');
 }
+
+for (const token of [
+  'create or replace function public.admin_register_payment',
+  'p_payment_id uuid',
+  'return v_existing',
+  'refresh_membership_payment_summary',
+  'create trigger trg_sync_payment_membership_summary',
+  'execute function public.sync_payment_membership_summary_trigger()',
+  'revoke all on function public.admin_register_payment',
+]) {
+  if (!registerSql.toLowerCase().includes(token.toLowerCase())) {
+    throw new Error('Idempotent payment registration contract missing: ' + token);
+  }
+}
+
+if (!/if not public\.is_admin\(\)/i.test(registerSql)) {
+  throw new Error('Idempotent payment registration RPC lost its Admin role barrier.');
+}
+
+for (const token of [
+  'p_amount is null or p_amount <= 0',
+  'La obligacion no pertenece al cliente o a la membresia indicada.',
+  'El identificador idempotente ya fue usado con datos distintos.',
+]) {
+  if (!registerSql.includes(token)) {
+    throw new Error('Idempotent payment registration invariant missing: ' + token);
+  }
+}
+
 
 if (/\.from\(['"]payment_settings['"]\)/.test(admin + read)) {
   throw new Error('Payment settings table leaked outside payment-settings.service.ts.');
