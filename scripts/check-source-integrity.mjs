@@ -33,9 +33,11 @@ must('supabase/functions/send-announcement-reminders/index.ts', /update\(\{ stat
 must('supabase/functions/send-announcement-reminders/index.ts', /if \(!claimedCampaign\) \{[\s\S]{0,180}continue;/, 'Recordatorios de anuncios puede volver a enviar una campaña tomada por otra ejecución.');
 
 mustNot('src/services/notifications.service.ts', /p_(device_name|device_id|app_ownership|app_version|project_id):[^\r\n]*\?\? null/, 'RPC de notificaciones envía null a argumentos opcionales tipados.');
-mustNot('src/services/programs-core.service.ts', /p_(cycle_start_date|schedule_id|change_note|notes):[^\r\n]*(\?\? null|\|\| null)/, 'RPC de programas envía null a argumentos opcionales tipados.');
+for (const rel of ['src/services/program-schedules.service.ts', 'src/services/program-attendance.service.ts']) {
+  mustNot(rel, /p_(cycle_start_date|schedule_id|change_note|notes):[^\r\n]*(\?\? null|\|\| null)/, `${rel} envía null a argumentos RPC opcionales tipados.`);
+}
 
-for (const rel of ['src/app/admin/classes.tsx', 'src/app/admin/customer-class.tsx', 'src/services/programs-core.service.ts']) {
+for (const rel of ['src/app/admin/classes.tsx', 'src/app/admin/customer-class.tsx', 'src/services/program-enrollments.service.ts']) {
   must(rel, /dogId/, `${rel} no conserva dogId como relación explícita.`);
 }
 
@@ -44,8 +46,8 @@ must('src/services/achievements.service.ts', /getProgramCompletionAchievementCod
 mustNot('src/services/achievements.service.ts', /function\s+programCompletionAchievementCode/, 'Logros volvió a duplicar el mapeo programa -> medalla.');
 mustNot('src/services/memberships.service.ts', /from\('payments'\)\.delete\(\)/, 'La baja de membresía volvió a borrar pagos históricos.');
 mustNot('src/services/memberships.service.ts', /from\('memberships'\)\.delete\(\)/, 'La baja de membresía volvió a borrar la membresía histórica.');
-mustNot('src/services/programs-core.service.ts', /attendancesCount\?:|payload\.attendances_count\s*=/, 'Programas volvió a permitir editar el contador derivado de asistencias.');
-mustNot('src/services/programs-core.service.ts', /deleteProgramEnrollment|from\('program_enrollments'\)\.delete\(\)/, 'Programas volvió a borrar inscripciones y su historial dependiente.');
+mustNot('src/services/program-enrollments.service.ts', /attendancesCount\?:|payload\.attendances_count\s*=/, 'Programas volvió a permitir editar el contador derivado de asistencias.');
+mustNot('src/services/program-enrollments.service.ts', /deleteProgramEnrollment|from\('program_enrollments'\)\.delete\(\)/, 'Programas volvió a borrar inscripciones y su historial dependiente.');
 must('supabase/sql/ucapsa-program-enrollment-history-protection.sql', /revoke delete on table public\.program_enrollments[\s\S]*from authenticated/i, 'Backend volvió a permitir DELETE físico de inscripciones.');
 must('supabase/sql/ucapsa-membership-status-lifecycle.sql', /payment_obligations[\s\S]*cancelled_at[\s\S]*due_date > current_date/i, 'La baja canónica dejó de cancelar sólo obligaciones futuras.');
 must('supabase/sql/ucapsa-membership-status-lifecycle.sql', /payments[\s\S]*status = 'paid'[\s\S]*voided_at is null[\s\S]*> 0\.005/i, 'La baja canónica dejó de preservar saldo histórico y pagos efectivos al cancelar futuro.');
@@ -180,7 +182,9 @@ for (const scanRoot of scanRoots) {
 }
 
 must('supabase/sql/ucapsa-server-generated-program-qr.sql', /alter column qr_token set default \(gen_random_uuid\(\)\)::text/i, 'Programas perdió la generación segura de QR en PostgreSQL.');
-mustNot('src/services/programs-core.service.ts', /Math\.random\(\)|qr_token:\s*createQrToken\(\)/, 'Programas volvió a generar QR permanentes en cliente.');
+for (const rel of ['src/services/program-enrollments.service.ts', 'src/services/program-attendance.service.ts']) {
+  mustNot(rel, /Math\.random\(\)|qr_token:\s*createQrToken\(\)/, `${rel} volvió a generar QR permanentes en cliente.`);
+}
 mustNot('src/services/memberships.service.ts', /Math\.random\(\)|qr_token:\s*createQrToken\(\)/, 'Membresías volvió a generar QR permanentes en cliente.');
 
 if (failures.length) {
