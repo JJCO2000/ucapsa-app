@@ -7,6 +7,7 @@ import {
   withOperationTimeout,
 } from '../utils/async.utils';
 import { createOfflineUuid } from '../utils/offline-id.utils';
+import { readValidatedAsyncStorageQueue } from '../utils/async-storage-queue.utils';
 
 export type ValueExposureSurface = 'constancy_summary' | 'constancy_detail';
 
@@ -70,16 +71,24 @@ function isValidOperation(value: unknown, userId: string): value is PendingValue
   );
 }
 
+async function readValueExposureOutbox(
+  userId: string,
+  mode: 'tolerant' | 'strict',
+): Promise<PendingValueExposure[]> {
+  return readValidatedAsyncStorageQueue({
+    storageKey: key(userId),
+    label: 'Cola local de exposiciones de valor',
+    isValid: (value): value is PendingValueExposure => isValidOperation(value, userId),
+    mode,
+  });
+}
+
 export async function getPendingValueExposures(userId: string): Promise<PendingValueExposure[]> {
-  try {
-    const raw = await AsyncStorage.getItem(key(userId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item) => isValidOperation(item, userId));
-  } catch {
-    return [];
-  }
+  return readValueExposureOutbox(userId, 'tolerant');
+}
+
+async function getPendingValueExposuresStrict(userId: string): Promise<PendingValueExposure[]> {
+  return readValueExposureOutbox(userId, 'strict');
 }
 
 async function writeOutbox(userId: string, items: PendingValueExposure[]) {
@@ -107,7 +116,7 @@ function serializeMutation<T>(userId: string, mutation: () => Promise<T>): Promi
 
 async function discardValueExposure(userId: string, operationId: string) {
   await serializeMutation(userId, async () => {
-    const current = await getPendingValueExposures(userId);
+    const current = await getPendingValueExposuresStrict(userId);
     await writeOutbox(userId, current.filter((item) => item.id !== operationId));
   });
 }
@@ -131,7 +140,7 @@ export async function queueValueExposure(input: {
 }): Promise<PendingValueExposure> {
   return serializeMutation(input.userId, async () => {
     const occurredAt = input.occurredAt ?? new Date().toISOString();
-    const current = await getPendingValueExposures(input.userId);
+    const current = await getPendingValueExposuresStrict(input.userId);
     const day = mexicoCityDateKey(occurredAt);
 
     const existing = current.find((item) => (
@@ -215,7 +224,7 @@ export async function flushPendingValueExposures(userId: string): Promise<{
   synced: number;
   pending: number;
 }> {
-  const current = await getPendingValueExposures(userId);
+  const current = await getPendingValueExposuresStrict(userId);
   let synced = 0;
 
   for (const operation of current) {
