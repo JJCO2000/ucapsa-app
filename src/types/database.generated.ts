@@ -4744,6 +4744,45 @@ export type Database = {
         Args: { p_batch_id: string; p_make_official?: boolean }
         Returns: string
       }
+      admin_register_payment: {
+        Args: {
+          p_amount: number
+          p_concept: string
+          p_membership_id: string
+          p_notes: string
+          p_obligation_id: string
+          p_paid_at: string
+          p_payment_id: string
+          p_payment_method: string
+          p_period_label: string
+          p_user_id: string
+        }
+        Returns: {
+          amount: number
+          concept: string
+          created_at: string
+          id: string
+          membership_id: string | null
+          notes: string | null
+          obligation_id: string | null
+          paid_at: string | null
+          payment_method: string | null
+          period_label: string | null
+          registered_by: string | null
+          status: Database["public"]["Enums"]["payment_status"]
+          updated_at: string
+          user_id: string
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       admin_reopen_ucapsa_competition_season: {
         Args: { p_season_id: string }
         Returns: string
@@ -5186,6 +5225,10 @@ export type Database = {
           p_season_id: string
           p_surface: string
         }
+        Returns: undefined
+      }
+      refresh_membership_payment_summary: {
+        Args: { p_membership_id: string }
         Returns: undefined
       }
       refresh_program_enrollment_progress: {
