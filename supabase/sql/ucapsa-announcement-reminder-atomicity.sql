@@ -142,3 +142,78 @@ revoke all on function public.admin_replace_announcement_reminders(uuid, jsonb)
   from public, anon;
 grant execute on function public.admin_replace_announcement_reminders(uuid, jsonb)
   to authenticated, service_role;
+
+-- Keep an existing reminder schedule coherent if the announcement date changes
+-- even when a later reminder-settings request cannot be completed.
+create or replace function public.sync_announcement_reminder_schedule()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_event_date date;
+begin
+  if new.announcement_date is not distinct from old.announcement_date then
+    return new;
+  end if;
+
+  if new.announcement_date is null then
+    update public.notification_campaigns c
+    set
+      status = 'no_targets',
+      archived_at = coalesce(c.archived_at, now()),
+      updated_at = now()
+    where c.category = 'announcements_events'
+      and c.status = 'draft'
+      and c.metadata @> jsonb_build_object(
+        'source', 'announcement_reminder',
+        'announcement_id', new.id::text
+      );
+
+    return new;
+  end if;
+
+  v_event_date := (new.announcement_date at time zone 'America/Mexico_City')::date;
+
+  update public.notification_campaigns c
+  set
+    metadata = c.metadata || jsonb_build_object(
+      'announcement_date', v_event_date::text,
+      'remind_at',
+        (
+          make_timestamptz(
+            extract(year from v_event_date)::integer,
+            extract(month from v_event_date)::integer,
+            extract(day from v_event_date)::integer,
+            greatest(0, least(23, coalesce((c.metadata ->> 'hour')::integer, 9))),
+            greatest(0, least(59, coalesce((c.metadata ->> 'minute')::integer, 0))),
+            0,
+            'America/Mexico_City'
+          ) - make_interval(
+            days => greatest(0, least(60, coalesce((c.metadata ->> 'days_before')::integer, 0)))
+          )
+        )::text
+    ),
+    updated_at = now()
+  where c.category = 'announcements_events'
+    and c.status = 'draft'
+    and c.metadata @> jsonb_build_object(
+      'source', 'announcement_reminder',
+      'announcement_id', new.id::text
+    );
+
+  return new;
+end;
+$$;
+
+revoke all on function public.sync_announcement_reminder_schedule()
+  from public, anon, authenticated;
+
+drop trigger if exists trg_sync_announcement_reminder_schedule
+  on public.announcements;
+
+create trigger trg_sync_announcement_reminder_schedule
+after update of announcement_date on public.announcements
+for each row
+execute function public.sync_announcement_reminder_schedule();
