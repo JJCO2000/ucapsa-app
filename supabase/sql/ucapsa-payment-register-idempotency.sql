@@ -19,7 +19,7 @@ declare
   v_has_obligations boolean := false;
   v_has_outstanding boolean := false;
   v_latest public.payments%rowtype;
-  v_status public.membership_payment_status;
+  v_status text;
 begin
   if p_membership_id is null then
     return;
@@ -70,10 +70,10 @@ begin
   limit 1;
 
   v_status := case
-    when v_has_obligations and v_has_outstanding then 'pending'::public.membership_payment_status
-    when v_has_obligations then 'paid'::public.membership_payment_status
-    when v_latest.id is not null then 'paid'::public.membership_payment_status
-    else 'pending'::public.membership_payment_status
+    when v_has_obligations and v_has_outstanding then 'pending'
+    when v_has_obligations then 'paid'
+    when v_latest.id is not null then 'paid'
+    else 'pending'
   end;
 
   update public.memberships m
