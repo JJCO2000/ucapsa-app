@@ -1,14 +1,16 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../constants/brand';
-import { getRestaurantMenu, type RestaurantMenuSection } from '../services/restaurant-menu.service';
-
-const CACHE_KEY = '@ucapsa:restaurant-menu:v1';
+import {
+  cacheRestaurantMenu,
+  getCachedRestaurantMenu,
+  getRestaurantMenu,
+  type RestaurantMenuSection,
+} from '../services/restaurant-menu.service';
 
 function money(value: number) {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 }).format(value);
@@ -26,24 +28,16 @@ export default function RestaurantScreen() {
     setError(null);
     setUsingCache(false);
 
-    let cached: RestaurantMenuSection[] | null = null;
-    try {
-      const raw = await AsyncStorage.getItem(CACHE_KEY);
-      if (raw) {
-        cached = JSON.parse(raw) as RestaurantMenuSection[];
-        if (Array.isArray(cached)) {
-          setSections(cached);
-          setLoading(false);
-        }
-      }
-    } catch {
-      cached = null;
+    const cached = await getCachedRestaurantMenu();
+    if (cached) {
+      setSections(cached);
+      setLoading(false);
     }
 
     try {
       const next = await getRestaurantMenu();
       setSections(next);
-      await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(next));
+      await cacheRestaurantMenu(next);
     } catch (cause) {
       if (cached) {
         setUsingCache(true);
