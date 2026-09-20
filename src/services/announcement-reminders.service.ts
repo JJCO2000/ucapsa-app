@@ -42,6 +42,7 @@ export async function getAnnouncementReminders(announcementId: string) {
     .select('status,metadata,created_at')
     .eq('category', 'announcements_events')
     .eq('status', 'draft')
+    .is('archived_at', null)
     .contains('metadata', { source: 'announcement_reminder', announcement_id: announcementId })
     .order('created_at', { ascending: true });
 
