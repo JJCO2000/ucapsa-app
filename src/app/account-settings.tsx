@@ -9,6 +9,7 @@ import { KeyboardAwareScreen } from '../components/ui/KeyboardAwareScreen';
 import { OfflineDataNotice } from '../components/ui/OfflineDataNotice';
 import { resolveUcapsaFormat } from '../constants/ucapsaFormats';
 import { ucapsaBrand, withAlpha } from '../constants/brand';
+import { devWarn } from '../lib/client-diagnostics';
 import { useSession } from '../hooks/useSession';
 import { getAccountDeletionStatusLabel, getMyAccountDeletionRequest, isAccountDeletionOpen, requestMyAccountDeletion, type AccountDeletionRequest } from '../services/account-deletion.service';
 import { requestMyEmailChange, updateMyProfile } from '../services/profiles.service';
@@ -69,8 +70,9 @@ export default function AccountSettingsScreen() {
       .then((request) => {
         if (active) setDeletionRequest(request);
       })
-      .catch(() => {
+      .catch((error) => {
         // La sección sigue disponible aunque temporalmente no pueda leer el estado remoto.
+        devWarn('Could not read account deletion status; keeping settings section available.', error);
       })
       .finally(() => {
         if (active) setDeletionLoading(false);
