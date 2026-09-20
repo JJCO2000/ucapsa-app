@@ -5,6 +5,7 @@ const domainPath = 'src/services/practice.domain.ts';
 
 const service = fs.readFileSync(servicePath, 'utf8');
 const domain = fs.readFileSync(domainPath, 'utf8');
+const outbox = fs.readFileSync('src/services/practice-outbox.service.ts', 'utf8');
 const detail = fs.readFileSync('src/app/client/practice-detail.tsx', 'utf8');
 const historyRow = fs.readFileSync('src/components/domain/PracticeHistoryRow.tsx', 'utf8');
 const sql = fs.readFileSync('supabase/sql/ucapsa-practice-session-rpc.sql', 'utf8');
@@ -38,15 +39,25 @@ if (!service.includes("export { buildPracticeEngagementStats } from './practice.
 }
 
 for (const token of [
-  'createKeyedMutationSerializer',
-  'serializePracticeMutation(item.userId',
-  'serializePracticeMutation(userId',
   'createKeyedInFlightCoalescer<void>',
   'coalescePracticeSync',
   "p_client_event_id: item.clientEventId",
+  "from './practice-outbox.service'",
 ]) {
   if (!service.includes(token)) {
-    throw new Error('Practice durable outbox concurrency contract missing: ' + token);
+    throw new Error('Practice service I/O contract missing: ' + token);
+  }
+}
+
+for (const token of [
+  'createKeyedMutationSerializer',
+  'readPendingPracticeSessionsStrict',
+  'enqueuePendingPractice',
+  'removePendingPractice',
+  'replacePendingPractice',
+]) {
+  if (!outbox.includes(token)) {
+    throw new Error('Practice outbox concurrency contract missing: ' + token);
   }
 }
 
@@ -55,14 +66,16 @@ if (/export function buildPracticeEngagementStats/.test(service)) {
   throw new Error('Practice engagement rules were duplicated back into practice.service.ts.');
 }
 
+if (!outbox.includes("state?: 'pending' | 'rejected'")) {
+  throw new Error('Practice outbox lost rejected state persistence.');
+}
 for (const token of [
-  "state?: 'pending' | 'rejected'",
   "if (item.state === 'rejected') continue;",
   "state: 'rejected'",
   "message: getErrorMessage(error)",
 ]) {
   if (!service.includes(token)) {
-    throw new Error('Practice rejected-outbox contract missing: ' + token);
+    throw new Error('Practice rejected-sync contract missing: ' + token);
   }
 }
 
@@ -90,11 +103,15 @@ for (const token of [
 
 const serviceLines = service.split(/\r?\n/).length;
 const domainLines = domain.split(/\r?\n/).length;
+const outboxLines = outbox.split(/\r?\n/).length;
 if (serviceLines > 430) {
   throw new Error('Practice service grew beyond its I/O responsibility boundary: ' + serviceLines + ' > 430.');
 }
 if (domainLines > 190) {
   throw new Error('Practice domain grew beyond its pure-rule responsibility boundary: ' + domainLines + ' > 190.');
+}
+if (outboxLines > 150) {
+  throw new Error('Practice outbox grew beyond its persistence responsibility boundary: ' + outboxLines + ' > 150.');
 }
 
 if (!pkg.includes('"check:practice-service-boundaries"')) {
