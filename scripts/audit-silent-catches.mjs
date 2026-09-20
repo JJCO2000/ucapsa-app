@@ -81,14 +81,15 @@ function classify(body) {
   const signals = {
     throws: /\bthrow\b/.test(code),
     returns: /\breturn\b/.test(code),
-    visibleUi: /Alert\.|toast|Snackbar|showMessage|setError\s*\(|set[A-Z]\w*(?:Error|Notice|Warning|Message)\s*\(/i.test(code),
-    diagnostics: /reportClientDiagnostic|capture|track|console\.(?:warn|error)/i.test(code),
+    visibleUi: /Alert\.|toast|Snackbar|showMessage|setFeedback\s*\(|setReminderLoadState\s*\(|setOfflineEmpty\s*\(|setUsingSavedData\s*\(|setIsOfflineFallback\s*\(|setError\s*\(|set[A-Z]\w*(?:Error|Notice|Warning|Message)\s*\(/i.test(code),
+    diagnostics: /devWarn\s*\(|reportClientDiagnostic|capture|track|console\.(?:warn|error)/i.test(code),
+    explicitState: /(?:state|status)\s*:\s*['"](?:pending|rejected|failed|error)['"]|setReminderLoadState\s*\(\s*['"]failed['"]\s*\)/i.test(code),
     state: /\bset[A-Z]\w*\s*\(/.test(code),
-    fallback: /\b(?:fallback|cached|cache|offline|default)\b/i.test(code),
+    fallback: /\b(?:fallback|cached|cache|offline|default|networkFailure|isLikelyNetworkError)\b/i.test(code),
   };
 
   if (signals.throws) return 'RETHROW';
-  if (signals.visibleUi || signals.diagnostics) return 'VISIBLE_OR_DIAGNOSTIC';
+  if (signals.visibleUi || signals.diagnostics || signals.explicitState) return 'VISIBLE_OR_DIAGNOSTIC';
   if (signals.returns && signals.fallback) return 'EXPLICIT_FALLBACK';
   if (signals.returns) return 'RETURN_ONLY_REVIEW';
   if (signals.state) return 'STATE_ONLY_REVIEW';
