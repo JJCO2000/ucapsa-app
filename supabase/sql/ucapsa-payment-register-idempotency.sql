@@ -161,8 +161,8 @@ begin
     raise exception 'Falta el cliente del pago.';
   end if;
 
-  if p_amount is null or p_amount < 0 then
-    raise exception 'El monto del pago no puede ser negativo.';
+  if p_amount is null or p_amount <= 0 then
+    raise exception 'El monto del pago debe ser mayor a cero.';
   end if;
 
   select *
@@ -172,8 +172,15 @@ begin
   limit 1;
 
   if found then
-    if v_existing.user_id is distinct from p_user_id then
-      raise exception 'El identificador del pago ya pertenece a otro cliente.';
+    if v_existing.user_id is distinct from p_user_id
+       or v_existing.membership_id is distinct from p_membership_id
+       or v_existing.obligation_id is distinct from p_obligation_id
+       or v_existing.amount is distinct from p_amount
+       or coalesce(v_existing.concept, '') is distinct from v_concept
+       or coalesce(v_existing.payment_method, '') is distinct from v_method
+       or coalesce(v_existing.notes, '') is distinct from coalesce(nullif(btrim(coalesce(p_notes, '')), ''), '')
+       or coalesce(v_existing.period_label, '') is distinct from coalesce(nullif(btrim(coalesce(p_period_label, '')), ''), '') then
+      raise exception 'El identificador idempotente ya fue usado con datos distintos.';
     end if;
     return v_existing;
   end if;
@@ -185,6 +192,20 @@ begin
       and m.user_id = p_user_id
   ) then
     raise exception 'La membresia no pertenece al cliente.';
+  end if;
+
+  if p_obligation_id is not null and not exists (
+    select 1
+    from public.payment_obligations o
+    where o.id = p_obligation_id
+      and o.user_id = p_user_id
+      and o.cancelled_at is null
+      and (
+        p_membership_id is null
+        or o.membership_id = p_membership_id
+      )
+  ) then
+    raise exception 'La obligacion no pertenece al cliente o a la membresia indicada.';
   end if;
 
   begin
@@ -224,8 +245,14 @@ begin
       where p.id = p_payment_id
       limit 1;
 
-      if not found or v_payment.user_id is distinct from p_user_id then
-        raise;
+      if not found
+         or v_payment.user_id is distinct from p_user_id
+         or v_payment.membership_id is distinct from p_membership_id
+         or v_payment.obligation_id is distinct from p_obligation_id
+         or v_payment.amount is distinct from p_amount
+         or coalesce(v_payment.concept, '') is distinct from v_concept
+         or coalesce(v_payment.payment_method, '') is distinct from v_method then
+        raise exception 'El identificador idempotente ya fue usado con datos distintos.';
       end if;
   end;
 
