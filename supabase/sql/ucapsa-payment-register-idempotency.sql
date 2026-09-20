@@ -97,7 +97,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $
+as $payment_summary_trigger$
 begin
   if tg_op = 'UPDATE'
      and old.membership_id is distinct from new.membership_id
@@ -111,7 +111,7 @@ begin
 
   return new;
 end;
-$;
+$payment_summary_trigger$;
 
 drop trigger if exists trg_sync_payment_membership_summary on public.payments;
 create trigger trg_sync_payment_membership_summary
