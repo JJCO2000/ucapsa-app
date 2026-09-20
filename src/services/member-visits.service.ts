@@ -13,6 +13,16 @@ export type MemberVisitMonthlyStat = {
   unique_members: number;
 };
 
+export type MemberVisitSummary = {
+  total: number;
+  thisMonth: number;
+  lastVisitedAt: string | null;
+};
+
+function startOfCurrentMonthKey(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
 export type AdminMemberVisitRow = MemberVisit & { profile: Profile | null };
 
 export async function registerMyMemberVisitFromQr(
@@ -40,6 +50,25 @@ export async function registerMyMemberVisitFromQr(
   const first = Array.isArray(response.data) ? response.data[0] : response.data;
   if (!first) throw new Error('Supabase no devolvio resultado del registro de visita.');
   return first as RegisterMemberVisitFromQrResult;
+}
+
+export async function getMemberVisitSummaryForUser(userId: string): Promise<MemberVisitSummary> {
+  const monthStart = startOfCurrentMonthKey();
+  const [totalResult, monthResult, latestResult] = await Promise.all([
+    supabase.from('member_visits').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+    supabase.from('member_visits').select('id', { count: 'exact', head: true }).eq('user_id', userId).gte('visit_date', monthStart),
+    supabase.from('member_visits').select('visited_at').eq('user_id', userId).order('visited_at', { ascending: false }).limit(1).maybeSingle(),
+  ]);
+
+  if (totalResult.error) throw totalResult.error;
+  if (monthResult.error) throw monthResult.error;
+  if (latestResult.error) throw latestResult.error;
+
+  return {
+    total: totalResult.count ?? 0,
+    thisMonth: monthResult.count ?? 0,
+    lastVisitedAt: latestResult.data?.visited_at ?? null,
+  };
 }
 
 export async function getAdminMemberVisitMonthlyStats(months = 12): Promise<MemberVisitMonthlyStat[]> {

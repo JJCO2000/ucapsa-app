@@ -112,6 +112,11 @@ must('src/services/program-next-session.service.ts', /resolveNextProgramSessionA
 must('src/app/(tabs)/classes.tsx', /getCanonicalNextProgramSessions/, 'Clases dejó de usar el selector canónico de próxima sesión.');
 must('src/app/client/class-detail.tsx', /getCanonicalNextProgramSessions/, 'Detalle de clase dejó de usar el selector canónico de próxima sesión.');
 must('src/services/customer-value.service.ts', /resolveNextProgramSessionAcrossEnrollments/, 'Inicio dejó de usar el selector canónico de próxima sesión.');
+must('src/services/member-visits.service.ts', /export async function getMemberVisitSummaryForUser/, 'Visitas perdió el resumen canónico por usuario.');
+must('src/services/customer-value.service.ts', /getMemberVisitSummaryForUser/, 'Customer Value dejó de consumir el resumen canónico de visitas.');
+must('src/services/customer-value.service.ts', /getCurrentSession/, 'Customer Value dejó de consumir la sesión desde auth.service.ts.');
+mustNot('src/services/customer-value.service.ts', /lib\/supabase|\bsupabase\.(?:from|rpc|auth|storage)\b/, 'Customer Value volvió a saltarse servicios canónicos y tocar Supabase directamente.');
+
 mustNot('src/app/(tabs)/classes.tsx', /getNextProgramScheduleDate/, 'Clases volvió a calcular la próxima sesión con una regla paralela.');
 mustNot('src/app/client/class-detail.tsx', /getNextProgramScheduleDate/, 'Detalle de clase volvió a calcular la próxima sesión con una regla paralela.');
 
