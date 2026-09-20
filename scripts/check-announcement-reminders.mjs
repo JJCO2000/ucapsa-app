@@ -15,6 +15,10 @@ for (const token of [
   'insert into public.notification_campaigns',
   'revoke all on function public.admin_replace_announcement_reminders(uuid, jsonb)',
   'to authenticated, service_role',
+  'create or replace function public.sync_announcement_reminder_schedule',
+  "status = 'no_targets'",
+  'create trigger trg_sync_announcement_reminder_schedule',
+  'after update of announcement_date on public.announcements',
 ]) {
   if (!sql.toLowerCase().includes(token.toLowerCase())) {
     throw new Error('Announcement reminder atomic RPC contract missing: ' + token);
@@ -25,6 +29,14 @@ const deleteIndex = sql.toLowerCase().indexOf('delete from public.notification_c
 const insertIndex = sql.toLowerCase().indexOf('insert into public.notification_campaigns');
 if (deleteIndex < 0 || insertIndex < 0 || deleteIndex > insertIndex) {
   throw new Error('Announcement reminder replacement lost its single transactional delete -> insert flow.');
+}
+
+if (!/metadata\s*=\s*c\.metadata\s*\|\|\s*jsonb_build_object[\s\S]*['"]remind_at['"]/i.test(sql)) {
+  throw new Error('Announcement date changes no longer recalculate existing reminder remind_at values.');
+}
+
+if (!/new\.announcement_date is null[\s\S]*status\s*=\s*['"]no_targets['"][\s\S]*archived_at/i.test(sql)) {
+  throw new Error('Removing an announcement date no longer retires existing draft reminders.');
 }
 
 if (!service.includes(".from('notification_campaigns')") || !service.includes("action: 'save'")) {
