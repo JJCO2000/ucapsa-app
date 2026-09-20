@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { devWarn } from '../lib/client-diagnostics';
 import { supabase } from '../lib/supabase';
 import {
   DEFAULT_WRITE_TIMEOUT_MS,
@@ -70,14 +71,25 @@ function isValidOperation(value: unknown, userId: string): value is PendingValue
   );
 }
 
+async function readValueExposureOutboxStrict(userId: string): Promise<PendingValueExposure[]> {
+  const raw = await AsyncStorage.getItem(key(userId));
+  if (!raw) return [];
+
+  const parsed = JSON.parse(raw) as unknown;
+  if (!Array.isArray(parsed)) {
+    throw new Error('La cola local de exposición de valor tiene un formato inválido.');
+  }
+  if (!parsed.every((item) => isValidOperation(item, userId))) {
+    throw new Error('La cola local de exposición de valor contiene operaciones inválidas.');
+  }
+  return parsed as PendingValueExposure[];
+}
+
 export async function getPendingValueExposures(userId: string): Promise<PendingValueExposure[]> {
   try {
-    const raw = await AsyncStorage.getItem(key(userId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item) => isValidOperation(item, userId));
-  } catch {
+    return await readValueExposureOutboxStrict(userId);
+  } catch (error) {
+    devWarn('Could not read value exposure outbox for display; preserving stored data.', error);
     return [];
   }
 }
@@ -107,7 +119,7 @@ function serializeMutation<T>(userId: string, mutation: () => Promise<T>): Promi
 
 async function discardValueExposure(userId: string, operationId: string) {
   await serializeMutation(userId, async () => {
-    const current = await getPendingValueExposures(userId);
+    const current = await readValueExposureOutboxStrict(userId);
     await writeOutbox(userId, current.filter((item) => item.id !== operationId));
   });
 }
@@ -131,7 +143,7 @@ export async function queueValueExposure(input: {
 }): Promise<PendingValueExposure> {
   return serializeMutation(input.userId, async () => {
     const occurredAt = input.occurredAt ?? new Date().toISOString();
-    const current = await getPendingValueExposures(input.userId);
+    const current = await readValueExposureOutboxStrict(input.userId);
     const day = mexicoCityDateKey(occurredAt);
 
     const existing = current.find((item) => (
@@ -215,7 +227,7 @@ export async function flushPendingValueExposures(userId: string): Promise<{
   synced: number;
   pending: number;
 }> {
-  const current = await getPendingValueExposures(userId);
+  const current = await readValueExposureOutboxStrict(userId);
   let synced = 0;
 
   for (const operation of current) {
@@ -231,6 +243,6 @@ export async function flushPendingValueExposures(userId: string): Promise<{
 
   return {
     synced,
-    pending: (await getPendingValueExposures(userId)).length,
+    pending: (await readValueExposureOutboxStrict(userId)).length,
   };
 }
