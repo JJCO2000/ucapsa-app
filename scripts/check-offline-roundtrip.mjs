@@ -106,7 +106,7 @@ must('src/services/practice.service.ts', /if \(isLikelyNetworkError\(error\)\)[\
 must('src/services/practice.service.ts', /await removePending\(input\.userId, clientEventId\)[\s\S]*syncStatus: 'synced'/, 'Una práctica sincronizada dejó de retirarse de la cola tras confirmación.');
 must('src/services/practice.service.ts', /mergeActivityEntries\(cached\?\.entries \?\? \[\], pending/, 'La actividad offline dejó de incluir prácticas pendientes.');
 must('src/services/practice.service.ts', /if \(item\.state === 'rejected'\) continue;/, 'Prácticas volvió a reintentar rechazos permanentes.');
-must('src/services/practice.service.ts', /replacePending\(userId, \{ \.\.\.item, state: 'rejected', message: getErrorMessage\(error\) \}\)/, 'Prácticas dejó de conservar el rechazo permanente con diagnóstico.');
+must('src/services/practice.service.ts', /replacePending\(userId, \{[\s\S]{0,220}\.\.\.item,[\s\S]{0,120}state: 'rejected',[\s\S]{0,120}message: getErrorMessage\(error\)[\s\S]{0,80}\}\)/, 'Prácticas dejó de conservar el rechazo permanente con diagnóstico.');
 
 
 // 6.1: cache-first no significa offline. La caché se pinta silenciosamente y el aviso
