@@ -120,6 +120,7 @@ function findPromiseCatchHandlers(text) {
       offset: match.index,
       line: lineNumber(text, match.index),
       handler: text.slice(open + 1, end - 1),
+      context: text.slice(Math.max(0, match.index - 120), Math.min(text.length, end + 120)),
     });
     re.lastIndex = end;
   }
@@ -127,7 +128,7 @@ function findPromiseCatchHandlers(text) {
   return results;
 }
 
-function classifyPromiseCatch(handler) {
+function classifyPromiseCatch(handler, context) {
   const code = stripComments(handler);
   if (!code) return 'PROMISE_EMPTY_REVIEW';
 
@@ -141,6 +142,10 @@ function classifyPromiseCatch(handler) {
   if (/\bisLikelyNetworkError\s*\(/.test(code)) return 'PROMISE_RETRY_POLICY';
   if (/\b(?:status|state)\s*:\s*['"](?:error|failed|pending|rejected|needs_confirmation)['"]/i.test(code)) {
     return 'PROMISE_EXPLICIT_STATE';
+  }
+
+  if (/previous\.catch\s*\(\s*\(\)\s*=>\s*undefined\s*\)\s*\.then\s*\(\s*mutation\s*\)/s.test(context)) {
+    return 'PROMISE_CHAIN_RECOVERY';
   }
 
   if (/=>\s*(?:undefined|void\s+0)\s*;?\s*$/.test(code)) return 'PROMISE_SILENT_REVIEW';
@@ -209,13 +214,14 @@ for (const absolute of walk(sourceRoot)) {
 
   for (const handler of findPromiseCatchHandlers(text)) {
     promiseCatches += 1;
-    const kind = classifyPromiseCatch(handler.handler);
+    const kind = classifyPromiseCatch(handler.handler, handler.context);
     if ([
       'PROMISE_DIAGNOSTIC',
       'PROMISE_RETHROW',
       'PROMISE_VISIBLE',
       'PROMISE_RETRY_POLICY',
       'PROMISE_EXPLICIT_STATE',
+      'PROMISE_CHAIN_RECOVERY',
     ].includes(kind)) continue;
 
     const compact = handler.handler
@@ -244,9 +250,9 @@ for (const item of promiseFindings) {
   console.log(`- ${item.kind} ${item.file}:${item.line} :: ${item.body || '(empty after comments)'}`);
 }
 
-if (findings.length > 0) {
-  console.error('SILENT CATCH AUDIT FAIL: cada catch debe relanzar, comunicar degradación, registrar diagnóstico o expresar fallback/estado/retry de forma explícita.');
+if (findings.length > 0 || promiseFindings.length > 0) {
+  console.error('SILENT CATCH AUDIT FAIL: cada catch y Promise.catch debe relanzar, comunicar degradación, registrar diagnóstico o expresar fallback/estado/retry/control de cadena de forma explícita.');
   process.exit(1);
 }
 
-console.log('SILENT CATCH AUDIT PASS: todos los catch tienen una salida explícita o diagnóstica.');
+console.log('SILENT CATCH AUDIT PASS: todos los catch y Promise.catch tienen una salida explícita, diagnóstica o de control de cadena.');
