@@ -37,7 +37,7 @@ export function PracticeHistoryRow({
       <View style={styles.copy}>
         <Text style={[styles.title, { color: format.cardText }]}>{formatPracticeDate(entry.completedAt)}</Text>
         <Text style={[styles.meta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
-          {entry.dogName || 'Tu perro'} · {practiceDifficultyLabel(entry.difficulty)}{entry.syncStatus === 'pending' ? ' · por sincronizar' : ''}
+          {entry.dogName || 'Tu perro'} · {practiceDifficultyLabel(entry.difficulty)}{entry.syncStatus === 'pending' ? ' · por sincronizar' : entry.syncStatus === 'rejected' ? ' · requiere revisión' : ''}
         </Text>
       </View>
       <MaterialIcons name="chevron-right" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
