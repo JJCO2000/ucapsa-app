@@ -67,8 +67,16 @@ if (/markMembershipPaidFast|updateMembershipPaymentStatus|registerMembershipPaym
   throw new Error('Membership service reintroduced a manual/fake payment-state shortcut.');
 }
 
-if (/currentPaymentStatus|lastPaymentAt/.test(service)) {
+if (/currentPaymentStatus|lastPaymentAt|current_payment_status\s*:|last_payment_at\s*:|payment_notes\s*:/.test(service)) {
   throw new Error('Membership service reintroduced manual editing of derived payment summary fields.');
+}
+
+if (/\.from\(['"]payments['"]\)/.test(service)) {
+  throw new Error('Membership service reintroduced payment-history reads instead of leaving payments in the payment domain.');
+}
+
+if (/payments\s*:\s*Payment\[\]/.test(service)) {
+  throw new Error('Membership admin rows reintroduced unused payment history payload.');
 }
 
 if (/syncProfileRoleForMembership/.test(service)) {
