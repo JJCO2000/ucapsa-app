@@ -15,6 +15,7 @@ import {
   type AdminCustomerRecord,
 } from '../../services/admin-customer.service';
 import { registerCustomerPayment, updateCustomerPayment, voidCustomerPayment } from '../../services/payments.service';
+import { createOfflineUuid } from '../../utils/offline-id.utils';
 
 function money(value: number) {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 }).format(value);
@@ -32,6 +33,7 @@ type ObligationWithBalance = AdminCustomerPaymentObligation & { paid: number; ba
 
 type PaymentForm = {
   payment: AdminCustomerPayment | null;
+  registrationId: string;
   amount: string;
   method: string;
   date: string;
@@ -40,7 +42,7 @@ type PaymentForm = {
   obligationId: string;
 };
 
-const emptyForm: PaymentForm = { payment: null, amount: '', method: 'manual', date: dateKey(null), notes: '', concept: 'Pago manual', obligationId: '' };
+const emptyForm: PaymentForm = { payment: null, registrationId: '', amount: '', method: 'manual', date: dateKey(null), notes: '', concept: 'Pago manual', obligationId: '' };
 
 export default function CustomerPaymentsScreen() {
   const params = useLocalSearchParams<{ userId?: string }>();
@@ -85,6 +87,7 @@ export default function CustomerPaymentsScreen() {
   function openNew(obligation?: ObligationWithBalance) {
     setForm({
       payment: null,
+      registrationId: createOfflineUuid(`admin-payment:${userId}`),
       amount: obligation ? String(obligation.balance) : '',
       method: 'manual',
       date: dateKey(null),
@@ -101,6 +104,7 @@ export default function CustomerPaymentsScreen() {
     if (payment.voided_at) return;
     setForm({
       payment,
+      registrationId: payment.id,
       amount: String(Number(payment.amount ?? 0)),
       method: payment.payment_method || 'manual',
       date: dateKey(payment.paid_at || payment.created_at),
@@ -142,6 +146,7 @@ export default function CustomerPaymentsScreen() {
         });
       } else {
         await registerCustomerPayment({
+          paymentId: form.registrationId,
           userId,
           membershipId: record.membership?.id ?? null,
           obligationId: form.obligationId || null,
