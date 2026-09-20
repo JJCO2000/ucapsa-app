@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { WEEKLY_PRACTICE_GOAL } from '../constants/practice';
+import { devWarn } from '../lib/client-diagnostics';
 import { supabase } from '../lib/supabase';
 import type { PracticeDifficulty, PracticeSession } from '../types/app.types';
 import { createOfflineUuid } from '../utils/offline-id.utils';
@@ -231,6 +232,18 @@ function syncOne(item: PendingPracticeSession): Promise<void> {
   );
 }
 
+const PERMANENT_PRACTICE_REJECTION_MESSAGES = new Set([
+  'Falta la inscripción de la práctica.',
+  'La dificultad de la práctica no es válida.',
+  'Las horas de la práctica no son válidas.',
+  'La duración de la práctica no es válida.',
+  'La inscripción ya no está activa o no pertenece a tu cuenta.',
+]);
+
+function isPermanentPracticeRejection(error: unknown) {
+  return PERMANENT_PRACTICE_REJECTION_MESSAGES.has(getErrorMessage(error, ''));
+}
+
 export async function flushPendingPracticeSessions(userId: string): Promise<number> {
   const pending = await readPendingStrict(userId);
   let synced = 0;
@@ -243,7 +256,21 @@ export async function flushPendingPracticeSessions(userId: string): Promise<numb
       synced += 1;
     } catch (error) {
       if (isLikelyNetworkError(error)) break;
-      await replacePending(userId, { ...item, state: 'rejected', message: getErrorMessage(error) });
+
+      if (isPermanentPracticeRejection(error)) {
+        await replacePending(userId, {
+          ...item,
+          state: 'rejected',
+          message: getErrorMessage(error),
+        });
+        continue;
+      }
+
+      // Un 5xx, bug transitorio o error no clasificado no demuestra que la
+      // práctica sea inválida. Conserva la evidencia local y evita reintentos
+      // en cascada durante este flush; una ejecución posterior puede recuperarla.
+      devWarn('Practice sync failed with an unclassified error; preserving pending operation.', error);
+      break;
     }
   }
 
@@ -342,8 +369,17 @@ export async function saveMyPracticeSession(input: {
       return { syncStatus: 'pending', clientEventId, completedAt: pending.completedAt };
     }
 
-    // Un rechazo real del servidor no debe hacerse pasar por un guardado offline.
-    await removePending(input.userId, clientEventId);
-    throw error;
+    if (isPermanentPracticeRejection(error)) {
+      // Un rechazo de negocio conocido sí es definitivo: el usuario debe verlo
+      // ahora y no dejar una operación imposible reintentándose para siempre.
+      await removePending(input.userId, clientEventId);
+      throw error;
+    }
+
+    // Estado remoto desconocido: la práctica ya existe localmente y la escritura
+    // es idempotente por client_event_id. No borres evidencia por un 5xx o bug
+    // transitorio; déjala pendiente para un retry posterior.
+    devWarn('Practice save was not confirmed; preserving pending operation.', error);
+    return { syncStatus: 'pending', clientEventId, completedAt: pending.completedAt };
   }
 }
