@@ -3,12 +3,10 @@ import { supabase } from '../lib/supabase';
 import type { TableUpdate } from '../types/database.helpers';
 import type {
   Membership,
-  MembershipPaymentStatus,
   MembershipStatus,
   Payment,
   Profile,
 } from '../types/app.types';
-import { registerMembershipPayment } from './payments.service';
 import { isMembershipActiveToday } from './memberships.domain';
 
 export {
@@ -33,10 +31,7 @@ export type MembershipAdminRow = {
 export type UpdateMembershipDetailsInput = {
   memberNumber?: string | null;
   status?: MembershipStatus;
-  currentPaymentStatus?: MembershipPaymentStatus | null;
-  lastPaymentAt?: string | null;
   endDate?: string | null;
-  paymentNotes?: string | null;
 };
 
 export type MembershipEligibilitySource = 'program_enrollment' | 'program_completion_achievement' | 'none';
@@ -216,7 +211,6 @@ export async function updateMembershipStatus(
     memberNumber?: string | null;
     startDate?: string | null;
     endDate?: string | null;
-    paymentNotes?: string | null;
   },
 ): Promise<void> {
   const { data: authData, error: authError } = await supabase.auth.getUser();
@@ -228,7 +222,6 @@ export async function updateMembershipStatus(
   if (options && 'memberNumber' in options) payload.member_number = options.memberNumber?.trim() || null;
   if (options && 'startDate' in options) payload.start_date = options.startDate || null;
   if (options && 'endDate' in options) payload.end_date = options.endDate || null;
-  if (options && 'paymentNotes' in options) payload.payment_notes = options.paymentNotes?.trim() || null;
   if (status === 'active') payload.approved_by = authData.user?.id ?? null;
 
   const { error } = await supabase.from('memberships').update(payload as TableUpdate<'memberships'>).eq('id', membership.id);
@@ -242,45 +235,11 @@ export async function updateMembershipDetails(membership: Membership, input: Upd
 
   if ('memberNumber' in input) payload.member_number = input.memberNumber?.trim() || null;
   if ('status' in input && input.status) payload.status = input.status;
-  if ('currentPaymentStatus' in input) payload.current_payment_status = input.currentPaymentStatus || 'pending';
-  if ('lastPaymentAt' in input) payload.last_payment_at = dateKeyToIso(input.lastPaymentAt);
   if ('endDate' in input) payload.end_date = dateKeyToIso(input.endDate);
-  if ('paymentNotes' in input) payload.payment_notes = input.paymentNotes?.trim() || null;
 
   const { error } = await supabase.from('memberships').update(payload as TableUpdate<'memberships'>).eq('id', membership.id);
   if (error) throw error;
 
-}
-
-export async function updateMembershipPaymentStatus(
-  membershipId: string,
-  paymentStatus: MembershipPaymentStatus,
-  notes?: string | null,
-): Promise<void> {
-  const now = new Date().toISOString();
-
-  const { error } = await supabase
-    .from('memberships')
-    .update({
-      current_payment_status: paymentStatus,
-      last_payment_at: paymentStatus === 'paid' ? now : null,
-      payment_notes: notes?.trim() || null,
-      updated_at: now,
-    })
-    .eq('id', membershipId);
-
-  if (error) throw error;
-}
-
-export async function markMembershipPaidFast(row: MembershipAdminRow): Promise<void> {
-  await registerMembershipPayment({
-    userId: row.membership.user_id,
-    membershipId: row.membership.id,
-    amount: 0,
-    notes: 'Pago registrado rapido desde tabla de socios.',
-    periodLabel: 'Mensualidad',
-    paymentMethod: 'manual',
-  });
 }
 
 function buildForcedMemberNumber(profile: Profile) {
