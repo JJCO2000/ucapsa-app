@@ -11,7 +11,9 @@ for (const token of [
   'if not public.is_admin()',
   "jsonb_typeof(v_reminders) <> 'array'",
   'jsonb_array_length(v_reminders) > 5',
-  'delete from public.notification_campaigns',
+  "status = 'no_targets'",
+  'archived_at = coalesce(c.archived_at, now())',
+  "'retired_reason', 'announcement_reminder_replaced'",
   'insert into public.notification_campaigns',
   'revoke all on function public.admin_replace_announcement_reminders(uuid, jsonb)',
   'to authenticated, service_role',
@@ -25,10 +27,14 @@ for (const token of [
   }
 }
 
-const deleteIndex = sql.toLowerCase().indexOf('delete from public.notification_campaigns');
+const retireIndex = sql.toLowerCase().indexOf("status = 'no_targets'");
 const insertIndex = sql.toLowerCase().indexOf('insert into public.notification_campaigns');
-if (deleteIndex < 0 || insertIndex < 0 || deleteIndex > insertIndex) {
-  throw new Error('Announcement reminder replacement lost its single transactional delete -> insert flow.');
+if (retireIndex < 0 || insertIndex < 0 || retireIndex > insertIndex) {
+  throw new Error('Announcement reminder replacement lost its single transactional retire -> insert flow.');
+}
+
+if (/delete\s+from\s+public\.notification_campaigns/i.test(sql)) {
+  throw new Error('Announcement reminder replacement must preserve campaign history instead of deleting rows.');
 }
 
 if (!/metadata\s*=\s*c\.metadata\s*\|\|\s*jsonb_build_object[\s\S]*['"]remind_at['"]/i.test(sql)) {
