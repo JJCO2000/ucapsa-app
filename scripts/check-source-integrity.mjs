@@ -84,8 +84,10 @@ must('src/services/attendance-outbox.service.ts', /p_captured_at/, 'El QR dejó 
 mustNot('src/services/attendance-outbox.service.ts', /as never/, 'La cola offline volvió a saltarse los tipos de Supabase.');
 mustNot('src/services/member-visits.service.ts', /as never/, 'Visitas de socio volvió a saltarse los tipos de Supabase.');
 must('src/services/client-offline-sync.service.ts', /flushPendingAttendanceOperations/, 'El arranque dejó de reintentar asistencias y visitas pendientes.');
-must('src/services/attendance-outbox.service.ts', /outboxMutationChains/, 'La cola offline perdió la serialización de mutaciones locales.');
-must('src/services/attendance-outbox.service.ts', /syncInFlightByOperation/, 'La cola offline volvió a permitir sincronizaciones duplicadas simultáneas.');
+must('src/services/attendance-outbox.service.ts', /createKeyedMutationSerializer/, 'La cola offline perdió la serialización canónica de mutaciones locales.');
+must('src/services/attendance-outbox.service.ts', /createKeyedInFlightCoalescer/, 'La cola offline volvió a permitir sincronizaciones duplicadas simultáneas.');
+must('src/services/value-exposure-outbox.service.ts', /createKeyedMutationSerializer/, 'La cola de exposición de valor perdió la serialización canónica de mutaciones locales.');
+must('src/services/value-exposure-outbox.service.ts', /createKeyedInFlightCoalescer/, 'La cola de exposición de valor volvió a permitir sincronizaciones duplicadas simultáneas.');
 must('src/app/_layout.tsx', /AppState\.addEventListener\('change'/, 'La app dejó de escuchar el regreso a primer plano para reintentar la cola offline.');
 must('src/app/_layout.tsx', /flushPendingAttendanceOperations\(user\.id\)/, 'La app dejó de reintentar la cola offline al volver a primer plano.');
 must('src/app/attendance.tsx', /queueClassAttendance/, 'El escáner de clases volvió a escribir solo en red.');
