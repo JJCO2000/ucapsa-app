@@ -128,8 +128,9 @@ export async function clearValueExposureOutbox(userId: string): Promise<void> {
   await serializeMutation(userId, async () => {
     try {
       await AsyncStorage.removeItem(key(userId));
-    } catch {
+    } catch (error) {
       // No bloquear logout por un fallo local de telemetría.
+      devWarn('Could not clear value exposure outbox.', error);
     }
   });
 }
