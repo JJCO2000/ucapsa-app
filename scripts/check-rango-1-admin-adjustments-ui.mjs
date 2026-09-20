@@ -17,7 +17,8 @@ const hub = read('src/app/admin/competition.tsx');
 const layout = read('src/app/admin/_layout.tsx');
 const overview = read('src/app/admin/competition-adjustments.tsx');
 const detail = read('src/app/admin/competition-adjustment-detail.tsx');
-const service = read('src/services/admin-competition-core.service.ts');
+const service = read('src/services/admin-competition-adjustments.service.ts');
+const coreBarrel = read('src/services/admin-competition-core.service.ts');
 const pkg = read('package.json');
 
 if (!/title="Puntos y ajustes"[\s\S]{0,260}\/admin\/competition-adjustments/.test(hub)) {
@@ -53,6 +54,13 @@ for (const token of [
 if (!/season\.status === 'active' \|\| season\.status === 'reopened'/.test(service)) {
   failures.push('Servicio de ajustes dejó de limitar operación a temporadas active/reopened.');
 }
+if (!/export \* from ['"]\.\/admin-competition-adjustments\.service['"]/.test(coreBarrel)) {
+  failures.push('Barrel de compatibilidad de Competencia perdió export de Ajustes.');
+}
+if (/\.from\(|\.rpc\(|\bsupabase\b|function\s+/.test(coreBarrel)) {
+  failures.push('Barrel de compatibilidad de Competencia volvió a contener implementación real.');
+}
+
 if (/ucapsa_points_/.test(service) || /admin_adjust_ucapsa_points/.test(service)) {
   failures.push('La UI nueva de ajustes no puede depender del producto legado UCAPSA Points.');
 }
