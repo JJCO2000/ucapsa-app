@@ -9,6 +9,7 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
+import { devWarn } from '../../lib/client-diagnostics';
 import {
   getCachedMyDogCompetition,
   refreshMyDogCompetition,
@@ -122,7 +123,9 @@ export default function ClientCompetitionScreen() {
 
     const timer = setTimeout(() => {
       void recordValueExposure(user.id, snapshot.dog_id, selectedSeason.season_id!, 'constancy_summary')
-        .catch(() => undefined);
+        .catch((error) => {
+          devWarn('Could not record competition-summary value exposure.', error);
+        });
     }, 750);
 
     return () => clearTimeout(timer);
