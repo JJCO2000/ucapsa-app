@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { WEEKLY_PRACTICE_GOAL } from '../constants/practice';
+import { devWarn } from '../lib/client-diagnostics';
 import { supabase } from '../lib/supabase';
 import type { PracticeDifficulty, PracticeSession } from '../types/app.types';
 import { createOfflineUuid } from '../utils/offline-id.utils';
@@ -77,27 +78,41 @@ function createClientEventId() {
   return createOfflineUuid('practice');
 }
 
+function isValidPendingPracticeSession(item: unknown, userId: string): item is PendingPracticeSession {
+  if (!item || typeof item !== 'object') return false;
+  const value = item as Partial<PendingPracticeSession>;
+  return (
+    value.version === 1 &&
+    value.userId === userId &&
+    typeof value.clientEventId === 'string' &&
+    (value.dogName == null || typeof value.dogName === 'string') &&
+    typeof value.enrollmentId === 'string' &&
+    typeof value.startedAt === 'string' &&
+    typeof value.completedAt === 'string' &&
+    (value.difficulty === 'easy' || value.difficulty === 'good' || value.difficulty === 'hard')
+  );
+}
+
+async function readPendingStrict(userId: string): Promise<PendingPracticeSession[]> {
+  const raw = await AsyncStorage.getItem(pendingPracticeKey(userId));
+  if (!raw) return [];
+
+  const parsed = JSON.parse(raw) as unknown;
+  if (!Array.isArray(parsed)) {
+    throw new Error('La cola local de prácticas tiene un formato inválido.');
+  }
+  if (!parsed.every((item) => isValidPendingPracticeSession(item, userId))) {
+    throw new Error('La cola local de prácticas contiene operaciones inválidas.');
+  }
+  return parsed as PendingPracticeSession[];
+}
+
 async function readPending(userId: string): Promise<PendingPracticeSession[]> {
   try {
-    const raw = await AsyncStorage.getItem(pendingPracticeKey(userId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is PendingPracticeSession => {
-      if (!item || typeof item !== 'object') return false;
-      const value = item as Partial<PendingPracticeSession>;
-      return (
-        value.version === 1 &&
-        value.userId === userId &&
-        typeof value.clientEventId === 'string' &&
-        (value.dogName == null || typeof value.dogName === 'string') &&
-        typeof value.enrollmentId === 'string' &&
-        typeof value.startedAt === 'string' &&
-        typeof value.completedAt === 'string' &&
-        (value.difficulty === 'easy' || value.difficulty === 'good' || value.difficulty === 'hard')
-      );
-    });
-  } catch {
+    return await readPendingStrict(userId);
+  } catch (error) {
+    // Lecturas visuales pueden degradar, pero nunca deben reescribir desde un falso vacío.
+    devWarn('Could not read practice outbox for display; preserving stored data.', error);
     return [];
   }
 }
@@ -116,7 +131,7 @@ async function writePending(userId: string, items: PendingPracticeSession[]) {
 
 async function enqueuePending(item: PendingPracticeSession) {
   return serializePracticeMutation(item.userId, async () => {
-    const current = await readPending(item.userId);
+    const current = await readPendingStrict(item.userId);
     if (current.some((candidate) => candidate.clientEventId === item.clientEventId)) return;
     await writePending(item.userId, [...current, item]);
   });
@@ -124,7 +139,7 @@ async function enqueuePending(item: PendingPracticeSession) {
 
 async function removePending(userId: string, clientEventId: string) {
   return serializePracticeMutation(userId, async () => {
-    const current = await readPending(userId);
+    const current = await readPendingStrict(userId);
     await writePending(userId, current.filter((item) => item.clientEventId !== clientEventId));
   });
 }
@@ -298,7 +313,7 @@ function syncOne(item: PendingPracticeSession): Promise<void> {
 }
 
 export async function flushPendingPracticeSessions(userId: string): Promise<number> {
-  const pending = await readPending(userId);
+  const pending = await readPendingStrict(userId);
   let synced = 0;
 
   for (const item of pending) {

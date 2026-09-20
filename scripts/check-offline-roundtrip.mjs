@@ -77,6 +77,24 @@ must('src/app/attendance.tsx', /queueMemberVisit/, 'El escáner de socio dejó d
 must('supabase/sql/ucapsa-offline-attendance-outbox.sql', /program_attendances_enrollment_client_event_unique_idx/, 'Backend perdió idempotencia de asistencia por client_event_id.');
 must('supabase/sql/ucapsa-offline-attendance-outbox.sql', /member_visits_user_client_event_unique_idx/, 'Backend perdió idempotencia de visita por client_event_id.');
 
+// Las colas durables nunca pueden mutar desde una lectura tolerante que convierta
+// un fallo de AsyncStorage o payload corrupto en un falso arreglo vacío.
+must('src/services/attendance-outbox.service.ts', /async function readAttendanceOutboxStrict[\s\S]*parsed\.every[\s\S]*throw new Error/, 'Asistencia perdió la lectura estricta de su outbox.');
+must('src/services/attendance-outbox.service.ts', /replaceOperation[\s\S]{0,220}readAttendanceOutboxStrict/, 'Asistencia volvió a reemplazar operaciones desde una lectura tolerante.');
+must('src/services/attendance-outbox.service.ts', /queueClassAttendance[\s\S]{0,320}readAttendanceOutboxStrict/, 'Asistencia volvió a encolar clases desde una lectura tolerante.');
+must('src/services/attendance-outbox.service.ts', /queueMemberVisit[\s\S]{0,260}readAttendanceOutboxStrict/, 'Asistencia volvió a encolar visitas desde una lectura tolerante.');
+must('src/services/attendance-outbox.service.ts', /confirmPendingClassAttendance[\s\S]{0,220}readAttendanceOutboxStrict/, 'Confirmación de asistencia volvió a confundir fallo local con operación inexistente.');
+
+must('src/services/practice.service.ts', /async function readPendingStrict[\s\S]*parsed\.every[\s\S]*throw new Error/, 'Prácticas perdió la lectura estricta de su outbox.');
+must('src/services/practice.service.ts', /enqueuePending[\s\S]{0,220}readPendingStrict/, 'Prácticas volvió a encolar desde una lectura tolerante.');
+must('src/services/practice.service.ts', /removePending[\s\S]{0,220}readPendingStrict/, 'Prácticas volvió a retirar eventos desde una lectura tolerante.');
+must('src/services/practice.service.ts', /flushPendingPracticeSessions[\s\S]{0,180}readPendingStrict/, 'Prácticas volvió a sincronizar desde un falso arreglo vacío.');
+
+must('src/services/value-exposure-outbox.service.ts', /async function readValueExposureOutboxStrict[\s\S]*parsed\.every[\s\S]*throw new Error/, 'Exposición de valor perdió la lectura estricta de su outbox.');
+must('src/services/value-exposure-outbox.service.ts', /discardValueExposure[\s\S]{0,220}readValueExposureOutboxStrict/, 'Exposición de valor volvió a descartar desde una lectura tolerante.');
+must('src/services/value-exposure-outbox.service.ts', /queueValueExposure[\s\S]{0,320}readValueExposureOutboxStrict/, 'Exposición de valor volvió a encolar desde una lectura tolerante.');
+must('src/services/value-exposure-outbox.service.ts', /flushPendingValueExposures[\s\S]{0,180}readValueExposureOutboxStrict/, 'Exposición de valor volvió a sincronizar desde un falso arreglo vacío.');
+
 // Prácticas offline: primero local, luego red; una caída de red conserva el evento para retry.
 must('src/services/practice.service.ts', /PENDING_PRACTICE_PREFIX/, 'Prácticas perdió su cola local persistente.');
 must('src/services/practice.service.ts', /AsyncStorage\.setItem\(pendingPracticeKey\(userId\)/, 'Prácticas dejó de persistir la cola por usuario.');
