@@ -59,6 +59,8 @@ type PendingPracticeSession = {
   difficulty: PracticeDifficulty;
   note: string | null;
   durationSeconds: number | null;
+  state?: 'pending' | 'rejected';
+  message?: string | null;
 };
 
 const PENDING_PRACTICE_PREFIX = 'ucapsa:practice-pending:v1:';
@@ -129,6 +131,12 @@ async function removePending(userId: string, clientEventId: string) {
   });
 }
 
+async function replacePending(userId: string, next: PendingPracticeSession) {
+  return serializePracticeMutation(userId, async () => {
+    const current = await readPending(userId);
+    await writePending(userId, current.map((item) => item.clientEventId === next.clientEventId ? next : item));
+  });
+}
 
 type PracticeActivityCache = {
   version: 1;
@@ -185,7 +193,8 @@ function mergeActivityEntries(remote: PracticeActivityEntry[], pending: PendingP
       completedAt: item.completedAt,
       difficulty: item.difficulty,
       note: item.note,
-      syncStatus: 'pending',
+      syncStatus: item.state === 'rejected' ? 'rejected' : 'pending',
+      syncMessage: item.message ?? null,
     });
   }
   return [...byKey.values()].sort((a, b) => b.completedAt.localeCompare(a.completedAt));
@@ -302,15 +311,14 @@ export async function flushPendingPracticeSessions(userId: string): Promise<numb
   let synced = 0;
 
   for (const item of pending) {
+    if (item.state === 'rejected') continue;
     try {
       await withOperationTimeout(syncOne(item), DEFAULT_WRITE_TIMEOUT_MS, 'practice-sync');
       await removePending(userId, item.clientEventId);
       synced += 1;
     } catch (error) {
-      // Si no hay red, conserva absolutamente todo y vuelve a intentar más tarde.
-      // Si el servidor rechaza un registro, también se conserva para no perder una
-      // práctica silenciosamente; un guardado nuevo sí mostrará el error al usuario.
       if (isLikelyNetworkError(error)) break;
+      await replacePending(userId, { ...item, state: 'rejected', message: getErrorMessage(error) });
     }
   }
 
@@ -321,7 +329,7 @@ export async function getPendingPracticeCounts(userId: string): Promise<PendingP
   const weekStart = startOfLocalWeek().getTime();
   const pending = (await readPending(userId)).filter((item) => {
     const completedAt = new Date(item.completedAt).getTime();
-    return Number.isFinite(completedAt) && completedAt >= weekStart;
+    return item.state !== 'rejected' && Number.isFinite(completedAt) && completedAt >= weekStart;
   });
 
   const counts = new Map<string, PendingPracticeCount>();
@@ -392,6 +400,8 @@ export async function saveMyPracticeSession(input: {
     difficulty: input.difficulty,
     note: input.note?.trim() || null,
     durationSeconds,
+    state: 'pending',
+    message: null,
   };
 
   // Primero se guarda localmente. Así una caída de red después de tocar Guardar
