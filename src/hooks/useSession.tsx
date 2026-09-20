@@ -12,6 +12,7 @@ import { disableStoredExpoPushToken } from '../services/notifications.service';
 import { getProfileByUserId } from '../services/profiles.service';
 import { readCachedProfile, removeCachedProfile, writeCachedProfile } from '../services/profile-cache.service';
 import type { AppRole, UserProfile } from '../types/app.types';
+import { withOperationTimeout } from '../utils/async.utils';
 
 const SESSION_BOOT_TIMEOUT_MS = 4_000;
 const FIRST_PROFILE_TIMEOUT_MS = 3_500;
@@ -96,7 +97,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
     }
 
     try {
-      const nextProfile = await withTimeout(
+      const nextProfile = await withOperationTimeout(
         getProfileByUserId(user.id),
         PROFILE_REFRESH_TIMEOUT_MS,
         'profile refresh',
@@ -156,7 +157,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       setIsOfflineFallback(false);
 
       try {
-        const { data, error } = await withTimeout(
+        const { data, error } = await withOperationTimeout(
           getCurrentSession(),
           SESSION_BOOT_TIMEOUT_MS,
           'local session',
@@ -187,7 +188,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
           setLastProfileSyncAt(cached.cachedAt);
           setLoading(false);
 
-          void withTimeout(getProfileByUserId(userId), PROFILE_REFRESH_TIMEOUT_MS, 'background profile refresh')
+          void withOperationTimeout(getProfileByUserId(userId), PROFILE_REFRESH_TIMEOUT_MS, 'background profile refresh')
             .then(async (nextProfile) => {
               if (!isMounted || startupRunRef.current !== runId) return;
               await applyFreshProfile(userId, nextProfile);
@@ -202,7 +203,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
         }
 
         try {
-          const nextProfile = await withTimeout(
+          const nextProfile = await withOperationTimeout(
             getProfileByUserId(userId),
             FIRST_PROFILE_TIMEOUT_MS,
             'first profile load',
@@ -281,7 +282,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
         }
 
         try {
-          const nextProfile = await withTimeout(
+          const nextProfile = await withOperationTimeout(
             getProfileByUserId(userId),
             PROFILE_REFRESH_TIMEOUT_MS,
             `auth:${event}`,
