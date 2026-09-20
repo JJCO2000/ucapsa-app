@@ -121,6 +121,7 @@ Deno.serve(async (req) => {
       .select('id,status,metadata,created_at')
       .eq('category', 'announcements_events')
       .eq('status', 'draft')
+      .is('archived_at', null)
       .contains('metadata', { source: 'announcement_reminder', announcement_id: payload.announcement_id })
       .order('created_at', { ascending: true });
 
@@ -177,6 +178,7 @@ Deno.serve(async (req) => {
     .select('*')
     .eq('category', 'announcements_events')
     .eq('status', 'draft')
+    .is('archived_at', null)
     .contains('metadata', { source: 'announcement_reminder' })
     .order('created_at', { ascending: true })
     .limit(100);

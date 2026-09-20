@@ -1,3 +1,6 @@
+-- Follow-up migration for announcement reminder history + concurrency hardening.
+-- Re-applies the canonical function/trigger definitions after announcement_reminder_atomicity.
+
 -- UCAPSA announcement reminder atomic replacement.
 --
 -- One transactional source of truth for reminder replacement.
