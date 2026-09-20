@@ -4,6 +4,7 @@ import { WEEKLY_PRACTICE_GOAL } from '../constants/practice';
 import { supabase } from '../lib/supabase';
 import type { PracticeDifficulty, PracticeSession } from '../types/app.types';
 import { createOfflineUuid } from '../utils/offline-id.utils';
+import { createKeyedInFlightCoalescer, createKeyedMutationSerializer } from '../utils/keyed-async.utils';
 import {
   DEFAULT_WRITE_TIMEOUT_MS,
   getErrorMessage,
@@ -64,8 +65,8 @@ const PENDING_PRACTICE_PREFIX = 'ucapsa:practice-pending:v1:';
 const PRACTICE_ACTIVITY_CACHE_PREFIX = 'ucapsa:practice-activity:v1:';
 const PRACTICE_ACTIVITY_DAYS = 400;
 
-const practiceMutationChains = new Map<string, Promise<unknown>>();
-const practiceSyncInFlight = new Map<string, Promise<void>>();
+const serializePracticeMutation = createKeyedMutationSerializer();
+const coalescePracticeSync = createKeyedInFlightCoalescer<void>();
 
 
 function pendingPracticeKey(userId: string) {
@@ -111,23 +112,6 @@ async function writePending(userId: string, items: PendingPracticeSession[]) {
   } catch (error) {
     throw new Error(`No se pudo guardar la práctica en este dispositivo: ${getErrorMessage(error)}`);
   }
-}
-
-function serializePracticeMutation<T>(userId: string, mutation: () => Promise<T>): Promise<T> {
-  const previous = practiceMutationChains.get(userId) ?? Promise.resolve();
-  const current = previous.catch(() => undefined).then(mutation);
-  practiceMutationChains.set(userId, current);
-
-  current.then(
-    () => {
-      if (practiceMutationChains.get(userId) === current) practiceMutationChains.delete(userId);
-    },
-    () => {
-      if (practiceMutationChains.get(userId) === current) practiceMutationChains.delete(userId);
-    },
-  );
-
-  return current;
 }
 
 async function enqueuePending(item: PendingPracticeSession) {
@@ -307,21 +291,10 @@ async function syncOneOnce(item: PendingPracticeSession) {
 }
 
 function syncOne(item: PendingPracticeSession): Promise<void> {
-  const key = `${item.userId}:${item.clientEventId}`;
-  const existing = practiceSyncInFlight.get(key);
-  if (existing) return existing;
-
-  const current = syncOneOnce(item);
-  practiceSyncInFlight.set(key, current);
-  current.then(
-    () => {
-      if (practiceSyncInFlight.get(key) === current) practiceSyncInFlight.delete(key);
-    },
-    () => {
-      if (practiceSyncInFlight.get(key) === current) practiceSyncInFlight.delete(key);
-    },
+  return coalescePracticeSync(
+    `${item.userId}:${item.clientEventId}`,
+    () => syncOneOnce(item),
   );
-  return current;
 }
 
 export async function flushPendingPracticeSessions(userId: string): Promise<number> {
