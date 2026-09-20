@@ -83,6 +83,16 @@ if (!/if not public\.is_admin\(\)/i.test(registerSql)) {
   throw new Error('Idempotent payment registration RPC lost its Admin role barrier.');
 }
 
+for (const token of [
+  'p_amount is null or p_amount <= 0',
+  'La obligacion no pertenece al cliente o a la membresia indicada.',
+  'El identificador idempotente ya fue usado con datos distintos.',
+]) {
+  if (!registerSql.includes(token)) {
+    throw new Error('Idempotent payment registration invariant missing: ' + token);
+  }
+}
+
 
 if (/\.from\(['"]payment_settings['"]\)/.test(admin + read)) {
   throw new Error('Payment settings table leaked outside payment-settings.service.ts.');
