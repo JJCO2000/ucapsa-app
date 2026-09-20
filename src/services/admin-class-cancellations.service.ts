@@ -1,3 +1,4 @@
+import { devWarn } from '../lib/client-diagnostics';
 import { supabase } from '../lib/supabase';
 
 export type SendClassCancellationNotificationInput = {
@@ -48,8 +49,9 @@ export async function sendClassCancellationNotification(
       } else if (details?.message) {
         message = details.message;
       }
-    } catch (_parseError) {
+    } catch (parseError) {
       // Keep default message.
+      devWarn('Could not parse class-cancellation Edge Function error body.', parseError);
     }
 
     throw new Error(message);
