@@ -119,18 +119,6 @@ function dateKeyToIso(value: string | null | undefined) {
   return date.toISOString();
 }
 
-async function syncProfileRoleForMembership(membership: Membership, status: MembershipStatus) {
-  const now = new Date().toISOString();
-  const nextRole = status === 'active' ? 'member' : 'client';
-  const { error } = await supabase
-    .from('profiles')
-    .update({ role: nextRole, updated_at: now })
-    .eq('user_id', membership.user_id)
-    .not('role', 'in', '(admin,super_admin)');
-
-  if (error) throw error;
-}
-
 export async function getMyMembership(): Promise<Membership | null> {
   const { data: authData, error: authError } = await supabase.auth.getUser();
   if (authError) throw authError;
@@ -256,7 +244,6 @@ export async function updateMembershipStatus(
   const { error } = await supabase.from('memberships').update(payload as TableUpdate<'memberships'>).eq('id', membership.id);
   if (error) throw error;
 
-  await syncProfileRoleForMembership(membership, status);
 }
 
 export async function updateMembershipDetails(membership: Membership, input: UpdateMembershipDetailsInput): Promise<void> {
@@ -273,7 +260,6 @@ export async function updateMembershipDetails(membership: Membership, input: Upd
   const { error } = await supabase.from('memberships').update(payload as TableUpdate<'memberships'>).eq('id', membership.id);
   if (error) throw error;
 
-  if (input.status) await syncProfileRoleForMembership(membership, input.status);
 }
 
 export async function updateMembershipPaymentStatus(
@@ -337,7 +323,6 @@ export async function requestPermanentMembershipDeletion(row: MembershipAdminRow
     .eq('id', row.membership.id);
 
   if (membershipError) throw membershipError;
-  await syncProfileRoleForMembership(row.membership, 'cancelled');
 }
 
 export async function getMembershipDeleteRequests(): Promise<MembershipDeleteRequestRow[]> {
@@ -520,13 +505,6 @@ export async function forceMembershipForProfile(profile: Profile): Promise<Membe
     membership = data as Membership;
   }
 
-  const { error: profileError } = await supabase
-    .from('profiles')
-    .update({ role: 'member', updated_at: now })
-    .eq('user_id', profile.user_id)
-    .not('role', 'in', '(admin,super_admin)');
-
-  if (profileError) throw profileError;
   return membership;
 }
 
@@ -562,13 +540,6 @@ export async function deactivateMembershipForProfile(profile: Profile): Promise<
     if (error) throw error;
   }
 
-  const { error: profileError } = await supabase
-    .from('profiles')
-    .update({ role: 'client', updated_at: now })
-    .eq('user_id', profile.user_id)
-    .not('role', 'in', '(admin,super_admin)');
-
-  if (profileError) throw profileError;
 }
 
 
