@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import type { Database } from '../types/database.generated';
 import type { TableUpdate } from '../types/database.helpers';
 import type { Payment } from '../types/app.types';
 
@@ -11,6 +12,7 @@ export type AdminPaymentAttentionRow = {
 };
 
 export type RegisterCustomerPaymentInput = {
+  paymentId: string;
   userId: string;
   membershipId?: string | null;
   obligationId?: string | null;
@@ -22,15 +24,16 @@ export type RegisterCustomerPaymentInput = {
   paidAt?: string | null;
 };
 
-export type RegisterMembershipPaymentInput = {
-  userId: string;
-  membershipId: string;
-  amount?: number;
-  notes?: string | null;
-  periodLabel?: string | null;
-  paymentMethod?: string | null;
-  obligationId?: string | null;
-  paidAt?: string | null;
+type GeneratedRegisterPaymentArgs = Database['public']['Functions']['admin_register_payment']['Args'];
+type RegisterPaymentRpcArgs = Omit<
+  GeneratedRegisterPaymentArgs,
+  'p_membership_id' | 'p_obligation_id' | 'p_notes' | 'p_period_label' | 'p_paid_at'
+> & {
+  p_membership_id: string | null;
+  p_obligation_id: string | null;
+  p_notes: string | null;
+  p_period_label: string | null;
+  p_paid_at: string | null;
 };
 
 export type UpdateCustomerPaymentInput = {
@@ -109,110 +112,52 @@ export async function getPaymentsByMembershipId(membershipId: string): Promise<P
   return (data ?? []) as Payment[];
 }
 
-export async function syncMembershipPaymentSummary(membershipId: string): Promise<void> {
-  const [obligationsResult, paymentsResult] = await Promise.all([
-    supabase
-      .from('payment_obligations')
-      .select('id, amount')
-      .eq('membership_id', membershipId)
-      .eq('obligation_type', 'membership')
-      .is('cancelled_at', null),
-    supabase
-      .from('payments')
-      .select('id, obligation_id, amount, paid_at, notes, status')
-      .eq('membership_id', membershipId)
-      .eq('status', 'paid')
-      .is('voided_at', null)
-      .order('paid_at', { ascending: false }),
-  ]);
-
-  if (obligationsResult.error) throw obligationsResult.error;
-  if (paymentsResult.error) throw paymentsResult.error;
-
-  const payments = paymentsResult.data ?? [];
-  const paidByObligation = new Map<string, number>();
-  for (const payment of payments) {
-    if (!payment.obligation_id) continue;
-    paidByObligation.set(
-      payment.obligation_id,
-      (paidByObligation.get(payment.obligation_id) ?? 0) + Number(payment.amount ?? 0),
-    );
-  }
-
-  const obligations = obligationsResult.data ?? [];
-  const hasOutstanding = obligations.some(
-    (obligation) =>
-      Number(obligation.amount ?? 0) - (paidByObligation.get(obligation.id) ?? 0) > 0.005,
-  );
-  const latest = payments[0] ?? null;
-  const currentPaymentStatus = obligations.length > 0
-    ? hasOutstanding ? 'pending' : 'paid'
-    : latest ? 'paid' : 'pending';
-
-  const { error } = await supabase
-    .from('memberships')
-    .update({
-      current_payment_status: currentPaymentStatus,
-      last_payment_at: latest?.paid_at ?? null,
-      payment_notes: latest?.notes ?? null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', membershipId);
-
-  if (error) throw error;
-}
-
 export async function registerCustomerPayment(
   input: RegisterCustomerPaymentInput,
 ): Promise<Payment> {
-  const { data: authData, error: authError } = await supabase.auth.getUser();
-  if (authError) throw authError;
+  if (!input.paymentId.trim()) {
+    throw new Error('Falta el identificador idempotente del intento de pago.');
+  }
+  if (!Number.isFinite(input.amount) || input.amount <= 0) {
+    throw new Error('El monto del pago debe ser mayor a cero.');
+  }
 
-  const { data, error } = await supabase
-    .from('payments')
-    .insert({
-      user_id: input.userId,
-      membership_id: input.membershipId ?? null,
-      obligation_id: input.obligationId ?? null,
-      amount: Number.isFinite(input.amount) ? input.amount : 0,
-      concept: input.concept.trim() || 'Pago manual',
-      status: 'paid',
-      payment_method: input.paymentMethod?.trim() || 'manual',
-      paid_at: input.paidAt || new Date().toISOString(),
-      registered_by: authData.user?.id ?? null,
-      notes: input.notes?.trim() || null,
-      period_label: input.periodLabel?.trim() || null,
-    })
-    .select('*')
-    .single();
+  const args: RegisterPaymentRpcArgs = {
+    p_payment_id: input.paymentId,
+    p_user_id: input.userId,
+    p_membership_id: input.membershipId ?? null,
+    p_obligation_id: input.obligationId ?? null,
+    p_amount: input.amount,
+    p_concept: input.concept.trim() || 'Pago manual',
+    p_notes: input.notes?.trim() || null,
+    p_period_label: input.periodLabel?.trim() || null,
+    p_payment_method: input.paymentMethod?.trim() || 'manual',
+    p_paid_at: input.paidAt || null,
+  };
+
+  // PostgreSQL function parameters are nullable, but Supabase typegen emits
+  // nullable SQL arguments as plain strings. Keep the runtime NULLs correct and
+  // isolate that generator limitation at this RPC boundary.
+  const { data, error } = await supabase.rpc(
+    'admin_register_payment',
+    args as GeneratedRegisterPaymentArgs,
+  );
 
   if (error) throw error;
-  if (input.membershipId) await syncMembershipPaymentSummary(input.membershipId);
+  if (!data) throw new Error('Supabase no devolvió el pago registrado.');
   return data as Payment;
-}
-
-export async function registerMembershipPayment(
-  input: RegisterMembershipPaymentInput,
-): Promise<Payment> {
-  return registerCustomerPayment({
-    userId: input.userId,
-    membershipId: input.membershipId,
-    obligationId: input.obligationId,
-    amount: Number.isFinite(input.amount ?? 0) ? input.amount ?? 0 : 0,
-    concept: 'Mensualidad de socio',
-    notes: input.notes,
-    periodLabel: input.periodLabel,
-    paymentMethod: input.paymentMethod,
-    paidAt: input.paidAt,
-  });
 }
 
 export async function updateCustomerPayment(
   paymentId: string,
   input: UpdateCustomerPaymentInput,
 ): Promise<Payment> {
+  if ('amount' in input && (!Number.isFinite(input.amount) || (input.amount ?? 0) <= 0)) {
+    throw new Error('El monto del pago debe ser mayor a cero.');
+  }
+
   const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if ('amount' in input) payload.amount = Number.isFinite(input.amount ?? 0) ? input.amount ?? 0 : 0;
+  if ('amount' in input) payload.amount = input.amount;
   if ('notes' in input) payload.notes = input.notes?.trim() || null;
   if ('periodLabel' in input) payload.period_label = input.periodLabel?.trim() || null;
   if ('paymentMethod' in input) payload.payment_method = input.paymentMethod?.trim() || 'manual';
@@ -229,9 +174,7 @@ export async function updateCustomerPayment(
     .single();
 
   if (error) throw error;
-  const payment = data as Payment;
-  if (payment.membership_id) await syncMembershipPaymentSummary(payment.membership_id);
-  return payment;
+  return data as Payment;
 }
 
 export async function updateMembershipPayment(
@@ -268,9 +211,7 @@ export async function voidCustomerPayment(paymentId: string, reason: string): Pr
   if (error) throw error;
   if (!data) throw new Error('Supabase no devolvió el pago anulado.');
 
-  const payment = data as Payment;
-  if (payment.membership_id) await syncMembershipPaymentSummary(payment.membership_id);
-  return payment;
+  return data as Payment;
 }
 
 export async function voidMembershipPayment(

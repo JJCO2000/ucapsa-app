@@ -12,6 +12,8 @@ const settings = fs.readFileSync(settingsPath, 'utf8');
 const read = fs.readFileSync(readPath, 'utf8');
 const registerSql = fs.readFileSync(registerSqlPath, 'utf8');
 const summarySsotSql = fs.readFileSync('supabase/sql/ucapsa-payment-summary-ssot.sql', 'utf8');
+const invariantsSql = fs.readFileSync('supabase/sql/ucapsa-payment-data-invariants.sql', 'utf8');
+const adminPaymentsUi = fs.readFileSync('src/app/admin/customer-payments.tsx', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
 
 for (const line of [
@@ -43,7 +45,7 @@ for (const token of [
   'registerCustomerPayment',
   'updateCustomerPayment',
   'voidCustomerPayment',
-  'syncMembershipPaymentSummary',
+  'admin_register_payment',
 ]) {
   if (!admin.includes(token)) {
     throw new Error('Payments admin boundary lost operation: ' + token);
@@ -111,6 +113,44 @@ for (const token of [
 
 if (!/after insert or delete or update of membership_id, amount, obligation_type, cancelled_at/i.test(summarySsotSql)) {
   throw new Error('Payment obligation summary trigger lost a balance-relevant mutation.');
+}
+
+for (const token of [
+  'payments_amount_positive',
+  'check (amount > 0)',
+  'v_obligation_cancelled_at is not null',
+  'No se puede vincular un pago a una obligacion cancelada.',
+  'Resolve an already-created business event before revalidating mutable',
+  'New payments must point to a currently active obligation.',
+  'for share',
+]) {
+  if (!invariantsSql.includes(token)) {
+    throw new Error('Payment data invariant missing: ' + token);
+  }
+}
+
+const existingLookupIndex = invariantsSql.indexOf('where p.id = p_payment_id');
+const activeObligationIndex = invariantsSql.indexOf('and o.cancelled_at is null', existingLookupIndex);
+if (existingLookupIndex < 0 || activeObligationIndex < 0 || existingLookupIndex > activeObligationIndex) {
+  throw new Error('Payment idempotency must resolve an existing event before validating current obligation state.');
+}
+
+if (/syncMembershipPaymentSummary|registerMembershipPayment/.test(admin)) {
+  throw new Error('Payments admin service reintroduced client-side payment-summary synchronization or fake membership payment wrapper.');
+}
+
+if (/\.from\(['"]payments['"]\)[\s\S]{0,260}\.insert\s*\(/.test(admin)) {
+  throw new Error('Payment registration bypassed admin_register_payment RPC.');
+}
+
+for (const token of [
+  'createOfflineUuid',
+  'registrationId',
+  'paymentId: form.registrationId',
+]) {
+  if (!adminPaymentsUi.includes(token)) {
+    throw new Error('Admin payment UI lost stable registration attempt identity: ' + token);
+  }
 }
 
 if (/\.from\(['"]payment_settings['"]\)/.test(admin + read)) {

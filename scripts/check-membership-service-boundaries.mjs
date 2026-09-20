@@ -63,6 +63,14 @@ for (const token of [
   }
 }
 
+if (/markMembershipPaidFast|updateMembershipPaymentStatus|registerMembershipPayment/.test(service)) {
+  throw new Error('Membership service reintroduced a manual/fake payment-state shortcut.');
+}
+
+if (/currentPaymentStatus|lastPaymentAt/.test(service)) {
+  throw new Error('Membership service reintroduced manual editing of derived payment summary fields.');
+}
+
 if (/syncProfileRoleForMembership/.test(service)) {
   throw new Error('memberships.service.ts reintroduced client-side profile-role synchronization.');
 }
