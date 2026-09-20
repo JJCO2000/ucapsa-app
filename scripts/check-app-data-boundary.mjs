@@ -18,7 +18,9 @@ for (const file of roots.flatMap((root) => walk(root))) {
   if (
     /(?:from|require\()\s*['"][^'"]*lib\/supabase['"]/.test(text) ||
     /\bsupabase\.(?:from|rpc|auth|storage)\b/.test(text) ||
-    /\bcreateClient\s*\(/.test(text)
+    /\bcreateClient\s*\(/.test(text) ||
+    /@react-native-async-storage\/async-storage/.test(text) ||
+    /\bAsyncStorage\./.test(text)
   ) {
     violations.push(file);
   }
@@ -34,4 +36,4 @@ if (!pkg.includes('"check:app-data-boundary"')) {
   throw new Error('npm verify does not include the app data-boundary guard.');
 }
 
-console.log('UCAPSA app/hooks -> service/data boundary: PASS');
+console.log('UCAPSA app/hooks -> service/data boundary (remote + local persistence): PASS');
