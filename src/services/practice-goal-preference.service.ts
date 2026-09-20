@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { devWarn } from '../lib/client-diagnostics';
+
 export type PracticeTargetDay = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 export const DEFAULT_PRACTICE_TARGET_DAYS: PracticeTargetDay[] = [1, 2, 3, 4, 5];
@@ -19,7 +21,8 @@ export async function getPracticeTargetDays(userId: string): Promise<PracticeTar
     const raw = await AsyncStorage.getItem(key(userId));
     if (!raw) return DEFAULT_PRACTICE_TARGET_DAYS;
     return normalize(JSON.parse(raw));
-  } catch {
+  } catch (error) {
+    devWarn('Could not read practice target-day preference; using default.', error);
     return DEFAULT_PRACTICE_TARGET_DAYS;
   }
 }
