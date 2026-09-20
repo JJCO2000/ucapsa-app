@@ -79,6 +79,26 @@ for (const token of [
   }
 }
 
+for (const token of [
+  'PERMANENT_PRACTICE_REJECTION_MESSAGES',
+  'isPermanentPracticeRejection',
+  "La inscripción ya no está activa o no pertenece a tu cuenta.",
+  "Practice sync failed with an unclassified error; preserving pending operation.",
+  "Practice save was not confirmed; preserving pending operation.",
+]) {
+  if (!service.includes(token)) {
+    throw new Error('Practice transient-vs-permanent classification missing: ' + token);
+  }
+}
+
+if (/catch \(error\)[\s\S]{0,220}if \(isLikelyNetworkError\(error\)\)[\s\S]{0,220}removePending\(input\.userId, clientEventId\)[\s\S]{0,120}throw error/.test(service)) {
+  throw new Error('Practice save can still delete local evidence for an unclassified non-network failure.');
+}
+
+if (!/if \(isPermanentPracticeRejection\(error\)\)[\s\S]{0,260}removePending\(input\.userId, clientEventId\)[\s\S]{0,120}throw error/.test(service)) {
+  throw new Error('Practice save lost the explicit permanent-rejection removal path.');
+}
+
 if (!domain.includes("'synced' | 'pending' | 'rejected'")) {
   throw new Error('Practice activity domain lost rejected sync state.');
 }
