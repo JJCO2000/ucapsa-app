@@ -9,7 +9,8 @@ export type PracticeActivityEntry = {
   completedAt: string;
   difficulty: PracticeDifficulty;
   note: string | null;
-  syncStatus: 'synced' | 'pending';
+  syncStatus: 'synced' | 'pending' | 'rejected';
+  syncMessage?: string | null;
 };
 
 export type PracticeEngagementStats = {
