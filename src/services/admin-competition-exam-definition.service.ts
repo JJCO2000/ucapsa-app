@@ -4,7 +4,7 @@ import type { Database } from '../types/database.types';
 import {
   getAdminCompetitionSeasons,
   type CompetitionSeason,
-} from './admin-competition-core.service';
+} from './admin-competition-seasons.service';
 
 export type CompetitionExam = Database['public']['Tables']['ucapsa_exams']['Row'];
 export type CompetitionExamItem = Database['public']['Tables']['ucapsa_exam_items']['Row'];

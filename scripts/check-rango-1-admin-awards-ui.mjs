@@ -17,12 +17,8 @@ const hub = read('src/app/admin/competition.tsx');
 const layout = read('src/app/admin/_layout.tsx');
 const overview = read('src/app/admin/competition-awards.tsx');
 const form = read('src/app/admin/competition-award-form.tsx');
-const service = read('src/services/admin-competition-core.service.ts');
-const awardsStart = service.indexOf('export type CompetitionAwardDefinition');
-const awardsEnd = service.indexOf('export type CompetitionExam');
-const awardService = awardsStart >= 0
-  ? service.slice(awardsStart, awardsEnd > awardsStart ? awardsEnd : undefined)
-  : '';
+const awardService = read('src/services/admin-competition-awards.service.ts');
+const coreBarrel = read('src/services/admin-competition-core.service.ts');
 const pkg = read('package.json');
 
 if (!/title="Premios"[\s\S]{0,260}\/admin\/competition-awards/.test(hub)) {
@@ -66,6 +62,12 @@ for (const token of [
 
 if (!/return awardCode === 'dog_of_year'/.test(awardService)) {
   failures.push('Servicio dejó de exigir temporada para Perro del Año.');
+}
+if (!/export \* from ['"]\.\/admin-competition-awards\.service['"]/.test(coreBarrel)) {
+  failures.push('Barrel de compatibilidad de Competencia perdió export de Premios.');
+}
+if (/\.from\(|\.rpc\(|\bsupabase\b|function\s+/.test(coreBarrel)) {
+  failures.push('Barrel de compatibilidad de Competencia volvió a contener implementación real.');
 }
 if (/leaderboard|rank_position|podium_medal|ucapsa_points_/i.test(awardService)) {
   failures.push('Premios permanentes no pueden depender de Ranking/Podio ni UCAPSA Points legado.');
