@@ -25,6 +25,7 @@ import { getProgramClassCancellationByAnnouncementId } from '../../services/prog
 import type { Announcement, AudienceType, UcapsaColorKey, UcapsaEvent, UcapsaPriority } from '../../types/app.types';
 
 type AnnouncementFilter = 'active' | 'drafts' | 'archived';
+type ReminderLoadState = 'idle' | 'loading' | 'ready' | 'failed';
 type FormState = {
   title: string;
   content: string;
@@ -140,7 +141,7 @@ export default function AdminAnnouncementsScreen() {
   const [customDays, setCustomDays] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [remindersLoading, setRemindersLoading] = useState(false);
+  const [reminderLoadState, setReminderLoadState] = useState<ReminderLoadState>('idle');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -184,7 +185,29 @@ export default function AdminAnnouncementsScreen() {
     setCalendarOpen(false);
     setOptionsOpen(false);
     setCustomDays('');
+    setReminderLoadState('ready');
     setEditorOpen(true);
+  }
+
+  async function loadReminderSettings(item: Announcement) {
+    setReminderLoadState('loading');
+    try {
+      const reminders = await getAnnouncementReminders(item.id);
+      const first = reminders[0];
+      setForm((current) => ({
+        ...current,
+        reminders_enabled: reminders.length > 0,
+        reminder_days: reminders.length
+          ? reminders.map((reminder) => reminder.days_before).filter((value, index, all) => all.indexOf(value) === index)
+          : [1],
+        reminder_time: first
+          ? `${String(first.hour).padStart(2, '0')}:${String(first.minute).padStart(2, '0')}`
+          : '09:00',
+      }));
+      setReminderLoadState('ready');
+    } catch {
+      setReminderLoadState('failed');
+    }
   }
 
   async function openEdit(item: Announcement) {
@@ -208,23 +231,7 @@ export default function AdminAnnouncementsScreen() {
     setOptionsOpen(false);
     setCustomDays('');
     setEditorOpen(true);
-    setRemindersLoading(true);
-    try {
-      const reminders = await getAnnouncementReminders(item.id);
-      if (reminders.length) {
-        const first = reminders[0];
-        setForm((current) => ({
-          ...current,
-          reminders_enabled: true,
-          reminder_days: reminders.map((reminder) => reminder.days_before).filter((value, index, all) => all.indexOf(value) === index),
-          reminder_time: `${String(first.hour).padStart(2, '0')}:${String(first.minute).padStart(2, '0')}`,
-        }));
-      }
-    } catch {
-      // Los anuncios siguen siendo editables aunque la Edge Function todavía no esté desplegada.
-    } finally {
-      setRemindersLoading(false);
-    }
+    await loadReminderSettings(item);
   }
 
   function toggleReminderDay(days: number) {
@@ -246,6 +253,14 @@ export default function AdminAnnouncementsScreen() {
   }
 
   async function save() {
+    if (selected && reminderLoadState !== 'ready') {
+      Alert.alert(
+        'Recordatorios sin verificar',
+        'No guardaremos este anuncio hasta conocer su configuración de recordatorios. Reintenta la carga para evitar perder o sobrescribir avisos existentes.',
+      );
+      return;
+    }
+
     if (!form.title.trim() || !form.content.trim()) {
       Alert.alert('Faltan datos', 'Agrega título y contenido.');
       return;
@@ -281,10 +296,6 @@ export default function AdminAnnouncementsScreen() {
           : [];
         await saveAnnouncementReminders({
           announcement_id: saved.id,
-          announcement_date: form.date,
-          title: saved.title,
-          body: saved.content,
-          audience: saved.audience,
           reminders,
         });
       } catch (cause) {
@@ -373,12 +384,32 @@ export default function AdminAnnouncementsScreen() {
           <View style={styles.switchLine}>
             <View style={{ flex: 1 }}>
               <Text style={styles.reminderTitle}>Recordatorio</Text>
-              <Text style={styles.modalHint}>{remindersLoading ? 'Cargando recordatorios...' : 'Envía una notificación antes de la fecha.'}</Text>
+              <Text style={styles.modalHint}>
+                {reminderLoadState === 'loading'
+                  ? 'Cargando recordatorios...'
+                  : reminderLoadState === 'failed'
+                    ? 'No pudimos verificar la configuración existente.'
+                    : 'Envía una notificación antes de la fecha.'}
+              </Text>
             </View>
-            <Switch disabled={!form.has_date || remindersLoading} value={form.reminders_enabled} onValueChange={(reminders_enabled) => setForm((current) => ({ ...current, reminders_enabled }))} />
+            <Switch
+              disabled={!form.has_date || reminderLoadState === 'loading' || reminderLoadState === 'failed'}
+              value={form.reminders_enabled}
+              onValueChange={(reminders_enabled) => setForm((current) => ({ ...current, reminders_enabled }))}
+            />
           </View>
 
-          {form.reminders_enabled ? (
+          {reminderLoadState === 'failed' && selected ? (
+            <Pressable
+              style={styles.reminderRetry}
+              onPress={() => void loadReminderSettings(selected)}
+            >
+              <MaterialIcons name="refresh" size={18} color={ucapsaBrand.colors.redDark} />
+              <Text style={styles.reminderRetryText}>Reintentar recordatorios</Text>
+            </Pressable>
+          ) : null}
+
+          {form.reminders_enabled && reminderLoadState === 'ready' ? (
             <>
               <Text style={styles.smallLabel}>Cuándo avisar</Text>
               <View style={styles.wrapRow}>
@@ -503,6 +534,8 @@ const styles = StyleSheet.create({
   customButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 11, fontWeight: '900' },
   reminderSummary: { flexDirection: 'row', gap: 7, alignItems: 'center', borderRadius: 13, backgroundColor: ucapsaBrand.colors.surface, padding: 10, marginTop: 10 },
   reminderSummaryText: { flex: 1, color: ucapsaBrand.colors.redDark, fontSize: 11, lineHeight: 16, fontWeight: '800' },
+  reminderRetry: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 12, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 10, marginTop: 8 },
+  reminderRetryText: { color: ucapsaBrand.colors.redDark, fontSize: 11, fontWeight: '900' },
   optionsToggle: { minHeight: 46, borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surfaceAlt, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 13, marginTop: 14 },
   optionsToggleText: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900' },
   optionsBox: { borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surfaceSubtle, padding: 12, marginTop: 8 },

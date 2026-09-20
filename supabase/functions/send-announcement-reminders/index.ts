@@ -47,27 +47,6 @@ function normalizeReminder(value: Partial<ReminderSetting>) {
   };
 }
 
-function dateKey(value: string | null | undefined) {
-  if (!value) return null;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Mexico_City',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(parsed);
-}
-
-function reminderDate(date: string, setting: ReminderSetting) {
-  const hour = String(setting.hour).padStart(2, '0');
-  const minute = String(setting.minute).padStart(2, '0');
-  const eventLocal = new Date(`${date}T${hour}:${minute}:00-06:00`);
-  eventLocal.setUTCDate(eventLocal.getUTCDate() - setting.days_before);
-  return eventLocal.toISOString();
-}
-
 function audienceMatches(audience: string, role: string) {
   if (audience === 'public') return true;
   if (audience === 'clients') return role === 'client' || role === 'member';
@@ -116,12 +95,13 @@ Deno.serve(async (req) => {
     )
   );
   let adminUserId: string | null = null;
+  let userClient: ReturnType<typeof createClient> | null = null;
 
   if (!isCronCall) {
     const authorization = req.headers.get('Authorization') ?? '';
     if (!authorization) return jsonResponse({ error: 'Falta Authorization header.' }, 401);
 
-    const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authorization } } });
+    userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authorization } } });
     const { data: authResult, error: authError } = await userClient.auth.getUser();
     adminUserId = authResult.user?.id ?? null;
     if (authError || !adminUserId) return jsonResponse({ error: 'Sesión inválida.' }, 401);
@@ -134,7 +114,9 @@ Deno.serve(async (req) => {
   if (action === 'list') {
     if (!isUuid(payload.announcement_id)) return jsonResponse({ error: 'announcement_id inválido.' }, 400);
 
-    const { data, error } = await serviceClient
+    if (!userClient) return jsonResponse({ error: 'Sesión administrativa no disponible.' }, 401);
+
+    const { data, error } = await userClient
       .from('notification_campaigns')
       .select('id,status,metadata,created_at')
       .eq('category', 'announcements_events')
@@ -155,59 +137,27 @@ Deno.serve(async (req) => {
 
   if (action === 'save') {
     if (!isUuid(payload.announcement_id)) return jsonResponse({ error: 'announcement_id inválido.' }, 400);
-
-    const { data: announcement, error: announcementError } = await serviceClient
-      .from('announcements')
-      .select('id,title,content,audience,announcement_date,is_published,archived_at')
-      .eq('id', payload.announcement_id)
-      .maybeSingle();
-
-    if (announcementError) return jsonResponse({ error: announcementError.message }, 500);
-    if (!announcement) return jsonResponse({ error: 'No se encontró el anuncio.' }, 404);
-
-    const key = dateKey(announcement.announcement_date ?? payload.announcement_date);
-    if (!key && (payload.reminders?.length ?? 0) > 0) return jsonResponse({ error: 'El anuncio necesita una fecha para programar recordatorios.' }, 400);
+    if (!userClient) return jsonResponse({ error: 'Sesión administrativa no disponible.' }, 401);
 
     const normalized = Array.isArray(payload.reminders)
-      ? payload.reminders.map(normalizeReminder).filter((item, index, all) => all.findIndex((candidate) => candidate.days_before === item.days_before && candidate.hour === item.hour && candidate.minute === item.minute) === index).slice(0, 5)
+      ? payload.reminders
+        .map(normalizeReminder)
+        .filter((item, index, all) => all.findIndex((candidate) =>
+          candidate.days_before === item.days_before
+          && candidate.hour === item.hour
+          && candidate.minute === item.minute
+        ) === index)
+        .slice(0, 5)
       : [];
 
-    const { error: deleteError } = await serviceClient
-      .from('notification_campaigns')
-      .delete()
-      .eq('category', 'announcements_events')
-      .eq('status', 'draft')
-      .contains('metadata', { source: 'announcement_reminder', announcement_id: announcement.id });
-    if (deleteError) return jsonResponse({ error: deleteError.message }, 500);
-
-    if (!normalized.length) return jsonResponse({ reminders: [] });
-
-    const rows = normalized.map((setting) => {
-      const remindAt = reminderDate(key as string, setting);
-      return {
-        title: `Recordatorio: ${announcement.title}`,
-        body: String(announcement.content ?? '').slice(0, 220),
-        audience: announcement.audience,
-        category: 'announcements_events',
-        status: 'draft',
-        total_targets: 0,
-        created_by: adminUserId,
-        metadata: {
-          source: 'announcement_reminder',
-          announcement_id: announcement.id,
-          announcement_date: key,
-          days_before: setting.days_before,
-          hour: setting.hour,
-          minute: setting.minute,
-          remind_at: remindAt,
-        },
-      };
+    const { data, error } = await userClient.rpc('admin_replace_announcement_reminders', {
+      p_announcement_id: payload.announcement_id,
+      p_reminders: normalized,
     });
 
-    const { data: inserted, error: insertError } = await serviceClient.from('notification_campaigns').insert(rows).select('status,metadata');
-    if (insertError) return jsonResponse({ error: insertError.message }, 500);
+    if (error) return jsonResponse({ error: error.message }, 500);
 
-    return jsonResponse({ reminders: (inserted ?? []).map((row) => ({
+    return jsonResponse({ reminders: (data ?? []).map((row) => ({
       days_before: Number(row.metadata?.days_before ?? 0),
       hour: Number(row.metadata?.hour ?? 9),
       minute: Number(row.metadata?.minute ?? 0),
