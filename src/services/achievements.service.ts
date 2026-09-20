@@ -5,6 +5,7 @@ import {
   getProgramCompletionAchievementCode,
   isProgramCompletionAchievementCode,
 } from '../constants/programCompletion';
+import { devWarn } from '../lib/client-diagnostics';
 import { supabase } from '../lib/supabase';
 
 export { getProgramCompletionAchievementCode };
@@ -158,8 +159,9 @@ async function persistAchievementCache(
 
   try {
     await AsyncStorage.setItem(achievementCacheKey(userId, dogId), JSON.stringify(payload));
-  } catch {
+  } catch (error) {
     // La cache local es una mejora offline; nunca debe romper la consulta remota.
+    devWarn('Could not persist achievement cache.', error);
   }
 }
 
@@ -190,7 +192,8 @@ async function getCachedAchievements(
     const normalizedItems = parsed.items.map((item) => ({ ...item, dogId: parsed.dog_id ?? null }));
     memoryCache.set(scopeKey, normalizedItems);
     return normalizedItems;
-  } catch {
+  } catch (error) {
+    devWarn('Could not read achievement cache.', error);
     return null;
   }
 }
@@ -328,8 +331,9 @@ export async function clearAchievementCacheForUser(userId: string) {
     const keys = await AsyncStorage.getAllKeys();
     const matchingKeys = keys.filter((key) => key.startsWith(`${ACHIEVEMENT_CACHE_PREFIX}${userId}:`));
     if (matchingKeys.length > 0) await AsyncStorage.multiRemove(matchingKeys);
-  } catch {
+  } catch (error) {
     // No bloquear una accion remota correcta por un fallo del almacenamiento local.
+    devWarn('Could not clear achievement cache.', error);
   }
 }
 
