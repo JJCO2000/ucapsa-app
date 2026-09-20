@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import type { Database } from '../types/database.generated';
 import type { TableUpdate } from '../types/database.helpers';
 import type { Payment } from '../types/app.types';
 
@@ -21,6 +22,18 @@ export type RegisterCustomerPaymentInput = {
   periodLabel?: string | null;
   paymentMethod?: string | null;
   paidAt?: string | null;
+};
+
+type GeneratedRegisterPaymentArgs = Database['public']['Functions']['admin_register_payment']['Args'];
+type RegisterPaymentRpcArgs = Omit<
+  GeneratedRegisterPaymentArgs,
+  'p_membership_id' | 'p_obligation_id' | 'p_notes' | 'p_period_label' | 'p_paid_at'
+> & {
+  p_membership_id: string | null;
+  p_obligation_id: string | null;
+  p_notes: string | null;
+  p_period_label: string | null;
+  p_paid_at: string | null;
 };
 
 export type UpdateCustomerPaymentInput = {
@@ -109,7 +122,7 @@ export async function registerCustomerPayment(
     throw new Error('El monto del pago debe ser mayor a cero.');
   }
 
-  const { data, error } = await supabase.rpc('admin_register_payment', {
+  const args: RegisterPaymentRpcArgs = {
     p_payment_id: input.paymentId,
     p_user_id: input.userId,
     p_membership_id: input.membershipId ?? null,
@@ -120,7 +133,15 @@ export async function registerCustomerPayment(
     p_period_label: input.periodLabel?.trim() || null,
     p_payment_method: input.paymentMethod?.trim() || 'manual',
     p_paid_at: input.paidAt || null,
-  });
+  };
+
+  // PostgreSQL function parameters are nullable, but Supabase typegen emits
+  // nullable SQL arguments as plain strings. Keep the runtime NULLs correct and
+  // isolate that generator limitation at this RPC boundary.
+  const { data, error } = await supabase.rpc(
+    'admin_register_payment',
+    args as GeneratedRegisterPaymentArgs,
+  );
 
   if (error) throw error;
   if (!data) throw new Error('Supabase no devolvió el pago registrado.');
