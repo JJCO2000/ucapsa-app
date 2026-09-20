@@ -1,3 +1,4 @@
+import { devWarn } from '../lib/client-diagnostics';
 import { supabase } from '../lib/supabase';
 import type { TableUpdate } from '../types/database.helpers';
 import type { PaymentSettings } from '../types/app.types';
@@ -26,7 +27,8 @@ export function isValidPaymentLink(value: string | null | undefined) {
   try {
     const url = new URL(candidate);
     return url.protocol === 'https:' && Boolean(url.hostname);
-  } catch {
+  } catch (error) {
+    devWarn('Payment link failed URL validation.', error);
     return false;
   }
 }
