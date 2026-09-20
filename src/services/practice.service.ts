@@ -64,6 +64,9 @@ const PENDING_PRACTICE_PREFIX = 'ucapsa:practice-pending:v1:';
 const PRACTICE_ACTIVITY_CACHE_PREFIX = 'ucapsa:practice-activity:v1:';
 const PRACTICE_ACTIVITY_DAYS = 400;
 
+const practiceMutationChains = new Map<string, Promise<unknown>>();
+const practiceSyncInFlight = new Map<string, Promise<void>>();
+
 
 function pendingPracticeKey(userId: string) {
   return `${PENDING_PRACTICE_PREFIX}${userId}`;
@@ -110,15 +113,36 @@ async function writePending(userId: string, items: PendingPracticeSession[]) {
   }
 }
 
+function serializePracticeMutation<T>(userId: string, mutation: () => Promise<T>): Promise<T> {
+  const previous = practiceMutationChains.get(userId) ?? Promise.resolve();
+  const current = previous.catch(() => undefined).then(mutation);
+  practiceMutationChains.set(userId, current);
+
+  current.then(
+    () => {
+      if (practiceMutationChains.get(userId) === current) practiceMutationChains.delete(userId);
+    },
+    () => {
+      if (practiceMutationChains.get(userId) === current) practiceMutationChains.delete(userId);
+    },
+  );
+
+  return current;
+}
+
 async function enqueuePending(item: PendingPracticeSession) {
-  const current = await readPending(item.userId);
-  if (current.some((candidate) => candidate.clientEventId === item.clientEventId)) return;
-  await writePending(item.userId, [...current, item]);
+  return serializePracticeMutation(item.userId, async () => {
+    const current = await readPending(item.userId);
+    if (current.some((candidate) => candidate.clientEventId === item.clientEventId)) return;
+    await writePending(item.userId, [...current, item]);
+  });
 }
 
 async function removePending(userId: string, clientEventId: string) {
-  const current = await readPending(userId);
-  await writePending(userId, current.filter((item) => item.clientEventId !== clientEventId));
+  return serializePracticeMutation(userId, async () => {
+    const current = await readPending(userId);
+    await writePending(userId, current.filter((item) => item.clientEventId !== clientEventId));
+  });
 }
 
 
@@ -267,7 +291,7 @@ export async function getMyPracticeActivity(userId: string, daysBack = PRACTICE_
   }
 }
 
-async function syncOne(item: PendingPracticeSession) {
+async function syncOneOnce(item: PendingPracticeSession) {
   const { data, error } = await supabase.rpc('register_my_practice_session', {
     p_client_event_id: item.clientEventId,
     p_enrollment_id: item.enrollmentId,
@@ -280,6 +304,24 @@ async function syncOne(item: PendingPracticeSession) {
 
   if (error) throw error;
   if (!data) throw new Error('El servidor no confirmó la práctica.');
+}
+
+function syncOne(item: PendingPracticeSession): Promise<void> {
+  const key = `${item.userId}:${item.clientEventId}`;
+  const existing = practiceSyncInFlight.get(key);
+  if (existing) return existing;
+
+  const current = syncOneOnce(item);
+  practiceSyncInFlight.set(key, current);
+  current.then(
+    () => {
+      if (practiceSyncInFlight.get(key) === current) practiceSyncInFlight.delete(key);
+    },
+    () => {
+      if (practiceSyncInFlight.get(key) === current) practiceSyncInFlight.delete(key);
+    },
+  );
+  return current;
 }
 
 export async function flushPendingPracticeSessions(userId: string): Promise<number> {
