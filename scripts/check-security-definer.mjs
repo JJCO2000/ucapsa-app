@@ -137,8 +137,99 @@ if (adminFunctionDefinitions === 0) {
   throw new Error('No versioned admin_* function definitions were found to audit.');
 }
 
+// Audit the entire client-exposed SECURITY DEFINER surface, not only admin_*.
+// Supabase's advisor warns on every authenticated SECURITY DEFINER RPC; most are
+// intentional, but any new one must prove its authorization boundary here.
+const allSql = sqlFiles
+  .map((file) => fs.readFileSync(`supabase/sql/${file}`, 'utf8'))
+  .join('\n');
+
+const clientGrantedNames = new Set();
+const grantPattern = /grant\s+execute\s+on\s+function\s+public\.([a-z0-9_]+)\s*\([^;]*?\)\s+to\s+([^;]+);/gi;
+let grantMatch;
+while ((grantMatch = grantPattern.exec(allSql)) !== null) {
+  const roles = grantMatch[2].toLowerCase();
+  if (/\bauthenticated\b/.test(roles)) clientGrantedNames.add(grantMatch[1]);
+}
+
+const readHelperAllowlist = new Set([
+  'get_effective_program_schedule',
+  'get_effective_program_schedules',
+  'get_ucapsa_competition_leaderboard',
+  'is_feature_enabled',
+  'program_schedule_occurs_on_date',
+]);
+
+const clientAdminName = /^(?:admin_|correct_|delete_|get_admin_|register_.*_admin$|rotate_attendance_qr_code$)/i;
+const selfScopeGuard = /\bauth\.uid\s*\(/i;
+let exposedDefinerDefinitions = 0;
+
+for (const file of sqlFiles) {
+  const text = fs.readFileSync(`supabase/sql/${file}`, 'utf8');
+  const marker = /create\s+or\s+replace\s+function\s+public\.([a-z0-9_]+)\s*\(/gi;
+  let match;
+
+  while ((match = marker.exec(text)) !== null) {
+    const functionName = match[1];
+    const nextFunctionIndex = text.toLowerCase().indexOf(
+      'create or replace function public.',
+      match.index + match[0].length,
+    );
+
+    const asPattern = /\bas\s+(\$[a-z0-9_]*\$)/gi;
+    asPattern.lastIndex = match.index;
+    const asMatch = asPattern.exec(text);
+    if (!asMatch || (nextFunctionIndex >= 0 && asMatch.index > nextFunctionIndex)) {
+      marker.lastIndex = nextFunctionIndex >= 0 ? nextFunctionIndex : text.length;
+      continue;
+    }
+
+    const tag = asMatch[1];
+    const bodyEnd = text.indexOf(`${tag};`, asMatch.index + asMatch[0].length);
+    if (bodyEnd < 0 || (nextFunctionIndex >= 0 && bodyEnd > nextFunctionIndex)) {
+      throw new Error(`Function body is unterminated: ${file} -> ${functionName}`);
+    }
+
+    const block = text.slice(match.index, bodyEnd + tag.length + 1);
+    marker.lastIndex = bodyEnd + tag.length + 1;
+
+    if (!/security\s+definer/i.test(block) || !clientGrantedNames.has(functionName)) continue;
+    exposedDefinerDefinitions += 1;
+
+    if (clientAdminName.test(functionName)) {
+      if (!adminRoleGuard.test(block)) {
+        throw new Error(
+          `Client-exposed Admin SECURITY DEFINER function lacks role guard: ${file} -> ${functionName}`,
+        );
+      }
+      continue;
+    }
+
+    if (selfScopeGuard.test(block) || adminRoleGuard.test(block)) continue;
+    if (readHelperAllowlist.has(functionName)) continue;
+
+    const sameNameWrapper = new RegExp(
+      'select\\s+\\*\\s+from\\s+public\\.' + functionName + '\\s*\\(',
+      'i',
+    );
+    if (sameNameWrapper.test(block)) continue;
+
+    throw new Error(
+      `Client-exposed SECURITY DEFINER function lacks explicit auth scope or reviewed exception: ${file} -> ${functionName}`,
+    );
+  }
+}
+
+if (exposedDefinerDefinitions < 20) {
+  throw new Error(
+    `SECURITY DEFINER surface audit parsed too few exposed definitions (${exposedDefinerDefinitions}); parser/SQL drift likely.`,
+  );
+}
+
 if (!pkg.includes('"check:security-definer"')) {
   throw new Error('npm verify does not include the SECURITY DEFINER hardening guard.');
 }
 
-console.log('UCAPSA internal SECURITY DEFINER surface: PASS');
+console.log(
+  `UCAPSA internal SECURITY DEFINER surface: PASS (${exposedDefinerDefinitions} client-exposed definitions reviewed).`,
+);
