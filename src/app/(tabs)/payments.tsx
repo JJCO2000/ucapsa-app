@@ -208,6 +208,7 @@ export default function PaymentsTab() {
                 <Text style={[styles.eyebrow, premium && styles.goldText]}>CLABE UCAPSA</Text>
                 <Text selectable style={[styles.bankClabe, premium && styles.textPremium]}>{normalizeClabe(bankSettings.clabe)}</Text>
                 <Text numberOfLines={1} style={[styles.bankMeta, premium && styles.mutedPremium]}>{bankSettings.bank_name}</Text>
+                <Text numberOfLines={1} style={[styles.bankMeta, premium && styles.mutedPremium]}>Titular: {bankSettings.account_holder?.replace(/\\s+/g, ' ').trim()}</Text>
               </View>
               <Pressable
                 accessibilityRole="button"
