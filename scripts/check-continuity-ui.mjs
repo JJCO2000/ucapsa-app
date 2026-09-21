@@ -50,8 +50,13 @@ if (!/setTimeout\([\s\S]{0,260}750/.test(summary) || !/screenFocused/.test(summa
 if (!/recordValueExposure\(user\.id, detail\.dog_id, season\.season_id, 'constancy_detail'\)/.test(detail)) {
   failures.push('Detalle Cliente no registra apertura durable de Constancia.');
 }
-if (!/\.catch\(\(\) => undefined\)/.test(summary) || !/\.catch\(\(\) => undefined\)/.test(detail)) {
-  failures.push('Tracking de exposición debe ser no bloqueante para Cliente.');
+if (
+  !/void recordValueExposure[\s\S]{0,360}\.catch\(/.test(summary)
+  || !summary.includes('Could not persist constancy summary value exposure.')
+  || !/void recordValueExposure[\s\S]{0,360}\.catch\(/.test(detail)
+  || !detail.includes('Could not persist constancy detail value exposure.')
+) {
+  failures.push('Tracking de exposición debe seguir no bloqueante y observable para Cliente.');
 }
 
 for (const token of [
