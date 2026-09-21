@@ -343,10 +343,13 @@ export function countUnlockedAchievements(items: AchievementWithState[]) {
 }
 
 export async function grantTrainingAchievementToDog(
+  userId: string,
   dogId: string,
   achievementCode: ProgramCompletionAchievementCode,
 ): Promise<void> {
+  const cleanUserId = userId.trim();
   const cleanDogId = dogId.trim();
+  if (!cleanUserId) throw new Error('No se encontró el cliente.');
   if (!cleanDogId) throw new Error('Selecciona un perro.');
   if (!isProgramCompletionAchievementCode(achievementCode)) {
     throw new Error('Ese código no es un logro formal de entrenamiento UCAPSA.');
@@ -358,14 +361,9 @@ export async function grantTrainingAchievementToDog(
   });
   if (error) throw error;
 
-  const { data: dogData, error: dogError } = await supabase
-    .from('dogs')
-    .select('user_id')
-    .eq('id', cleanDogId)
-    .single();
-  if (dogError) throw dogError;
-
-  await clearAchievementCacheForUser(dogData.user_id);
+  // El RPC valida el dueño real del perro. El userId sólo acota la invalidación
+  // de caché; no participa en la autorización ni en el insert histórico.
+  await clearAchievementCacheForUser(cleanUserId);
 }
 
 export async function awardAchievementToUser(userId: string, achievementCode: string): Promise<void> {
