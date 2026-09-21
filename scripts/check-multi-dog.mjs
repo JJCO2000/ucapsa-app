@@ -31,12 +31,12 @@ requirePattern(
   'La navegación contextual dejó de seleccionar el perro solicitado.',
 );
 requirePattern(
-  'src/services/achievements.service.ts',
+  'src/services/achievements-cache.service.ts',
   /function achievementScopeKey\(userId: string, dogId: string \| null\)[\s\S]*\$\{userId\}:\$\{dogId \?\? 'all'\}/,
   'La caché de logros dejó de separar usuario y perro.',
 );
 requirePattern(
-  'src/services/achievements.service.ts',
+  'src/services/achievements-read.service.ts',
   /getAchievementsForDog[\s\S]*\.eq\('user_id', userId\)[\s\S]*\.eq\('dog_id', dogId\)/,
   'La consulta formal de logros dejó de filtrar por dog_id.',
 );
