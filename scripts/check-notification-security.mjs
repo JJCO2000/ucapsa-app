@@ -10,6 +10,7 @@ const pkg = fs.readFileSync('package.json', 'utf8');
 for (const token of [
   'notification_campaigns_title_check',
   "btrim(title) <> ''",
+  "coalesce(metadata ->> 'source', '') <> 'admin_manual'",
   'char_length(title) <= 80',
   'notification_campaigns_body_check',
   'char_length(body) <= 180',
