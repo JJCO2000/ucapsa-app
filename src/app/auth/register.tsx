@@ -41,16 +41,6 @@ export default function RegisterScreen() {
     const cleanName = fullName.trim();
     const cleanEmail = email.trim();
 
-    if (!privacyNotice) {
-      Alert.alert(
-        'Aviso de privacidad no disponible',
-        privacyLoadError
-          ? 'No se pudo verificar el aviso publicado. Intenta de nuevo cuando tengas conexión.'
-          : 'UCAPSA debe publicar el aviso de privacidad antes de crear nuevas cuentas.',
-      );
-      return;
-    }
-
     if (!cleanName || !cleanEmail || !password) {
       Alert.alert('Faltan datos', 'Escribe nombre, correo y contrasena.');
       return;
@@ -131,26 +121,23 @@ export default function RegisterScreen() {
           onSubmitEditing={handleRegister}
         />
 
-        <View style={[styles.privacyBox, privacyChecked && !privacyNotice && styles.privacyWarning]}>
-          <Text style={styles.privacyTitle}>
-            {privacyNotice ? `Aviso de privacidad · Versión ${privacyNotice.version}` : 'Aviso de privacidad'}
-          </Text>
-          <Text style={styles.privacyText}>
-            {!privacyChecked
-              ? 'Consultando el aviso publicado...'
-              : privacyNotice
-                ? privacyNotice.simplified_notice
-                : privacyLoadError
-                  ? 'No se pudo verificar el aviso publicado. La creación de cuentas queda deshabilitada hasta poder consultarlo.'
-                  : 'UCAPSA aún no tiene un aviso de privacidad publicado. La creación de cuentas queda deshabilitada hasta publicar la versión jurídica aprobada.'}
-          </Text>
-          <Link href="/privacy" style={styles.privacyLink}>Consultar aviso integral</Link>
-        </View>
+        {!privacyChecked ? (
+          <View style={styles.privacyBox}>
+            <Text style={styles.privacyTitle}>Aviso de privacidad</Text>
+            <Text style={styles.privacyText}>Consultando información publicada...</Text>
+          </View>
+        ) : privacyNotice ? (
+          <View style={styles.privacyBox}>
+            <Text style={styles.privacyTitle}>Aviso de privacidad · Versión {privacyNotice.version}</Text>
+            <Text style={styles.privacyText}>{privacyNotice.simplified_notice}</Text>
+            <Link href="/privacy" style={styles.privacyLink}>Consultar aviso integral</Link>
+          </View>
+        ) : null}
 
         <Pressable
-          style={[styles.button, (loading || !privacyNotice) && styles.buttonDisabled]}
+          style={[styles.button, loading && styles.buttonDisabled]}
           onPress={handleRegister}
-          disabled={loading || !privacyNotice}
+          disabled={loading}
         >
           <Text style={styles.buttonText}>{loading ? 'Creando...' : 'Crear cuenta'}</Text>
         </Pressable>
