@@ -11,16 +11,18 @@ import { devWarn } from '../lib/client-diagnostics';
 import { resolveUcapsaFormat } from '../constants/ucapsaFormats';
 import { useSession } from '../hooks/useSession';
 import {
-  confirmPendingClassAttendance,
   discardAttendanceOperation,
-  flushPendingAttendanceOperations,
   getPendingAttendanceOperations,
   queueClassAttendance,
   queueMemberVisit,
-  syncAttendanceOperation,
   type PendingAttendanceOperation,
   type PendingClassAttendanceOperation,
 } from '../services/attendance-outbox.service';
+import {
+  confirmPendingClassAttendance,
+  flushPendingAttendanceOperations,
+  syncAttendanceOperation,
+} from '../services/attendance-sync.service';
 import {
   clientReadKeys,
   createMembershipOfflineSummary,
