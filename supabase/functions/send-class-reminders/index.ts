@@ -334,6 +334,27 @@ Deno.serve(async (req) => {
     return !blockingLockKeys.has(lockKey);
   });
 
+  const potentialTokenIds = new Set(
+    reminderTargets.flatMap((enrollment) =>
+      (tokenByUserId.get(enrollment.user_id) ?? []).map((token) => token.id)
+    ),
+  );
+
+  if (dryRun) {
+    return jsonResponse({
+      campaign_id: null,
+      class_date: classDateKey,
+      reminder_type: reminderType,
+      target_schedules: targetSchedules.length,
+      candidate_enrollments: candidateEnrollments.length,
+      total_targets: potentialTokenIds.size,
+      success_count: 0,
+      failure_count: 0,
+      status: 'dry_run',
+      message: 'Prueba seca completada; no se crearon campañas, locks ni entregas.',
+    });
+  }
+
   const { data: campaign, error: campaignError } = await serviceClient
     .from('notification_campaigns')
     .insert({
@@ -341,8 +362,8 @@ Deno.serve(async (req) => {
       body: 'Recordatorio automatico de clases UCAPSA.',
       audience: 'clients',
       category: 'classes',
-      status: reminderTargets.length ? 'sending' : 'no_targets',
-      total_targets: reminderTargets.length,
+      status: reminderTargets.length ? 'draft' : 'no_targets',
+      total_targets: 0,
       created_by: userId,
       metadata: {
         source: 'class_reminder',
@@ -350,7 +371,7 @@ Deno.serve(async (req) => {
         reminder_type: reminderType,
         candidate_enrollments: candidateEnrollments.length,
         target_schedules: targetSchedules.length,
-        dry_run: dryRun,
+        dry_run: false,
         triggered_by: isCronCall ? 'cron_secret' : 'admin_user',
       },
     })
@@ -359,109 +380,363 @@ Deno.serve(async (req) => {
 
   if (campaignError) return jsonResponse({ error: campaignError.message }, 500);
 
-  if (!reminderTargets.length || dryRun) {
+  if (!reminderTargets.length) {
     return jsonResponse({
       campaign_id: campaign.id,
       class_date: classDateKey,
       reminder_type: reminderType,
       target_schedules: targetSchedules.length,
       candidate_enrollments: candidateEnrollments.length,
-      total_targets: reminderTargets.length,
+      total_targets: 0,
       success_count: 0,
       failure_count: 0,
-      status: reminderTargets.length ? 'dry_run' : 'no_targets',
-      message: reminderTargets.length
-        ? 'Prueba seca completada; no se enviaron notificaciones.'
-        : 'No hay destinatarios activos para recordatorios de clase.',
+      status: 'no_targets',
+      message: 'No hay destinatarios activos para recordatorios de clase.',
     });
   }
 
-  const lockRows = reminderTargets.map((enrollment) => ({
-    enrollment_id: enrollment.id,
-    user_id: enrollment.user_id,
-    program_id: enrollment.program_id,
-    schedule_id: enrollment.schedule_id,
-    class_date: classDateKey,
-    reminder_type: reminderType,
+  const lockKeyFor = (enrollment: EnrollmentRow) =>
+    `${enrollment.id}:${enrollment.schedule_id}:${classDateKey}:${reminderType}`;
+
+  const retryLockIds = reminderTargets
+    .map((enrollment) => failedLockByKey.get(lockKeyFor(enrollment))?.id ?? null)
+    .filter((value): value is string => Boolean(value));
+
+  const claimedEnrollmentIds = new Set<string>();
+
+  if (retryLockIds.length) {
+    const { data: reclaimedLocks, error: reclaimError } = await serviceClient
+      .from('notification_class_reminder_locks')
+      .update({
+        campaign_id: campaign.id,
+        status: 'locked',
+        sent_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .in('id', retryLockIds)
+      .eq('status', 'failed')
+      .select('enrollment_id');
+
+    if (reclaimError) {
+      await serviceClient
+        .from('notification_campaigns')
+        .update({ status: 'failed', sent_at: new Date().toISOString() })
+        .eq('id', campaign.id);
+      return jsonResponse({ error: reclaimError.message, campaign_id: campaign.id }, 500);
+    }
+
+    for (const row of reclaimedLocks ?? []) claimedEnrollmentIds.add(String(row.enrollment_id));
+  }
+
+  const newLockRows = reminderTargets
+    .filter((enrollment) => !failedLockByKey.has(lockKeyFor(enrollment)))
+    .map((enrollment) => ({
+      enrollment_id: enrollment.id,
+      user_id: enrollment.user_id,
+      program_id: enrollment.program_id,
+      schedule_id: enrollment.schedule_id,
+      class_date: classDateKey,
+      reminder_type: reminderType,
+      campaign_id: campaign.id,
+      status: 'locked',
+    }));
+
+  if (newLockRows.length) {
+    const { data: insertedLocks, error: lockError } = await serviceClient
+      .from('notification_class_reminder_locks')
+      .upsert(newLockRows, {
+        onConflict: 'enrollment_id,schedule_id,class_date,reminder_type',
+        ignoreDuplicates: true,
+      })
+      .select('enrollment_id');
+
+    if (lockError) {
+      await Promise.all([
+        serviceClient
+          .from('notification_class_reminder_locks')
+          .update({ status: 'failed', updated_at: new Date().toISOString() })
+          .eq('campaign_id', campaign.id)
+          .eq('status', 'locked'),
+        serviceClient
+          .from('notification_campaigns')
+          .update({ status: 'failed', sent_at: new Date().toISOString() })
+          .eq('id', campaign.id),
+      ]);
+      return jsonResponse({ error: lockError.message, campaign_id: campaign.id }, 500);
+    }
+
+    for (const row of insertedLocks ?? []) claimedEnrollmentIds.add(String(row.enrollment_id));
+  }
+
+  const claimedReminderTargets = reminderTargets.filter((enrollment) =>
+    claimedEnrollmentIds.has(enrollment.id)
+  );
+
+  if (!claimedReminderTargets.length) {
+    await serviceClient
+      .from('notification_campaigns')
+      .update({ status: 'no_targets', sent_at: new Date().toISOString() })
+      .eq('id', campaign.id);
+
+    return jsonResponse({
+      campaign_id: campaign.id,
+      class_date: classDateKey,
+      reminder_type: reminderType,
+      target_schedules: targetSchedules.length,
+      candidate_enrollments: candidateEnrollments.length,
+      total_targets: 0,
+      success_count: 0,
+      failure_count: 0,
+      status: 'no_targets',
+      message: 'Las clases ya estaban reclamadas por otro envío; no se duplicaron recordatorios.',
+    });
+  }
+
+  const deliveryTargetByTokenId = new Map<string, {
+    token: TokenRow;
+    userId: string;
+    reminders: Array<{
+      enrollment: EnrollmentRow;
+      schedule: ScheduleRow | undefined;
+      program: ProgramRow | undefined;
+    }>;
+  }>();
+
+  for (const enrollment of claimedReminderTargets) {
+    const schedule = scheduleById.get(enrollment.schedule_id);
+    const program = programById.get(enrollment.program_id);
+    for (const token of tokenByUserId.get(enrollment.user_id) ?? []) {
+      const existing = deliveryTargetByTokenId.get(token.id);
+      if (existing) {
+        existing.reminders.push({ enrollment, schedule, program });
+      } else {
+        deliveryTargetByTokenId.set(token.id, {
+          token,
+          userId: enrollment.user_id,
+          reminders: [{ enrollment, schedule, program }],
+        });
+      }
+    }
+  }
+
+  const deliveryTargets = [...deliveryTargetByTokenId.values()];
+
+  const { data: claimedCampaign, error: claimCampaignError } = await serviceClient
+    .from('notification_campaigns')
+    .update({
+      status: deliveryTargets.length ? 'sending' : 'no_targets',
+      total_targets: deliveryTargets.length,
+    })
+    .eq('id', campaign.id)
+    .eq('status', 'draft')
+    .select('id')
+    .maybeSingle();
+
+  if (claimCampaignError || !claimedCampaign) {
+    await serviceClient
+      .from('notification_class_reminder_locks')
+      .update({ status: 'failed', updated_at: new Date().toISOString() })
+      .eq('campaign_id', campaign.id)
+      .eq('status', 'locked');
+    return jsonResponse({
+      error: claimCampaignError?.message ?? 'No se pudo reclamar la campaña de recordatorio.',
+      campaign_id: campaign.id,
+    }, 500);
+  }
+
+  if (!deliveryTargets.length) {
+    await serviceClient
+      .from('notification_class_reminder_locks')
+      .update({ status: 'skipped', updated_at: new Date().toISOString() })
+      .eq('campaign_id', campaign.id)
+      .eq('status', 'locked');
+
+    return jsonResponse({
+      campaign_id: campaign.id,
+      class_date: classDateKey,
+      reminder_type: reminderType,
+      target_schedules: targetSchedules.length,
+      candidate_enrollments: candidateEnrollments.length,
+      total_targets: 0,
+      success_count: 0,
+      failure_count: 0,
+      status: 'no_targets',
+    });
+  }
+
+  const queuedRows = deliveryTargets.map(({ token, userId }) => ({
     campaign_id: campaign.id,
-    status: 'locked',
+    user_id: userId,
+    token_id: token.id,
+    expo_push_token: token.expo_push_token,
+    status: 'queued',
   }));
 
-  const { error: lockError } = await serviceClient.from('notification_class_reminder_locks').insert(lockRows);
-  if (lockError) return jsonResponse({ error: lockError.message }, 500);
+  const { data: preparedDeliveries, error: prepareDeliveriesError } = await serviceClient
+    .from('notification_deliveries')
+    .insert(queuedRows)
+    .select('id,token_id');
 
-  const deliveries: Array<Record<string, unknown>> = [];
+  if (prepareDeliveriesError) {
+    const now = new Date().toISOString();
+    await Promise.all([
+      serviceClient
+        .from('notification_class_reminder_locks')
+        .update({ status: 'failed', updated_at: now })
+        .eq('campaign_id', campaign.id)
+        .eq('status', 'locked'),
+      serviceClient
+        .from('notification_campaigns')
+        .update({ status: 'failed', failure_count: 0, sent_at: now })
+        .eq('id', campaign.id),
+    ]);
+
+    return jsonResponse({
+      error: prepareDeliveriesError.message,
+      campaign_id: campaign.id,
+      message: 'No se envió ningún push; los locks quedaron disponibles para un reintento seguro.',
+    }, 500);
+  }
+
+  const deliveryIdByTokenId = new Map(
+    ((preparedDeliveries ?? []) as PreparedDeliveryRow[])
+      .filter((row) => row.token_id)
+      .map((row) => [String(row.token_id), row.id]),
+  );
+
   let successCount = 0;
   let failureCount = 0;
 
-  const deliveryTargets = reminderTargets.flatMap((enrollment) => {
-    const schedule = scheduleById.get(enrollment.schedule_id);
-    const program = programById.get(enrollment.program_id);
-    const userTokens = tokenByUserId.get(enrollment.user_id) ?? [];
-    return userTokens.map((token) => ({ enrollment, schedule, program, token }));
-  });
-
   for (const batch of chunk(deliveryTargets, 100)) {
-    const messages = batch.map(({ enrollment, schedule, program, token }) => {
-      const programLabel = getProgramLabel(program);
-      const scheduleLabel = schedule ? getScheduleLabel(schedule) : 'Clase';
-      const timeLabel = schedule ? formatTime(schedule.start_time) : '--:--';
-      const dogPart = enrollment.dog_name ? ` de ${enrollment.dog_name}` : '';
+    const deliveryIds = batch
+      .map(({ token }) => deliveryIdByTokenId.get(token.id))
+      .filter((value): value is string => Boolean(value));
+
+    if (deliveryIds.length !== batch.length) {
+      return jsonResponse({
+        error: 'No se pudieron identificar todas las entregas preparadas.',
+        campaign_id: campaign.id,
+        message: 'La campaña queda reclamada para impedir duplicados.',
+      }, 500);
+    }
+
+    const { error: markSendingError } = await serviceClient
+      .from('notification_deliveries')
+      .update({ status: 'sending' })
+      .in('id', deliveryIds)
+      .eq('status', 'queued');
+
+    if (markSendingError) {
+      return jsonResponse({
+        error: markSendingError.message,
+        campaign_id: campaign.id,
+        message: 'La campaña queda reclamada para impedir un reenvío inseguro.',
+      }, 500);
+    }
+
+    const messages = batch.map(({ token, reminders }) => {
+      const first = reminders[0];
+      const firstProgramLabel = getProgramLabel(first?.program);
+      const firstScheduleLabel = first?.schedule ? getScheduleLabel(first.schedule) : 'Clase';
+      const firstTimeLabel = first?.schedule ? formatTime(first.schedule.start_time) : '--:--';
+      const firstDogPart = first?.enrollment.dog_name ? ` de ${first.enrollment.dog_name}` : '';
+
+      const title = reminders.length === 1
+        ? `Recordatorio ${firstProgramLabel}`
+        : 'Recordatorio de clases';
+      const body = reminders.length === 1
+        ? `Tu clase${firstDogPart} (${firstScheduleLabel}) es el ${classDateKey} a las ${firstTimeLabel}.`
+        : `Tienes ${reminders.length} clases el ${classDateKey}. La primera es ${firstProgramLabel} (${firstScheduleLabel}) a las ${firstTimeLabel}.`;
 
       return {
         to: token.expo_push_token,
-        title: `Recordatorio ${programLabel}`,
-        body: `Tu clase${dogPart} (${scheduleLabel}) es el ${classDateKey} a las ${timeLabel}.`,
+        title,
+        body,
         sound: 'default',
         data: {
           category: 'classes',
           source: 'class_reminder',
           campaign_id: campaign.id,
           class_date: classDateKey,
-          enrollment_id: enrollment.id,
-          schedule_id: enrollment.schedule_id,
-          program_id: enrollment.program_id,
+          enrollment_ids: reminders.map((item) => item.enrollment.id),
+          schedule_ids: reminders.map((item) => item.enrollment.schedule_id),
+          program_ids: reminders.map((item) => item.enrollment.program_id),
         },
       };
     });
 
-    const expoResponse = await fetch('https://exp.host/--/api/v2/push/send', {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Accept-Encoding': 'gzip, deflate',
-        'Content-Type': 'application/json',
-        ...(expoAccessToken ? { Authorization: `Bearer ${expoAccessToken}` } : {}),
-      },
-      body: JSON.stringify(messages),
-    });
+    let expoResponse: Response;
+    try {
+      expoResponse = await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Accept-Encoding': 'gzip, deflate',
+          'Content-Type': 'application/json',
+          ...(expoAccessToken ? { Authorization: `Bearer ${expoAccessToken}` } : {}),
+        },
+        body: JSON.stringify(messages),
+      });
+    } catch (cause) {
+      return jsonResponse({
+        error: cause instanceof Error ? cause.message : 'No se pudo confirmar la respuesta de Expo.',
+        campaign_id: campaign.id,
+        message: 'El resultado del envío es incierto. Los locks se conservan para impedir duplicados.',
+      }, 502);
+    }
 
     const expoJson = await expoResponse.json().catch(() => ({ errors: [{ message: 'Respuesta invalida de Expo.' }] }));
     const tickets = Array.isArray(expoJson?.data) ? expoJson.data as ExpoTicket[] : [];
 
-    batch.forEach(({ enrollment, token }, index) => {
+    const updateResults = batch.map(async ({ token }, index) => {
       const ticket = tickets[index] ?? (expoJson?.errors?.[0] as ExpoTicket | undefined) ?? { status: 'error', message: 'Sin ticket de Expo.' };
       const ok = expoResponse.ok && ticket.status === 'ok';
+      const deliveryId = deliveryIdByTokenId.get(token.id);
 
       if (ok) successCount += 1;
       else failureCount += 1;
 
-      deliveries.push({
-        campaign_id: campaign.id,
-        user_id: enrollment.user_id,
-        token_id: token.id,
-        expo_push_token: token.expo_push_token,
-        status: ok ? 'sent' : 'error',
-        expo_response: ticket,
-        error_message: ok ? null : ticket.message ?? `HTTP ${expoResponse.status}`,
-        sent_at: new Date().toISOString(),
-      });
-    });
-  }
+      if (!deliveryId) return { error: new Error('Entrega preparada sin id.') };
 
-  if (deliveries.length) {
-    const { error: deliveriesError } = await serviceClient.from('notification_deliveries').insert(deliveries);
-    if (deliveriesError) return jsonResponse({ error: deliveriesError.message }, 500);
+      const { error } = await serviceClient
+        .from('notification_deliveries')
+        .update({
+          status: ok ? 'sent' : 'error',
+          expo_response: ticket,
+          error_message: ok ? null : ticket.message ?? `HTTP ${expoResponse.status}`,
+          sent_at: new Date().toISOString(),
+        })
+        .eq('id', deliveryId)
+        .eq('status', 'sending');
+
+      const expoErrorCode = typeof ticket.details?.error === 'string'
+        ? ticket.details.error
+        : null;
+      if (expoErrorCode === 'DeviceNotRegistered') {
+        const disabledAt = new Date().toISOString();
+        const { error: disableTokenError } = await serviceClient
+          .from('notification_tokens')
+          .update({ is_active: false, disabled_at: disabledAt, updated_at: disabledAt })
+          .eq('id', token.id)
+          .eq('expo_push_token', token.expo_push_token)
+          .eq('is_active', true);
+        if (disableTokenError) {
+          console.warn('Could not disable DeviceNotRegistered class reminder token.', token.id, disableTokenError.message);
+        }
+      }
+
+      return { error };
+    });
+
+    const updateResultsResolved = await Promise.all(updateResults);
+    const firstUpdateError = updateResultsResolved.find((result) => result.error)?.error;
+    if (firstUpdateError) {
+      return jsonResponse({
+        error: firstUpdateError instanceof Error ? firstUpdateError.message : String(firstUpdateError),
+        campaign_id: campaign.id,
+        message: 'Expo ya respondió. No se reintentó automáticamente.',
+      }, 500);
+    }
   }
 
   const finalStatus = successCount > 0 && failureCount === 0
@@ -501,7 +776,7 @@ Deno.serve(async (req) => {
     reminder_type: reminderType,
     target_schedules: targetSchedules.length,
     candidate_enrollments: candidateEnrollments.length,
-    total_targets: reminderTargets.length,
+    total_targets: deliveryTargets.length,
     success_count: successCount,
     failure_count: failureCount,
     status: finalStatus,
