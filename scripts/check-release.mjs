@@ -140,6 +140,15 @@ if (!iosIconFile || !fs.existsSync(iosIconFile)) {
   }
 }
 
+const splash = pluginConfig(expo.plugins ?? [], 'expo-splash-screen');
+if (!splash) {
+  fail('Falta config plugin expo-splash-screen.');
+} else {
+  if (splash.backgroundColor !== '#C91F37') fail('El splash debe conservar el rojo UCAPSA #C91F37.');
+  if (splash.ios?.image !== './assets/images/splash-icon.png') fail('iOS debe usar el logo canónico de splash de UCAPSA.');
+  if (splash.ios?.imageWidth !== 76) fail('iOS debe conservar imageWidth 76 en el splash.');
+}
+
 const camera = pluginConfig(expo.plugins ?? [], 'expo-camera');
 if (!camera) {
   fail('Falta config plugin expo-camera.');
