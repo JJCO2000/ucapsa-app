@@ -1,3 +1,4 @@
+import { devWarn } from '../lib/client-diagnostics';
 import type { Announcement, Membership, MyPaymentOverview, ProgramEnrollmentWithDetails } from '../types/app.types';
 import { getVisibleAnnouncements } from './announcements.service';
 import { flushPendingAttendanceOperations } from './attendance-sync.service';
@@ -12,6 +13,7 @@ import {
   type CalendarClassesOfflineSnapshot,
 } from './client-read-cache.service';
 import { getMyDogs, type BasicDog } from './dogs.service';
+import { getVisibleEventOccurrenceCancellations } from './event-occurrence-cancellations.service';
 import { getVisibleEvents } from './events.service';
 import { createHomeCacheSource, mergeHomeCache, type HomeProgramSummary } from './home-cache.service';
 import { getMyMembership } from './memberships.service';
@@ -73,10 +75,29 @@ async function cacheCalendar(userId: string): Promise<void> {
     getProgramClassCancellations(),
   ]);
   const classes: CalendarClassesOfflineSnapshot = { programs, schedules, cancellations };
-  await Promise.all([
+  const eventCancellationResult = await Promise.allSettled([
+    getVisibleEventOccurrenceCancellations(),
+  ]);
+
+  const writes: Promise<unknown>[] = [
     writeClientResource(userId, clientReadKeys.calendarEvents, events),
     writeClientResource(userId, clientReadKeys.calendarClasses, classes),
-  ]);
+  ];
+
+  const eventCancellation = eventCancellationResult[0];
+  if (eventCancellation.status === 'fulfilled') {
+    writes.push(
+      writeClientResource(
+        userId,
+        clientReadKeys.calendarEventCancellations,
+        eventCancellation.value,
+      ),
+    );
+  } else {
+    devWarn('Could not warm event occurrence cancellations for offline calendar.', eventCancellation.reason);
+  }
+
+  await Promise.all(writes);
 }
 
 async function cacheDogs(userId: string): Promise<BasicDog[]> {
