@@ -53,6 +53,7 @@ const CACHE_PREFIX = 'ucapsa:client-read:v1:';
 export const clientReadKeys = {
   announcements: 'announcements',
   calendarEvents: 'calendar-events',
+  calendarEventCancellations: 'calendar-event-cancellations',
   calendarClasses: 'calendar-classes',
   programs: 'programs',
   dogs: 'dogs',

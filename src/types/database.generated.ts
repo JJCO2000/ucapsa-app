@@ -667,6 +667,53 @@ export type Database = {
         }
         Relationships: []
       }
+      event_occurrence_cancellations: {
+        Row: {
+          cancelled_at: string
+          cancelled_by: string | null
+          created_at: string
+          event_id: string
+          id: string
+          occurrence_start: string
+          reason: string | null
+          restored_at: string | null
+          restored_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          cancelled_at?: string
+          cancelled_by?: string | null
+          created_at?: string
+          event_id: string
+          id?: string
+          occurrence_start: string
+          reason?: string | null
+          restored_at?: string | null
+          restored_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cancelled_at?: string
+          cancelled_by?: string | null
+          created_at?: string
+          event_id?: string
+          id?: string
+          occurrence_start?: string
+          reason?: string | null
+          restored_at?: string | null
+          restored_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_occurrence_cancellations_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feature_flags: {
         Row: {
           code: string

@@ -130,6 +130,19 @@ export type EventOccurrence = {
   source_event?: UcapsaEvent;
 };
 
+export type EventOccurrenceCancellation = {
+  id: string;
+  event_id: string;
+  occurrence_start: string;
+  reason: string | null;
+  cancelled_by: string | null;
+  cancelled_at: string;
+  restored_at: string | null;
+  restored_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Announcement = {
   id: string;
   title: string;

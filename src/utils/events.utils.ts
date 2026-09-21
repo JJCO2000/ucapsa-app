@@ -1,4 +1,4 @@
-import type { EventOccurrence, EventRepeatType, UcapsaEvent } from '../types/app.types';
+import type { EventOccurrence, EventOccurrenceCancellation, EventRepeatType, UcapsaEvent } from '../types/app.types';
 
 function dateKeyParts(value: string): [number, number, number] | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
@@ -151,8 +151,22 @@ export function getEventRepeatLabel(
   return `Repite cada ${event.repeat_interval_days ?? 'X'} dias`;
 }
 
-export function expandEventOccurrences(events: UcapsaEvent[]): EventOccurrence[] {
+function occurrenceCancellationKey(eventId: string, occurrenceStart: string) {
+  const date = new Date(occurrenceStart);
+  return Number.isNaN(date.getTime()) ? null : `${eventId}:${date.toISOString()}`;
+}
+
+export function expandEventOccurrences(
+  events: UcapsaEvent[],
+  cancellations: EventOccurrenceCancellation[] = [],
+): EventOccurrence[] {
   const occurrences: EventOccurrence[] = [];
+  const activeCancellationKeys = new Set(
+    cancellations
+      .filter((item) => !item.restored_at)
+      .map((item) => occurrenceCancellationKey(item.event_id, item.occurrence_start))
+      .filter((key): key is string => Boolean(key)),
+  );
 
   for (const event of events) {
     const baseStart = new Date(event.start_date);
@@ -182,6 +196,9 @@ export function expandEventOccurrences(events: UcapsaEvent[]): EventOccurrence[]
         occurrenceStart,
       );
 
+      const cancellationKey = occurrenceCancellationKey(event.id, occurrenceStartIso);
+      if (cancellationKey && activeCancellationKeys.has(cancellationKey)) continue;
+
       occurrences.push({
         id: `${event.id}:${index}`,
         event_id: event.id,
@@ -203,10 +220,11 @@ export function expandEventOccurrences(events: UcapsaEvent[]): EventOccurrence[]
 export function getUpcomingOccurrences(
   events: UcapsaEvent[],
   limit: number,
+  cancellations: EventOccurrenceCancellation[] = [],
 ): EventOccurrence[] {
   const now = Date.now();
 
-  return expandEventOccurrences(events)
+  return expandEventOccurrences(events, cancellations)
     .filter((occurrence) => new Date(occurrence.start_date).getTime() >= now)
     .slice(0, limit);
 }
