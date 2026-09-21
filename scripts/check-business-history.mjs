@@ -6,6 +6,7 @@ const achievementHistorySql = fs.readFileSync('supabase/sql/ucapsa-training-achi
 const attendanceVisitAuditSql = fs.readFileSync('supabase/sql/ucapsa-attendance-visit-delete-audit.sql', 'utf8');
 const attendanceVisitCorrectionAuditSql = fs.readFileSync('supabase/sql/ucapsa-attendance-visit-correction-audit.sql', 'utf8');
 const memberVisitTemporalSql = fs.readFileSync('supabase/sql/ucapsa-member-visit-temporal-integrity.sql', 'utf8');
+const memberVisitWriteBoundarySql = fs.readFileSync('supabase/sql/ucapsa-member-visit-rpc-write-boundary.sql', 'utf8');
 const trainingAchievementSql = fs.readFileSync('supabase/sql/ucapsa-rango-1-training-achievements.sql', 'utf8');
 const coursePathSql = fs.readFileSync('supabase/sql/ucapsa-course-path-and-points-access.sql', 'utf8');
 const legacyProgressionSql = fs.readFileSync('supabase/sql/ucapsa-membership-lifetime-and-comandos-progression.sql', 'utf8');
@@ -216,6 +217,18 @@ for (const token of [
 
 if (!/correct_member_visit_admin[\s\S]{0,2600}for update[\s\S]{0,2600}source = 'admin_manual'[\s\S]{0,2600}'member_visit\.correct'/i.test(memberVisitTemporalSql)) {
   throw new Error('Member visit correction must lock, mark admin source and append audit evidence.');
+}
+
+for (const token of [
+  'revoke insert, update, delete',
+  'on table public.member_visits',
+  'from authenticated',
+  'grant select',
+  'to authenticated',
+]) {
+  if (!memberVisitWriteBoundarySql.toLowerCase().includes(token.toLowerCase())) {
+    throw new Error('Member visit RPC-only write boundary missing: ' + token);
+  }
 }
 
 if (!pkg.includes('"check:business-history"')) {
