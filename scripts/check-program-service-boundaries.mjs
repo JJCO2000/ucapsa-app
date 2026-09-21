@@ -7,7 +7,7 @@ const enrollments = fs.readFileSync('src/services/program-enrollments.service.ts
 const attendance = fs.readFileSync('src/services/program-attendance.service.ts', 'utf8');
 const cancellations = fs.readFileSync('src/services/program-cancellations.service.ts', 'utf8');
 const nextSession = fs.readFileSync('src/services/program-next-session.service.ts', 'utf8');
-const attendanceOutbox = fs.readFileSync('src/services/attendance-outbox.service.ts', 'utf8');
+const attendanceSync = fs.readFileSync('src/services/attendance-sync.service.ts', 'utf8');
 const sessionInternal = fs.readFileSync('src/services/programs-session.internal.ts', 'utf8');
 const domain = fs.readFileSync('src/services/programs.domain.ts', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
@@ -154,7 +154,7 @@ for (const [name, text] of [
   ['program attendance', attendance],
   ['program cancellations', cancellations],
   ['program next-session', nextSession],
-  ['attendance outbox', attendanceOutbox],
+  ['attendance sync', attendanceSync],
   ['program domain', domain],
 ]) {
   if (/from ['"]\.\/programs\.service['"]/.test(text)) {
@@ -171,8 +171,8 @@ if (!/from ['"]\.\/program-cancellations\.service['"]/.test(nextSession)
   throw new Error('Program next-session must consume focused cancellation/schedule/domain modules.');
 }
 
-if (!/from ['"]\.\/program-attendance\.service['"]/.test(attendanceOutbox)) {
-  throw new Error('Attendance outbox must consume the canonical program attendance contract directly.');
+if (!/from ['"]\.\/program-attendance\.service['"]/.test(attendanceSync)) {
+  throw new Error('Attendance sync must consume the canonical program attendance contract directly.');
 }
 
 if (service.includes('programs-session.internal')) {
