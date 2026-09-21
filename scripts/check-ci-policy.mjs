@@ -328,6 +328,7 @@ function isAuthorizedPreviewCommentWorkflow(rel, source, events) {
     "github.event.action == 'created'",
     'github.event.issue.number == 28',
     "github.event.comment.user.login == 'JJCO2000'",
+    "github.actor == 'JJCO2000'",
     "github.event.comment.body == '/publish-preview'",
     'ref: main',
     'persist-credentials: false',
@@ -354,7 +355,67 @@ function inspectWorkflow(rel) {
     failures.push(`${rel}: comandos de publicacion/build/dispatch (${[...commands].join(', ')}) requieren workflow_dispatch o la excepcion exacta /publish-preview autorizada.`);
   }
 
-  const reusable = extractUses(source).filter((value) => value.includes('.github/workflows/'));
+  const uses = extractUses(source);
+  for (const value of uses) {
+    if (value.startsWith('./')) continue;
+    if (!/@[0-9a-f]{40}$/i.test(value)) {
+      failures.push(`${rel}: action externa sin pin SHA inmutable (${value}).`);
+    }
+  }
+
+  if (/eas-version:\s*latest\b/i.test(source)) {
+    failures.push(`${rel}: EAS CLI no puede usar latest en un workflow con secretos.`);
+  }
+
+  if (commands.has('eas update/build/submit/workflow')) {
+    if (!source.includes("github.actor == 'JJCO2000'")) {
+      failures.push(`${rel}: workflow EAS con secretos debe restringirse al actor JJCO2000.`);
+    }
+    if (!/environment:\s*\n\s*name:\s*preview\b/i.test(source)) {
+      failures.push(`${rel}: workflow EAS Preview debe usar el environment protegido preview.`);
+    }
+  }
+
+  const runText = extractRunBlocks(source).join('\n');
+  if (/\beas(?:-cli)?\s+submit\b/i.test(runText) || /\bgradlew(?:\.bat)?\s+bundle\w*\b/i.test(runText)) {
+    failures.push(`${rel}: submit/AAB permanece prohibido por la politica UCAPSA actual.`);
+  }
+
+  if (/\beas(?:-cli)?\s+build\b/i.test(runText)) {
+    if (rel !== '.github/workflows/build-preview-android.yml') {
+      failures.push(`${rel}: EAS Build solo puede existir en build-preview-android.yml.`);
+    }
+    for (const token of [
+      "github.ref == 'refs/heads/main'",
+      "github.actor == 'JJCO2000'",
+      '--platform android',
+      '--profile preview',
+      '--non-interactive',
+    ]) {
+      if (!source.includes(token)) {
+        failures.push(`${rel}: contrato Build Preview incompleto: ${token}`);
+      }
+    }
+  }
+
+  if (/\beas(?:-cli)?\s+update\b/i.test(runText)) {
+    if (rel !== '.github/workflows/publish-preview.yml') {
+      failures.push(`${rel}: EAS Update solo puede existir en publish-preview.yml.`);
+    }
+    for (const token of [
+      'eas-version: 20.3.0',
+      '--channel preview',
+      '--platform android',
+      '--environment preview',
+      '--non-interactive',
+    ]) {
+      if (!source.includes(token)) {
+        failures.push(`${rel}: contrato OTA Preview incompleto: ${token}`);
+      }
+    }
+  }
+
+  const reusable = uses.filter((value) => value.includes('.github/workflows/'));
   if (disallowedAutomatic.length > 0 && reusable.length > 0) {
     failures.push(`${rel}: workflow automatico (${disallowedAutomatic.join(', ')}) encadena workflow reutilizable (${reusable.join(', ')}).`);
   }
@@ -401,7 +462,15 @@ jobs:
           persist-credentials: false
       - run: eas update --channel preview --platform android
 `;
-  assert(isAuthorizedPreviewCommentWorkflow('.github/workflows/publish-preview.yml', previewComment, parseOnEvents(previewComment)));
+  const previewCommentOwnerOnly = previewComment.replace(
+    "github.event.comment.user.login == 'JJCO2000'",
+    "github.event.comment.user.login == 'JJCO2000' && github.actor == 'JJCO2000'",
+  );
+  assert(isAuthorizedPreviewCommentWorkflow(
+    '.github/workflows/publish-preview.yml',
+    previewCommentOwnerOnly,
+    parseOnEvents(previewCommentOwnerOnly),
+  ));
   assert(!isAuthorizedPreviewCommentWorkflow('.github/workflows/other.yml', previewComment, parseOnEvents(previewComment)));
   assert(detectExecutableShell(extractRunBlocks(auto)[0]).length > 0);
   assert(detectExecutableShell(extractRunBlocks(manual)[0]).length > 0);
