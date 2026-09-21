@@ -124,7 +124,12 @@ function addDays(date: Date, days: number) {
 }
 
 function isValidDateKey(value: unknown) {
-  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
+  return date.getUTCFullYear() === year
+    && date.getUTCMonth() === month - 1
+    && date.getUTCDate() === day;
 }
 
 function isScheduleActiveOnDate(schedule: ScheduleRow, classDateKey: string) {
@@ -238,10 +243,15 @@ Deno.serve(async (req) => {
   }
 
   const daysAhead = Number.isFinite(Number(payload.days_ahead))
-    ? Math.max(0, Math.min(14, Number(payload.days_ahead)))
+    ? Math.max(0, Math.min(14, Math.trunc(Number(payload.days_ahead))))
     : 1;
+
+  if (payload.target_date !== undefined && !isValidDateKey(payload.target_date)) {
+    return jsonResponse({ error: 'target_date inválido.' }, 400);
+  }
+
   const mexicoToday = parseDateKey(mexicoDateKey());
-  const classDateKey = isValidDateKey(payload.target_date)
+  const classDateKey = payload.target_date !== undefined
     ? String(payload.target_date)
     : dateKeyFromDate(addDays(mexicoToday, daysAhead));
   const reminderType = typeof payload.reminder_type === 'string' && payload.reminder_type.trim()
