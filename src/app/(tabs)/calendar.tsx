@@ -12,11 +12,12 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import { getVisibleAnnouncements } from '../../services/announcements.service';
+import { getVisibleEventOccurrenceCancellations } from '../../services/event-occurrence-cancellations.service';
 import { getVisibleEvents } from '../../services/events.service';
 import { clientReadKeys, readClientResource, writeClientResource, type CalendarClassesOfflineSnapshot } from '../../services/client-read-cache.service';
 import { formatProgramScheduleDetailLabel, formatProgramScheduleName, getProgramClassCancellations, getProgramScheduleTimeline, getPrograms, isProgramScheduleActiveOnDate } from '../../services/programs.service';
 import { getCachedMyPracticeActivity, getMyPracticeActivity, type PracticeActivityEntry } from '../../services/practice.service';
-import type { Announcement, EventOccurrence, ProgramClassCancellation, ProgramSchedule, UcapsaEvent, UcapsaProgram } from '../../types/app.types';
+import type { Announcement, EventOccurrence, EventOccurrenceCancellation, ProgramClassCancellation, ProgramSchedule, UcapsaEvent, UcapsaProgram } from '../../types/app.types';
 import { expandEventOccurrences, formatDateKey, getUpcomingOccurrences, toDateKey, todayKey } from '../../utils/events.utils';
 import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
 
@@ -139,6 +140,7 @@ function practiceTimeLabel(value: string) {
 export default function CalendarScreen() {
   const { user, role, isAdmin } = useSession();
   const [events, setEvents] = useState<UcapsaEvent[]>([]);
+  const [eventCancellations, setEventCancellations] = useState<EventOccurrenceCancellation[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [programs, setPrograms] = useState<UcapsaProgram[]>([]);
   const [programSchedules, setProgramSchedules] = useState<ProgramSchedule[]>([]);
@@ -166,14 +168,16 @@ export default function CalendarScreen() {
     setPracticeLoadWarning(null);
     setUsingSavedData(false);
 
-    const [eventCache, announcementCache, classCache, localPracticeActivity] = await Promise.all([
+    const [eventCache, eventCancellationCache, announcementCache, classCache, localPracticeActivity] = await Promise.all([
       readClientResource<UcapsaEvent[]>(cacheScope, clientReadKeys.calendarEvents),
+      readClientResource<EventOccurrenceCancellation[]>(cacheScope, clientReadKeys.calendarEventCancellations),
       readClientResource<Announcement[]>(cacheScope, clientReadKeys.announcements),
       readClientResource<CalendarClassesOfflineSnapshot>(cacheScope, clientReadKeys.calendarClasses),
       user && !isAdmin ? getCachedMyPracticeActivity(user.id) : Promise.resolve(null),
     ]);
 
     if (eventCache) setEvents(eventCache.data);
+    if (eventCancellationCache) setEventCancellations(eventCancellationCache.data);
     if (announcementCache) setAnnouncements(announcementCache.data);
     if (classCache) {
       setPrograms(classCache.data.programs);
@@ -181,13 +185,18 @@ export default function CalendarScreen() {
       setClassCancellations(classCache.data.cancellations);
     }
     if (localPracticeActivity) setPracticeActivity(localPracticeActivity.entries);
-    if (eventCache || announcementCache || classCache || localPracticeActivity) {
-      setSavedAt(eventCache?.saved_at ?? announcementCache?.saved_at ?? classCache?.saved_at ?? localPracticeActivity?.savedAt ?? null);
+    if (eventCache || eventCancellationCache || announcementCache || classCache || localPracticeActivity) {
+      setSavedAt(eventCache?.saved_at ?? eventCancellationCache?.saved_at ?? announcementCache?.saved_at ?? classCache?.saved_at ?? localPracticeActivity?.savedAt ?? null);
       setLoading(false);
     }
 
-    const [eventResult, announcementResult, classResult, practiceResult] = await Promise.allSettled([
+    const [eventResult, eventCancellationResult, announcementResult, classResult, practiceResult] = await Promise.allSettled([
       withOperationTimeout(getVisibleEvents(), DEFAULT_READ_TIMEOUT_MS, 'calendar-events'),
+      withOperationTimeout(
+        getVisibleEventOccurrenceCancellations(),
+        DEFAULT_READ_TIMEOUT_MS,
+        'calendar-event-cancellations',
+      ),
       withOperationTimeout(getVisibleAnnouncements(), DEFAULT_READ_TIMEOUT_MS, 'calendar-announcements'),
       withOperationTimeout(
         Promise.all([getPrograms(), getProgramScheduleTimeline(), getProgramClassCancellations()]),
@@ -203,6 +212,14 @@ export default function CalendarScreen() {
       setEvents(eventResult.value);
       const stored = await writeClientResource(cacheScope, clientReadKeys.calendarEvents, eventResult.value);
       setSavedAt(stored.saved_at);
+    }
+    if (eventCancellationResult.status === 'fulfilled') {
+      setEventCancellations(eventCancellationResult.value);
+      await writeClientResource(
+        cacheScope,
+        clientReadKeys.calendarEventCancellations,
+        eventCancellationResult.value,
+      );
     }
     if (announcementResult.status === 'fulfilled') {
       setAnnouncements(announcementResult.value);
@@ -230,6 +247,7 @@ export default function CalendarScreen() {
     }
 
     const eventFailed = eventResult.status === 'rejected';
+    const eventCancellationFailed = eventCancellationResult.status === 'rejected';
     const announcementFailed = announcementResult.status === 'rejected';
     const classFailed = classResult.status === 'rejected';
     const usablePracticeEntries = practiceResult.status === 'fulfilled'
@@ -245,11 +263,15 @@ export default function CalendarScreen() {
       setError(friendlyReadError('No se pudo cargar el calendario.'));
     } else {
       if (classFailed) setClassLoadWarning('Las clases no se pudieron actualizar.');
-      if (eventFailed || announcementFailed) setPartialLoadWarning('Algunos eventos o anuncios no se pudieron actualizar.');
+      if (eventFailed || eventCancellationFailed || announcementFailed) {
+        setPartialLoadWarning('Algunos eventos, cancelaciones o anuncios no se pudieron actualizar.');
+      }
 
       const staleSource =
         eventFailed && eventCache
           ? eventCache
+          : eventCancellationFailed && eventCancellationCache
+            ? eventCancellationCache
           : announcementFailed && announcementCache
             ? announcementCache
             : classFailed && classCache
@@ -284,7 +306,10 @@ export default function CalendarScreen() {
     setClassesExpanded(false);
   }, [selectedDate]);
 
-  const occurrences = useMemo(() => expandEventOccurrences(events), [events]);
+  const occurrences = useMemo(
+    () => expandEventOccurrences(events, eventCancellations),
+    [eventCancellations, events],
+  );
   const classOccurrences = useMemo(() => expandClassOccurrences(programSchedules, programs, 120, classCancellations), [classCancellations, programSchedules, programs]);
 
   const selectedEvents = useMemo(
@@ -350,7 +375,10 @@ export default function CalendarScreen() {
     return marks;
   }, [announcements, classOccurrences, format.accentDark, format.accentSoft, occurrences, practiceActivity, selectedDate]);
 
-  const upcomingEvents: EventOccurrence[] = useMemo(() => getUpcomingOccurrences(events, 3), [events]);
+  const upcomingEvents: EventOccurrence[] = useMemo(
+    () => getUpcomingOccurrences(events, 3, eventCancellations),
+    [eventCancellations, events],
+  );
   const allSelectedClassesCancelled = selectedClasses.length > 0 && selectedClasses.every((occurrence) => Boolean(occurrence.cancellation));
   const cancelledClassesCount = selectedClasses.filter((occurrence) => Boolean(occurrence.cancellation)).length;
   const activeClassesCount = selectedClasses.length - cancelledClassesCount;
@@ -577,7 +605,11 @@ export default function CalendarScreen() {
                 event={occurrence.event}
                 startDateOverride={occurrence.start_date}
                 occurrenceIndex={occurrence.is_recurring ? occurrence.occurrence_index : undefined}
-                onPress={isAdmin ? () => router.push(`/admin/events?eventId=${occurrence.event.id}` as never) : undefined}
+                onPress={isAdmin
+                  ? () => router.push(
+                      `/admin/events?eventId=${occurrence.event.id}${occurrence.is_recurring ? `&occurrenceStart=${encodeURIComponent(occurrence.start_date)}` : ''}` as never,
+                    )
+                  : undefined}
               />
             ))}
 
@@ -604,7 +636,11 @@ export default function CalendarScreen() {
                     event={occurrence.event}
                     startDateOverride={occurrence.start_date}
                     occurrenceIndex={occurrence.is_recurring ? occurrence.occurrence_index : undefined}
-                    onPress={isAdmin ? () => router.push(`/admin/events?eventId=${occurrence.event.id}` as never) : () => setSelectedDate(toDateKey(occurrence.start_date) ?? selectedDate)}
+                    onPress={isAdmin
+                      ? () => router.push(
+                          `/admin/events?eventId=${occurrence.event.id}${occurrence.is_recurring ? `&occurrenceStart=${encodeURIComponent(occurrence.start_date)}` : ''}` as never,
+                        )
+                      : () => setSelectedDate(toDateKey(occurrence.start_date) ?? selectedDate)}
                   />
                 ))}
               </>
