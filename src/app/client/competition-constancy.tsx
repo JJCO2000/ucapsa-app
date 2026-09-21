@@ -9,6 +9,7 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
+import { devWarn } from '../../lib/client-diagnostics';
 import {
   getCachedMyConstancyDetail,
   refreshMyConstancyDetail,
@@ -115,7 +116,9 @@ export default function ClientCompetitionConstancyScreen() {
   useEffect(() => {
     if (!user || isAdmin || !screenFocused || !localReady || error || !detail?.dog_id || !season?.season_id) return;
     void recordValueExposure(user.id, detail.dog_id, season.season_id, 'constancy_detail')
-      .catch(() => undefined);
+      .catch((cause) => {
+        devWarn('Could not persist constancy detail value exposure.', cause);
+      });
   }, [detail?.dog_id, error, isAdmin, localReady, screenFocused, season?.season_id, user]);
 
   if (!user) return <Redirect href="/auth/login" />;
