@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 
 const sql = fs.readFileSync('supabase/sql/ucapsa-rango-1-training-achievements.sql', 'utf8');
-const service = fs.readFileSync('src/services/achievements.service.ts', 'utf8');
+const service = fs.readFileSync('src/services/achievements-admin.service.ts', 'utf8');
 const adminUi = fs.readFileSync('src/app/admin/customer-achievements.tsx', 'utf8');
 
 const required = [
