@@ -87,13 +87,15 @@ must('src/services/customer-value.service.ts', /sourceId: string \| null;\s*dogI
 must('src/services/customer-value.service.ts', /dogId,\s*dogName:/, 'El snapshot de Inicio dejó de mapear el perro real del logro.');
 
 must('src/services/attendance-outbox.service.ts', /AsyncStorage/, 'El QR perdió la cola local persistente.');
-must('src/services/attendance-outbox.service.ts', /p_client_event_id/, 'El QR perdió la clave idempotente de sincronización.');
-must('src/services/attendance-outbox.service.ts', /p_captured_at/, 'El QR dejó de conservar la hora real de captura offline.');
-mustNot('src/services/attendance-outbox.service.ts', /as never/, 'La cola offline volvió a saltarse los tipos de Supabase.');
+must('src/services/attendance-sync.service.ts', /p_client_event_id/, 'El QR perdió la clave idempotente de sincronización.');
+must('src/services/attendance-sync.service.ts', /p_captured_at/, 'El QR dejó de conservar la hora real de captura offline.');
+for (const rel of ['src/services/attendance-outbox.service.ts', 'src/services/attendance-sync.service.ts']) {
+  mustNot(rel, /as never/, `${rel} volvió a saltarse los tipos de Supabase.`);
+}
 mustNot('src/services/member-visits.service.ts', /as never/, 'Visitas de socio volvió a saltarse los tipos de Supabase.');
 must('src/services/client-offline-sync.service.ts', /flushPendingAttendanceOperations/, 'El arranque dejó de reintentar asistencias y visitas pendientes.');
 must('src/services/attendance-outbox.service.ts', /outboxMutationChains/, 'La cola offline perdió la serialización de mutaciones locales.');
-must('src/services/attendance-outbox.service.ts', /syncInFlightByOperation/, 'La cola offline volvió a permitir sincronizaciones duplicadas simultáneas.');
+must('src/services/attendance-sync.service.ts', /syncInFlightByOperation/, 'La sincronización QR volvió a permitir operaciones duplicadas simultáneas.');
 must('src/app/_layout.tsx', /AppState\.addEventListener\('change'/, 'La app dejó de escuchar el regreso a primer plano para reintentar la cola offline.');
 must('src/app/_layout.tsx', /flushPendingAttendanceOperations\(user\.id\)/, 'La app dejó de reintentar la cola offline al volver a primer plano.');
 must('src/app/attendance.tsx', /queueClassAttendance/, 'El escáner de clases volvió a escribir solo en red.');
