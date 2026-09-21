@@ -10,6 +10,13 @@ const pkg = fs.readFileSync('package.json', 'utf8');
 for (const token of [
   'revoke insert on table public.admin_audit_logs from authenticated',
   'drop policy if exists "audit_logs_admin_insert"',
+  'create or replace function public.guard_program_class_cancellation_history',
+  'trg_guard_program_class_cancellation_history',
+  'create or replace function public.audit_program_class_cancellation_history',
+  'trg_audit_program_class_cancellation_history',
+  "'program_class_cancellation.cancel'",
+  "'program_class_cancellation.restore'",
+  "'program_class_cancellation.link_announcement'",
   'revoke insert on table public.practice_sessions from authenticated',
   'drop policy if exists "practice_sessions_own_insert"',
   'revoke insert, update, delete on table public.program_attendances from authenticated',
