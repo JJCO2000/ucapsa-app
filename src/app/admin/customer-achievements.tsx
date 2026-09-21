@@ -98,7 +98,7 @@ export default function AdminCustomerAchievementsScreen() {
           onPress: async () => {
             try {
               setSavingCode(item.definition.code);
-              await grantTrainingAchievementToDog(selectedDog.id, item.definition.code);
+              await grantTrainingAchievementToDog(userId, selectedDog.id, item.definition.code);
               await load();
               Alert.alert('Logro actualizado', 'El logro formal quedó asociado al perro seleccionado.');
             } catch (cause) {
