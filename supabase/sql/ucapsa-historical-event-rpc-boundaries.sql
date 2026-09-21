@@ -67,7 +67,7 @@ begin
 
   if exists (
     select 1
-    from jsonb_object_keys(v_patch) as key_name
+    from jsonb_object_keys(v_patch) as keys(key_name)
     where key_name not in (
       'amount',
       'notes',
