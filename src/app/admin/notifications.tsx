@@ -8,7 +8,7 @@ import { ucapsaBrand } from '../../constants/brand';
 import {
   ADMIN_NOTIFICATION_BODY_MAX_LENGTH,
   ADMIN_NOTIFICATION_TITLE_MAX_LENGTH,
-  deleteAdminNotificationCampaign,
+  archiveAdminNotificationCampaign,
   getAdminNotificationCampaigns,
   prepareAdminNotification,
   sendPreparedAdminNotification,
@@ -158,7 +158,7 @@ export default function AdminNotificationsScreen() {
         onPress: async () => {
           try {
             setDeletingId(campaign.id);
-            await deleteAdminNotificationCampaign(campaign.id);
+            await archiveAdminNotificationCampaign(campaign.id);
             setCampaigns((current) => current.filter((item) => item.id !== campaign.id));
           } catch (cause) {
             Alert.alert('No se pudo quitar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
