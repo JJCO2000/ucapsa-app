@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 
 const sql = fs.readFileSync('supabase/sql/ucapsa-rls-overlap-final-cleanup.sql', 'utf8');
+const adminContentSql = fs.readFileSync('supabase/sql/ucapsa-rls-admin-content-select-hardening.sql', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
 
 const required = [
@@ -48,6 +49,35 @@ for (const token of [
   if (!sql.includes(token)) {
     throw new Error('Final RLS cleanup lost authorization predicate: ' + token);
   }
+}
+
+for (const policyName of [
+  'announcements_authenticated_select_by_audience',
+  'events_authenticated_select_by_audience',
+]) {
+  if (!adminContentSql.includes('drop policy if exists "' + policyName + '"')
+      || !adminContentSql.includes('create policy "' + policyName + '"')) {
+    throw new Error('Admin content SELECT hardening missing policy replacement: ' + policyName);
+  }
+}
+
+for (const tableName of ['announcements', 'events']) {
+  const pattern = new RegExp(
+    'create\\s+policy\\s+"' + tableName + '_authenticated_select_by_audience"[\\s\\S]*?'
+      + 'using\\s*\\(\\s*public\\.is_admin\\(\\)\\s*or\\s*\\([\\s\\S]*?'
+      + 'is_published\\s*=\\s*true[\\s\\S]*?archived_at\\s+is\\s+null',
+    'i',
+  );
+  if (!pattern.test(adminContentSql)) {
+    throw new Error(
+      'Authenticated ' + tableName
+      + ' SELECT must let admins bypass published/archive visibility while keeping client filters.',
+    );
+  }
+}
+
+if (/create\\s+policy[\\s\\S]*?to\\s+anon/i.test(adminContentSql)) {
+  throw new Error('Admin content SELECT hardening must not broaden anonymous policies.');
 }
 
 if (!pkg.includes('"check:rls-overlap-final"')) {
