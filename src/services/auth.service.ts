@@ -1,8 +1,9 @@
-import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
+import type { AuthChangeEvent, EmailOtpType, Session } from '@supabase/supabase-js';
 
 import { supabase } from '../lib/supabase';
 
 export const AUTH_PASSWORD_MIN_LENGTH = 12;
+export const PASSWORD_RECOVERY_REDIRECT_URL = 'ucapsaapp://auth/update-password';
 
 type SignUpInput = {
   email: string;
@@ -41,7 +42,82 @@ export async function signUpWithEmail({ email, password, fullName }: SignUpInput
 }
 
 export async function resetPasswordForEmail(email: string) {
-  return supabase.auth.resetPasswordForEmail(normalizeAuthEmail(email));
+  return supabase.auth.resetPasswordForEmail(normalizeAuthEmail(email), {
+    redirectTo: PASSWORD_RECOVERY_REDIRECT_URL,
+  });
+}
+
+function readAuthUrlParams(url: string) {
+  const params = new URLSearchParams();
+  const queryAt = url.indexOf('?');
+  const hashAt = url.indexOf('#');
+
+  const queryEnd = hashAt >= 0 && hashAt > queryAt ? hashAt : url.length;
+  if (queryAt >= 0) {
+    const query = url.slice(queryAt + 1, queryEnd);
+    for (const [key, value] of new URLSearchParams(query)) params.set(key, value);
+  }
+
+  if (hashAt >= 0) {
+    const hash = url.slice(hashAt + 1);
+    for (const [key, value] of new URLSearchParams(hash)) params.set(key, value);
+  }
+
+  return params;
+}
+
+export async function establishPasswordRecoverySession(url: string) {
+  const params = readAuthUrlParams(url);
+  const errorDescription = params.get('error_description') ?? params.get('error');
+  if (errorDescription) throw new Error(errorDescription);
+
+  const type = params.get('type');
+  if (type && type !== 'recovery') {
+    throw new Error('Este enlace no corresponde a recuperación de contraseña.');
+  }
+
+  const accessToken = params.get('access_token');
+  const refreshToken = params.get('refresh_token');
+  if (accessToken && refreshToken) {
+    const { data, error } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+    if (error) throw error;
+    if (!data.session) throw new Error('El enlace de recuperación no creó una sesión válida.');
+    return data.session;
+  }
+
+  const code = params.get('code');
+  if (code) {
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) throw error;
+    if (!data.session) throw new Error('El enlace de recuperación no creó una sesión válida.');
+    return data.session;
+  }
+
+  const tokenHash = params.get('token_hash');
+  if (tokenHash && type === 'recovery') {
+    const { data, error } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: type as EmailOtpType,
+    });
+    if (error) throw error;
+    if (!data.session) throw new Error('El enlace de recuperación no creó una sesión válida.');
+    return data.session;
+  }
+
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw error;
+  if (data.session) return data.session;
+
+  throw new Error('El enlace de recuperación está incompleto o venció.');
+}
+
+export async function updateCurrentUserPassword(password: string) {
+  const validationError = validateNewPassword(password);
+  if (validationError) throw new Error(validationError);
+  return supabase.auth.updateUser({ password });
 }
 
 export async function signOut() {
