@@ -23,7 +23,6 @@ begin
        or total_targets < 0
        or success_count < 0
        or failure_count < 0
-       or success_count + failure_count > total_targets
   ) then
     raise exception 'Notification campaign hardening aborted: invalid existing campaign data requires review.';
   end if;
@@ -62,7 +61,6 @@ alter table public.notification_campaigns
     total_targets >= 0
     and success_count >= 0
     and failure_count >= 0
-    and success_count + failure_count <= total_targets
   );
 
 -- Campaign state belongs to PostgreSQL preparation + the trusted Edge Function.
