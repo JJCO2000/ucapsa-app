@@ -4,6 +4,7 @@ const sql = fs.readFileSync('supabase/sql/ucapsa-business-history-no-delete.sql'
 const progressionSql = fs.readFileSync('supabase/sql/ucapsa-program-progression-history-preservation.sql', 'utf8');
 const achievementHistorySql = fs.readFileSync('supabase/sql/ucapsa-training-achievement-history-hardening.sql', 'utf8');
 const attendanceVisitAuditSql = fs.readFileSync('supabase/sql/ucapsa-attendance-visit-delete-audit.sql', 'utf8');
+const attendanceVisitCorrectionAuditSql = fs.readFileSync('supabase/sql/ucapsa-attendance-visit-correction-audit.sql', 'utf8');
 const trainingAchievementSql = fs.readFileSync('supabase/sql/ucapsa-rango-1-training-achievements.sql', 'utf8');
 const coursePathSql = fs.readFileSync('supabase/sql/ucapsa-course-path-and-points-access.sql', 'utf8');
 const legacyProgressionSql = fs.readFileSync('supabase/sql/ucapsa-membership-lifetime-and-comandos-progression.sql', 'utf8');
@@ -123,6 +124,61 @@ for (const token of [
 ]) {
   if (!attendanceVisitAuditSql.toLowerCase().includes(token.toLowerCase())) {
     throw new Error('Attendance/visit correction audit contract missing: ' + token);
+  }
+}
+
+for (const token of [
+  'create or replace function public.correct_program_attendance_admin',
+  'create or replace function public.correct_member_visit_admin',
+  "'program_attendance.correct'",
+  "'member_visit.correct'",
+  "'before', to_jsonb(v_attendance)",
+  "'after', to_jsonb(v_after)",
+  "'before', to_jsonb(v_before)",
+  'insert into public.admin_audit_logs',
+  'for update',
+]) {
+  if (!attendanceVisitCorrectionAuditSql.toLowerCase().includes(token.toLowerCase())) {
+    throw new Error('Attendance/visit correction audit contract missing: ' + token);
+  }
+}
+
+for (const [name, functionToken, updateToken, actionToken] of [
+  [
+    'program attendance',
+    'create or replace function public.correct_program_attendance_admin',
+    'update public.program_attendances',
+    "'program_attendance.correct'",
+  ],
+  [
+    'member visit',
+    'create or replace function public.correct_member_visit_admin',
+    'update public.member_visits',
+    "'member_visit.correct'",
+  ],
+]) {
+  const lower = attendanceVisitCorrectionAuditSql.toLowerCase();
+  const start = lower.indexOf(functionToken);
+  const nextFunction = lower.indexOf(
+    'create or replace function public.',
+    start + functionToken.length,
+  );
+  const body = lower.slice(start, nextFunction >= 0 ? nextFunction : undefined);
+  const lockAt = body.indexOf('for update');
+  const updateAt = body.indexOf(updateToken);
+  const auditAt = body.indexOf(actionToken);
+
+  if (
+    start < 0
+    || lockAt < 0
+    || updateAt < 0
+    || auditAt < 0
+    || lockAt > updateAt
+    || updateAt > auditAt
+  ) {
+    throw new Error(
+      name + ' correction must lock the original row, mutate it, then atomically append audit evidence.',
+    );
   }
 }
 
