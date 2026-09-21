@@ -464,7 +464,20 @@ export default function CalendarScreen() {
                 <Text style={[styles.sectionTitle, { color: isPremium ? ucapsaBrand.colors.surface : ucapsaBrand.colors.cameraDark }]}>Agenda del dia</Text>
                 <Text style={[styles.sectionSubtitle, { color: isPremium ? ucapsaBrand.colors.premiumMuted : ucapsaBrand.colors.mutedNeutral }]}>{formatDateKey(selectedDate)}</Text>
               </View>
-              <Text style={styles.sectionCount}>{dayCount}</Text>
+              <View style={styles.sectionHeaderActions}>
+                {selectedDate !== todayKey() ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Ir a hoy"
+                    style={styles.todayButton}
+                    onPress={() => setSelectedDate(todayKey())}
+                  >
+                    <MaterialIcons name="today" size={16} color={ucapsaBrand.colors.redDark} />
+                    <Text style={styles.todayButtonText}>Hoy</Text>
+                  </Pressable>
+                ) : null}
+                <Text style={styles.sectionCount}>{dayCount}</Text>
+              </View>
             </View>
 
             {dayCount === 0 ? (
@@ -657,7 +670,10 @@ const styles = StyleSheet.create({
   errorText: { color: ucapsaBrand.colors.premiumActionText, fontSize: 14 },
   secondaryButton: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, backgroundColor: ucapsaBrand.colors.surface },
   secondaryButtonText: { color: ucapsaBrand.colors.redDark, fontWeight: '900' },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4, gap: 10 },
+  sectionHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  todayButton: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: 34, paddingHorizontal: 10, borderRadius: 999, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, backgroundColor: ucapsaBrand.colors.surface },
+  todayButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 11, fontWeight: '900' },
   sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 20, fontWeight: '900' },
   sectionSubtitle: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '700', marginTop: 2 },
   sectionCount: { overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, color: ucapsaBrand.colors.redDark, backgroundColor: ucapsaBrand.colors.redSoft, fontSize: 12, fontWeight: '900' },
