@@ -451,6 +451,32 @@ Deno.serve(async (req) => {
         .eq('id', deliveryId)
         .eq('status', 'sending');
 
+      const expoErrorCode = typeof ticket.details?.error === 'string'
+        ? ticket.details.error
+        : null;
+
+      if (expoErrorCode === 'DeviceNotRegistered') {
+        const disabledAt = new Date().toISOString();
+        const { error: disableTokenError } = await serviceClient
+          .from('notification_tokens')
+          .update({
+            is_active: false,
+            disabled_at: disabledAt,
+            updated_at: disabledAt,
+          })
+          .eq('id', recipient.id)
+          .eq('expo_push_token', recipient.expo_push_token)
+          .eq('is_active', true);
+
+        if (disableTokenError) {
+          console.warn(
+            'Could not disable DeviceNotRegistered Expo token.',
+            recipient.id,
+            disableTokenError.message,
+          );
+        }
+      }
+
       return { error };
     });
 

@@ -139,11 +139,13 @@ export async function getAdminNotificationCampaigns(limit = 3): Promise<Notifica
   return (data ?? []) as NotificationCampaign[];
 }
 
-export async function deleteAdminNotificationCampaign(campaignId: string): Promise<void> {
-  const { error } = await supabase
-    .from('notification_campaigns')
-    .update({ archived_at: new Date().toISOString() })
-    .eq('id', campaignId);
+export async function archiveAdminNotificationCampaign(campaignId: string): Promise<void> {
+  const id = campaignId.trim();
+  if (!id) throw new Error('Falta la campaña que quieres archivar.');
+
+  const { error } = await supabase.rpc('admin_archive_notification_campaign', {
+    p_campaign_id: id,
+  });
 
   if (error) throw error;
 }
