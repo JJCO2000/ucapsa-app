@@ -51,9 +51,9 @@ if (!/recordValueExposure\(user\.id, detail\.dog_id, season\.season_id, 'constan
   failures.push('Detalle Cliente no registra apertura durable de Constancia.');
 }
 if (
-  !/void recordValueExposure[\s\S]{0,360}\.catch\(/.test(summary)
+  !/void\s+recordValueExposure\([\s\S]*?\)\s*\.catch\(/.test(summary)
   || !summary.includes('Could not persist constancy summary value exposure.')
-  || !/void recordValueExposure[\s\S]{0,360}\.catch\(/.test(detail)
+  || !/void\s+recordValueExposure\([\s\S]*?\)\s*\.catch\(/.test(detail)
   || !detail.includes('Could not persist constancy detail value exposure.')
 ) {
   failures.push('Tracking de exposición debe seguir no bloqueante y observable para Cliente.');
