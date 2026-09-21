@@ -20,7 +20,7 @@ create or replace function public.guard_program_class_cancellation_history()
 returns trigger
 language plpgsql
 set search_path = public
-as $
+as $$
 begin
   if auth.uid() is null then
     return new;
@@ -67,7 +67,7 @@ begin
 
   return new;
 end;
-$;
+$$;
 
 revoke all on function public.guard_program_class_cancellation_history()
   from public, anon, authenticated;
@@ -84,7 +84,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 declare
   v_action text;
 begin
@@ -117,7 +117,7 @@ begin
 
   return new;
 end;
-$;
+$$;
 
 revoke all on function public.audit_program_class_cancellation_history()
   from public, anon, authenticated;
