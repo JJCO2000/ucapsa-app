@@ -55,6 +55,18 @@ if (!/resetPasswordForEmail[\s\S]{0,260}redirectTo:\s*PASSWORD_RECOVERY_REDIRECT
   throw new Error('Password recovery email lost its mobile redirect target.');
 }
 
+const recoveryStart = service.indexOf('export async function establishPasswordRecoverySession');
+const recoveryEnd = service.indexOf('export async function updateCurrentUserPassword', recoveryStart);
+const recoveryContract = recoveryStart >= 0 && recoveryEnd > recoveryStart
+  ? service.slice(recoveryStart, recoveryEnd)
+  : '';
+if (!recoveryContract || /auth\.getSession\(/.test(recoveryContract)) {
+  throw new Error('Password recovery must not fall back to an unrelated existing session.');
+}
+if (/useSession\(|Boolean\(user\)|if \(user\)/.test(updatePassword)) {
+  throw new Error('Update-password route must not trust a normal signed-in session as recovery proof.');
+}
+
 for (const token of [
   'Linking.useLinkingURL()',
   'establishPasswordRecoverySession',

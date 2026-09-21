@@ -107,10 +107,8 @@ export async function establishPasswordRecoverySession(url: string) {
     return data.session;
   }
 
-  const { data, error } = await supabase.auth.getSession();
-  if (error) throw error;
-  if (data.session) return data.session;
-
+  // Never fall back to an unrelated already-authenticated session here.
+  // This route is recovery-only and must prove recovery context from the link.
   throw new Error('El enlace de recuperación está incompleto o venció.');
 }
 

@@ -5,7 +5,6 @@ import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-nativ
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
-import { useSession } from '../../hooks/useSession';
 import {
   AUTH_PASSWORD_MIN_LENGTH,
   establishPasswordRecoverySession,
@@ -15,23 +14,14 @@ import {
 
 export default function UpdatePasswordScreen() {
   const recoveryUrl = Linking.useLinkingURL();
-  const { user } = useSession();
   const [linkError, setLinkError] = useState<string | null>(null);
-  const [linkReady, setLinkReady] = useState(Boolean(user));
+  const [linkReady, setLinkReady] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     let active = true;
-
-    if (user) {
-      setLinkReady(true);
-      setLinkError(null);
-      return () => {
-        active = false;
-      };
-    }
 
     if (!recoveryUrl) {
       setLinkReady(false);
@@ -60,7 +50,7 @@ export default function UpdatePasswordScreen() {
     return () => {
       active = false;
     };
-  }, [recoveryUrl, user]);
+  }, [recoveryUrl]);
 
   async function savePassword() {
     const validationError = validateNewPassword(password);
