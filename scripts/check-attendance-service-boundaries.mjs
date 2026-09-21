@@ -15,7 +15,7 @@ for (const token of [
   'discardAttendanceOperation',
   'queueClassAttendance',
   'queueMemberVisit',
-  'outboxMutationChains',
+  'createKeyedMutationSerializer',
   'createOfflineUuid',
 ]) {
   if (!outbox.includes(token)) {
@@ -23,7 +23,7 @@ for (const token of [
   }
 }
 
-if (/lib\/supabase|\bsupabase\.|registerMyMemberVisitFromQr|withOperationTimeout|syncInFlightByOperation/.test(outbox)) {
+if (/lib\/supabase|\bsupabase\.|registerMyMemberVisitFromQr|withOperationTimeout|createKeyedInFlightCoalescer/.test(outbox)) {
   throw new Error('Attendance outbox regained remote synchronization responsibility.');
 }
 
@@ -34,7 +34,7 @@ for (const token of [
   'register_program_attendance_from_qr',
   'p_client_event_id',
   'p_captured_at',
-  'syncInFlightByOperation',
+  'createKeyedInFlightCoalescer',
   'syncAttendanceOperation',
   'confirmPendingClassAttendance',
   'flushPendingAttendanceOperations',
