@@ -4680,6 +4680,34 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      admin_correct_payment: {
+        Args: { p_patch: Json; p_payment_id: string }
+        Returns: {
+          amount: number
+          concept: string
+          created_at: string
+          id: string
+          membership_id: string | null
+          notes: string | null
+          obligation_id: string | null
+          paid_at: string | null
+          payment_method: string | null
+          period_label: string | null
+          registered_by: string | null
+          status: Database["public"]["Enums"]["payment_status"]
+          updated_at: string
+          user_id: string
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       admin_create_basic_dog: {
         Args: { p_name: string; p_user_id: string }
         Returns: {

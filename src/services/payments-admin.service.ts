@@ -1,6 +1,5 @@
 import { supabase } from '../lib/supabase';
-import type { Database } from '../types/database.generated';
-import type { TableUpdate } from '../types/database.helpers';
+import type { Database, Json } from '../types/database.generated';
 import type { Payment } from '../types/app.types';
 
 export type AdminPaymentAttentionRow = {
@@ -156,24 +155,26 @@ export async function updateCustomerPayment(
     throw new Error('El monto del pago debe ser mayor a cero.');
   }
 
-  const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if ('amount' in input) payload.amount = input.amount;
-  if ('notes' in input) payload.notes = input.notes?.trim() || null;
-  if ('periodLabel' in input) payload.period_label = input.periodLabel?.trim() || null;
-  if ('paymentMethod' in input) payload.payment_method = input.paymentMethod?.trim() || 'manual';
-  if ('obligationId' in input) payload.obligation_id = input.obligationId || null;
-  if ('paidAt' in input) payload.paid_at = input.paidAt || new Date().toISOString();
-  if ('concept' in input) payload.concept = input.concept?.trim() || 'Pago manual';
+  const patch: Record<string, Json | undefined> = {};
+  if ('amount' in input) patch.amount = input.amount;
+  if ('notes' in input) patch.notes = input.notes?.trim() || null;
+  if ('periodLabel' in input) patch.period_label = input.periodLabel?.trim() || null;
+  if ('paymentMethod' in input) patch.payment_method = input.paymentMethod?.trim() || 'manual';
+  if ('obligationId' in input) patch.obligation_id = input.obligationId || null;
+  if ('paidAt' in input) patch.paid_at = input.paidAt || new Date().toISOString();
+  if ('concept' in input) patch.concept = input.concept?.trim() || 'Pago manual';
 
-  const { data, error } = await supabase
-    .from('payments')
-    .update(payload as TableUpdate<'payments'>)
-    .eq('id', paymentId)
-    .is('voided_at', null)
-    .select('*')
-    .single();
+  if (Object.keys(patch).length === 0) {
+    throw new Error('No hay cambios que aplicar al pago.');
+  }
+
+  const { data, error } = await supabase.rpc('admin_correct_payment', {
+    p_payment_id: paymentId,
+    p_patch: patch as Json,
+  });
 
   if (error) throw error;
+  if (!data) throw new Error('Supabase no devolvió el pago corregido.');
   return data as Payment;
 }
 
