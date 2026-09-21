@@ -84,6 +84,7 @@ if (Object.prototype.hasOwnProperty.call(overrides, 'nanoid')) {
 
 const expo = app.expo ?? {};
 const android = expo.android ?? {};
+const ios = expo.ios ?? {};
 const blocked = new Set(android.blockedPermissions ?? []);
 for (const permission of [
   'android.permission.RECORD_AUDIO',
@@ -97,6 +98,55 @@ if (android.allowBackup !== false) {
 }
 if (!android.package || android.package === 'com.placeholder.appid') {
   fail('Falta android.package de produccion.');
+}
+
+if (ios.bundleIdentifier !== 'com.jjcc2000.ucapsaapp') {
+  fail(`iOS bundleIdentifier debe ser com.jjcc2000.ucapsaapp: ${ios.bundleIdentifier ?? 'missing'}`);
+}
+if (ios.supportsTablet !== false) {
+  fail('iOS supportsTablet debe permanecer false mientras UCAPSA se publique solo para iPhone.');
+}
+if (ios.config?.usesNonExemptEncryption !== false) {
+  fail('iOS usesNonExemptEncryption debe ser false mientras UCAPSA solo use cifrado exento/estandar del sistema.');
+}
+
+const iosIconPath = typeof ios.icon === 'string' ? ios.icon.replace(/^\.\//, '') : '';
+const iosIconFile = iosIconPath ? path.join(root, iosIconPath) : '';
+if (!iosIconFile || !fs.existsSync(iosIconFile)) {
+  fail('Falta el icono iOS configurado.');
+} else {
+  const png = fs.readFileSync(iosIconFile);
+  const isPng = png.length >= 26 && png.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  if (!isPng) {
+    fail('El icono iOS debe ser PNG.');
+  } else {
+    const width = png.readUInt32BE(16);
+    const height = png.readUInt32BE(20);
+    const colorType = png[25];
+    let hasTransparencyChunk = false;
+    for (let offset = 8; offset + 12 <= png.length;) {
+      const length = png.readUInt32BE(offset);
+      const type = png.toString('ascii', offset + 4, offset + 8);
+      if (type === 'tRNS') hasTransparencyChunk = true;
+      offset += 12 + length;
+      if (type === 'IEND') break;
+    }
+    if (width !== 1024 || height !== 1024) {
+      fail(`El icono iOS debe ser 1024x1024: ${width}x${height}`);
+    }
+    if (colorType === 4 || colorType === 6 || hasTransparencyChunk) {
+      fail('El icono iOS no debe contener transparencia.');
+    }
+  }
+}
+
+const splash = pluginConfig(expo.plugins ?? [], 'expo-splash-screen');
+if (!splash) {
+  fail('Falta config plugin expo-splash-screen.');
+} else {
+  if (splash.backgroundColor !== '#C91F37') fail('El splash debe conservar el rojo UCAPSA #C91F37.');
+  if (splash.ios?.image !== './assets/images/splash-icon.png') fail('iOS debe usar el logo canónico de splash de UCAPSA.');
+  if (splash.ios?.imageWidth !== 76) fail('iOS debe conservar imageWidth 76 en el splash.');
 }
 
 const camera = pluginConfig(expo.plugins ?? [], 'expo-camera');
@@ -157,15 +207,11 @@ if (/console\.log\s*\(/.test(notificationService)) {
   fail('admin-notifications.service.ts sigue escribiendo detalles de Edge Function con console.log.');
 }
 
-if (!expo?.ios?.bundleIdentifier) {
-  notes.push('iOS: no hay bundleIdentifier definitivo. No bloquea el release Android del Paso 10.');
-}
-
 if (failures.length) {
   console.error('RELEASE CHECK FAIL:');
   for (const item of failures) console.error(`- ${item}`);
   process.exit(1);
 }
 
-console.log('RELEASE CHECK OK: SDK 57/RN 0.86.2+, permisos Android, notificaciones, dependencias, iconos, EAS y EAS Update revisados.');
+console.log('RELEASE CHECK OK: SDK 57/RN 0.86.2+, Android/iOS, notificaciones, dependencias, iconos, EAS y EAS Update revisados.');
 for (const note of notes) console.log(`NOTE: ${note}`);

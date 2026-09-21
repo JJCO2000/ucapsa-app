@@ -14,7 +14,12 @@
       "url": "https://u.expo.dev/9c843f3d-169a-4e32-a437-a780878ec8e0"
     },
     "ios": {
-      "icon": "./assets/images/icon.png"
+      "icon": "./assets/images/icon.png",
+      "bundleIdentifier": "com.jjcc2000.ucapsaapp",
+      "supportsTablet": false,
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -45,6 +50,10 @@
         {
           "backgroundColor": "#C91F37",
           "android": {
+            "image": "./assets/images/splash-icon.png",
+            "imageWidth": 76
+          },
+          "ios": {
             "image": "./assets/images/splash-icon.png",
             "imageWidth": 76
           }
