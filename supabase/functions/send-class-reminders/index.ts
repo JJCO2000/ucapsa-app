@@ -355,6 +355,21 @@ Deno.serve(async (req) => {
     });
   }
 
+  if (!reminderTargets.length) {
+    return jsonResponse({
+      campaign_id: null,
+      class_date: classDateKey,
+      reminder_type: reminderType,
+      target_schedules: targetSchedules.length,
+      candidate_enrollments: candidateEnrollments.length,
+      total_targets: 0,
+      success_count: 0,
+      failure_count: 0,
+      status: 'no_targets',
+      message: 'No hay destinatarios activos para recordatorios de clase.',
+    });
+  }
+
   const { data: campaign, error: campaignError } = await serviceClient
     .from('notification_campaigns')
     .insert({
@@ -362,7 +377,7 @@ Deno.serve(async (req) => {
       body: 'Recordatorio automatico de clases UCAPSA.',
       audience: 'clients',
       category: 'classes',
-      status: reminderTargets.length ? 'draft' : 'no_targets',
+      status: 'draft',
       total_targets: 0,
       created_by: userId,
       metadata: {
@@ -379,21 +394,6 @@ Deno.serve(async (req) => {
     .single();
 
   if (campaignError) return jsonResponse({ error: campaignError.message }, 500);
-
-  if (!reminderTargets.length) {
-    return jsonResponse({
-      campaign_id: campaign.id,
-      class_date: classDateKey,
-      reminder_type: reminderType,
-      target_schedules: targetSchedules.length,
-      candidate_enrollments: candidateEnrollments.length,
-      total_targets: 0,
-      success_count: 0,
-      failure_count: 0,
-      status: 'no_targets',
-      message: 'No hay destinatarios activos para recordatorios de clase.',
-    });
-  }
 
   const lockKeyFor = (enrollment: EnrollmentRow) =>
     `${enrollment.id}:${enrollment.schedule_id}:${classDateKey}:${reminderType}`;
