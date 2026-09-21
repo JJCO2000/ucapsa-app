@@ -72,11 +72,15 @@ for (const token of [
   'getPublishedPrivacyNotice',
   'privacyNotice.simplified_notice',
   'href="/privacy"',
-  'disabled={loading || !privacyNotice}',
+  'disabled={loading}',
 ]) {
   if (!register.includes(token)) {
-    throw new Error('Registration no longer presents/gates on the published privacy notice: ' + token);
+    throw new Error('Registration no longer preserves the optional published privacy notice UI: ' + token);
   }
+}
+
+if (/disabled=\{loading\s*\|\|\s*!privacyNotice\}/.test(register) || /if\s*\(\s*!privacyNotice\s*\)/.test(register)) {
+  throw new Error('Testing registration must not be blocked by a missing published privacy notice.');
 }
 
 if (!accountSettings.includes("router.push('/privacy' as never)")) {
