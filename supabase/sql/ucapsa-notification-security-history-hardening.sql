@@ -15,9 +15,11 @@ begin
     select 1
     from public.notification_campaigns
     where btrim(title) = ''
-       or char_length(title) > 80
        or btrim(body) = ''
-       or char_length(body) > 180
+       or (
+         coalesce(metadata ->> 'source', '') = 'admin_manual'
+         and (char_length(title) > 80 or char_length(body) > 180)
+       )
        or total_targets < 0
        or success_count < 0
        or failure_count < 0
@@ -32,13 +34,25 @@ alter table public.notification_campaigns
   drop constraint if exists notification_campaigns_title_check;
 alter table public.notification_campaigns
   add constraint notification_campaigns_title_check
-  check (btrim(title) <> '' and char_length(title) <= 80);
+  check (
+    btrim(title) <> ''
+    and (
+      coalesce(metadata ->> 'source', '') <> 'admin_manual'
+      or char_length(title) <= 80
+    )
+  );
 
 alter table public.notification_campaigns
   drop constraint if exists notification_campaigns_body_check;
 alter table public.notification_campaigns
   add constraint notification_campaigns_body_check
-  check (btrim(body) <> '' and char_length(body) <= 180);
+  check (
+    btrim(body) <> ''
+    and (
+      coalesce(metadata ->> 'source', '') <> 'admin_manual'
+      or char_length(body) <= 180
+    )
+  );
 
 alter table public.notification_campaigns
   drop constraint if exists notification_campaigns_counts_check;
