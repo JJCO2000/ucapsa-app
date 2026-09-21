@@ -15,6 +15,7 @@ import type { MembershipPaymentStatus, MembershipStatus, ProgramCode, ProgramEnr
 import { getAchievementsForUser } from './achievements.service';
 import { getCurrentSession } from './auth.service';
 import { getMemberVisitSummaryForUser } from './member-visits.service';
+import { getVisibleEventOccurrenceCancellations } from './event-occurrence-cancellations.service';
 import { getVisibleEvents } from './events.service';
 import { getMyMembership, isMembershipActiveToday } from './memberships.service';
 import { getMyPaymentOverview } from './payments.service';
@@ -38,6 +39,7 @@ export type CustomerValueSourceKey =
   | 'achievements'
   | 'practice'
   | 'events'
+  | 'event_cancellations'
   | 'schedules'
   | 'cancellations';
 
@@ -308,7 +310,19 @@ export async function getMyCustomerValueSnapshot(): Promise<CustomerValueSnapsho
   const userId = sessionData.session?.user.id;
   if (!userId) throw new Error('No hay sesion activa.');
 
-  const [profileSource, membershipSource, programsSource, paymentsSource, visitsSource, achievementsSource, practiceSource, eventsSource, timelineSource, cancellationsSource] = await Promise.all([
+  const [
+    profileSource,
+    membershipSource,
+    programsSource,
+    paymentsSource,
+    visitsSource,
+    achievementsSource,
+    practiceSource,
+    eventsSource,
+    eventCancellationsSource,
+    timelineSource,
+    cancellationsSource,
+  ] = await Promise.all([
     safeSource(() => getProfileByUserId(userId)),
     safeSource(() => getMyMembership()),
     safeSource(() => getMyProgramEnrollments()),
@@ -317,6 +331,7 @@ export async function getMyCustomerValueSnapshot(): Promise<CustomerValueSnapsho
     safeSource(() => getAchievementsForUser(userId)),
     safeSource(() => getCachedMyPracticeActivity(userId)),
     safeSource(() => getVisibleEvents()),
+    safeSource(() => getVisibleEventOccurrenceCancellations()),
     safeSource(() => getProgramScheduleTimeline()),
     safeSource(() => getProgramClassCancellations()),
   ]);
@@ -329,7 +344,8 @@ export async function getMyCustomerValueSnapshot(): Promise<CustomerValueSnapsho
   const practice = practiceSource.value;
   const achievements = achievementsSource.value ?? [];
   const events = eventsSource.value ?? [];
-  const nextOccurrence = getUpcomingOccurrences(events, 1)[0] ?? null;
+  const eventCancellations = eventCancellationsSource.value ?? [];
+  const nextOccurrence = getUpcomingOccurrences(events, 1, eventCancellations)[0] ?? null;
   const nextPayment = paymentOverview?.obligations[0] ?? null;
   const dogNameById = new Map<string, string>();
   for (const item of programs) {
@@ -356,6 +372,7 @@ export async function getMyCustomerValueSnapshot(): Promise<CustomerValueSnapsho
     achievements: achievementsSource.status,
     practice: practiceSource.status === 'ok' ? (practice ? 'ok' : 'missing') : 'error',
     events: eventsSource.status,
+    event_cancellations: eventCancellationsSource.status,
     schedules: timelineSource.status,
     cancellations: cancellationsSource.status,
   };
