@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { devWarn } from '../lib/client-diagnostics';
 import { getErrorMessage } from '../utils/async.utils';
+import { createKeyedMutationSerializer } from '../utils/keyed-async.utils';
 import { createOfflineUuid } from '../utils/offline-id.utils';
 
 export type AttendanceOutboxState = 'pending' | 'needs_confirmation' | 'rejected';
@@ -32,7 +33,7 @@ export type PendingAttendanceOperation =
   | PendingMemberVisitOperation;
 
 const ATTENDANCE_OUTBOX_PREFIX = 'ucapsa:attendance-outbox:v1:';
-const outboxMutationChains = new Map<string, Promise<unknown>>();
+const serializeOutboxMutation = createKeyedMutationSerializer();
 
 function outboxKey(userId: string) {
   return `${ATTENDANCE_OUTBOX_PREFIX}${userId}`;
@@ -117,30 +118,6 @@ async function writeOutbox(
       `No se pudo guardar el registro pendiente en este dispositivo: ${getErrorMessage(error)}`,
     );
   }
-}
-
-function serializeOutboxMutation<T>(
-  userId: string,
-  mutation: () => Promise<T>,
-): Promise<T> {
-  const previous = outboxMutationChains.get(userId) ?? Promise.resolve();
-  const current = previous.catch(() => undefined).then(mutation);
-  outboxMutationChains.set(userId, current);
-
-  current.then(
-    () => {
-      if (outboxMutationChains.get(userId) === current) {
-        outboxMutationChains.delete(userId);
-      }
-    },
-    () => {
-      if (outboxMutationChains.get(userId) === current) {
-        outboxMutationChains.delete(userId);
-      }
-    },
-  );
-
-  return current;
 }
 
 export async function replaceAttendanceOperation(

@@ -67,8 +67,8 @@ for (const rel of [
 must('src/services/attendance-outbox.service.ts', /AsyncStorage/, 'La cola QR dejó de ser persistente.');
 must('src/services/attendance-sync.service.ts', /p_client_event_id/, 'La sincronización QR perdió client_event_id.');
 must('src/services/attendance-sync.service.ts', /p_captured_at/, 'La sincronización QR dejó de conservar la hora de captura.');
-must('src/services/attendance-outbox.service.ts', /outboxMutationChains/, 'La cola QR perdió serialización de mutaciones.');
-must('src/services/attendance-sync.service.ts', /syncInFlightByOperation/, 'La sincronización QR perdió deduplicación de operaciones simultáneas.');
+must('src/services/attendance-outbox.service.ts', /createKeyedMutationSerializer/, 'La cola QR perdió serialización canónica de mutaciones.');
+must('src/services/attendance-sync.service.ts', /createKeyedInFlightCoalescer/, 'La sincronización QR perdió deduplicación canónica de operaciones simultáneas.');
 must('src/services/attendance-sync.service.ts', /networkFailure = isLikelyNetworkError\(error\)/, 'La sincronización QR dejó de distinguir caída de red de error específico de una operación.');
 must('src/services/attendance-sync.service.ts', /result\.status === 'pending' && result\.networkFailure[\s\S]{0,80}break/, 'La sincronización QR volvió a bloquear el lote ante cualquier error pendiente.');
 must('src/services/attendance-sync.service.ts', /try \{[\s\S]{0,160}await replaceAttendanceOperation\(operation\.userId, next\)[\s\S]{0,160}catch(?:\s*\([^)]*\))?\s*\{[\s\S]{0,320}no conviertas ese fallo[\s\S]{0,320}return \{/, 'Un fallo al actualizar metadatos locales volvió a poder abortar el sync QR.');

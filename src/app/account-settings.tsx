@@ -10,6 +10,7 @@ import { OfflineDataNotice } from '../components/ui/OfflineDataNotice';
 import { resolveUcapsaFormat } from '../constants/ucapsaFormats';
 import { ucapsaBrand, withAlpha } from '../constants/brand';
 import { useSession } from '../hooks/useSession';
+import { devWarn } from '../lib/client-diagnostics';
 import { getAccountDeletionStatusLabel, getMyAccountDeletionRequest, isAccountDeletionOpen, requestMyAccountDeletion, type AccountDeletionRequest } from '../services/account-deletion.service';
 import { requestMyEmailChange, updateMyProfile } from '../services/profiles.service';
 import { DEFAULT_WRITE_TIMEOUT_MS, friendlyWriteError, withOperationTimeout } from '../utils/async.utils';
@@ -69,8 +70,9 @@ export default function AccountSettingsScreen() {
       .then((request) => {
         if (active) setDeletionRequest(request);
       })
-      .catch(() => {
+      .catch((error) => {
         // La sección sigue disponible aunque temporalmente no pueda leer el estado remoto.
+        devWarn('Could not refresh account deletion status in settings.', error);
       })
       .finally(() => {
         if (active) setDeletionLoading(false);

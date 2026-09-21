@@ -11,6 +11,7 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
+import { devWarn } from '../../lib/client-diagnostics';
 import { getMembershipEffectiveStatus, getMembershipStatusLabel, getMyMembership, getMyMembershipEligibility, requestMembership, type MembershipEligibility } from '../../services/memberships.service';
 import { clientReadKeys, createMembershipOfflineSummary, readClientResource, sanitizeProgramRowsForCache, writeClientResource, type MembershipOfflineSummary } from '../../services/client-read-cache.service';
 import { getMyProgramEnrollments } from '../../services/programs.service';
@@ -143,7 +144,9 @@ export default function ClientMembershipScreen() {
       // La solicitud ya esta confirmada. Estas lecturas son solo para completar
       // datos secundarios y no deben convertir el exito en un falso error.
       void load();
-      void refreshProfile().catch(() => undefined);
+      void refreshProfile().catch((cause) => {
+        devWarn('Could not refresh profile after membership request.', cause);
+      });
       Alert.alert('Solicitud enviada', 'Administracion revisara tu membresia.');
     } catch (err) {
       Alert.alert('No se pudo enviar', err instanceof Error ? err.message : 'Intenta de nuevo.');

@@ -6,6 +6,7 @@ import {
   isLikelyNetworkError,
   withOperationTimeout,
 } from '../utils/async.utils';
+import { createKeyedInFlightCoalescer } from '../utils/keyed-async.utils';
 import {
   discardAttendanceOperation,
   readAttendanceOutboxStrict,
@@ -25,7 +26,7 @@ export type AttendanceSyncResult = {
   networkFailure?: boolean;
 };
 
-const syncInFlightByOperation = new Map<string, Promise<AttendanceSyncResult>>();
+const coalesceAttendanceSync = createKeyedInFlightCoalescer<AttendanceSyncResult>();
 
 async function registerQueuedClass(
   operation: PendingClassAttendanceOperation,
@@ -159,24 +160,7 @@ function syncOperation(
   operation: PendingAttendanceOperation,
 ): Promise<AttendanceSyncResult> {
   const key = `${operation.userId}:${operation.id}`;
-  const inFlight = syncInFlightByOperation.get(key);
-  if (inFlight) return inFlight;
-
-  const current = syncOperationOnce(operation);
-  syncInFlightByOperation.set(key, current);
-  current.then(
-    () => {
-      if (syncInFlightByOperation.get(key) === current) {
-        syncInFlightByOperation.delete(key);
-      }
-    },
-    () => {
-      if (syncInFlightByOperation.get(key) === current) {
-        syncInFlightByOperation.delete(key);
-      }
-    },
-  );
-  return current;
+  return coalesceAttendanceSync(key, () => syncOperationOnce(operation));
 }
 
 export async function syncAttendanceOperation(
