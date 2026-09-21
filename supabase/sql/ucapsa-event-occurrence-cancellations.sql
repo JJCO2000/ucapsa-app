@@ -181,4 +181,4 @@ revoke all on table public.event_occurrence_cancellations
   from public, anon, authenticated;
 grant select on table public.event_occurrence_cancellations to anon;
 grant select, insert, update on table public.event_occurrence_cancellations to authenticated;
-grant all on table public.event_occurrence_cancellations to service_role;
+grant select, insert, update on table public.event_occurrence_cancellations to service_role;
