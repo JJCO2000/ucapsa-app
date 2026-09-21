@@ -26,6 +26,99 @@ create index if not exists event_occurrence_cancellations_event_active_idx
   on public.event_occurrence_cancellations(event_id, occurrence_start)
   where restored_at is null;
 
+create or replace function public.guard_event_occurrence_cancellation_update()
+returns trigger
+language plpgsql
+set search_path = public
+as $
+begin
+  if auth.uid() is null then
+    return new;
+  end if;
+
+  if old.id is distinct from new.id
+     or old.event_id is distinct from new.event_id
+     or old.occurrence_start is distinct from new.occurrence_start
+     or old.created_at is distinct from new.created_at then
+    raise exception 'No se puede cambiar la identidad histórica de una cancelación de evento.';
+  end if;
+
+  -- Mientras la cancelación sigue activa, quién/cuándo la creó son hechos
+  -- históricos inmutables. Si estaba restaurada, una nueva cancelación puede
+  -- reactivar la misma clave y registrar un nuevo actor/momento; el trigger de
+  -- auditoría conserva el before/after de esa transición.
+  if old.restored_at is null
+     and (
+       old.cancelled_at is distinct from new.cancelled_at
+       or old.cancelled_by is distinct from new.cancelled_by
+     ) then
+    raise exception 'La autoría de una cancelación activa no se puede reescribir.';
+  end if;
+
+  return new;
+end;
+$;
+
+revoke all on function public.guard_event_occurrence_cancellation_update()
+  from public, anon, authenticated;
+
+drop trigger if exists trg_guard_event_occurrence_cancellation_update
+  on public.event_occurrence_cancellations;
+create trigger trg_guard_event_occurrence_cancellation_update
+before update on public.event_occurrence_cancellations
+for each row
+execute function public.guard_event_occurrence_cancellation_update();
+
+create or replace function public.audit_event_occurrence_cancellation_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $
+declare
+  v_action text;
+begin
+  if tg_op = 'INSERT' then
+    v_action := 'event_occurrence.cancel';
+  elsif old.restored_at is null and new.restored_at is not null then
+    v_action := 'event_occurrence.restore';
+  elsif old.restored_at is not null and new.restored_at is null then
+    v_action := 'event_occurrence.reactivate';
+  else
+    v_action := 'event_occurrence.update';
+  end if;
+
+  insert into public.admin_audit_logs (
+    admin_user_id,
+    action,
+    entity_type,
+    entity_id,
+    details
+  ) values (
+    auth.uid(),
+    v_action,
+    'event_occurrence_cancellation',
+    new.id,
+    jsonb_build_object(
+      'before', case when tg_op = 'UPDATE' then to_jsonb(old) else null end,
+      'after', to_jsonb(new)
+    )
+  );
+
+  return new;
+end;
+$;
+
+revoke all on function public.audit_event_occurrence_cancellation_change()
+  from public, anon, authenticated;
+
+drop trigger if exists trg_audit_event_occurrence_cancellation_change
+  on public.event_occurrence_cancellations;
+create trigger trg_audit_event_occurrence_cancellation_change
+after insert or update on public.event_occurrence_cancellations
+for each row
+execute function public.audit_event_occurrence_cancellation_change();
+
 alter table public.event_occurrence_cancellations enable row level security;
 
 drop policy if exists "event_occurrence_cancellations_anon_select_public"
