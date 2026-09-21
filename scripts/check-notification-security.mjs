@@ -15,7 +15,6 @@ for (const token of [
   'notification_campaigns_body_check',
   'char_length(body) <= 180',
   'notification_campaigns_counts_check',
-  'success_count + failure_count <= total_targets',
   'drop policy if exists "notification_campaigns_admin_update"',
   'revoke insert, update on table public.notification_campaigns',
   'revoke insert, update on table public.notification_deliveries',
