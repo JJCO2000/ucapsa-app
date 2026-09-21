@@ -105,6 +105,12 @@ export async function updateMembershipDetails(
   const now = new Date().toISOString();
   const payload: TableUpdate<'memberships'> = { updated_at: now };
 
+  if ('status' in input && input.status === 'active') {
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError) throw authError;
+    payload.approved_by = authData.user?.id ?? null;
+  }
+
   if ('memberNumber' in input) {
     payload.member_number = input.memberNumber?.trim() || null;
   }
