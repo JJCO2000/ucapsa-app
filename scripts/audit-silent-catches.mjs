@@ -210,6 +210,16 @@ for (const absolute of walk(sourceRoot)) {
   for (const handler of findPromiseCatchHandlers(text)) {
     promiseCatches += 1;
     const kind = classifyPromiseCatch(handler.handler);
+
+    // El serializador canónico necesita encadenar una mutación nueva aunque la
+    // mutación anterior haya fallado. Ese catch no descarta una operación de
+    // negocio: sólo evita que una promesa rechazada bloquee para siempre la cola.
+    if (
+      rel === 'src/utils/keyed-async.utils.ts'
+      && kind === 'PROMISE_SILENT_REVIEW'
+      && /=>\s*undefined\s*;?\s*$/.test(stripComments(handler.handler))
+    ) continue;
+
     if ([
       'PROMISE_DIAGNOSTIC',
       'PROMISE_RETHROW',
@@ -244,9 +254,9 @@ for (const item of promiseFindings) {
   console.log(`- ${item.kind} ${item.file}:${item.line} :: ${item.body || '(empty after comments)'}`);
 }
 
-if (findings.length > 0) {
-  console.error('SILENT CATCH AUDIT FAIL: cada catch debe relanzar, comunicar degradación, registrar diagnóstico o expresar fallback/estado/retry de forma explícita.');
+if (findings.length > 0 || promiseFindings.length > 0) {
+  console.error('SILENT CATCH AUDIT FAIL: cada catch y Promise.catch debe relanzar, comunicar degradación, registrar diagnóstico o expresar fallback/estado/retry de forma explícita.');
   process.exit(1);
 }
 
-console.log('SILENT CATCH AUDIT PASS: todos los catch tienen una salida explícita o diagnóstica.');
+console.log('SILENT CATCH AUDIT PASS: todos los catch y Promise.catch tienen una salida explícita o diagnóstica.');
