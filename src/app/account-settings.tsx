@@ -10,7 +10,6 @@ import { OfflineDataNotice } from '../components/ui/OfflineDataNotice';
 import { resolveUcapsaFormat } from '../constants/ucapsaFormats';
 import { ucapsaBrand, withAlpha } from '../constants/brand';
 import { useSession } from '../hooks/useSession';
-import { devWarn } from '../lib/client-diagnostics';
 import { deleteMyAccount } from '../services/account-deletion.service';
 import { requestMyEmailChange, updateMyProfile } from '../services/profiles.service';
 import { DEFAULT_WRITE_TIMEOUT_MS, friendlyWriteError, withOperationTimeout } from '../utils/async.utils';
