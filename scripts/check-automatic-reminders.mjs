@@ -29,6 +29,11 @@ if (announcementDeliveryInsert < 0 || announcementFetch < 0 || announcementDeliv
 for (const token of [
   'card_started_on',
   'card_expires_on',
+  "date.getUTCFullYear() === year",
+  "date.getUTCMonth() === month - 1",
+  "date.getUTCDate() === day",
+  "target_date inválido.",
+  "Math.trunc(Number(payload.days_ahead))",
   "classDateKey >= String(enrollment.card_started_on)",
   "classDateKey <= String(enrollment.card_expires_on)",
   "serviceClient.rpc('get_internal_cron_secret')",
