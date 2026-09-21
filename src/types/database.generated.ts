@@ -598,6 +598,53 @@ export type Database = {
         }
         Relationships: []
       }
+      event_occurrence_cancellations: {
+        Row: {
+          cancelled_at: string
+          cancelled_by: string | null
+          created_at: string
+          event_id: string
+          id: string
+          occurrence_start: string
+          reason: string | null
+          restored_at: string | null
+          restored_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          cancelled_at?: string
+          cancelled_by?: string | null
+          created_at?: string
+          event_id: string
+          id?: string
+          occurrence_start: string
+          reason?: string | null
+          restored_at?: string | null
+          restored_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cancelled_at?: string
+          cancelled_by?: string | null
+          created_at?: string
+          event_id?: string
+          id?: string
+          occurrence_start?: string
+          reason?: string | null
+          restored_at?: string | null
+          restored_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_occurrence_cancellations_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
           archived_at: string | null
@@ -666,53 +713,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
-      }
-      event_occurrence_cancellations: {
-        Row: {
-          cancelled_at: string
-          cancelled_by: string | null
-          created_at: string
-          event_id: string
-          id: string
-          occurrence_start: string
-          reason: string | null
-          restored_at: string | null
-          restored_by: string | null
-          updated_at: string
-        }
-        Insert: {
-          cancelled_at?: string
-          cancelled_by?: string | null
-          created_at?: string
-          event_id: string
-          id?: string
-          occurrence_start: string
-          reason?: string | null
-          restored_at?: string | null
-          restored_by?: string | null
-          updated_at?: string
-        }
-        Update: {
-          cancelled_at?: string
-          cancelled_by?: string | null
-          created_at?: string
-          event_id?: string
-          id?: string
-          occurrence_start?: string
-          reason?: string | null
-          restored_at?: string | null
-          restored_by?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "event_occurrence_cancellations_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       feature_flags: {
         Row: {
@@ -4598,6 +4598,32 @@ export type Database = {
           total_points: number
         }[]
       }
+      admin_archive_notification_campaign: {
+        Args: { p_campaign_id: string }
+        Returns: {
+          archived_at: string | null
+          audience: string
+          body: string
+          category: string
+          created_at: string
+          created_by: string | null
+          failure_count: number
+          id: string
+          metadata: Json
+          sent_at: string | null
+          status: string
+          success_count: number
+          title: string
+          total_targets: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "notification_campaigns"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       admin_change_program_schedule_from_date: {
         Args: {
           p_change_note?: string
@@ -4713,32 +4739,6 @@ export type Database = {
       admin_grant_ucapsa_training_achievement: {
         Args: { p_achievement_code: string; p_dog_id: string }
         Returns: string
-      }
-      admin_archive_notification_campaign: {
-        Args: { p_campaign_id: string }
-        Returns: {
-          archived_at: string | null
-          audience: string
-          body: string
-          category: string
-          created_at: string
-          created_by: string | null
-          failure_count: number
-          id: string
-          metadata: Json
-          sent_at: string | null
-          status: string
-          success_count: number
-          title: string
-          total_targets: number
-          updated_at: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "notification_campaigns"
-          isOneToOne: true
-          isSetofReturn: false
-        }
       }
       admin_prepare_notification_campaign: {
         Args: {
@@ -4859,6 +4859,13 @@ export type Database = {
       admin_reopen_ucapsa_competition_season: {
         Args: { p_season_id: string }
         Returns: string
+      }
+      admin_replace_announcement_reminders: {
+        Args: { p_announcement_id: string; p_reminders: Json }
+        Returns: {
+          metadata: Json
+          status: string
+        }[]
       }
       admin_reverse_ucapsa_competition_adjustment: {
         Args: { p_adjustment_id: string; p_note?: string }
