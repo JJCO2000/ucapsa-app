@@ -264,7 +264,7 @@ export default function AccountSettingsScreen() {
         <View style={[styles.sectionCard, premium && styles.premiumCard, styles.deleteCard]}>
           <Text style={[styles.sectionTitle, premium && styles.premiumTitle]}>Eliminar cuenta</Text>
           <Text style={[styles.muted, premium && styles.premiumText]}>
-            La eliminación es permanente. Se borrarán tu acceso y los datos asociados a esta cuenta de prueba.
+            La eliminación es permanente. Se borrarán tu acceso y los datos asociados a esta cuenta.
           </Text>
           <Pressable
             disabled={deletingAccount}
