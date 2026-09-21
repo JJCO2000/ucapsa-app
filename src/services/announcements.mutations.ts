@@ -18,12 +18,20 @@ function normalizeAnnouncement(announcement: unknown): Announcement {
   return announcement as Announcement;
 }
 
+function normalizeRequiredAnnouncementText(value: string, label: 'titulo' | 'contenido') {
+  const text = value.trim();
+  if (!text) {
+    throw new Error(label === 'titulo' ? 'Agrega un titulo al anuncio.' : 'Agrega contenido al anuncio.');
+  }
+  return text;
+}
+
 export async function createAnnouncement(input: AnnouncementFormInput): Promise<Announcement> {
   const { data: userResult } = await supabase.auth.getUser();
 
   const payload = {
-    title: input.title.trim(),
-    content: input.content.trim(),
+    title: normalizeRequiredAnnouncementText(input.title, 'titulo'),
+    content: normalizeRequiredAnnouncementText(input.content, 'contenido'),
     audience: input.audience,
     is_pinned: input.is_pinned ?? false,
     is_published: input.is_published ?? true,
@@ -50,8 +58,12 @@ export async function updateAnnouncement(
 ): Promise<Announcement> {
   const payload: Record<string, unknown> = {};
 
-  if (input.title !== undefined) payload.title = input.title.trim();
-  if (input.content !== undefined) payload.content = input.content.trim();
+  if (input.title !== undefined) {
+    payload.title = normalizeRequiredAnnouncementText(input.title, 'titulo');
+  }
+  if (input.content !== undefined) {
+    payload.content = normalizeRequiredAnnouncementText(input.content, 'contenido');
+  }
   if (input.audience !== undefined) payload.audience = input.audience;
   if (input.is_pinned !== undefined) payload.is_pinned = input.is_pinned;
   if (input.is_published !== undefined) payload.is_published = input.is_published;
