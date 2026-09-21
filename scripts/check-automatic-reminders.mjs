@@ -2,6 +2,7 @@ import fs from 'node:fs';
 
 const announcementEdge = fs.readFileSync('supabase/functions/send-announcement-reminders/index.ts', 'utf8');
 const classEdge = fs.readFileSync('supabase/functions/send-class-reminders/index.ts', 'utf8');
+const cancellationEdge = fs.readFileSync('supabase/functions/send-class-cancellation/index.ts', 'utf8');
 const cronSql = fs.readFileSync('supabase/sql/ucapsa-class-reminders-cron.sql', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
 
@@ -69,6 +70,52 @@ const dryRunAt = classEdge.indexOf("if (dryRun)");
 const campaignInsertAt = classEdge.indexOf(".from('notification_campaigns')", dryRunAt);
 if (dryRunAt < 0 || campaignInsertAt < 0 || dryRunAt > campaignInsertAt) {
   throw new Error('Class reminder dry-run must finish before campaign side effects.');
+}
+
+for (const token of [
+  'card_started_on',
+  'card_expires_on',
+  "date.getUTCFullYear() === year",
+  "date.getUTCMonth() === month - 1",
+  "date.getUTCDate() === day",
+  "cancellationDate >= String(enrollment.card_started_on)",
+  "cancellationDate <= String(enrollment.card_expires_on)",
+  "lock.status !== 'failed'",
+  "ignoreDuplicates: true",
+  "campaign_id: null",
+  "status: 'dry_run'",
+  'no se crearon campañas, locks ni entregas',
+  'deliveryTargetByTokenId',
+  'cancellations: [{ enrollment, schedule, program }]',
+  "status: 'queued'",
+  ".insert(queuedRows)",
+  ".update({ status: 'sending' })",
+  "expoErrorCode === 'DeviceNotRegistered'",
+  'total_targets: deliveryTargets.length',
+]) {
+  if (!cancellationEdge.includes(token)) {
+    throw new Error('Class cancellation safety contract missing: ' + token);
+  }
+}
+
+if (/const deliveryTargets = cancellationTargets\.flatMap/.test(cancellationEdge)) {
+  throw new Error('Class cancellations regressed to one delivery per enrollment instead of one per token.');
+}
+
+const cancellationDeliveryInsert = cancellationEdge.indexOf(".insert(queuedRows)");
+const cancellationFetch = cancellationEdge.indexOf("fetch('https://exp.host/--/api/v2/push/send'");
+if (cancellationDeliveryInsert < 0 || cancellationFetch < 0 || cancellationDeliveryInsert > cancellationFetch) {
+  throw new Error('Class cancellations must persist delivery evidence before Expo.');
+}
+
+const cancellationDryRunAt = cancellationEdge.indexOf("if (dryRun)");
+const cancellationCampaignInsertAt = cancellationEdge.indexOf(".from('notification_campaigns')", cancellationDryRunAt);
+if (
+  cancellationDryRunAt < 0
+  || cancellationCampaignInsertAt < 0
+  || cancellationDryRunAt > cancellationCampaignInsertAt
+) {
+  throw new Error('Class cancellation dry-run must finish before campaign side effects.');
 }
 
 for (const token of [
