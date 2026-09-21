@@ -6,7 +6,7 @@ import { AppState } from 'react-native';
 import { LoadingScreen } from '../components/ui/LoadingScreen';
 import { devWarn } from '../lib/client-diagnostics';
 import { SessionProvider, useSession } from '../hooks/useSession';
-import { flushPendingAttendanceOperations } from '../services/attendance-outbox.service';
+import { flushPendingAttendanceOperations } from '../services/attendance-sync.service';
 import { warmClientOfflineData } from '../services/client-offline-sync.service';
 import { flushPendingPracticeSessions } from '../services/practice.service';
 import { flushPendingValueExposures } from '../services/value-exposure-outbox.service';
