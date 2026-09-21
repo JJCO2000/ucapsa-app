@@ -23,6 +23,7 @@ import {
 import { getAdminEvents } from '../../services/events.service';
 import { getProgramClassCancellationByAnnouncementId } from '../../services/programs.service';
 import type { Announcement, AudienceType, UcapsaColorKey, UcapsaEvent, UcapsaPriority } from '../../types/app.types';
+import { parseDateKey, toDateKey, todayKey } from '../../utils/events.utils';
 
 type AnnouncementFilter = 'active' | 'drafts' | 'archived';
 type ReminderLoadState = 'idle' | 'loading' | 'ready' | 'failed';
@@ -67,14 +68,6 @@ const colors: Array<{ value: UcapsaColorKey; label: string }> = [
 
 const reminderPresets = [0, 1, 3, 7];
 
-function localDateKey(date = new Date()) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-function todayKey() {
-  return localDateKey();
-}
-
 function emptyForm(): FormState {
   return {
     title: '',
@@ -94,16 +87,16 @@ function emptyForm(): FormState {
 }
 
 function dateKey(value: string | null | undefined) {
-  if (!value) return todayKey();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? todayKey() : localDateKey(date);
+  return toDateKey(value) ?? todayKey();
 }
 
 function formatDate(value: string | null | undefined) {
   if (!value) return 'Sin fecha';
-  const date = new Date(`${dateKey(value)}T12:00:00`);
-  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+  const key = toDateKey(value);
+  const date = key ? parseDateKey(key) : null;
+  return date
+    ? date.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
+    : String(value);
 }
 
 function statusLabel(item: Announcement) {
