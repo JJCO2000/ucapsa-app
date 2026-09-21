@@ -87,6 +87,7 @@ export default function AdminCustomerAchievementsScreen() {
   function grantTraining(item: AchievementWithState) {
     if (item.unlocked || !profile || !selectedDog) return;
     if (!isProgramCompletionAchievementCode(item.definition.code)) return;
+    const achievementCode = item.definition.code;
 
     Alert.alert(
       'Otorgar logro de entrenamiento',
@@ -97,8 +98,8 @@ export default function AdminCustomerAchievementsScreen() {
           text: 'Otorgar logro',
           onPress: async () => {
             try {
-              setSavingCode(item.definition.code);
-              await grantTrainingAchievementToDog(userId, selectedDog.id, item.definition.code);
+              setSavingCode(achievementCode);
+              await grantTrainingAchievementToDog(userId, selectedDog.id, achievementCode);
               await load();
               Alert.alert('Logro actualizado', 'El logro formal quedó asociado al perro seleccionado.');
             } catch (cause) {
