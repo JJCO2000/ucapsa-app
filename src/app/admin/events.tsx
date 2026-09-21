@@ -8,6 +8,11 @@ import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import {
+  cancelEventOccurrences,
+  getAdminEventOccurrenceCancellations,
+  restoreEventOccurrenceCancellation,
+} from '../../services/event-occurrence-cancellations.service';
+import {
   archiveEvent,
   createEvent,
   getAdminEvents,
@@ -15,8 +20,15 @@ import {
   setEventPublished,
   updateEvent,
 } from '../../services/events.service';
-import type { AudienceType, EventRepeatType, UcapsaColorKey, UcapsaEvent, UcapsaPriority } from '../../types/app.types';
-import { buildLocalIso, toDateKey, toTimeValue, todayKey } from '../../utils/events.utils';
+import type {
+  AudienceType,
+  EventOccurrenceCancellation,
+  EventRepeatType,
+  UcapsaColorKey,
+  UcapsaEvent,
+  UcapsaPriority,
+} from '../../types/app.types';
+import { buildLocalIso, expandEventOccurrences, toDateKey, toTimeValue, todayKey } from '../../utils/events.utils';
 
 type EventFilter = 'active' | 'drafts' | 'archived';
 type DateTarget = 'start' | 'end' | null;
@@ -124,10 +136,19 @@ function statusLabel(item: UcapsaEvent) {
   return item.is_published ? 'Publicado' : 'Borrador';
 }
 
+function normalizeInstant(value: string | null | undefined) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
 export default function AdminEventsScreen() {
-  const params = useLocalSearchParams<{ eventId?: string }>();
+  const params = useLocalSearchParams<{ eventId?: string; occurrenceStart?: string }>();
   const openedParam = useRef<string | null>(null);
   const [items, setItems] = useState<UcapsaEvent[]>([]);
+  const [eventCancellations, setEventCancellations] = useState<EventOccurrenceCancellation[]>([]);
+  const [cancellationLoadError, setCancellationLoadError] = useState<string | null>(null);
+  const [selectedOccurrenceStart, setSelectedOccurrenceStart] = useState<string | null>(null);
   const [filter, setFilter] = useState<EventFilter>('active');
   const [selected, setSelected] = useState<UcapsaEvent | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm());
@@ -140,24 +161,45 @@ export default function AdminEventsScreen() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    try {
-      setItems(await getAdminEvents());
-    } catch (cause) {
-      Alert.alert('No se pudieron cargar eventos', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
-    } finally {
-      setLoading(false);
+    const [eventResult, cancellationResult] = await Promise.allSettled([
+      getAdminEvents(),
+      getAdminEventOccurrenceCancellations(),
+    ]);
+
+    if (eventResult.status === 'fulfilled') {
+      setItems(eventResult.value);
+    } else {
+      Alert.alert(
+        'No se pudieron cargar eventos',
+        eventResult.reason instanceof Error ? eventResult.reason.message : 'Intenta de nuevo.',
+      );
     }
+
+    if (cancellationResult.status === 'fulfilled') {
+      setEventCancellations(cancellationResult.value);
+      setCancellationLoadError(null);
+    } else {
+      setCancellationLoadError(
+        cancellationResult.reason instanceof Error
+          ? cancellationResult.reason.message
+          : 'No se pudieron cargar las cancelaciones de ocurrencias.',
+      );
+    }
+
+    setLoading(false);
   }, []);
 
   useFocusEffect(useCallback(() => { void load(); return undefined; }, [load]));
 
   useEffect(() => {
-    if (!params.eventId || openedParam.current === params.eventId || items.length === 0) return;
+    if (!params.eventId || items.length === 0) return;
+    const requestKey = `${params.eventId}:${params.occurrenceStart ?? ''}`;
+    if (openedParam.current === requestKey) return;
     const target = items.find((item) => item.id === params.eventId);
     if (!target) return;
-    openedParam.current = params.eventId;
-    openEdit(target);
-  }, [items, params.eventId]);
+    openedParam.current = requestKey;
+    openEdit(target, params.occurrenceStart);
+  }, [items, params.eventId, params.occurrenceStart]);
 
   const filtered = useMemo(() => items.filter((item) => {
     if (filter === 'archived') return Boolean(item.archived_at);
@@ -166,16 +208,50 @@ export default function AdminEventsScreen() {
     return item.is_published;
   }), [filter, items]);
 
+  const selectedSeriesOccurrences = useMemo(
+    () => selected ? expandEventOccurrences([selected]) : [],
+    [selected],
+  );
+
+  const selectedActiveCancellations = useMemo(
+    () => selected
+      ? eventCancellations
+          .filter((item) => item.event_id === selected.id && !item.restored_at)
+          .sort((a, b) => new Date(a.occurrence_start).getTime() - new Date(b.occurrence_start).getTime())
+      : [],
+    [eventCancellations, selected],
+  );
+
+  const selectedOccurrence = useMemo(() => {
+    if (!selectedOccurrenceStart) return null;
+    return selectedSeriesOccurrences.find(
+      (occurrence) => normalizeInstant(occurrence.start_date) === selectedOccurrenceStart,
+    ) ?? null;
+  }, [selectedOccurrenceStart, selectedSeriesOccurrences]);
+
+  const selectedOccurrenceCancellation = useMemo(() => {
+    if (!selectedOccurrenceStart) return null;
+    return selectedActiveCancellations.find(
+      (item) => normalizeInstant(item.occurrence_start) === selectedOccurrenceStart,
+    ) ?? null;
+  }, [selectedActiveCancellations, selectedOccurrenceStart]);
+
   function openNew() {
     setSelected(null);
+    setSelectedOccurrenceStart(null);
     setForm(emptyForm());
     setCalendarTarget(null);
     setOptionsOpen(false);
     setEditorOpen(true);
   }
 
-  function openEdit(item: UcapsaEvent) {
+  function openEdit(item: UcapsaEvent, occurrenceStart?: string | null) {
     setSelected(item);
+    setSelectedOccurrenceStart(
+      item.repeat_type && item.repeat_type !== 'none'
+        ? normalizeInstant(occurrenceStart)
+        : null,
+    );
     setForm({
       title: item.title,
       description: item.description ?? '',
@@ -248,6 +324,66 @@ export default function AdminEventsScreen() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function refreshOccurrenceCancellations() {
+    try {
+      const next = await getAdminEventOccurrenceCancellations();
+      setEventCancellations(next);
+      setCancellationLoadError(null);
+    } catch (cause) {
+      setCancellationLoadError(
+        cause instanceof Error ? cause.message : 'No se pudieron cargar las cancelaciones.',
+      );
+      throw cause;
+    }
+  }
+
+  async function runOccurrenceAction(action: () => Promise<unknown>) {
+    try {
+      setSaving(true);
+      await action();
+      await refreshOccurrenceCancellations();
+    } catch (cause) {
+      Alert.alert(
+        'No se pudo actualizar la ocurrencia',
+        cause instanceof Error ? cause.message : 'Intenta de nuevo.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function confirmCancelOccurrence(includeFollowing: boolean) {
+    if (!selected || !selectedOccurrence) return;
+    const selectedIndex = selectedSeriesOccurrences.findIndex(
+      (occurrence) => occurrence.id === selectedOccurrence.id,
+    );
+    if (selectedIndex < 0) return;
+
+    const targets = includeFollowing
+      ? selectedSeriesOccurrences.slice(selectedIndex)
+      : [selectedOccurrence];
+
+    Alert.alert(
+      includeFollowing ? 'Cancelar desde esta ocurrencia' : 'Cancelar esta ocurrencia',
+      includeFollowing
+        ? `Se cancelarán ${targets.length} ocurrencia${targets.length === 1 ? '' : 's'} de esta serie. El evento base no se elimina.`
+        : 'Esta fecha dejará de aparecer en el calendario. El evento base no se elimina.',
+      [
+        { text: 'Volver', style: 'cancel' },
+        {
+          text: 'Cancelar ocurrencia',
+          style: 'destructive',
+          onPress: () => void runOccurrenceAction(
+            () => cancelEventOccurrences(
+              selected.id,
+              targets.map((occurrence) => occurrence.start_date),
+            ),
+          ),
+        },
+      ],
+    );
   }
 
   return (
@@ -334,6 +470,95 @@ export default function AdminEventsScreen() {
         <View style={styles.wrapRow}>{repeatOptions.map((option) => <Choice key={option.value} label={option.label} active={form.repeat_type === option.value} onPress={() => setForm((current) => ({ ...current, repeat_type: option.value }))} />)}</View>
         {form.repeat_type === 'custom_days' ? <TextInput value={form.repeat_interval_days} onChangeText={(repeat_interval_days) => setForm((current) => ({ ...current, repeat_interval_days }))} placeholder="Cada cuantos dias" keyboardType="number-pad" style={styles.input} /> : null}
         {form.repeat_type !== 'none' ? <TextInput value={form.repeat_limit} onChangeText={(repeat_limit) => setForm((current) => ({ ...current, repeat_limit }))} placeholder="Numero de repeticiones, maximo 10" keyboardType="number-pad" style={styles.input} /> : null}
+
+        {selected && (selected.repeat_type ?? 'none') !== 'none' ? (
+          <View style={styles.cancellationSection}>
+            <View style={styles.cancellationHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cancellationTitle}>Excepciones de la serie</Text>
+                <Text style={styles.cancellationHint}>Cancela una fecha sin archivar ni romper el evento completo.</Text>
+              </View>
+              <MaterialIcons name="event-busy" size={20} color={ucapsaBrand.colors.redDark} />
+            </View>
+
+            {cancellationLoadError ? (
+              <View style={styles.cancellationWarning}>
+                <Text style={styles.cancellationWarningText}>No se pudieron verificar las cancelaciones.</Text>
+                <Pressable disabled={saving} onPress={() => void refreshOccurrenceCancellations()}>
+                  <Text style={styles.cancellationRetry}>Reintentar</Text>
+                </Pressable>
+              </View>
+            ) : selectedOccurrence ? (
+              <View style={styles.selectedOccurrenceBox}>
+                <Text style={styles.selectedOccurrenceLabel}>Ocurrencia seleccionada</Text>
+                <Text style={styles.selectedOccurrenceDate}>
+                  {formatDate(selectedOccurrence.start_date, selected.has_time ?? true)}
+                </Text>
+                <View style={styles.actionRow}>
+                  {selectedOccurrenceCancellation ? (
+                    <Pressable
+                      disabled={saving}
+                      style={styles.secondaryAction}
+                      onPress={() => void runOccurrenceAction(
+                        () => restoreEventOccurrenceCancellation(selectedOccurrenceCancellation.id),
+                      )}
+                    >
+                      <Text style={styles.secondaryActionText}>Restaurar esta fecha</Text>
+                    </Pressable>
+                  ) : (
+                    <>
+                      <Pressable
+                        disabled={saving}
+                        style={styles.secondaryAction}
+                        onPress={() => confirmCancelOccurrence(false)}
+                      >
+                        <Text style={styles.secondaryActionText}>Cancelar esta</Text>
+                      </Pressable>
+                      <Pressable
+                        disabled={saving}
+                        style={styles.secondaryAction}
+                        onPress={() => confirmCancelOccurrence(true)}
+                      >
+                        <Text style={styles.secondaryActionText}>Cancelar desde esta</Text>
+                      </Pressable>
+                    </>
+                  )}
+                </View>
+              </View>
+            ) : selectedOccurrenceStart ? (
+              <Text style={styles.cancellationWarningText}>
+                La ocurrencia seleccionada ya no pertenece a la serie actual.
+              </Text>
+            ) : (
+              <Text style={styles.cancellationHint}>
+                Abre una ocurrencia desde Calendario para cancelar sólo esa fecha o desde esa fecha en adelante.
+              </Text>
+            )}
+
+            {selectedActiveCancellations.length > 0 ? (
+              <View style={styles.cancelledList}>
+                <Text style={styles.cancelledListTitle}>Fechas canceladas</Text>
+                {selectedActiveCancellations.map((item) => (
+                  <View key={item.id} style={styles.cancelledRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.cancelledDate}>{formatDate(item.occurrence_start, selected.has_time ?? true)}</Text>
+                      {item.reason ? <Text style={styles.cancellationHint}>{item.reason}</Text> : null}
+                    </View>
+                    <Pressable
+                      disabled={saving}
+                      style={styles.restoreButton}
+                      onPress={() => void runOccurrenceAction(
+                        () => restoreEventOccurrenceCancellation(item.id),
+                      )}
+                    >
+                      <Text style={styles.restoreButtonText}>Restaurar</Text>
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </View>
+        ) : null}
 
         <Pressable style={styles.sectionToggle} onPress={() => setOptionsOpen((value) => !value)}><Text style={styles.sectionToggleText}>Opciones</Text><MaterialIcons name={optionsOpen ? 'expand-less' : 'expand-more'} size={21} color={ucapsaBrand.colors.surface} /></Pressable>
         {optionsOpen ? (
@@ -431,6 +656,22 @@ const styles = StyleSheet.create({
   switchLineLight: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   primary: { alignItems: 'center', borderRadius: 14, backgroundColor: ucapsaBrand.colors.red, paddingVertical: 13, marginTop: 9 },
   primaryText: { color: ucapsaBrand.colors.surface, fontSize: 13, fontWeight: '900' },
+  cancellationSection: { gap: 9, marginTop: 12, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, backgroundColor: ucapsaBrand.colors.surface, padding: 12 },
+  cancellationHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  cancellationTitle: { color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '900' },
+  cancellationHint: { color: ucapsaBrand.colors.muted, fontSize: 10, lineHeight: 15, fontWeight: '700' },
+  cancellationWarning: { gap: 5, borderRadius: 12, backgroundColor: ucapsaBrand.colors.redSoft, padding: 10 },
+  cancellationWarningText: { color: ucapsaBrand.colors.redDark, fontSize: 10, lineHeight: 15, fontWeight: '800' },
+  cancellationRetry: { color: ucapsaBrand.colors.redDark, fontSize: 10, fontWeight: '900', textDecorationLine: 'underline' },
+  selectedOccurrenceBox: { gap: 3, borderRadius: 12, backgroundColor: ucapsaBrand.colors.background, padding: 10 },
+  selectedOccurrenceLabel: { color: ucapsaBrand.colors.muted, fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
+  selectedOccurrenceDate: { color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '900' },
+  cancelledList: { gap: 6, marginTop: 2 },
+  cancelledListTitle: { color: ucapsaBrand.colors.text, fontSize: 10, fontWeight: '900' },
+  cancelledRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, backgroundColor: ucapsaBrand.colors.background, padding: 9 },
+  cancelledDate: { color: ucapsaBrand.colors.text, fontSize: 10, fontWeight: '800' },
+  restoreButton: { borderRadius: 10, backgroundColor: ucapsaBrand.colors.redSoft, paddingHorizontal: 9, paddingVertical: 7 },
+  restoreButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 9, fontWeight: '900' },
   actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
   secondaryAction: { borderRadius: 11, backgroundColor: ucapsaBrand.colors.redSoft, paddingHorizontal: 10, paddingVertical: 8 },
   secondaryActionText: { color: ucapsaBrand.colors.redDark, fontSize: 10, fontWeight: '900' },
