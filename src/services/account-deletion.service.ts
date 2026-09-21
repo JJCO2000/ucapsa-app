@@ -28,6 +28,17 @@ export function getAccountDeletionStatusLabel(status: string | null | undefined)
   }
 }
 
+export async function deleteMyAccount(): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('delete-account', {
+    body: {},
+  });
+
+  if (error) throw error;
+  if (!data || data.deleted !== true) {
+    throw new Error('No se pudo confirmar la eliminación de la cuenta.');
+  }
+}
+
 export async function getMyAccountDeletionRequest(): Promise<AccountDeletionRequest | null> {
   const { data: authData, error: authError } = await supabase.auth.getUser();
   if (authError) throw authError;
