@@ -22,6 +22,12 @@ function normalizeEvent(event: unknown): UcapsaEvent {
   return event as UcapsaEvent;
 }
 
+function normalizeRequiredEventTitle(value: string) {
+  const title = value.trim();
+  if (!title) throw new Error('Agrega un titulo al evento.');
+  return title;
+}
+
 export async function getVisibleEvents(limit?: number): Promise<UcapsaEvent[]> {
   let query = supabase
     .from('events')
@@ -50,7 +56,7 @@ function buildPayload(input: EventFormInput, createdBy?: string | null) {
   const repeatType = input.repeat_type ?? 'none';
 
   return {
-    title: input.title.trim(),
+    title: normalizeRequiredEventTitle(input.title),
     description: input.description?.trim() || null,
     location: input.location?.trim() || null,
     start_date: input.start_date,
@@ -85,7 +91,7 @@ export async function createEvent(input: EventFormInput): Promise<UcapsaEvent> {
 export async function updateEvent(eventId: string, input: Partial<EventFormInput>): Promise<UcapsaEvent> {
   const payload: Record<string, unknown> = {};
 
-  if (input.title !== undefined) payload.title = input.title.trim();
+  if (input.title !== undefined) payload.title = normalizeRequiredEventTitle(input.title);
   if (input.description !== undefined) payload.description = input.description?.trim() || null;
   if (input.location !== undefined) payload.location = input.location?.trim() || null;
   if (input.start_date !== undefined) payload.start_date = input.start_date;
