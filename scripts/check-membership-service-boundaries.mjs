@@ -1,7 +1,10 @@
 import fs from 'node:fs';
 
-const service = fs.readFileSync('src/services/memberships.service.ts', 'utf8');
+const facade = fs.readFileSync('src/services/memberships.service.ts', 'utf8');
 const domain = fs.readFileSync('src/services/memberships.domain.ts', 'utf8');
+const eligibility = fs.readFileSync('src/services/memberships-eligibility.service.ts', 'utf8');
+const client = fs.readFileSync('src/services/memberships-client.service.ts', 'utf8');
+const admin = fs.readFileSync('src/services/memberships-admin.service.ts', 'utf8');
 const lifecycleSql = fs.readFileSync('supabase/sql/ucapsa-membership-status-lifecycle.sql', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
 
@@ -19,28 +22,97 @@ for (const token of [
   if (!domain.includes('export function ' + token)) {
     throw new Error('Membership domain contract missing: ' + token);
   }
-  if (!service.includes(token)) {
-    throw new Error('memberships.service.ts stopped re-exporting/using domain contract: ' + token);
+}
+
+for (const line of [
+  "export * from './memberships.domain';",
+  "export * from './memberships-eligibility.service';",
+  "export * from './memberships-client.service';",
+  "export * from './memberships-admin.service';",
+]) {
+  if (!facade.includes(line)) {
+    throw new Error('Membership compatibility facade lost export: ' + line);
+  }
+}
+
+if (/lib\/supabase|\bsupabase\.|\bfunction\s+|\bconst\s+|\btype\s+[A-Za-z0-9_]+\s*=/.test(facade)) {
+  throw new Error('memberships.service.ts must remain a compatibility facade without implementation.');
+}
+
+if (/from ['"]\.\/memberships\.service['"]/.test(domain)
+    || /from ['"]\.\/memberships\.service['"]/.test(eligibility)
+    || /from ['"]\.\/memberships\.service['"]/.test(client)
+    || /from ['"]\.\/memberships\.service['"]/.test(admin)) {
+  throw new Error('Focused membership modules must not depend back on memberships.service.ts.');
+}
+
+for (const token of [
+  'getMembershipEligibilityForUser',
+  'getMyMembershipEligibility',
+  'program_completion_achievement',
+  'PROGRAM_COMPLETION_ACHIEVEMENT_CODES',
+]) {
+  if (!eligibility.includes(token)) {
+    throw new Error('Membership eligibility contract missing: ' + token);
+  }
+}
+if (/\.insert\(|\.update\(|\.delete\(|\.rpc\(/.test(eligibility)) {
+  throw new Error('Membership eligibility service regained write operations.');
+}
+
+for (const token of [
+  'getMyMembership',
+  'requestMembership',
+  "from './memberships-eligibility.service'",
+  "from './memberships.domain'",
+]) {
+  if (!client.includes(token)) {
+    throw new Error('Membership client lifecycle contract missing: ' + token);
   }
 }
 
 for (const token of [
-  'export function getMembershipEffectiveStatus',
-  'export function isMembershipActiveToday',
-  'export function getMembershipStatusLabel',
-  'export function getPaymentStatusLabel',
+  'getAdminMembershipRows',
+  'updateMembershipStatus',
+  'updateMembershipDetails',
+  'forceMembershipForProfile',
+  'deactivateMembershipForProfile',
+  'getMembershipByQrToken',
 ]) {
-  if (service.includes(token)) {
-    throw new Error('Pure membership rule moved back into memberships.service.ts: ' + token);
+  if (!admin.includes(token)) {
+    throw new Error('Membership admin contract missing: ' + token);
   }
 }
 
-if (/from ['"]\.\/memberships\.service['"]/.test(domain)) {
-  throw new Error('Membership domain has a reverse dependency on memberships.service.ts.');
+const runtime = [eligibility, client, admin].join('\n');
+if (/membership_delete_requests|requestPermanentMembershipDeletion|approveMembershipDeleteRequest|rejectMembershipDeleteRequest|MembershipDeleteRequestRow/.test(runtime)) {
+  throw new Error('Membership runtime reintroduced the retired deletion-request flow.');
+}
+if (/\.from\(['"]payments['"]\)/.test(runtime)) {
+  throw new Error('Membership services reintroduced payment-history reads instead of leaving payments in the payment domain.');
+}
+if (/payments\s*:\s*Payment\[\]/.test(runtime)) {
+  throw new Error('Membership services reintroduced unused payment history payload.');
+}
+if (/syncProfileRoleForMembership/.test(runtime)) {
+  throw new Error('Membership runtime reintroduced client-side profile-role synchronization.');
+}
+if (/\.from\(['"]profiles['"]\)[\s\S]{0,220}\.update\([\s\S]{0,160}role\s*:/.test(runtime)) {
+  throw new Error('Membership services reintroduced direct profile-role mutation instead of the DB lifecycle SSOT.');
+}
+if (/\.from\(['"]memberships['"]\)[\s\S]{0,180}\.delete\(/.test(runtime)
+    || /\.from\(['"]payments['"]\)[\s\S]{0,180}\.delete\(/.test(runtime)) {
+  throw new Error('Membership runtime must preserve membership and payment history; physical DELETE is forbidden.');
+}
+if (/\bas never\b/.test(runtime)) {
+  throw new Error('Membership services must not bypass generated Supabase types with "as never".');
 }
 
-if (/membership_delete_requests|requestPermanentMembershipDeletion|approveMembershipDeleteRequest|rejectMembershipDeleteRequest|MembershipDeleteRequestRow/.test(service)) {
-  throw new Error('Membership service reintroduced the retired deletion-request runtime.');
+if (!/updateMembershipStatus[\s\S]{0,900}status === 'active'[\s\S]{0,300}approved_by/.test(admin)) {
+  throw new Error('Membership status activation lost the approving admin identity.');
+}
+if (!/updateMembershipDetails[\s\S]{0,700}input\.status === 'active'[\s\S]{0,300}approved_by/.test(admin)) {
+  throw new Error('Membership detail activation can bypass the approving admin identity.');
 }
 
 if (/end_date[\s\S]{0,200}(?:expired|Vencid)/i.test(domain)) {
@@ -63,37 +135,28 @@ for (const token of [
   }
 }
 
-if (/markMembershipPaidFast|updateMembershipPaymentStatus|registerMembershipPayment/.test(service)) {
-  throw new Error('Membership service reintroduced a manual/fake payment-state shortcut.');
+if (/markMembershipPaidFast|updateMembershipPaymentStatus|registerMembershipPayment/.test(runtime)) {
+  throw new Error('Membership runtime reintroduced a manual/fake payment-state shortcut.');
+}
+if (/currentPaymentStatus|lastPaymentAt|current_payment_status\s*:|last_payment_at\s*:|payment_notes\s*:/.test(runtime)) {
+  throw new Error('Membership runtime reintroduced manual editing of derived payment summary fields.');
 }
 
-if (/currentPaymentStatus|lastPaymentAt|current_payment_status\s*:|last_payment_at\s*:|payment_notes\s*:/.test(service)) {
-  throw new Error('Membership service reintroduced manual editing of derived payment summary fields.');
-}
-
-if (/\.from\(['"]payments['"]\)/.test(service)) {
-  throw new Error('Membership service reintroduced payment-history reads instead of leaving payments in the payment domain.');
-}
-
-if (/payments\s*:\s*Payment\[\]/.test(service)) {
-  throw new Error('Membership admin rows reintroduced unused payment history payload.');
-}
-
-if (/syncProfileRoleForMembership/.test(service)) {
-  throw new Error('memberships.service.ts reintroduced client-side profile-role synchronization.');
-}
-
-if (/\.from\(['"]profiles['"]\)[\s\S]{0,220}\.update\([\s\S]{0,160}role\s*:/.test(service)) {
-  throw new Error('Membership service reintroduced direct profile-role mutation instead of the DB lifecycle SSOT.');
-}
-
-const serviceLines = service.split(/\r?\n/).length;
-if (serviceLines > 500) {
-  throw new Error('memberships.service.ts grew past the current boundary: ' + serviceLines + ' lines.');
+for (const [name, text, maxLines] of [
+  ['membership facade', facade, 20],
+  ['membership domain', domain, 140],
+  ['membership eligibility', eligibility, 130],
+  ['membership client', client, 130],
+  ['membership admin', admin, 300],
+]) {
+  const lines = text.split(/\r?\n/).length;
+  if (lines > maxLines) {
+    throw new Error(name + ' grew past its responsibility boundary: ' + lines + ' > ' + maxLines + '.');
+  }
 }
 
 if (!pkg.includes('"check:membership-service-boundaries"')) {
-  throw new Error('npm verify does not include the membership service-boundary guard.');
+  throw new Error('npm verify does not include the membership service boundary guard.');
 }
 
-console.log('UCAPSA membership domain/service boundary: PASS');
+console.log('UCAPSA membership domain/eligibility/client/admin boundaries: PASS');
