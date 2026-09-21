@@ -24,8 +24,9 @@ export function toDateKey(value: string | null | undefined): string | null {
 
   // A civil date such as 2026-09-21 is not an instant in UTC. Parsing it with
   // new Date('YYYY-MM-DD') can shift it to the previous local day in Mexico.
-  const civilParts = dateKeyParts(value);
-  if (civilParts) return value;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return dateKeyParts(value) ? value : null;
+  }
 
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
