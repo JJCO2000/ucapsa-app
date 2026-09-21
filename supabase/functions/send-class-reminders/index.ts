@@ -33,6 +33,8 @@ type EnrollmentRow = {
   schedule_id: string;
   dog_name: string | null;
   status: string;
+  card_started_on: string | null;
+  card_expires_on: string | null;
 };
 
 type CancellationRow = {
@@ -55,10 +57,18 @@ type PreferenceRow = {
 };
 
 type ExistingLockRow = {
+  id: string;
   enrollment_id: string;
   schedule_id: string;
   class_date: string;
   reminder_type: string;
+  status: string;
+  campaign_id: string | null;
+};
+
+type PreparedDeliveryRow = {
+  id: string;
+  token_id: string | null;
 };
 
 type ExpoTicket = {
@@ -182,7 +192,18 @@ Deno.serve(async (req) => {
   });
 
   const cronHeader = req.headers.get('x-cron-secret') ?? '';
-  const isCronCall = Boolean(cronSecret && cronHeader && cronHeader === cronSecret);
+  let vaultCronSecret = '';
+  if (cronHeader) {
+    const { data: storedSecret, error: storedSecretError } = await serviceClient.rpc('get_internal_cron_secret');
+    if (!storedSecretError && typeof storedSecret === 'string') vaultCronSecret = storedSecret;
+  }
+
+  const isCronCall = Boolean(
+    cronHeader && (
+      (cronSecret && cronHeader === cronSecret)
+      || (vaultCronSecret && cronHeader === vaultCronSecret)
+    ),
+  );
   let userId: string | null = null;
 
   if (!isCronCall) {
@@ -231,7 +252,7 @@ Deno.serve(async (req) => {
   const [programsResult, schedulesResult, enrollmentsResult, cancellationsResult, tokenResult] = await Promise.all([
     serviceClient.from('programs').select('id,code,name,is_active').eq('is_active', true),
     serviceClient.rpc('get_effective_program_schedules', { p_date: classDateKey }),
-    serviceClient.from('program_enrollments').select('id,user_id,program_id,schedule_id,dog_name,status').eq('status', 'active'),
+    serviceClient.from('program_enrollments').select('id,user_id,program_id,schedule_id,dog_name,status,card_started_on,card_expires_on').eq('status', 'active'),
     serviceClient.from('program_class_cancellations').select('schedule_id,cancellation_date,restored_at').eq('cancellation_date', classDateKey).is('restored_at', null),
     serviceClient.from('notification_tokens').select('id,user_id,expo_push_token,is_active').eq('is_active', true),
   ]);
@@ -258,7 +279,13 @@ Deno.serve(async (req) => {
 
   const targetScheduleIds = new Set(targetSchedules.map((schedule) => schedule.id));
   const scheduleById = new Map(targetSchedules.map((schedule) => [schedule.id, schedule]));
-  const candidateEnrollments = enrollments.filter((enrollment) => targetScheduleIds.has(enrollment.schedule_id));
+  const candidateEnrollments = enrollments.filter((enrollment) => (
+    targetScheduleIds.has(enrollment.schedule_id)
+    && Boolean(enrollment.card_started_on)
+    && Boolean(enrollment.card_expires_on)
+    && classDateKey >= String(enrollment.card_started_on)
+    && classDateKey <= String(enrollment.card_expires_on)
+  ));
   const candidateEnrollmentIds = candidateEnrollments.map((enrollment) => enrollment.id);
   const candidateUserIds = [...new Set(candidateEnrollments.map((enrollment) => enrollment.user_id))];
 
@@ -269,7 +296,7 @@ Deno.serve(async (req) => {
     candidateEnrollmentIds.length
       ? serviceClient
         .from('notification_class_reminder_locks')
-        .select('enrollment_id,schedule_id,class_date,reminder_type')
+        .select('id,enrollment_id,schedule_id,class_date,reminder_type,status,campaign_id')
         .eq('class_date', classDateKey)
         .eq('reminder_type', reminderType)
         .in('enrollment_id', candidateEnrollmentIds)
@@ -280,7 +307,17 @@ Deno.serve(async (req) => {
   if (existingLocksResult.error) return jsonResponse({ error: existingLocksResult.error.message }, 500);
 
   const preferencesByUserId = new Map(((preferencesResult.data ?? []) as PreferenceRow[]).map((preference) => [preference.user_id, preference]));
-  const existingLockKeys = new Set(((existingLocksResult.data ?? []) as ExistingLockRow[]).map((lock) => `${lock.enrollment_id}:${lock.schedule_id}:${lock.class_date}:${lock.reminder_type}`));
+  const existingLocks = (existingLocksResult.data ?? []) as ExistingLockRow[];
+  const blockingLockKeys = new Set(
+    existingLocks
+      .filter((lock) => lock.status !== 'failed')
+      .map((lock) => `${lock.enrollment_id}:${lock.schedule_id}:${lock.class_date}:${lock.reminder_type}`),
+  );
+  const failedLockByKey = new Map(
+    existingLocks
+      .filter((lock) => lock.status === 'failed')
+      .map((lock) => [`${lock.enrollment_id}:${lock.schedule_id}:${lock.class_date}:${lock.reminder_type}`, lock]),
+  );
 
   const tokenByUserId = new Map<string, TokenRow[]>();
   tokens.forEach((token) => {
@@ -294,7 +331,7 @@ Deno.serve(async (req) => {
     if (!preference?.enabled || !preference.classes) return false;
     if (!tokenByUserId.has(enrollment.user_id)) return false;
     const lockKey = `${enrollment.id}:${enrollment.schedule_id}:${classDateKey}:${reminderType}`;
-    return !existingLockKeys.has(lockKey);
+    return !blockingLockKeys.has(lockKey);
   });
 
   const { data: campaign, error: campaignError } = await serviceClient
