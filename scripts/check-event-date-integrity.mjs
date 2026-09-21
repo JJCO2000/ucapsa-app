@@ -5,8 +5,8 @@ const pkg = fs.readFileSync('package.json', 'utf8');
 
 for (const token of [
   'function dateKeyParts',
-  'const civilParts = dateKeyParts(value)',
-  'if (civilParts) return value',
+  "if (/^\\d{4}-\\d{2}-\\d{2}$/.test(value))",
+  'return dateKeyParts(value) ? value : null',
   "date.getFullYear() !== year",
   "date.getMonth() !== month - 1",
   "date.getDate() !== day",
@@ -41,6 +41,11 @@ if (!isValidCivilDate('2028-02-29')) {
 }
 if (isValidCivilDate('2026-02-29') || isValidCivilDate('2026-02-31')) {
   throw new Error('Invalid civil-date fixture is being normalized instead of rejected.');
+}
+
+const invalidCivilDate = '2026-02-31';
+if (!/^\d{4}-\d{2}-\d{2}$/.test(invalidCivilDate) || isValidCivilDate(invalidCivilDate)) {
+  throw new Error('Exact invalid civil date fixture must be rejected before Date parsing.');
 }
 
 function addMonthlyClamped(base, index) {
