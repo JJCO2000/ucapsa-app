@@ -1,6 +1,6 @@
 import type { Announcement, Membership, MyPaymentOverview, ProgramEnrollmentWithDetails } from '../types/app.types';
 import { getVisibleAnnouncements } from './announcements.service';
-import { flushPendingAttendanceOperations } from './attendance-outbox.service';
+import { flushPendingAttendanceOperations } from './attendance-sync.service';
 import { getMyMemberVisits } from './client-activity.service';
 import { refreshCompetitionLeaderboard, refreshMyDogCompetition } from './client-competition.service';
 import {

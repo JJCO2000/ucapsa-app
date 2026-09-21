@@ -65,13 +65,13 @@ for (const rel of [
 
 // QR offline: cola durable, identidad idempotente y hora real de captura.
 must('src/services/attendance-outbox.service.ts', /AsyncStorage/, 'La cola QR dejó de ser persistente.');
-must('src/services/attendance-outbox.service.ts', /p_client_event_id/, 'La cola QR perdió client_event_id.');
-must('src/services/attendance-outbox.service.ts', /p_captured_at/, 'La cola QR dejó de conservar la hora de captura.');
+must('src/services/attendance-sync.service.ts', /p_client_event_id/, 'La sincronización QR perdió client_event_id.');
+must('src/services/attendance-sync.service.ts', /p_captured_at/, 'La sincronización QR dejó de conservar la hora de captura.');
 must('src/services/attendance-outbox.service.ts', /outboxMutationChains/, 'La cola QR perdió serialización de mutaciones.');
-must('src/services/attendance-outbox.service.ts', /syncInFlightByOperation/, 'La cola QR perdió deduplicación de sincronizaciones simultáneas.');
-must('src/services/attendance-outbox.service.ts', /networkFailure = isLikelyNetworkError\(error\)/, 'La cola QR dejó de distinguir caída de red de error específico de una operación.');
-must('src/services/attendance-outbox.service.ts', /result\.status === 'pending' && result\.networkFailure[\s\S]{0,80}break/, 'La cola QR volvió a bloquear el lote ante cualquier error pendiente.');
-must('src/services/attendance-outbox.service.ts', /try \{[\s\S]{0,120}await replaceOperation\(operation\.userId, next\)[\s\S]{0,120}catch(?:\s*\([^)]*\))?\s*\{[\s\S]{0,260}no conviertas ese fallo[\s\S]{0,260}return \{/, 'Un fallo al actualizar metadatos locales volvió a poder abortar el sync QR.');
+must('src/services/attendance-sync.service.ts', /syncInFlightByOperation/, 'La sincronización QR perdió deduplicación de operaciones simultáneas.');
+must('src/services/attendance-sync.service.ts', /networkFailure = isLikelyNetworkError\(error\)/, 'La sincronización QR dejó de distinguir caída de red de error específico de una operación.');
+must('src/services/attendance-sync.service.ts', /result\.status === 'pending' && result\.networkFailure[\s\S]{0,80}break/, 'La sincronización QR volvió a bloquear el lote ante cualquier error pendiente.');
+must('src/services/attendance-sync.service.ts', /try \{[\s\S]{0,160}await replaceAttendanceOperation\(operation\.userId, next\)[\s\S]{0,160}catch(?:\s*\([^)]*\))?\s*\{[\s\S]{0,320}no conviertas ese fallo[\s\S]{0,320}return \{/, 'Un fallo al actualizar metadatos locales volvió a poder abortar el sync QR.');
 must('src/app/attendance.tsx', /queueClassAttendance/, 'El escáner de clases dejó de encolar offline.');
 must('src/app/attendance.tsx', /queueMemberVisit/, 'El escáner de socio dejó de encolar offline.');
 must('supabase/sql/ucapsa-offline-attendance-outbox.sql', /program_attendances_enrollment_client_event_unique_idx/, 'Backend perdió idempotencia de asistencia por client_event_id.');
@@ -80,10 +80,10 @@ must('supabase/sql/ucapsa-offline-attendance-outbox.sql', /member_visits_user_cl
 // Las colas durables nunca pueden mutar desde una lectura tolerante que convierta
 // un fallo de AsyncStorage o payload corrupto en un falso arreglo vacío.
 must('src/services/attendance-outbox.service.ts', /async function readAttendanceOutboxStrict[\s\S]*parsed\.every[\s\S]*throw new Error/, 'Asistencia perdió la lectura estricta de su outbox.');
-must('src/services/attendance-outbox.service.ts', /replaceOperation[\s\S]{0,220}readAttendanceOutboxStrict/, 'Asistencia volvió a reemplazar operaciones desde una lectura tolerante.');
+must('src/services/attendance-outbox.service.ts', /replaceAttendanceOperation[\s\S]{0,260}readAttendanceOutboxStrict/, 'Asistencia volvió a reemplazar operaciones desde una lectura tolerante.');
 must('src/services/attendance-outbox.service.ts', /queueClassAttendance[\s\S]{0,320}readAttendanceOutboxStrict/, 'Asistencia volvió a encolar clases desde una lectura tolerante.');
 must('src/services/attendance-outbox.service.ts', /queueMemberVisit[\s\S]{0,260}readAttendanceOutboxStrict/, 'Asistencia volvió a encolar visitas desde una lectura tolerante.');
-must('src/services/attendance-outbox.service.ts', /confirmPendingClassAttendance[\s\S]{0,220}readAttendanceOutboxStrict/, 'Confirmación de asistencia volvió a confundir fallo local con operación inexistente.');
+must('src/services/attendance-sync.service.ts', /confirmPendingClassAttendance[\s\S]{0,260}readAttendanceOutboxStrict/, 'Confirmación de asistencia volvió a confundir fallo local con operación inexistente.');
 
 must('src/services/practice-outbox.service.ts', /function readPendingPracticeSessionsStrict[\s\S]*parsed\.every[\s\S]*throw new Error/, 'Prácticas perdió la lectura estricta de su outbox.');
 must('src/services/practice-outbox.service.ts', /enqueuePendingPractice[\s\S]{0,260}readPendingPracticeSessionsStrict/, 'Prácticas volvió a encolar desde una lectura tolerante.');
