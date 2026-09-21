@@ -7,6 +7,8 @@ const adminService = fs.readFileSync('src/services/payments-admin.service.ts', '
 const settingsService = fs.readFileSync('src/services/payment-settings.service.ts', 'utf8');
 const adminUi = fs.readFileSync('src/app/admin/customer-payments.tsx', 'utf8');
 const transferUi = fs.readFileSync('src/app/client/payment-transfer.tsx', 'utf8');
+const paymentsTab = fs.readFileSync('src/app/(tabs)/payments.tsx', 'utf8');
+const paymentSettingsUi = fs.readFileSync('src/app/admin/payment-settings.tsx', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
 
 for (const token of ['voided_at timestamptz', 'voided_by uuid', 'void_reason text']) {
@@ -75,6 +77,30 @@ if (!transferUi.includes('isValidPaymentLink(settings.clip_url)') || !transferUi
 
 if (/Linking\.openURL\(settings\.clip_url/.test(transferUi)) {
   throw new Error('Client payment transfer must not open raw persisted payment URLs.');
+}
+
+for (const token of [
+  'Titular / beneficiario',
+  'accountHolder',
+  'row?.account_holder',
+]) {
+  if (!paymentSettingsUi.includes(token)) {
+    throw new Error('Admin payment settings lost account-holder SSOT wiring: ' + token);
+  }
+}
+
+for (const token of [
+  'Titular:',
+  'bankSettings.account_holder',
+  ".replace(/\\s+/g, ' ').trim()",
+]) {
+  if (!paymentsTab.includes(token)) {
+    throw new Error('Client Payments compact bank summary lost account-holder display: ' + token);
+  }
+}
+
+if (!transferUi.includes('label="Titular"') || !transferUi.includes('settings?.account_holder')) {
+  throw new Error('Client transfer screen lost the live account holder.');
 }
 
 for (const token of ['Anular pago', 'voidReason', 'void_reason', 'Histórico']) {
