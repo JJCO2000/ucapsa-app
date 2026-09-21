@@ -47,8 +47,28 @@ export async function cancelEventOccurrences(
   const userId = userResult.user?.id;
   if (!userId) throw new Error('No hay sesión administrativa activa.');
 
+  const { data: existingRows, error: existingError } = await supabase
+    .from('event_occurrence_cancellations')
+    .select('*')
+    .eq('event_id', eventId)
+    .in('occurrence_start', normalizedStarts);
+
+  if (existingError) throw existingError;
+
+  const activeStarts = new Set(
+    (existingRows ?? [])
+      .filter((row) => !row.restored_at)
+      .map((row) => normalizeOccurrenceStart(row.occurrence_start)),
+  );
+  const writableStarts = normalizedStarts.filter((value) => !activeStarts.has(value));
+  if (writableStarts.length === 0) {
+    return (existingRows ?? [])
+      .filter((row) => !row.restored_at)
+      .map(normalizeCancellation);
+  }
+
   const now = new Date().toISOString();
-  const payload = normalizedStarts.map((occurrenceStart) => ({
+  const payload = writableStarts.map((occurrenceStart) => ({
     event_id: eventId,
     occurrence_start: occurrenceStart,
     reason: reason?.trim() || null,
@@ -65,7 +85,10 @@ export async function cancelEventOccurrences(
     .select('*');
 
   if (error) throw error;
-  return (data ?? []).map(normalizeCancellation);
+  return [
+    ...(existingRows ?? []).filter((row) => !row.restored_at).map(normalizeCancellation),
+    ...(data ?? []).map(normalizeCancellation),
+  ];
 }
 
 export async function restoreEventOccurrenceCancellation(
