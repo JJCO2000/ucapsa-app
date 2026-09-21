@@ -3,6 +3,7 @@ import fs from 'node:fs';
 const events = fs.readFileSync('src/utils/events.utils.ts', 'utf8');
 const adminEvents = fs.readFileSync('src/app/admin/events.tsx', 'utf8');
 const adminAnnouncements = fs.readFileSync('src/app/admin/announcements.tsx', 'utf8');
+const calendar = fs.readFileSync('src/app/(tabs)/calendar.tsx', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
 
 for (const token of [
@@ -42,6 +43,16 @@ for (const token of ['parseDateKey', 'toDateKey', 'todayKey']) {
 }
 if (adminAnnouncements.includes('function localDateKey')) {
   throw new Error('Admin Announcements reintroduced a parallel civil-date key helper.');
+}
+
+for (const token of [
+  'accessibilityLabel="Ir a hoy"',
+  'onPress={() => setSelectedDate(todayKey())}',
+  '>Hoy</Text>',
+]) {
+  if (!calendar.includes(token)) {
+    throw new Error('Calendar lost the Today navigation action: ' + token);
+  }
 }
 
 function isValidCivilDate(value) {
