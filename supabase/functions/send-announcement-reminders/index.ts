@@ -20,6 +20,7 @@ type RequestPayload = {
 type ProfileRow = { user_id: string; role: string };
 type TokenRow = { id: string; user_id: string; expo_push_token: string; is_active: boolean };
 type PreferenceRow = { user_id: string; enabled: boolean; announcements_events: boolean };
+type PreparedDeliveryRow = { id: string; token_id: string | null };
 type ExpoTicket = { status?: string; id?: string; message?: string; details?: Record<string, unknown> };
 
 const corsHeaders = {
@@ -254,11 +255,69 @@ Deno.serve(async (req) => {
       continue;
     }
 
-    const deliveries: Array<Record<string, unknown>> = [];
+    const queuedRows = targets.map(({ profile, token }) => ({
+      campaign_id: campaign.id,
+      user_id: profile.user_id,
+      token_id: token.id,
+      expo_push_token: token.expo_push_token,
+      status: 'queued',
+    }));
+
+    const { data: preparedDeliveries, error: prepareDeliveriesError } = await serviceClient
+      .from('notification_deliveries')
+      .insert(queuedRows)
+      .select('id,token_id');
+
+    if (prepareDeliveriesError) {
+      // No external push happened yet; release the campaign for a safe cron retry.
+      await serviceClient
+        .from('notification_campaigns')
+        .update({ status: 'draft', total_targets: 0 })
+        .eq('id', campaign.id)
+        .eq('status', 'sending');
+      return jsonResponse({
+        error: prepareDeliveriesError.message,
+        campaign_id: campaign.id,
+        message: 'No se envió ningún push; el recordatorio puede reintentarse de forma segura.',
+      }, 500);
+    }
+
+    const deliveryIdByTokenId = new Map(
+      ((preparedDeliveries ?? []) as PreparedDeliveryRow[])
+        .filter((row) => row.token_id)
+        .map((row) => [String(row.token_id), row.id]),
+    );
+
     let successCount = 0;
     let failureCount = 0;
 
     for (const batch of chunk(targets, 100)) {
+      const deliveryIds = batch
+        .map(({ token }) => deliveryIdByTokenId.get(token.id))
+        .filter((value): value is string => Boolean(value));
+
+      if (deliveryIds.length !== batch.length) {
+        return jsonResponse({
+          error: 'No se pudieron identificar todas las entregas preparadas.',
+          campaign_id: campaign.id,
+          message: 'No se realizó un reenvío automático.',
+        }, 500);
+      }
+
+      const { error: markSendingError } = await serviceClient
+        .from('notification_deliveries')
+        .update({ status: 'sending' })
+        .in('id', deliveryIds)
+        .eq('status', 'queued');
+
+      if (markSendingError) {
+        return jsonResponse({
+          error: markSendingError.message,
+          campaign_id: campaign.id,
+          message: 'La campaña queda reclamada para impedir un reenvío inseguro.',
+        }, 500);
+      }
+
       const messages = batch.map(({ token }) => ({
         to: token.expo_push_token,
         title: `Recordatorio: ${announcement.title}`,
@@ -267,43 +326,77 @@ Deno.serve(async (req) => {
         data: { category: 'announcements_events', source: 'announcement_reminder', announcement_id: announcement.id, campaign_id: campaign.id },
       }));
 
-      const expoResponse = await fetch('https://exp.host/--/api/v2/push/send', {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'Accept-Encoding': 'gzip, deflate',
-          'Content-Type': 'application/json',
-          ...(expoAccessToken ? { Authorization: `Bearer ${expoAccessToken}` } : {}),
-        },
-        body: JSON.stringify(messages),
-      });
+      let expoResponse: Response;
+      try {
+        expoResponse = await fetch('https://exp.host/--/api/v2/push/send', {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Accept-Encoding': 'gzip, deflate',
+            'Content-Type': 'application/json',
+            ...(expoAccessToken ? { Authorization: `Bearer ${expoAccessToken}` } : {}),
+          },
+          body: JSON.stringify(messages),
+        });
+      } catch (cause) {
+        return jsonResponse({
+          error: cause instanceof Error ? cause.message : 'No se pudo confirmar la respuesta de Expo.',
+          campaign_id: campaign.id,
+          message: 'El resultado del envío es incierto. No se reintentó automáticamente.',
+        }, 502);
+      }
+
       const expoJson = await expoResponse.json().catch(() => ({ errors: [{ message: 'Respuesta inválida de Expo.' }] }));
       const tickets = Array.isArray(expoJson?.data) ? expoJson.data as ExpoTicket[] : [];
 
-      batch.forEach(({ profile, token }, index) => {
+      const updateResults = batch.map(async ({ token }, index) => {
         const ticket = tickets[index] ?? (expoJson?.errors?.[0] as ExpoTicket | undefined) ?? { status: 'error', message: 'Sin ticket de Expo.' };
         const ok = expoResponse.ok && ticket.status === 'ok';
+        const deliveryId = deliveryIdByTokenId.get(token.id);
+
         if (ok) successCount += 1;
         else failureCount += 1;
-        deliveries.push({
-          campaign_id: campaign.id,
-          user_id: profile.user_id,
-          token_id: token.id,
-          expo_push_token: token.expo_push_token,
-          status: ok ? 'sent' : 'error',
-          expo_response: ticket,
-          error_message: ok ? null : ticket.message ?? `HTTP ${expoResponse.status}`,
-          sent_at: new Date().toISOString(),
-        });
-      });
-    }
 
-    if (deliveries.length) {
-      const { error: deliveryError } = await serviceClient.from('notification_deliveries').insert(deliveries);
-      if (deliveryError) {
-        await serviceClient.from('notification_campaigns').update({ status: 'failed', failure_count: targets.length, total_targets: targets.length, sent_at: new Date().toISOString() }).eq('id', campaign.id);
-        failedCampaigns += 1;
-        continue;
+        if (!deliveryId) return { error: new Error('Entrega preparada sin id.') };
+
+        const { error } = await serviceClient
+          .from('notification_deliveries')
+          .update({
+            status: ok ? 'sent' : 'error',
+            expo_response: ticket,
+            error_message: ok ? null : ticket.message ?? `HTTP ${expoResponse.status}`,
+            sent_at: new Date().toISOString(),
+          })
+          .eq('id', deliveryId)
+          .eq('status', 'sending');
+
+        const expoErrorCode = typeof ticket.details?.error === 'string'
+          ? ticket.details.error
+          : null;
+        if (expoErrorCode === 'DeviceNotRegistered') {
+          const disabledAt = new Date().toISOString();
+          const { error: disableTokenError } = await serviceClient
+            .from('notification_tokens')
+            .update({ is_active: false, disabled_at: disabledAt, updated_at: disabledAt })
+            .eq('id', token.id)
+            .eq('expo_push_token', token.expo_push_token)
+            .eq('is_active', true);
+          if (disableTokenError) {
+            console.warn('Could not disable DeviceNotRegistered announcement reminder token.', token.id, disableTokenError.message);
+          }
+        }
+
+        return { error };
+      });
+
+      const updateResultsResolved = await Promise.all(updateResults);
+      const firstUpdateError = updateResultsResolved.find((result) => result.error)?.error;
+      if (firstUpdateError) {
+        return jsonResponse({
+          error: firstUpdateError instanceof Error ? firstUpdateError.message : String(firstUpdateError),
+          campaign_id: campaign.id,
+          message: 'Expo ya respondió. No se reintentó automáticamente.',
+        }, 500);
       }
     }
 
