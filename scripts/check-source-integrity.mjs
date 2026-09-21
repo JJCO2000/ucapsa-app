@@ -44,16 +44,20 @@ for (const rel of ['src/app/admin/classes.tsx', 'src/app/admin/customer-class.ts
 must('src/constants/programCompletion.ts', /PROGRAM_COMPLETION_ACHIEVEMENT_CODES/, 'Falta el registro central de logros por programa.');
 must('src/services/achievements.service.ts', /getProgramCompletionAchievementCode/, 'Logros no usa el registro central de finalización de programas.');
 mustNot('src/services/achievements.service.ts', /function\s+programCompletionAchievementCode/, 'Logros volvió a duplicar el mapeo programa -> medalla.');
-mustNot('src/services/memberships.service.ts', /from\('payments'\)\.delete\(\)/, 'La baja de membresía volvió a borrar pagos históricos.');
-mustNot('src/services/memberships.service.ts', /from\('memberships'\)\.delete\(\)/, 'La baja de membresía volvió a borrar la membresía histórica.');
+for (const rel of ['src/services/memberships-client.service.ts', 'src/services/memberships-admin.service.ts']) {
+  mustNot(rel, /from\('payments'\)\.delete\(\)/, `${rel} volvió a borrar pagos históricos.`);
+  mustNot(rel, /from\('memberships'\)\.delete\(\)/, `${rel} volvió a borrar la membresía histórica.`);
+}
 mustNot('src/services/program-enrollments.service.ts', /attendancesCount\?:|payload\.attendances_count\s*=/, 'Programas volvió a permitir editar el contador derivado de asistencias.');
 mustNot('src/services/program-enrollments.service.ts', /deleteProgramEnrollment|from\('program_enrollments'\)\.delete\(\)/, 'Programas volvió a borrar inscripciones y su historial dependiente.');
 must('supabase/sql/ucapsa-program-enrollment-history-protection.sql', /revoke delete on table public\.program_enrollments[\s\S]*from authenticated/i, 'Backend volvió a permitir DELETE físico de inscripciones.');
 must('supabase/sql/ucapsa-membership-status-lifecycle.sql', /payment_obligations[\s\S]*cancelled_at[\s\S]*due_date > current_date/i, 'La baja canónica dejó de cancelar sólo obligaciones futuras.');
 must('supabase/sql/ucapsa-membership-status-lifecycle.sql', /payments[\s\S]*status = 'paid'[\s\S]*voided_at is null[\s\S]*> 0\.005/i, 'La baja canónica dejó de preservar saldo histórico y pagos efectivos al cancelar futuro.');
-mustNot('src/services/memberships.service.ts', /membership_delete_requests|requestPermanentMembershipDeletion|approveMembershipDeleteRequest|rejectMembershipDeleteRequest/, 'Membresía volvió a mantener un segundo flujo de baja fuera del lifecycle canónico.');
-must('src/services/memberships.service.ts', /getMyMembershipEligibility/, 'Membresía no tiene una consulta canónica de elegibilidad.');
-must('src/services/memberships.service.ts', /program_completion_achievement/, 'Membresía perdió el fallback de evidencia histórica por logro de programa.');
+for (const rel of ['src/services/memberships-eligibility.service.ts', 'src/services/memberships-client.service.ts', 'src/services/memberships-admin.service.ts']) {
+  mustNot(rel, /membership_delete_requests|requestPermanentMembershipDeletion|approveMembershipDeleteRequest|rejectMembershipDeleteRequest/, `${rel} volvió a mantener un segundo flujo de baja fuera del lifecycle canónico.`);
+}
+must('src/services/memberships-eligibility.service.ts', /getMyMembershipEligibility/, 'Membresía no tiene una consulta canónica de elegibilidad.');
+must('src/services/memberships-eligibility.service.ts', /program_completion_achievement/, 'Membresía perdió el fallback de evidencia histórica por logro de programa.');
 must('src/app/client/membership.tsx', /getMyMembershipEligibility/, 'Pantalla de membresía no usa la elegibilidad canónica.');
 mustNot('src/app/client/membership.tsx', /isMembershipEligibleFromPrograms\(programs\)/, 'Pantalla de membresía volvió a decidir elegibilidad desde una lista local de programas.');
 mustNot('src/app/attendance.tsx', /isMembershipActiveToday/, 'Escáner volvió a expirar socios activos por fecha.');
@@ -62,7 +66,9 @@ mustNot('src/app/client/attendance-history.tsx', /!enrollmentId\)\s*return/, 'Hi
 must('src/app/client/attendance-history.tsx', /Historial de asistencias/, 'Falta la vista agregada de asistencias desde APROVECHASTE.');
 must('supabase/sql/ucapsa-membership-lifetime-and-comandos-progression.sql', /new\.end_date := null/, 'Backend perdió la regla de membresía activa sin vencimiento por fecha.');
 must('src/services/customer-value-merge.service.ts', /membership_lifetime_normalized/, 'Snapshot de Inicio perdió la normalización de membresía vitalicia.');
-mustNot('src/services/memberships.service.ts', /todayKey\s*>\s*end|return\s+'expired'\s*;[\s\S]{0,80}end_date/, 'El servicio canónico volvió a expirar una membresía activa por end_date.');
+for (const rel of ['src/services/memberships.domain.ts', 'src/services/memberships-client.service.ts']) {
+  mustNot(rel, /todayKey\s*>\s*end|return\s+'expired'\s*;[\s\S]{0,80}end_date/, `${rel} volvió a expirar una membresía activa por end_date.`);
+}
 mustNot('src/app/(tabs)/services.tsx', /getLifetimeMembershipStatus|effective\s*===\s*'expired'[\s\S]{0,120}return\s*'active'/, 'Servicios volvió a crear una segunda normalización de membresía vitalicia.');
 mustNot('src/app/client/membership.tsx', /La vigencia termino|Vigencia:\s*\{offlineDateLabel\(cachedMembership\.start_date\)\}/, 'La pantalla de membresía volvió a presentar una fecha de fin como vencimiento de una membresía activa.');
 must('src/app/admin/scanner.tsx', /getMembershipEffectiveStatusLabel\(getMembershipEffectiveStatus\(result\.row\.membership\)\)/, 'Scanner dejó de usar el estado efectivo canónico de membresía.');
@@ -185,7 +191,9 @@ must('supabase/sql/ucapsa-server-generated-program-qr.sql', /alter column qr_tok
 for (const rel of ['src/services/program-enrollments.service.ts', 'src/services/program-attendance.service.ts']) {
   mustNot(rel, /Math\.random\(\)|qr_token:\s*createQrToken\(\)/, `${rel} volvió a generar QR permanentes en cliente.`);
 }
-mustNot('src/services/memberships.service.ts', /Math\.random\(\)|qr_token:\s*createQrToken\(\)/, 'Membresías volvió a generar QR permanentes en cliente.');
+for (const rel of ['src/services/memberships-client.service.ts', 'src/services/memberships-admin.service.ts']) {
+  mustNot(rel, /Math\.random\(\)|qr_token:\s*createQrToken\(\)/, `${rel} volvió a generar QR permanentes en cliente.`);
+}
 
 if (failures.length) {
   console.error('SOURCE INTEGRITY FAIL:');
