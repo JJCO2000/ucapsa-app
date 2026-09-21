@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 
 const sql = fs.readFileSync('supabase/sql/ucapsa-profile-dog-integrity-hardening.sql', 'utf8');
+const dogHistorySql = fs.readFileSync('supabase/sql/ucapsa-dog-identity-history-hardening.sql', 'utf8');
 const dogs = fs.readFileSync('src/services/dogs.service.ts', 'utf8');
 const accountDeletion = fs.readFileSync('src/services/account-deletion.service.ts', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
@@ -32,6 +33,22 @@ if (!/group by user_id, lower\(btrim\(name\)\)[\s\S]{0,120}having count\(\*\) > 
 
 if (!/create unique index[\s\S]*user_id, lower\(btrim\(name\)\)[\s\S]*where is_active = true/i.test(sql)) {
   throw new Error('Dog-name uniqueness is not enforced at the database boundary.');
+}
+
+for (const token of [
+  'create or replace function public.sync_program_enrollment_dog_name()',
+  'update public.program_enrollments',
+  'where dog_id = new.id',
+  'update public.profiles',
+  "lower(btrim(coalesce(dog_name, ''))) = lower(btrim(old.name))",
+  'create or replace function public.prevent_unauthorized_dog_identity_changes()',
+  'old.id is distinct from new.id',
+  'old.user_id is distinct from new.user_id',
+  'prevent_unauthorized_dog_identity_changes_trigger',
+]) {
+  if (!dogHistorySql.toLowerCase().includes(token.toLowerCase())) {
+    throw new Error('Dog identity/history follow-up missing: ' + token);
+  }
 }
 
 if (!/admin_create_basic_dog[\s\S]{0,1800}public\.is_admin\(\)/i.test(sql)) {
