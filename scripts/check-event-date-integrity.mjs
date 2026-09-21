@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 
 const events = fs.readFileSync('src/utils/events.utils.ts', 'utf8');
+const adminEvents = fs.readFileSync('src/app/admin/events.tsx', 'utf8');
+const adminAnnouncements = fs.readFileSync('src/app/admin/announcements.tsx', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
 
 for (const token of [
@@ -22,6 +24,24 @@ for (const token of [
 
 if (/new Date\(dateKey\)/.test(events)) {
   throw new Error('Calendar civil dates must not be parsed as UTC instants.');
+}
+
+for (const token of ['buildLocalIso', 'toDateKey', 'toTimeValue', 'todayKey']) {
+  if (!adminEvents.includes(token)) {
+    throw new Error('Admin Events is not using canonical calendar utility: ' + token);
+  }
+}
+if (adminEvents.includes('function localDateKey')) {
+  throw new Error('Admin Events reintroduced a parallel civil-date key helper.');
+}
+
+for (const token of ['parseDateKey', 'toDateKey', 'todayKey']) {
+  if (!adminAnnouncements.includes(token)) {
+    throw new Error('Admin Announcements is not using canonical civil-date utility: ' + token);
+  }
+}
+if (adminAnnouncements.includes('function localDateKey')) {
+  throw new Error('Admin Announcements reintroduced a parallel civil-date key helper.');
 }
 
 function isValidCivilDate(value) {

@@ -16,6 +16,7 @@ import {
   updateEvent,
 } from '../../services/events.service';
 import type { AudienceType, EventRepeatType, UcapsaColorKey, UcapsaEvent, UcapsaPriority } from '../../types/app.types';
+import { buildLocalIso, toDateKey, toTimeValue, todayKey } from '../../utils/events.utils';
 
 type EventFilter = 'active' | 'drafts' | 'archived';
 type DateTarget = 'start' | 'end' | null;
@@ -70,14 +71,6 @@ const colors: Array<{ value: UcapsaColorKey; label: string }> = [
   { value: 'gray', label: 'Gris' },
 ];
 
-function localDateKey(date = new Date()) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-function todayKey() {
-  return localDateKey();
-}
-
 function emptyForm(): FormState {
   return {
     title: '',
@@ -100,26 +93,19 @@ function emptyForm(): FormState {
 }
 
 function dateKey(value: string | null | undefined) {
-  if (!value) return todayKey();
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return todayKey();
-  return localDateKey(date);
+  return toDateKey(value) ?? todayKey();
 }
 
 function timeKey(value: string | null | undefined, fallback = '10:00') {
-  if (!value) return fallback;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return fallback;
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  return toTimeValue(value) || fallback;
 }
 
 function buildIso(day: string, time: string, hasTime: boolean) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) throw new Error('Fecha invalida.');
-  const safeTime = hasTime ? time : '12:00';
-  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(safeTime)) throw new Error('Usa hora HH:mm.');
-  const date = new Date(`${day}T${safeTime}:00`);
-  if (Number.isNaN(date.getTime())) throw new Error('Fecha u hora invalida.');
-  return date.toISOString();
+  // Preserve the existing noon anchor for all-day events while delegating
+  // civil-date and time validation to the canonical calendar utility.
+  const value = buildLocalIso(day, hasTime ? time : '12:00', true);
+  if (!value) throw new Error('Fecha u hora invalida.');
+  return value;
 }
 
 function formatDate(value: string | null | undefined, hasTime = true) {
