@@ -26,11 +26,13 @@ for (const table of [
   }
 }
 
-if (!reminders.includes("serviceClient.from('notification_class_reminder_locks')")) {
+if (!/serviceClient\s*\n?\s*\.from\(['"]notification_class_reminder_locks['"]\)/.test(reminders)
+    && !/serviceClient\.from\(['"]notification_class_reminder_locks['"]\)/.test(reminders)) {
   throw new Error('Reminder lock table is no longer accessed through serviceClient.');
 }
 
-if (!cancellations.includes("serviceClient.from('notification_class_cancellation_locks')")) {
+if (!/serviceClient\s*\n?\s*\.from\(['"]notification_class_cancellation_locks['"]\)/.test(cancellations)
+    && !/serviceClient\.from\(['"]notification_class_cancellation_locks['"]\)/.test(cancellations)) {
   throw new Error('Cancellation lock table is no longer accessed through serviceClient.');
 }
 
