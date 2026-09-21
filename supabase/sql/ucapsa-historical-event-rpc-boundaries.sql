@@ -14,6 +14,121 @@
 revoke insert on table public.admin_audit_logs from authenticated;
 drop policy if exists "audit_logs_admin_insert" on public.admin_audit_logs;
 
+-- Class-cancellation history remains directly managed by the Admin service,
+-- but immutable identity/authorship and restore transitions are enforced in DB.
+create or replace function public.guard_program_class_cancellation_history()
+returns trigger
+language plpgsql
+set search_path = public
+as $
+begin
+  if auth.uid() is null then
+    return new;
+  end if;
+
+  if tg_op = 'INSERT' then
+    if new.created_by is distinct from auth.uid() then
+      raise exception 'La cancelacion debe registrar al Admin autenticado.';
+    end if;
+    if new.restored_at is not null or new.restored_by is not null then
+      raise exception 'Una cancelacion nueva no puede nacer restaurada.';
+    end if;
+    return new;
+  end if;
+
+  if old.id is distinct from new.id
+     or old.schedule_id is distinct from new.schedule_id
+     or old.cancellation_date is distinct from new.cancellation_date
+     or old.reason is distinct from new.reason
+     or old.created_by is distinct from new.created_by
+     or old.created_at is distinct from new.created_at then
+    raise exception 'La identidad historica de la cancelacion de clase es inmutable.';
+  end if;
+
+  if old.restored_at is not null then
+    if new is distinct from old then
+      raise exception 'Una cancelacion restaurada es inmutable.';
+    end if;
+    return new;
+  end if;
+
+  if old.announcement_id is not null
+     and new.announcement_id is distinct from old.announcement_id then
+    raise exception 'El anuncio enlazado a la cancelacion no puede reemplazarse.';
+  end if;
+
+  if new.restored_at is not null then
+    if new.restored_by is distinct from auth.uid() then
+      raise exception 'La restauracion debe registrar al Admin autenticado.';
+    end if;
+  elsif new.restored_by is not null then
+    raise exception 'restored_by requiere restored_at.';
+  end if;
+
+  return new;
+end;
+$;
+
+revoke all on function public.guard_program_class_cancellation_history()
+  from public, anon, authenticated;
+
+drop trigger if exists trg_guard_program_class_cancellation_history
+  on public.program_class_cancellations;
+create trigger trg_guard_program_class_cancellation_history
+before insert or update on public.program_class_cancellations
+for each row
+execute function public.guard_program_class_cancellation_history();
+
+create or replace function public.audit_program_class_cancellation_history()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $
+declare
+  v_action text;
+begin
+  if tg_op = 'INSERT' then
+    v_action := 'program_class_cancellation.cancel';
+  elsif old.restored_at is null and new.restored_at is not null then
+    v_action := 'program_class_cancellation.restore';
+  elsif old.announcement_id is distinct from new.announcement_id then
+    v_action := 'program_class_cancellation.link_announcement';
+  else
+    v_action := 'program_class_cancellation.update';
+  end if;
+
+  insert into public.admin_audit_logs (
+    admin_user_id,
+    action,
+    entity_type,
+    entity_id,
+    details
+  ) values (
+    auth.uid(),
+    v_action,
+    'program_class_cancellation',
+    new.id,
+    jsonb_build_object(
+      'before', case when tg_op = 'UPDATE' then to_jsonb(old) else null end,
+      'after', to_jsonb(new)
+    )
+  );
+
+  return new;
+end;
+$;
+
+revoke all on function public.audit_program_class_cancellation_history()
+  from public, anon, authenticated;
+
+drop trigger if exists trg_audit_program_class_cancellation_history
+  on public.program_class_cancellations;
+create trigger trg_audit_program_class_cancellation_history
+after insert or update on public.program_class_cancellations
+for each row
+execute function public.audit_program_class_cancellation_history();
+
 -- Practice history is written only by register_my_practice_session().
 revoke insert on table public.practice_sessions from authenticated;
 grant select on table public.practice_sessions to authenticated;
