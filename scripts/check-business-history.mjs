@@ -5,6 +5,7 @@ const progressionSql = fs.readFileSync('supabase/sql/ucapsa-program-progression-
 const achievementHistorySql = fs.readFileSync('supabase/sql/ucapsa-training-achievement-history-hardening.sql', 'utf8');
 const attendanceVisitAuditSql = fs.readFileSync('supabase/sql/ucapsa-attendance-visit-delete-audit.sql', 'utf8');
 const attendanceVisitCorrectionAuditSql = fs.readFileSync('supabase/sql/ucapsa-attendance-visit-correction-audit.sql', 'utf8');
+const memberVisitTemporalSql = fs.readFileSync('supabase/sql/ucapsa-member-visit-temporal-integrity.sql', 'utf8');
 const trainingAchievementSql = fs.readFileSync('supabase/sql/ucapsa-rango-1-training-achievements.sql', 'utf8');
 const coursePathSql = fs.readFileSync('supabase/sql/ucapsa-course-path-and-points-access.sql', 'utf8');
 const legacyProgressionSql = fs.readFileSync('supabase/sql/ucapsa-membership-lifetime-and-comandos-progression.sql', 'utf8');
@@ -195,6 +196,26 @@ for (const [name, startToken, actionToken, deleteToken] of [
   if (start < 0 || auditAt < 0 || deleteAt < 0 || auditAt > deleteAt) {
     throw new Error(name + ' correction must snapshot audit evidence before physical delete.');
   }
+}
+
+for (const token of [
+  'create or replace function public.register_member_visit_from_qr',
+  'membership_not_started_at_capture',
+  'v_visit_date < v_membership.start_date',
+  'create or replace function public.register_member_visit_admin',
+  "raise exception 'No se puede registrar una visita en el futuro.'",
+  "raise exception 'La visita no puede ser anterior al inicio de la membresia.'",
+  'create or replace function public.correct_member_visit_admin',
+  "source = 'admin_manual'",
+  "'member_visit.correct'",
+]) {
+  if (!memberVisitTemporalSql.toLowerCase().includes(token.toLowerCase())) {
+    throw new Error('Member visit temporal/history contract missing: ' + token);
+  }
+}
+
+if (!/correct_member_visit_admin[\s\S]{0,2600}for update[\s\S]{0,2600}source = 'admin_manual'[\s\S]{0,2600}'member_visit\.correct'/i.test(memberVisitTemporalSql)) {
+  throw new Error('Member visit correction must lock, mark admin source and append audit evidence.');
 }
 
 if (!pkg.includes('"check:business-history"')) {
