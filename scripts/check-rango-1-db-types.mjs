@@ -54,6 +54,9 @@ const required = [
   'dog_id: string | null',
   'register_member_visit_from_qr:',
   'register_program_attendance_from_qr:',
+  'event_occurrence_cancellations:',
+  'admin_archive_notification_campaign:',
+  'admin_replace_announcement_reminders:',
 ];
 
 for (const token of required) {
