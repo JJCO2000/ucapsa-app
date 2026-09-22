@@ -167,9 +167,20 @@ export default function HomeExperienceScreen() {
   }
 
   const nextClass = snapshot?.whatIsNext.nextClass ?? null;
-  const mainProgram = nextClass
-    ? snapshot?.whatIHave.programs.find((program) => program.enrollmentId === nextClass.enrollmentId) ?? snapshot?.whatIHave.programs[0] ?? null
-    : snapshot?.whatIHave.programs[0] ?? null;
+  const mainProgram = snapshot?.whatIHave.programs.length
+    ? [...snapshot.whatIHave.programs].sort((left, right) => {
+        const rank = (program: (typeof snapshot.whatIHave.programs)[number]) => {
+          if (program.programCode === 'puppy') return 0;
+          if (program.programLevel === 'medio') return 2;
+          if (program.programLevel === 'avanzado') return 3;
+          return 1;
+        };
+        const levelDiff = rank(right) - rank(left);
+        if (levelDiff !== 0) return levelDiff;
+        if (left.accessMode !== right.accessMode) return left.accessMode === 'membership' ? -1 : 1;
+        return right.attendanceCount - left.attendanceCount;
+      })[0] ?? null
+    : null;
   const membershipStatus = snapshot?.whatIHave.membership?.status ?? null;
   const hasActivePrograms = Boolean(mainProgram);
   const format = useMemo(
