@@ -157,6 +157,14 @@ export default function DogTab() {
   }, [dogs, requestedDogId]);
 
   const activeEnrollments = useMemo(() => rows.filter((item) => item.enrollment.status === 'active'), [rows]);
+  const memberDogIds = useMemo(
+    () => new Set(
+      activeEnrollments
+        .filter((item) => item.enrollment.access_mode === 'membership' && item.enrollment.dog_id)
+        .map((item) => item.enrollment.dog_id as string),
+    ),
+    [activeEnrollments],
+  );
   const format = useMemo(
     () => resolveUcapsaFormat({ user, role, isAdmin, hasActivePrograms: activeEnrollments.length > 0 }),
     [activeEnrollments.length, isAdmin, role, user],
@@ -384,6 +392,11 @@ export default function DogTab() {
                       >
                         <MaterialIcons name="pets" size={18} color={selected ? format.pillText : premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
                         <Text style={[styles.dogChipText, { color: selected ? format.pillText : format.cardText }]} numberOfLines={1}>{dog.name}</Text>
+                        {memberDogIds.has(dog.id) ? (
+                          <View style={[styles.memberCrownMini, { backgroundColor: selected ? format.cardBackground : ucapsaBrand.colors.goldPale }]}>
+                            <MaterialIcons name="workspace-premium" size={15} color={ucapsaBrand.colors.goldDark} />
+                          </View>
+                        ) : null}
                         {selected ? <MaterialIcons name="check-circle" size={18} color={format.pillText} /> : null}
                       </Pressable>
                     );
@@ -397,7 +410,15 @@ export default function DogTab() {
             <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
               <View style={styles.sectionHeader}>
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={[styles.sectionTitle, { color: format.cardText }]}>{selectedDog.name}</Text>
+                  <View style={styles.dogNameRow}>
+                    <Text style={[styles.sectionTitle, { color: format.cardText }]}>{selectedDog.name}</Text>
+                    {memberDogIds.has(selectedDog.id) ? (
+                      <View style={styles.memberCrown}>
+                        <MaterialIcons name="workspace-premium" size={16} color={ucapsaBrand.colors.goldDark} />
+                        <Text style={styles.memberCrownText}>Socio</Text>
+                      </View>
+                    ) : null}
+                  </View>
                   <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{programWarning ? 'Entrenamiento sin verificar' : `${selectedActive.length} clase${selectedActive.length === 1 ? '' : 's'} activa${selectedActive.length === 1 ? '' : 's'}`}</Text>
                 </View>
                 <View style={styles.dogHeaderActions}>
@@ -428,7 +449,8 @@ export default function DogTab() {
               {!programWarning && selectedActive[0] ? (() => {
                 const item = selectedActive[0];
                 const levelLabel = getProgramLevelDisplayLabel(item.program.code, item.enrollment.program_level);
-                const remaining = item.program.required_attendances > 0 ? Math.max(0, item.program.required_attendances - item.attendances.length) : null;
+                const unlimited = item.enrollment.access_mode === 'membership';
+                const remaining = !unlimited && item.program.required_attendances > 0 ? Math.max(0, item.program.required_attendances - item.attendances.length) : null;
                 const programLabel = `${getProgramCodeLabel(item.program.code)}${levelLabel ? ` ${levelLabel}` : ''}`;
                 return (
                   <Pressable
@@ -441,9 +463,11 @@ export default function DogTab() {
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text style={[styles.dogProgramEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>ENTRENAMIENTO ACTUAL</Text>
                       <Text style={[styles.dogProgramTitle, { color: format.cardText }]}>{programLabel}</Text>
-                      <Text style={[styles.dogProgramMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{item.attendances.length} asistencias registradas</Text>
+                      <Text style={[styles.dogProgramMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+                        {unlimited ? `${item.attendances.length} asistencias · acceso ilimitado` : `${item.attendances.length} asistencias registradas`}
+                      </Text>
                     </View>
-                    {!premium && remaining != null ? <View style={[styles.dogRemainingBox, { backgroundColor: format.accent }]}><Text style={[styles.dogRemainingValue, { color: format.primaryButtonText }]}>{remaining}</Text><Text style={[styles.dogRemainingLabel, { color: format.primaryButtonText }]}>restantes</Text></View> : <MaterialIcons name="chevron-right" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />}
+                    {!unlimited && remaining != null ? <View style={[styles.dogRemainingBox, { backgroundColor: format.accent }]}><Text style={[styles.dogRemainingValue, { color: format.primaryButtonText }]}>{remaining}</Text><Text style={[styles.dogRemainingLabel, { color: format.primaryButtonText }]}>restantes</Text></View> : <MaterialIcons name="chevron-right" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />}
                   </Pressable>
                 );
               })() : null}
@@ -610,6 +634,10 @@ const styles = StyleSheet.create({
   dogGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
   dogChip: { minHeight: 44, maxWidth: '100%', flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 16, borderWidth: 1, paddingHorizontal: 11, paddingVertical: 10 },
   dogChipText: { maxWidth: 165, fontSize: 14, lineHeight: 19, fontWeight: '900' },
+  memberCrownMini: { width: 25, height: 25, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.goldPale },
+  dogNameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7 },
+  memberCrown: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, backgroundColor: ucapsaBrand.colors.goldPale, paddingHorizontal: 8, paddingVertical: 4 },
+  memberCrownText: { color: ucapsaBrand.colors.goldDark, fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
   dogHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   pencilButton: { width: 48, height: 48, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   classRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: ucapsaBrand.colors.border, paddingTop: 11, paddingBottom: 2 },
