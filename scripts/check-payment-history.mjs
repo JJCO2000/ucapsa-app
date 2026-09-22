@@ -90,13 +90,19 @@ for (const token of [
 }
 
 for (const token of [
-  'Titular:',
+  '>TITULAR<',
   'bankSettings.account_holder',
   ".replace(/\\s+/g, ' ').trim()",
+  'copyAccountHolder',
+  'Copiar titular de la cuenta UCAPSA',
 ]) {
   if (!paymentsTab.includes(token)) {
-    throw new Error('Client Payments compact bank summary lost account-holder display: ' + token);
+    throw new Error('Client Payments separate account-holder block lost its SSOT/copy wiring: ' + token);
   }
+}
+
+if (/Titular:\s*\{bankSettings\.account_holder/.test(paymentsTab)) {
+  throw new Error('Client Payments merged the account holder back into the CLABE row.');
 }
 
 if (!transferUi.includes('label="Titular"') || !transferUi.includes('settings?.account_holder')) {
