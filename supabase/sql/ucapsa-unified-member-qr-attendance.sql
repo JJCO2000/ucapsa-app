@@ -9,6 +9,12 @@
 
 begin;
 
+-- La promoción por estado quedó retirada: sólo una decisión explícita de Admin
+-- puede crear la siguiente etapa.
+drop trigger if exists trg_ucapsa_unlock_next_program_stage on public.program_enrollments;
+drop trigger if exists trg_unlock_next_program_stage on public.program_enrollments;
+drop trigger if exists trg_ucapsa_unlock_next_comandos_level on public.program_enrollments;
+
 create or replace function public.register_program_attendance_from_qr(
   p_qr_token text,
   p_enrollment_id uuid,
