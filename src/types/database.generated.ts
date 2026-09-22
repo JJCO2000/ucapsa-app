@@ -1963,7 +1963,6 @@ export type Database = {
           attendances_count?: number
           cancelled_at?: string | null
           access_mode?: string
-          access_mode?: string
           card_expires_on?: string | null
           card_started_on?: string | null
           completed_at?: string | null
@@ -1989,6 +1988,7 @@ export type Database = {
         Update: {
           attendances_count?: number
           cancelled_at?: string | null
+          access_mode?: string
           card_expires_on?: string | null
           card_started_on?: string | null
           completed_at?: string | null
