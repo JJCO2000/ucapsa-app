@@ -114,7 +114,8 @@ export default function TabsLayout() {
       <Tabs.Screen name="admin-clients" options={{ href: isAdmin ? '/admin-clients' : null, title: 'Clientes', tabBarIcon: icon('people-alt') }} />
       <Tabs.Screen name="admin-classes" options={{ href: isAdmin ? '/admin-classes' : null, title: 'Clases', tabBarIcon: icon('school') }} />
       <Tabs.Screen name="admin-payments" options={{ href: isAdmin ? '/admin-payments' : null, title: 'Pagos', tabBarIcon: icon('payments') }} />
-      <Tabs.Screen name="admin-more" options={{ href: isAdmin ? '/admin-more' : null, title: 'Más', tabBarIcon: icon('more-horiz') }} />
+      <Tabs.Screen name="admin-communication" options={{ href: isAdmin ? '/admin-communication' : null, title: 'Comunic.', tabBarIcon: icon('campaign') }} />
+      <Tabs.Screen name="admin-more" options={{ href: null, title: 'Herramientas', tabBarIcon: icon('settings') }} />
     </Tabs>
   );
 }
