@@ -453,6 +453,28 @@ export default function AttendanceScanScreen() {
     resetScanner();
   }
 
+  async function registerSelectedChoice(item: ProgramEnrollmentWithDetails) {
+    if (!pendingToken) return;
+
+    if (choiceMode === 'optional_card') {
+      await registerClasses(pendingToken, [item], { includeMemberVisit: false });
+      return;
+    }
+
+    if (choiceMode === 'select_member_group') {
+      const group = memberGroupFor(activeEnrollments, item);
+      await registerClasses(pendingToken, group, {
+        includeMemberVisit: pendingVisitNeeded,
+        optionalCards: deferredCards,
+      });
+      return;
+    }
+
+    await registerClasses(pendingToken, [item], {
+      includeMemberVisit: pendingVisitNeeded,
+    });
+  }
+
   async function handleBarcode(value: string) {
     if (scanLockRef.current || registering || !cameraActive) return;
     scanLockRef.current = true;
@@ -465,27 +487,92 @@ export default function AttendanceScanScreen() {
       return;
     }
 
+    const memberEnrollments = activeEnrollments.filter(
+      (item) => item.enrollment.access_mode === 'membership',
+    );
+    const cardEnrollments = activeEnrollments.filter(
+      (item) => (item.enrollment.access_mode ?? 'card') === 'card',
+    );
+
     if (parsed.programCode === 'member') {
       if (!canScanMemberVisits) {
         setFeedback({ kind: 'business', title: 'QR de socios', message: 'Tu membresía no está marcada como activa. Si crees que es un error, solicita revisión en UCAPSA.' });
         return;
       }
+
+      const memberChoices = memberGroupRepresentatives(memberEnrollments);
+      if (memberChoices.length === 0) {
+        await registerClasses(parsed.token, [], {
+          includeMemberVisit: true,
+          optionalCards: cardEnrollments,
+        });
+        return;
+      }
+
+      if (memberChoices.length === 1) {
+        const group = memberGroupFor(memberEnrollments, memberChoices[0]);
+        await registerClasses(parsed.token, group, {
+          includeMemberVisit: true,
+          optionalCards: cardEnrollments,
+        });
+        return;
+      }
+
+      // La visita es inequívoca aunque haya que preguntar a qué grupo/etapa vino.
       await registerMemberVisit(parsed.token);
+      setPendingToken(parsed.token);
+      setPendingProgram(null);
+      setChoices(memberChoices);
+      setChoiceMode('select_member_group');
+      setDeferredCards(cardEnrollments);
+      setPendingVisitNeeded(false);
       return;
     }
 
     const matching = activeEnrollments.filter((item) => item.program.code === parsed.programCode);
     if (matching.length === 0) {
+      if (membershipActive) {
+        await registerClasses(parsed.token, [], { includeMemberVisit: true });
+        return;
+      }
       setFeedback({ kind: 'business', title: 'Programa no disponible', message: `No tienes una inscripción activa en ${programLabel(parsed.programCode)}.` });
       return;
     }
-    if (matching.length === 1) {
-      await registerClass(parsed.token, matching[0]);
+
+    const memberMatching = matching.filter((item) => item.enrollment.access_mode === 'membership');
+    const cardMatching = matching.filter((item) => (item.enrollment.access_mode ?? 'card') === 'card');
+    const memberChoices = memberGroupRepresentatives(memberMatching);
+
+    if (memberChoices.length === 1) {
+      const group = memberGroupFor(memberMatching, memberChoices[0]);
+      await registerClasses(parsed.token, group, {
+        includeMemberVisit: membershipActive,
+        optionalCards: cardMatching,
+      });
       return;
     }
+
+    if (memberChoices.length > 1) {
+      setPendingToken(parsed.token);
+      setPendingProgram(parsed.programCode);
+      setChoices(memberChoices);
+      setChoiceMode('select_member_group');
+      setDeferredCards(cardMatching);
+      setPendingVisitNeeded(membershipActive);
+      return;
+    }
+
+    if (cardMatching.length === 1) {
+      await registerClasses(parsed.token, cardMatching, { includeMemberVisit: membershipActive });
+      return;
+    }
+
     setPendingToken(parsed.token);
     setPendingProgram(parsed.programCode);
-    setChoices(matching);
+    setChoices(cardMatching);
+    setChoiceMode('select_card');
+    setDeferredCards([]);
+    setPendingVisitNeeded(membershipActive);
   }
 
   if (sessionLoading) return <KeyboardAwareScreen backgroundColor={format.background}><ActivityIndicator color={format.accent} /><Text style={[styles.muted, { color: format.muted }]}>Revisando sesión...</Text></KeyboardAwareScreen>;
@@ -582,11 +669,62 @@ export default function AttendanceScanScreen() {
 
       {registering ? <InfoCard format={format}><ActivityIndicator color={format.accent} /><Text style={[styles.infoTitle, { color: format.cardText }]}>Guardando y sincronizando...</Text></InfoCard> : null}
 
-      {choices.length > 1 && pendingToken && pendingProgram ? (
+      {choices.length > 0 && pendingToken ? (
         <InfoCard format={format}>
-          <Text style={[styles.infoTitle, { color: format.cardText }]}>Selecciona quién asistió</Text>
-          <Text style={[styles.muted, { color: format.muted }]}>Hay más de una inscripción activa en {programLabel(pendingProgram)}.</Text>
-          {choices.map((item) => <Pressable key={item.enrollment.id} style={[styles.choiceButton, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]} onPress={() => void registerClass(pendingToken, item)}><Text style={[styles.choiceTitle, { color: format.cardText }]}>{enrollmentLabel(item)}</Text><Text style={[styles.choiceMeta, { color: format.muted }]}>{programLabel(item.program.code)} - {item.enrollment.attendances_count}/{item.program.required_attendances}</Text></Pressable>)}
+          <Text style={[styles.infoTitle, { color: format.cardText }]}>
+            {choiceMode === 'optional_card'
+              ? '¿Registrar también otra clase?'
+              : choiceMode === 'select_member_group'
+                ? '¿A qué viene hoy?'
+                : 'Selecciona quién asistió'}
+          </Text>
+          <Text style={[styles.muted, { color: format.muted }]}>
+            {choiceMode === 'optional_card'
+              ? 'La asistencia de socio ya quedó resuelta. Estas tarjetas normales sí consumen una clase.'
+              : choiceMode === 'select_member_group'
+                ? 'Hay perros en distintas etapas. Elige la clase que corresponde hoy.'
+                : pendingProgram
+                  ? `Hay más de una tarjeta activa en ${programLabel(pendingProgram)}.`
+                  : 'Elige el registro correcto.'}
+          </Text>
+          {choices.map((item) => {
+            const group = item.enrollment.access_mode === 'membership'
+              ? memberGroupFor(activeEnrollments, item)
+              : [item];
+            const names = group.map((row) => getProgramEnrollmentDogName(row)).join(', ');
+            const level = item.program.code === 'comandos' ? getProgramLevelLabel(item.enrollment.program_level) : null;
+            const title = item.enrollment.access_mode === 'membership'
+              ? [programLabel(item.program.code), level, names].filter(Boolean).join(' · ')
+              : enrollmentLabel(item);
+            const meta = item.enrollment.access_mode === 'membership'
+              ? `Socio · acceso ilimitado · ${group.length} perro${group.length === 1 ? '' : 's'}`
+              : `Tarjeta · ${item.attendances.length}/${item.program.required_attendances}`;
+            return (
+              <Pressable
+                key={item.enrollment.id}
+                style={[styles.choiceButton, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}
+                onPress={() => void registerSelectedChoice(item)}
+              >
+                <Text style={[styles.choiceTitle, { color: format.cardText }]}>{title}</Text>
+                <Text style={[styles.choiceMeta, { color: format.muted }]}>{meta}</Text>
+              </Pressable>
+            );
+          })}
+          {choiceMode === 'optional_card' ? (
+            <Pressable
+              style={[styles.secondaryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}
+              onPress={() => {
+                setChoices([]);
+                setPendingToken(null);
+                setPendingProgram(null);
+                setChoiceMode('select_card');
+                setDeferredCards([]);
+                setPendingVisitNeeded(false);
+              }}
+            >
+              <Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>No, sólo los socios</Text>
+            </Pressable>
+          ) : null}
         </InfoCard>
       ) : null}
 
