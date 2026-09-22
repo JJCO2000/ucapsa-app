@@ -175,7 +175,7 @@ export type CustomerValueSnapshot = {
   };
   capabilities: {
     learningProgressTracked: false;
-    membershipBenefitsModeled: false;
+    membershipBenefitsModeled: true;
     eventAttendanceTracked: false;
     canonicalProgramLevelTable: false;
   };
