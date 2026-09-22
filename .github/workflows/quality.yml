@@ -14,6 +14,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: TEMP generate synchronized lockfile
+        run: |
+          npm install --package-lock-only --ignore-scripts
+          echo "UCAPSA_LOCKFILE_BASE64=$(base64 -w0 package-lock.json)"
       - run: npm ci
       - run: npm run verify:release
       - run: npm run audit:critical
