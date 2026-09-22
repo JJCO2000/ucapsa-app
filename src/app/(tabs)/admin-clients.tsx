@@ -87,7 +87,7 @@ export default function AdminClientsTab() {
     ? 'Elige un cliente y abre directamente sus asistencias.'
     : intent === 'payments'
       ? 'Elige un cliente y abre directamente sus pagos.'
-      : 'Busca una persona y abre su informacion.';
+      : 'Personas, socios, perros, membresías y seguimiento desde una sola sección.';
 
   return (
     <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={ucapsaBrand.colors.red} />}>
@@ -96,6 +96,33 @@ export default function AdminClientsTab() {
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.subtitle}>{subtitle}</Text>
       </View>
+
+      {intent === 'default' ? (
+        <>
+          <Text style={styles.sectionTitle}>Gestión de clientes</Text>
+          <View style={styles.managementCard}>
+            <ManagementRow
+              icon="workspace-premium"
+              title="Membresías"
+              subtitle="Socios, solicitudes y cobertura por perro"
+              onPress={() => router.push('/admin/members' as never)}
+            />
+            <ManagementRow
+              icon="groups"
+              title="Visitas de socios"
+              subtitle="Registros, historial y tendencia mensual"
+              onPress={() => router.push('/admin/member-visits' as never)}
+            />
+            <ManagementRow
+              icon="insights"
+              title="Continuidad"
+              subtitle="Actividad, valor visible y seguimiento por cliente"
+              onPress={() => router.push('/admin/continuity' as never)}
+              last
+            />
+          </View>
+        </>
+      ) : null}
 
       {intent !== 'default' ? (
         <Pressable style={styles.intentBanner} onPress={() => router.replace('/admin-clients' as never)}>
@@ -131,6 +158,33 @@ export default function AdminClientsTab() {
   );
 }
 
+function ManagementRow({
+  icon,
+  title,
+  subtitle,
+  onPress,
+  last = false,
+}: {
+  icon: keyof typeof MaterialIcons.glyphMap;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+  last?: boolean;
+}) {
+  return (
+    <Pressable style={[styles.managementRow, last && styles.managementRowLast]} onPress={onPress}>
+      <View style={styles.managementIcon}>
+        <MaterialIcons name={icon} size={20} color={ucapsaBrand.colors.redDark} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.managementTitle}>{title}</Text>
+        <Text style={styles.managementSubtitle}>{subtitle}</Text>
+      </View>
+      <MaterialIcons name="chevron-right" size={22} color={ucapsaBrand.colors.redDark} />
+    </Pressable>
+  );
+}
+
 function Filter({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   return <Pressable style={[styles.filter, active && styles.filterActive]} onPress={onPress}><Text style={[styles.filterText, active && styles.filterTextActive]}>{label}</Text></Pressable>;
 }
@@ -140,6 +194,13 @@ const styles = StyleSheet.create({
   kicker: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
   title: { color: ucapsaBrand.colors.text, fontSize: 30, fontWeight: '900' },
   subtitle: { color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 19, fontWeight: '700', marginTop: 3 },
+  sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 17, fontWeight: '900', marginBottom: 9 },
+  managementCard: { borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, overflow: 'hidden', marginBottom: 14 },
+  managementRow: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.premiumMuted },
+  managementRowLast: { borderBottomWidth: 0 },
+  managementIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
+  managementTitle: { color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '900' },
+  managementSubtitle: { color: ucapsaBrand.colors.muted, fontSize: 10, lineHeight: 15, fontWeight: '700', marginTop: 2 },
   intentBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 15, backgroundColor: ucapsaBrand.colors.redSoft, padding: 11, marginBottom: 10 },
   intentText: { flex: 1, color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900' },
   intentClose: { color: ucapsaBrand.colors.redDark, fontSize: 11, fontWeight: '900' },
