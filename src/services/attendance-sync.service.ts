@@ -23,6 +23,7 @@ export type AttendanceSyncResult = {
   operationId: string;
   status: 'synced' | AttendanceOutboxState;
   message: string;
+  outcome?: string;
   networkFailure?: boolean;
 };
 
@@ -63,6 +64,7 @@ async function syncOperationOnce(
         return {
           operationId: operation.id,
           status: 'synced',
+          outcome: result.result,
           message: result.message || 'Asistencia confirmada.',
         };
       }
@@ -90,6 +92,7 @@ async function syncOperationOnce(
       return {
         operationId: operation.id,
         status: 'rejected',
+        outcome: result.result,
         message: next.message ?? '',
       };
     }
@@ -109,6 +112,7 @@ async function syncOperationOnce(
       return {
         operationId: operation.id,
         status: 'synced',
+        outcome: result.result,
         message: result.message || 'Visita de socio confirmada.',
       };
     }
@@ -122,6 +126,7 @@ async function syncOperationOnce(
     return {
       operationId: operation.id,
       status: 'rejected',
+      outcome: result.result,
       message: next.message ?? '',
     };
   } catch (error) {
