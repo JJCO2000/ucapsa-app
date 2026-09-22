@@ -58,37 +58,7 @@ function capturedLabel(value: string) {
 }
 
 type Feedback = { kind: 'success' | 'business' | 'connection'; title: string; message: string } | null;
-type ChoiceMode = 'select_member_group' | 'select_card' | 'optional_card';
-
-function memberGroupKey(item: ProgramEnrollmentWithDetails) {
-  return [
-    item.program.code,
-    item.enrollment.program_level,
-    item.enrollment.schedule_id,
-  ].join(':');
-}
-
-function memberGroupFor(
-  rows: ProgramEnrollmentWithDetails[],
-  representative: ProgramEnrollmentWithDetails,
-) {
-  const key = memberGroupKey(representative);
-  return rows.filter((item) =>
-    item.enrollment.access_mode === 'membership'
-    && memberGroupKey(item) === key,
-  );
-}
-
-function memberGroupRepresentatives(rows: ProgramEnrollmentWithDetails[]) {
-  const seen = new Set<string>();
-  return rows.filter((item) => {
-    if (item.enrollment.access_mode !== 'membership') return false;
-    const key = memberGroupKey(item);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
+type ChoiceMode = 'select_member_dog' | 'select_card' | 'optional_card';
 
 export default function AttendanceScanScreen() {
   const { user, role, isAdmin, loading: sessionLoading } = useSession();
@@ -461,9 +431,8 @@ export default function AttendanceScanScreen() {
       return;
     }
 
-    if (choiceMode === 'select_member_group') {
-      const group = memberGroupFor(activeEnrollments, item);
-      await registerClasses(pendingToken, group, {
+    if (choiceMode === 'select_member_dog') {
+      await registerClasses(pendingToken, [item], {
         includeMemberVisit: pendingVisitNeeded,
         optionalCards: deferredCards,
       });
@@ -500,7 +469,7 @@ export default function AttendanceScanScreen() {
         return;
       }
 
-      const memberChoices = memberGroupRepresentatives(memberEnrollments);
+      const memberChoices = memberEnrollments;
       if (memberChoices.length === 0) {
         await registerClasses(parsed.token, [], {
           includeMemberVisit: true,
@@ -510,8 +479,7 @@ export default function AttendanceScanScreen() {
       }
 
       if (memberChoices.length === 1) {
-        const group = memberGroupFor(memberEnrollments, memberChoices[0]);
-        await registerClasses(parsed.token, group, {
+        await registerClasses(parsed.token, [memberChoices[0]], {
           includeMemberVisit: true,
           optionalCards: cardEnrollments,
         });
@@ -523,7 +491,7 @@ export default function AttendanceScanScreen() {
       setPendingToken(parsed.token);
       setPendingProgram(null);
       setChoices(memberChoices);
-      setChoiceMode('select_member_group');
+      setChoiceMode('select_member_dog');
       setDeferredCards(cardEnrollments);
       setPendingVisitNeeded(false);
       return;
@@ -541,11 +509,10 @@ export default function AttendanceScanScreen() {
 
     const memberMatching = matching.filter((item) => item.enrollment.access_mode === 'membership');
     const cardMatching = matching.filter((item) => (item.enrollment.access_mode ?? 'card') === 'card');
-    const memberChoices = memberGroupRepresentatives(memberMatching);
+    const memberChoices = memberMatching;
 
     if (memberChoices.length === 1) {
-      const group = memberGroupFor(memberMatching, memberChoices[0]);
-      await registerClasses(parsed.token, group, {
+      await registerClasses(parsed.token, [memberChoices[0]], {
         includeMemberVisit: membershipActive,
         optionalCards: cardMatching,
       });
@@ -556,7 +523,7 @@ export default function AttendanceScanScreen() {
       setPendingToken(parsed.token);
       setPendingProgram(parsed.programCode);
       setChoices(memberChoices);
-      setChoiceMode('select_member_group');
+      setChoiceMode('select_member_dog');
       setDeferredCards(cardMatching);
       setPendingVisitNeeded(membershipActive);
       return;
@@ -674,30 +641,27 @@ export default function AttendanceScanScreen() {
           <Text style={[styles.infoTitle, { color: format.cardText }]}>
             {choiceMode === 'optional_card'
               ? '¿Registrar también otra clase?'
-              : choiceMode === 'select_member_group'
-                ? '¿A qué viene hoy?'
+              : choiceMode === 'select_member_dog'
+                ? '¿Qué perro asistió?'
                 : 'Selecciona quién asistió'}
           </Text>
           <Text style={[styles.muted, { color: format.muted }]}>
             {choiceMode === 'optional_card'
               ? 'La asistencia de socio ya quedó resuelta. Estas tarjetas normales sí consumen una clase.'
-              : choiceMode === 'select_member_group'
-                ? 'Hay perros en distintas etapas. Elige la clase que corresponde hoy.'
+              : choiceMode === 'select_member_dog'
+                ? 'Hay más de un perro con acceso de socio. Elige el que asistió a esta clase.'
                 : pendingProgram
                   ? `Hay más de una tarjeta activa en ${programLabel(pendingProgram)}.`
                   : 'Elige el registro correcto.'}
           </Text>
           {choices.map((item) => {
-            const group = item.enrollment.access_mode === 'membership'
-              ? memberGroupFor(activeEnrollments, item)
-              : [item];
-            const names = group.map((row) => getProgramEnrollmentDogName(row)).join(', ');
+            const dogName = getProgramEnrollmentDogName(item);
             const level = item.program.code === 'comandos' ? getProgramLevelLabel(item.enrollment.program_level) : null;
             const title = item.enrollment.access_mode === 'membership'
-              ? [programLabel(item.program.code), level, names].filter(Boolean).join(' · ')
+              ? [dogName, programLabel(item.program.code), level].filter(Boolean).join(' · ')
               : enrollmentLabel(item);
             const meta = item.enrollment.access_mode === 'membership'
-              ? `Socio · acceso ilimitado · ${group.length} perro${group.length === 1 ? '' : 's'}`
+              ? 'Socio · acceso ilimitado'
               : `Tarjeta · ${item.attendances.length}/${item.program.required_attendances}`;
             return (
               <Pressable
