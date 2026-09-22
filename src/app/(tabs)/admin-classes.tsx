@@ -7,10 +7,11 @@ import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import { getAdminProgramRows, getProgramClassCancellations, getProgramSchedules } from '../../services/programs.service';
+import { isTrainingDecisionReady } from '../../services/admin-training-decisions.service';
 import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
 
-type ClassStats = { puppy: number; comandos: number; schedules: number; cancellations: number };
-const emptyStats: ClassStats = { puppy: 0, comandos: 0, schedules: 0, cancellations: 0 };
+type ClassStats = { puppy: number; comandos: number; schedules: number; cancellations: number; ready: number };
+const emptyStats: ClassStats = { puppy: 0, comandos: 0, schedules: 0, cancellations: 0, ready: 0 };
 
 export default function AdminClassesTab() {
   const { isAdmin } = useSession();
@@ -33,6 +34,7 @@ export default function AdminClassesTab() {
       comandos: rows.filter((row) => row.enrollment.status === 'active' && row.program.code === 'comandos').length,
       schedules: schedules.filter((row) => row.is_active).length,
       cancellations: cancellations.length,
+      ready: rows.filter(isTrainingDecisionReady).length,
     });
     setHasData(true);
   }, [isAdmin]);
@@ -56,20 +58,22 @@ export default function AdminClassesTab() {
       <View style={styles.hero}>
         <Text style={styles.kicker}>Admin</Text>
         <Text style={styles.title}>Clases</Text>
-        <Text style={styles.subtitle}>Elige una tarea y entra directo a lo que necesitas.</Text>
+        <Text style={styles.subtitle}>Primero las decisiones pendientes; después las herramientas de operación.</Text>
       </View>
 
       {loading ? <View style={styles.loading}><Text style={styles.muted}>Actualizando clases...</Text></View> : null}
       {error ? <View style={styles.errorBox}><Text style={styles.errorTitle}>No se pudo actualizar</Text><Text style={styles.muted}>{error}</Text><Pressable style={styles.retryButton} onPress={() => void refresh()}><Text style={styles.retryText}>Reintentar</Text></Pressable></View> : null}
       {hasData ? <View style={styles.metrics}>
+        <Metric label="Listos para evaluar" value={stats.ready} icon="task-alt" onPress={() => router.push('/admin/training-decisions' as never)} />
         <Metric label="Puppy activos" value={stats.puppy} icon="pets" onPress={() => router.push('/admin/classes?program=puppy&status=active' as never)} />
         <Metric label="Comandos activos" value={stats.comandos} icon="school" onPress={() => router.push('/admin/classes?program=comandos&status=active' as never)} />
         <Metric label="Horarios activos" value={stats.schedules} icon="schedule" onPress={() => router.push('/admin/class-schedules?status=active' as never)} />
         <Metric label="Cancelaciones" value={stats.cancellations} icon="event-busy" onPress={() => router.push('/admin/class-cancellations' as never)} />
       </View> : null}
 
-      <Text style={styles.sectionTitle}>Gestion</Text>
+      <Text style={styles.sectionTitle}>Cuando necesitas intervenir</Text>
       <View style={styles.card}>
+        <MenuRow icon="task-alt" title="Listos para evaluar" subtitle="Sólo tarjetas completas que necesitan decidir si repiten, continúan o suben" onPress={() => router.push('/admin/training-decisions' as never)} />
         <MenuRow icon="fact-check" title="Asistencia manual" subtitle="Elige cliente y registra o corrige asistencias" onPress={() => router.push('/admin-clients?intent=attendance' as never)} />
         <MenuRow icon="school" title="Inscripciones" subtitle="Buscar, crear o editar una inscripcion" onPress={() => router.push('/admin/classes' as never)} />
         <MenuRow icon="qr-code" title="QR de asistencia" subtitle="Ver, imprimir o reimprimir Puppy, Comandos y Socios" onPress={() => router.push('/admin/attendance-qr' as never)} />
