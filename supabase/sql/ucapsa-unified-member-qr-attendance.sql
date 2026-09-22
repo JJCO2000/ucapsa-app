@@ -42,6 +42,8 @@ declare
   v_outside_window boolean := false;
   v_window_start timestamp without time zone;
   v_window_end timestamp without time zone;
+  v_window_before_minutes integer;
+  v_window_after_minutes integer;
   v_session_id uuid;
   v_attendance_id uuid;
   v_membership_qr boolean := false;
@@ -117,6 +119,24 @@ begin
   if not v_membership_qr and v_program_code <> v_qr.program_code then
     return query select null::uuid, null::uuid, 'wrong_program'::text, 'Este QR no corresponde a tu programa activo.'::text;
     return;
+  end if;
+
+  if v_membership_qr then
+    select q.window_before_minutes, q.window_after_minutes
+      into v_window_before_minutes, v_window_after_minutes
+    from public.attendance_qr_codes q
+    where q.program_code = v_program_code
+      and q.is_active = true
+    order by q.version desc, q.updated_at desc
+    limit 1;
+
+    if v_window_before_minutes is null or v_window_after_minutes is null then
+      return query select null::uuid, null::uuid, 'class_qr_config_missing'::text, 'La ventana de asistencia de esta clase necesita revision administrativa.'::text;
+      return;
+    end if;
+  else
+    v_window_before_minutes := v_qr.window_before_minutes;
+    v_window_after_minutes := v_qr.window_after_minutes;
   end if;
 
   if v_membership_qr and not exists (
@@ -212,8 +232,8 @@ begin
   end if;
 
   v_class_start := v_today::timestamp + v_schedule.start_time;
-  v_window_start := v_class_start - make_interval(mins => v_qr.window_before_minutes);
-  v_window_end := v_class_start + make_interval(mins => v_qr.window_after_minutes);
+  v_window_start := v_class_start - make_interval(mins => v_window_before_minutes);
+  v_window_end := v_class_start + make_interval(mins => v_window_after_minutes);
   v_outside_window := v_capture_local < v_window_start or v_capture_local > v_window_end;
 
   if v_outside_window and not coalesce(p_confirm_outside_window, false) then
