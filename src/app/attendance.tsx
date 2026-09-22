@@ -2,8 +2,8 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand, withAlpha } from '../constants/brand';
@@ -58,6 +58,12 @@ function capturedLabel(value: string) {
 }
 
 type Feedback = { kind: 'success' | 'business' | 'connection'; title: string; message: string } | null;
+type CardCompletionNotice = {
+  enrollmentId: string;
+  dogName: string;
+  title: string;
+  message: string;
+} | null;
 type ChoiceMode = 'select_member_dog' | 'select_card' | 'optional_card';
 
 export default function AttendanceScanScreen() {
@@ -81,6 +87,8 @@ export default function AttendanceScanScreen() {
   const [deferredCards, setDeferredCards] = useState<ProgramEnrollmentWithDetails[]>([]);
   const [pendingVisitNeeded, setPendingVisitNeeded] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
+  const [cardCompletion, setCardCompletion] = useState<CardCompletionNotice>(null);
+  const completionAnimation = useRef(new Animated.Value(0)).current;
 
   const activeEnrollments = useMemo(() => enrollments.filter((item) => item.enrollment.status === 'active'), [enrollments]);
   const canScanMemberVisits = membershipActive;
@@ -99,6 +107,31 @@ export default function AttendanceScanScreen() {
     [activeEnrollments.length, isAdmin, membershipStatus, role, user],
   );
   const premium = format.key === 'member' && !isAdmin;
+
+  useEffect(() => {
+    if (!cardCompletion) {
+      completionAnimation.setValue(0);
+      return;
+    }
+
+    completionAnimation.setValue(0);
+    Animated.sequence([
+      Animated.spring(completionAnimation, {
+        toValue: 1,
+        useNativeDriver: true,
+        speed: 18,
+        bounciness: 8,
+      }),
+      Animated.delay(2200),
+      Animated.timing(completionAnimation, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
+      if (finished) setCardCompletion(null);
+    });
+  }, [cardCompletion, completionAnimation]);
 
   const loadData = useCallback(async () => {
     if (!user || isAdmin) return;
@@ -193,10 +226,33 @@ export default function AttendanceScanScreen() {
       const refreshed = await withOperationTimeout(getMyProgramEnrollments(), DEFAULT_READ_TIMEOUT_MS, 'attendance-refresh');
       setEnrollments(refreshed);
       await writeClientResource(userId, clientReadKeys.programs, sanitizeProgramRowsForCache(refreshed));
+      return refreshed;
     } catch (error) {
       // La escritura ya fue confirmada por Supabase. No convertir éxito en error por el refresco.
       devWarn('Could not refresh programs after confirmed attendance write.', error);
+      return null;
     }
+  }
+
+  function completionNoticeFor(item: ProgramEnrollmentWithDetails): CardCompletionNotice {
+    if ((item.enrollment.access_mode ?? 'card') !== 'card') return null;
+    const required = Math.max(1, Number(item.program.required_attendances ?? 0));
+    if (item.attendances.length < required) return null;
+
+    const dogName = getProgramEnrollmentDogName(item);
+    const level = item.program.code === 'comandos' ? getProgramLevelLabel(item.enrollment.program_level) : 'Puppy';
+    const message = item.program.code === 'puppy'
+      ? 'Consulta con UCAPSA el siguiente paso de ' + dogName + '.'
+      : item.enrollment.program_level === 'avanzado'
+        ? 'Puedes seguir entrenando en Avanzado y continuar sumando logros.'
+        : 'Ya puedes solicitar tu evaluación para avanzar al siguiente nivel.';
+
+    return {
+      enrollmentId: item.enrollment.id,
+      dogName,
+      title: '¡Completaste tus ' + String(required) + ' clases de ' + level + '!',
+      message,
+    };
   }
 
   async function registerClasses(
@@ -243,6 +299,7 @@ export default function AttendanceScanScreen() {
     let hasConnectionPending = false;
     let hasConfirmation = false;
     const rejectedMessages: string[] = [];
+    const newlyRegisteredEnrollmentIds = new Set<string>();
     let syncedClasses = 0;
     let visitConfirmed = false;
 
@@ -251,8 +308,12 @@ export default function AttendanceScanScreen() {
         const result = await syncAttendanceOperation(userId, operation.id);
         if (!result) continue;
         if (result.status === 'synced') {
-          if (operation.kind === 'class') syncedClasses += 1;
-          else visitConfirmed = true;
+          if (operation.kind === 'class') {
+            syncedClasses += 1;
+            if (result.outcome === 'registered') newlyRegisteredEnrollmentIds.add(operation.enrollmentId);
+          } else {
+            visitConfirmed = true;
+          }
         } else if (result.status === 'needs_confirmation') {
           hasConfirmation = true;
         } else if (result.status === 'rejected') {
@@ -264,7 +325,15 @@ export default function AttendanceScanScreen() {
       await refreshOutbox(userId);
 
       if (targets.length > 0 && (syncedClasses > 0 || hasConfirmation)) {
-        await refreshProgramsAfterConfirmedWrite(userId);
+        const refreshed = await refreshProgramsAfterConfirmedWrite(userId);
+        if (refreshed && newlyRegisteredEnrollmentIds.size > 0) {
+          const completed = refreshed.find((item) =>
+            newlyRegisteredEnrollmentIds.has(item.enrollment.id)
+            && (item.enrollment.access_mode ?? 'card') === 'card'
+            && item.attendances.length >= Math.max(1, Number(item.program.required_attendances ?? 0)),
+          );
+          if (completed) setCardCompletion(completionNoticeFor(completed));
+        }
       }
 
       const optionalCards = options?.optionalCards ?? [];
@@ -688,6 +757,32 @@ export default function AttendanceScanScreen() {
         </InfoCard>
       ) : null}
 
+      {cardCompletion ? (
+        <Animated.View
+          style={[
+            styles.completionCard,
+            {
+              opacity: completionAnimation,
+              transform: [{
+                scale: completionAnimation.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.92, 1],
+                }),
+              }],
+            },
+          ]}
+        >
+          <View style={styles.completionMedal}>
+            <MaterialIcons name="emoji-events" size={30} color={ucapsaBrand.colors.goldDark} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.completionKicker}>TARJETA COMPLETA</Text>
+            <Text style={styles.completionTitle}>{cardCompletion.title}</Text>
+            <Text style={styles.completionText}>{cardCompletion.message}</Text>
+          </View>
+        </Animated.View>
+      ) : null}
+
       {feedback ? (
         <View style={[styles.infoCard, feedback.kind === 'success' ? styles.successCard : feedback.kind === 'connection' ? styles.connectionCard : styles.errorCard]}>
           <MaterialIcons name={feedback.kind === 'success' ? 'check-circle' : feedback.kind === 'connection' ? 'cloud-off' : 'info-outline'} size={34} color={feedback.kind === 'success' ? ucapsaBrand.colors.success : feedback.kind === 'connection' ? ucapsaBrand.colors.warningDark : ucapsaBrand.colors.danger} />
@@ -725,6 +820,11 @@ const styles = StyleSheet.create({
   infoCard: { gap: 9, borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 16 },
   inlineStatus: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   statusCopy: { flex: 1, gap: 2 },
+  completionCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 22, borderWidth: 1, borderColor: ucapsaBrand.colors.gold, backgroundColor: ucapsaBrand.colors.goldPale, padding: 16 },
+  completionMedal: { width: 52, height: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.surface },
+  completionKicker: { color: ucapsaBrand.colors.goldDark, fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
+  completionTitle: { color: ucapsaBrand.colors.text, fontSize: 16, lineHeight: 21, fontWeight: '900', marginTop: 2 },
+  completionText: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 17, fontWeight: '700', marginTop: 3 },
   successCard: { borderColor: ucapsaBrand.colors.successBorder, backgroundColor: ucapsaBrand.colors.successSoft },
   connectionCard: { borderColor: ucapsaBrand.colors.warningBorder, backgroundColor: ucapsaBrand.colors.warningSoft },
   errorCard: { borderColor: ucapsaBrand.colors.dangerBorder, backgroundColor: ucapsaBrand.colors.dangerSoft },
