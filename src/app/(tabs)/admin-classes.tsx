@@ -58,7 +58,7 @@ export default function AdminClassesTab() {
       <View style={styles.hero}>
         <Text style={styles.kicker}>Admin</Text>
         <Text style={styles.title}>Clases</Text>
-        <Text style={styles.subtitle}>Primero las decisiones pendientes; después las herramientas de operación.</Text>
+        <Text style={styles.subtitle}>Programas, asistencias, niveles, horarios y competencia en una sola sección.</Text>
       </View>
 
       {loading ? <View style={styles.loading}><Text style={styles.muted}>Actualizando clases...</Text></View> : null}
@@ -71,7 +71,7 @@ export default function AdminClassesTab() {
         <Metric label="Cancelaciones" value={stats.cancellations} icon="event-busy" onPress={() => router.push('/admin/class-cancellations' as never)} />
       </View> : null}
 
-      <Text style={styles.sectionTitle}>Cuando necesitas intervenir</Text>
+      <Text style={styles.sectionTitle}>Entrenamiento</Text>
       <View style={styles.card}>
         <MenuRow icon="task-alt" title="Listos para evaluar" subtitle="Sólo tarjetas completas que necesitan decidir si repiten, continúan o suben" onPress={() => router.push('/admin/training-decisions' as never)} />
         <MenuRow icon="fact-check" title="Asistencia manual" subtitle="Elige cliente y registra o corrige asistencias" onPress={() => router.push('/admin-clients?intent=attendance' as never)} />
@@ -80,6 +80,17 @@ export default function AdminClassesTab() {
         <MenuRow icon="qr-code-scanner" title="Escanear" subtitle="Abrir el escaner administrativo" onPress={() => router.push('/admin/scanner' as never)} />
         <MenuRow icon="schedule" title="Horarios" subtitle="Cambiar horarios desde una fecha sin tocar historial" onPress={() => router.push('/admin/class-schedules?status=active' as never)} />
         <MenuRow icon="event-busy" title="Cancelaciones" subtitle="Cancelar o reactivar una clase por fecha" onPress={() => router.push('/admin/class-cancellations' as never)} last />
+      </View>
+
+      <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>Competencia y progreso</Text>
+      <View style={styles.card}>
+        <MenuRow
+          icon="emoji-events"
+          title="Competencia UCAPSA"
+          subtitle="Ranking, temporadas, constancia, exámenes, ajustes y premios"
+          onPress={() => router.push('/admin/competition' as never)}
+          last
+        />
       </View>
     </KeyboardAwareScreen>
   );
@@ -126,6 +137,7 @@ const styles = StyleSheet.create({
   metricLabel: { flex: 1, color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '800' },
   pressed: { opacity: 0.78, transform: [{ scale: 0.99 }] },
   sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 19, fontWeight: '900', marginBottom: 10 },
+  sectionTitleSpaced: { marginTop: 20 },
   card: { borderRadius: 22, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.premiumMuted },
   rowLast: { borderBottomWidth: 0 },
