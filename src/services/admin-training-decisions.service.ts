@@ -51,11 +51,7 @@ function customerName(row: ProgramEnrollmentWithDetails) {
 }
 
 function isFiniteTrainingCard(row: ProgramEnrollmentWithDetails) {
-  return Boolean(
-    row.enrollment.physical_card_number
-    || row.enrollment.card_started_on
-    || row.enrollment.card_expires_on,
-  );
+  return (row.enrollment.access_mode ?? 'card') === 'card';
 }
 
 export function isTrainingDecisionReady(row: ProgramEnrollmentWithDetails) {
