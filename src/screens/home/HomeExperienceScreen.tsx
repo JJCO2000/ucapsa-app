@@ -169,7 +169,7 @@ export default function HomeExperienceScreen() {
   const nextClass = snapshot?.whatIsNext.nextClass ?? null;
   const mainProgram = snapshot?.whatIHave.programs.length
     ? [...snapshot.whatIHave.programs].sort((left, right) => {
-        const rank = (program: (typeof snapshot.whatIHave.programs)[number]) => {
+        const rank = (program: CustomerValueSnapshot['whatIHave']['programs'][number]) => {
           if (program.programCode === 'puppy') return 0;
           if (program.programLevel === 'medio') return 2;
           if (program.programLevel === 'avanzado') return 3;
