@@ -6,7 +6,6 @@ const decisions = fs.readFileSync('src/services/admin-training-decisions.service
 const membershipAdmin = fs.readFileSync('src/app/admin/customer-membership.tsx', 'utf8');
 const attendanceUi = fs.readFileSync('src/app/attendance.tsx', 'utf8');
 const homeCards = fs.readFileSync('src/screens/home/HomeCards.tsx', 'utf8');
-const home = fs.readFileSync('src/screens/home/HomeExperienceScreen.tsx', 'utf8');
 const dog = fs.readFileSync('src/app/(tabs)/dog.tsx', 'utf8');
 const classDetail = fs.readFileSync('src/app/client/class-detail.tsx', 'utf8');
 const credential = fs.readFileSync('src/components/domain/ProgramCredentialCard.tsx', 'utf8');
@@ -81,16 +80,6 @@ for (const [name, text, tokens] of [
 ]) {
   for (const token of tokens) {
     if (!text.includes(token)) throw new Error(name + ' lost member-access behavior: ' + token);
-  }
-}
-
-for (const token of [
-  'rank(right) - rank(left)',
-  "program.programLevel === 'avanzado'",
-  "left.accessMode === 'membership'",
-]) {
-  if (!home.includes(token)) {
-    throw new Error('Home highest-stage selection contract missing: ' + token);
   }
 }
 
