@@ -16,8 +16,8 @@ export default function AdminMoreTab() {
     <KeyboardAwareScreen>
       <View style={styles.header}>
         <Text style={styles.kicker}>{isSuperAdmin ? 'Superadmin' : 'Admin'}</Text>
-        <Text style={styles.title}>Más herramientas</Text>
-        <Text style={styles.subtitle}>Accesos directos. Nada importante queda escondido dentro de otro menú.</Text>
+        <Text style={styles.title}>Herramientas</Text>
+        <Text style={styles.subtitle}>Aquí quedan las tareas de consulta y configuración. Las decisiones pendientes aparecen primero en Inicio.</Text>
       </View>
 
       <Text style={styles.sectionTitle}>Comunicación</Text>
@@ -29,6 +29,7 @@ export default function AdminMoreTab() {
 
       <Text style={styles.sectionTitle}>Operación</Text>
       <View style={styles.card}>
+        <MenuRow icon="task-alt" title="Listos para evaluar" subtitle="Resolver tarjetas que ya cumplieron sus asistencias" onPress={() => router.push('/admin/training-decisions' as never)} />
         <MenuRow icon="emoji-events" title="Competencia UCAPSA" subtitle="Temporadas, constancia, exámenes, ajustes y premios" onPress={() => router.push('/admin/competition' as never)} />
         <MenuRow icon="restaurant-menu" title="Restaurante" subtitle="Editar menú, precios y disponibilidad" onPress={() => router.push('/admin/restaurant' as never)} />
         <MenuRow icon="rate-review" title="Reseñas Google" subtitle="Abrir el asistente para redactar una reseña real" onPress={() => router.push('/reviews' as never)} />
