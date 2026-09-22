@@ -4768,6 +4768,35 @@ export type Database = {
         Args: { p_achievement_code: string; p_dog_id: string }
         Returns: string
       }
+      admin_resolve_training_card_decision: {
+        Args: {
+          p_decision: string
+          p_enrollment_id: string
+          p_new_card_number?: string
+        }
+        Returns: {
+          awarded_achievement_code: string | null
+          decision: string
+          next_enrollment_id: string | null
+        }[]
+      }
+      get_admin_training_decision_history: {
+        Args: { p_limit?: number }
+        Returns: {
+          attendance_count: number
+          customer_name: string | null
+          decided_at: string
+          decision: string
+          dog_id: string | null
+          dog_name: string | null
+          enrollment_id: string
+          next_enrollment_id: string | null
+          physical_card_number: string | null
+          program_code: string | null
+          program_level: string | null
+          user_id: string | null
+        }[]
+      }
       admin_prepare_notification_campaign: {
         Args: {
           p_audience: string
