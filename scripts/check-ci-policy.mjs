@@ -340,18 +340,42 @@ function isAuthorizedPreviewCommentWorkflow(rel, source, events) {
   return required.every((token) => source.includes(token));
 }
 
+function isAuthorizedProductionAabCommentWorkflow(rel, source, events) {
+  if (rel !== '.github/workflows/build-production-aab.yml') return false;
+  if (!events.has('workflow_dispatch') || !events.has('issue_comment')) return false;
+  if ([...events].some((event) => !['workflow_dispatch', 'issue_comment'].includes(event))) return false;
+
+  const required = [
+    "github.event_name == 'issue_comment'",
+    "github.event.action == 'created'",
+    'github.event.issue.number == 260',
+    "github.event.comment.user.login == 'JJCO2000'",
+    "github.actor == 'JJCO2000'",
+    "github.event.comment.body == '/build-production-aab'",
+    'ref: main',
+    'persist-credentials: false',
+    'environment:',
+    'name: production',
+    'eas build --platform android --profile production --non-interactive --wait',
+  ];
+
+  return required.every((token) => source.includes(token));
+}
+
 function inspectWorkflow(rel) {
   const source = read(rel);
   const events = parseOnEvents(source);
   const automatic = [...events].filter((event) => automaticTriggers.has(event));
   const authorizedPreviewComment = isAuthorizedPreviewCommentWorkflow(rel, source, events);
+  const authorizedProductionAabComment = isAuthorizedProductionAabCommentWorkflow(rel, source, events);
+  const authorizedManualComment = authorizedPreviewComment || authorizedProductionAabComment;
   const disallowedAutomatic = automatic.filter(
-    (event) => event !== 'issue_comment' || !authorizedPreviewComment,
+    (event) => event !== 'issue_comment' || !authorizedManualComment,
   );
   const commands = new Set();
   for (const run of extractRunBlocks(source)) for (const label of detectExecutableShell(run)) commands.add(label);
 
-  if (commands.size > 0 && (disallowedAutomatic.length > 0 || (!events.has('workflow_dispatch') && !authorizedPreviewComment))) {
+  if (commands.size > 0 && (disallowedAutomatic.length > 0 || (!events.has('workflow_dispatch') && !authorizedManualComment))) {
     failures.push(`${rel}: comandos de publicacion/build/dispatch (${[...commands].join(', ')}) requieren workflow_dispatch o la excepcion exacta /publish-preview autorizada.`);
   }
 
@@ -371,30 +395,49 @@ function inspectWorkflow(rel) {
     if (!source.includes("github.actor == 'JJCO2000'")) {
       failures.push(`${rel}: workflow EAS con secretos debe restringirse al actor JJCO2000.`);
     }
-    if (!/environment:\s*\n\s*name:\s*preview\b/i.test(source)) {
+    if (rel === '.github/workflows/build-production-aab.yml') {
+      if (!/environment:\s*\n\s*name:\s*production\b/i.test(source)) {
+        failures.push(`${rel}: workflow AAB Production debe usar el environment protegido production.`);
+      }
+    } else if (!/environment:\s*\n\s*name:\s*preview\b/i.test(source)) {
       failures.push(`${rel}: workflow EAS Preview debe usar el environment protegido preview.`);
     }
   }
 
   const runText = extractRunBlocks(source).join('\n');
   if (/\beas(?:-cli)?\s+submit\b/i.test(runText) || /\bgradlew(?:\.bat)?\s+bundle\w*\b/i.test(runText)) {
-    failures.push(`${rel}: submit/AAB permanece prohibido por la politica UCAPSA actual.`);
+    failures.push(`${rel}: submit directo y gradle bundle local permanecen prohibidos; el AAB Production sólo se genera mediante el workflow manual autorizado.`);
   }
 
   if (/\beas(?:-cli)?\s+build\b/i.test(runText)) {
-    if (rel !== '.github/workflows/build-preview-android.yml') {
-      failures.push(`${rel}: EAS Build solo puede existir en build-preview-android.yml.`);
-    }
-    for (const token of [
-      "github.ref == 'refs/heads/main'",
-      "github.actor == 'JJCO2000'",
-      '--platform android',
-      '--profile preview',
-      '--non-interactive',
-    ]) {
-      if (!source.includes(token)) {
-        failures.push(`${rel}: contrato Build Preview incompleto: ${token}`);
+    if (rel === '.github/workflows/build-preview-android.yml') {
+      for (const token of [
+        "github.ref == 'refs/heads/main'",
+        "github.actor == 'JJCO2000'",
+        '--platform android',
+        '--profile preview',
+        '--non-interactive',
+      ]) {
+        if (!source.includes(token)) {
+          failures.push(`${rel}: contrato Build Preview incompleto: ${token}`);
+        }
       }
+    } else if (rel === '.github/workflows/build-production-aab.yml') {
+      for (const token of [
+        "github.ref == 'refs/heads/main'",
+        "github.actor == 'JJCO2000'",
+        '--platform android',
+        '--profile production',
+        '--non-interactive',
+        '--wait',
+        'name: production',
+      ]) {
+        if (!source.includes(token)) {
+          failures.push(`${rel}: contrato AAB Production incompleto: ${token}`);
+        }
+      }
+    } else {
+      failures.push(`${rel}: EAS Build sólo puede existir en los workflows manuales Android autorizados.`);
     }
   }
 
@@ -472,6 +515,32 @@ jobs:
     parseOnEvents(previewCommentOwnerOnly),
   ));
   assert(!isAuthorizedPreviewCommentWorkflow('.github/workflows/other.yml', previewComment, parseOnEvents(previewComment)));
+  const productionAabComment = `on:
+  workflow_dispatch:
+  issue_comment:
+    types: [created]
+jobs:
+  build:
+    if: github.event_name == 'issue_comment' && github.event.action == 'created' && github.event.issue.number == 260 && github.event.comment.user.login == 'JJCO2000' && github.actor == 'JJCO2000' && github.event.comment.body == '/build-production-aab'
+    environment:
+      name: production
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          persist-credentials: false
+      - run: eas build --platform android --profile production --non-interactive --wait
+`;
+  assert(isAuthorizedProductionAabCommentWorkflow(
+    '.github/workflows/build-production-aab.yml',
+    productionAabComment,
+    parseOnEvents(productionAabComment),
+  ));
+  assert(!isAuthorizedProductionAabCommentWorkflow(
+    '.github/workflows/other.yml',
+    productionAabComment,
+    parseOnEvents(productionAabComment),
+  ));
   assert(detectExecutableShell(extractRunBlocks(auto)[0]).length > 0);
   assert(detectExecutableShell(extractRunBlocks(manual)[0]).length > 0);
   assert(extractUses('steps:\n  - uses: ./.github/actions/release').includes('./.github/actions/release'));
