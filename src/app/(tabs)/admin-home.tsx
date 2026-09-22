@@ -7,6 +7,7 @@ import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import { getAdminMembershipRows } from '../../services/memberships.service';
+import { getAdminTrainingDecisionRows } from '../../services/admin-training-decisions.service';
 import { getAdminPaymentAttentionRows } from '../../services/payments.service';
 import { getAdminClientProfiles } from '../../services/profiles.service';
 import { getAdminProgramRows } from '../../services/programs.service';
@@ -17,9 +18,10 @@ type DashboardStats = {
   activePrograms: number;
   pendingRequests: number;
   paymentAttention: number;
+  trainingDecisions: number;
 };
 
-const emptyStats: DashboardStats = { clients: 0, activePrograms: 0, pendingRequests: 0, paymentAttention: 0 };
+const emptyStats: DashboardStats = { clients: 0, activePrograms: 0, pendingRequests: 0, paymentAttention: 0, trainingDecisions: 0 };
 
 export default function AdminHomeTab() {
   const { user, profile, role, isAdmin } = useSession();
@@ -36,11 +38,12 @@ export default function AdminHomeTab() {
     if (!isAdmin) return;
 
     setError(null);
-    const [profiles, memberships, programs, paymentAttentionRows] = await withOperationTimeout(Promise.all([
+    const [profiles, memberships, programs, paymentAttentionRows, trainingDecisions] = await withOperationTimeout(Promise.all([
       getAdminClientProfiles(),
       getAdminMembershipRows(),
       getAdminProgramRows(),
       getAdminPaymentAttentionRows(),
+      getAdminTrainingDecisionRows(),
     ]), DEFAULT_READ_TIMEOUT_MS, 'admin-home-load');
 
     const attentionUsers = new Set(paymentAttentionRows.map((row) => row.userId));
@@ -53,6 +56,7 @@ export default function AdminHomeTab() {
       activePrograms: programs.filter((item) => item.enrollment.status === 'active').length,
       pendingRequests: memberships.filter((item) => item.membership.status === 'pending').length,
       paymentAttention: attentionUsers.size,
+      trainingDecisions: trainingDecisions.length,
     });
     setHasData(true);
   }, [isAdmin]);
@@ -82,21 +86,20 @@ export default function AdminHomeTab() {
       <View style={styles.hero}>
         <Text style={styles.kicker}>{roleLabel}</Text>
         <Text style={styles.title}>Hola, {displayName.split(' ')[0]}</Text>
-        <Text style={styles.subtitle}>Lo importante de hoy y las acciones que más usas, sin esconder herramientas.</Text>
+        <Text style={styles.subtitle}>Primero aparecen las decisiones que sólo tú puedes resolver. El resto queda como herramienta de consulta.</Text>
       </View>
 
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Actualizando resumen...</Text></View> : null}
       {error ? <View style={styles.errorBox}><Text style={styles.errorTitle}>No se pudo actualizar</Text><Text style={styles.muted}>{error}</Text><Pressable style={styles.retryButton} onPress={() => void refresh()}><Text style={styles.retryText}>Reintentar</Text></Pressable></View> : null}
 
-      <Text style={styles.sectionTitle}>Atención</Text>
+      <Text style={styles.sectionTitle}>Requiere tu decisión</Text>
       {hasData ? <View style={styles.metricsGrid}>
-        <Metric label="Solicitudes" value={stats.pendingRequests} icon="event-note" onPress={() => router.push('/admin/members?filter=pending_requests' as never)} />
+        <Metric label="Listos para evaluar" value={stats.trainingDecisions} icon="task-alt" onPress={() => router.push('/admin/training-decisions' as never)} />
+        <Metric label="Solicitudes de socio" value={stats.pendingRequests} icon="event-note" onPress={() => router.push('/admin/members?filter=pending_requests' as never)} />
         <Metric label="Pagos pendientes" value={stats.paymentAttention} icon="payments" onPress={() => router.push('/admin-payments' as never)} />
-        <Metric label="Clases activas" value={stats.activePrograms} icon="school" onPress={() => router.push('/admin-classes' as never)} />
-        <Metric label="Clientes" value={stats.clients} icon="people" onPress={() => router.push('/admin-clients' as never)} />
       </View> : !loading && !error ? <Text style={styles.muted}>Aún no hay un resumen confirmado.</Text> : null}
 
-      <Text style={styles.sectionTitle}>Seguimiento</Text>
+      <Text style={styles.sectionTitle}>Consulta y seguimiento</Text>
       <View style={styles.actionCard}>
         <MenuRow icon="insights" title="Continuidad" subtitle="Evidencia de valor visible, actividad y pagos" onPress={() => router.push('/admin/continuity' as never)} last />
       </View>

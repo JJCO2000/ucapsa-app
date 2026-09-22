@@ -974,6 +974,54 @@ export type Database = {
         }
         Relationships: []
       }
+      membership_dog_access: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          dog_id: string
+          id: string
+          is_covered: boolean
+          membership_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          dog_id: string
+          id?: string
+          is_covered?: boolean
+          membership_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          dog_id?: string
+          id?: string
+          is_covered?: boolean
+          membership_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "membership_dog_access_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "membership_dog_access_membership_id_fkey"
+            columns: ["membership_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       memberships: {
         Row: {
           approved_by: string | null
@@ -1888,6 +1936,7 @@ export type Database = {
         Row: {
           attendances_count: number
           cancelled_at: string | null
+          access_mode: string
           card_expires_on: string | null
           card_started_on: string | null
           completed_at: string | null
@@ -1896,6 +1945,7 @@ export type Database = {
           dog_name: string | null
           id: string
           last_attendance_at: string | null
+          membership_id: string | null
           notes: string | null
           physical_card_number: string | null
           program_id: string
@@ -1912,6 +1962,7 @@ export type Database = {
         Insert: {
           attendances_count?: number
           cancelled_at?: string | null
+          access_mode?: string
           card_expires_on?: string | null
           card_started_on?: string | null
           completed_at?: string | null
@@ -1920,6 +1971,7 @@ export type Database = {
           dog_name?: string | null
           id?: string
           last_attendance_at?: string | null
+          membership_id?: string | null
           notes?: string | null
           physical_card_number?: string | null
           program_id: string
@@ -1936,6 +1988,7 @@ export type Database = {
         Update: {
           attendances_count?: number
           cancelled_at?: string | null
+          access_mode?: string
           card_expires_on?: string | null
           card_started_on?: string | null
           completed_at?: string | null
@@ -1944,6 +1997,7 @@ export type Database = {
           dog_name?: string | null
           id?: string
           last_attendance_at?: string | null
+          membership_id?: string | null
           notes?: string | null
           physical_card_number?: string | null
           program_id?: string
@@ -1958,6 +2012,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "program_enrollments_membership_id_fkey"
+            columns: ["membership_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "program_enrollments_dog_id_fkey"
             columns: ["dog_id"]
@@ -4764,9 +4825,56 @@ export type Database = {
         }
         Returns: string
       }
+      admin_set_member_dog_training_stage: {
+        Args: {
+          p_dog_id: string
+          p_membership_id: string
+          p_program_code: string
+          p_program_level: string
+          p_reason?: string
+        }
+        Returns: string
+      }
+      admin_set_membership_dog_coverage: {
+        Args: {
+          p_dog_id: string
+          p_is_covered: boolean
+          p_membership_id: string
+        }
+        Returns: undefined
+      }
       admin_grant_ucapsa_training_achievement: {
         Args: { p_achievement_code: string; p_dog_id: string }
         Returns: string
+      }
+      admin_resolve_training_card_decision: {
+        Args: {
+          p_decision: string
+          p_enrollment_id: string
+          p_new_card_number?: string
+        }
+        Returns: {
+          awarded_achievement_code: string | null
+          decision: string
+          next_enrollment_id: string | null
+        }[]
+      }
+      get_admin_training_decision_history: {
+        Args: { p_limit?: number }
+        Returns: {
+          attendance_count: number
+          customer_name: string | null
+          decided_at: string
+          decision: string
+          dog_id: string | null
+          dog_name: string | null
+          enrollment_id: string
+          next_enrollment_id: string | null
+          physical_card_number: string | null
+          program_code: string | null
+          program_level: string | null
+          user_id: string | null
+        }[]
       }
       admin_prepare_notification_campaign: {
         Args: {

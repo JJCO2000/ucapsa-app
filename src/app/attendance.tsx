@@ -2,8 +2,8 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand, withAlpha } from '../constants/brand';
@@ -58,6 +58,13 @@ function capturedLabel(value: string) {
 }
 
 type Feedback = { kind: 'success' | 'business' | 'connection'; title: string; message: string } | null;
+type CardCompletionNotice = {
+  enrollmentId: string;
+  dogName: string;
+  title: string;
+  message: string;
+} | null;
+type ChoiceMode = 'select_member_dog' | 'select_card' | 'optional_card';
 
 export default function AttendanceScanScreen() {
   const { user, role, isAdmin, loading: sessionLoading } = useSession();
@@ -76,7 +83,12 @@ export default function AttendanceScanScreen() {
   const [pendingToken, setPendingToken] = useState<string | null>(null);
   const [pendingProgram, setPendingProgram] = useState<ProgramCode | null>(null);
   const [choices, setChoices] = useState<ProgramEnrollmentWithDetails[]>([]);
+  const [choiceMode, setChoiceMode] = useState<ChoiceMode>('select_card');
+  const [deferredCards, setDeferredCards] = useState<ProgramEnrollmentWithDetails[]>([]);
+  const [pendingVisitNeeded, setPendingVisitNeeded] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
+  const [cardCompletion, setCardCompletion] = useState<CardCompletionNotice>(null);
+  const completionAnimation = useRef(new Animated.Value(0)).current;
 
   const activeEnrollments = useMemo(() => enrollments.filter((item) => item.enrollment.status === 'active'), [enrollments]);
   const canScanMemberVisits = membershipActive;
@@ -95,6 +107,31 @@ export default function AttendanceScanScreen() {
     [activeEnrollments.length, isAdmin, membershipStatus, role, user],
   );
   const premium = format.key === 'member' && !isAdmin;
+
+  useEffect(() => {
+    if (!cardCompletion) {
+      completionAnimation.setValue(0);
+      return;
+    }
+
+    completionAnimation.setValue(0);
+    Animated.sequence([
+      Animated.spring(completionAnimation, {
+        toValue: 1,
+        useNativeDriver: true,
+        speed: 18,
+        bounciness: 8,
+      }),
+      Animated.delay(2200),
+      Animated.timing(completionAnimation, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
+      if (finished) setCardCompletion(null);
+    });
+  }, [cardCompletion, completionAnimation]);
 
   const loadData = useCallback(async () => {
     if (!user || isAdmin) return;
@@ -173,6 +210,9 @@ export default function AttendanceScanScreen() {
     setPendingToken(null);
     setPendingProgram(null);
     setChoices([]);
+    setChoiceMode('select_card');
+    setDeferredCards([]);
+    setPendingVisitNeeded(false);
     setFeedback(null);
     setCameraActive(true);
   }
@@ -186,13 +226,43 @@ export default function AttendanceScanScreen() {
       const refreshed = await withOperationTimeout(getMyProgramEnrollments(), DEFAULT_READ_TIMEOUT_MS, 'attendance-refresh');
       setEnrollments(refreshed);
       await writeClientResource(userId, clientReadKeys.programs, sanitizeProgramRowsForCache(refreshed));
+      return refreshed;
     } catch (error) {
       // La escritura ya fue confirmada por Supabase. No convertir éxito en error por el refresco.
       devWarn('Could not refresh programs after confirmed attendance write.', error);
+      return null;
     }
   }
 
-  async function registerClass(token: string, enrollment: ProgramEnrollmentWithDetails) {
+  function completionNoticeFor(item: ProgramEnrollmentWithDetails): CardCompletionNotice {
+    if ((item.enrollment.access_mode ?? 'card') !== 'card') return null;
+    const required = Math.max(1, Number(item.program.required_attendances ?? 0));
+    if (item.attendances.length < required) return null;
+
+    const dogName = getProgramEnrollmentDogName(item);
+    const level = item.program.code === 'comandos' ? getProgramLevelLabel(item.enrollment.program_level) : 'Puppy';
+    const message = item.program.code === 'puppy'
+      ? 'Consulta con UCAPSA el siguiente paso de ' + dogName + '.'
+      : item.enrollment.program_level === 'avanzado'
+        ? 'Puedes seguir entrenando en Avanzado y continuar sumando logros.'
+        : 'Ya puedes solicitar tu evaluación para avanzar al siguiente nivel.';
+
+    return {
+      enrollmentId: item.enrollment.id,
+      dogName,
+      title: '¡Completaste tus ' + String(required) + ' clases de ' + level + '!',
+      message,
+    };
+  }
+
+  async function registerClasses(
+    token: string,
+    targets: ProgramEnrollmentWithDetails[],
+    options?: {
+      includeMemberVisit?: boolean;
+      optionalCards?: ProgramEnrollmentWithDetails[];
+    },
+  ) {
     const userId = user?.id;
     if (!userId) {
       setFeedback({ kind: 'business', title: 'Sesión no disponible', message: 'Vuelve a iniciar sesión.' });
@@ -203,64 +273,126 @@ export default function AttendanceScanScreen() {
     setCameraActive(false);
     setFeedback(null);
 
-    let operation: PendingClassAttendanceOperation;
+    const operations: PendingAttendanceOperation[] = [];
     try {
-      operation = await queueClassAttendance({
-        userId,
-        token,
-        enrollmentId: enrollment.enrollment.id,
-      });
+      for (const target of targets) {
+        operations.push(await queueClassAttendance({
+          userId,
+          token,
+          enrollmentId: target.enrollment.id,
+        }));
+      }
+      if (options?.includeMemberVisit && membershipActive) {
+        operations.push(await queueMemberVisit({ userId, token }));
+      }
       await refreshOutbox(userId);
     } catch (error) {
       setFeedback({
         kind: 'business',
         title: 'No se pudo guardar la captura',
-        message: error instanceof Error ? error.message : 'El dispositivo no pudo conservar esta asistencia. Intenta de nuevo.',
+        message: error instanceof Error ? error.message : 'El dispositivo no pudo conservar este registro. Intenta de nuevo.',
       });
       setRegistering(false);
       return;
     }
 
-    try {
-      const result = await syncAttendanceOperation(userId, operation.id);
-      await refreshOutbox(userId);
-      if (!result) throw new Error('No se encontró el registro local pendiente.');
+    let hasConnectionPending = false;
+    let hasConfirmation = false;
+    const rejectedMessages: string[] = [];
+    const newlyRegisteredEnrollmentIds = new Set<string>();
+    let syncedClasses = 0;
+    let visitConfirmed = false;
 
-      if (result.status === 'synced') {
+    try {
+      for (const operation of operations) {
+        const result = await syncAttendanceOperation(userId, operation.id);
+        if (!result) continue;
+        if (result.status === 'synced') {
+          if (operation.kind === 'class') {
+            syncedClasses += 1;
+            if (result.outcome === 'registered') newlyRegisteredEnrollmentIds.add(operation.enrollmentId);
+          } else {
+            visitConfirmed = true;
+          }
+        } else if (result.status === 'needs_confirmation') {
+          hasConfirmation = true;
+        } else if (result.status === 'rejected') {
+          rejectedMessages.push(result.message);
+        } else {
+          hasConnectionPending = true;
+        }
+      }
+      await refreshOutbox(userId);
+
+      if (targets.length > 0 && (syncedClasses > 0 || hasConfirmation)) {
+        const refreshed = await refreshProgramsAfterConfirmedWrite(userId);
+        if (refreshed && newlyRegisteredEnrollmentIds.size > 0) {
+          const completed = refreshed.find((item) =>
+            newlyRegisteredEnrollmentIds.has(item.enrollment.id)
+            && (item.enrollment.access_mode ?? 'card') === 'card'
+            && item.attendances.length >= Math.max(1, Number(item.program.required_attendances ?? 0)),
+          );
+          if (completed) setCardCompletion(completionNoticeFor(completed));
+        }
+      }
+
+      const optionalCards = options?.optionalCards ?? [];
+      if (optionalCards.length > 0) {
+        setPendingToken(token);
+        setPendingProgram(null);
+        setChoices(optionalCards);
+        setChoiceMode('optional_card');
+        setDeferredCards([]);
+        setPendingVisitNeeded(false);
+      } else {
+        setChoices([]);
+        setPendingToken(null);
+        setPendingProgram(null);
+        setDeferredCards([]);
+        setPendingVisitNeeded(false);
+      }
+
+      if (rejectedMessages.length > 0) {
+        setFeedback({
+          kind: 'business',
+          title: 'UCAPSA necesita revisar un registro',
+          message: rejectedMessages[0],
+        });
+      } else if (hasConnectionPending) {
+        setFeedback({
+          kind: 'connection',
+          title: 'Registro guardado sin conexión',
+          message: 'La captura quedó en este dispositivo y se volverá a intentar cuando haya conexión.',
+        });
+      } else if (hasConfirmation) {
+        setFeedback(null);
+      } else {
+        const dogNames = targets.map((item) => getProgramEnrollmentDogName(item));
+        const classMessage = targets.length > 0
+          ? (targets.length === 1
+            ? `Asistencia de ${dogNames[0]} confirmada.`
+            : `Asistencias de ${dogNames.join(', ')} confirmadas.`)
+          : '';
+        const visitMessage = options?.includeMemberVisit && membershipActive
+          ? (visitConfirmed ? ' Visita de socio registrada.' : ' La visita de socio ya estaba registrada.')
+          : '';
         setFeedback({
           kind: 'success',
-          title: 'Asistencia confirmada',
-          message: `${result.message} ${programLabel(enrollment.program.code)} - ${enrollmentLabel(enrollment)}.`,
+          title: targets.length > 0 ? 'Asistencia confirmada' : 'Visita confirmada',
+          message: (classMessage + visitMessage).trim() || 'Registro confirmado.',
         });
-        await refreshProgramsAfterConfirmedWrite(userId);
-        return;
       }
-
-      if (result.status === 'needs_confirmation') {
-        setFeedback(null);
-        return;
-      }
-
-      if (result.status === 'rejected') {
-        setFeedback({ kind: 'business', title: 'UCAPSA no pudo aceptar esta asistencia', message: result.message });
-        return;
-      }
-
-      setFeedback({ kind: 'connection', title: 'Asistencia guardada sin conexión', message: result.message });
     } catch {
       setFeedback({
         kind: 'connection',
-        title: 'Asistencia guardada sin conexión',
-        message: 'La captura ya quedó en este dispositivo y se volverá a intentar cuando haya conexión.',
+        title: 'Registro guardado sin conexión',
+        message: 'La captura quedó en este dispositivo y se volverá a intentar cuando haya conexión.',
       });
       await refreshOutbox(userId).catch((error) => {
         devWarn('Could not refresh attendance outbox after preserving an offline capture.', error);
       });
     } finally {
       setRegistering(false);
-      setChoices([]);
-      setPendingToken(null);
-      setPendingProgram(null);
     }
   }
 
@@ -356,6 +488,27 @@ export default function AttendanceScanScreen() {
     resetScanner();
   }
 
+  async function registerSelectedChoice(item: ProgramEnrollmentWithDetails) {
+    if (!pendingToken) return;
+
+    if (choiceMode === 'optional_card') {
+      await registerClasses(pendingToken, [item], { includeMemberVisit: false });
+      return;
+    }
+
+    if (choiceMode === 'select_member_dog') {
+      await registerClasses(pendingToken, [item], {
+        includeMemberVisit: pendingVisitNeeded,
+        optionalCards: deferredCards,
+      });
+      return;
+    }
+
+    await registerClasses(pendingToken, [item], {
+      includeMemberVisit: pendingVisitNeeded,
+    });
+  }
+
   async function handleBarcode(value: string) {
     if (scanLockRef.current || registering || !cameraActive) return;
     scanLockRef.current = true;
@@ -368,27 +521,90 @@ export default function AttendanceScanScreen() {
       return;
     }
 
+    const memberEnrollments = activeEnrollments.filter(
+      (item) => item.enrollment.access_mode === 'membership',
+    );
+    const cardEnrollments = activeEnrollments.filter(
+      (item) => (item.enrollment.access_mode ?? 'card') === 'card',
+    );
+
     if (parsed.programCode === 'member') {
       if (!canScanMemberVisits) {
         setFeedback({ kind: 'business', title: 'QR de socios', message: 'Tu membresía no está marcada como activa. Si crees que es un error, solicita revisión en UCAPSA.' });
         return;
       }
+
+      const memberChoices = memberEnrollments;
+      if (memberChoices.length === 0) {
+        await registerClasses(parsed.token, [], {
+          includeMemberVisit: true,
+          optionalCards: cardEnrollments,
+        });
+        return;
+      }
+
+      if (memberChoices.length === 1) {
+        await registerClasses(parsed.token, [memberChoices[0]], {
+          includeMemberVisit: true,
+          optionalCards: cardEnrollments,
+        });
+        return;
+      }
+
+      // La visita es inequívoca aunque haya que preguntar a qué grupo/etapa vino.
       await registerMemberVisit(parsed.token);
+      setPendingToken(parsed.token);
+      setPendingProgram(null);
+      setChoices(memberChoices);
+      setChoiceMode('select_member_dog');
+      setDeferredCards(cardEnrollments);
+      setPendingVisitNeeded(false);
       return;
     }
 
     const matching = activeEnrollments.filter((item) => item.program.code === parsed.programCode);
     if (matching.length === 0) {
+      if (membershipActive) {
+        await registerClasses(parsed.token, [], { includeMemberVisit: true });
+        return;
+      }
       setFeedback({ kind: 'business', title: 'Programa no disponible', message: `No tienes una inscripción activa en ${programLabel(parsed.programCode)}.` });
       return;
     }
-    if (matching.length === 1) {
-      await registerClass(parsed.token, matching[0]);
+
+    const memberMatching = matching.filter((item) => item.enrollment.access_mode === 'membership');
+    const cardMatching = matching.filter((item) => (item.enrollment.access_mode ?? 'card') === 'card');
+    const memberChoices = memberMatching;
+
+    if (memberChoices.length === 1) {
+      await registerClasses(parsed.token, [memberChoices[0]], {
+        includeMemberVisit: membershipActive,
+        optionalCards: cardMatching,
+      });
       return;
     }
+
+    if (memberChoices.length > 1) {
+      setPendingToken(parsed.token);
+      setPendingProgram(parsed.programCode);
+      setChoices(memberChoices);
+      setChoiceMode('select_member_dog');
+      setDeferredCards(cardMatching);
+      setPendingVisitNeeded(membershipActive);
+      return;
+    }
+
+    if (cardMatching.length === 1) {
+      await registerClasses(parsed.token, cardMatching, { includeMemberVisit: membershipActive });
+      return;
+    }
+
     setPendingToken(parsed.token);
     setPendingProgram(parsed.programCode);
-    setChoices(matching);
+    setChoices(cardMatching);
+    setChoiceMode('select_card');
+    setDeferredCards([]);
+    setPendingVisitNeeded(membershipActive);
   }
 
   if (sessionLoading) return <KeyboardAwareScreen backgroundColor={format.background}><ActivityIndicator color={format.accent} /><Text style={[styles.muted, { color: format.muted }]}>Revisando sesión...</Text></KeyboardAwareScreen>;
@@ -485,12 +701,86 @@ export default function AttendanceScanScreen() {
 
       {registering ? <InfoCard format={format}><ActivityIndicator color={format.accent} /><Text style={[styles.infoTitle, { color: format.cardText }]}>Guardando y sincronizando...</Text></InfoCard> : null}
 
-      {choices.length > 1 && pendingToken && pendingProgram ? (
+      {choices.length > 0 && pendingToken ? (
         <InfoCard format={format}>
-          <Text style={[styles.infoTitle, { color: format.cardText }]}>Selecciona quién asistió</Text>
-          <Text style={[styles.muted, { color: format.muted }]}>Hay más de una inscripción activa en {programLabel(pendingProgram)}.</Text>
-          {choices.map((item) => <Pressable key={item.enrollment.id} style={[styles.choiceButton, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]} onPress={() => void registerClass(pendingToken, item)}><Text style={[styles.choiceTitle, { color: format.cardText }]}>{enrollmentLabel(item)}</Text><Text style={[styles.choiceMeta, { color: format.muted }]}>{programLabel(item.program.code)} - {item.enrollment.attendances_count}/{item.program.required_attendances}</Text></Pressable>)}
+          <Text style={[styles.infoTitle, { color: format.cardText }]}>
+            {choiceMode === 'optional_card'
+              ? '¿Registrar también otra clase?'
+              : choiceMode === 'select_member_dog'
+                ? '¿Qué perro asistió?'
+                : 'Selecciona quién asistió'}
+          </Text>
+          <Text style={[styles.muted, { color: format.muted }]}>
+            {choiceMode === 'optional_card'
+              ? 'La asistencia de socio ya quedó resuelta. Estas tarjetas normales sí consumen una clase.'
+              : choiceMode === 'select_member_dog'
+                ? 'Hay más de un perro con acceso de socio. Elige el que asistió a esta clase.'
+                : pendingProgram
+                  ? `Hay más de una tarjeta activa en ${programLabel(pendingProgram)}.`
+                  : 'Elige el registro correcto.'}
+          </Text>
+          {choices.map((item) => {
+            const dogName = getProgramEnrollmentDogName(item);
+            const level = item.program.code === 'comandos' ? getProgramLevelLabel(item.enrollment.program_level) : null;
+            const title = item.enrollment.access_mode === 'membership'
+              ? [dogName, programLabel(item.program.code), level].filter(Boolean).join(' · ')
+              : enrollmentLabel(item);
+            const meta = item.enrollment.access_mode === 'membership'
+              ? 'Socio · acceso ilimitado'
+              : `Tarjeta · ${item.attendances.length}/${item.program.required_attendances}`;
+            return (
+              <Pressable
+                key={item.enrollment.id}
+                style={[styles.choiceButton, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}
+                onPress={() => void registerSelectedChoice(item)}
+              >
+                <Text style={[styles.choiceTitle, { color: format.cardText }]}>{title}</Text>
+                <Text style={[styles.choiceMeta, { color: format.muted }]}>{meta}</Text>
+              </Pressable>
+            );
+          })}
+          {choiceMode === 'optional_card' ? (
+            <Pressable
+              style={[styles.secondaryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}
+              onPress={() => {
+                setChoices([]);
+                setPendingToken(null);
+                setPendingProgram(null);
+                setChoiceMode('select_card');
+                setDeferredCards([]);
+                setPendingVisitNeeded(false);
+              }}
+            >
+              <Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>No, sólo los socios</Text>
+            </Pressable>
+          ) : null}
         </InfoCard>
+      ) : null}
+
+      {cardCompletion ? (
+        <Animated.View
+          style={[
+            styles.completionCard,
+            {
+              opacity: completionAnimation,
+              transform: [{
+                scale: completionAnimation.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.92, 1],
+                }),
+              }],
+            },
+          ]}
+        >
+          <View style={styles.completionMedal}>
+            <MaterialIcons name="emoji-events" size={30} color={ucapsaBrand.colors.goldDark} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.completionKicker}>TARJETA COMPLETA</Text>
+            <Text style={styles.completionTitle}>{cardCompletion.title}</Text>
+            <Text style={styles.completionText}>{cardCompletion.message}</Text>
+          </View>
+        </Animated.View>
       ) : null}
 
       {feedback ? (
@@ -530,6 +820,11 @@ const styles = StyleSheet.create({
   infoCard: { gap: 9, borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 16 },
   inlineStatus: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   statusCopy: { flex: 1, gap: 2 },
+  completionCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 22, borderWidth: 1, borderColor: ucapsaBrand.colors.gold, backgroundColor: ucapsaBrand.colors.goldPale, padding: 16 },
+  completionMedal: { width: 52, height: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.surface },
+  completionKicker: { color: ucapsaBrand.colors.goldDark, fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
+  completionTitle: { color: ucapsaBrand.colors.text, fontSize: 16, lineHeight: 21, fontWeight: '900', marginTop: 2 },
+  completionText: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 17, fontWeight: '700', marginTop: 3 },
   successCard: { borderColor: ucapsaBrand.colors.successBorder, backgroundColor: ucapsaBrand.colors.successSoft },
   connectionCard: { borderColor: ucapsaBrand.colors.warningBorder, backgroundColor: ucapsaBrand.colors.warningSoft },
   errorCard: { borderColor: ucapsaBrand.colors.dangerBorder, backgroundColor: ucapsaBrand.colors.dangerSoft },

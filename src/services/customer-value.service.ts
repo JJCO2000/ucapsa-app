@@ -11,7 +11,7 @@
  * - This loader performs reads only; it never registers attendance, practice, payments or visits.
  */
 
-import type { MembershipPaymentStatus, MembershipStatus, ProgramCode, ProgramEnrollmentStatus, ProgramLevel } from '../types/app.types';
+import type { MembershipPaymentStatus, MembershipStatus, ProgramAccessMode, ProgramCode, ProgramEnrollmentStatus, ProgramLevel } from '../types/app.types';
 import { getAchievementsForUser } from './achievements.service';
 import { getCurrentSession } from './auth.service';
 import { getMemberVisitSummaryForUser } from './member-visits.service';
@@ -52,6 +52,7 @@ export type CustomerValueProgram = {
   programCode: ProgramCode;
   programName: string;
   programLevel: ProgramLevel;
+  accessMode: ProgramAccessMode;
   dogId: string | null;
   dogName: string;
   requiredAttendances: number;
@@ -174,7 +175,7 @@ export type CustomerValueSnapshot = {
   };
   capabilities: {
     learningProgressTracked: false;
-    membershipBenefitsModeled: false;
+    membershipBenefitsModeled: true;
     eventAttendanceTracked: false;
     canonicalProgramLevelTable: false;
   };
@@ -217,6 +218,7 @@ function toProgramValue(item: Awaited<ReturnType<typeof getMyProgramEnrollments>
     programCode: item.program.code,
     programName: item.program.name,
     programLevel: item.enrollment.program_level,
+    accessMode: item.enrollment.access_mode ?? 'card',
     dogId: item.enrollment.dog_id ?? null,
     dogName: getProgramEnrollmentDogName(item),
     requiredAttendances,
@@ -358,7 +360,11 @@ export async function getMyCustomerValueSnapshot(): Promise<CustomerValueSnapsho
     if (item.enrollment.attendances_count !== item.attendances.length) {
       warnings.push(`attendance_cache_mismatch:${item.enrollment.id}`);
     }
-    if (item.enrollment.status === 'active' && (!item.enrollment.card_started_on || !item.enrollment.card_expires_on)) {
+    if (
+      item.enrollment.status === 'active'
+      && (item.enrollment.access_mode ?? 'card') === 'card'
+      && (!item.enrollment.card_started_on || !item.enrollment.card_expires_on)
+    ) {
       warnings.push(`program_card_dates_missing:${item.enrollment.id}`);
     }
   }
@@ -480,7 +486,7 @@ export async function getMyCustomerValueSnapshot(): Promise<CustomerValueSnapsho
     },
     capabilities: {
       learningProgressTracked: false,
-      membershipBenefitsModeled: false,
+      membershipBenefitsModeled: true,
       eventAttendanceTracked: false,
       canonicalProgramLevelTable: false,
     },

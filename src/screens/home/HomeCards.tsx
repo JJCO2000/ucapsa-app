@@ -65,12 +65,15 @@ export function ProgramCard({
   const membership = snapshot.whatIHave.membership;
   const required = program?.requiredAttendances ?? 0;
   const attendance = program?.attendanceCount ?? 0;
+  const unlimited = program?.accessMode === 'membership';
   const attendancePercent = required > 0 ? Math.min(100, Math.round((attendance / required) * 100)) : 0;
   const streak = practice?.stats.currentStreak ?? snapshot.whatIUsed.practice?.currentStreak ?? 0;
   const weekPractices = practice?.stats.thisWeekCount ?? snapshot.whatIUsed.practice?.thisWeekCount ?? 0;
   const title = program ? programTitle(program) : membership?.isValidToday ? 'Membresía UCAPSA' : 'Sin programa activo';
   const meta = program
-    ? `Con ${program.dogName}`
+    ? unlimited
+      ? `Con ${program.dogName} · acceso ilimitado`
+      : `Con ${program.dogName}`
     : membership?.isValidToday
       ? 'Tu acceso de socio está activo'
       : 'Explora qué sigue para ti y tu perro';
@@ -96,7 +99,17 @@ export function ProgramCard({
           <MaterialIcons name="chevron-right" size={23} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
         </View>
 
-        {program && required > 0 ? (
+        {program && unlimited ? (
+          <View style={styles.attendanceBlock}>
+            <View style={styles.attendanceLabels}>
+              <Text style={[styles.attendanceTitle, { color: format.cardText }]}>Asistencias registradas</Text>
+              <Text style={[styles.attendanceValue, { color: premium ? ucapsaBrand.colors.premiumActionText : format.accentDark }]}>{attendance}</Text>
+            </View>
+            <Text style={[styles.programMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+              Sin límite de clases mientras la membresía esté activa.
+            </Text>
+          </View>
+        ) : program && required > 0 ? (
           <View style={styles.attendanceBlock}>
             <View style={styles.attendanceLabels}>
               <Text style={[styles.attendanceTitle, { color: format.cardText }]}>Asistencias del programa</Text>

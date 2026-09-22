@@ -402,6 +402,26 @@ export default function CalendarScreen() {
           </View>
         </View>
 
+        <View style={[styles.sectionSwitch, { borderColor: format.border, backgroundColor: format.cardBackground }]}>
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityState={{ selected: false }}
+            style={styles.switchButton}
+            onPress={() => router.push('/announcements' as never)}
+          >
+            <MaterialIcons name="campaign" size={18} color={format.accentDark} />
+            <Text style={[styles.switchText, { color: format.accentDark }]}>Avisos</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityState={{ selected: true }}
+            style={[styles.switchButton, { backgroundColor: format.primaryButton }]}
+          >
+            <MaterialIcons name="calendar-month" size={18} color={format.primaryButtonText} />
+            <Text style={[styles.switchText, { color: format.primaryButtonText }]}>Calendario</Text>
+          </Pressable>
+        </View>
+
         {isAdmin ? (
           <View style={styles.adminRow}>
             <Pressable style={[styles.adminButton, { backgroundColor: format.primaryButton }]} onPress={() => router.push('/admin/events' as never)}>
@@ -457,7 +477,27 @@ export default function CalendarScreen() {
 
         {!error ? (
           <>
-            <View style={styles.calendarCard}>
+            <View style={[styles.calendarCard, { borderColor: isPremium ? ucapsaBrand.colors.premiumBorderStrong : format.accent }]}>
+              <View style={[styles.calendarLead, { backgroundColor: isPremium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft }]}>
+                <View style={[styles.calendarLeadIcon, { backgroundColor: format.cardBackground }]}>
+                  <MaterialIcons name="calendar-month" size={23} color={isPremium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.calendarLeadKicker, { color: isPremium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>AGENDA UCAPSA</Text>
+                  <Text style={[styles.calendarLeadTitle, { color: format.cardText }]}>Tu calendario</Text>
+                  <Text style={[styles.calendarLeadText, { color: isPremium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Eventos, clases, avisos y tu actividad en un solo lugar.</Text>
+                </View>
+                {selectedDate !== todayKey() ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Volver a hoy"
+                    style={[styles.calendarToday, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}
+                    onPress={() => setSelectedDate(todayKey())}
+                  >
+                    <Text style={[styles.calendarTodayText, { color: format.accentDark }]}>Hoy</Text>
+                  </Pressable>
+                ) : null}
+              </View>
               <Calendar
                 current={selectedDate}
                 onDayPress={(day: DateData) => setSelectedDate(day.dateString)}
@@ -671,12 +711,22 @@ const styles = StyleSheet.create({
   kicker: { color: ucapsaBrand.colors.redSoftStrong, fontSize: 12, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
   title: { color: ucapsaBrand.colors.surface, fontSize: 22, fontWeight: '900' },
   subtitle: { color: ucapsaBrand.colors.textLight, fontSize: 14, lineHeight: 20 },
+  sectionSwitch: { flexDirection: 'row', gap: 6, borderWidth: 1, borderRadius: 18, padding: 5 },
+  switchButton: { flex: 1, minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 14 },
+  switchText: { fontSize: 13, fontWeight: '900' },
   adminRow: { flexDirection: 'row', gap: 10 },
   adminButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 15, borderRadius: 18, backgroundColor: ucapsaBrand.colors.red },
   adminButtonText: { color: ucapsaBrand.colors.surface, fontSize: 14, fontWeight: '900' },
   adminButtonAlt: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 15, borderRadius: 18, backgroundColor: ucapsaBrand.colors.redSoft, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder },
   adminButtonAltText: { color: ucapsaBrand.colors.redDark, fontSize: 14, fontWeight: '900' },
-  calendarCard: { overflow: 'hidden', borderRadius: 22, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  calendarCard: { overflow: 'hidden', borderRadius: 24, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 2, borderColor: ucapsaBrand.colors.red },
+  calendarLead: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.border },
+  calendarLeadIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  calendarLeadKicker: { fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
+  calendarLeadTitle: { fontSize: 18, lineHeight: 22, fontWeight: '900', marginTop: 1 },
+  calendarLeadText: { fontSize: 11, lineHeight: 15, fontWeight: '700', marginTop: 2 },
+  calendarToday: { minHeight: 36, justifyContent: 'center', borderWidth: 1, borderRadius: 999, paddingHorizontal: 11 },
+  calendarTodayText: { fontSize: 11, fontWeight: '900' },
   legendRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, paddingHorizontal: 16, paddingBottom: 14, borderTopWidth: 1, borderTopColor: ucapsaBrand.colors.graySoft },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingTop: 12 },
   legendDot: { width: 9, height: 9, borderRadius: 999 },

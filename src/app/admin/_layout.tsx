@@ -30,6 +30,7 @@ export default function AdminLayout() {
       <Stack.Screen name="classes" options={{ title: 'Clases' }} />
       <Stack.Screen name="class-schedules" options={{ title: 'Horarios' }} />
       <Stack.Screen name="class-cancellations" options={{ title: 'Cancelaciones' }} />
+      <Stack.Screen name="training-decisions" options={{ title: 'Listos para evaluar' }} />
       <Stack.Screen name="users" options={{ title: 'Usuarios' }} />
       <Stack.Screen name="members" options={{ title: 'Membresias' }} />
       <Stack.Screen name="scanner" options={{ title: 'Escanear' }} />

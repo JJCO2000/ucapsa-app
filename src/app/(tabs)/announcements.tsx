@@ -101,6 +101,26 @@ export default function AnnouncementsScreen() {
           </View>
         </View>
 
+        <View style={[styles.sectionSwitch, { borderColor: format.border, backgroundColor: format.surface }]}>
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityState={{ selected: true }}
+            style={[styles.switchButton, styles.switchButtonActive, { backgroundColor: format.primaryButton }]}
+          >
+            <MaterialIcons name="campaign" size={18} color={format.primaryButtonText} />
+            <Text style={[styles.switchText, { color: format.primaryButtonText }]}>Avisos</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityState={{ selected: false }}
+            style={styles.switchButton}
+            onPress={() => router.push('/calendar' as never)}
+          >
+            <MaterialIcons name="calendar-month" size={18} color={format.accentDark} />
+            <Text style={[styles.switchText, { color: format.accentDark }]}>Calendario</Text>
+          </Pressable>
+        </View>
+
         {isAdmin ? (
           <Pressable
             accessibilityRole="button"
@@ -196,6 +216,10 @@ const styles = StyleSheet.create({
   title: { color: ucapsaBrand.colors.text, fontSize: 29, lineHeight: 34, fontWeight: '900', marginTop: 4 },
   markCircle: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
   mark: { width: 28, height: 28 },
+  sectionSwitch: { flexDirection: 'row', gap: 6, borderWidth: 1, borderRadius: 18, padding: 5 },
+  switchButton: { flex: 1, minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 14 },
+  switchButtonActive: { backgroundColor: ucapsaBrand.colors.red },
+  switchText: { fontSize: 13, fontWeight: '900' },
   adminButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 16, borderRadius: 18, backgroundColor: ucapsaBrand.colors.red },
   adminButtonText: { color: ucapsaBrand.colors.surface, fontSize: 15, fontWeight: '900' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },

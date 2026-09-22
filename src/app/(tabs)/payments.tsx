@@ -142,6 +142,16 @@ export default function PaymentsTab() {
     Alert.alert('CLABE copiada', 'Verifica el titular en tu aplicación bancaria antes de confirmar la transferencia.');
   }
 
+  async function copyAccountHolder() {
+    const holder = bankSettings?.account_holder?.replace(/\s+/g, ' ').trim() ?? '';
+    if (!bankSettings?.is_active || !holder) {
+      Alert.alert('Titular no disponible', 'Conéctate para consultar el titular vigente antes de transferir.');
+      return;
+    }
+    await Clipboard.setStringAsync(holder);
+    Alert.alert('Titular copiado', 'Pega el nombre completo del titular en tu aplicación bancaria.');
+  }
+
   if (!user) return <Redirect href="/auth/login" />;
   if (isAdmin) return <Redirect href="/admin-payments" />;
 
@@ -200,24 +210,45 @@ export default function PaymentsTab() {
           </View>
 
           {bankSettings ? (
-            <View style={[styles.bankStrip, premium && styles.cardPremium]}>
-              <View style={[styles.bankIcon, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft }]}>
-                <MaterialIcons name="account-balance" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+            <View style={styles.bankGroup}>
+              <View style={[styles.bankStrip, premium && styles.cardPremium]}>
+                <View style={[styles.bankIcon, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft }]}>
+                  <MaterialIcons name="account-balance" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                </View>
+                <View style={styles.bankCopy}>
+                  <Text style={[styles.eyebrow, premium && styles.goldText]}>CLABE UCAPSA</Text>
+                  <Text selectable style={[styles.bankClabe, premium && styles.textPremium]}>{normalizeClabe(bankSettings.clabe)}</Text>
+                  <Text style={[styles.bankMeta, premium && styles.mutedPremium]}>{bankSettings.bank_name}</Text>
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Copiar CLABE UCAPSA"
+                  onPress={() => void copyClabe()}
+                  style={({ pressed }) => [styles.copyButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }, pressed && styles.pressed]}
+                >
+                  <MaterialIcons name="content-copy" size={18} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                  <Text style={[styles.copyText, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Copiar</Text>
+                </Pressable>
               </View>
-              <View style={styles.bankCopy}>
-                <Text style={[styles.eyebrow, premium && styles.goldText]}>CLABE UCAPSA</Text>
-                <Text selectable style={[styles.bankClabe, premium && styles.textPremium]}>{normalizeClabe(bankSettings.clabe)}</Text>
-                <Text numberOfLines={1} style={[styles.bankMeta, premium && styles.mutedPremium]}>{bankSettings.bank_name} · Titular: {bankSettings.account_holder?.replace(/\s+/g, ' ').trim()}</Text>
+
+              <View style={[styles.bankStrip, styles.holderStrip, premium && styles.cardPremium]}>
+                <View style={[styles.bankIcon, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft }]}>
+                  <MaterialIcons name="person" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                </View>
+                <View style={styles.bankCopy}>
+                  <Text style={[styles.eyebrow, premium && styles.goldText]}>TITULAR</Text>
+                  <Text selectable style={[styles.bankHolder, premium && styles.textPremium]}>{bankSettings.account_holder?.replace(/\s+/g, ' ').trim()}</Text>
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Copiar titular de la cuenta UCAPSA"
+                  onPress={() => void copyAccountHolder()}
+                  style={({ pressed }) => [styles.copyButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }, pressed && styles.pressed]}
+                >
+                  <MaterialIcons name="content-copy" size={18} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                  <Text style={[styles.copyText, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Copiar</Text>
+                </Pressable>
               </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Copiar CLABE UCAPSA"
-                onPress={() => void copyClabe()}
-                style={({ pressed }) => [styles.copyButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }, pressed && styles.pressed]}
-              >
-                <MaterialIcons name="content-copy" size={18} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-                <Text style={[styles.copyText, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Copiar</Text>
-              </Pressable>
             </View>
           ) : bankUnavailable ? (
             <View style={[styles.bankUnavailableStrip, premium && styles.cardPremium]}>
@@ -350,10 +381,13 @@ const styles = StyleSheet.create({
   eyebrow: { color: ucapsaBrand.colors.redDark, fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 0.9 },
   balanceLabel: { color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 18, fontWeight: '800' },
   balanceValue: { color: ucapsaBrand.colors.text, fontSize: 30, lineHeight: 34, fontWeight: '900' },
-  bankStrip: { minHeight: 78, flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 18, padding: 12, backgroundColor: ucapsaBrand.colors.surface, marginBottom: 12 },
+  bankGroup: { gap: 8, marginBottom: 12 },
+  bankStrip: { minHeight: 78, flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 18, padding: 12, backgroundColor: ucapsaBrand.colors.surface },
+  holderStrip: { alignItems: 'flex-start' },
   bankIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   bankCopy: { flex: 1, minWidth: 0 },
   bankClabe: { color: ucapsaBrand.colors.text, fontSize: 15, lineHeight: 20, fontWeight: '900', letterSpacing: 0.25 },
+  bankHolder: { color: ucapsaBrand.colors.text, fontSize: 14, lineHeight: 19, fontWeight: '900', marginTop: 2 },
   bankMeta: { color: ucapsaBrand.colors.muted, marginTop: 2, fontSize: 11, lineHeight: 15, fontWeight: '700' },
   copyButton: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: 1, borderRadius: 13, paddingHorizontal: 10 },
   copyText: { fontSize: 11, fontWeight: '900' },

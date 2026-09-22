@@ -128,6 +128,7 @@ export default function ClientClassDetailScreen() {
   const premium = format.key === 'member';
   const levelLabel = item ? getProgramLevelDisplayLabel(item.program.code, item.enrollment.program_level) : null;
   const statusLabel = item ? getProgramStatusLabel(item.enrollment.status) : null;
+  const unlimited = item?.enrollment.access_mode === 'membership';
 
   async function refresh() {
     setRefreshing(true);
@@ -172,9 +173,13 @@ export default function ClientClassDetailScreen() {
             <View style={[styles.progressRow, { borderTopColor: premium ? withAlpha(ucapsaBrand.colors.gold, 0.18) : format.cardBorder }]}>
               <View>
                 <Text style={[styles.infoLabel, { color: format.muted }]}>ASISTENCIAS</Text>
-                <Text style={[styles.progressValue, { color: format.cardText }]}>{item.attendances.length} de {item.program.required_attendances}</Text>
+                <Text style={[styles.progressValue, { color: format.cardText }]}>
+                  {unlimited ? item.attendances.length : `${item.attendances.length} de ${item.program.required_attendances}`}
+                </Text>
               </View>
-              <Text style={[styles.progressMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Tu progreso de esta inscripción</Text>
+              <Text style={[styles.progressMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+                {unlimited ? 'Acceso ilimitado por membresía' : 'Tu progreso de esta tarjeta'}
+              </Text>
             </View>
           </View>
 
@@ -187,9 +192,9 @@ export default function ClientClassDetailScreen() {
 
           <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
             <Text style={[styles.sectionTitle, { color: format.cardText }]}>Datos de la inscripción</Text>
-            <InfoRow label="Inicio" value={dateLabel(item.enrollment.card_started_on || item.enrollment.started_at)} premium={premium} format={format} />
-            <InfoRow label="Vigencia" value={dateLabel(item.enrollment.card_expires_on)} premium={premium} format={format} />
-            <InfoRow label="Número" value={item.enrollment.physical_card_number || 'Sin número'} premium={premium} format={format} />
+            <InfoRow label="Inicio" value={dateLabel(unlimited ? item.enrollment.started_at : item.enrollment.card_started_on || item.enrollment.started_at)} premium={premium} format={format} />
+            <InfoRow label="Vigencia" value={unlimited ? 'Membresía activa · sin límite de clases' : dateLabel(item.enrollment.card_expires_on)} premium={premium} format={format} />
+            <InfoRow label="Tarjeta" value={unlimited ? 'No aplica' : item.enrollment.physical_card_number || 'Sin número'} premium={premium} format={format} />
           </View>
 
           <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>

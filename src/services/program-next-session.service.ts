@@ -50,7 +50,8 @@ export function resolveNextProgramSession(
   fromDate = new Date(),
 ): ProgramNextSession | null {
   if (item.enrollment.status !== 'active') return null;
-  if (!item.enrollment.card_started_on || !item.enrollment.card_expires_on) return null;
+  const unlimitedMembershipAccess = item.enrollment.access_mode === 'membership';
+  if (!unlimitedMembershipAccess && (!item.enrollment.card_started_on || !item.enrollment.card_expires_on)) return null;
 
   const cancelled = new Set(
     context.cancellations
@@ -61,7 +62,8 @@ export function resolveNextProgramSession(
   for (let offset = 0; offset <= 370; offset += 1) {
     const day = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate() + offset, 12, 0, 0, 0);
     const dateKey = localDateKey(day);
-    if (!dateKeyIsWithinRange(dateKey, item.enrollment.card_started_on, item.enrollment.card_expires_on)) continue;
+    if (!unlimitedMembershipAccess
+      && !dateKeyIsWithinRange(dateKey, item.enrollment.card_started_on, item.enrollment.card_expires_on)) continue;
 
     const schedule = getProgramScheduleFromTimeline(context.timeline, item.enrollment.schedule_id, dateKey);
     if (!schedule || schedule.program_id !== item.enrollment.program_id) continue;

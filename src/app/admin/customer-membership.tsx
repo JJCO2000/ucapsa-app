@@ -1,14 +1,24 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../components/domain/AdminCustomerContextHeader';
+import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { getAdminCustomerRecord, type AdminCustomerRecord } from '../../services/admin-customer.service';
-import { forceMembershipForProfile, getMembershipStatusLabel, updateMembershipStatus } from '../../services/memberships.service';
-import type { MembershipStatus } from '../../types/app.types';
+import {
+  forceMembershipForProfile,
+  getMembershipDogAccessForUser,
+  getMembershipStatusLabel,
+  setMemberDogTrainingStageAdmin,
+  setMembershipDogCoverageAdmin,
+  updateMembershipStatus,
+  type MembershipDogAccessRow,
+} from '../../services/memberships.service';
+import { getProgramLevelLabel } from '../../services/programs.service';
+import type { MembershipStatus, ProgramCode, ProgramLevel } from '../../types/app.types';
 
 const statusOptions: Array<{ value: MembershipStatus; label: string }> = [
   { value: 'pending', label: 'Pendiente' },
@@ -34,6 +44,10 @@ export default function CustomerMembershipScreen() {
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [dogAccess, setDogAccess] = useState<MembershipDogAccessRow[]>([]);
+  const [stageDogId, setStageDogId] = useState<string | null>(null);
+  const [stageProgram, setStageProgram] = useState<ProgramCode>('comandos');
+  const [stageLevel, setStageLevel] = useState<ProgramLevel>('principiante');
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -43,6 +57,9 @@ export default function CustomerMembershipScreen() {
       setMemberNumber(next.membership.member_number ?? '');
       setStartDate(next.membership.start_date?.slice(0, 10) ?? '');
       setStatus(next.membership.status);
+      setDogAccess(await getMembershipDogAccessForUser(userId, next.membership.id));
+    } else {
+      setDogAccess([]);
     }
   }, [userId]);
 
@@ -93,6 +110,120 @@ export default function CustomerMembershipScreen() {
   const currentMonth = mexicoCurrentMonthKey();
   const visitsThisMonth = (record?.memberVisits ?? []).filter((visit) => visit.visit_date.startsWith(currentMonth)).length;
   const visitsPerActiveMonth = visitMonths.size > 0 ? (record?.memberVisits.length ?? 0) / visitMonths.size : 0;
+  const coveredDogs = useMemo(() => dogAccess.filter((item) => item.is_covered && item.dog), [dogAccess]);
+  const selectedStageDog = stageDogId ? dogAccess.find((item) => item.dog_id === stageDogId)?.dog ?? null : null;
+
+  function memberEnrollmentForDog(dogId: string) {
+    return record?.enrollments.find((item) =>
+      item.enrollment.dog_id === dogId
+      && item.enrollment.status === 'active'
+      && item.enrollment.access_mode === 'membership',
+    ) ?? null;
+  }
+
+  function stageLabelForDog(dogId: string) {
+    const row = memberEnrollmentForDog(dogId);
+    if (!row) return 'Sin etapa activa';
+    if (row.program.code === 'puppy') return 'Puppy';
+    return 'Comandos · ' + getProgramLevelLabel(row.enrollment.program_level);
+  }
+
+  function openStageEditor(dogId: string) {
+    const row = memberEnrollmentForDog(dogId);
+    if (row?.program.code === 'puppy') {
+      setStageProgram('puppy');
+      setStageLevel('base');
+    } else {
+      setStageProgram('comandos');
+      setStageLevel(row?.enrollment.program_level === 'medio' || row?.enrollment.program_level === 'avanzado'
+        ? row.enrollment.program_level
+        : 'principiante');
+    }
+    setStageDogId(dogId);
+  }
+
+  async function setCoverage(item: MembershipDogAccessRow, covered: boolean) {
+    if (!record?.membership || !item.dog) return;
+    const apply = async () => {
+      try {
+        setSaving(true);
+        await setMembershipDogCoverageAdmin({
+          membershipId: record.membership!.id,
+          dogId: item.dog_id,
+          covered,
+        });
+        await load();
+      } catch (cause) {
+        Alert.alert('No se pudo cambiar la cobertura', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    if (!covered) {
+      Alert.alert(
+        'Quitar acceso de socio',
+        item.dog.name + ' dejará de tener clases ilimitadas. Su nivel y su historial se conservan.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Quitar acceso', style: 'destructive', onPress: () => void apply() },
+        ],
+      );
+      return;
+    }
+    await apply();
+  }
+
+  async function saveStage() {
+    if (!record?.membership || !stageDogId) return;
+    const current = memberEnrollmentForDog(stageDogId);
+    const currentRank = current?.program.code === 'puppy'
+      ? 0
+      : current?.enrollment.program_level === 'medio'
+        ? 2
+        : current?.enrollment.program_level === 'avanzado'
+          ? 3
+          : 1;
+    const targetRank = stageProgram === 'puppy'
+      ? 0
+      : stageLevel === 'medio'
+        ? 2
+        : stageLevel === 'avanzado'
+          ? 3
+          : 1;
+
+    const apply = async () => {
+      try {
+        setSaving(true);
+        await setMemberDogTrainingStageAdmin({
+          membershipId: record.membership!.id,
+          dogId: stageDogId,
+          programCode: stageProgram,
+          programLevel: stageProgram === 'puppy' ? 'base' : stageLevel,
+          reason: 'Cambio manual desde la ficha de membresía.',
+        });
+        setStageDogId(null);
+        await load();
+      } catch (cause) {
+        Alert.alert('No se pudo cambiar la etapa', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    if (targetRank > currentRank + 1) {
+      Alert.alert(
+        'Salto de niveles',
+        'Vas a mover a ' + (selectedStageDog?.name ?? 'este perro') + ' directamente a una etapa superior. Los logros previos coherentes se registrarán automáticamente.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Continuar', onPress: () => void apply() },
+        ],
+      );
+      return;
+    }
+    await apply();
+  }
 
   return (
     <KeyboardAwareScreen>
@@ -141,6 +272,42 @@ export default function CustomerMembershipScreen() {
             </View>
           )}
 
+          {record.membership.status === 'active' && dogAccess.length > 0 ? (
+            <>
+              <View style={styles.dogSectionHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sectionTitle}>Perros de la membresía</Text>
+                  <Text style={styles.sectionHint}>Todos entran por defecto. Sólo cambia una excepción cuando realmente aplique.</Text>
+                </View>
+                <View style={styles.coveredCount}><Text style={styles.coveredCountText}>{coveredDogs.length}</Text></View>
+              </View>
+              <View style={styles.dogList}>
+                {dogAccess.map((item, index) => {
+                  const covered = item.is_covered;
+                  return (
+                    <View key={item.dog_id} style={[styles.dogRow, index === dogAccess.length - 1 && styles.dogRowLast]}>
+                      <View style={[styles.dogCrown, !covered && styles.dogCrownOff]}>
+                        <MaterialIcons name={covered ? 'workspace-premium' : 'pets'} size={20} color={covered ? ucapsaBrand.colors.goldDark : ucapsaBrand.colors.muted} />
+                      </View>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={styles.dogName}>{item.dog?.name || 'Perro'}</Text>
+                        <Text style={styles.dogMeta}>{covered ? stageLabelForDog(item.dog_id) : 'Fuera de la cobertura de socio'}</Text>
+                      </View>
+                      {covered ? (
+                        <Pressable disabled={saving} style={styles.dogAction} onPress={() => openStageEditor(item.dog_id)}>
+                          <Text style={styles.dogActionText}>Cambiar nivel</Text>
+                        </Pressable>
+                      ) : null}
+                      <Pressable disabled={saving} style={[styles.coverageToggle, covered && styles.coverageToggleOn]} onPress={() => void setCoverage(item, !covered)}>
+                        <MaterialIcons name={covered ? 'check' : 'add'} size={18} color={covered ? ucapsaBrand.colors.surface : ucapsaBrand.colors.redDark} />
+                      </Pressable>
+                    </View>
+                  );
+                })}
+              </View>
+            </>
+          ) : null}
+
           <View style={styles.actions}>
             {editing ? (
               <>
@@ -157,7 +324,35 @@ export default function CustomerMembershipScreen() {
           </View>
         </>
       ) : null}
+      <KeyboardAwareModal visible={Boolean(stageDogId)} onClose={() => setStageDogId(null)}>
+        <Text style={styles.modalKicker}>Entrenamiento de socio</Text>
+        <Text style={styles.modalTitle}>{selectedStageDog?.name || 'Perro'}</Text>
+        <Text style={styles.modalText}>El nivel se cambia manualmente. Las asistencias nunca promueven por sí solas.</Text>
+
+        <Text style={styles.label}>Etapa</Text>
+        <View style={styles.stageChoices}>
+          <StageChoice label="Puppy" active={stageProgram === 'puppy'} onPress={() => { setStageProgram('puppy'); setStageLevel('base'); }} />
+          <StageChoice label="Básico" active={stageProgram === 'comandos' && stageLevel === 'principiante'} onPress={() => { setStageProgram('comandos'); setStageLevel('principiante'); }} />
+          <StageChoice label="Intermedio" active={stageProgram === 'comandos' && stageLevel === 'medio'} onPress={() => { setStageProgram('comandos'); setStageLevel('medio'); }} />
+          <StageChoice label="Avanzado" active={stageProgram === 'comandos' && stageLevel === 'avanzado'} onPress={() => { setStageProgram('comandos'); setStageLevel('avanzado'); }} />
+        </View>
+
+        <Pressable disabled={saving} style={styles.primary} onPress={() => void saveStage()}>
+          <Text style={styles.primaryText}>{saving ? 'Guardando...' : 'Guardar etapa'}</Text>
+        </Pressable>
+        <Pressable disabled={saving} style={styles.secondary} onPress={() => setStageDogId(null)}>
+          <Text style={styles.secondaryText}>Cancelar</Text>
+        </Pressable>
+      </KeyboardAwareModal>
     </KeyboardAwareScreen>
+  );
+}
+
+function StageChoice({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  return (
+    <Pressable style={[styles.stageChoice, active && styles.stageChoiceActive]} onPress={onPress}>
+      <Text style={[styles.stageChoiceText, active && styles.stageChoiceTextActive]}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -193,6 +388,30 @@ const styles = StyleSheet.create({
   statusButtonActive: { backgroundColor: ucapsaBrand.colors.red, borderColor: ucapsaBrand.colors.red },
   statusText: { color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '900' },
   statusTextActive: { color: ucapsaBrand.colors.surface },
+  dogSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 18, marginBottom: 9 },
+  sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 17, fontWeight: '900' },
+  sectionHint: { color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 16, fontWeight: '700', marginTop: 2 },
+  coveredCount: { minWidth: 34, minHeight: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.goldPale },
+  coveredCountText: { color: ucapsaBrand.colors.goldDark, fontSize: 13, fontWeight: '900' },
+  dogList: { borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, overflow: 'hidden' },
+  dogRow: { minHeight: 66, flexDirection: 'row', alignItems: 'center', gap: 9, padding: 11, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.premiumMuted },
+  dogRowLast: { borderBottomWidth: 0 },
+  dogCrown: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.goldPale },
+  dogCrownOff: { backgroundColor: ucapsaBrand.colors.surfaceSubtle },
+  dogName: { color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '900' },
+  dogMeta: { color: ucapsaBrand.colors.muted, fontSize: 10, lineHeight: 15, fontWeight: '700', marginTop: 2 },
+  dogAction: { borderRadius: 11, backgroundColor: ucapsaBrand.colors.redSoft, paddingHorizontal: 9, paddingVertical: 8 },
+  dogActionText: { color: ucapsaBrand.colors.redDark, fontSize: 9, fontWeight: '900' },
+  coverageToggle: { width: 36, height: 36, borderRadius: 12, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, alignItems: 'center', justifyContent: 'center' },
+  coverageToggleOn: { backgroundColor: ucapsaBrand.colors.red, borderColor: ucapsaBrand.colors.red },
+  modalKicker: { color: ucapsaBrand.colors.redDark, fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
+  modalTitle: { color: ucapsaBrand.colors.text, fontSize: 23, fontWeight: '900', marginTop: 2 },
+  modalText: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 4, marginBottom: 12 },
+  stageChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 7, marginBottom: 14 },
+  stageChoice: { width: '48%', borderRadius: 13, borderWidth: 1, borderColor: ucapsaBrand.colors.border, alignItems: 'center', paddingVertical: 10, backgroundColor: ucapsaBrand.colors.surface },
+  stageChoiceActive: { backgroundColor: ucapsaBrand.colors.red, borderColor: ucapsaBrand.colors.red },
+  stageChoiceText: { color: ucapsaBrand.colors.text, fontSize: 11, fontWeight: '900' },
+  stageChoiceTextActive: { color: ucapsaBrand.colors.surface },
   actions: { marginTop: 14, gap: 9 },
   primary: { borderRadius: 15, backgroundColor: ucapsaBrand.colors.red, alignItems: 'center', paddingHorizontal: 16, paddingVertical: 13 },
   primaryText: { color: ucapsaBrand.colors.surface, fontSize: 14, fontWeight: '900' },

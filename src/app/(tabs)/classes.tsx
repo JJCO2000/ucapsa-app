@@ -220,8 +220,9 @@ function ClassCard({
   format: ReturnType<typeof resolveUcapsaFormat>;
 }) {
   const attendanceCount = item.attendances.length;
+  const unlimited = item.enrollment.access_mode === 'membership';
   const required = item.program.required_attendances;
-  const remaining = required > 0 ? Math.max(0, required - attendanceCount) : null;
+  const remaining = !unlimited && required > 0 ? Math.max(0, required - attendanceCount) : null;
   const levelLabel = visibleLevelLabel(item);
   const statusLabel = getProgramStatusLabel(item.enrollment.status);
   const dogName = getProgramEnrollmentDogName(item);
@@ -253,12 +254,12 @@ function ClassCard({
           <Text style={[styles.currentProgram, { color: format.cardText }]}>{getProgramCodeLabel(item.program.code)}{levelLabel ? ` ${levelLabel}` : ''}</Text>
           <Text style={[styles.currentDog, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Con {dogName}</Text>
         </View>
-        {!premium && remaining != null ? (
+        {!unlimited && remaining != null ? (
           <View style={[styles.remainingBadge, { backgroundColor: format.accentSoft, borderColor: format.border }]}>
             <Text style={[styles.remainingNumber, { color: format.accentDark }]}>{remaining}</Text>
             <Text style={[styles.remainingText, { color: format.muted }]}>restantes</Text>
           </View>
-        ) : premium ? (
+        ) : unlimited ? (
           <View style={[styles.memberMark, { backgroundColor: ucapsaBrand.colors.premiumSurfaceAlt, borderColor: ucapsaBrand.colors.premiumBorder }]}>
             <MaterialIcons name="workspace-premium" size={19} color={ucapsaBrand.colors.premiumAction} />
           </View>
@@ -278,7 +279,9 @@ function ClassCard({
 
       <View style={styles.usageRow}>
         <Text style={[styles.usageValue, { color: format.cardText }]}>{attendanceCount}</Text>
-        <Text style={[styles.usageLabel, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>asistencias registradas</Text>
+        <Text style={[styles.usageLabel, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+          {unlimited ? 'asistencias · acceso ilimitado' : 'asistencias registradas'}
+        </Text>
       </View>
 
       <Pressable accessibilityRole="button" accessibilityLabel={`Ver detalle de ${classLabel}`} style={[styles.detailButton, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]} onPress={() => router.push(detailRoute)}>

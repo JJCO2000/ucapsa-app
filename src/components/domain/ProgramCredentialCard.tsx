@@ -51,9 +51,10 @@ function getProgramTheme(code: string | null | undefined) {
 export function ProgramCredentialCard({ item, onPress, compact = false }: ProgramCredentialCardProps) {
   const theme = getProgramTheme(item.program.code);
   const accentColor = theme.accent;
+  const unlimited = item.enrollment.access_mode === 'membership';
   const requiredAttendances = Math.max(1, item.program.required_attendances || 1);
-  const currentAttendances = Math.max(0, item.enrollment.attendances_count || 0);
-  const progressLabel = `${currentAttendances} / ${requiredAttendances}`;
+  const currentAttendances = Math.max(0, item.attendances.length);
+  const progressLabel = unlimited ? `${currentAttendances} registradas` : `${currentAttendances} / ${requiredAttendances}`;
   const progressPercent = Math.min(100, Math.round((currentAttendances / requiredAttendances) * 100));
   const levelLabel = item.program.code === 'comandos' ? getProgramLevelLabel(item.enrollment.program_level) : null;
 
@@ -82,15 +83,17 @@ export function ProgramCredentialCard({ item, onPress, compact = false }: Progra
       <View style={styles.infoGrid}>
         <InfoBox label="Horario" value={formatScheduleLabel(item.schedule)} theme={theme} />
         <InfoBox label="Proxima clase" value={formatNextProgramClassLabel(item.schedule)} theme={theme} />
-        <InfoBox label="Tarjeta fisica" value={item.enrollment.physical_card_number || 'Sin numero'} theme={theme} />
+        <InfoBox label={unlimited ? 'Acceso' : 'Tarjeta fisica'} value={unlimited ? 'Socio · ilimitado' : item.enrollment.physical_card_number || 'Sin numero'} theme={theme} />
         <InfoBox label="Estado" value={getProgramStatusLabel(item.enrollment.status)} theme={theme} />
         <InfoBox label="Asistencias" value={progressLabel} theme={theme} />
         <InfoBox label="Ultima clase" value={item.enrollment.last_attendance_at || 'Sin registro'} theme={theme} />
       </View>
 
-      <View style={styles.progressOuter}>
-        <View style={[styles.progressInner, { width: `${progressPercent}%`, backgroundColor: theme.qr }]} />
-      </View>
+      {!unlimited ? (
+        <View style={styles.progressOuter}>
+          <View style={[styles.progressInner, { width: `${progressPercent}%`, backgroundColor: theme.qr }]} />
+        </View>
+      ) : null}
 
       {!compact ? (
         <View style={[styles.attendancePanel, { backgroundColor: theme.soft }]}>

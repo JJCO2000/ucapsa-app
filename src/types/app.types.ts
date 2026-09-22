@@ -240,6 +240,7 @@ export type AttendanceQrProgramCode = ProgramCode | 'member';
 export type ProgramRepeatType = 'weekly' | 'biweekly';
 
 export type ProgramEnrollmentStatus = 'active' | 'completed' | 'cancelled';
+export type ProgramAccessMode = 'card' | 'membership';
 
 export type ProgramLevel = 'base' | 'principiante' | 'medio' | 'avanzado';
 
@@ -310,6 +311,8 @@ export type ProgramEnrollment = {
   card_expires_on?: string | null;
   requirements_met_at?: string | null;
   dog_id?: string | null;
+  access_mode?: ProgramAccessMode;
+  membership_id?: string | null;
   completed_at: string | null;
   cancelled_at: string | null;
   created_at: string;
@@ -384,6 +387,17 @@ export type PracticeSession = {
   difficulty: PracticeDifficulty;
   note: string | null;
   duration_seconds: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MembershipDogAccess = {
+  id: string;
+  membership_id: string;
+  user_id: string;
+  dog_id: string;
+  is_covered: boolean;
+  changed_by: string | null;
   created_at: string;
   updated_at: string;
 };

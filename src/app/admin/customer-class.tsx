@@ -119,7 +119,7 @@ export default function CustomerClassScreen() {
   function changeStatus(status: ProgramEnrollmentStatus) {
     if (!row) return;
     const progressionMessage = status === 'completed'
-      ? ' Al completarla, UCAPSA desbloqueará automáticamente la siguiente etapa si existe; esta tarjeta y todas sus asistencias se conservarán en el historial.'
+      ? ' Marcarla completada cierra esta tarjeta, pero no cambia el nivel. La promoción se resuelve desde Listos para evaluar.'
       : '';
     Alert.alert('Confirmar', `La inscripcion quedara como ${getProgramStatusLabel(status).toLowerCase()}.${progressionMessage}`, [
       { text: 'Cancelar', style: 'cancel' },
@@ -128,7 +128,7 @@ export default function CustomerClassScreen() {
           setSaving(true);
           await setProgramEnrollmentStatus(row.enrollment.id, status);
           await load();
-          if (status === 'completed') Alert.alert('Etapa completada', 'La siguiente etapa quedó desbloqueada automáticamente cuando corresponde. Puedes editar su horario, perro, tarjeta y asistencias desde Administración.');
+          if (status === 'completed') Alert.alert('Tarjeta completada', 'El nivel no cambió. Si corresponde repetir o avanzar, resuélvelo desde Listos para evaluar.');
         } catch (cause) {
           Alert.alert('No se pudo cambiar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
         } finally {
@@ -209,7 +209,7 @@ export default function CustomerClassScreen() {
             <Pressable style={styles.statusAction} onPress={() => setStatusModalOpen(true)}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.statusActionTitle}>Cambiar estado</Text>
-                <Text style={styles.muted}>Completar desbloquea automáticamente la siguiente etapa</Text>
+                <Text style={styles.muted}>Cambiar estado no modifica el nivel del perro</Text>
               </View>
               <MaterialIcons name="chevron-right" size={22} color={ucapsaBrand.colors.redDark} />
             </Pressable>
@@ -219,7 +219,7 @@ export default function CustomerClassScreen() {
             <Text style={styles.modalCustomerName}>{adminCustomerDisplayName(record?.profile)}</Text>
             <Text style={styles.modalKicker}>Clase</Text>
             <Text style={styles.modalTitle}>Cambiar estado</Text>
-            <Text style={styles.modalText}>La decisión de completar sigue siendo del admin. Al marcar Completada, se conserva este historial y se crea la siguiente etapa: Puppy → Básico → Intermedio → Avanzado.</Text>
+            <Text style={styles.modalText}>Este control sólo corrige el estado administrativo de la tarjeta. Para repetir o pasar de nivel usa Listos para evaluar; ninguna asistencia ni cambio de estado promueve al perro automáticamente.</Text>
             <View style={styles.modalChoices}>
               <Choice label="Activa" active={row.enrollment.status === 'active'} onPress={() => { setStatusModalOpen(false); changeStatus('active'); }} />
               <Choice label="Completada" active={row.enrollment.status === 'completed'} onPress={() => { setStatusModalOpen(false); changeStatus('completed'); }} />
