@@ -327,10 +327,6 @@ export default function AttendanceScanScreen() {
     }
   }
 
-  async function registerClass(token: string, enrollment: ProgramEnrollmentWithDetails) {
-    await registerClasses(token, [enrollment], { includeMemberVisit: membershipActive });
-  }
-
   async function registerMemberVisit(token: string) {
     const userId = user?.id;
     if (!userId) {
