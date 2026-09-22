@@ -198,14 +198,25 @@ export async function queueMemberVisit(input: {
   token: string;
 }): Promise<PendingMemberVisitOperation> {
   return serializeOutboxMutation(input.userId, async () => {
+    const capturedAt = new Date().toISOString();
     const current = await readAttendanceOutboxStrict(input.userId);
+    const dateKey = localDateKey(capturedAt);
+    const existing = current.find(
+      (item): item is PendingMemberVisitOperation => (
+        item.kind === 'member_visit'
+        && localDateKey(item.capturedAt) === dateKey
+        && item.state !== 'rejected'
+      ),
+    );
+    if (existing) return existing;
+
     const operation: PendingMemberVisitOperation = {
       version: 1,
       id: createOfflineUuid('member-visit'),
       userId: input.userId,
       kind: 'member_visit',
       token: input.token.trim(),
-      capturedAt: new Date().toISOString(),
+      capturedAt,
       state: 'pending',
       message: null,
     };
