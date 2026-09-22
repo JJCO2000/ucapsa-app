@@ -2,6 +2,8 @@ import fs from 'node:fs';
 
 const sql = fs.readFileSync('supabase/sql/ucapsa-account-deletion-workflow.sql', 'utf8');
 const auditSql = fs.readFileSync('supabase/sql/ucapsa-account-deletion-audit-trail.sql', 'utf8');
+const selfDeleteSql = fs.readFileSync('supabase/sql/ucapsa-self-delete-account.sql', 'utf8');
+const deleteAccountEdge = fs.readFileSync('supabase/functions/delete-account/index.ts', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
 const service = fs.readFileSync('src/services/account-deletion.service.ts', 'utf8');
 const settings = fs.readFileSync('src/app/account-settings.tsx', 'utf8');
@@ -57,7 +59,8 @@ if (/delete\s+from\s+auth\.users|delete\s+from\s+public\.(profiles|dogs|payments
 
 for (const [name, text, token] of [
   ['account deletion service', service, 'request_my_account_deletion'],
-  ['account settings', settings, 'getMyAccountDeletionRequest'],
+  ['account deletion service', service, "functions.invoke('delete-account'"],
+  ['account settings', settings, 'deleteMyAccount'],
   ['superadmin queue', adminQueue, 'getOpenAccountDeletionRequests'],
   ['admin tools', adminTools, '/admin/account-deletion-requests'],
 ]) {
@@ -81,6 +84,40 @@ if (/\.from\(['"]profiles['"]\)[\s\S]{0,500}deletion_requested_at/.test(profiles
 
 if (!service.includes('completeAccountDeletionRequest') || !service.includes('admin_complete_account_deletion_request')) {
   throw new Error('Account deletion service is not using the dedicated completion RPC.');
+}
+
+for (const token of [
+  'create or replace function public.service_purge_self_delete_data',
+  'delete from public.account_deletion_requests',
+  'delete from public.membership_delete_requests',
+  'delete from public.program_enrollments',
+  'revoke all on function public.service_purge_self_delete_data(uuid)',
+  'from public, anon, authenticated',
+  'grant execute on function public.service_purge_self_delete_data(uuid)',
+  'to service_role',
+]) {
+  if (!selfDeleteSql.toLowerCase().includes(token.toLowerCase())) {
+    throw new Error('Immediate self-delete SQL contract missing: ' + token);
+  }
+}
+
+for (const token of [
+  'userClient.auth.getUser()',
+  "['admin', 'super_admin']",
+  "serviceClient.rpc('service_purge_self_delete_data'",
+  'serviceClient.auth.admin.deleteUser(userId, false)',
+]) {
+  if (!deleteAccountEdge.includes(token)) {
+    throw new Error('Immediate self-delete Edge Function contract missing: ' + token);
+  }
+}
+
+if (!settings.includes('Eliminar mi cuenta') || !settings.includes('Última confirmación')) {
+  throw new Error('Account settings lost the two-step immediate deletion UX.');
+}
+
+if (/requestMyAccountDeletion|getMyAccountDeletionRequest/.test(settings)) {
+  throw new Error('Client account settings returned to the manual deletion-request flow.');
 }
 
 if (/status:\s*mode === ['"]block['"][\s\S]{0,120}completed/.test(adminQueue)) {

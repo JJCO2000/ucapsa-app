@@ -5,7 +5,6 @@ const attendanceSync = fs.readFileSync('src/services/attendance-sync.service.ts'
 const valueExposure = fs.readFileSync('src/services/value-exposure-outbox.service.ts', 'utf8');
 const practice = fs.readFileSync('src/services/practice-outbox.service.ts', 'utf8');
 const keyed = fs.readFileSync('src/utils/keyed-async.utils.ts', 'utf8');
-const settings = fs.readFileSync('src/app/account-settings.tsx', 'utf8');
 const competition = fs.readFileSync('src/app/client/competition.tsx', 'utf8');
 const constancy = fs.readFileSync('src/app/client/competition-constancy.tsx', 'utf8');
 const membership = fs.readFileSync('src/app/client/membership.tsx', 'utf8');
@@ -42,7 +41,6 @@ for (const token of ['createKeyedMutationSerializer', 'createKeyedInFlightCoales
 }
 
 for (const [name, text, diagnostic] of [
-  ['account settings', settings, 'Could not refresh account deletion status in settings.'],
   ['competition summary', competition, 'Could not persist constancy summary value exposure.'],
   ['competition detail', constancy, 'Could not persist constancy detail value exposure.'],
   ['membership', membership, 'Could not refresh profile after membership request.'],
