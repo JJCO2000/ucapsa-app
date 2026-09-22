@@ -110,7 +110,6 @@ export default function CustomerMembershipScreen() {
   const currentMonth = mexicoCurrentMonthKey();
   const visitsThisMonth = (record?.memberVisits ?? []).filter((visit) => visit.visit_date.startsWith(currentMonth)).length;
   const visitsPerActiveMonth = visitMonths.size > 0 ? (record?.memberVisits.length ?? 0) / visitMonths.size : 0;
-  const accessByDog = useMemo(() => new Map(dogAccess.map((item) => [item.dog_id, item])), [dogAccess]);
   const coveredDogs = useMemo(() => dogAccess.filter((item) => item.is_covered && item.dog), [dogAccess]);
   const selectedStageDog = stageDogId ? dogAccess.find((item) => item.dog_id === stageDogId)?.dog ?? null : null;
 
