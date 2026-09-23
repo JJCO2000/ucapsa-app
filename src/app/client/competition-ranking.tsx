@@ -9,11 +9,11 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
+import { getMyDogs } from '../../services/dogs.service';
 import {
   getCachedCompetitionLeaderboard,
   getCachedMyCompetitionAccount,
   refreshCompetitionLeaderboard,
-  refreshMyCompetitionAccount,
   type ClientCompetitionLeaderboardRow,
 } from '../../services/client-competition.service';
 
@@ -67,13 +67,13 @@ export default function ClientCompetitionRankingScreen() {
       setMyDogIds(new Set(cachedAccount.data.dogs.map((dog) => dog.dog_id)));
     }
 
-    const [rankingResult, accountResult] = await Promise.allSettled([
+    const [rankingResult, dogsResult] = await Promise.allSettled([
       refreshCompetitionLeaderboard(user.id, seasonId),
-      refreshMyCompetitionAccount(user.id),
+      getMyDogs(),
     ]);
 
-    if (accountResult.status === 'fulfilled') {
-      setMyDogIds(new Set(accountResult.value.data.dogs.map((dog) => dog.dog_id)));
+    if (dogsResult.status === 'fulfilled') {
+      setMyDogIds(new Set(dogsResult.value.map((dog) => dog.id)));
     }
 
     if (rankingResult.status === 'fulfilled') {
