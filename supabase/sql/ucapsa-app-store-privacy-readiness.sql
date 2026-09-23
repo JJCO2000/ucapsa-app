@@ -30,7 +30,7 @@ create or replace function public.enforce_dog_appstore_minimization()
 returns trigger
 language plpgsql
 set search_path = public
-as $
+as $$
 begin
   new.allergies := null;
   new.medications := null;
@@ -43,7 +43,7 @@ begin
   new.notes := null;
   return new;
 end;
-$;
+$$;
 
 revoke all on function public.enforce_dog_appstore_minimization()
   from public, anon, authenticated;
