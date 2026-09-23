@@ -38,7 +38,7 @@ export default function ClientCompetitionRankingScreen() {
   const premium = format.key === 'member';
 
   const [rows, setRows] = useState<ClientCompetitionLeaderboardRow[]>([]);
-  const [myDogIds, setMyDogIds] = useState<Set<string>>(new Set());
+  const [myDogs, setMyDogs] = useState<Array<{ id: string; name: string }>>([]);
   const [localReady, setLocalReady] = useState(false);
   const [usingSavedData, setUsingSavedData] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
@@ -64,7 +64,7 @@ export default function ClientCompetitionRankingScreen() {
       setLocalReady(true);
     }
     if (cachedAccount) {
-      setMyDogIds(new Set(cachedAccount.data.dogs.map((dog) => dog.dog_id)));
+      setMyDogs(cachedAccount.data.dogs.map((dog) => ({ id: dog.dog_id, name: dog.dog_name })));
     }
 
     const [rankingResult, dogsResult] = await Promise.allSettled([
@@ -73,7 +73,7 @@ export default function ClientCompetitionRankingScreen() {
     ]);
 
     if (dogsResult.status === 'fulfilled') {
-      setMyDogIds(new Set(dogsResult.value.map((dog) => dog.id)));
+      setMyDogs(dogsResult.value.map((dog) => ({ id: dog.id, name: dog.name })));
     }
 
     if (rankingResult.status === 'fulfilled') {
@@ -108,7 +108,11 @@ export default function ClientCompetitionRankingScreen() {
   if (isAdmin) return <Redirect href="/admin-home" />;
 
   const podium = rows.slice(0, 3);
-  const myRows = rows.filter((row) => row.dog_id && myDogIds.has(row.dog_id));
+  const myDogIds = new Set(myDogs.map((dog) => dog.id));
+  const myRows = myDogs.map((dog) => ({
+    dog,
+    row: rows.find((row) => row.dog_id === dog.id) ?? null,
+  }));
   const seasonName = rows[0]?.season_name || 'Temporada UCAPSA';
 
   return (
@@ -160,15 +164,19 @@ export default function ClientCompetitionRankingScreen() {
             {myRows.length > 0 ? (
               <View style={styles.myDogsBlock}>
                 <Text style={[styles.sectionTitle, { color: format.cardText }]}>Tus perros</Text>
-                {myRows.map((row) => (
-                  <View key={row.dog_id ?? String(row.ranking_position)} style={[styles.myCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
+                {myRows.map(({ dog, row }) => (
+                  <View key={dog.id} style={[styles.myCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
                     <View style={[styles.positionCircle, { backgroundColor: format.pillBackground }]}>
-                      <Text style={[styles.positionText, { color: format.pillText }]}>#{Number(row.ranking_position ?? 0)}</Text>
+                      <Text style={[styles.positionText, { color: format.pillText }]}>{row ? '#' + Number(row.ranking_position ?? 0) : '—'}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.myLabel, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>TU PERRO</Text>
-                      <Text style={[styles.cardTitle, { color: format.cardText }]}>{row.dog_name || 'Tu perro'} · {numberLabel(row.competitive_score)} pts</Text>
-                      <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{row.range_name || 'Cobre'} · {Number(row.command_attendances_count ?? 0)} Comandos</Text>
+                      <Text style={[styles.cardTitle, { color: format.cardText }]}>
+                        {row ? dog.name + ' · ' + numberLabel(row.competitive_score) + ' pts' : dog.name + ' · sin posición oficial'}
+                      </Text>
+                      <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+                        {row ? (row.range_name || 'Cobre') + ' · ' + Number(row.command_attendances_count ?? 0) + ' Comandos' : 'Aparecerá cuando cumpla los requisitos del Ranking.'}
+                      </Text>
                     </View>
                   </View>
                 ))}
@@ -176,7 +184,7 @@ export default function ClientCompetitionRankingScreen() {
             ) : (
               <View style={[styles.noteCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
                 <MaterialIcons name="info-outline" size={19} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-                <Text style={[styles.noteText, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Tus perros todavía no ocupan posición porque no cumplen todos los exámenes obligatorios.</Text>
+                <Text style={[styles.noteText, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>No pudimos identificar tus perros en esta vista. Actualiza cuando tengas conexión.</Text>
               </View>
             )}
 
