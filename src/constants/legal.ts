@@ -1,4 +1,4 @@
-export const UCAPSA_TERMS_VERSION = '1.0';
+export const UCAPSA_TERMS_VERSION = '1.1';
 export const UCAPSA_LEGAL_EFFECTIVE_DATE = '2026-09-22';
 export const UCAPSA_PRIVACY_PUBLIC_URL =
   'https://hrfecmviyiluubymsoeq.supabase.co/functions/v1/privacy-policy';
