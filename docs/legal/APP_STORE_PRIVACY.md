@@ -5,7 +5,7 @@ Este archivo documenta la declaración que debe mantenerse alineada con la versi
 ## URL
 
 - **Privacy Policy URL:** https://hrfecmviyiluubymsoeq.supabase.co/functions/v1/privacy-policy
-- **User Privacy Choices URL:** puede usarse la misma URL por ahora; la eliminación se inicia dentro de la app en Ajustes > Eliminar cuenta.
+- **Privacy Choices URL:** puede usarse la misma URL por ahora; la eliminación se inicia dentro de la app en Ajustes > Eliminar cuenta.
 
 ## ¿La app recopila datos?
 
@@ -16,9 +16,9 @@ Este archivo documenta la declaración que debe mantenerse alineada con la versi
 | Categoría Apple | Tipo | Vinculado a la identidad | Tracking | Finalidad principal |
 | --- | --- | --- | --- | --- |
 | Contact Info | Name | Sí | No | App Functionality |
-| Contact Info | Email Address | Sí | No | App Functionality, Account Management |
+| Contact Info | Email Address | Sí | No | App Functionality |
 | Contact Info | Phone Number | Sí | No | App Functionality |
-| Identifiers | User ID | Sí | No | App Functionality, Account Management |
+| Identifiers | User ID | Sí | No | App Functionality |
 | Identifiers | Device ID | Sí | No | App Functionality (notificaciones/dispositivo) |
 | Purchases | Purchase History | Sí | No | App Functionality (registro administrativo de pagos/membresías) |
 | User Content | Other User Content | Sí | No | App Functionality (datos básicos del perro y notas operativas cuando existan) |
