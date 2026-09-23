@@ -159,11 +159,10 @@ export default function ClientCompetitionScreen() {
     if (visibleDogIds.length === 0) return;
 
     const timer = setTimeout(() => {
-      void Promise.allSettled(
-        visibleDogIds.map((dogId) =>
-          recordValueExposure(user.id, dogId, selectedSeasonId, 'constancy_summary'),
-        ),
-      ).catch((cause) => devWarn('Could not persist account competition value exposure.', cause));
+      for (const dogId of visibleDogIds) {
+        void recordValueExposure(user.id, dogId, selectedSeasonId, 'constancy_summary')
+          .catch((cause) => devWarn('Could not persist account competition value exposure.', cause));
+      }
     }, 750);
 
     return () => clearTimeout(timer);
