@@ -52,7 +52,7 @@ if (!/recordValueExposure\(user\.id, detail\.dog_id, season\.season_id, 'constan
 }
 if (
   !/void\s+recordValueExposure\([\s\S]*?\)\s*\.catch\(/.test(summary)
-  || !summary.includes('Could not persist account competition value exposure.')
+  || !summary.includes('Could not persist constancy summary value exposure.')
   || !/void\s+recordValueExposure\([\s\S]*?\)\s*\.catch\(/.test(detail)
   || !detail.includes('Could not persist constancy detail value exposure.')
 ) {
