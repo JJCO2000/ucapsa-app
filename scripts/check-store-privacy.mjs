@@ -3,7 +3,8 @@ import fs from 'node:fs';
 const legal = fs.readFileSync('src/constants/legal.ts', 'utf8');
 const settings = fs.readFileSync('src/app/account-settings.tsx', 'utf8');
 const privacyFunction = fs.readFileSync('supabase/functions/privacy-policy/index.ts', 'utf8');
-const deletionPage = fs.readFileSync('supabase/functions/account-deletion-request/index.ts', 'utf8');
+const deletionFunction = fs.readFileSync('supabase/functions/account-deletion-request/index.ts', 'utf8');
+const deletionPage = fs.readFileSync('docs/legal/ELIMINAR_CUENTA_UCAPSA_APP.md', 'utf8');
 const config = fs.readFileSync('supabase/config.toml', 'utf8');
 const apple = fs.readFileSync('docs/legal/APP_STORE_PRIVACY.md', 'utf8');
 const google = fs.readFileSync('docs/legal/GOOGLE_PLAY_DATA_SAFETY.md', 'utf8');
@@ -11,6 +12,7 @@ const play = fs.readFileSync('docs/legal/GOOGLE_PLAY_SUBMISSION.md', 'utf8');
 const continuity = fs.readFileSync('src/services/continuity-evidence.service.ts', 'utf8');
 const notice = fs.readFileSync('docs/legal/AVISO_PRIVACIDAD_UCAPSA_APP.md', 'utf8');
 const migration = fs.readFileSync('supabase/sql/ucapsa-store-privacy-v1-1.sql', 'utf8');
+const hostingFix = fs.readFileSync('supabase/sql/ucapsa-public-legal-url-fix.sql', 'utf8');
 const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 const app = JSON.parse(fs.readFileSync('app.json', 'utf8'));
 
@@ -27,20 +29,39 @@ if (!settings.includes('UCAPSA_ACCOUNT_DELETION_PUBLIC_URL')) {
 }
 
 for (const token of [
-  'Eliminar tu cuenta y datos',
+  'Eliminar cuenta y datos',
   'ucapsa84@gmail.com',
   'Solicitud de eliminación de cuenta UCAPSA App',
-  'privacy-policy',
+  'AVISO_PRIVACIDAD_UCAPSA_APP.md',
 ]) {
   if (!deletionPage.includes(token)) throw new Error('External deletion page missing: ' + token);
+}
+
+for (const [name, text, target] of [
+  ['privacy redirect', privacyFunction, 'AVISO_PRIVACIDAD_UCAPSA_APP.md'],
+  ['deletion redirect', deletionFunction, 'ELIMINAR_CUENTA_UCAPSA_APP.md'],
+]) {
+  if (!text.includes('status: 302') || !text.includes('Location: TARGET_URL') || !text.includes(target)) {
+    throw new Error(name + ' must redirect to a browser-safe rendered document.');
+  }
 }
 
 if (!/\[functions\.account-deletion-request\][\s\S]*verify_jwt\s*=\s*false/.test(config)) {
   throw new Error('External deletion resource must be public.');
 }
 
-if (!privacyFunction.includes('account-deletion-request')) {
-  throw new Error('Public privacy policy must prominently link account deletion.');
+for (const text of [legal, apple, google, play, notice]) {
+  if (text.includes('hrfecmviyiluubymsoeq.supabase.co/functions/v1/')) {
+    throw new Error('Store-facing legal documentation still points to non-rendering Supabase HTML.');
+  }
+}
+
+for (const token of [
+  'AVISO_PRIVACIDAD_UCAPSA_APP.md',
+  'ELIMINAR_CUENTA_UCAPSA_APP.md',
+  'Legacy Supabase store-facing legal URL remains',
+]) {
+  if (!hostingFix.includes(token)) throw new Error('Legal hosting migration missing: ' + token);
 }
 
 if (!continuity.includes('recordValueExposure')) {
