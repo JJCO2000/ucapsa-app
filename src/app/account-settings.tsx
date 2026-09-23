@@ -158,7 +158,9 @@ export default function AccountSettingsScreen() {
               Alert.alert('Cuenta eliminada', 'Tu cuenta de UCAPSA App fue eliminada.');
               router.replace('/auth/login' as never);
             } catch (error) {
-              await refreshDeletionRequest().catch(() => undefined);
+              await refreshDeletionRequest().catch((refreshError) => {
+                devWarn('account-settings: failed to refresh deletion request after delete error', refreshError);
+              });
               Alert.alert(
                 'No se pudo completar',
                 friendlyWriteError(
