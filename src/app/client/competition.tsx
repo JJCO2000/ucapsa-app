@@ -108,7 +108,8 @@ export default function ClientCompetitionScreen() {
       const fresh = await refreshCompetitionLeaderboard(user.id, seasonId);
       setRows(fresh.data);
       setRankingReady(true);
-    } catch {
+    } catch (cause) {
+      devWarn('Could not refresh competition leaderboard in account summary.', cause);
       setRankingReady(true);
       if (!cached) setRows([]);
     }
