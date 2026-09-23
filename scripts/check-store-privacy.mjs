@@ -11,6 +11,8 @@ const play = fs.readFileSync('docs/legal/GOOGLE_PLAY_SUBMISSION.md', 'utf8');
 const continuity = fs.readFileSync('src/services/continuity-evidence.service.ts', 'utf8');
 const notice = fs.readFileSync('docs/legal/AVISO_PRIVACIDAD_UCAPSA_APP.md', 'utf8');
 const migration = fs.readFileSync('supabase/sql/ucapsa-store-privacy-v1-1.sql', 'utf8');
+const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+const app = JSON.parse(fs.readFileSync('app.json', 'utf8'));
 
 for (const token of [
   'UCAPSA_PRIVACY_PUBLIC_URL',
@@ -74,12 +76,36 @@ for (const token of [
   if (!google.includes(token)) throw new Error('Google Data Safety declaration missing: ' + token);
 }
 
+if (!String(pkg.dependencies?.expo ?? '').startsWith('~57.')) {
+  throw new Error('Google Play target API contract expects Expo SDK 57 / API 36.');
+}
+if (!pkg.dependencies?.['expo-updates']) {
+  throw new Error('expo-updates disappeared; re-audit Crash Data declarations.');
+}
+for (const forbidden of ['expo-location', 'react-native-google-mobile-ads', '@react-native-firebase/analytics']) {
+  if (pkg.dependencies?.[forbidden]) throw new Error('New store-sensitive dependency requires privacy re-audit: ' + forbidden);
+}
+for (const permission of [
+  'android.permission.RECORD_AUDIO',
+  'android.permission.READ_EXTERNAL_STORAGE',
+  'android.permission.WRITE_EXTERNAL_STORAGE',
+]) {
+  if (!(app.expo?.android?.blockedPermissions ?? []).includes(permission)) {
+    throw new Error('Expected blocked Android permission disappeared: ' + permission);
+  }
+}
+if (!String(app.expo?.plugins ?? '').includes('expo-camera')) {
+  throw new Error('Camera configuration disappeared; re-audit QR permission disclosure.');
+}
+
 for (const token of [
   'targetSdkVersion 36',
   'App access',
   'Content rating',
   'Target audience',
   'AAB',
+  'Play App Signing',
+  '16 KB',
 ]) {
   if (!play.includes(token)) throw new Error('Google Play submission checklist missing: ' + token);
 }
