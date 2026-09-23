@@ -184,7 +184,7 @@ export default function RegisterScreen() {
           <View style={[styles.checkbox, legalAccepted && styles.checkboxChecked]}>
             {legalAccepted ? <MaterialIcons name="check" size={17} color={ucapsaBrand.colors.surface} /> : null}
           </View>
-          <Text style={styles.consentText}>He leído y acepto el Aviso de Privacidad y los Términos de Uso.</Text>
+          <Text style={styles.consentText}>He leído el Aviso de Privacidad y acepto los Términos de Uso.</Text>
         </Pressable>
 
         <View style={styles.legalLinks}>
