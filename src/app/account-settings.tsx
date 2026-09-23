@@ -257,6 +257,13 @@ export default function AccountSettingsScreen() {
             premium={premium}
             onPress={() => router.push('/privacy' as never)}
           />
+          <SettingsButton
+            icon="description"
+            title="Términos de uso"
+            subtitle="Consulta las reglas vigentes de UCAPSA App."
+            premium={premium}
+            onPress={() => router.push('/terms' as never)}
+          />
           {!isAdmin ? (
             <SettingsButton
               icon="delete-outline"
