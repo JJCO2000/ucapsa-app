@@ -26,6 +26,47 @@ where allergies is not null
    or emergency_contact_phone is not null
    or notes is not null;
 
+create or replace function public.enforce_dog_appstore_minimization()
+returns trigger
+language plpgsql
+set search_path = public
+as $
+begin
+  new.allergies := null;
+  new.medications := null;
+  new.feeding_notes := null;
+  new.behavior_notes := null;
+  new.veterinarian_name := null;
+  new.veterinarian_phone := null;
+  new.emergency_contact_name := null;
+  new.emergency_contact_phone := null;
+  new.notes := null;
+  return new;
+end;
+$;
+
+revoke all on function public.enforce_dog_appstore_minimization()
+  from public, anon, authenticated;
+grant execute on function public.enforce_dog_appstore_minimization()
+  to service_role;
+
+drop trigger if exists enforce_dog_appstore_minimization_before_write
+  on public.dogs;
+create trigger enforce_dog_appstore_minimization_before_write
+before insert or update of
+  allergies,
+  medications,
+  feeding_notes,
+  behavior_notes,
+  veterinarian_name,
+  veterinarian_phone,
+  emergency_contact_name,
+  emergency_contact_phone,
+  notes
+on public.dogs
+for each row
+execute function public.enforce_dog_appstore_minimization();
+
 alter table public.dogs
   add constraint dogs_appstore_unused_fields_null
   check (
