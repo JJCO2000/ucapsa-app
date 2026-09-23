@@ -1,5 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.108.2';
 
+const ACCOUNT_DELETION_URL =
+  'https://hrfecmviyiluubymsoeq.supabase.co/functions/v1/account-deletion-request';
+
 function escapeHtml(value: unknown) {
   return String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -55,7 +58,7 @@ Deno.serve(async (req) => {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="robots" content="index,follow" />
-  <title>Aviso de Privacidad · UCAPSA App</title>
+  <title>Política y Aviso de Privacidad · UCAPSA App</title>
   <style>
     :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#232323;background:#f7f7f7}
     body{margin:0}.wrap{max-width:880px;margin:0 auto;padding:32px 20px 64px}
@@ -64,13 +67,14 @@ Deno.serve(async (req) => {
     p{white-space:pre-wrap;line-height:1.65;margin:0;color:#4d4d4d}
     .brand{font-weight:800;color:#a71930}.meta{font-size:14px;color:#666;margin-bottom:14px}
     .summary{font-size:16px;color:#232323}.integral{margin-top:22px}
+    .delete-link{display:inline-block;margin-top:12px;padding:12px 16px;border-radius:13px;background:#a71930;color:#fff;text-decoration:none;font-weight:800}
   </style>
 </head>
 <body>
   <main class="wrap">
     <header>
       <div class="brand">UCAPSA APP</div>
-      <h1>Aviso de Privacidad</h1>
+      <h1>Política y Aviso de Privacidad</h1>
       <div class="meta">Versión ${escapeHtml(notice.version)}${effective ? ` · Vigente desde ${escapeHtml(effective)}` : ''}</div>
       <p class="summary">${escapeHtml(notice.simplified_notice)}</p>
     </header>
@@ -85,6 +89,11 @@ Deno.serve(async (req) => {
     ${section('Derechos ARCO', notice.arco_procedure)}
     ${section('Transferencias y encargados', notice.transfer_clause)}
     ${section('Cambios al aviso', notice.change_notice_method)}
+    <section id="eliminar-cuenta">
+      <h2>Eliminar cuenta y datos</h2>
+      <p>Las cuentas de clientes y socios pueden iniciar la eliminación desde Ajustes → Eliminar cuenta. Si ya no puedes acceder a la app, utiliza el recurso web público para iniciar la solicitud por correo a Administración de UCAPSA.</p>
+      <a class="delete-link" href="${ACCOUNT_DELETION_URL}">Solicitar eliminación de cuenta</a>
+    </section>
     <div class="integral"><h2>Aviso integral</h2><p>${escapeHtml(notice.integral_notice)}</p></div>
   </main>
 </body>

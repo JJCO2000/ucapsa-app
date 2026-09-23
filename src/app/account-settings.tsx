@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Linking, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { NotificationSettingsCard } from '../components/domain/NotificationSettingsCard';
 import { KeyboardAwareModal } from '../components/ui/KeyboardAwareModal';
@@ -9,6 +9,7 @@ import { KeyboardAwareScreen } from '../components/ui/KeyboardAwareScreen';
 import { OfflineDataNotice } from '../components/ui/OfflineDataNotice';
 import { resolveUcapsaFormat } from '../constants/ucapsaFormats';
 import { ucapsaBrand, withAlpha } from '../constants/brand';
+import { UCAPSA_ACCOUNT_DELETION_PUBLIC_URL } from '../constants/legal';
 import { useSession } from '../hooks/useSession';
 import { devWarn } from '../lib/client-diagnostics';
 import { deleteMyAccount, getAccountDeletionStatusLabel, getMyAccountDeletionRequest, isAccountDeletionOpen, type AccountDeletionRequest } from '../services/account-deletion.service';
@@ -334,6 +335,22 @@ export default function AccountSettingsScreen() {
                     : 'Eliminar mi cuenta'}
             </Text>
           </Pressable>
+          <Pressable
+            accessibilityRole="link"
+            style={[styles.externalDeleteButton, premium && styles.premiumSmallButton]}
+            onPress={() => {
+              void Linking.openURL(UCAPSA_ACCOUNT_DELETION_PUBLIC_URL).catch((cause) => {
+                devWarn('account-settings: could not open public deletion resource', cause);
+                Alert.alert('No se pudo abrir', 'Puedes solicitar la eliminación escribiendo a ucapsa84@gmail.com.');
+              });
+            }}
+          >
+            <MaterialIcons name="open-in-new" size={18} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.redDark} />
+            <Text style={[styles.externalDeleteText, premium && styles.premiumSmallButtonText]}>Solicitar desde la web</Text>
+          </Pressable>
+          <Text style={[styles.externalDeleteHint, premium && styles.premiumText]}>
+            Úsalo si no puedes acceder a la app. El recurso público permite iniciar la solicitud por correo.
+          </Text>
         </View>
       ) : null}
 
@@ -428,6 +445,9 @@ const styles = StyleSheet.create({
   deleteCard: { borderColor: ucapsaBrand.colors.redBorder },
   dangerButton: { backgroundColor: ucapsaBrand.colors.red, borderRadius: 18, paddingVertical: 14, alignItems: 'center', marginTop: 6 },
   dangerButtonText: { color: ucapsaBrand.colors.surface, fontSize: 14, fontWeight: '900' },
+  externalDeleteButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingVertical: 13 },
+  externalDeleteText: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900' },
+  externalDeleteHint: { color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 16, fontWeight: '700', textAlign: 'center' },
   primaryButton: { backgroundColor: ucapsaBrand.colors.red, borderRadius: 18, paddingVertical: 14, alignItems: 'center', marginTop: 12 },
   primaryButtonText: { color: ucapsaBrand.colors.surface, fontSize: 15, fontWeight: '900' },
   modalContent: { gap: 10 },

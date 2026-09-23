@@ -1,7 +1,9 @@
-export const UCAPSA_TERMS_VERSION = '1.0';
+export const UCAPSA_TERMS_VERSION = '1.1';
 export const UCAPSA_LEGAL_EFFECTIVE_DATE = '2026-09-22';
 export const UCAPSA_PRIVACY_PUBLIC_URL =
   'https://hrfecmviyiluubymsoeq.supabase.co/functions/v1/privacy-policy';
+export const UCAPSA_ACCOUNT_DELETION_PUBLIC_URL =
+  'https://hrfecmviyiluubymsoeq.supabase.co/functions/v1/account-deletion-request';
 
 export type LegalSection = {
   title: string;
@@ -57,7 +59,7 @@ export const UCAPSA_TERMS_SECTIONS: LegalSection[] = [
   {
     title: '10. Eliminación de cuenta',
     body:
-      'Las cuentas de clientes y socios pueden iniciar su eliminación desde Ajustes > Eliminar cuenta. UCAPSA eliminará la cuenta y los datos asociados que no esté legalmente obligada a conservar. Si existe un impedimento legal o técnico para completar la eliminación de inmediato, la solicitud permanecerá registrada para su atención y se informará el estado correspondiente.',
+      'Las cuentas de clientes y socios pueden iniciar su eliminación desde Ajustes > Eliminar cuenta. Si ya no tienen acceso a la app, también pueden iniciar la solicitud mediante el recurso web público de eliminación de UCAPSA. UCAPSA eliminará la cuenta y los datos asociados que no esté legalmente obligada a conservar. Si existe un impedimento legal o técnico para completar la eliminación de inmediato, la solicitud permanecerá registrada para su atención y se informará el estado correspondiente.',
   },
   {
     title: '11. Cambios',
