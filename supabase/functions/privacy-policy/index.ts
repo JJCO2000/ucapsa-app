@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="robots" content="index,follow" />
-  <title>Aviso de Privacidad · UCAPSA App</title>
+  <title>Política y Aviso de Privacidad · UCAPSA App</title>
   <style>
     :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#232323;background:#f7f7f7}
     body{margin:0}.wrap{max-width:880px;margin:0 auto;padding:32px 20px 64px}
@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
   <main class="wrap">
     <header>
       <div class="brand">UCAPSA APP</div>
-      <h1>Aviso de Privacidad</h1>
+      <h1>Política y Aviso de Privacidad</h1>
       <div class="meta">Versión ${escapeHtml(notice.version)}${effective ? ` · Vigente desde ${escapeHtml(effective)}` : ''}</div>
       <p class="summary">${escapeHtml(notice.simplified_notice)}</p>
     </header>
