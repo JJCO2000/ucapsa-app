@@ -11,7 +11,7 @@ import { resolveUcapsaFormat } from '../constants/ucapsaFormats';
 import { ucapsaBrand, withAlpha } from '../constants/brand';
 import { useSession } from '../hooks/useSession';
 import { devWarn } from '../lib/client-diagnostics';
-import { getAccountDeletionStatusLabel, getMyAccountDeletionRequest, isAccountDeletionOpen, requestMyAccountDeletion, type AccountDeletionRequest } from '../services/account-deletion.service';
+import { deleteMyAccount, getAccountDeletionStatusLabel, getMyAccountDeletionRequest, isAccountDeletionOpen, type AccountDeletionRequest } from '../services/account-deletion.service';
 import { requestMyEmailChange, updateMyProfile } from '../services/profiles.service';
 import { DEFAULT_WRITE_TIMEOUT_MS, friendlyWriteError, withOperationTimeout } from '../utils/async.utils';
 
@@ -37,7 +37,7 @@ export default function AccountSettingsScreen() {
   const premium = Boolean(user) && format.key === 'member' && !isAdmin;
   const deletionOpen = isAccountDeletionOpen(deletionRequest);
   const deletionCompleted = deletionRequest?.status === 'completed';
-  const deletionLocked = deletionOpen || deletionCompleted;
+  const deletionLocked = deletionCompleted || deletionRequest?.status === 'blocked';
   const deletionStatusLabel = getAccountDeletionStatusLabel(deletionRequest?.status);
   const profileComplete = Boolean((profile?.full_name ?? '').trim() && (profile?.phone ?? '').trim());
 
@@ -137,26 +137,37 @@ export default function AccountSettingsScreen() {
   }
 
   function handleDeleteRequest() {
-    if (deletionLocked) return;
+    if (deletionLocked || deletionLoading) return;
     Alert.alert(
-      'Solicitar eliminación de cuenta',
-      'La solicitud entra a revisión. Si existe una obligación de conservación, tus datos deberán bloquearse antes de su supresión.',
+      'Eliminar mi cuenta',
+      'Se eliminarán tu cuenta y los datos asociados de UCAPSA App que no debamos conservar por obligación legal. Esta acción no se puede deshacer.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Solicitar',
+          text: deletionOpen ? 'Reintentar eliminación' : 'Eliminar cuenta',
           style: 'destructive',
           onPress: async () => {
+            setDeletionLoading(true);
             try {
-              const request = await withOperationTimeout(
-                requestMyAccountDeletion('Solicitud desde Ajustes de cuenta.'),
+              await withOperationTimeout(
+                deleteMyAccount(),
                 DEFAULT_WRITE_TIMEOUT_MS,
-                'account-delete-request',
+                'account-delete',
               );
-              setDeletionRequest(request);
-              Alert.alert('Solicitud registrada', 'Puedes consultar aquí su estado. Superadmin revisará si procede bloqueo o cierre.');
+              await signOut();
+              Alert.alert('Cuenta eliminada', 'Tu cuenta de UCAPSA App fue eliminada.');
+              router.replace('/auth/login' as never);
             } catch (error) {
-              Alert.alert('No se pudo solicitar', friendlyWriteError(error));
+              await refreshDeletionRequest().catch(() => undefined);
+              Alert.alert(
+                'No se pudo completar',
+                friendlyWriteError(
+                  error,
+                  'La solicitud quedó registrada. Puedes reintentar desde esta pantalla.',
+                ),
+              );
+            } finally {
+              setDeletionLoading(false);
             }
           },
         },
@@ -197,7 +208,7 @@ export default function AccountSettingsScreen() {
       ? 'Revisa o edita tu información de cuenta.'
       : section === 'notifications'
         ? 'Elige qué recordatorios quieres recibir.'
-        : 'Solicitud de baja revisada por administracion.'
+        : 'Elimina tu cuenta y los datos asociados de forma directa.'
     : 'Elige qué quieres gestionar.';
 
   return (
@@ -250,7 +261,7 @@ export default function AccountSettingsScreen() {
             <SettingsButton
               icon="delete-outline"
               title="Eliminar cuenta"
-              subtitle={deletionLoading ? 'Consultando estado...' : deletionRequest ? deletionStatusLabel : 'Crear una solicitud para revisión.'}
+              subtitle={deletionLoading ? 'Procesando...' : deletionRequest ? deletionStatusLabel : 'Elimina tu cuenta y los datos asociados.'}
               badge={deletionRequest ? deletionStatusLabel : undefined}
               premium={premium}
               danger
@@ -291,20 +302,28 @@ export default function AccountSettingsScreen() {
 
       {section === 'delete' && !isAdmin ? (
         <View style={[styles.sectionCard, premium && styles.premiumCard, styles.deleteCard]}>
-          <Text style={[styles.sectionTitle, premium && styles.premiumTitle]}>{deletionRequest ? deletionStatusLabel : 'Solicitar eliminación'}</Text>
+          <Text style={[styles.sectionTitle, premium && styles.premiumTitle]}>{deletionRequest ? deletionStatusLabel : 'Eliminar mi cuenta'}</Text>
           <Text style={[styles.muted, premium && styles.premiumText]}>
             {deletionRequest
               ? deletionRequest.status === 'blocked'
-                ? `Tus datos están en periodo de bloqueo${deletionRequest.retention_until ? ` hasta ${deletionRequest.retention_until}` : ''}. Durante ese periodo no deben usarse para otras finalidades.`
+                ? `Existe una obligación de conservación y los datos están bloqueados${deletionRequest.retention_until ? ` hasta ${deletionRequest.retention_until}` : ''}. No se usarán para otras finalidades y se suprimirán cuando termine el bloqueo.`
                 : deletionRequest.status === 'rejected'
-                  ? deletionRequest.resolution_note || 'La solicitud fue revisada y no procedió. Puedes presentar una nueva si cambian las condiciones.'
+                  ? deletionRequest.resolution_note || 'La solicitud anterior no procedió. Puedes iniciar una nueva eliminación.'
                   : deletionRequest.status === 'completed'
-                    ? 'La solicitud fue marcada como atendida por Superadmin.'
-                    : 'La solicitud está registrada y pendiente de resolución.'
-              : 'La solicitud no borra datos de inmediato. UCAPSA debe revisar qué información puede suprimirse y cuál requiere bloqueo o conservación.'}
+                    ? 'La eliminación fue completada.'
+                    : 'La eliminación aún no se completó. Puedes reintentar; no necesitas llamar ni enviar un correo.'
+              : 'Al confirmar, UCAPSA intentará eliminar de inmediato tu cuenta y los datos asociados de la app que no exista obligación legal de conservar.'}
           </Text>
           <Pressable disabled={deletionLocked || deletionLoading} style={[styles.dangerButton, premium && styles.premiumDangerButton, (deletionLocked || deletionLoading) && styles.disabled]} onPress={handleDeleteRequest}>
-            <Text style={[styles.dangerButtonText, premium && styles.premiumDangerButtonText]}>{deletionLocked ? deletionStatusLabel : deletionLoading ? 'Consultando...' : 'Solicitar eliminación de cuenta'}</Text>
+            <Text style={[styles.dangerButtonText, premium && styles.premiumDangerButtonText]}>
+              {deletionLocked
+                ? deletionStatusLabel
+                : deletionLoading
+                  ? 'Eliminando...'
+                  : deletionOpen
+                    ? 'Reintentar eliminación'
+                    : 'Eliminar mi cuenta'}
+            </Text>
           </Pressable>
         </View>
       ) : null}
