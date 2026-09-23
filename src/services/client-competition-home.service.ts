@@ -1,3 +1,4 @@
+import { devWarn } from '../lib/client-diagnostics';
 import {
   getAccountCompetitionSeasons,
   getCachedMyCompetitionAccount,
@@ -83,7 +84,8 @@ export async function refreshCompetitionHomeSummary(
       season.season_name || 'Temporada UCAPSA',
       leaderboard.data,
     );
-  } catch {
+  } catch (cause) {
+    devWarn('Could not refresh competition leaderboard for Home summary.', cause);
     const cachedLeaderboard = await getCachedCompetitionLeaderboard(userId, season.season_id);
     return buildSummary(
       account.data,
