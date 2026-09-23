@@ -55,6 +55,17 @@ export async function requestMyAccountDeletion(reason?: string): Promise<Account
   return data;
 }
 
+export async function deleteMyAccount(): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('delete-account', {
+    body: {},
+  });
+
+  if (error) throw error;
+  if (!data?.deleted) {
+    throw new Error(data?.error || 'No se pudo completar la eliminación de la cuenta.');
+  }
+}
+
 export async function getOpenAccountDeletionRequests(): Promise<AccountDeletionRequest[]> {
   const { data, error } = await supabase
     .from('account_deletion_requests')
