@@ -26,7 +26,7 @@ for (const token of ['age_attested', 'privacy_notice_version', 'terms_version', 
   if (!auth.includes(token)) throw new Error('Signup legal evidence missing: ' + token);
 }
 
-if (!settings.includes('deleteMyAccount') || !deletion.includes("functions.invoke('delete-account')")) {
+if (!settings.includes('deleteMyAccount') || !deletion.includes("functions.invoke('delete-account'")) {
   throw new Error('Account settings are not wired to real account deletion.');
 }
 
