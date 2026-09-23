@@ -23,6 +23,8 @@ Este archivo documenta la declaración que debe mantenerse alineada con la versi
 | Purchases | Purchase History | Sí | No | App Functionality (registro administrativo de pagos/membresías) |
 | User Content | Other User Content | Sí | No | App Functionality (datos básicos del perro y notas operativas cuando existan) |
 | Other Data | Other Data Types | Sí | No | App Functionality (clases, asistencias, progreso, membresía, logros, QR y registros operativos) |
+| Usage Data | Product Interaction | Sí | No | Analytics (exposición a superficies de Constancia/Competencia para análisis interno de continuidad) |
+| Diagnostics | Crash Data | No | No | App Functionality, Analytics (declaración conservadora requerida por la guía de Expo al usar `expo-updates`) |
 
 ## No declarar con la implementación actual
 
@@ -35,8 +37,8 @@ Este archivo documenta la declaración que debe mantenerse alineada con la versi
 - Sensitive Info de la persona usuaria: **No**.
 - Browsing History / Search History: **No**.
 - Advertising Data: **No**.
-- Product Interaction / analytics de uso: **No**, mientras no se integre una herramienta de analítica que lo recopile.
-- Diagnostics: **No** como dato recopilado por UCAPSA, salvo que en una versión futura se integre un SDK específico que lo recolecte.
+- Diagnostics distintos de **Crash Data**: **No** con la implementación auditada. Volver a revisar si se habilita EAS Observe, Crashlytics, Sentry u otro SDK de diagnóstico.
+- Advertising Data: **No**.
 
 ## Uso para tracking
 
@@ -45,7 +47,8 @@ Este archivo documenta la declaración que debe mantenerse alineada con la versi
 ## Terceros relevantes
 
 - Supabase: autenticación, base de datos y Edge Functions.
-- Expo: infraestructura de aplicación y entrega de notificaciones.
+- Expo: EAS Update e infraestructura de notificaciones. EAS Update puede procesar sistema operativo, project ID y un token aleatorio de instalación/actualización; Expo Push procesa el token push cuando el usuario activa notificaciones.
 - Apple Push Notification service (iOS): entrega de notificaciones.
+- Firebase Cloud Messaging (Android): entrega de notificaciones en Android.
 
-Si se añade analytics, publicidad, carga de fotos, ubicación, pagos con tarjeta o cualquier nuevo SDK que recopile datos, este archivo, el aviso publicado y App Store Connect deben actualizarse antes de distribuir esa versión.
+Si se añade nueva analítica, publicidad, carga de fotos, ubicación, pagos con tarjeta o cualquier nuevo SDK que recopile datos, este archivo, el aviso publicado y App Store Connect deben actualizarse antes de distribuir esa versión. La analítica interna actual de continuidad ya está declarada como Product Interaction / Analytics.
