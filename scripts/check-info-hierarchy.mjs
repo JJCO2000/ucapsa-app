@@ -52,6 +52,34 @@ mustNot('src/app/admin/users.tsx', /awardAchievementToUser|forceMembershipForPro
 must('src/app/admin/customer.tsx', /\/admin\/customer-achievements\?userId=/, 'Cliente perdió la ficha particular de Logros.');
 must('src/app/admin/customer-achievements.tsx', /awardAchievementToUser/, 'La ficha de Logros perdió la acción administrativa canónica.');
 
+// Admin principal = Inicio como bandeja de decisiones + cuatro dominios estables.
+// Herramientas/configuración siguen accesibles, pero fuera de la barra principal.
+must('src/app/(tabs)/_layout.tsx', /name="admin-home"[\s\S]*title: 'Inicio'/, 'Admin perdió Inicio como pestaña principal.');
+must('src/app/(tabs)/_layout.tsx', /name="admin-clients"[\s\S]*title: 'Clientes'/, 'Admin perdió Clientes como dominio principal.');
+must('src/app/(tabs)/_layout.tsx', /name="admin-classes"[\s\S]*title: 'Clases'/, 'Admin perdió Clases como dominio principal.');
+must('src/app/(tabs)/_layout.tsx', /name="admin-payments"[\s\S]*title: 'Pagos'/, 'Admin perdió Pagos como dominio principal.');
+must('src/app/(tabs)/_layout.tsx', /name="admin-communication"[\s\S]*title: 'Comunic\.'/,
+  'Admin perdió Comunicación como dominio principal.');
+must('src/app/(tabs)/_layout.tsx', /name="admin-more"[\s\S]*href: null/,
+  'Herramientas volvió a ocupar una pestaña principal.');
+
+must('src/app/(tabs)/admin-home.tsx', /Requiere tu intervención/, 'Inicio Admin dejó de priorizar decisiones pendientes.');
+must('src/app/(tabs)/admin-home.tsx', /Todo al día/, 'Inicio Admin perdió el estado vacío de decisiones.');
+must('src/app/(tabs)/admin-home.tsx', /getAdminTrainingDecisionRows/, 'Inicio Admin dejó de incluir decisiones de entrenamiento.');
+must('src/app/(tabs)/admin-home.tsx', /getAdminPaymentAttentionRows/, 'Inicio Admin dejó de incluir pagos que requieren intervención.');
+must('src/app/(tabs)/admin-home.tsx', /getAdminMembershipRows/, 'Inicio Admin dejó de incluir solicitudes de membresía.');
+mustNot('src/app/(tabs)/admin-home.tsx', /Crear anuncio|Restaurante|Registrar asistencia|Registrar pago|Calendario|Competencia UCAPSA/,
+  'Inicio Admin volvió a convertirse en un menú de herramientas.');
+
+must('src/app/(tabs)/admin-clients.tsx', /Membresías/, 'Clientes perdió la gestión temática de membresías.');
+must('src/app/(tabs)/admin-clients.tsx', /Visitas de socios/, 'Clientes perdió la gestión temática de visitas de socios.');
+must('src/app/(tabs)/admin-clients.tsx', /Continuidad/, 'Clientes perdió la gestión temática de continuidad.');
+must('src/app/(tabs)/admin-classes.tsx', /Competencia UCAPSA/, 'Clases perdió la competencia/ranking como parte del dominio de entrenamiento.');
+must('src/app/(tabs)/admin-communication.tsx', /Avisos/, 'Comunicación perdió Avisos.');
+must('src/app/(tabs)/admin-communication.tsx', /Calendario/, 'Comunicación perdió Calendario.');
+must('src/app/(tabs)/admin-communication.tsx', /Notificaciones/, 'Comunicación perdió Notificaciones.');
+must('src/app/(tabs)/admin-communication.tsx', /Eventos/, 'Comunicación perdió Eventos.');
+
 // Admin Clases = una sola tarea: inscripciones. Horarios, cancelaciones y asistencias
 // viven en pantallas canónicas separadas para evitar dos fuentes de UI/estado.
 must('src/app/admin/classes.tsx', />Inscripciones</, 'Admin Clases perdió su trabajo principal de inscripciones.');
