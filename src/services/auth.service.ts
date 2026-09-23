@@ -2,7 +2,7 @@ import type { AuthChangeEvent, EmailOtpType, Session } from '@supabase/supabase-
 
 import { supabase } from '../lib/supabase';
 
-export const AUTH_PASSWORD_MIN_LENGTH = 12;
+export const AUTH_PASSWORD_MIN_LENGTH = 6;
 export const PASSWORD_RECOVERY_REDIRECT_URL = 'ucapsaapp://auth/update-password';
 
 type SignUpInput = {
