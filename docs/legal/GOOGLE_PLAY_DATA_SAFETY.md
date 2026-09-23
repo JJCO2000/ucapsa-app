@@ -12,7 +12,7 @@ Este archivo documenta la declaración que debe capturarse en **Play Console →
 - **¿Los datos se cifran en tránsito?** Sí. La aplicación utiliza conexiones HTTPS/TLS con Supabase y Expo; los servicios de push de Expo se conectan cifrados a APNs/FCM.
 - **¿Los usuarios pueden solicitar eliminación de datos?** Sí.
 - **Ruta dentro de la app:** Ajustes → Eliminar cuenta.
-- **Recurso web externo:** https://hrfecmviyiluubymsoeq.supabase.co/functions/v1/account-deletion-request
+- **Recurso web externo:** https://github.com/JJCO2000/ucapsa-app/blob/main/docs/legal/ELIMINAR_CUENTA_UCAPSA_APP.md
 - **¿Se venden datos?** No.
 - **¿Se comparten datos con terceros para publicidad o finalidades propias de esos terceros?** No con la implementación actual. Supabase, Expo, APNs y FCM actúan como proveedores/encargados necesarios para prestar el servicio.
 - **Publicidad/marketing:** No.
