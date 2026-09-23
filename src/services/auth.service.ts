@@ -9,6 +9,9 @@ type SignUpInput = {
   email: string;
   password: string;
   fullName: string;
+  isAdult: boolean;
+  privacyNoticeVersion: string;
+  termsVersion: string;
 };
 
 export function normalizeAuthEmail(email: string) {
@@ -29,13 +32,33 @@ export async function signInWithEmail(email: string, password: string) {
   });
 }
 
-export async function signUpWithEmail({ email, password, fullName }: SignUpInput) {
+export async function signUpWithEmail({
+  email,
+  password,
+  fullName,
+  isAdult,
+  privacyNoticeVersion,
+  termsVersion,
+}: SignUpInput) {
+  if (!isAdult) throw new Error('Debes confirmar que tienes 18 años o más.');
+  const cleanPrivacyVersion = privacyNoticeVersion.trim();
+  const cleanTermsVersion = termsVersion.trim();
+  if (!cleanPrivacyVersion || !cleanTermsVersion) {
+    throw new Error('No se pudo registrar la aceptación legal vigente.');
+  }
+
+  const acceptedAt = new Date().toISOString();
   return supabase.auth.signUp({
     email: normalizeAuthEmail(email),
     password,
     options: {
       data: {
         full_name: fullName.trim(),
+        age_attested: true,
+        age_attested_at: acceptedAt,
+        privacy_notice_version: cleanPrivacyVersion,
+        terms_version: cleanTermsVersion,
+        legal_accepted_at: acceptedAt,
       },
     },
   });
