@@ -10,6 +10,7 @@ const terms = fs.readFileSync('src/app/terms.tsx', 'utf8');
 const legal = fs.readFileSync('src/constants/legal.ts', 'utf8');
 const deleteFunction = fs.readFileSync('supabase/functions/delete-account/index.ts', 'utf8');
 const privacyFunction = fs.readFileSync('supabase/functions/privacy-policy/index.ts', 'utf8');
+const privacyDoc = fs.readFileSync('docs/legal/AVISO_PRIVACIDAD_UCAPSA_APP.md', 'utf8');
 const privacyMigration = fs.readFileSync('supabase/sql/ucapsa-app-store-privacy-readiness.sql', 'utf8');
 
 for (const token of [
@@ -47,8 +48,17 @@ for (const token of ['auth.admin.deleteUser', 'auth.admin.signOut', 'request_my_
   if (!deleteFunction.includes(token)) throw new Error('Delete-account edge function missing: ' + token);
 }
 
-for (const token of ['privacy_notices', "status', 'published'", 'text/html']) {
-  if (!privacyFunction.includes(token)) throw new Error('Public privacy function missing: ' + token);
+for (const token of ['status: 302', 'Location: TARGET_URL', 'AVISO_PRIVACIDAD_UCAPSA_APP.md']) {
+  if (!privacyFunction.includes(token)) throw new Error('Public privacy redirect missing: ' + token);
+}
+
+for (const token of [
+  'Universidad de Crianza y Adiestramiento Peruano, S.A. de C.V.',
+  'Administración de UCAPSA',
+  'ucapsa84@gmail.com',
+  'Versión 1.1 App Stores',
+]) {
+  if (!privacyDoc.includes(token)) throw new Error('Rendered privacy document missing: ' + token);
 }
 
 for (const token of [
