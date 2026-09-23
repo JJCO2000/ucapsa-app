@@ -24,7 +24,7 @@ Este archivo documenta la declaración que debe capturarse en **Play Console →
 | Información personal | Nombre | Sí | No | Obligatorio al crear cuenta | Funcionalidad de la app; Gestión de cuentas |
 | Información personal | Dirección de correo electrónico | Sí | No | Obligatorio | Funcionalidad de la app; Gestión de cuentas; Comunicaciones del desarrollador cuando corresponda |
 | Información personal | Número de teléfono | Sí | No | Opcional | Funcionalidad de la app; Gestión de cuentas |
-| IDs de dispositivo o de otro tipo | ID de usuario | Sí | No | Obligatorio | Funcionalidad de la app; Gestión de cuentas; Prevención de fraudes, seguridad y cumplimiento |
+| Información personal | IDs de usuario | Sí | No | Obligatorio | Funcionalidad de la app; Gestión de cuentas; Prevención de fraudes, seguridad y cumplimiento |
 | IDs de dispositivo o de otro tipo | IDs de dispositivo o de otro tipo | Sí | No | Opcional: se registran al activar notificaciones | Funcionalidad de la app; Comunicaciones del desarrollador |
 | Información financiera | Historial de compras | Sí | No | Según exista una obligación/pago | Funcionalidad de la app; Analíticas internas |
 | Actividad en aplicaciones | Interacciones con la aplicación | Sí | No | Se genera al usar superficies concretas de Competencia/Constancia | Analíticas |
