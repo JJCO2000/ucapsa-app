@@ -324,6 +324,25 @@ export default function DogTab() {
         </View>
       ) : null}
 
+      {!offlineEmpty && dogs.length > 0 ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Abrir Competencia UCAPSA de todos tus perros"
+          style={[styles.competitionAccountCard, { borderColor: format.cardBorder, backgroundColor: premium ? ucapsaBrand.colors.premiumHero : format.cardBackground }]}
+          onPress={() => router.push('/client/competition' as never)}
+        >
+          <View style={[styles.competitionAccountIcon, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft }]}>
+            <MaterialIcons name="emoji-events" size={23} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={[styles.competitionAccountEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>COMPETENCIA UCAPSA</Text>
+            <Text style={[styles.competitionAccountTitle, { color: premium ? ucapsaBrand.colors.premiumText : format.cardText }]}>Tus perros y Ranking</Text>
+            <Text style={[styles.competitionAccountText, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Compara tus perros y entra a la clasificación desde un solo lugar.</Text>
+          </View>
+          <MaterialIcons name="chevron-right" size={23} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+        </Pressable>
+      ) : null}
+
       {localReady ? (
         <>
           {dogs.length !== 1 ? (
@@ -474,16 +493,16 @@ export default function DogTab() {
 
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`Abrir Competencia UCAPSA de ${selectedDog.name}`}
+                accessibilityLabel={`Abrir detalle competitivo de ${selectedDog.name}`}
                 style={[styles.classRow, premium && styles.rowPremium]}
-                onPress={() => router.push(`/client/competition?dogId=${encodeURIComponent(selectedDog.id)}` as never)}
+                onPress={() => router.push(`/client/competition-dog?dogId=${encodeURIComponent(selectedDog.id)}` as never)}
               >
                 <View style={[styles.classIcon, { backgroundColor: format.pillBackground }]}>
                   <MaterialIcons name="emoji-events" size={19} color={format.pillText} />
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={[styles.classTitle, { color: format.cardText }]}>Competencia UCAPSA</Text>
-                  <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Constancia, exámenes y temporadas de {selectedDog.name}</Text>
+                  <Text style={[styles.classTitle, { color: format.cardText }]}>Detalle competitivo</Text>
+                  <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Constancia, exámenes e historial de {selectedDog.name}</Text>
                 </View>
                 <MaterialIcons name="chevron-right" size={21} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
               </Pressable>
@@ -624,6 +643,11 @@ const styles = StyleSheet.create({
   offlineCopy: { flex: 1, minWidth: 0, gap: 3 },
   offlineTitle: { fontSize: 15, lineHeight: 20, fontWeight: '900' },
   card: { gap: 12, borderRadius: 22, borderWidth: 1, padding: 16, marginBottom: 14 },
+  competitionAccountCard: { minHeight: 88, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 22, borderWidth: 1, padding: 13, marginBottom: 14 },
+  competitionAccountIcon: { width: 46, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  competitionAccountEyebrow: { fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 0.8 },
+  competitionAccountTitle: { marginTop: 1, fontSize: 17, lineHeight: 21, fontWeight: '900' },
+  competitionAccountText: { marginTop: 2, fontSize: 10, lineHeight: 14, fontWeight: '700' },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, justifyContent: 'space-between' },
   sectionTitle: { fontSize: 18, lineHeight: 23, fontWeight: '900' },
   addButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 14, paddingHorizontal: 13, paddingVertical: 9 },
