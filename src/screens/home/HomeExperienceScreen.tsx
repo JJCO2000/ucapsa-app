@@ -10,6 +10,7 @@ import { UcapsaDetailModal } from '../../components/ui/UcapsaDetailModal';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
+import { devWarn } from '../../lib/client-diagnostics';
 import { getHomeAnnouncements, rankHomeAnnouncements } from '../../services/announcements.service';
 import {
   getCachedCompetitionHomeSummary,
@@ -125,8 +126,8 @@ export default function HomeExperienceScreen() {
         .then((nextCompetition) => {
           if (isCurrentRun()) setCompetitionSummary(nextCompetition);
         })
-        .catch(() => {
-          // La competencia es contexto adicional; nunca bloquea el Inicio.
+        .catch((cause) => {
+          devWarn('Could not refresh competition context on Home.', cause);
         });
     }
 
