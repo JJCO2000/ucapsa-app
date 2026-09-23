@@ -29,7 +29,7 @@ https://hrfecmviyiluubymsoeq.supabase.co/functions/v1/account-deletion-request
 - **Restrict access to minors:** recomendable activar la restricción de Google Play para coherencia con el producto 18+.
 - **Content rating:** completar cuestionario IARC con el contenido real de UCAPSA.
 - **App access:** la mayor parte de la funcionalidad requiere cuenta. Proporcionar a revisión una cuenta reutilizable y vigente con instrucciones suficientes para recorrer las funciones protegidas.
-- **Financial features declaration:** UCAPSA no funciona como banco, cartera, prestamista, exchange, corredor, transferencia P2P ni otro servicio financiero. El módulo de pagos es un registro auxiliar de servicios propios.
+- **Financial features declaration:** debe completarse en Play Console aunque la respuesta sea “sin funciones financieras”. UCAPSA no funciona como banco, cartera, prestamista, exchange, corredor, transferencia P2P ni otro servicio financiero. El módulo de pagos es un registro auxiliar de servicios propios.
 - **Health apps declaration:** no aplica con la implementación actual.
 - **News apps declaration:** no aplica.
 - **Government apps declaration:** no aplica.
@@ -45,6 +45,8 @@ https://hrfecmviyiluubymsoeq.supabase.co/functions/v1/account-deletion-request
 - [x] Cámara limitada al flujo de escaneo QR y declarada con finalidad visible.
 - [x] Notificaciones solicitadas sólo cuando el usuario decide activarlas.
 - [x] Sin Advertising ID ni SDK publicitario detectado.
+- [x] React Native 0.86 hereda soporte de tamaños de página Android de 16 KB; la compatibilidad final de todas las librerías nativas debe verificarse sobre el AAB/Play Console antes de producción.
+- [ ] Verificar el AAB final contra el requisito de páginas de memoria de 16 KB. Google Play bloqueará actualizaciones incompatibles a partir del 1 de febrero de 2027.
 
 ## Pagos
 
@@ -52,7 +54,9 @@ Los cobros de UCAPSA corresponden a servicios físicos de adiestramiento/membres
 
 ## Requisitos que dependen de Play Console y no pueden cerrarse en código
 
-- Crear/finalizar ficha de Play Store: nombre, descripción, icono, feature graphic, capturas y datos de contacto.
+- Crear/finalizar ficha de Play Store: nombre (máximo 30 caracteres), descripción breve (máximo 80), descripción completa (máximo 4000), icono, feature graphic, capturas y datos de contacto.
+- Configurar Play App Signing y conservar de forma segura la clave de subida. Las apps nuevas se incorporan a Play App Signing al preparar la primera versión.
+- Generar un AAB firmado para la versión de tienda; las apps nuevas de Google Play se publican como Android App Bundle.
 - Completar IARC.
 - Capturar Data Safety.
 - Capturar Target audience / Content and audience.
