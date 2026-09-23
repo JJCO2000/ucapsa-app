@@ -13,8 +13,7 @@ function read(rel) {
   return fs.readFileSync(full, 'utf8');
 }
 
-const home = read('src/app/(tabs)/admin-home.tsx');
-const more = read('src/app/(tabs)/admin-more.tsx');
+const classes = read('src/app/(tabs)/admin-classes.tsx');
 const layout = read('src/app/admin/_layout.tsx');
 const hub = read('src/app/admin/competition.tsx');
 const seasons = read('src/app/admin/competition-seasons.tsx');
@@ -27,10 +26,9 @@ const service = [
   read('src/services/admin-competition-read.service.ts'),
 ].join('\n');
 
-if (!/\/admin\/competition/.test(home)) failures.push('Admin Home perdió la entrada única a Competencia UCAPSA.');
-if (!/\/admin\/competition/.test(more)) failures.push('Admin Más perdió la entrada a Competencia UCAPSA.');
-if (/\/admin\/points/.test(home) || /\/admin\/points/.test(more)) {
-  failures.push('Los menús Admin no deben volver a enlazar el producto legado /admin/points.');
+if (!/\/admin\/competition/.test(classes)) failures.push('Clases perdió la entrada temática a Competencia UCAPSA.');
+if (/\/admin\/points/.test(classes)) {
+  failures.push('El dominio Clases no debe volver a enlazar el producto legado /admin/points.');
 }
 
 for (const route of ['competition', 'competition-seasons', 'competition-season-detail', 'competition-season-form']) {
