@@ -5,7 +5,7 @@ Este archivo documenta la declaración que debe mantenerse alineada con la versi
 ## URL
 
 - **Privacy Policy URL:** https://hrfecmviyiluubymsoeq.supabase.co/functions/v1/privacy-policy
-- **Privacy Choices URL:** puede usarse la misma URL por ahora; la eliminación se inicia dentro de la app en Ajustes > Eliminar cuenta.
+- **Privacy Choices URL:** https://hrfecmviyiluubymsoeq.supabase.co/functions/v1/account-deletion-request
 
 ## ¿La app recopila datos?
 
@@ -38,7 +38,6 @@ Este archivo documenta la declaración que debe mantenerse alineada con la versi
 - Browsing History / Search History: **No**.
 - Advertising Data: **No**.
 - Diagnostics distintos de **Crash Data**: **No** con la implementación auditada. Volver a revisar si se habilita EAS Observe, Crashlytics, Sentry u otro SDK de diagnóstico.
-- Advertising Data: **No**.
 
 ## Uso para tracking
 
