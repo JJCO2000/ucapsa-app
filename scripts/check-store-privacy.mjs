@@ -9,6 +9,8 @@ const apple = fs.readFileSync('docs/legal/APP_STORE_PRIVACY.md', 'utf8');
 const google = fs.readFileSync('docs/legal/GOOGLE_PLAY_DATA_SAFETY.md', 'utf8');
 const play = fs.readFileSync('docs/legal/GOOGLE_PLAY_SUBMISSION.md', 'utf8');
 const continuity = fs.readFileSync('src/services/continuity-evidence.service.ts', 'utf8');
+const notice = fs.readFileSync('docs/legal/AVISO_PRIVACIDAD_UCAPSA_APP.md', 'utf8');
+const migration = fs.readFileSync('supabase/sql/ucapsa-store-privacy-v1-1.sql', 'utf8');
 
 for (const token of [
   'UCAPSA_PRIVACY_PUBLIC_URL',
@@ -40,6 +42,22 @@ if (!privacyFunction.includes('account-deletion-request')) {
 
 if (!continuity.includes('recordValueExposure')) {
   throw new Error('Expected internal app-interaction analytics disappeared; re-audit store declarations.');
+}
+
+for (const token of [
+  'Analítica interna de continuidad',
+  'account-deletion-request',
+  'Versión 1.1 App Stores',
+]) {
+  if (!notice.includes(token)) throw new Error('Privacy notice v1.1 missing: ' + token);
+}
+
+for (const token of [
+  "1.1-appstores-2026-09-22",
+  'analítica interna de uso y continuidad',
+  'account-deletion-request',
+]) {
+  if (!migration.includes(token)) throw new Error('Cross-store privacy migration missing: ' + token);
 }
 
 for (const token of ['Product Interaction', 'Analytics', 'Crash Data']) {
