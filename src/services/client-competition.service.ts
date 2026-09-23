@@ -4,3 +4,4 @@ export * from './client-competition-account.service';
 export * from './client-competition-exam.service';
 export * from './client-competition-constancy.service';
 export * from './client-competition-ranking.service';
+export * from './client-competition-home.service';
