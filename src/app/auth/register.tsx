@@ -1,4 +1,6 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { ucapsaBrand } from '../../constants/brand';
+import { UCAPSA_TERMS_VERSION } from '../../constants/legal';
 import { Link, router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -14,6 +16,8 @@ export default function RegisterScreen() {
   const [privacyNotice, setPrivacyNotice] = useState<PrivacyNotice | null>(null);
   const [privacyChecked, setPrivacyChecked] = useState(false);
   const [privacyLoadError, setPrivacyLoadError] = useState(false);
+  const [adultConfirmed, setAdultConfirmed] = useState(false);
+  const [legalAccepted, setLegalAccepted] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -52,6 +56,19 @@ export default function RegisterScreen() {
       return;
     }
 
+    if (!privacyChecked || !privacyNotice) {
+      Alert.alert('Aviso no disponible', 'Necesitamos mostrarte el aviso de privacidad vigente antes de crear tu cuenta.');
+      return;
+    }
+    if (!adultConfirmed) {
+      Alert.alert('Mayoría de edad requerida', 'UCAPSA App permite crear cuentas únicamente a personas de 18 años o más.');
+      return;
+    }
+    if (!legalAccepted) {
+      Alert.alert('Falta aceptación', 'Lee y acepta el Aviso de Privacidad y los Términos de Uso para continuar.');
+      return;
+    }
+
     setLoading(true);
     try {
       // Crear una cuenta no usa un timeout artificial: Promise.race no cancela
@@ -60,6 +77,9 @@ export default function RegisterScreen() {
         email: cleanEmail,
         password,
         fullName: cleanName,
+        isAdult: adultConfirmed,
+        privacyNoticeVersion: privacyNotice.version,
+        termsVersion: UCAPSA_TERMS_VERSION,
       });
 
       if (error) {
@@ -132,12 +152,54 @@ export default function RegisterScreen() {
             <Text style={styles.privacyText}>{privacyNotice.simplified_notice}</Text>
             <Link href="/privacy" style={styles.privacyLink}>Consultar aviso integral</Link>
           </View>
-        ) : null}
+        ) : (
+          <View style={[styles.privacyBox, styles.privacyWarning]}>
+            <Text style={styles.privacyTitle}>Registro temporalmente no disponible</Text>
+            <Text style={styles.privacyText}>
+              {privacyLoadError
+                ? 'No pudimos consultar el aviso de privacidad vigente. Revisa tu conexión e intenta de nuevo.'
+                : 'UCAPSA debe publicar un aviso de privacidad vigente antes de permitir nuevas cuentas.'}
+            </Text>
+          </View>
+        )}
 
         <Pressable
-          style={[styles.button, loading && styles.buttonDisabled]}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: adultConfirmed }}
+          style={styles.consentRow}
+          onPress={() => setAdultConfirmed((value) => !value)}
+        >
+          <View style={[styles.checkbox, adultConfirmed && styles.checkboxChecked]}>
+            {adultConfirmed ? <MaterialIcons name="check" size={17} color={ucapsaBrand.colors.surface} /> : null}
+          </View>
+          <Text style={styles.consentText}>Confirmo que tengo 18 años o más.</Text>
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: legalAccepted }}
+          style={styles.consentRow}
+          onPress={() => setLegalAccepted((value) => !value)}
+        >
+          <View style={[styles.checkbox, legalAccepted && styles.checkboxChecked]}>
+            {legalAccepted ? <MaterialIcons name="check" size={17} color={ucapsaBrand.colors.surface} /> : null}
+          </View>
+          <Text style={styles.consentText}>He leído y acepto el Aviso de Privacidad y los Términos de Uso.</Text>
+        </Pressable>
+
+        <View style={styles.legalLinks}>
+          <Link href="/privacy" style={styles.privacyLink}>Aviso de Privacidad</Link>
+          <Text style={styles.legalSeparator}>·</Text>
+          <Link href="/terms" style={styles.privacyLink}>Términos de Uso</Link>
+        </View>
+
+        <Pressable
+          style={[
+            styles.button,
+            (loading || !privacyNotice || !adultConfirmed || !legalAccepted) && styles.buttonDisabled,
+          ]}
           onPress={handleRegister}
-          disabled={loading}
+          disabled={loading || !privacyNotice || !adultConfirmed || !legalAccepted}
         >
           <Text style={styles.buttonText}>{loading ? 'Creando...' : 'Crear cuenta'}</Text>
         </Pressable>
@@ -212,6 +274,44 @@ const styles = StyleSheet.create({
   privacyWarning: {
     borderColor: ucapsaBrand.colors.redBorder,
     backgroundColor: ucapsaBrand.colors.redSoft,
+  },
+  consentRow: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: ucapsaBrand.colors.border,
+    backgroundColor: ucapsaBrand.colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    borderColor: ucapsaBrand.colors.red,
+    backgroundColor: ucapsaBrand.colors.red,
+  },
+  consentText: {
+    flex: 1,
+    color: ucapsaBrand.colors.text,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '800',
+  },
+  legalLinks: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    flexWrap: 'wrap',
+  },
+  legalSeparator: {
+    color: ucapsaBrand.colors.muted,
+    fontWeight: '900',
   },
   privacyTitle: {
     color: ucapsaBrand.colors.text,
