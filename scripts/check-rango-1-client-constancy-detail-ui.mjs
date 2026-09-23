@@ -14,7 +14,7 @@ function read(rel) {
 }
 
 const layout = read('src/app/client/_layout.tsx');
-const summary = read('src/app/client/competition.tsx');
+const summary = read('src/app/client/competition-dog.tsx');
 const detail = read('src/app/client/competition-constancy.tsx');
 const service = read('src/services/client-competition-constancy.service.ts');
 const pkg = read('package.json');

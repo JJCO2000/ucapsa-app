@@ -1,5 +1,6 @@
+
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
@@ -11,17 +12,15 @@ import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import { devWarn } from '../../lib/client-diagnostics';
 import {
-  getCachedMyDogCompetition,
-  refreshMyDogCompetition,
-  type ClientDogCompetitionSnapshot,
-  type ClientOfficialExamResult,
+  getAccountCompetitionSeasons,
+  getCachedCompetitionLeaderboard,
+  getCachedMyCompetitionAccount,
+  refreshCompetitionLeaderboard,
+  refreshMyCompetitionAccount,
+  type ClientAccountCompetitionSnapshot,
+  type ClientCompetitionLeaderboardRow,
 } from '../../services/client-competition.service';
 import { recordValueExposure } from '../../services/continuity-evidence.service';
-
-function numberLabel(value: number | null | undefined) {
-  const numeric = Number(value ?? 0);
-  return Number.isInteger(numeric) ? String(numeric) : numeric.toFixed(2);
-}
 
 function statusLabel(status: string | null | undefined) {
   if (status === 'active') return 'Activa';
@@ -30,49 +29,36 @@ function statusLabel(status: string | null | undefined) {
   return status || 'Temporada';
 }
 
-function dateLabel(value: string | null | undefined) {
-  if (!value) return 'sin actividad registrada';
-  const date = new Date(`${value}T12:00:00`);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-function constancyLevelDescription(code: string | null | undefined) {
-  if (code === 'forming') return 'Todavía no hay suficiente población en la temporada para asignar un nivel comparativo.';
-  if (code === 'gold') return 'Constancia destacada esta temporada.';
-  if (code === 'silver') return 'Constancia sostenida esta temporada.';
-  return 'Constancia en desarrollo esta temporada.';
-}
-
 export default function ClientCompetitionScreen() {
-  const params = useLocalSearchParams<{ dogId?: string | string[] }>();
-  const dogId = Array.isArray(params.dogId) ? params.dogId[0] ?? '' : params.dogId ?? '';
   const { user, role, isAdmin } = useSession();
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
   const premium = format.key === 'member';
 
-  const [snapshot, setSnapshot] = useState<ClientDogCompetitionSnapshot | null>(null);
+  const [snapshot, setSnapshot] = useState<ClientAccountCompetitionSnapshot | null>(null);
+  const [rows, setRows] = useState<ClientCompetitionLeaderboardRow[]>([]);
   const [selectedSeasonId, setSelectedSeasonId] = useState<string | null>(null);
   const [localReady, setLocalReady] = useState(false);
+  const [rankingReady, setRankingReady] = useState(false);
   const [usingSavedData, setUsingSavedData] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [screenFocused, setScreenFocused] = useState(false);
 
-  const applySnapshot = useCallback((next: ClientDogCompetitionSnapshot) => {
+  const applySnapshot = useCallback((next: ClientAccountCompetitionSnapshot) => {
     setSnapshot(next);
+    const seasons = getAccountCompetitionSeasons(next);
     setSelectedSeasonId((current) => {
-      if (current && next.seasons.some((season) => season.season_id === current)) return current;
-      return next.seasons.find((season) => season.season_status === 'active')?.season_id
-        ?? next.seasons.find((season) => season.season_status === 'reopened')?.season_id
-        ?? next.seasons[0]?.season_id
+      if (current && seasons.some((season) => season.season_id === current)) return current;
+      return seasons.find((season) => season.season_status === 'active')?.season_id
+        ?? seasons.find((season) => season.season_status === 'reopened')?.season_id
+        ?? seasons[0]?.season_id
         ?? null;
     });
   }, []);
 
-  const load = useCallback(async () => {
-    if (!user || isAdmin || !dogId) {
+  const loadAccount = useCallback(async () => {
+    if (!user || isAdmin) {
       setLocalReady(true);
       return;
     }
@@ -80,7 +66,7 @@ export default function ClientCompetitionScreen() {
     setError(null);
     setUsingSavedData(false);
 
-    const cached = await getCachedMyDogCompetition(user.id, dogId);
+    const cached = await getCachedMyCompetitionAccount(user.id);
     if (cached) {
       applySnapshot(cached.data);
       setSavedAt(cached.saved_at);
@@ -88,7 +74,7 @@ export default function ClientCompetitionScreen() {
     }
 
     try {
-      const fresh = await refreshMyDogCompetition(user.id, dogId);
+      const fresh = await refreshMyCompetitionAccount(user.id);
       applySnapshot(fresh.data);
       setSavedAt(fresh.saved_at);
       setUsingSavedData(false);
@@ -102,34 +88,86 @@ export default function ClientCompetitionScreen() {
         setError(cause instanceof Error ? cause.message : 'No se pudo cargar la competencia.');
       }
     }
-  }, [applySnapshot, dogId, isAdmin, user]);
+  }, [applySnapshot, isAdmin, user]);
+
+  const loadRanking = useCallback(async (seasonId: string) => {
+    if (!user || isAdmin || !seasonId) {
+      setRows([]);
+      setRankingReady(true);
+      return;
+    }
+
+    setRankingReady(false);
+    const cached = await getCachedCompetitionLeaderboard(user.id, seasonId);
+    if (cached) {
+      setRows(cached.data);
+      setRankingReady(true);
+    }
+
+    try {
+      const fresh = await refreshCompetitionLeaderboard(user.id, seasonId);
+      setRows(fresh.data);
+      setRankingReady(true);
+    } catch (cause) {
+      devWarn('Could not refresh competition leaderboard in account summary.', cause);
+      setRankingReady(true);
+      if (!cached) setRows([]);
+    }
+  }, [isAdmin, user]);
 
   useFocusEffect(useCallback(() => {
     setScreenFocused(true);
-    void load();
+    void loadAccount();
     return () => setScreenFocused(false);
-  }, [load]));
+  }, [loadAccount]));
+
+  useEffect(() => {
+    if (!selectedSeasonId) {
+      setRows([]);
+      setRankingReady(true);
+      return;
+    }
+    void loadRanking(selectedSeasonId);
+  }, [loadRanking, selectedSeasonId]);
 
   async function refresh() {
     setRefreshing(true);
-    try { await load(); } finally { setRefreshing(false); }
+    try {
+      await loadAccount();
+      if (selectedSeasonId) await loadRanking(selectedSeasonId);
+    } finally {
+      setRefreshing(false);
+    }
   }
 
-  const selectedSeason = snapshot?.seasons.find((season) => season.season_id === selectedSeasonId) ?? null;
-  const officialExams = (snapshot?.official_exams ?? []).filter((exam) => exam.season_id === selectedSeasonId);
+  const seasons = useMemo(() => snapshot ? getAccountCompetitionSeasons(snapshot) : [], [snapshot]);
+  const selectedSeason = seasons.find((season) => season.season_id === selectedSeasonId) ?? null;
+  const myDogIds = useMemo(() => new Set((snapshot?.dogs ?? []).map((dog) => dog.dog_id)), [snapshot]);
+  const myRankingRows = useMemo(
+    () => rows.filter((row) => row.dog_id && myDogIds.has(row.dog_id)),
+    [myDogIds, rows],
+  );
+  const rankingByDogId = useMemo(
+    () => new Map(myRankingRows.filter((row) => row.dog_id).map((row) => [row.dog_id as string, row])),
+    [myRankingRows],
+  );
 
   useEffect(() => {
-    if (!user || isAdmin || !screenFocused || !localReady || error || !snapshot?.dog_id || !selectedSeason?.season_id) return;
+    if (!user || isAdmin || !screenFocused || !localReady || error || !selectedSeasonId || !snapshot) return;
+    const visibleDogIds = snapshot.dogs
+      .filter((dog) => dog.seasons.some((season) => season.season_id === selectedSeasonId))
+      .map((dog) => dog.dog_id);
+    if (visibleDogIds.length === 0) return;
 
     const timer = setTimeout(() => {
-      void recordValueExposure(user.id, snapshot.dog_id, selectedSeason.season_id!, 'constancy_summary')
-        .catch((cause) => {
-          devWarn('Could not persist constancy summary value exposure.', cause);
-        });
+      for (const dogId of visibleDogIds) {
+        void recordValueExposure(user.id, dogId, selectedSeasonId, 'constancy_summary')
+          .catch((cause) => devWarn('Could not persist constancy summary value exposure.', cause));
+      }
     }, 750);
 
     return () => clearTimeout(timer);
-  }, [error, isAdmin, localReady, screenFocused, selectedSeason?.season_id, snapshot?.dog_id, user]);
+  }, [error, isAdmin, localReady, screenFocused, selectedSeasonId, snapshot, user]);
 
   if (!user) return <Redirect href="/auth/login" />;
   if (isAdmin) return <Redirect href="/admin-home" />;
@@ -144,8 +182,10 @@ export default function ClientCompetitionScreen() {
 
       <View style={styles.header}>
         <Text style={[styles.eyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>COMPETENCIA UCAPSA</Text>
-        <Text style={[styles.title, { color: format.cardText }]}>{snapshot?.dog_name || 'Tu perro'}</Text>
-        <Text style={[styles.subtitle, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Constancia, exámenes y temporadas desde los hechos oficiales de UCAPSA.</Text>
+        <Text style={[styles.title, { color: format.cardText }]}>Tus perros</Text>
+        <Text style={[styles.subtitle, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+          Revisa en un solo lugar cómo van tus perros y entra al Ranking sin recorrer varias pantallas.
+        </Text>
       </View>
 
       {usingSavedData ? (
@@ -168,151 +208,157 @@ export default function ClientCompetitionScreen() {
         <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
           <MaterialIcons name="cloud-off" size={24} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
           <Text style={[styles.cardTitle, { color: format.cardText }]}>No pudimos cargar la competencia</Text>
-          <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Conéctate una vez para guardar esta información en el dispositivo.</Text>
+          <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+            Conéctate una vez para guardar esta información en el dispositivo.
+          </Text>
         </View>
       ) : null}
 
       {localReady && !error && snapshot ? (
-        <>
-          {snapshot.seasons.length > 0 ? (
-            <View style={styles.pills}>
-              {snapshot.seasons.map((season) => {
-                const selected = season.season_id === selectedSeasonId;
-                return (
-                  <Pressable
-                    key={season.season_id ?? season.season_code ?? 'season'}
-                    style={[
-                      styles.pill,
-                      { borderColor: selected ? format.accent : format.cardBorder, backgroundColor: selected ? format.pillBackground : format.cardBackground },
-                    ]}
-                    onPress={() => setSelectedSeasonId(season.season_id)}
-                  >
-                    <Text style={[styles.pillText, { color: selected ? format.pillText : format.cardText }]}>{season.season_name || 'Temporada'} · {statusLabel(season.season_status)}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : null}
-
-          {!selectedSeason ? (
-            <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
-              <Text style={[styles.cardTitle, { color: format.cardText }]}>Sin temporada competitiva</Text>
-              <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Cuando UCAPSA active una temporada, aparecerá aquí.</Text>
-            </View>
-          ) : (
-            <>
-              <Pressable
-                style={[styles.pendingCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}
-                onPress={() => {
-                  if (!selectedSeason.season_id) return;
-                  router.push(`/client/competition-constancy?dogId=${encodeURIComponent(snapshot.dog_id)}&seasonId=${encodeURIComponent(selectedSeason.season_id)}` as never);
-                }}
-              >
-                <MaterialIcons name="workspace-premium" size={24} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.sectionEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>NIVEL DE CONSTANCIA</Text>
-                  <Text style={[styles.cardTitle, { color: format.cardText }]}>{selectedSeason.range_name || 'Cobre'}</Text>
-                  <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
-                    {constancyLevelDescription(selectedSeason.range_code)}
-                  </Text>
-                  {selectedSeason.is_constancy_outstanding ? (
-                    <Text style={[styles.outstandingText, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Constancia sobresaliente</Text>
-                  ) : null}
-                  <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
-                    {Number(selectedSeason.constancy_events_count ?? 0)} actividades registradas · última actividad {dateLabel(selectedSeason.last_event_date)}
-                  </Text>
-                </View>
-                <MaterialIcons name="chevron-right" size={21} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-              </Pressable>
-
-              <Pressable
-                style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}
-                onPress={() => {
-                  if (!selectedSeason.season_id) return;
-                  router.push(`/client/competition-ranking?seasonId=${encodeURIComponent(selectedSeason.season_id)}&dogId=${encodeURIComponent(snapshot.dog_id)}` as never);
-                }}
-              >
-                <View style={styles.cardTitleLine}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.sectionEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>RANKING</Text>
-                    <Text style={[styles.cardTitle, { color: format.cardText }]}>
-                      {selectedSeason.is_ranking_eligible ? 'Ver posición y Podio' : 'Ver clasificación de la temporada'}
-                    </Text>
-                  </View>
-                  <MaterialIcons name="chevron-right" size={21} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-                </View>
-                <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
-                  {selectedSeason.is_ranking_eligible
-                    ? 'Tu perro participa en la clasificación oficial de esta temporada.'
-                    : 'Tu perro todavía no ocupa una posición oficial.'}
-                </Text>
-              </Pressable>
-
-              <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
-                <Text style={[styles.sectionEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>EXÁMENES</Text>
-                <Text style={[styles.cardTitle, { color: format.cardText }]}>Resultados oficiales</Text>
-                <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
-                  {selectedSeason.is_ranking_eligible
-                    ? 'Todos los exámenes obligatorios publicados están completos.'
-                    : Number(selectedSeason.required_exams_count ?? 0) === 0
-                      ? 'UCAPSA todavía no ha publicado exámenes obligatorios para esta temporada.'
-                      : `Faltan ${Number(selectedSeason.missing_required_exams_count ?? 0)} examen(es) obligatorio(s).`}
-                </Text>
-
-                {officialExams.length === 0 ? (
-                  <View style={[styles.emptyRow, { backgroundColor: format.secondaryButton }]}>
-                    <MaterialIcons name="assignment" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-                    <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Todavía no hay resultados oficiales en esta temporada.</Text>
-                  </View>
-                ) : (
-                  <View style={styles.examList}>
-                    {officialExams.map((exam) => (
-                      <ExamRow key={exam.attempt_id ?? exam.exam_id ?? exam.exam_code ?? 'exam'} dogId={snapshot.dog_id} exam={exam} premium={premium} format={format} />
-                    ))}
-                  </View>
-                )}
+        snapshot.dogs.length === 0 ? (
+          <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
+            <MaterialIcons name="pets" size={24} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+            <Text style={[styles.cardTitle, { color: format.cardText }]}>Primero registra un perro</Text>
+            <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Cuando tengas perros activos, aquí aparecerá su competencia.</Text>
+          </View>
+        ) : (
+          <>
+            {seasons.length > 0 ? (
+              <View style={styles.pills}>
+                {seasons.map((season) => {
+                  const selected = season.season_id === selectedSeasonId;
+                  return (
+                    <Pressable
+                      key={season.season_id ?? season.season_code ?? 'season'}
+                      style={[
+                        styles.pill,
+                        {
+                          borderColor: selected ? format.accent : format.cardBorder,
+                          backgroundColor: selected ? format.pillBackground : format.cardBackground,
+                        },
+                      ]}
+                      onPress={() => setSelectedSeasonId(season.season_id)}
+                    >
+                      <Text style={[styles.pillText, { color: selected ? format.pillText : format.cardText }]}>
+                        {(season.season_name || 'Temporada') + ' · ' + statusLabel(season.season_status)}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
-            </>
-          )}
-        </>
+            ) : null}
+
+            {!selectedSeason ? (
+              <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
+                <Text style={[styles.cardTitle, { color: format.cardText }]}>Sin temporada competitiva</Text>
+                <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Cuando UCAPSA active una temporada aparecerá aquí.</Text>
+              </View>
+            ) : (
+              <>
+                <Pressable
+                  style={[
+                    styles.rankingCard,
+                    {
+                      backgroundColor: premium ? ucapsaBrand.colors.premiumHero : format.accent,
+                      borderColor: premium ? ucapsaBrand.colors.premiumBorderStrong : format.accent,
+                    },
+                  ]}
+                  onPress={() => {
+                    if (!selectedSeason.season_id) return;
+                    router.push(('/client/competition-ranking?seasonId=' + encodeURIComponent(selectedSeason.season_id)) as never);
+                  }}
+                >
+                  <View style={styles.rankingTop}>
+                    <View style={[styles.rankingIcon, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.cardBackground }]}>
+                      <MaterialIcons name="emoji-events" size={25} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.rankingEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.primaryButtonText }]}>RANKING UCAPSA</Text>
+                      <Text style={[styles.rankingTitle, { color: premium ? ucapsaBrand.colors.premiumText : format.primaryButtonText }]}>Ver clasificación completa</Text>
+                    </View>
+                    <MaterialIcons name="chevron-right" size={24} color={premium ? ucapsaBrand.colors.premiumAction : format.primaryButtonText} />
+                  </View>
+
+                  <View style={styles.myPositions}>
+                    {!rankingReady ? (
+                      <Text style={[styles.rankingMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.primaryButtonText }]}>Actualizando posiciones…</Text>
+                    ) : myRankingRows.length > 0 ? (
+                      myRankingRows.map((row) => (
+                        <View key={row.dog_id ?? String(row.ranking_position)} style={[styles.positionPill, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.cardBackground }]}>
+                          <Text style={[styles.positionName, { color: premium ? ucapsaBrand.colors.premiumText : format.cardText }]}>{row.dog_name || 'Tu perro'}</Text>
+                          <Text style={[styles.positionValue, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>#{Number(row.ranking_position ?? 0)}</Text>
+                        </View>
+                      ))
+                    ) : (
+                      <Text style={[styles.rankingMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.primaryButtonText }]}>Tus perros aún no ocupan una posición oficial.</Text>
+                    )}
+                  </View>
+                </Pressable>
+
+                <Text style={[styles.sectionTitle, { color: format.cardText }]}>Tus perros esta temporada</Text>
+                <View style={styles.dogList}>
+                  {snapshot.dogs.map((dog) => {
+                    const season = dog.seasons.find((item) => item.season_id === selectedSeasonId) ?? null;
+                    const ranking = rankingByDogId.get(dog.dog_id) ?? null;
+                    const officialExams = dog.official_exams.filter((exam) => exam.season_id === selectedSeasonId);
+
+                    return (
+                      <View key={dog.dog_id} style={[styles.dogCard, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
+                        <View style={styles.dogTop}>
+                          <View style={[styles.dogIcon, { backgroundColor: format.pillBackground }]}>
+                            <MaterialIcons name="pets" size={21} color={format.pillText} />
+                          </View>
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            <Text style={[styles.dogName, { color: format.cardText }]}>{dog.dog_name}</Text>
+                            <Text style={[styles.dogMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+                              {ranking
+                                ? ('#' + Number(ranking.ranking_position ?? 0) + ' en Ranking · ' + (ranking.range_name || season?.range_name || 'Cobre'))
+                                : season
+                                  ? ((season.range_name || 'Cobre') + ' · aún sin posición oficial')
+                                  : 'Sin actividad en esta temporada'}
+                            </Text>
+                          </View>
+                          {ranking ? (
+                            <View style={[styles.rankBadge, { backgroundColor: format.accentSoft }]}>
+                              <Text style={[styles.rankBadgeText, { color: format.accentDark }]}>#{Number(ranking.ranking_position ?? 0)}</Text>
+                            </View>
+                          ) : null}
+                        </View>
+
+                        {season ? (
+                          <View style={styles.dogStats}>
+                            <Stat label="Actividades" value={String(Number(season.constancy_events_count ?? 0))} />
+                            <Stat label="Exámenes" value={String(officialExams.length)} />
+                            <Stat label="Pendientes" value={String(Number(season.missing_required_exams_count ?? 0))} />
+                          </View>
+                        ) : null}
+
+                        <Pressable
+                          style={[styles.detailButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}
+                          onPress={() => router.push(('/client/competition-dog?dogId=' + encodeURIComponent(dog.dog_id)) as never)}
+                        >
+                          <Text style={[styles.detailButtonText, { color: format.secondaryButtonText }]}>Ver constancia y exámenes</Text>
+                          <MaterialIcons name="chevron-right" size={19} color={format.secondaryButtonText} />
+                        </Pressable>
+                      </View>
+                    );
+                  })}
+                </View>
+              </>
+            )}
+          </>
+        )
       ) : null}
     </KeyboardAwareScreen>
   );
 }
 
-function ExamRow({
-  dogId,
-  exam,
-  premium,
-  format,
-}: {
-  dogId: string;
-  exam: ClientOfficialExamResult;
-  premium: boolean;
-  format: ReturnType<typeof resolveUcapsaFormat>;
-}) {
-  const canOpen = Boolean(exam.attempt_id);
+function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <Pressable
-      disabled={!canOpen}
-      style={[styles.examRow, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}
-      onPress={() => {
-        if (!exam.attempt_id) return;
-        router.push(`/client/competition-exam-result?dogId=${encodeURIComponent(dogId)}&attemptId=${encodeURIComponent(exam.attempt_id)}` as never);
-      }}
-    >
-      <View style={[styles.examIcon, { backgroundColor: format.pillBackground }]}>
-        <MaterialIcons name="assignment-turned-in" size={19} color={format.pillText} />
-      </View>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <View style={styles.examTitleLine}>
-          <Text numberOfLines={1} style={[styles.examTitle, { color: format.cardText }]}>{exam.exam_title || exam.exam_code || 'Examen'}</Text>
-          {exam.is_required_for_ranking ? <Text style={[styles.requiredPill, { color: premium ? ucapsaBrand.colors.premiumActionText : format.accentDark }]}>Obligatorio</Text> : null}
-        </View>
-        <Text style={[styles.examScore, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>{numberLabel(exam.total_points_awarded)} / {numberLabel(exam.max_points)} pts</Text>
-      </View>
-      {canOpen ? <MaterialIcons name="chevron-right" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} /> : null}
-    </Pressable>
+    <View style={styles.stat}>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
   );
 }
 
@@ -325,19 +371,32 @@ const styles = StyleSheet.create({
   muted: { fontSize: 11, lineHeight: 16, fontWeight: '700' },
   card: { gap: 9, borderRadius: 20, borderWidth: 1, padding: 14, marginBottom: 11 },
   cardTitle: { fontSize: 16, lineHeight: 21, fontWeight: '900' },
-  cardTitleLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   pills: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 11 },
   pill: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 8 },
   pillText: { fontSize: 9, fontWeight: '900' },
-  pendingCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 18, borderWidth: 1, padding: 13, marginBottom: 11 },
-  sectionEyebrow: { fontSize: 9, fontWeight: '900', letterSpacing: 0.7 },
-  outstandingText: { fontSize: 10, lineHeight: 15, fontWeight: '900', marginTop: 2 },
-  emptyRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 14, padding: 11 },
-  examList: { gap: 7 },
-  examRow: { minHeight: 60, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 15, borderWidth: 1, padding: 10 },
-  examIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  examTitleLine: { flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' },
-  examTitle: { flexShrink: 1, fontSize: 12, fontWeight: '900' },
-  requiredPill: { borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2, fontSize: 8, fontWeight: '900' },
-  examScore: { fontSize: 10, fontWeight: '900', marginTop: 2 },
+  rankingCard: { borderRadius: 22, borderWidth: 1, padding: 14, marginBottom: 16, gap: 11 },
+  rankingTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  rankingIcon: { width: 46, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  rankingEyebrow: { fontSize: 9, fontWeight: '900', letterSpacing: 0.8, opacity: 0.9 },
+  rankingTitle: { fontSize: 18, lineHeight: 22, fontWeight: '900', marginTop: 1 },
+  rankingMeta: { fontSize: 11, lineHeight: 16, fontWeight: '800' },
+  myPositions: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  positionPill: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
+  positionName: { fontSize: 10, fontWeight: '900' },
+  positionValue: { fontSize: 10, fontWeight: '900' },
+  sectionTitle: { fontSize: 18, lineHeight: 23, fontWeight: '900', marginBottom: 8 },
+  dogList: { gap: 9 },
+  dogCard: { borderRadius: 20, borderWidth: 1, padding: 13, gap: 10 },
+  dogTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  dogIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  dogName: { fontSize: 15, lineHeight: 20, fontWeight: '900' },
+  dogMeta: { fontSize: 10, lineHeight: 15, fontWeight: '700', marginTop: 2 },
+  rankBadge: { minWidth: 40, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  rankBadgeText: { fontSize: 11, fontWeight: '900' },
+  dogStats: { flexDirection: 'row', gap: 6 },
+  stat: { flex: 1, alignItems: 'center', borderRadius: 12, backgroundColor: ucapsaBrand.colors.surfaceSubtle, paddingVertical: 8, paddingHorizontal: 5 },
+  statValue: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
+  statLabel: { color: ucapsaBrand.colors.muted, fontSize: 8, fontWeight: '800', marginTop: 1 },
+  detailButton: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 13, borderWidth: 1, paddingHorizontal: 10 },
+  detailButtonText: { fontSize: 11, fontWeight: '900' },
 });

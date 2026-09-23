@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
+import type { ClientCompetitionHomeSummary } from '../../services/client-competition-home.service';
 import type { CustomerValuePrimaryNextAction, CustomerValueSnapshot } from '../../services/customer-value.service';
 import type { getPracticeGoalProgress } from '../../services/practice-goal-preference.service';
 import type { PracticeActivitySnapshot } from '../../services/practice.service';
@@ -211,6 +212,49 @@ function MetricInline({
 
 function MetricDivider({ color }: { color: string }) {
   return <View style={[styles.metricDivider, { backgroundColor: color }]} />;
+}
+
+export function CompetitionHomeCard({
+  summary,
+  format,
+  onPress,
+}: {
+  summary: ClientCompetitionHomeSummary;
+  format: ReturnType<typeof resolveUcapsaFormat>;
+  onPress: () => void;
+}) {
+  const premium = format.key === 'member';
+  const ranked = summary.dogs.filter((dog) => dog.rankingPosition != null);
+  const detail = ranked.length > 0
+    ? ranked.map((dog) => dog.dogName + ' #' + dog.rankingPosition).join(' · ')
+    : summary.dogs.length > 0
+      ? 'Tus perros todavía no ocupan una posición oficial.'
+      : 'Revisa la temporada y el Ranking UCAPSA.';
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={'Competencia UCAPSA. ' + summary.seasonName + '. ' + detail}
+      onPress={onPress}
+      style={[
+        styles.competitionHomeCard,
+        {
+          borderColor: premium ? ucapsaBrand.colors.premiumBorderStrong : format.cardBorder,
+          backgroundColor: premium ? ucapsaBrand.colors.premiumHero : format.cardBackground,
+        },
+      ]}
+    >
+      <View style={[styles.competitionHomeIcon, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft }]}>
+        <MaterialIcons name="emoji-events" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+      </View>
+      <View style={styles.competitionHomeCopy}>
+        <Text style={[styles.competitionHomeEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>COMPETENCIA UCAPSA</Text>
+        <Text numberOfLines={1} style={[styles.competitionHomeTitle, { color: premium ? ucapsaBrand.colors.premiumText : format.cardText }]}>{summary.seasonName}</Text>
+        <Text numberOfLines={2} style={[styles.competitionHomeDetail, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{detail}</Text>
+      </View>
+      <MaterialIcons name="chevron-right" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+    </Pressable>
+  );
 }
 
 export function ContextNotice({

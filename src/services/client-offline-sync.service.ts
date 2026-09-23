@@ -3,7 +3,7 @@ import type { Announcement, Membership, MyPaymentOverview, ProgramEnrollmentWith
 import { getVisibleAnnouncements } from './announcements.service';
 import { flushPendingAttendanceOperations } from './attendance-sync.service';
 import { getMyMemberVisits } from './client-activity.service';
-import { refreshCompetitionLeaderboard, refreshMyDogCompetition } from './client-competition.service';
+import { refreshCompetitionLeaderboard, refreshMyCompetitionAccount, refreshMyDogCompetition } from './client-competition.service';
 import {
   clientReadKeys,
   createMembershipOfflineSummary,
@@ -107,11 +107,24 @@ async function cacheDogs(userId: string): Promise<BasicDog[]> {
 }
 
 async function cacheCompetition(userId: string, dogs: BasicDog[]): Promise<void> {
-  const dogResults = await Promise.allSettled(
-    dogs.map((dog) => refreshMyDogCompetition(userId, dog.id)),
-  );
+  const [accountResult, dogResults] = await Promise.all([
+    refreshMyCompetitionAccount(userId).then(
+      (value) => ({ status: 'fulfilled' as const, value }),
+      (reason) => ({ status: 'rejected' as const, reason }),
+    ),
+    Promise.allSettled(
+      dogs.map((dog) => refreshMyDogCompetition(userId, dog.id)),
+    ),
+  ]);
 
   const seasonIds = new Set<string>();
+  if (accountResult.status === 'fulfilled') {
+    for (const dog of accountResult.value.data.dogs) {
+      for (const season of dog.seasons) {
+        if (season.season_id) seasonIds.add(season.season_id);
+      }
+    }
+  }
   for (const result of dogResults) {
     if (result.status !== 'fulfilled') continue;
     for (const season of result.value.data.seasons) {
@@ -122,6 +135,8 @@ async function cacheCompetition(userId: string, dogs: BasicDog[]): Promise<void>
   const leaderboardResults = await Promise.allSettled(
     [...seasonIds].map((seasonId) => refreshCompetitionLeaderboard(userId, seasonId)),
   );
+
+  if (accountResult.status === 'rejected') throw accountResult.reason;
 
   const failedDog = dogResults.find((result) => result.status === 'rejected');
   if (failedDog?.status === 'rejected') throw failedDog.reason;
