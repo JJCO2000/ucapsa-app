@@ -11,7 +11,9 @@ import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import {
   getCachedCompetitionLeaderboard,
+  getCachedMyCompetitionAccount,
   refreshCompetitionLeaderboard,
+  refreshMyCompetitionAccount,
   type ClientCompetitionLeaderboardRow,
 } from '../../services/client-competition.service';
 
@@ -28,18 +30,15 @@ function medal(position: number) {
 }
 
 export default function ClientCompetitionRankingScreen() {
-  const params = useLocalSearchParams<{
-    seasonId?: string | string[];
-    dogId?: string | string[];
-  }>();
+  const params = useLocalSearchParams<{ seasonId?: string | string[] }>();
   const seasonId = Array.isArray(params.seasonId) ? params.seasonId[0] ?? '' : params.seasonId ?? '';
-  const dogId = Array.isArray(params.dogId) ? params.dogId[0] ?? '' : params.dogId ?? '';
 
   const { user, role, isAdmin } = useSession();
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
   const premium = format.key === 'member';
 
   const [rows, setRows] = useState<ClientCompetitionLeaderboardRow[]>([]);
+  const [myDogIds, setMyDogIds] = useState<Set<string>>(new Set());
   const [localReady, setLocalReady] = useState(false);
   const [usingSavedData, setUsingSavedData] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
@@ -55,27 +54,43 @@ export default function ClientCompetitionRankingScreen() {
     setError(null);
     setUsingSavedData(false);
 
-    const cached = await getCachedCompetitionLeaderboard(user.id, seasonId);
-    if (cached) {
-      setRows(cached.data);
-      setSavedAt(cached.saved_at);
+    const [cachedRanking, cachedAccount] = await Promise.all([
+      getCachedCompetitionLeaderboard(user.id, seasonId),
+      getCachedMyCompetitionAccount(user.id),
+    ]);
+    if (cachedRanking) {
+      setRows(cachedRanking.data);
+      setSavedAt(cachedRanking.saved_at);
       setLocalReady(true);
     }
+    if (cachedAccount) {
+      setMyDogIds(new Set(cachedAccount.data.dogs.map((dog) => dog.dog_id)));
+    }
 
-    try {
-      const fresh = await refreshCompetitionLeaderboard(user.id, seasonId);
-      setRows(fresh.data);
-      setSavedAt(fresh.saved_at);
+    const [rankingResult, accountResult] = await Promise.allSettled([
+      refreshCompetitionLeaderboard(user.id, seasonId),
+      refreshMyCompetitionAccount(user.id),
+    ]);
+
+    if (accountResult.status === 'fulfilled') {
+      setMyDogIds(new Set(accountResult.value.data.dogs.map((dog) => dog.dog_id)));
+    }
+
+    if (rankingResult.status === 'fulfilled') {
+      setRows(rankingResult.value.data);
+      setSavedAt(rankingResult.value.saved_at);
       setUsingSavedData(false);
       setLocalReady(true);
-    } catch (cause) {
-      setLocalReady(true);
-      if (cached) {
-        setUsingSavedData(true);
-        setSavedAt(cached.saved_at);
-      } else {
-        setError(cause instanceof Error ? cause.message : 'No se pudo cargar el Ranking.');
-      }
+      return;
+    }
+
+    setLocalReady(true);
+    if (cachedRanking) {
+      setUsingSavedData(true);
+      setSavedAt(cachedRanking.saved_at);
+    } else {
+      const cause = rankingResult.reason;
+      setError(cause instanceof Error ? cause.message : 'No se pudo cargar el Ranking.');
     }
   }, [isAdmin, seasonId, user]);
 
@@ -93,7 +108,7 @@ export default function ClientCompetitionRankingScreen() {
   if (isAdmin) return <Redirect href="/admin-home" />;
 
   const podium = rows.slice(0, 3);
-  const myRow = rows.find((row) => row.dog_id === dogId) ?? null;
+  const myRows = rows.filter((row) => row.dog_id && myDogIds.has(row.dog_id));
   const seasonName = rows[0]?.season_name || 'Temporada UCAPSA';
 
   return (
@@ -142,28 +157,42 @@ export default function ClientCompetitionRankingScreen() {
           </View>
         ) : (
           <>
-            {myRow ? (
-              <View style={[styles.myCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
-                <View style={[styles.positionCircle, { backgroundColor: format.pillBackground }]}>
-                  <Text style={[styles.positionText, { color: format.pillText }]}>#{Number(myRow.ranking_position ?? 0)}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.myLabel, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>TU PERRO</Text>
-                  <Text style={[styles.cardTitle, { color: format.cardText }]}>{myRow.dog_name || 'Tu perro'} · {numberLabel(myRow.competitive_score)} pts</Text>
-                  <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{myRow.range_name || 'Cobre'} · {Number(myRow.command_attendances_count ?? 0)} Comandos</Text>
-                </View>
+            {myRows.length > 0 ? (
+              <View style={styles.myDogsBlock}>
+                <Text style={[styles.sectionTitle, { color: format.cardText }]}>Tus perros</Text>
+                {myRows.map((row) => (
+                  <View key={row.dog_id ?? String(row.ranking_position)} style={[styles.myCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
+                    <View style={[styles.positionCircle, { backgroundColor: format.pillBackground }]}>
+                      <Text style={[styles.positionText, { color: format.pillText }]}>#{Number(row.ranking_position ?? 0)}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.myLabel, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>TU PERRO</Text>
+                      <Text style={[styles.cardTitle, { color: format.cardText }]}>{row.dog_name || 'Tu perro'} · {numberLabel(row.competitive_score)} pts</Text>
+                      <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{row.range_name || 'Cobre'} · {Number(row.command_attendances_count ?? 0)} Comandos</Text>
+                    </View>
+                  </View>
+                ))}
               </View>
             ) : (
               <View style={[styles.noteCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
                 <MaterialIcons name="info-outline" size={19} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-                <Text style={[styles.noteText, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Tu perro todavía no ocupa posición porque no cumple todos los exámenes obligatorios.</Text>
+                <Text style={[styles.noteText, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Tus perros todavía no ocupan posición porque no cumplen todos los exámenes obligatorios.</Text>
               </View>
             )}
 
             <Text style={[styles.sectionTitle, { color: format.cardText }]}>Podio</Text>
             <View style={styles.podiumRow}>
               {podium.map((row) => (
-                <View key={row.dog_id ?? String(row.ranking_position)} style={[styles.podiumCard, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
+                <View
+                  key={row.dog_id ?? String(row.ranking_position)}
+                  style={[
+                    styles.podiumCard,
+                    {
+                      backgroundColor: row.dog_id && myDogIds.has(row.dog_id) ? format.secondaryButton : format.cardBackground,
+                      borderColor: row.dog_id && myDogIds.has(row.dog_id) ? format.accent : format.cardBorder,
+                    },
+                  ]}
+                >
                   <Text style={styles.medal}>{medal(Number(row.ranking_position ?? 0))}</Text>
                   <Text numberOfLines={1} style={[styles.podiumName, { color: format.cardText }]}>{row.dog_name || 'Perro'}</Text>
                   <Text style={[styles.podiumScore, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>{numberLabel(row.competitive_score)} pts</Text>
@@ -174,7 +203,7 @@ export default function ClientCompetitionRankingScreen() {
             <Text style={[styles.sectionTitle, { color: format.cardText }]}>Clasificación</Text>
             <View style={styles.list}>
               {rows.map((row) => {
-                const mine = row.dog_id === dogId;
+                const mine = Boolean(row.dog_id && myDogIds.has(row.dog_id));
                 const position = Number(row.ranking_position ?? 0);
                 return (
                   <View
@@ -190,7 +219,7 @@ export default function ClientCompetitionRankingScreen() {
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <View style={styles.titleLine}>
                         <Text numberOfLines={1} style={[styles.dogName, { color: format.cardText }]}>{row.dog_name || 'Perro'}</Text>
-                        {mine ? <Text style={[styles.minePill, { color: premium ? ucapsaBrand.colors.premiumActionText : format.accentDark }]}>Tú</Text> : null}
+                        {mine ? <Text style={[styles.minePill, { color: premium ? ucapsaBrand.colors.premiumActionText : format.accentDark }]}>Tuyo</Text> : null}
                       </View>
                       <Text style={[styles.score, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>{numberLabel(row.competitive_score)} pts · {row.range_name || 'Cobre'}</Text>
                       <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{Number(row.command_attendances_count ?? 0)} Comandos · {numberLabel(row.exam_points)} pts Exámenes</Text>
@@ -221,7 +250,8 @@ const styles = StyleSheet.create({
   muted: { fontSize: 10, lineHeight: 15, fontWeight: '700' },
   card: { gap: 7, borderRadius: 19, borderWidth: 1, padding: 14, marginBottom: 11 },
   cardTitle: { fontSize: 15, lineHeight: 20, fontWeight: '900' },
-  myCard: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, borderWidth: 1, padding: 12, marginBottom: 13 },
+  myDogsBlock: { gap: 8, marginBottom: 13 },
+  myCard: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, borderWidth: 1, padding: 12 },
   positionCircle: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   positionText: { fontSize: 14, fontWeight: '900' },
   myLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 0.7 },
