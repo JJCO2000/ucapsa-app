@@ -1,5 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.108.2';
 
+const ACCOUNT_DELETION_URL =
+  'https://hrfecmviyiluubymsoeq.supabase.co/functions/v1/account-deletion-request';
+
 function escapeHtml(value: unknown) {
   return String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -64,6 +67,7 @@ Deno.serve(async (req) => {
     p{white-space:pre-wrap;line-height:1.65;margin:0;color:#4d4d4d}
     .brand{font-weight:800;color:#a71930}.meta{font-size:14px;color:#666;margin-bottom:14px}
     .summary{font-size:16px;color:#232323}.integral{margin-top:22px}
+    .delete-link{display:inline-block;margin-top:12px;padding:12px 16px;border-radius:13px;background:#a71930;color:#fff;text-decoration:none;font-weight:800}
   </style>
 </head>
 <body>
@@ -85,6 +89,11 @@ Deno.serve(async (req) => {
     ${section('Derechos ARCO', notice.arco_procedure)}
     ${section('Transferencias y encargados', notice.transfer_clause)}
     ${section('Cambios al aviso', notice.change_notice_method)}
+    <section id="eliminar-cuenta">
+      <h2>Eliminar cuenta y datos</h2>
+      <p>Las cuentas de clientes y socios pueden iniciar la eliminación desde Ajustes → Eliminar cuenta. Si ya no puedes acceder a la app, utiliza el recurso web público para iniciar la solicitud por correo a Administración de UCAPSA.</p>
+      <a class="delete-link" href="${ACCOUNT_DELETION_URL}">Solicitar eliminación de cuenta</a>
+    </section>
     <div class="integral"><h2>Aviso integral</h2><p>${escapeHtml(notice.integral_notice)}</p></div>
   </main>
 </body>
