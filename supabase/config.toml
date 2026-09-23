@@ -1,2 +1,8 @@
-﻿[functions.send-class-reminders]
+[functions.send-class-reminders]
 verify_jwt = false
+
+[functions.privacy-policy]
+verify_jwt = false
+
+[functions.delete-account]
+verify_jwt = true
