@@ -70,7 +70,7 @@ if (!continuity.includes('recordValueExposure')) {
 
 for (const token of [
   'Analítica interna de continuidad',
-  'account-deletion-request',
+  'ELIMINAR_CUENTA_UCAPSA_APP.md',
   'Versión 1.1 App Stores',
 ]) {
   if (!notice.includes(token)) throw new Error('Privacy notice v1.1 missing: ' + token);
