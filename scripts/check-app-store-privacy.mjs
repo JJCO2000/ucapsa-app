@@ -10,6 +10,7 @@ const terms = fs.readFileSync('src/app/terms.tsx', 'utf8');
 const legal = fs.readFileSync('src/constants/legal.ts', 'utf8');
 const deleteFunction = fs.readFileSync('supabase/functions/delete-account/index.ts', 'utf8');
 const privacyFunction = fs.readFileSync('supabase/functions/privacy-policy/index.ts', 'utf8');
+const privacyMigration = fs.readFileSync('supabase/sql/ucapsa-app-store-privacy-readiness.sql', 'utf8');
 
 for (const token of [
   'adultConfirmed',
@@ -48,6 +49,14 @@ for (const token of ['auth.admin.deleteUser', 'auth.admin.signOut', 'request_my_
 
 for (const token of ['privacy_notices', "status', 'published'", 'text/html']) {
   if (!privacyFunction.includes(token)) throw new Error('Public privacy function missing: ' + token);
+}
+
+for (const token of [
+  'enforce_dog_appstore_minimization_before_write',
+  'dogs_appstore_unused_fields_null',
+  "version <> '1.0-appstore-2026-09-22'",
+]) {
+  if (!privacyMigration.includes(token)) throw new Error('Privacy migration safety contract missing: ' + token);
 }
 
 console.log('UCAPSA App Store privacy readiness: PASS');
