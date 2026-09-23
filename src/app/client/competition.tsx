@@ -161,7 +161,7 @@ export default function ClientCompetitionScreen() {
     const timer = setTimeout(() => {
       for (const dogId of visibleDogIds) {
         void recordValueExposure(user.id, dogId, selectedSeasonId, 'constancy_summary')
-          .catch((cause) => devWarn('Could not persist account competition value exposure.', cause));
+          .catch((cause) => devWarn('Could not persist constancy summary value exposure.', cause));
       }
     }, 750);
 
