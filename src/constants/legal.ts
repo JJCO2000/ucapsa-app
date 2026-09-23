@@ -1,9 +1,9 @@
 export const UCAPSA_TERMS_VERSION = '1.1';
 export const UCAPSA_LEGAL_EFFECTIVE_DATE = '2026-09-22';
 export const UCAPSA_PRIVACY_PUBLIC_URL =
-  'https://hrfecmviyiluubymsoeq.supabase.co/functions/v1/privacy-policy';
+  'https://github.com/JJCO2000/ucapsa-app/blob/main/docs/legal/AVISO_PRIVACIDAD_UCAPSA_APP.md';
 export const UCAPSA_ACCOUNT_DELETION_PUBLIC_URL =
-  'https://hrfecmviyiluubymsoeq.supabase.co/functions/v1/account-deletion-request';
+  'https://github.com/JJCO2000/ucapsa-app/blob/main/docs/legal/ELIMINAR_CUENTA_UCAPSA_APP.md';
 
 export type LegalSection = {
   title: string;
