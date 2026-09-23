@@ -30,6 +30,7 @@ export default function ClientLayout() {
       <Stack.Screen name="member-visits" options={{ title: 'Tus visitas' }} />
       <Stack.Screen name="activity-achievements" options={{ title: 'Insignias de actividad' }} />
       <Stack.Screen name="competition" options={{ title: 'Competencia UCAPSA' }} />
+      <Stack.Screen name="competition-dog" options={{ title: 'Detalle competitivo' }} />
       <Stack.Screen name="competition-ranking" options={{ title: 'Ranking UCAPSA' }} />
       <Stack.Screen name="competition-constancy" options={{ title: 'Constancia UCAPSA' }} />
       <Stack.Screen name="competition-exam-result" options={{ title: 'Resultado de examen' }} />
