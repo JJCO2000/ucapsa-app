@@ -31,11 +31,6 @@ export type DogProfileInput = {
   birth_date?: string | null;
   sex?: DogProfile['sex'];
   weight_kg?: number | null;
-  allergies?: string | null;
-  medications?: string | null;
-  feeding_notes?: string | null;
-  behavior_notes?: string | null;
-  notes?: string | null;
 };
 
 const DOG_PROFILE_COLUMNS = 'id,name,photo_path,breed,birth_date,sex,weight_kg,allergies,medications,feeding_notes,behavior_notes,veterinarian_name,veterinarian_phone,emergency_contact_name,emergency_contact_phone,notes,is_active,created_at,updated_at' as const;
@@ -153,11 +148,6 @@ export async function updateMyDogProfile(dogId: string, input: DogProfileInput):
     birth_date: normalizeNullableText(input.birth_date),
     sex: input.sex ?? null,
     weight_kg: weight,
-    allergies: normalizeNullableText(input.allergies),
-    medications: normalizeNullableText(input.medications),
-    feeding_notes: normalizeNullableText(input.feeding_notes),
-    behavior_notes: normalizeNullableText(input.behavior_notes),
-    notes: normalizeNullableText(input.notes),
   };
 
   const { data, error } = await supabase
