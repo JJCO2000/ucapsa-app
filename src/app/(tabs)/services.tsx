@@ -17,9 +17,6 @@ import { getMembershipEffectiveStatus, getMyMembership, type MembershipEffective
 import { DEFAULT_READ_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
 
 const whatsappUrl = ucapsaBrand.socialLinks.find((item) => item.key === 'whatsapp')?.url ?? 'https://wa.me/525522410679';
-const guestWhatsAppUrl = `${whatsappUrl}?text=${encodeURIComponent('Hola UCAPSA, vi la app y quiero saber que programa recomiendan para mi perro.')}`;
-const schoolUrl = 'https://www.ucapsa.mx/ucapsa-school';
-const trainingUrl = 'https://www.ucapsa.mx/ucapsa/entrenamientos';
 
 async function openExternal(url: string) {
   try {
@@ -136,9 +133,9 @@ export default function ServicesTab() {
           <GuestProof icon="trending-up" title="Ruta de entrenamiento" text="Programas y niveles que puedes recorrer en UCAPSA." />
         </View>
 
-        <GuestServiceCard icon="chat" title="1. Cuéntanos qué quieres mejorar" subtitle="Edad, paseo, obediencia, hábitos o convivencia: empieza con orientación directa de UCAPSA." onPress={() => void openExternal(guestWhatsAppUrl)} />
-        <GuestServiceCard icon="pets" title="2. Construir las bases" subtitle="UCAPSA School: aprende a comunicarte mejor y trabaja convivencia, hábitos y manejo." onPress={() => void openExternal(schoolUrl)} />
-        <GuestServiceCard icon="school" title="3. Entrenar y avanzar" subtitle="Entrenamiento guiado con niveles, seguimiento y trabajo en equipo humano-perro." onPress={() => void openExternal(trainingUrl)} />
+        <GuestServiceCard icon="chat" title="1. Cuéntanos qué quieres mejorar" subtitle="Edad, paseo, obediencia, hábitos o convivencia: conoce primero cómo puede orientarte UCAPSA." onPress={() => router.push('/guest-service?service=orientation' as never)} />
+        <GuestServiceCard icon="pets" title="2. Construir las bases" subtitle="UCAPSA School: aprende a comunicarte mejor y trabaja convivencia, hábitos y manejo." onPress={() => router.push('/guest-service?service=school' as never)} />
+        <GuestServiceCard icon="school" title="3. Entrenar y avanzar" subtitle="Entrenamiento guiado con niveles, seguimiento y trabajo en equipo humano-perro." onPress={() => router.push('/guest-service?service=training' as never)} />
         <GuestServiceCard icon="restaurant-menu" title="Menú del restaurante" subtitle="Consulta alimentos, bebidas, precios y disponibilidad." onPress={() => router.push('/restaurant' as never)} />
         <GuestServiceCard icon="rate-review" title="Escribir reseña en Google" subtitle="Ordena tu experiencia, copia el texto y abre Google Maps." onPress={() => router.push('/reviews' as never)} />
 

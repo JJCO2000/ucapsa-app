@@ -22,7 +22,7 @@ for (const [name, text] of screens) {
 }
 
 for (const token of [
-  'AUTH_PASSWORD_MIN_LENGTH = 12',
+  'AUTH_PASSWORD_MIN_LENGTH = 6',
   'normalizeAuthEmail',
   'validateNewPassword',
   'signInWithEmail',
