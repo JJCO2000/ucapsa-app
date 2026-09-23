@@ -15,6 +15,7 @@ const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 const app = JSON.parse(fs.readFileSync('app.json', 'utf8'));
 
 for (const token of [
+  "UCAPSA_TERMS_VERSION = '1.1'",
   'UCAPSA_PRIVACY_PUBLIC_URL',
   'UCAPSA_ACCOUNT_DELETION_PUBLIC_URL',
 ]) {
