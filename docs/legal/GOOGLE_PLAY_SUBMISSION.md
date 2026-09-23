@@ -16,10 +16,10 @@
 - [x] Sin venta de datos ni publicidad/tracking con la implementación actual.
 
 **Privacy Policy URL**  
-https://hrfecmviyiluubymsoeq.supabase.co/functions/v1/privacy-policy
+https://github.com/JJCO2000/ucapsa-app/blob/main/docs/legal/AVISO_PRIVACIDAD_UCAPSA_APP.md
 
 **Account deletion URL**  
-https://hrfecmviyiluubymsoeq.supabase.co/functions/v1/account-deletion-request
+https://github.com/JJCO2000/ucapsa-app/blob/main/docs/legal/ELIMINAR_CUENTA_UCAPSA_APP.md
 
 ## App content de Play Console
 
