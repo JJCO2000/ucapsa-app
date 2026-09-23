@@ -13,7 +13,7 @@ function read(rel) {
   return fs.readFileSync(full, 'utf8');
 }
 
-const home = read('src/app/(tabs)/admin-home.tsx');
+const clients = read('src/app/(tabs)/admin-clients.tsx');
 const layout = read('src/app/admin/_layout.tsx');
 const admin = read('src/app/admin/continuity.tsx');
 const summary = read('src/app/client/competition.tsx');
@@ -24,8 +24,8 @@ const offline = read('src/services/client-offline-sync.service.ts');
 const docs = read('docs/UCAPSA_CONTINUITY_EVIDENCE.md');
 const pkg = read('package.json');
 
-if (!/title="Continuidad"[\s\S]{0,220}\/admin\/continuity/.test(home)) {
-  failures.push('Admin Home no expone Continuidad como módulo dedicado.');
+if (!/title="Continuidad"[\s\S]{0,260}\/admin\/continuity/.test(clients)) {
+  failures.push('Clientes no expone Continuidad como módulo dedicado.');
 }
 if (!/name=["']continuity["']/.test(layout)) {
   failures.push('Admin layout no registra continuity.');
