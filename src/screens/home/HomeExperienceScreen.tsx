@@ -11,6 +11,11 @@ import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import { getHomeAnnouncements, rankHomeAnnouncements } from '../../services/announcements.service';
+import {
+  getCachedCompetitionHomeSummary,
+  refreshCompetitionHomeSummary,
+  type ClientCompetitionHomeSummary,
+} from '../../services/client-competition-home.service';
 import { readCustomerValueSnapshotCache, writeCustomerValueSnapshotCache } from '../../services/customer-value-cache.service';
 import { mergeCustomerValueSnapshotWithCache } from '../../services/customer-value-merge.service';
 import {
@@ -29,7 +34,7 @@ import {
 import { getCachedMyPracticeActivity, getMyPracticeActivity, type PracticeActivitySnapshot } from '../../services/practice.service';
 import type { Announcement } from '../../types/app.types';
 import { DEFAULT_READ_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
-import { ActivityCard, ContextNotice, ContextStrip, NextActionCard, ProgramCard } from './HomeCards';
+import { ActivityCard, CompetitionHomeCard, ContextNotice, ContextStrip, NextActionCard, ProgramCard } from './HomeCards';
 import {
   firstName,
   formatDate,
@@ -50,6 +55,7 @@ export default function HomeExperienceScreen() {
   const [practice, setPractice] = useState<PracticeActivitySnapshot | null>(null);
   const [targetDays, setTargetDays] = useState<PracticeTargetDay[]>(DEFAULT_PRACTICE_TARGET_DAYS);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [competitionSummary, setCompetitionSummary] = useState<ClientCompetitionHomeSummary | null>(null);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -75,6 +81,7 @@ export default function HomeExperienceScreen() {
       setPractice(null);
       setTargetDays(DEFAULT_PRACTICE_TARGET_DAYS);
       setAnnouncements([]);
+      setCompetitionSummary(null);
       setSelectedAnnouncement(null);
     }
 
@@ -86,10 +93,11 @@ export default function HomeExperienceScreen() {
 
     let cachedSnapshot: Awaited<ReturnType<typeof readCustomerValueSnapshotCache>> = null;
     if (user) {
-      const [savedSnapshot, savedPractice, savedTargetDays] = await Promise.all([
+      const [savedSnapshot, savedPractice, savedTargetDays, savedCompetition] = await Promise.all([
         readCustomerValueSnapshotCache(user.id),
         getCachedMyPracticeActivity(user.id),
         getPracticeTargetDays(user.id),
+        getCachedCompetitionHomeSummary(user.id),
       ]);
       if (!isCurrentRun()) return;
 
@@ -102,9 +110,24 @@ export default function HomeExperienceScreen() {
         setLoading(false);
       }
       if (savedPractice) setPractice(savedPractice);
+      if (savedCompetition) setCompetitionSummary(savedCompetition);
       setTargetDays(savedTargetDays);
     } else if (cachedAnnouncements.length > 0) {
       setLoading(false);
+    }
+
+    if (user) {
+      void withOperationTimeout(
+        refreshCompetitionHomeSummary(user.id),
+        DEFAULT_READ_TIMEOUT_MS,
+        'home-competition',
+      )
+        .then((nextCompetition) => {
+          if (isCurrentRun()) setCompetitionSummary(nextCompetition);
+        })
+        .catch(() => {
+          // La competencia es contexto adicional; nunca bloquea el Inicio.
+        });
     }
 
     const [announcementResult, snapshotResult, practiceResult, targetDaysResult] = await Promise.allSettled([
@@ -339,6 +362,14 @@ export default function HomeExperienceScreen() {
           onVisits={premium ? () => router.push('/client/member-visits' as never) : undefined}
           onPractices={() => router.push('/client/practice-activity' as never)}
           onQr={() => router.push('/attendance' as never)}
+        />
+      ) : null}
+
+      {!loading && user && competitionSummary ? (
+        <CompetitionHomeCard
+          summary={competitionSummary}
+          format={format}
+          onPress={() => router.push('/client/competition' as never)}
         />
       ) : null}
 
