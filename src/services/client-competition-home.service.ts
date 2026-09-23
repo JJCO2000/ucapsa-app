@@ -1,10 +1,12 @@
 import {
   getAccountCompetitionSeasons,
-  getCachedCompetitionLeaderboard,
   getCachedMyCompetitionAccount,
-  refreshCompetitionLeaderboard,
   refreshMyCompetitionAccount,
-} from './client-competition.service';
+} from './client-competition-account.service';
+import {
+  getCachedCompetitionLeaderboard,
+  refreshCompetitionLeaderboard,
+} from './client-competition-ranking.service';
 
 export type ClientCompetitionHomeDog = {
   dogId: string;
