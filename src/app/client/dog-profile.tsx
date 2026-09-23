@@ -19,11 +19,6 @@ type ProfileDraft = {
   birthDate: string;
   sex: DogSex;
   weight: string;
-  allergies: string;
-  medications: string;
-  feedingNotes: string;
-  behaviorNotes: string;
-  notes: string;
 };
 
 const EMPTY_DRAFT: ProfileDraft = {
@@ -32,11 +27,6 @@ const EMPTY_DRAFT: ProfileDraft = {
   birthDate: '',
   sex: null,
   weight: '',
-  allergies: '',
-  medications: '',
-  feedingNotes: '',
-  behaviorNotes: '',
-  notes: '',
 };
 
 function getParam(value: string | string[] | undefined) {
@@ -50,11 +40,6 @@ function draftFromProfile(profile: DogProfile): ProfileDraft {
     birthDate: profile.birth_date ?? '',
     sex: profile.sex,
     weight: profile.weight_kg == null ? '' : String(profile.weight_kg),
-    allergies: profile.allergies ?? '',
-    medications: profile.medications ?? '',
-    feedingNotes: profile.feeding_notes ?? '',
-    behaviorNotes: profile.behavior_notes ?? '',
-    notes: profile.notes ?? '',
   };
 }
 
@@ -134,11 +119,6 @@ export default function DogProfileScreen() {
           birth_date: birthDate,
           sex: draft.sex,
           weight_kg: weight,
-          allergies: draft.allergies,
-          medications: draft.medications,
-          feeding_notes: draft.feedingNotes,
-          behavior_notes: draft.behaviorNotes,
-          notes: draft.notes,
         }),
         DEFAULT_WRITE_TIMEOUT_MS,
         'dog-profile-save',
@@ -225,20 +205,8 @@ export default function DogProfileScreen() {
             <Field label="Peso (kg)" value={draft.weight} onChangeText={(value) => setField('weight', value)} premium={premium} placeholder="Ej. 24.5" keyboardType="decimal-pad" />
           </View>
 
-          <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
-            <Text style={[styles.sectionTitle, { color: format.cardText }]}>Salud y rutina</Text>
-            <Field label="Alergias" value={draft.allergies} onChangeText={(value) => setField('allergies', value)} premium={premium} placeholder="Si no tiene, déjalo vacío" multiline />
-            <Field label="Medicamentos" value={draft.medications} onChangeText={(value) => setField('medications', value)} premium={premium} placeholder="Medicamento, dosis u horario" multiline />
-            <Field label="Alimentación" value={draft.feedingNotes} onChangeText={(value) => setField('feedingNotes', value)} premium={premium} placeholder="Alimento, porciones, restricciones…" multiline />
-          </View>
 
-          <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
-            <Text style={[styles.sectionTitle, { color: format.cardText }]}>Conducta y notas</Text>
-            <Field label="Conducta" value={draft.behaviorNotes} onChangeText={(value) => setField('behaviorNotes', value)} premium={premium} placeholder="Miedos, reactividad, preferencias…" multiline />
-            <Field label="Notas adicionales" value={draft.notes} onChangeText={(value) => setField('notes', value)} premium={premium} placeholder="Información útil para su seguimiento" multiline />
-          </View>
-
-          <Text style={[styles.safetyNote, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Guardar aquí no cambia clases, logros, historial ni otros perros de tu cuenta.</Text>
+          <Text style={[styles.safetyNote, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Solo pedimos datos básicos del perro. Guardar aquí no cambia clases, logros, historial ni otros perros de tu cuenta.</Text>
 
           <View style={styles.buttonRow}>
             <Pressable
