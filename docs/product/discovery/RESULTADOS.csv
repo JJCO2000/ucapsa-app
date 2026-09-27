@@ -7,3 +7,4 @@ INT-005,,client_comandos_basic,,,,,,,,,,,,,,,
 INT-006,,client_comandos_other,,,,,,,,,,,,,,,
 INT-007,,member,,,,,,,,,,,,,,,
 INT-008,,lapsed_or_low_attendance,,,,,,,,,,,,,,,
+INT-010,2026-09-27,member,member,prototype,whatsapp_direct_contact,yes,yes,,,,,,,payment_visibility,"CAND-007|CAND-008","Soy una persona medio despistada y de esta forma yo no olvido cuándo tengo que hacer el pago, cuánto es lo que debo","Repetir historia real de pago con otro socio y observar si aparece aviso de ausencia sin sugerirlo"
