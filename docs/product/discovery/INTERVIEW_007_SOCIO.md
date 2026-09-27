@@ -66,3 +66,36 @@ Cerrar cuando sepamos:
 5. qué consecuencia tuvo encontrarla o no encontrarla.
 
 No profundizar después si esos cinco puntos ya están claros.
+
+
+## Respuesta — alternativa real para conocer servicios
+
+Ante la pregunta sobre la última vez que quiso saber qué servicios ofrecía UCAPSA:
+
+- no consultó la página;
+- preguntó directamente al personal de UCAPSA.
+
+### Evidencia — Dunford
+
+La alternativa real observada no es la web sino **preguntar a una persona de UCAPSA**.
+
+Esto indica que, al menos en este caso, la página no formó parte del recorrido de búsqueda.
+
+No concluir todavía que la web sea mala o innecesaria; sólo sabemos que no fue usada.
+
+## Pregunta pendiente para cerrar el bloque
+
+> ¿Qué querías decidir o hacer cuando nos preguntaste qué servicios ofrecía UCAPSA?
+
+Seguimiento sólo si hace falta:
+
+> ¿Con lo que te respondimos pudiste resolverlo o todavía te faltó algo?
+
+## Condición de cierre
+
+Cerrar el bloque cuando sepamos:
+1. para qué necesitaba la información;
+2. si preguntar al personal resolvió la necesidad;
+3. si quedó algo pendiente.
+
+No profundizar después de eso.
