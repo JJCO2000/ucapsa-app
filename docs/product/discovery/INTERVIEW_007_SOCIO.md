@@ -382,3 +382,38 @@ No corregirlo antes de responder.
 ### Condición de cierre
 
 Después de esta respuesta, cerrar definitivamente el bloque de métricas/actividad y pasar al siguiente objetivo de INT-007.
+
+
+## Cierre definitivo — métricas de actividad
+
+Ante la pregunta sobre qué elemento lo llevó a responder que le faltaban 2 clases, el socio indicó:
+
+> “El número 2 de Tu actividad.”
+
+### Diagnóstico confirmado para INT-007
+
+La causa observada del error fue el **total histórico de clases** mostrado en “Tu actividad”.
+
+El usuario interpretó ese valor como información útil para responder cuántas clases le faltaban en el programa actual, pese a que la tarjeta superior mostraba “0/6” para Comandos Básico.
+
+Esto confirma dentro de INT-007 que:
+
+- “Tu actividad” compite visual/semánticamente con el progreso del programa;
+- el total histórico no está suficientemente diferenciado del progreso actual;
+- la ambigüedad produjo una respuesta incorrecta.
+
+**Bloque cerrado. No hacer más preguntas sobre esta ambigüedad en INT-007.**
+
+## Último bloque — siguiente acción
+
+Objetivo: comprobar si el socio puede identificar qué le toca después sin explicación.
+
+Pregunta/tarea:
+
+> Sin que yo te diga dónde tocar, dime qué es lo siguiente que tienes que hacer con Tuka.
+
+Condición de cierre:
+- si identifica correctamente la próxima clase/siguiente acción, cerrar el bloque;
+- si no, hacer una sola pregunta diagnóstica sobre qué parte de la pantalla utilizó.
+
+Después de este bloque, cerrar INT-007 salvo que aparezca un problema nuevo y crítico.
