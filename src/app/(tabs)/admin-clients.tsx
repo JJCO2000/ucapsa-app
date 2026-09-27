@@ -7,6 +7,7 @@ import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import { getActiveDogNamesByUserIds } from '../../services/dogs.service';
+import { getAdminClientFollowupRows } from '../../services/admin-client-followups.service';
 import { getAdminClientProfiles } from '../../services/profiles.service';
 import type { Profile } from '../../types/app.types';
 import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
@@ -24,6 +25,7 @@ export default function AdminClientsTab() {
   const intent: ClientIntent = params.intent === 'attendance' ? 'attendance' : params.intent === 'payments' ? 'payments' : 'default';
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [dogNamesByUser, setDogNamesByUser] = useState<Record<string, string[]>>({});
+  const [followupDogNamesByUser, setFollowupDogNamesByUser] = useState<Record<string, string[]>>({});
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<ClientFilter>('all');
   const [loading, setLoading] = useState(true);
@@ -36,12 +38,21 @@ export default function AdminClientsTab() {
     setError(null);
     const result = await withOperationTimeout((async () => {
       const profileRows = await getAdminClientProfiles();
-      const nextDogNames = await getActiveDogNamesByUserIds(profileRows.map((item) => item.user_id));
-      return { profileRows, nextDogNames };
+      const [nextDogNames, followups] = await Promise.all([
+        getActiveDogNamesByUserIds(profileRows.map((item) => item.user_id)),
+        getAdminClientFollowupRows(),
+      ]);
+      const nextFollowupDogNames = followups.reduce<Record<string, string[]>>((acc, row) => {
+        acc[row.userId] = acc[row.userId] ?? [];
+        if (!acc[row.userId].includes(row.dogName)) acc[row.userId].push(row.dogName);
+        return acc;
+      }, {});
+      return { profileRows, nextDogNames, nextFollowupDogNames };
     })(), DEFAULT_READ_TIMEOUT_MS, 'admin-clients-load');
 
     setProfiles(result.profileRows);
     setDogNamesByUser(result.nextDogNames);
+    setFollowupDogNamesByUser(result.nextFollowupDogNames);
     setHasData(true);
   }, [isAdmin]);
 
@@ -146,13 +157,29 @@ export default function AdminClientsTab() {
       {!loading && hasData && rows.length === 0 ? <View style={styles.empty}><MaterialIcons name="person-search" size={32} color={ucapsaBrand.colors.redDark} /><Text style={styles.emptyTitle}>Sin resultados</Text><Text style={styles.muted}>Prueba otro nombre o filtro.</Text></View> : null}
 
       <View style={styles.list}>
-        {rows.map((profile, index) => (
-          <Pressable key={profile.id} style={[styles.row, index === rows.length - 1 && styles.rowLast]} onPress={() => openClient(profile)}>
-            <View style={[styles.avatar, { backgroundColor: profile.avatar_color || ucapsaBrand.colors.red }]}><Text style={styles.avatarText}>{(profile.full_name || profile.email || 'U').slice(0, 1).toUpperCase()}</Text></View>
-            <View style={{ flex: 1 }}><Text style={styles.name}>{profile.full_name || 'Sin nombre'}</Text><Text style={styles.meta}>{profile.email || profile.phone || 'Sin contacto'}</Text>{(dogNamesByUser[profile.user_id] ?? []).length > 0 ? <Text style={styles.dogs}>Perros: {(dogNamesByUser[profile.user_id] ?? []).join(', ')}</Text> : null}<Text style={styles.role}>{labelForRole(profile.role)}</Text></View>
-            <MaterialIcons name="chevron-right" size={24} color={ucapsaBrand.colors.redDark} />
-          </Pressable>
-        ))}
+        {rows.map((profile, index) => {
+          const followupDogs = followupDogNamesByUser[profile.user_id] ?? [];
+          const needsFollowup = followupDogs.length > 0;
+          return (
+            <Pressable
+              key={profile.id}
+              style={[styles.row, needsFollowup && styles.rowFollowup, index === rows.length - 1 && styles.rowLast]}
+              onPress={() => openClient(profile)}
+            >
+              <View style={[styles.avatar, { backgroundColor: needsFollowup ? ucapsaBrand.colors.danger : (profile.avatar_color || ucapsaBrand.colors.red) }]}>
+                <Text style={styles.avatarText}>{(profile.full_name || profile.email || 'U').slice(0, 1).toUpperCase()}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.name}>{profile.full_name || 'Sin nombre'}</Text>
+                <Text style={styles.meta}>{profile.email || profile.phone || 'Sin contacto'}</Text>
+                {(dogNamesByUser[profile.user_id] ?? []).length > 0 ? <Text style={styles.dogs}>Perros: {(dogNamesByUser[profile.user_id] ?? []).join(', ')}</Text> : null}
+                {needsFollowup ? <Text style={styles.followupText}>Seguimiento: {followupDogs.join(', ')}</Text> : null}
+                <Text style={styles.role}>{labelForRole(profile.role)}</Text>
+              </View>
+              <MaterialIcons name="chevron-right" size={24} color={needsFollowup ? ucapsaBrand.colors.danger : ucapsaBrand.colors.redDark} />
+            </Pressable>
+          );
+        })}
       </View>
     </KeyboardAwareScreen>
   );
@@ -221,11 +248,13 @@ const styles = StyleSheet.create({
   emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '900' },
   list: { borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.premiumMuted },
+  rowFollowup: { backgroundColor: ucapsaBrand.colors.dangerSoft, borderLeftWidth: 4, borderLeftColor: ucapsaBrand.colors.danger },
   rowLast: { borderBottomWidth: 0 },
   avatar: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: ucapsaBrand.colors.surface, fontSize: 16, fontWeight: '900' },
   name: { color: ucapsaBrand.colors.text, fontSize: 15, fontWeight: '900' },
   meta: { color: ucapsaBrand.colors.muted, fontSize: 12, marginTop: 2 },
   dogs: { color: ucapsaBrand.colors.text, fontSize: 11, fontWeight: '800', marginTop: 3 },
+  followupText: { color: ucapsaBrand.colors.danger, fontSize: 11, lineHeight: 16, fontWeight: '900', marginTop: 3 },
   role: { color: ucapsaBrand.colors.redDark, fontSize: 11, fontWeight: '900', marginTop: 3 },
 });
