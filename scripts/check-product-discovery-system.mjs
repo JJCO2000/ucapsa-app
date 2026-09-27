@@ -1,0 +1,64 @@
+import fs from 'node:fs';
+
+const root = 'docs/product/discovery/';
+const files = {
+  readme: fs.readFileSync(root + 'README.md', 'utf8'),
+  ost: fs.readFileSync(root + 'OST_UCAPSA.md', 'utf8'),
+  guide: fs.readFileSync(root + 'GUIA_ENTREVISTA.md', 'utf8'),
+  snapshot: fs.readFileSync(root + 'INTERVIEW_SNAPSHOT_TEMPLATE.md', 'utf8'),
+  papa: fs.readFileSync(root + 'INTERVIEW_001_PAPA.md', 'utf8'),
+  results: fs.readFileSync(root + 'RESULTADOS.csv', 'utf8'),
+};
+
+for (const token of [
+  'April Dunford',
+  'Teresa Torres',
+  'Regla de evidencia',
+  'INT-001',
+]) {
+  if (!files.readme.includes(token)) throw new Error('Discovery README missing: ' + token);
+}
+
+for (const token of [
+  'Que el cliente pueda saber por sí mismo',
+  'OPORTUNIDADES CONFIRMADAS',
+  '[vacío hasta que exista evidencia]',
+  'No añadir soluciones antes de identificar la oportunidad',
+]) {
+  if (!files.ost.includes(token)) throw new Error('OST guard missing: ' + token);
+}
+
+for (const token of [
+  'Si UCAPSA App no existiera',
+  'Prueba de comprensión de Home',
+  'Prueba de tareas',
+  'Confianza',
+  'Matriz de diagnóstico',
+  '¿Te gusta la app?',
+]) {
+  if (!files.guide.includes(token)) throw new Error('Interview guide missing: ' + token);
+}
+
+for (const token of [
+  'Alternativa actual — Dunford',
+  'Oportunidades candidatas',
+  'Evidencia que lo contradice',
+  'Próxima prueba',
+]) {
+  if (!files.snapshot.includes(token)) throw new Error('Snapshot template missing: ' + token);
+}
+
+for (const token of [
+  'Estado: preparada, no realizada',
+  'No mezclar ambas capas',
+  'Hipótesis previas',
+  'No llenar.',
+]) {
+  if (!files.papa.includes(token)) throw new Error('INT-001 anti-bias guard missing: ' + token);
+}
+
+if (!files.results.startsWith('interview_id,date,segment')) {
+  throw new Error('Results register schema changed unexpectedly.');
+}
+
+console.log('UCAPSA product discovery system: PASS');
