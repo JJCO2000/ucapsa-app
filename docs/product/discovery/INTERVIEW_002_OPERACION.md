@@ -45,7 +45,7 @@ Ya existe un caso real en curso:
 - el equipo no tiene acceso directo al dato;
 - están esperando a que Secretaría responda cuando vuelva a estar disponible o a que la clienta llegue con la información que Secretaría le haya enviado previamente.
 
-Esto demuestra bloqueo operativo real en al menos un episodio, pero todavía falta medir duración, frecuencia y consecuencia económica/experiencial.
+Esto demuestra fricción operativa real en al menos un episodio, pero no necesariamente un bloqueo total: el equipo aplica distintas compensaciones según el tipo de cliente y la situación.
 
 ## Alternativa actual — Dunford
 
@@ -85,7 +85,7 @@ Aún no realizada.
 
 | Candidato | Evidencia exacta | Intensidad | Frecuencia conocida | ID provisional |
 |---|---|---|---|---|
-| El personal necesita consultar información operativa sin depender de preguntarle a una sola persona | Deudas, salidas de hotel y programación de clases se consultan preguntando a Secretaría/Administración. Caso real: saldo de clienta bloqueado porque Secretaría está en su día libre y no puede contactarse | alta | múltiples ejemplos + 1 bloqueo real dentro de 1 entrevista | CAND-001 |
+| El personal necesita consultar información operativa sin depender de preguntarle a una sola persona | Deudas, salidas de hotel y programación de clases se consultan preguntando a Secretaría/Administración. Caso real: saldo de clienta inaccesible porque Secretaría está en su día libre; el equipo compensa esperando, difiriendo el cobro o aproximando el saldo según el caso | alta | múltiples ejemplos + 1 caso real dentro de 1 entrevista | CAND-001 |
 | El personal necesita una fuente oficial única para saber si la información está actualizada | Secretaría/Administración funciona hoy como fuente confiable de facto | media-alta potencial | 1 entrevista | CAND-002 |
 
 No convertir todavía en oportunidades confirmadas.
@@ -110,19 +110,36 @@ Esto es una interpretación, no una conclusión confirmada.
 
 No implica todavía que la solución sea “un CRM”. La solución puede ser UCAPSA App, un panel web interno, un módulo de hotel, un CRM externo o una combinación. Primero debe precisarse qué información necesita cada rol, quién la actualiza y cuál debe ser la fuente oficial.
 
+## Respuesta al caso de saldo sin Secretaría
+
+La reacción depende del tipo de cliente y del nivel de confianza:
+
+- si es socio o cliente de confianza, el saldo puede quedar pendiente para la siguiente visita;
+- si no, pueden hacerlo esperar;
+- en el caso actual, el equipo puede aproximar el saldo y cobrar con base en esa aproximación.
+
+Esto muestra que la ausencia del dato genera **variación de proceso**: la respuesta no es única ni totalmente sistematizada.
+
+### Riesgos/efectos a comprobar
+
+- cobro aproximado versus saldo real;
+- saldo diferido a próxima visita;
+- tiempo de espera;
+- tratamiento distinto por tipo de cliente;
+- necesidad de corrección posterior;
+- conciliación administrativa.
+
+No asumir todavía que estos efectos producen pérdida económica. Debe medirse.
+
 ## Próxima pregunta obligatoria
 
-> Si esa señora llegara ahorita y Secretaría todavía no hubiera respondido, ¿qué harían exactamente?
-
-Después, sin sugerir respuestas:
-
-> ¿La harían esperar, cobrarían una cantidad aproximada, se iría sin pagar, buscarían el dato en otro lado o qué pasaría realmente?
+> Cuando aproximan un saldo para cobrar, ¿cómo calculan esa aproximación y qué hacen después para comprobar si cobraron de más o de menos?
 
 ### Qué buscamos con esa pregunta
 
-- consecuencia operativa exacta;
-- riesgo de cobro incorrecto;
-- tiempo de espera del cliente;
-- posibilidad de perder el cobro;
-- existencia de una fuente alternativa real;
-- severidad del problema.
+- fuente usada para aproximar;
+- margen de error;
+- proceso de conciliación;
+- existencia de controles posteriores;
+- posibilidad de cobrar de más o de menos;
+- tiempo administrativo adicional.
