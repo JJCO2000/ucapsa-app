@@ -217,3 +217,98 @@ Condición de cierre:
 - conocer la consecuencia si el dato no está disponible.
 
 Después de alcanzar esto, cerrar Bloque A y pasar a adherencia de sistemas.
+
+
+## Continuación — control de calidad del internado
+
+El propietario describe un proceso de control de calidad para perros en internado/entrenamiento.
+
+### Proceso esperado por nivel
+
+- cada nivel dura **4 semanas**;
+- en la **tercera semana** el perro debería dominar los ejercicios del nivel;
+- la **cuarta semana** se usa para pulir, mecanizar y dar claridad a los comandos;
+- por eso, el control de calidad debería ocurrir en la tercera semana, antes de la entrega final.
+
+Ejemplo expresado:
+
+> “Juan, vas a sacar el perro. [...] A la tercera semana el perro ya debe de saber hacer todo.”
+
+La evaluación consiste en que el entrenador muestre el perro y el responsable compruebe si realmente cumple el nivel.
+
+### Problema actual
+
+El propietario reporta que han intentado delegar esa revisión:
+
+> “Ale, vas a checar a Juan.”
+
+Pero el seguimiento no se mantiene de forma consistente: puede hacerse una vez y luego dejar de repetirse.
+
+Consecuencia conceptual señalada por el propietario:
+
+> “Si no lo evalúo y lo dejo que se lo entregue al cliente, no tengo control de calidad.”
+
+### Hipótesis de solución expresada por el entrevistado
+
+El propietario propuso espontáneamente:
+
+> un sistema que avise cuándo toca evaluar cada perro, por ejemplo en la tercera semana de cada nivel.
+
+**No tratar el recordatorio como requisito validado.** La necesidad subyacente es asegurar que la evaluación ocurra a tiempo y de forma consistente.
+
+### CAND-011 — observación
+
+> Operación necesita asegurar que cada perro del internado sea evaluado en el punto correcto del nivel antes de entregarlo al cliente.
+
+Evidencia:
+- proceso definido por semanas;
+- evaluación necesaria para control de calidad;
+- seguimiento delegado que se degrada con el tiempo.
+
+Estado: observación con alta relevancia operativa.
+
+---
+
+## Cierre del Bloque A — visibilidad del cuidado en la sede inferior
+
+Ante la pregunta sobre cómo sabe si los perros comieron, fueron bañados y están bien cuando él no está:
+
+- **Alejandra supervisa** esa operación;
+- desde la sede superior no existe una forma directa de consultar ese estado;
+- para conocerlo deben:
+  - contactar a Alejandra; o
+  - trasladarse físicamente a la otra sede.
+
+El propietario indica que ya casi no baja personalmente porque:
+- necesita permanecer entrenando/atendiendo en la sede superior;
+- el tráfico entre ambas zonas puede volver el traslado muy lento;
+- un viaje operativo puede consumir una parte sustancial del día.
+
+Por esta razón, gran parte de la atención a clientes se concentra ahora en la sede superior.
+
+### Diagnóstico de CAND-009
+
+La fuente actual de verdad para el cuidado cotidiano en la sede inferior es **Alejandra + observación física**.
+
+El problema no es necesariamente que el cuidado falle; el problema es que la visibilidad del propietario depende de una persona o de un traslado físico.
+
+**Objetivo del bloque alcanzado. No profundizar más en cómo se consulta el estado básico salvo que aparezca un incidente concreto nuevo.**
+
+---
+
+## Siguiente bloque — control de calidad del internado
+
+Objetivo:
+reconstruir un caso real donde la evaluación de tercera semana no se haya realizado a tiempo y conocer la consecuencia.
+
+Pregunta:
+
+> Cuéntame la última vez que un perro llegó a la tercera semana y no se evaluó cuando tocaba. ¿Qué pasó después?
+
+Condición de cierre:
+- saber si realmente ocurre;
+- saber qué consecuencia produjo;
+- saber cómo se detectó;
+- saber si se corrigió antes o después de la entrega.
+
+Después de eso, cerrar el bloque de control de calidad y pasar al siguiente proceso.
