@@ -33,7 +33,8 @@ sin depender de preguntar a UCAPSA.
 │   └── [vacío hasta que exista evidencia]
 │
 ├── OPORTUNIDADES EN OBSERVACIÓN
-│   └── [vacío; registrar primero en snapshots]
+│   ├── CAND-001 Personal necesita consultar información operativa sin depender de una sola persona (INT-002)
+│   └── CAND-002 Personal necesita una fuente oficial y actualizada para confiar en los datos operativos (INT-002)
 │
 └── SOLUCIONES
     └── No añadir soluciones antes de identificar la oportunidad.
@@ -61,7 +62,8 @@ Las segundas son soluciones.
 
 | ID | Oportunidad | Estado | Evidencia | Segmentos | Frecuencia observada | Impacto | Próxima prueba |
 |---|---|---|---|---|---:|---|---|
-| — | Aún no hay oportunidades confirmadas | — | — | — | — | — | Completar INT-001 |
+| CAND-001 | Consultar información operativa sin depender de una sola persona | observación | INT-002: deudas, hotel y programación se consultan a Secretaría/Administración | operación/admin | 1 entrevista, múltiples ejemplos | alta potencial, sin medir | reconstruir un episodio de indisponibilidad y medir consultas durante 1 semana |
+| CAND-002 | Tener una fuente oficial y actualizada para confiar en datos operativos | observación | INT-002: Secretaría/Administración funciona como fuente confiable de facto | operación/admin | 1 entrevista | media-alta potencial | preguntar por qué confía en esa fuente y qué necesitaría para confiar en el sistema |
 
 ## Árbol de soluciones
 
