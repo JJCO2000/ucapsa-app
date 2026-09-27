@@ -433,3 +433,110 @@ Durante la entrevista surgió, desde el equipo entrevistador, la idea de usar **
 Esta es una **hipótesis de solución**, no evidencia del entrevistado.
 
 Debe evaluarse separadamente contra CAND-013 y la arquitectura existente App ↔ Supabase ↔ CRM.
+
+
+## Bloque F — cambio de mando después del internado
+
+El propietario describe una fase del servicio llamada **cambio de mando**.
+
+Objetivo operativo:
+- transferir al cliente la forma exacta en que UCAPSA trabajó con el perro;
+- enseñar al cliente señales, movimientos, manejo de correa, voz y mecánica;
+- evitar que exista una brecha entre el nivel alcanzado por el perro y la capacidad del propietario para mantener ese desempeño.
+
+Explicación del entrevistado:
+- el perro puede salir del internado con un nivel superior al del manejador;
+- si el cliente utiliza señales o mecánicas distintas, puede disminuir la consistencia del comportamiento;
+- por eso el cliente debe aprender a reproducir el manejo usado durante el entrenamiento.
+
+### CAND-014 — observación
+
+> El cliente necesita salir del internado sabiendo reproducir de forma consistente las señales y manejo necesarios para conservar el desempeño entrenado del perro.
+
+Estado: observación desde propietario/operación; validar directamente con clientes que hayan pasado por cambio de mando.
+
+No convertir todavía en "videos dentro de la app" o "curso digital". Esas serían soluciones.
+
+---
+
+## Bloque G — seguimiento post-internado y resolución remota
+
+Proceso actual descrito:
+
+1. el perro se entrega;
+2. aproximadamente tres días después el propietario envía un WhatsApp preguntando cómo va;
+3. si existe un problema, se ofrecen dos rutas:
+   - el cliente manda un video para revisión remota;
+   - el cliente acude a practicar presencialmente.
+
+El entrevistado distingue dos comportamientos:
+- clientes a quienes les gusta entrenar tienden a preferir práctica presencial;
+- clientes cuyo objetivo es principalmente control pueden preferir resolución remota por distancia.
+
+### Refinamiento de CAND-013
+
+La necesidad no es únicamente "recordar contactar".
+
+También incluye:
+- saber cuándo toca el seguimiento;
+- conservar el contexto del caso;
+- registrar la respuesta;
+- decidir siguiente acción;
+- dar continuidad aunque cambie la persona que atiende;
+- soportar evidencia remota (por ejemplo, video) cuando la distancia dificulta regresar.
+
+El CRM se mantiene como hipótesis de solución para esta capa relacional.
+
+---
+
+## Bloque H — mantenimiento del entrenamiento
+
+El propietario plantea que, una vez terminado el proceso, el entrenamiento requiere práctica/mantenimiento.
+
+Alternativas de servicio que menciona:
+- que el propietario regrese a algunas clases;
+- que el perro vuelva por un periodo de mantenimiento en internado.
+
+La intención de negocio es:
+- conservar el desempeño alcanzado;
+- mantener relación con clientes después del servicio inicial;
+- generar continuidad y eventualmente servicios recurrentes, incluido hotel.
+
+### CAND-015 — hipótesis de oportunidad
+
+> El cliente necesita saber cómo mantener en el tiempo lo aprendido por su perro y cuándo conviene realizar práctica o una revisión de mantenimiento.
+
+Estado: **hipótesis desde propietario/negocio**, no validada todavía en clientes.
+
+### Hipótesis comercial relacionada
+
+UCAPSA podría estructurar una etapa post-servicio de:
+- seguimiento;
+- cambio de mando;
+- práctica;
+- mantenimiento;
+- reactivación anual o periódica.
+
+No fijar todavía "15 días una vez al año" como regla universal: esa frecuencia necesita criterios técnicos y validación del servicio.
+
+---
+
+## Implicación general del journey de internado
+
+Hasta ahora aparece un ciclo potencial:
+
+```
+Ingreso
+→ estancia / cuidado
+→ entrenamiento por niveles
+→ control de calidad semana 3
+→ pulido semana 4
+→ cambio de mando
+→ entrega
+→ seguimiento ~3 días
+→ resolución presencial o remota
+→ mantenimiento
+→ nueva necesidad / siguiente servicio
+```
+
+Este journey debe mapearse antes de definir Staff App, automatizaciones o CRM.
