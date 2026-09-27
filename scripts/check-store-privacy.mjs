@@ -17,7 +17,7 @@ const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 const app = JSON.parse(fs.readFileSync('app.json', 'utf8'));
 
 for (const token of [
-  "UCAPSA_TERMS_VERSION = '1.1'",
+  "UCAPSA_TERMS_VERSION = '1.2'",
   'UCAPSA_PRIVACY_PUBLIC_URL',
   'UCAPSA_ACCOUNT_DELETION_PUBLIC_URL',
 ]) {
@@ -71,7 +71,7 @@ if (!continuity.includes('recordValueExposure')) {
 for (const token of [
   'Analítica interna de continuidad',
   'ELIMINAR_CUENTA_UCAPSA_APP.md',
-  'Versión 1.1 App Stores',
+  'Versión 1.2 App Stores',
 ]) {
   if (!notice.includes(token)) throw new Error('Privacy notice v1.1 missing: ' + token);
 }
