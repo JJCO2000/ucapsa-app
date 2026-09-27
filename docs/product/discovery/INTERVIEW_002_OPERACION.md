@@ -37,14 +37,22 @@ La respuesta de Secretaría/Administración funciona como fuente de información
 
 **Consecuencia si no puede obtener la respuesta**
 
-Pendiente de comprobar con un episodio concreto. No asumir impacto hasta reconstruir una historia donde Secretaría/Administración no estuviera disponible o tardara en responder.
+Ya existe un caso real en curso:
+
+- necesitan conocer el saldo de una clienta;
+- Secretaría está en su día libre;
+- no pueden contactarla por teléfono ni WhatsApp;
+- el equipo no tiene acceso directo al dato;
+- están esperando a que Secretaría responda cuando vuelva a estar disponible o a que la clienta llegue con la información que Secretaría le haya enviado previamente.
+
+Esto demuestra fricción operativa real en al menos un episodio, pero no necesariamente un bloqueo total: el equipo aplica distintas compensaciones según el tipo de cliente y la situación.
 
 ## Alternativa actual — Dunford
 
 - **Alternativa usada:** conocimiento y respuesta de Secretaría/Administración.
 - **Apareció espontáneamente:** Sí.
-- **Qué valora de esa alternativa:** pendiente.
-- **Qué le molesta:** dependencia de una persona para obtener información operativa.
+- **Qué valora de esa alternativa:** Secretaría suele funcionar como fuente confiable de la información.
+- **Qué le molesta:** dependencia de una persona para obtener información operativa; si no está disponible, se espera o se reconstruye el dato desde memoria/mensajes.
 - **Por qué confía/desconfía:** pendiente.
 
 ## Frases / contenido reportado
@@ -77,7 +85,7 @@ Aún no realizada.
 
 | Candidato | Evidencia exacta | Intensidad | Frecuencia conocida | ID provisional |
 |---|---|---|---|---|
-| El personal necesita consultar información operativa sin depender de preguntarle a una sola persona | Deudas, salidas de hotel y programación de clases se consultan preguntando a Secretaría/Administración | alta potencial, pendiente de medir | múltiples ejemplos dentro de 1 entrevista | CAND-001 |
+| El personal necesita consultar información operativa sin depender de preguntarle a una sola persona | Deudas, salidas de hotel y programación de clases se consultan preguntando a Secretaría/Administración. Caso real: saldo de clienta inaccesible porque Secretaría está en su día libre; el equipo compensa esperando, difiriendo el cobro o aproximando el saldo según el caso | alta | múltiples ejemplos + 1 caso real dentro de 1 entrevista | CAND-001 |
 | El personal necesita una fuente oficial única para saber si la información está actualizada | Secretaría/Administración funciona hoy como fuente confiable de facto | media-alta potencial | 1 entrevista | CAND-002 |
 
 No convertir todavía en oportunidades confirmadas.
@@ -102,16 +110,59 @@ Esto es una interpretación, no una conclusión confirmada.
 
 No implica todavía que la solución sea “un CRM”. La solución puede ser UCAPSA App, un panel web interno, un módulo de hotel, un CRM externo o una combinación. Primero debe precisarse qué información necesita cada rol, quién la actualiza y cuál debe ser la fuente oficial.
 
-## Próxima pregunta obligatoria
+## Respuesta al caso de saldo sin Secretaría
 
-> Piensa en la última vez que necesitabas uno de esos datos y Secretaría/Administración no estaba disponible o tardó en responder. ¿Qué necesitabas saber, cuánto esperaste y qué pasó por no tener la información en ese momento?
+La reacción depende del tipo de cliente y del nivel de confianza:
 
-### Qué buscamos con esa pregunta
+- si es socio o cliente de confianza, el saldo puede quedar pendiente para la siguiente visita;
+- si no, pueden hacerlo esperar;
+- en el caso actual, el equipo puede aproximar el saldo y cobrar con base en esa aproximación.
 
-- impacto real de la dependencia;
-- frecuencia;
-- tiempo perdido;
-- decisiones retrasadas;
-- riesgo de error;
-- si existe otra fuente alternativa;
-- si el problema es acceso, actualización o confianza.
+Esto muestra que la ausencia del dato genera **variación de proceso**: la respuesta no es única ni totalmente sistematizada.
+
+### Riesgos/efectos a comprobar
+
+- cobro aproximado versus saldo real;
+- saldo diferido a próxima visita;
+- tiempo de espera;
+- tratamiento distinto por tipo de cliente;
+- necesidad de corrección posterior;
+- conciliación administrativa.
+
+No asumir todavía que estos efectos producen pérdida económica. Debe medirse.
+
+## Respuesta sobre aproximación y conciliación
+
+Cuando falta el saldo exacto, el equipo puede estimarlo a partir de una tarifa conocida y los días/servicios correspondientes. Ejemplo reportado: una tarifa de aproximadamente $480 multiplicada por el número de días, para llegar a una cifra aproximada.
+
+La comprobación posterior no sigue un proceso único y consistente:
+
+- a veces el cliente avisa si la cantidad no coincide;
+- a veces el equipo corrige posteriormente;
+- otras veces no hay una conciliación formal visible en el momento.
+
+### Qué demuestra este bloque
+
+- existe una alternativa operativa para seguir atendiendo;
+- esa alternativa depende de estimación/memoria y no del saldo canónico;
+- la corrección posterior no parece seguir un flujo uniforme;
+- por lo tanto, el problema observado es de **acceso oportuno a información operativa y consistencia de proceso**, no necesariamente de bloqueo total.
+
+### Estado del objetivo de este bloque
+
+**Objetivo alcanzado.**
+
+Ya conocemos:
+1. fuente habitual de la información;
+2. alternativa cuando la fuente humana no está disponible;
+3. caso real;
+4. comportamiento compensatorio;
+5. consecuencia operativa;
+6. mecanismo aproximado de resolución;
+7. ausencia de conciliación uniforme.
+
+No seguir profundizando en este tema salvo que aparezca evidencia contradictoria en otra entrevista.
+
+## Siguiente bloque
+
+Pasar a **comprensión y valor percibido de UCAPSA App**.

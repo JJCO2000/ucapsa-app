@@ -4,6 +4,29 @@
 **Modo:** conversación; no leer como encuesta.  
 **Regla:** pedir historias concretas y evitar vender o explicar la app durante la primera mitad.
 
+## Regla de cierre por bloque
+
+Cada bloque de la entrevista debe tener un objetivo y una condición de salida.
+
+**No seguir preguntando cuando ya podamos responder el objetivo del bloque con evidencia suficiente.**
+
+### Criterio práctico de cierre
+
+Cerrar el bloque cuando sepamos, como mínimo:
+
+- qué ocurrió realmente;
+- qué necesitaba resolver;
+- qué hizo para resolverlo;
+- qué alternativa usó;
+- qué costo/consecuencia tuvo;
+- qué parte sigue incierta.
+
+No profundizar sólo porque existan más preguntas posibles.
+
+Si una respuesta adicional no cambia una decisión, un diagnóstico o una hipótesis relevante, **no hacerla**.
+
+Pasar al siguiente bloque.
+
 ## Preparación
 
 Registrar antes de empezar:
