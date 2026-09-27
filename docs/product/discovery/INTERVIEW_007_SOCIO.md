@@ -229,3 +229,53 @@ Condición de cierre:
 - saber el método anterior;
 - saber si implicaba preguntar, recordar o revisar otra fuente;
 - saber si la app sustituye o complementa ese método.
+
+
+## Cierre del bloque — alternativa previa / control de clases
+
+Ante la pregunta sobre cómo sabía antes cuántas clases llevaba y cuántas le faltaban, el socio respondió que **antes de la app no sabía cuántas le faltaban**.
+
+### Implicación — Dunford
+
+En este trabajo concreto, UCAPSA App no sustituye claramente una herramienta previa; crea una capacidad que antes no estaba disponible de forma visible para el socio:
+
+> conocer cuántas clases lleva y cuántas le faltan.
+
+### Hallazgo adicional espontáneo — QR / check-in
+
+El socio también mencionó espontáneamente el valor del check-in/QR y el control de asistencias.
+
+Ejemplo expresado:
+
+> si alguien quiere reponer una clase, ¿cómo se sabe si realmente vino o no?
+
+### Interpretación provisional
+
+Aparece una segunda forma de valor:
+
+1. **visibilidad para el socio:** saber cuántas clases lleva y cuántas faltan;
+2. **evidencia operativa:** disponer de un registro de asistencia verificable para resolver dudas sobre reposiciones y asistencia.
+
+No convertir todavía el segundo punto en oportunidad confirmada; surgió en una sola entrevista.
+
+### Candidata nueva
+
+**CAND-004 — Socios y operación necesitan un registro verificable de asistencia para saber qué clases se tomaron y resolver reposiciones/discrepancias.**
+
+Estado: observación.
+
+## Estado del bloque
+
+**Objetivo alcanzado.**
+
+Ya sabemos:
+- qué hacía antes: no tenía visibilidad clara;
+- qué capacidad nueva aporta la app: conteo/progreso de clases;
+- qué valor produce: información de primera mano;
+- qué utilidad adicional apareció espontáneamente: prueba/registro de asistencia mediante check-in/QR.
+
+No profundizar más en este bloque.
+
+## Siguiente bloque
+
+Pasar a **qué sigue / siguiente acción**, para comprobar si el socio entiende o necesita algo más allá del conteo de clases.
