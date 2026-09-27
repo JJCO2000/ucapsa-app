@@ -99,3 +99,42 @@ Cerrar el bloque cuando sepamos:
 3. si quedó algo pendiente.
 
 No profundizar después de eso.
+
+
+## Respuesta — objetivo concreto
+
+El socio quería información de **hotel**, específicamente:
+
+- precio;
+- disponibilidad;
+- condiciones necesarias para poder decidir/reservar.
+
+La ruta reportada fue:
+
+1. preguntó directamente al personal de UCAPSA;
+2. según recuerda el entrevistador, probablemente se le indicó que consultara con Alejandra;
+3. por lo tanto, la información no se resolvió necesariamente en el primer punto de contacto.
+
+### Nota de certeza
+
+El entrevistador no está 100% seguro de que este episodio corresponda exactamente a este socio. Se conserva como evidencia **probable**, no como hecho confirmado.
+
+### Interpretación provisional
+
+Esto refuerza TOPIC-001: el socio busca entender servicios concretos para tomar una decisión.
+
+En el caso de hotel, la necesidad no es sólo “conocer que existe”, sino acceder a información operativa útil:
+
+- cuánto cuesta;
+- si hay disponibilidad;
+- qué necesita para reservar.
+
+La alternativa observada sigue siendo **preguntar a personas de UCAPSA**.
+
+## Última pregunta para cerrar este bloque
+
+> ¿Al final sí conseguiste el precio y la disponibilidad del hotel y pudiste decidir/reservar, o se quedó pendiente?
+
+## Condición de cierre
+
+Con esa respuesta se cierra el bloque de descubrimiento de servicios para INT-007.
