@@ -1,8 +1,8 @@
 # Aviso de Privacidad — UCAPSA App
 
-**Versión:** 1.1 App Stores  
-**Vigencia:** 22 de septiembre de 2026  
-**Responsable:** Universidad de Crianza y Adiestramiento Peruano, S.A. de C.V.  
+**Versión:** 1.2 App Stores  
+**Vigencia:** 27 de septiembre de 2026  
+**Responsable:** Universidad de Crianza y Adiestramiento S.A. de C.V.  
 **Área de privacidad/ARCO:** Administración de UCAPSA  
 **Correo:** ucapsa84@gmail.com  
 **Domicilio:** Privada de Tetenco #5, Colonia San Miguel Topilejo, C.P. 14500, Alcaldía Tlalpan, Ciudad de México, México.  
@@ -11,14 +11,14 @@
 
 ## Aviso simplificado
 
-Universidad de Crianza y Adiestramiento Peruano, S.A. de C.V., con domicilio en Privada de Tetenco #5, Colonia San Miguel Topilejo, C.P. 14500, Alcaldía Tlalpan, Ciudad de México, México, es responsable de los datos tratados mediante UCAPSA App. La app utiliza datos de identificación y contacto, cuenta y dispositivo, información básica de los perros, registros operativos de clases, asistencias, membresías, logros y pagos administrativos, así como determinadas interacciones con funciones de Competencia/Constancia para analítica interna de continuidad y mejora del servicio. No se utilizan para publicidad ni se venden. No se solicitan datos personales sensibles. El aviso integral y los medios para ejercer derechos ARCO se encuentran dentro de la app y en https://github.com/JJCO2000/ucapsa-app/blob/main/docs/legal/AVISO_PRIVACIDAD_UCAPSA_APP.md.
+Universidad de Crianza y Adiestramiento S.A. de C.V., con domicilio en Privada de Tetenco #5, Colonia San Miguel Topilejo, C.P. 14500, Alcaldía Tlalpan, Ciudad de México, México, es responsable de los datos tratados mediante UCAPSA App. La app utiliza datos de identificación y contacto, cuenta y dispositivo, información básica de los perros, registros operativos de clases, asistencias, membresías, logros y pagos administrativos, así como determinadas interacciones con funciones de Competencia/Constancia para analítica interna de continuidad y mejora del servicio. No se utilizan para publicidad ni se venden. No se solicitan datos personales sensibles. El aviso integral y los medios para ejercer derechos ARCO se encuentran dentro de la app y en https://github.com/JJCO2000/ucapsa-app/blob/main/docs/legal/AVISO_PRIVACIDAD_UCAPSA_APP.md.
 
 ## Aviso integral
 
 AVISO DE PRIVACIDAD INTEGRAL DE UCAPSA APP
 
 1. Responsable
-Universidad de Crianza y Adiestramiento Peruano, S.A. de C.V. (“UCAPSA”), con domicilio en Privada de Tetenco #5, Colonia San Miguel Topilejo, C.P. 14500, Alcaldía Tlalpan, Ciudad de México, México, es responsable del tratamiento de los datos personales recabados mediante UCAPSA App. El área que atiende privacidad y derechos ARCO es Administración de UCAPSA. Correo: ucapsa84@gmail.com.
+Universidad de Crianza y Adiestramiento S.A. de C.V. (“UCAPSA”), con domicilio en Privada de Tetenco #5, Colonia San Miguel Topilejo, C.P. 14500, Alcaldía Tlalpan, Ciudad de México, México, es responsable del tratamiento de los datos personales recabados mediante UCAPSA App. El área que atiende privacidad y derechos ARCO es Administración de UCAPSA. Correo: ucapsa84@gmail.com.
 
 2. Alcance y personas usuarias
 Este aviso aplica al tratamiento realizado mediante UCAPSA App para clientes, socios y personas usuarias con cuenta. En esta versión, únicamente las personas de 18 años o más pueden crear una cuenta. UCAPSA no solicita fecha de nacimiento de la persona usuaria para esta finalidad; se registra una declaración de mayoría de edad.
@@ -75,7 +75,7 @@ UCAPSA aplica controles de acceso, autenticación, reglas de seguridad en base d
 Los cambios al aviso se comunicarán mediante la versión publicada dentro de UCAPSA App y en https://github.com/JJCO2000/ucapsa-app/blob/main/docs/legal/AVISO_PRIVACIDAD_UCAPSA_APP.md. Cuando el cambio sea material y resulte razonable, UCAPSA también podrá comunicarlo mediante un aviso dentro de la app o al correo asociado a la cuenta antes de que el nuevo tratamiento sea aplicable.
 
 16. Versión y vigencia
-Versión 1.1 App Stores. Vigente a partir del 22 de septiembre de 2026. Marco principal: Ley Federal de Protección de Datos Personales en Posesión de los Particulares, texto vigente con última reforma publicada en el DOF el 14 de noviembre de 2025.
+Versión 1.2 App Stores. Vigente a partir del 27 de septiembre de 2026. Marco principal: Ley Federal de Protección de Datos Personales en Posesión de los Particulares, texto vigente con última reforma publicada en el DOF el 14 de noviembre de 2025.
 
 17. Analítica interna de continuidad
 UCAPSA registra de forma vinculada a la cuenta la exposición a determinadas superficies de Competencia/Constancia, incluyendo el perro, temporada y fecha/hora de la interacción. Estos hechos pueden relacionarse internamente con actividad y pagos posteriores para medir continuidad y evaluar el valor de las funciones. Esta analítica no se utiliza para publicidad dirigida, venta de datos ni tracking entre aplicaciones o sitios de terceros.
