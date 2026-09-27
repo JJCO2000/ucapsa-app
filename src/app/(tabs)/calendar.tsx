@@ -638,6 +638,14 @@ export default function CalendarScreen() {
                       const isCancelled = Boolean(occurrence.cancellation);
                       const title = formatProgramScheduleName(occurrence.schedule, occurrence.program);
                       const detail = formatProgramScheduleDetailLabel(occurrence.schedule);
+                      const rosterRows = isAdmin
+                        ? getAdminClassRosterRows(adminProgramRows, occurrence.schedule.id, occurrence.dateKey)
+                        : [];
+                      const commandCounts = getAdminCommandLevelCounts(rosterRows);
+                      const rosterState = openRoster?.occurrenceId === occurrence.id ? openRoster : null;
+                      const visibleRoster = rosterState
+                        ? filterAdminClassRoster(rosterRows, rosterState.level)
+                        : [];
 
                       return (
                         <Pressable
@@ -647,7 +655,13 @@ export default function CalendarScreen() {
                             styles.classChildCard,
                             { backgroundColor: isCancelled ? ucapsaBrand.colors.graySoft : theme.background, borderColor: isCancelled ? ucapsaBrand.colors.redBorder : theme.border },
                           ]}
-                          onPress={isAdmin ? () => router.push(`/admin/class-cancellations?date=${occurrence.dateKey}` as never) : undefined}
+                          onPress={isAdmin
+                            ? () => setOpenRoster((current) =>
+                                current?.occurrenceId === occurrence.id
+                                  ? null
+                                  : { occurrenceId: occurrence.id, level: 'all' },
+                              )
+                            : undefined}
                         >
                           <View style={[styles.classIconSmall, { backgroundColor: isCancelled ? ucapsaBrand.colors.premiumMuted : theme.iconBackground }]}>
                             <MaterialIcons name={isCancelled ? 'event-busy' : 'event-note'} size={18} color={isCancelled ? ucapsaBrand.colors.red : theme.accent} />
@@ -656,7 +670,8 @@ export default function CalendarScreen() {
                             <Text style={[styles.classTitle, { color: isCancelled ? ucapsaBrand.colors.mutedNeutral : theme.title, textDecorationLine: isCancelled ? 'line-through' : 'none' }]}>{title}</Text>
                             <Text style={[styles.classText, { color: isCancelled ? ucapsaBrand.colors.mutedNeutral : theme.text }]}>{occurrence.program?.name ?? 'Clase'} - {detail}</Text>
                             {isCancelled ? <Text style={styles.cancelledText}>Clase cancelada{occurrence.cancellation?.reason ? ` - ${occurrence.cancellation.reason}` : ''}</Text> : null}
-                            {isAdmin ? <Text style={[styles.classHint, { color: isCancelled ? ucapsaBrand.colors.red : theme.accent }]}>{isCancelled ? 'Tocar para ver cancelaciones' : 'Tocar para cancelar o administrar esta fecha'}</Text> : null}
+                            {isAdmin ? <Text style={styles.rosterCount}>{rosterRows.length} inscrito{rosterRows.length === 1 ? '' : 's'} para esta clase</Text> : null}
+                            {isAdmin ? <Text style={[styles.classHint, { color: isCancelled ? ucapsaBrand.colors.red : theme.accent }]}>{rosterState ? 'Tocar para ocultar inscritos' : 'Tocar para ver inscritos'}</Text> : null}
                           </View>
                           {isAdmin ? <MaterialIcons name="chevron-right" size={22} color={isCancelled ? ucapsaBrand.colors.red : theme.accent} /> : null}
                         </Pressable>
