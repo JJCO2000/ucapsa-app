@@ -35,7 +35,8 @@ sin depender de preguntar a UCAPSA.
 ├── OPORTUNIDADES EN OBSERVACIÓN
 │   ├── CAND-001 Personal necesita consultar información operativa sin depender de una sola persona (INT-002)
 │   ├── CAND-002 Personal necesita una fuente oficial y actualizada para confiar en los datos operativos (INT-002)
-│   └── CAND-004 Socios/operación necesitan un registro verificable de asistencia para clases y reposiciones (INT-007)
+│   ├── CAND-004 Socios/operación necesitan un registro verificable de asistencia para clases y reposiciones (INT-007)
+│   └── CAND-005 Usuario necesita distinguir programa actual, historial de clases, visitas de socio y prácticas (INT-007)
 │
 └── SOLUCIONES
     └── No añadir soluciones antes de identificar la oportunidad.
@@ -66,6 +67,7 @@ Las segundas son soluciones.
 | CAND-001 | Consultar información operativa sin depender de una sola persona | observación | INT-002: deudas, hotel y programación se consultan a Secretaría/Administración | operación/admin | 1 entrevista, múltiples ejemplos | alta potencial, sin medir | reconstruir un episodio de indisponibilidad y medir consultas durante 1 semana |
 | CAND-002 | Tener una fuente oficial y actualizada para confiar en datos operativos | observación | INT-002: Secretaría/Administración funciona como fuente confiable de facto | operación/admin | 1 entrevista | media-alta potencial | preguntar por qué confía en esa fuente y qué necesitaría para confiar en el sistema |
 | CAND-004 | Tener un registro verificable de asistencia para resolver clases tomadas y reposiciones | observación | INT-007: menciona espontáneamente check-in/QR y necesidad de saber si alguien realmente asistió antes de reponer una clase | socio/operación | 1 entrevista | alta potencial | buscar el mismo problema en otra entrevista y observar un caso real de reposición |
+| CAND-005 | Distinguir programa actual, historial de clases, visitas de socio y prácticas | observación | INT-007: confunde visita con clase y elige “2 clases” histórico antes que “0/6” del programa activo | socio | 1 entrevista | media-alta potencial | preguntar cuántas clases faltan viendo la pantalla y repetir con otro usuario |
 
 ## Árbol de soluciones
 
