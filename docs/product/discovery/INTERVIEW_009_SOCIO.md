@@ -90,3 +90,83 @@ Cerrar el bloque cuando sepamos:
 - qué beneficio recuerda;
 - si responde en términos de resultado o de funciones;
 - si ese beneficio le resulta relevante.
+
+
+## Bloque 2 — comprensión de UCAPSA App
+
+### Primera impresión visual
+
+El socio comentó espontáneamente que el color morado le recuerda a la "4T" y que asocia más a UCAPSA con un rojo más encendido.
+
+Se registra como señal de branding, no como problema de producto confirmado.
+
+### Qué entendió al explorar
+
+Al ver Comandos y sus niveles, el socio generó espontáneamente una expectativa de mayor profundidad formativa:
+
+- evaluar qué ejercicios sabe hacer el perro;
+- ubicar si corresponde a Básico, Intermedio o Avanzado;
+- seleccionar un nivel;
+- encontrar explicación de ejercicios;
+- tips;
+- posiblemente una clase grabada.
+
+Después de usar la app indicó que sí pudo ubicar Comandos con facilidad, pero que debería quedar más claro el alcance real de esa sección, porque podría esperar contenido formativo que hoy no existe.
+
+### Diagnóstico provisional
+
+La app comunica correctamente que existen programas/niveles, pero **no delimita con suficiente claridad qué puede hacer el usuario dentro de ellos**.
+
+Esto crea una brecha de expectativa:
+
+> "veo Comandos y niveles" → "espero evaluación/aprendizaje/contenido" → la app en realidad ofrece seguimiento, asistencia, historial y navegación del programa.
+
+No convertir todavía esta expectativa en requisito de videos, tips o autoevaluación. Primero validar si el patrón se repite.
+
+### Candidata nueva
+
+**CAND-006 — El usuario necesita entender claramente qué puede hacer dentro de cada programa para no esperar capacidades formativas que la app no ofrece.**
+
+Estado: observación.
+
+## Hallazgo replicado — métricas de actividad
+
+El socio expresó confusión al ver valores de clases y prácticas/actividad:
+
+> "¿Cómo puedes tener solo dos clases y cinco actividades?"
+
+No entendió si:
+- una clase contiene varias actividades;
+- "actividad" es otra cosa;
+- las cifras pertenecen al mismo tipo de seguimiento.
+
+### Conclusión de evidencia
+
+Este patrón replica INT-007.
+
+Por lo tanto, **CAND-005 deja de ser una observación aislada y pasa a oportunidad confirmada**:
+
+> El usuario necesita distinguir claramente progreso del programa actual, historial de clases, visitas de socio y prácticas.
+
+Evidencia:
+- INT-007: confusión entre clases/visitas + respuesta incorrecta al calcular clases faltantes.
+- INT-009: confusión independiente entre clases y prácticas/actividad.
+
+## Estado del bloque
+
+El objetivo de comprensión ya está cubierto:
+- sabemos qué creyó que hacía la app;
+- sabemos qué expectativas creó;
+- sabemos qué sí pudo ubicar;
+- detectamos una confusión repetida en métricas.
+
+No profundizar más en métricas ni contenido formativo dentro de este bloque.
+
+## Última pregunta de valor
+
+> Ahora que ya la usaste un poco, ¿para qué te serviría a ti realmente esta app?
+
+Condición de cierre:
+- identificar el beneficio real que él considera útil;
+- si no encuentra ninguno, registrarlo;
+- no pedir funciones nuevas después de su respuesta.
