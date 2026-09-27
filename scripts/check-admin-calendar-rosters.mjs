@@ -23,11 +23,12 @@ for (const token of [
   'Ver inscritos',
   'Administrar fecha',
   'Última asistencia',
-  'Básico',
-  'Intermedio',
-  'Avanzado',
 ]) {
   if (!calendar.includes(token)) throw new Error('Admin calendar roster UI missing: ' + token);
+}
+
+for (const token of ['Básico', 'Intermedio', 'Avanzado']) {
+  if (!service.includes(token)) throw new Error('Admin roster level label missing: ' + token);
 }
 
 console.log('UCAPSA admin calendar rosters: PASS');
