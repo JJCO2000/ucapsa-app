@@ -35,7 +35,9 @@ sin depender de preguntar a UCAPSA.
 ├── OPORTUNIDADES EN OBSERVACIÓN
 │   ├── CAND-001 Personal necesita consultar información operativa sin depender de una sola persona (INT-002)
 │   ├── CAND-002 Personal necesita una fuente oficial y actualizada para confiar en los datos operativos (INT-002)
-│   └── CAND-006 Usuario necesita entender claramente qué puede hacer dentro de cada programa (INT-009)
+│   ├── CAND-006 Usuario necesita entender claramente qué puede hacer dentro de cada programa (INT-009)
+│   ├── CAND-007 Cliente necesita consultar estado/historial de pagos sin depender de una persona (INT-010; apoyo INT-002)
+│   └── CAND-008 Cliente podría necesitar avisar una ausencia desde la app sin recurrir a WhatsApp (INT-010)
 │
 └── SOLUCIONES
     └── No añadir soluciones antes de identificar la oportunidad.
@@ -67,6 +69,8 @@ Las segundas son soluciones.
 | CAND-002 | Tener una fuente oficial y actualizada para confiar en datos operativos | observación | INT-002: Secretaría/Administración funciona como fuente confiable de facto | operación/admin | 1 entrevista | media-alta potencial | preguntar por qué confía en esa fuente y qué necesitaría para confiar en el sistema |
 | CAND-005 | Distinguir progreso actual, historial de clases, visitas de socio y prácticas | **confirmada** | INT-007 + INT-009: dos socios independientes confundieron las métricas; INT-007 además respondió incorrectamente cuántas clases faltaban | socio | 2 entrevistas independientes | alta | diseñar una solución y probar comprensión sin cambiar todavía el modelo de datos |
 | CAND-006 | Entender claramente qué puede hacer dentro de cada programa y qué no ofrece la app | observación | INT-009: al ver Comandos/niveles esperaba evaluación, tips, ejercicios o clase grabada | socio | 1 entrevista | media potencial | repetir prueba con otro usuario sin explicar el alcance |
+| CAND-007 | Consultar estado e historial de pagos de forma directa y confiable | observación | INT-010: envía comprobantes a Alejandra y consulta qué está pagado/no pagado; INT-002 aporta evidencia operativa relacionada con deuda/saldos concentrados en Secretaría | socio + operación | 1 entrevista cliente + apoyo cruzado | alta potencial | reconstruir una historia de pago con otro socio sin sugerir la app |
+| CAND-008 | Informar una ausencia/cambio de asistencia sin abrir WhatsApp | observación | INT-010: preguntó espontáneamente si podía avisar desde la app que no asistiría a la siguiente sesión | socio | 1 entrevista | media potencial | observar si otro cliente intenta resolver la misma tarea espontáneamente |
 
 ## Árbol de soluciones
 
