@@ -4859,6 +4859,23 @@ export type Database = {
           next_enrollment_id: string | null
         }[]
       }
+      get_admin_client_followups: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string | null
+          dog_id: string
+          dog_name: string
+          inactive_30d: boolean
+          inactivity_days: number
+          last_attendance_date: string | null
+          puppy_completed_on: string | null
+          puppy_days_since_completion: number
+          puppy_no_continuity: boolean
+          user_id: string
+        }[]
+      }
       get_admin_training_decision_history: {
         Args: { p_limit?: number }
         Returns: {
