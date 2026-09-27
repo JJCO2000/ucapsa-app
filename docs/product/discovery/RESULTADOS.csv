@@ -1,0 +1,9 @@
+interview_id,date,segment,program_or_role,uses_app,alternative_current,home_value_understood,value_relevant,task_next_class,task_attendance,task_next_step,task_achievement,task_competition,trusts_without_external_confirmation,primary_diagnosis,candidate_opportunity_ids,key_quote,next_test
+INT-001,,owner_admin,,,,,,,,,,,,,,,
+INT-002,,admin_instructor,,,,,,,,,,,,,,,
+INT-003,,client_puppy,,,,,,,,,,,,,,,
+INT-004,,client_puppy,,,,,,,,,,,,,,,
+INT-005,,client_comandos_basic,,,,,,,,,,,,,,,
+INT-006,,client_comandos_other,,,,,,,,,,,,,,,
+INT-007,,member,,,,,,,,,,,,,,,
+INT-008,,lapsed_or_low_attendance,,,,,,,,,,,,,,,
