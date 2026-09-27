@@ -30,14 +30,12 @@ qué le toca → cómo va → qué sigue
 sin depender de preguntar a UCAPSA.
 
 ├── OPORTUNIDADES CONFIRMADAS
-│   └── [vacío hasta que exista evidencia]
+│   └── CAND-005 Usuario necesita distinguir progreso actual, historial, visitas y prácticas (INT-007 + INT-009)
 │
 ├── OPORTUNIDADES EN OBSERVACIÓN
 │   ├── CAND-001 Personal necesita consultar información operativa sin depender de una sola persona (INT-002)
-│   └── CAND-002 Personal necesita una fuente oficial y actualizada para confiar en los datos operativos (INT-002)
-│
-├── OPORTUNIDADES CONFIRMADAS
-│   └── CAND-005 Usuario necesita distinguir progreso actual, historial, visitas y prácticas (INT-007 + INT-009)
+│   ├── CAND-002 Personal necesita una fuente oficial y actualizada para confiar en los datos operativos (INT-002)
+│   └── CAND-006 Usuario necesita entender claramente qué puede hacer dentro de cada programa (INT-009)
 │
 └── SOLUCIONES
     └── No añadir soluciones antes de identificar la oportunidad.
@@ -63,15 +61,12 @@ Las segundas son soluciones.
 
 ## Registro de oportunidades
 
-| CAND-005 | Distinguir progreso actual, historial de clases, visitas de socio y prácticas | **confirmada** | INT-007 + INT-009: dos socios independientes confundieron las métricas; INT-007 además respondió incorrectamente cuántas clases faltaban | socio | 2 entrevistas independientes | alta | diseñar una solución y probar comprensión sin cambiar todavía el modelo de datos |
-| CAND-006 | Entender claramente qué puede hacer dentro de cada programa y qué no ofrece la app | observación | INT-009: al ver Comandos/niveles esperaba evaluación, tips, ejercicios o clase grabada | socio | 1 entrevista | media potencial | repetir prueba con otro usuario sin explicar el alcance |
-
-
-
 | ID | Oportunidad | Estado | Evidencia | Segmentos | Frecuencia observada | Impacto | Próxima prueba |
 |---|---|---|---|---|---:|---|---|
 | CAND-001 | Consultar información operativa sin depender de una sola persona | observación | INT-002: deudas, hotel y programación se consultan a Secretaría/Administración | operación/admin | 1 entrevista, múltiples ejemplos | alta potencial, sin medir | reconstruir un episodio de indisponibilidad y medir consultas durante 1 semana |
 | CAND-002 | Tener una fuente oficial y actualizada para confiar en datos operativos | observación | INT-002: Secretaría/Administración funciona como fuente confiable de facto | operación/admin | 1 entrevista | media-alta potencial | preguntar por qué confía en esa fuente y qué necesitaría para confiar en el sistema |
+| CAND-005 | Distinguir progreso actual, historial de clases, visitas de socio y prácticas | **confirmada** | INT-007 + INT-009: dos socios independientes confundieron las métricas; INT-007 además respondió incorrectamente cuántas clases faltaban | socio | 2 entrevistas independientes | alta | diseñar una solución y probar comprensión sin cambiar todavía el modelo de datos |
+| CAND-006 | Entender claramente qué puede hacer dentro de cada programa y qué no ofrece la app | observación | INT-009: al ver Comandos/niveles esperaba evaluación, tips, ejercicios o clase grabada | socio | 1 entrevista | media potencial | repetir prueba con otro usuario sin explicar el alcance |
 
 ## Árbol de soluciones
 
