@@ -163,3 +163,36 @@ Sí hay evidencia de que la información útil para decidir no estaba disponible
 ## Siguiente bloque
 
 Pasar a **comprensión y valor de UCAPSA App para el socio**, sin explicarle previamente la propuesta de valor.
+
+
+## Prueba de comprensión de Home
+
+Ante la pregunta:
+
+> ¿Para qué crees que sirve esta app?
+
+El socio respondió:
+
+> “Para ver tu asistencia, cuántas clases llevas, cuántas te faltan.”
+
+### Clasificación
+
+- **Comprensión:** parcial pero correcta.
+- **Tipo de respuesta:** beneficio/resultado, no sólo lista de funciones.
+- **Valor percibido espontáneamente:** seguimiento de asistencia y avance cuantitativo de clases.
+- **No mencionó espontáneamente:** próxima clase, logros, siguiente paso, pagos/membresía, servicios.
+
+No interpretar la ausencia de estos elementos como falta de valor todavía; sólo significa que no fueron lo primero que comprendió en 10–15 segundos.
+
+## Última pregunta para cerrar el bloque de valor
+
+> De eso que entendiste —ver cuántas clases llevas y cuántas te faltan—, ¿eso te sirve realmente a ti? ¿Por qué?
+
+### Condición de cierre
+
+Cerrar el bloque cuando sepamos si el beneficio comprendido es:
+- relevante;
+- irrelevante;
+- útil sólo en ciertos momentos.
+
+No profundizar más después de conocer el porqué.
