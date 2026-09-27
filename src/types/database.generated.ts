@@ -4860,17 +4860,17 @@ export type Database = {
         }[]
       }
       get_admin_client_followups: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
-          customer_email: string | null
+          customer_email: string
           customer_name: string
-          customer_phone: string | null
+          customer_phone: string
           dog_id: string
           dog_name: string
           inactive_30d: boolean
           inactivity_days: number
-          last_attendance_date: string | null
-          puppy_completed_on: string | null
+          last_attendance_date: string
+          puppy_completed_on: string
           puppy_days_since_completion: number
           puppy_no_continuity: boolean
           user_id: string
