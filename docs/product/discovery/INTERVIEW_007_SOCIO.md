@@ -138,3 +138,28 @@ La alternativa observada sigue siendo **preguntar a personas de UCAPSA**.
 ## Condición de cierre
 
 Con esa respuesta se cierra el bloque de descubrimiento de servicios para INT-007.
+
+
+## Cierre del bloque — servicios / hotel
+
+El socio sí obtuvo finalmente la información de hotel a través de Alejandra.
+
+### Resultado
+
+- necesidad: conocer precio/disponibilidad del hotel para decidir;
+- primer canal: preguntar al personal de UCAPSA;
+- derivación: Alejandra;
+- resolución: Alejandra proporcionó la información;
+- consecuencia: la necesidad sí se resolvió.
+
+### Diagnóstico del bloque
+
+No hay evidencia de que el socio quedara sin servicio o abandonara la decisión.
+
+Sí hay evidencia de que la información útil para decidir no estaba disponible en el primer punto de contacto y requirió escalar a una persona específica.
+
+**Objetivo del bloque alcanzado. No profundizar más en hotel/servicios dentro de esta entrevista salvo que aparezca evidencia contradictoria.**
+
+## Siguiente bloque
+
+Pasar a **comprensión y valor de UCAPSA App para el socio**, sin explicarle previamente la propuesta de valor.
