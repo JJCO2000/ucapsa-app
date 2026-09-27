@@ -8,6 +8,8 @@ const files = {
   snapshot: fs.readFileSync(root + 'INTERVIEW_SNAPSHOT_TEMPLATE.md', 'utf8'),
   papa: fs.readFileSync(root + 'INTERVIEW_001_PAPA.md', 'utf8'),
   results: fs.readFileSync(root + 'RESULTADOS.csv', 'utf8'),
+  int002: fs.readFileSync(root + 'INTERVIEW_002_OPERACION.md', 'utf8'),
+  opsResearch: fs.readFileSync(root + 'RESEARCH_OPERATIONS_SYSTEM.md', 'utf8'),
 };
 
 for (const token of [
@@ -59,6 +61,27 @@ for (const token of [
 
 if (!files.results.startsWith('interview_id,date,segment')) {
   throw new Error('Results register schema changed unexpectedly.');
+}
+
+for (const token of [
+  'CAND-001',
+  'No convertir todavía en oportunidades confirmadas',
+  'Próxima pregunta obligatoria',
+]) {
+  if (!files.int002.includes(token)) throw new Error('INT-002 evidence guard missing: ' + token);
+}
+
+for (const token of [
+  'Single Source of Truth',
+  'No comprar todavía HubSpot/Salesforce/MoeGo/Gingr',
+  'hotel / boarding / hospedaje',
+  'Consultas a Secretaría',
+]) {
+  if (!files.opsResearch.includes(token)) throw new Error('Operations research guard missing: ' + token);
+}
+
+if (!files.ost.includes('CAND-001') || !files.ost.includes('observación')) {
+  throw new Error('INT-002 must remain an observed candidate in the OST until more evidence exists.');
 }
 
 console.log('UCAPSA product discovery system: PASS');
