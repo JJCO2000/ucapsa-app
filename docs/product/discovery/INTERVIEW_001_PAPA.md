@@ -312,3 +312,124 @@ Condición de cierre:
 - saber si se corrigió antes o después de la entrega.
 
 Después de eso, cerrar el bloque de control de calidad y pasar al siguiente proceso.
+
+
+## Resultado del bloque — evaluación omitida / control de calidad
+
+Ante la pregunta sobre qué ocurre si un perro llega a la tercera semana y no se evalúa cuando corresponde, el propietario explicó la consecuencia operacional:
+
+> “Nos arriesgamos a que el perro no vaya con la calidad de entrenamiento.”
+
+La consecuencia puede aparecer después de la entrega cuando el cliente reporta:
+
+> “Oiga, pero mi perro no funciona.”
+
+La respuesta de UCAPSA es asumir la garantía y pedir que el perro permanezca **una semana adicional** para corregir/pulir el entrenamiento.
+
+### Qué sí sabemos ahora
+
+- omitir la evaluación aumenta el riesgo de entregar un resultado por debajo del estándar esperado;
+- el fallo puede detectarse después de la entrega, a través del cliente;
+- UCAPSA absorbe el retrabajo mediante una semana adicional de garantía;
+- el control de calidad previo busca demostrar que el perro ejecuta los ejercicios, no sólo asumirlo.
+
+### Qué NO quedó demostrado todavía
+
+El entrevistado respondió con el mecanismo y la consecuencia general, no identificó un caso reciente concreto por nombre/fecha. Por ello no registrar una frecuencia ni cuantificar pérdidas todavía.
+
+### Estado de CAND-011
+
+CAND-011 queda **fuertemente sustentada como necesidad operativa**, pero sin frecuencia cuantificada:
+
+> asegurar la evaluación de tercera semana antes de la entrega para reducir retrabajo, garantía correctiva y riesgo de insatisfacción.
+
+No seguir profundizando en el mismo mecanismo durante esta entrevista salvo que aparezca espontáneamente un caso concreto.
+
+---
+
+## Bloque D — responsabilidad, iniciativa y trabajo en equipo
+
+El propietario identifica una fricción recurrente entre empleados:
+
+- algunas personas operan bajo “eso no me toca”;
+- cuando una tarea queda pendiente, el siguiente turno puede enfocarse en quién tuvo la culpa;
+- la iniciativa individual varía de forma fuerte entre personas;
+- existen roces entre compañeros por limpieza y responsabilidades.
+
+Ejemplo relatado:
+- tras un descanso de un empleado, otra persona encuentra perreras sucias y atribuye el pendiente al turno anterior;
+- en contraste, otro empleado repara por iniciativa propia una podadora y una carretilla sin que se lo pidan.
+
+### Mitigación actual
+
+La semana anterior se realizó una charla de trabajo en equipo orientada a:
+- dejar de buscar culpables;
+- ayudarse entre compañeros;
+- verse como un equipo.
+
+El propietario reporta haber usado capacitaciones y pláticas similares en el pasado, pero describe un patrón:
+
+> el aprendizaje/entusiasmo inicial no siempre se mantiene en el tiempo.
+
+### CAND-012 — observación
+
+> Operación necesita que responsabilidades, pendientes y handoffs entre empleados sean visibles y sostenibles, para reducir el patrón “no me toca / fue el otro turno”.
+
+**Importante:** esto puede ser principalmente un problema de gestión, cultura e incentivos. No asumir que una app o CRM lo resuelve.
+
+---
+
+## Bloque E — seguimiento y acompañamiento al cliente
+
+El propietario describe un proceso manual de acompañamiento durante y después del internado:
+
+### Durante la estancia
+
+Al ingresar un perro:
+- se presenta personalmente como responsable/consejero;
+- comunica al cliente que enviará un video de avances cada jueves o viernes;
+- los clientes llegan a esperar activamente ese video semanal.
+
+### Después de la salida
+
+El cliente pasa a “seguimiento” en WhatsApp.
+
+El propietario envía mensajes posteriores como:
+
+> “Solamente para saber cómo va Jack.”
+
+El objetivo declarado es:
+- que el cliente perciba que UCAPSA sigue disponible;
+- brindar acompañamiento;
+- favorecer satisfacción y recomendación.
+
+### Riesgo operacional observable
+
+El seguimiento vive principalmente en conversaciones y acciones manuales. La continuidad depende de:
+- que alguien recuerde contactar;
+- que el historial pueda reconstruirse en WhatsApp;
+- que el siguiente responsable conozca qué se prometió, qué se envió y qué respondió el cliente.
+
+### CAND-013 — observación
+
+> El equipo necesita un historial compartido de seguimiento del cliente y una siguiente acción visible para que el acompañamiento no dependa de memoria ni de una sola conversación/persona.
+
+### Hipótesis de negocio expresada por el propietario
+
+El propietario considera que acompañamiento y seguimiento pueden impulsar recomendaciones y recurrencia.
+
+Registrar como hipótesis estratégica; todavía no atribuir causalidad sin datos.
+
+---
+
+## Nota de solución externa — CRM
+
+Durante la entrevista surgió, desde el equipo entrevistador, la idea de usar **Pipedrive** u otro CRM para centralizar:
+- historial de cliente;
+- mensajes/seguimientos;
+- próxima acción;
+- responsables.
+
+Esta es una **hipótesis de solución**, no evidencia del entrevistado.
+
+Debe evaluarse separadamente contra CAND-013 y la arquitectura existente App ↔ Supabase ↔ CRM.
