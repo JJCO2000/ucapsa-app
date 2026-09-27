@@ -170,3 +170,28 @@ Condición de cierre:
 - identificar el beneficio real que él considera útil;
 - si no encuentra ninguno, registrarlo;
 - no pedir funciones nuevas después de su respuesta.
+
+
+## Nota de ideación del equipo — NO es evidencia de entrevista
+
+Durante el proceso surgió una idea de negocio independiente:
+
+> crear una sección de promociones/beneficios para socios, similar conceptualmente a programas de beneficios bancarios, donde UCAPSA pueda mostrar servicios propios o de terceros.
+
+Modelos posibles a investigar:
+- beneficio/descuento exclusivo para socios;
+- comisión por referido;
+- afiliación;
+- placement patrocinado;
+- marketplace curado de servicios relacionados.
+
+### Regla de discovery
+
+Esta idea **no se registra como oportunidad validada** y no debe atribuirse al entrevistado.
+
+Antes de convertirla en producto se requiere validar:
+1. si el socio realmente busca o valora beneficios/promociones;
+2. qué categorías de servicio tendrían relevancia;
+3. qué modelo comercial sería aceptable;
+4. implicaciones legales, fiscales, de privacidad y de políticas de tiendas;
+5. si fortalece o distrae de la propuesta principal de UCAPSA App.
