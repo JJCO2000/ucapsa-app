@@ -87,6 +87,13 @@ OPP-###
     └── ASSUMP-BUS-### viabilidad de negocio
 ```
 
+## Oportunidades de Operación / Admin en observación
+
+| ID | Oportunidad | Estado | Evidencia | Segmento | Próxima prueba |
+|---|---|---|---|---|---|
+| CAND-009 | Conocer el estado básico de cuidado de cada perro sin depender de supervisión personal del propietario | observación | INT-001: el propietario reporta que debe revisar personalmente comida, lavado y estado general | operación | reconstruir un episodio cuando no estuvo presente y verificar fuente/registro actual |
+| CAND-010 | Mantener adherencia a procedimientos críticos después de la capacitación inicial | observación | INT-001: los sistemas se siguen inicialmente y luego se degradan; stickers de perreras mejoraron una tarea concreta | operación | identificar un procedimiento aún problemático y reconstruir la última falla |
+
 ## Outcome de Admin separado
 
 No mezclar problemas del cliente con problemas internos.
