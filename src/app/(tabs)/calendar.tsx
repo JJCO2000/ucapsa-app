@@ -15,9 +15,16 @@ import { getVisibleAnnouncements } from '../../services/announcements.service';
 import { getVisibleEventOccurrenceCancellations } from '../../services/event-occurrence-cancellations.service';
 import { getVisibleEvents } from '../../services/events.service';
 import { clientReadKeys, readClientResource, writeClientResource, type CalendarClassesOfflineSnapshot } from '../../services/client-read-cache.service';
-import { formatProgramScheduleDetailLabel, formatProgramScheduleName, getProgramClassCancellations, getProgramScheduleTimeline, getPrograms, isProgramScheduleActiveOnDate } from '../../services/programs.service';
+import { formatProgramScheduleDetailLabel, formatProgramScheduleName, getAdminProgramRows, getProgramClassCancellations, getProgramScheduleTimeline, getPrograms, isProgramScheduleActiveOnDate } from '../../services/programs.service';
 import { getCachedMyPracticeActivity, getMyPracticeActivity, type PracticeActivityEntry } from '../../services/practice.service';
-import type { Announcement, EventOccurrence, EventOccurrenceCancellation, ProgramClassCancellation, ProgramSchedule, UcapsaEvent, UcapsaProgram } from '../../types/app.types';
+import {
+  adminRosterLevelLabel,
+  filterAdminClassRoster,
+  getAdminClassRosterRows,
+  getAdminCommandLevelCounts,
+  type AdminRosterLevel,
+} from '../../services/admin-class-roster.service';
+import type { Announcement, EventOccurrence, EventOccurrenceCancellation, ProgramClassCancellation, ProgramEnrollmentWithDetails, ProgramSchedule, UcapsaEvent, UcapsaProgram } from '../../types/app.types';
 import { expandEventOccurrences, formatDateKey, getUpcomingOccurrences, toDateKey, todayKey } from '../../utils/events.utils';
 import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
 
@@ -145,14 +152,17 @@ export default function CalendarScreen() {
   const [programs, setPrograms] = useState<UcapsaProgram[]>([]);
   const [programSchedules, setProgramSchedules] = useState<ProgramSchedule[]>([]);
   const [classCancellations, setClassCancellations] = useState<ProgramClassCancellation[]>([]);
+  const [adminProgramRows, setAdminProgramRows] = useState<ProgramEnrollmentWithDetails[]>([]);
   const [practiceActivity, setPracticeActivity] = useState<PracticeActivityEntry[]>([]);
   const [practiceLoadWarning, setPracticeLoadWarning] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(todayKey());
   const [classesExpanded, setClassesExpanded] = useState(false);
+  const [openRoster, setOpenRoster] = useState<{ occurrenceId: string; level: AdminRosterLevel } | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [classLoadWarning, setClassLoadWarning] = useState<string | null>(null);
+  const [adminRosterWarning, setAdminRosterWarning] = useState<string | null>(null);
   const [partialLoadWarning, setPartialLoadWarning] = useState<string | null>(null);
   const [usingSavedData, setUsingSavedData] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
@@ -164,6 +174,7 @@ export default function CalendarScreen() {
   const loadCalendarData = useCallback(async () => {
     setError(null);
     setClassLoadWarning(null);
+    setAdminRosterWarning(null);
     setPartialLoadWarning(null);
     setPracticeLoadWarning(null);
     setUsingSavedData(false);
@@ -190,7 +201,7 @@ export default function CalendarScreen() {
       setLoading(false);
     }
 
-    const [eventResult, eventCancellationResult, announcementResult, classResult, practiceResult] = await Promise.allSettled([
+    const [eventResult, eventCancellationResult, announcementResult, classResult, practiceResult, adminRosterResult] = await Promise.allSettled([
       withOperationTimeout(getVisibleEvents(), DEFAULT_READ_TIMEOUT_MS, 'calendar-events'),
       withOperationTimeout(
         getVisibleEventOccurrenceCancellations(),
@@ -206,6 +217,9 @@ export default function CalendarScreen() {
       user && !isAdmin
         ? withOperationTimeout(getMyPracticeActivity(user.id), DEFAULT_READ_TIMEOUT_MS, 'calendar-practice')
         : Promise.resolve(null),
+      isAdmin
+        ? withOperationTimeout(getAdminProgramRows(), DEFAULT_READ_TIMEOUT_MS, 'calendar-admin-rosters')
+        : Promise.resolve([] as ProgramEnrollmentWithDetails[]),
     ]);
 
     if (eventResult.status === 'fulfilled') {
@@ -236,6 +250,12 @@ export default function CalendarScreen() {
       setClassCancellations(snapshot.cancellations);
       await writeClientResource(cacheScope, clientReadKeys.calendarClasses, snapshot);
     }
+    if (adminRosterResult.status === 'fulfilled') {
+      setAdminProgramRows(adminRosterResult.value);
+    } else if (isAdmin) {
+      setAdminRosterWarning('Los inscritos por clase no se pudieron actualizar.');
+    }
+
     if (practiceResult.status === 'fulfilled' && practiceResult.value) {
       setPracticeActivity(practiceResult.value.entries);
       if (practiceResult.value.source !== 'remote' && practiceResult.value.entries.length > 0) {
@@ -304,6 +324,7 @@ export default function CalendarScreen() {
 
   useEffect(() => {
     setClassesExpanded(false);
+    setOpenRoster(null);
   }, [selectedDate]);
 
   const occurrences = useMemo(
@@ -468,6 +489,13 @@ export default function CalendarScreen() {
           </View>
         ) : null}
 
+        {adminRosterWarning ? (
+          <View style={styles.warningBox}>
+            <Text style={styles.warningTitle}>Inscritos no disponibles</Text>
+            <Text style={styles.warningText}>{adminRosterWarning}</Text>
+          </View>
+        ) : null}
+
         {practiceLoadWarning ? (
           <View style={styles.warningBox}>
             <Text style={styles.warningTitle}>Actividad sin actualizar</Text>
@@ -610,16 +638,30 @@ export default function CalendarScreen() {
                       const isCancelled = Boolean(occurrence.cancellation);
                       const title = formatProgramScheduleName(occurrence.schedule, occurrence.program);
                       const detail = formatProgramScheduleDetailLabel(occurrence.schedule);
+                      const rosterRows = isAdmin
+                        ? getAdminClassRosterRows(adminProgramRows, occurrence.schedule.id, occurrence.dateKey)
+                        : [];
+                      const commandCounts = getAdminCommandLevelCounts(rosterRows);
+                      const rosterState = openRoster?.occurrenceId === occurrence.id ? openRoster : null;
+                      const visibleRoster = rosterState
+                        ? filterAdminClassRoster(rosterRows, rosterState.level)
+                        : [];
 
                       return (
-                        <Pressable
-                          key={`class-${occurrence.id}`}
+                        <View key={`class-${occurrence.id}`}>
+                          <Pressable
                           disabled={!isAdmin}
                           style={[
                             styles.classChildCard,
                             { backgroundColor: isCancelled ? ucapsaBrand.colors.graySoft : theme.background, borderColor: isCancelled ? ucapsaBrand.colors.redBorder : theme.border },
                           ]}
-                          onPress={isAdmin ? () => router.push(`/admin/class-cancellations?date=${occurrence.dateKey}` as never) : undefined}
+                          onPress={isAdmin
+                            ? () => setOpenRoster((current) =>
+                                current?.occurrenceId === occurrence.id
+                                  ? null
+                                  : { occurrenceId: occurrence.id, level: 'all' },
+                              )
+                            : undefined}
                         >
                           <View style={[styles.classIconSmall, { backgroundColor: isCancelled ? ucapsaBrand.colors.premiumMuted : theme.iconBackground }]}>
                             <MaterialIcons name={isCancelled ? 'event-busy' : 'event-note'} size={18} color={isCancelled ? ucapsaBrand.colors.red : theme.accent} />
@@ -628,10 +670,75 @@ export default function CalendarScreen() {
                             <Text style={[styles.classTitle, { color: isCancelled ? ucapsaBrand.colors.mutedNeutral : theme.title, textDecorationLine: isCancelled ? 'line-through' : 'none' }]}>{title}</Text>
                             <Text style={[styles.classText, { color: isCancelled ? ucapsaBrand.colors.mutedNeutral : theme.text }]}>{occurrence.program?.name ?? 'Clase'} - {detail}</Text>
                             {isCancelled ? <Text style={styles.cancelledText}>Clase cancelada{occurrence.cancellation?.reason ? ` - ${occurrence.cancellation.reason}` : ''}</Text> : null}
-                            {isAdmin ? <Text style={[styles.classHint, { color: isCancelled ? ucapsaBrand.colors.red : theme.accent }]}>{isCancelled ? 'Tocar para ver cancelaciones' : 'Tocar para cancelar o administrar esta fecha'}</Text> : null}
+                            {isAdmin ? <Text style={styles.rosterCount}>{rosterRows.length} inscrito{rosterRows.length === 1 ? '' : 's'} para esta clase</Text> : null}
+                            {isAdmin ? <Text style={[styles.classHint, { color: isCancelled ? ucapsaBrand.colors.red : theme.accent }]}>{rosterState ? 'Ocultar inscritos' : 'Ver inscritos'}</Text> : null}
                           </View>
                           {isAdmin ? <MaterialIcons name="chevron-right" size={22} color={isCancelled ? ucapsaBrand.colors.red : theme.accent} /> : null}
-                        </Pressable>
+                          </Pressable>
+
+                          {isAdmin && occurrence.program?.code === 'comandos' ? (
+                            <View style={styles.levelSummary}>
+                              {(['all', 'basic', 'intermediate', 'advanced'] as AdminRosterLevel[]).map((level) => {
+                                const count = commandCounts[level];
+                                const active = rosterState?.level === level;
+                                return (
+                                  <Pressable
+                                    key={level}
+                                    style={[styles.levelChip, active && styles.levelChipActive]}
+                                    onPress={() => setOpenRoster({ occurrenceId: occurrence.id, level })}
+                                  >
+                                    <Text style={[styles.levelChipText, active && styles.levelChipTextActive]}>
+                                      {adminRosterLevelLabel(level)} {count}
+                                    </Text>
+                                  </Pressable>
+                                );
+                              })}
+                            </View>
+                          ) : null}
+
+                          {isAdmin && rosterState ? (
+                            <View style={styles.rosterPanel}>
+                              <View style={styles.rosterPanelHeader}>
+                                <Text style={styles.rosterHeading}>
+                                  {occurrence.program?.code === 'comandos'
+                                    ? `${adminRosterLevelLabel(rosterState.level)} · ${visibleRoster.length}`
+                                    : `Inscritos · ${visibleRoster.length}`}
+                                </Text>
+                                <Pressable
+                                  style={styles.manageDateButton}
+                                  onPress={() => router.push(`/admin/class-cancellations?date=${occurrence.dateKey}` as never)}
+                                >
+                                  <MaterialIcons name="event-note" size={16} color={ucapsaBrand.colors.redDark} />
+                                  <Text style={styles.manageDateText}>Administrar fecha</Text>
+                                </Pressable>
+                              </View>
+
+                              {visibleRoster.length === 0 ? (
+                                <Text style={styles.rosterEmpty}>No hay perros en este grupo para la fecha seleccionada.</Text>
+                              ) : visibleRoster.map((row) => (
+                                <Pressable
+                                  key={row.enrollmentId}
+                                  style={styles.rosterRow}
+                                  onPress={() => router.push(`/admin/customer?userId=${encodeURIComponent(row.userId)}` as never)}
+                                >
+                                  <View style={styles.rosterAvatar}>
+                                    <MaterialIcons name="pets" size={17} color={ucapsaBrand.colors.redDark} />
+                                  </View>
+                                  <View style={{ flex: 1, minWidth: 0 }}>
+                                    <Text style={styles.rosterName}>{row.clientName}</Text>
+                                    <Text style={styles.rosterDog}>{row.dogName}</Text>
+                                    <Text style={styles.rosterMeta}>
+                                      Última asistencia: {row.lastAttendanceDate ? formatDateKey(row.lastAttendanceDate) : 'sin asistencia'}
+                                      {` · ${row.attendanceCount} registrada${row.attendanceCount === 1 ? '' : 's'}`}
+                                    </Text>
+                                    {row.phone || row.email ? <Text style={styles.rosterContact} numberOfLines={1}>{row.phone || row.email}</Text> : null}
+                                  </View>
+                                  <MaterialIcons name="chevron-right" size={20} color={ucapsaBrand.colors.redDark} />
+                                </Pressable>
+                              ))}
+                            </View>
+                          ) : null}
+                        </View>
                       );
                     })}
                   </View>
@@ -786,6 +893,24 @@ const styles = StyleSheet.create({
   classTitle: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900', marginTop: 2 },
   classText: { color: ucapsaBrand.colors.muted, fontSize: 13, fontWeight: '800', marginTop: 2 },
   classHint: { color: ucapsaBrand.colors.red, fontSize: 12, fontWeight: '900', marginTop: 5 },
+  rosterCount: { color: ucapsaBrand.colors.text, fontSize: 12, lineHeight: 17, fontWeight: '900', marginTop: 5 },
+  levelSummary: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 8, paddingHorizontal: 2 },
+  levelChip: { borderRadius: 999, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 10, paddingVertical: 7 },
+  levelChipActive: { backgroundColor: ucapsaBrand.colors.red, borderColor: ucapsaBrand.colors.red },
+  levelChipText: { color: ucapsaBrand.colors.text, fontSize: 10, fontWeight: '900' },
+  levelChipTextActive: { color: ucapsaBrand.colors.surface },
+  rosterPanel: { gap: 8, marginTop: 9, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 10 },
+  rosterPanelHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9 },
+  rosterHeading: { flex: 1, color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '900' },
+  manageDateButton: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 12, backgroundColor: ucapsaBrand.colors.redSoft, paddingHorizontal: 9, paddingVertical: 7 },
+  manageDateText: { color: ucapsaBrand.colors.redDark, fontSize: 10, fontWeight: '900' },
+  rosterEmpty: { color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 16, fontWeight: '700', paddingVertical: 6 },
+  rosterRow: { flexDirection: 'row', alignItems: 'center', gap: 9, borderTopWidth: 1, borderTopColor: ucapsaBrand.colors.premiumMuted, paddingTop: 9 },
+  rosterAvatar: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
+  rosterName: { color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '900' },
+  rosterDog: { color: ucapsaBrand.colors.redDark, fontSize: 11, fontWeight: '900', marginTop: 1 },
+  rosterMeta: { color: ucapsaBrand.colors.muted, fontSize: 10, lineHeight: 15, fontWeight: '700', marginTop: 2 },
+  rosterContact: { color: ucapsaBrand.colors.muted, fontSize: 10, lineHeight: 14, fontWeight: '700', marginTop: 1 },
   cancelledText: { color: ucapsaBrand.colors.red, fontSize: 12, fontWeight: '900', marginTop: 4 },
   dayCancelledText: { alignSelf: 'flex-start', overflow: 'hidden', marginTop: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: ucapsaBrand.colors.premiumMuted, color: ucapsaBrand.colors.danger, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
 });
