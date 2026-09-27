@@ -10,6 +10,8 @@ const files = {
   results: fs.readFileSync(root + 'RESULTADOS.csv', 'utf8'),
   int002: fs.readFileSync(root + 'INTERVIEW_002_OPERACION.md', 'utf8'),
   opsResearch: fs.readFileSync(root + 'RESEARCH_OPERATIONS_SYSTEM.md', 'utf8'),
+  int002Update: fs.readFileSync(root + 'INT002_UPDATE_OPERATIONS.md', 'utf8'),
+  crmArchitecture: fs.readFileSync('docs/architecture/CRM_SUPABASE_UCAPSA.md', 'utf8'),
 };
 
 for (const token of [
@@ -82,6 +84,21 @@ for (const token of [
 
 if (!files.ost.includes('CAND-001') || !files.ost.includes('observación')) {
   throw new Error('INT-002 must remain an observed candidate in the OST until more evidence exists.');
+}
+
+for (const token of ['CAND-003', 'memoria', 'mensajes enviados al cliente']) {
+  if (!files.int002Update.includes(token)) throw new Error('INT-002 update missing: ' + token);
+}
+
+for (const token of [
+  'UCAPSA App no se conectará directamente al CRM',
+  'Single Source of Truth por dominio',
+  'App → CRM',
+  'CRM → App',
+  'Nunca usar "último cambio gana" global',
+  'Patrón Outbox',
+]) {
+  if (!files.crmArchitecture.includes(token)) throw new Error('CRM architecture contract missing: ' + token);
 }
 
 console.log('UCAPSA product discovery system: PASS');
