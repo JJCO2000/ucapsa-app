@@ -219,3 +219,278 @@ Después de esta pausa de arquitectura, retomar con:
 > Pensando desde que entra un cliente o un perro a UCAPSA hasta que termina y le damos seguimiento: ¿en qué partes dependemos demasiado de que alguien se acuerde, pregunte o haga algo manualmente?
 
 Objetivo: descubrir dolores adicionales sin dirigirlo hacia los ya encontrados.
+
+
+---
+
+## Revisión de la base actual — perro y cartilla
+
+El código actual ya tiene una base útil en `dogs` / `DogProfile`:
+
+- nombre;
+- raza;
+- fecha de nacimiento;
+- sexo;
+- peso;
+- alergias;
+- medicamentos;
+- notas de alimentación;
+- notas de comportamiento;
+- veterinario y teléfono;
+- contacto de emergencia;
+- notas generales.
+
+Sin embargo, la pantalla actual del cliente sólo permite editar:
+- nombre;
+- raza;
+- fecha de nacimiento;
+- sexo;
+- peso.
+
+**Vacunación/cartilla no está modelada actualmente como una entidad propia.**
+
+Esto significa que no conviene crear un segundo perfil de perro exclusivo de Staff. Debe ampliarse el mismo registro canónico.
+
+## Propuesta de dominio compartido — datos del perro
+
+### Cliente puede aportar
+- datos básicos;
+- foto;
+- contacto veterinario;
+- contacto de emergencia;
+- alergias/medicamentos declarados;
+- cartilla/certificado de vacunación;
+- fechas de vacunación declaradas;
+- instrucciones de alimentación para una estancia.
+
+### Staff verifica / opera
+- estado de verificación de vacunas;
+- vacuna requerida / vigente / por vencer / vencida;
+- documento revisado;
+- restricciones de ingreso;
+- observaciones operativas;
+- perrera;
+- estancia;
+- alimentación realizada;
+- medicamento administrado;
+- baño/limpieza;
+- incidentes;
+- evaluaciones de entrenamiento.
+
+### Cliente ve
+- estado útil, no ruido interno:
+  - cartilla recibida / pendiente de revisión;
+  - vacunas vigentes / por vencer / vencidas;
+  - datos básicos;
+  - información de seguridad relevante;
+  - progreso/servicio que corresponda.
+
+## Vacunación — modelo mínimo sugerido
+
+No guardar únicamente una foto de la cartilla.
+
+Separar:
+- `dog_documents`: archivo privado, tipo, fecha, cargado por, revisado por;
+- `dog_vaccinations`: perro, tipo de vacuna, fecha aplicada, fecha de vencimiento, estado de verificación, fuente/documento;
+- `vaccination_requirements`: requisitos configurables de UCAPSA.
+
+Flujo:
+1. cliente sube cartilla/foto/PDF;
+2. queda **pendiente de revisión**;
+3. Staff verifica fechas;
+4. sistema calcula vigencia;
+5. Staff y cliente ven alertas según rol;
+6. una estancia puede bloquearse o advertir si falta un requisito, según política UCAPSA.
+
+Los archivos deben vivir en almacenamiento privado con acceso por rol, no en URLs públicas.
+
+## Qué sí demuestra el benchmark vertical
+
+Gingr, PetExec y KennelBooker tratan vacunación como parte operativa del perfil del animal, no como nota suelta.
+
+Patrones útiles:
+- carga de documentos por el dueño;
+- verificación por personal;
+- fechas de expiración;
+- alertas;
+- restricciones/avisos al reservar o hacer check-in;
+- historial accesible desde la ficha del animal.
+
+Por tanto, **cartilla/vacunación sí pertenece al núcleo compartido Cliente ↔ Staff**, si UCAPSA la requiere para sus servicios.
+
+---
+
+## Revisión Pipedrive móvil
+
+Pipedrive tiene aplicación móvil con:
+- contactos;
+- deals/pipeline;
+- actividades;
+- calendario;
+- notas;
+- archivos/fotos;
+- push;
+- modo offline.
+
+Esto lo vuelve viable como herramienta móvil separada para la capa CRM.
+
+### WhatsApp
+
+La integración oficial de WhatsApp:
+- está disponible en Growth o superior;
+- sigue en beta a septiembre de 2026;
+- puede vincular chats con contactos/deals;
+- permite responder, plantillas y seguimiento;
+- admite coexistencia con WhatsApp Business móvil;
+- la coexistencia puede importar historial reciente durante la configuración.
+
+**No diseñar una dependencia crítica de UCAPSA sobre esta beta sin una prueba real de cuenta/plan/disponibilidad.**
+
+### Decisión de alcance
+
+No replicar Pipedrive dentro de UCAPSA Staff.
+
+UCAPSA Staff debe mostrar, como máximo:
+- cliente vinculado;
+- responsable;
+- estado de seguimiento;
+- próxima acción;
+- botón/deep link al CRM si hace falta.
+
+Pipedrive debe seguir siendo el workspace de:
+- prospectos;
+- relación;
+- conversaciones;
+- seguimientos;
+- actividades;
+- reactivación;
+- pipeline comercial.
+
+## Integración recomendada
+
+```
+                     ┌─────────────────┐
+                     │ UCAPSA Cliente  │
+                     └────────┬────────┘
+                              │
+                              ▼
+                     ┌─────────────────┐
+                     │    Supabase     │
+                     │ SSOT operativo  │
+                     └───────┬─────────┘
+                             ▲
+                             │
+                     ┌───────┴─────────┐
+                     │  UCAPSA Staff   │
+                     └─────────────────┘
+                             │
+                       sólo contexto /
+                    integración server-side
+                             │
+                             ▼
+                     ┌─────────────────┐
+                     │    Pipedrive    │
+                     │  SSOT relación  │
+                     └─────────────────┘
+```
+
+### Eventos útiles Supabase → CRM
+- cliente creado/vinculado;
+- internado iniciado;
+- perro entregado;
+- seguimiento post-entrega requerido;
+- garantía/retrabajo abierto;
+- mantenimiento próximo;
+- servicio terminado.
+
+### Eventos útiles CRM → Supabase
+Sólo los que afecten experiencia/operación:
+- identificador CRM;
+- responsable relacional;
+- siguiente seguimiento;
+- estado relacional relevante.
+
+No sincronizar conversaciones completas al teléfono cliente.
+
+---
+
+## Staff App — mapa funcional actualizado
+
+### 1. Hoy
+Responder en menos de 10 segundos:
+- ¿qué perros están aquí?;
+- ¿qué falta hacer?;
+- ¿qué está vencido?;
+- ¿qué evaluación toca?;
+- ¿qué perro sale hoy?;
+- ¿qué actualización a cliente falta?
+
+### 2. Ficha del perro
+- identidad/foto;
+- dueño;
+- vacunas;
+- alertas médicas;
+- alimentación;
+- medicamentos;
+- contacto de emergencia;
+- estancia actual;
+- perrera;
+- entrenador/responsable;
+- nivel de entrenamiento.
+
+### 3. Cuidado diario
+Checklist de eventos, no un único booleano diario:
+- comida;
+- agua/revisión;
+- medicamento;
+- baño/limpieza;
+- observación;
+- incidencia.
+
+Cada registro:
+- hora;
+- empleado;
+- estado;
+- nota opcional;
+- evidencia opcional.
+
+### 4. Internado
+- nivel 1–4 o modelo real que defina UCAPSA;
+- semana actual;
+- objetivos del nivel;
+- evaluación de semana 3;
+- quién evaluó;
+- resultado;
+- pendientes de semana 4;
+- apto/no apto para entrega;
+- garantía/retrabajo.
+
+### 5. Cambio de mando
+- programado;
+- responsable;
+- puntos a enseñar al cliente;
+- realizado;
+- observaciones;
+- recursos entregados;
+- dudas del cliente.
+
+### 6. Salida y seguimiento
+- fecha de entrega;
+- seguimiento a 3 días;
+- problema reportado;
+- video recibido;
+- práctica presencial;
+- garantía;
+- estado resuelto.
+
+La tarea relacional vive en CRM, pero Staff puede reflejar el estado cuando sea necesario para la operación.
+
+### 7. Mantenimiento
+No construir todavía una cadencia rígida.
+Preparar el modelo para:
+- fecha sugerida de revisión;
+- último contacto;
+- práctica/mantenimiento recomendado;
+- resultado.
+
+La cadencia debe definirse por servicio y evidencia, no por un valor fijo inventado.
