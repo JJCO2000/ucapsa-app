@@ -279,3 +279,52 @@ No profundizar más en este bloque.
 ## Siguiente bloque
 
 Pasar a **qué sigue / siguiente acción**, para comprobar si el socio entiende o necesita algo más allá del conteo de clases.
+
+
+## Prueba de tarea — encontrar clases llevadas/restantes
+
+### Comportamiento observado
+
+Ante la tarea de mostrar cuántas clases lleva y cuántas le faltan:
+
+- el socio se dirige con seguridad a **“Tu actividad → clases”** para consultar el historial;
+- no usa primero el indicador **“Asistencias del programa 0/6”** de la tarjeta del programa activo;
+- interpreta que “clases” y “visitas” deberían estar relacionadas: expresó que si se tiene una clase, entonces se tiene una visita.
+
+### Verificación técnica del significado actual
+
+Según el código actual:
+
+- **clases** = total de asistencias registradas en programas;
+- **visitas** = registros independientes de socio generados por el QR de socio;
+- **prácticas** = sesiones de práctica registradas;
+- **Asistencias del programa 0/6** = asistencias del programa activo frente a las requeridas.
+
+Por diseño técnico, una asistencia a clase **no crea automáticamente una visita de socio**.
+
+### Diagnóstico provisional
+
+Hay dos ambigüedades de UX:
+
+1. **Semántica:** “visitas” no comunica claramente que significa entradas de socio separadas de las clases.
+2. **Alcance temporal/contextual:** “2 clases” es actividad total/histórica, mientras “0/6” corresponde al programa activo. La pantalla no hace explícita esa diferencia.
+
+### Candidata nueva
+
+**CAND-005 — El usuario necesita distinguir claramente entre asistencias del programa actual, historial de clases, visitas de socio y prácticas.**
+
+Estado: observación.
+
+### Última comprobación antes de cerrar este bloque
+
+> Viendo únicamente esta pantalla, ¿cuántas clases te faltan en Comandos Básico?
+
+No explicar los números antes de que responda.
+
+### Interpretación de la respuesta
+
+- Si responde **6**, distingue el progreso del programa del historial pese a la ambigüedad.
+- Si responde **4** o intenta usar “2 clases” para calcular, la ambigüedad está afectando directamente la tarea.
+- Si no puede responder, existe un problema de comprensión/encontrabilidad más fuerte.
+
+Cerrar el bloque después de esta respuesta.
