@@ -37,14 +37,22 @@ La respuesta de Secretaría/Administración funciona como fuente de información
 
 **Consecuencia si no puede obtener la respuesta**
 
-Pendiente de comprobar con un episodio concreto. No asumir impacto hasta reconstruir una historia donde Secretaría/Administración no estuviera disponible o tardara en responder.
+Ya existe un caso real en curso:
+
+- necesitan conocer el saldo de una clienta;
+- Secretaría está en su día libre;
+- no pueden contactarla por teléfono ni WhatsApp;
+- el equipo no tiene acceso directo al dato;
+- están esperando a que Secretaría responda cuando vuelva a estar disponible o a que la clienta llegue con la información que Secretaría le haya enviado previamente.
+
+Esto demuestra bloqueo operativo real en al menos un episodio, pero todavía falta medir duración, frecuencia y consecuencia económica/experiencial.
 
 ## Alternativa actual — Dunford
 
 - **Alternativa usada:** conocimiento y respuesta de Secretaría/Administración.
 - **Apareció espontáneamente:** Sí.
-- **Qué valora de esa alternativa:** pendiente.
-- **Qué le molesta:** dependencia de una persona para obtener información operativa.
+- **Qué valora de esa alternativa:** Secretaría suele funcionar como fuente confiable de la información.
+- **Qué le molesta:** dependencia de una persona para obtener información operativa; si no está disponible, se espera o se reconstruye el dato desde memoria/mensajes.
 - **Por qué confía/desconfía:** pendiente.
 
 ## Frases / contenido reportado
@@ -77,7 +85,7 @@ Aún no realizada.
 
 | Candidato | Evidencia exacta | Intensidad | Frecuencia conocida | ID provisional |
 |---|---|---|---|---|
-| El personal necesita consultar información operativa sin depender de preguntarle a una sola persona | Deudas, salidas de hotel y programación de clases se consultan preguntando a Secretaría/Administración | alta potencial, pendiente de medir | múltiples ejemplos dentro de 1 entrevista | CAND-001 |
+| El personal necesita consultar información operativa sin depender de preguntarle a una sola persona | Deudas, salidas de hotel y programación de clases se consultan preguntando a Secretaría/Administración. Caso real: saldo de clienta bloqueado porque Secretaría está en su día libre y no puede contactarse | alta | múltiples ejemplos + 1 bloqueo real dentro de 1 entrevista | CAND-001 |
 | El personal necesita una fuente oficial única para saber si la información está actualizada | Secretaría/Administración funciona hoy como fuente confiable de facto | media-alta potencial | 1 entrevista | CAND-002 |
 
 No convertir todavía en oportunidades confirmadas.
@@ -104,14 +112,17 @@ No implica todavía que la solución sea “un CRM”. La solución puede ser UC
 
 ## Próxima pregunta obligatoria
 
-> Piensa en la última vez que necesitabas uno de esos datos y Secretaría/Administración no estaba disponible o tardó en responder. ¿Qué necesitabas saber, cuánto esperaste y qué pasó por no tener la información en ese momento?
+> Si esa señora llegara ahorita y Secretaría todavía no hubiera respondido, ¿qué harían exactamente?
+
+Después, sin sugerir respuestas:
+
+> ¿La harían esperar, cobrarían una cantidad aproximada, se iría sin pagar, buscarían el dato en otro lado o qué pasaría realmente?
 
 ### Qué buscamos con esa pregunta
 
-- impacto real de la dependencia;
-- frecuencia;
-- tiempo perdido;
-- decisiones retrasadas;
-- riesgo de error;
-- si existe otra fuente alternativa;
-- si el problema es acceso, actualización o confianza.
+- consecuencia operativa exacta;
+- riesgo de cobro incorrecto;
+- tiempo de espera del cliente;
+- posibilidad de perder el cobro;
+- existencia de una fuente alternativa real;
+- severidad del problema.
