@@ -1,6 +1,6 @@
 # Eliminar cuenta y datos — UCAPSA App
 
-**Responsable:** Universidad de Crianza y Adiestramiento Peruano, S.A. de C.V.  
+**Responsable:** Universidad de Crianza y Adiestramiento S.A. de C.V.  
 **Área responsable:** Administración de UCAPSA  
 **Correo:** [ucapsa84@gmail.com](mailto:ucapsa84@gmail.com?subject=Solicitud%20de%20eliminaci%C3%B3n%20de%20cuenta%20UCAPSA%20App)
 
