@@ -648,8 +648,8 @@ export default function CalendarScreen() {
                         : [];
 
                       return (
-                        <Pressable
-                          key={`class-${occurrence.id}`}
+                        <View key={`class-${occurrence.id}`}>
+                          <Pressable
                           disabled={!isAdmin}
                           style={[
                             styles.classChildCard,
@@ -674,7 +674,71 @@ export default function CalendarScreen() {
                             {isAdmin ? <Text style={[styles.classHint, { color: isCancelled ? ucapsaBrand.colors.red : theme.accent }]}>{rosterState ? 'Tocar para ocultar inscritos' : 'Tocar para ver inscritos'}</Text> : null}
                           </View>
                           {isAdmin ? <MaterialIcons name="chevron-right" size={22} color={isCancelled ? ucapsaBrand.colors.red : theme.accent} /> : null}
-                        </Pressable>
+                          </Pressable>
+
+                          {isAdmin && occurrence.program?.code === 'comandos' ? (
+                            <View style={styles.levelSummary}>
+                              {(['all', 'basic', 'intermediate', 'advanced'] as AdminRosterLevel[]).map((level) => {
+                                const count = commandCounts[level];
+                                const active = rosterState?.level === level;
+                                return (
+                                  <Pressable
+                                    key={level}
+                                    style={[styles.levelChip, active && styles.levelChipActive]}
+                                    onPress={() => setOpenRoster({ occurrenceId: occurrence.id, level })}
+                                  >
+                                    <Text style={[styles.levelChipText, active && styles.levelChipTextActive]}>
+                                      {adminRosterLevelLabel(level)} {count}
+                                    </Text>
+                                  </Pressable>
+                                );
+                              })}
+                            </View>
+                          ) : null}
+
+                          {isAdmin && rosterState ? (
+                            <View style={styles.rosterPanel}>
+                              <View style={styles.rosterPanelHeader}>
+                                <Text style={styles.rosterHeading}>
+                                  {occurrence.program?.code === 'comandos'
+                                    ? `${adminRosterLevelLabel(rosterState.level)} · ${visibleRoster.length}`
+                                    : `Inscritos · ${visibleRoster.length}`}
+                                </Text>
+                                <Pressable
+                                  style={styles.manageDateButton}
+                                  onPress={() => router.push(`/admin/class-cancellations?date=${occurrence.dateKey}` as never)}
+                                >
+                                  <MaterialIcons name="event-note" size={16} color={ucapsaBrand.colors.redDark} />
+                                  <Text style={styles.manageDateText}>Administrar fecha</Text>
+                                </Pressable>
+                              </View>
+
+                              {visibleRoster.length === 0 ? (
+                                <Text style={styles.rosterEmpty}>No hay perros en este grupo para la fecha seleccionada.</Text>
+                              ) : visibleRoster.map((row) => (
+                                <Pressable
+                                  key={row.enrollmentId}
+                                  style={styles.rosterRow}
+                                  onPress={() => router.push(`/admin/customer?userId=${encodeURIComponent(row.userId)}` as never)}
+                                >
+                                  <View style={styles.rosterAvatar}>
+                                    <MaterialIcons name="pets" size={17} color={ucapsaBrand.colors.redDark} />
+                                  </View>
+                                  <View style={{ flex: 1, minWidth: 0 }}>
+                                    <Text style={styles.rosterName}>{row.clientName}</Text>
+                                    <Text style={styles.rosterDog}>{row.dogName}</Text>
+                                    <Text style={styles.rosterMeta}>
+                                      Última asistencia: {row.lastAttendanceDate ? formatDateKey(row.lastAttendanceDate) : 'sin asistencia'}
+                                      {` · ${row.attendanceCount} registrada${row.attendanceCount === 1 ? '' : 's'}`}
+                                    </Text>
+                                    {row.phone || row.email ? <Text style={styles.rosterContact} numberOfLines={1}>{row.phone || row.email}</Text> : null}
+                                  </View>
+                                  <MaterialIcons name="chevron-right" size={20} color={ucapsaBrand.colors.redDark} />
+                                </Pressable>
+                              ))}
+                            </View>
+                          ) : null}
+                        </View>
                       );
                     })}
                   </View>
