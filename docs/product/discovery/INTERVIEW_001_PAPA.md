@@ -1,6 +1,6 @@
 # INT-001 — Propietario / Operación
 
-**Estado:** preparada, no realizada  
+**Estado:** en curso  
 **Objetivo:** entender por qué el valor de UCAPSA App no resulta obvio para una persona con conocimiento profundo del negocio, sin asumir que su problema representa al cliente final.
 
 ## Contexto
@@ -100,3 +100,120 @@ Después de la entrevista completar un snapshot separado usando `INTERVIEW_SNAPS
 **No llenar.**
 
 La prueba debe empezar sin seleccionar una explicación favorita.
+
+
+---
+
+# Evidencia en vivo — 27 de septiembre de 2026
+
+## Bloque A — supervisión diaria del cuidado
+
+Ante una pregunta abierta sobre qué cosas del día a día requieren que él esté pendiente, el propietario mencionó de forma espontánea que necesita comprobar personalmente aspectos como:
+
+- si un perro ya fue lavado;
+- si comió;
+- cómo comió;
+- si se mantuvo bien;
+- revisión general de que todo esté en orden.
+
+Frases representativas:
+
+> “Yo tengo que estar viendo: ¿ya lavado?, ¿comieron bien?, ¿qué tal comió ese perro?”
+
+> “Yo tengo que estar checando eso.”
+
+### Diagnóstico provisional
+
+Existe una posible dependencia de **supervisión personal para conocer el estado operativo/cuidado de cada perro**.
+
+Todavía NO sabemos:
+- dónde se registra hoy esa información;
+- si se registra de forma persistente;
+- si el problema es falta de datos, falta de disciplina o falta de visibilidad;
+- qué ocurre cuando el propietario no está presente;
+- frecuencia o consecuencia de errores.
+
+No convertir todavía en solución de software.
+
+### CAND-009 — observación
+
+> Operación necesita conocer el estado básico de cuidado de cada perro sin depender de que el propietario pregunte o inspeccione personalmente.
+
+Estado: observación; falta reconstruir un episodio real.
+
+---
+
+## Bloque B — sistemas internos que pierden adherencia
+
+El propietario describe un patrón operativo:
+
+1. se define un sistema;
+2. se enseña;
+3. el personal lo sigue inicialmente;
+4. después de semanas empieza a abandonar el procedimiento y vuelve a la rutina más fácil.
+
+Ejemplo concreto: asignación de perreras.
+
+Antes:
+- un perro podía ser colocado un día en una perrera y otro día en otra;
+- los números/pizarrones no bastaban para mantener la consistencia.
+
+Intervención:
+- stickers/letreros visibles en la perrera correspondiente.
+
+Resultado reportado:
+- el personal empezó a colocar consistentemente al perro en el lugar indicado.
+
+### Lo que sí soporta este ejemplo
+
+Un recordatorio/señal visible **en el punto de acción** mejoró la adherencia para esa tarea específica.
+
+### Lo que todavía NO soporta
+
+No demuestra que:
+- todos los procesos necesiten stickers;
+- una app vaya a resolver la adherencia;
+- el problema sea sólo de capacitación;
+- el comportamiento mejorado se mantenga indefinidamente.
+
+### CAND-010 — observación
+
+> Operación necesita que los procedimientos críticos sigan ejecutándose de forma consistente después del periodo inicial de capacitación.
+
+Estado: observación con un caso concreto de solución física exitosa.
+
+---
+
+## Bloque C — recaída de hábitos en clientes
+
+El propietario extendió el mismo patrón a clientes:
+
+- reciben indicaciones sobre qué hacer con el perro;
+- las siguen inicialmente;
+- semanas después pueden volver a hábitos anteriores.
+
+Ejemplos mencionados:
+- volver a permitir subir al sillón;
+- tolerar conductas que habían trabajado durante el entrenamiento.
+
+### Clasificación
+
+Esto se registra como **hipótesis del propietario sobre adherencia del cliente**, no como evidencia directa del cliente.
+
+No abrir todavía una oportunidad de producto basada sólo en esta observación. Validar con clientes mediante historias reales de práctica en casa.
+
+---
+
+## Siguiente pregunta — sólo Bloque A
+
+Objetivo: descubrir cómo se obtiene hoy el estado de cuidado cuando el propietario no puede observarlo directamente.
+
+> Hoy, si tú no estás ahí, ¿cómo puedes saber que cada perro ya comió, fue lavado y está bien? Cuéntame la última vez que tuviste que averiguarlo.
+
+Condición de cierre:
+- identificar fuente actual;
+- saber si existe registro o sólo comunicación verbal;
+- reconstruir un episodio concreto;
+- conocer la consecuencia si el dato no está disponible.
+
+Después de alcanzar esto, cerrar Bloque A y pasar a adherencia de sistemas.
