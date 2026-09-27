@@ -131,15 +131,38 @@ Esto muestra que la ausencia del dato genera **variación de proceso**: la respu
 
 No asumir todavía que estos efectos producen pérdida económica. Debe medirse.
 
-## Próxima pregunta obligatoria
+## Respuesta sobre aproximación y conciliación
 
-> Cuando aproximan un saldo para cobrar, ¿cómo calculan esa aproximación y qué hacen después para comprobar si cobraron de más o de menos?
+Cuando falta el saldo exacto, el equipo puede estimarlo a partir de una tarifa conocida y los días/servicios correspondientes. Ejemplo reportado: una tarifa de aproximadamente $480 multiplicada por el número de días, para llegar a una cifra aproximada.
 
-### Qué buscamos con esa pregunta
+La comprobación posterior no sigue un proceso único y consistente:
 
-- fuente usada para aproximar;
-- margen de error;
-- proceso de conciliación;
-- existencia de controles posteriores;
-- posibilidad de cobrar de más o de menos;
-- tiempo administrativo adicional.
+- a veces el cliente avisa si la cantidad no coincide;
+- a veces el equipo corrige posteriormente;
+- otras veces no hay una conciliación formal visible en el momento.
+
+### Qué demuestra este bloque
+
+- existe una alternativa operativa para seguir atendiendo;
+- esa alternativa depende de estimación/memoria y no del saldo canónico;
+- la corrección posterior no parece seguir un flujo uniforme;
+- por lo tanto, el problema observado es de **acceso oportuno a información operativa y consistencia de proceso**, no necesariamente de bloqueo total.
+
+### Estado del objetivo de este bloque
+
+**Objetivo alcanzado.**
+
+Ya conocemos:
+1. fuente habitual de la información;
+2. alternativa cuando la fuente humana no está disponible;
+3. caso real;
+4. comportamiento compensatorio;
+5. consecuencia operativa;
+6. mecanismo aproximado de resolución;
+7. ausencia de conciliación uniforme.
+
+No seguir profundizando en este tema salvo que aparezca evidencia contradictoria en otra entrevista.
+
+## Siguiente bloque
+
+Pasar a **comprensión y valor percibido de UCAPSA App**.
