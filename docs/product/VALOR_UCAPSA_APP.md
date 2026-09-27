@@ -117,3 +117,15 @@ Primera prueba:
 - hacer explícita en Home la promesa concreta "próxima clase · asistencias · logros · siguiente paso";
 - observar si las personas pueden explicar el valor más rápido;
 - conservar la instrumentación de continuidad ya existente para estudiar uso posterior, sin interpretar correlación como causalidad.
+
+
+## Sistema de investigación
+
+La validación de esta propuesta se gestiona en `docs/product/discovery/`.
+
+El sistema combina:
+
+- **April Dunford:** entender la alternativa actual y el valor diferencial desde lo que la persona hace hoy sin UCAPSA App.
+- **Teresa Torres:** outcome, entrevistas de historias reales, oportunidades respaldadas por evidencia, pruebas de soluciones y revisión continua.
+
+El Opportunity Solution Tree empieza deliberadamente sin oportunidades confirmadas. Las oportunidades sólo se añaden cuando existe evidencia documentada en Interview Snapshots.
