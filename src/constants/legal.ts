@@ -1,5 +1,5 @@
-export const UCAPSA_TERMS_VERSION = '1.1';
-export const UCAPSA_LEGAL_EFFECTIVE_DATE = '2026-09-22';
+export const UCAPSA_TERMS_VERSION = '1.2';
+export const UCAPSA_LEGAL_EFFECTIVE_DATE = '2026-09-27';
 export const UCAPSA_PRIVACY_PUBLIC_URL =
   'https://github.com/JJCO2000/ucapsa-app/blob/main/docs/legal/AVISO_PRIVACIDAD_UCAPSA_APP.md';
 export const UCAPSA_ACCOUNT_DELETION_PUBLIC_URL =
@@ -14,7 +14,7 @@ export const UCAPSA_TERMS_SECTIONS: LegalSection[] = [
   {
     title: '1. Responsable del servicio',
     body:
-      'UCAPSA App es operada por Universidad de Crianza y Adiestramiento Peruano, S.A. de C.V., con domicilio en Privada de Tetenco #5, Colonia San Miguel Topilejo, C.P. 14500, Alcaldía Tlalpan, Ciudad de México, México. Contacto: ucapsa84@gmail.com.',
+      'UCAPSA App es operada por Universidad de Crianza y Adiestramiento S.A. de C.V., con domicilio en Privada de Tetenco #5, Colonia San Miguel Topilejo, C.P. 14500, Alcaldía Tlalpan, Ciudad de México, México. Contacto: ucapsa84@gmail.com.',
   },
   {
     title: '2. Personas que pueden crear una cuenta',
