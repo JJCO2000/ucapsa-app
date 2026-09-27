@@ -93,6 +93,7 @@ OPP-###
 |---|---|---|---|---|---|
 | CAND-009 | Conocer el estado básico de cuidado de cada perro sin depender de supervisión personal del propietario | observación | INT-001: el propietario reporta que debe revisar personalmente comida, lavado y estado general | operación | reconstruir un episodio cuando no estuvo presente y verificar fuente/registro actual |
 | CAND-010 | Mantener adherencia a procedimientos críticos después de la capacitación inicial | observación | INT-001: los sistemas se siguen inicialmente y luego se degradan; stickers de perreras mejoraron una tarea concreta | operación | identificar un procedimiento aún problemático y reconstruir la última falla |
+| CAND-011 | Asegurar evaluación de control de calidad del internado en la tercera semana de cada nivel | observación | INT-001: cada nivel dura 4 semanas; la revisión debe ocurrir en semana 3; el seguimiento delegado no se mantiene y sin evaluación no hay control previo a entrega | operación/internado | reconstruir la última evaluación omitida y su consecuencia |
 
 ## Outcome de Admin separado
 
