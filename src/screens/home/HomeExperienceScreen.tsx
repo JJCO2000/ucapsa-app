@@ -204,8 +204,8 @@ export default function HomeExperienceScreen() {
   const displayName = profile?.full_name || snapshot?.identity.displayName || profile?.email || user?.email || 'Visitante';
   const dogName = mainProgram?.dogName || profile?.dog_name || null;
   const identityDetail = user
-    ? [dogName, premium ? 'Socio UCAPSA' : mainProgram ? 'Cliente UCAPSA' : 'UCAPSA'].filter(Boolean).join(' · ')
-    : 'Entrenamiento y convivencia con una ruta clara';
+    ? 'Tu próxima clase · asistencias · logros · siguiente paso'
+    : 'Todo el recorrido de tu perro en un solo lugar';
   const profileComplete = Boolean((profile?.full_name ?? '').trim() && (profile?.phone ?? '').trim());
   const nextAction = snapshot ? getCustomerValuePrimaryNextAction(snapshot) : null;
   const recentAchievement = newestRecentAchievement(snapshot);
@@ -292,8 +292,8 @@ export default function HomeExperienceScreen() {
             <MaterialIcons name="pets" size={25} color={format.accentDark} />
           </View>
           <View style={styles.guestBody}>
-            <Text style={[styles.guestTitle, { color: format.cardText }]}>Empieza por lo que quieres mejorar con tu perro</Text>
-            <Text style={[styles.guestText, { color: format.muted }]}>UCAPSA te orienta al programa adecuado y después te ayuda a ver lo que tienes, lo que aprovechas y lo que sigue.</Text>
+            <Text style={[styles.guestTitle, { color: format.cardText }]}>Sabe qué toca y cómo va tu perro</Text>
+            <Text style={[styles.guestText, { color: format.muted }]}>Después de inscribirte, consulta en segundos tu próxima clase, asistencias, logros y siguiente paso.</Text>
             <View style={styles.guestActions}>
               <Pressable style={[styles.primaryButton, { backgroundColor: format.primaryButton }]} onPress={() => void openGuestWhatsApp()}>
                 <MaterialIcons name="chat" size={18} color={format.primaryButtonText} />
