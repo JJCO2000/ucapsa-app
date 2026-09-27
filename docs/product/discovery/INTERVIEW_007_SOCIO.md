@@ -328,3 +328,57 @@ No explicar los números antes de que responda.
 - Si no puede responder, existe un problema de comprensión/encontrabilidad más fuerte.
 
 Cerrar el bloque después de esta respuesta.
+
+
+## Resultado de la última comprobación — clases faltantes
+
+Ante la pregunta:
+
+> Viendo únicamente esta pantalla, ¿cuántas clases te faltan en Comandos Básico?
+
+El socio:
+
+- tardó varios segundos en responder;
+- respondió: **“me faltarían 2”**.
+
+### Resultado de tarea
+
+**Fracaso de comprensión.**
+
+La respuesta esperada según el programa activo visible es **6**, porque la tarjeta muestra **0/6 asistencias del programa**.
+
+### Qué demuestra
+
+La ambigüedad ya no es sólo terminológica. Afecta una tarea real:
+
+> saber cuántas clases faltan en el programa actual.
+
+La coexistencia de:
+- **0/6** en el programa activo;
+- **2 clases** en actividad histórica;
+- **0 visitas**;
+- **5 prácticas**;
+
+no permite a este usuario identificar de forma inmediata cuál número responde a “cuántas clases me faltan”.
+
+### Estado de CAND-005
+
+**CAND-005 aumenta de evidencia.**
+
+Ya existe:
+- confusión espontánea entre “clase” y “visita”;
+- elección inicial del historial de clases;
+- demora observable;
+- respuesta incorrecta en tarea concreta.
+
+Sigue en observación hasta repetir la tarea con otro usuario, pero el problema de usabilidad está reproducido en INT-007.
+
+## Última pregunta diagnóstica
+
+> ¿Qué viste en la pantalla que te hizo pensar que te faltaban 2?
+
+No corregirlo antes de responder.
+
+### Condición de cierre
+
+Después de esta respuesta, cerrar definitivamente el bloque de métricas/actividad y pasar al siguiente objetivo de INT-007.
