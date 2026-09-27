@@ -1,5 +1,5 @@
 interview_id,date,segment,program_or_role,uses_app,alternative_current,home_value_understood,value_relevant,task_next_class,task_attendance,task_next_step,task_achievement,task_competition,trusts_without_external_confirmation,primary_diagnosis,candidate_opportunity_ids,key_quote,next_test
-INT-001,,owner_admin,,,,,,,,,,,,,,,
+INT-001,2026-09-27,owner_admin,owner,,"personal_supervision|staff_systems",,,,,,,,,operations_visibility_and_adherence,"CAND-009|CAND-010","Yo tengo que estar checando eso","Reconstruir episodio de cuidado cuando el propietario no está y luego un fallo reciente de procedimiento"
 INT-002,2026-09-27,operations_staff,role_pending,,secretaria_administracion,,,,,,,,,operations_dependency,"CAND-001|CAND-002","La mayoría de información operativa se consigue preguntando a Secretaría/Administración","Reconstruir episodio sin disponibilidad y medir preguntas a Secretaría durante una semana"
 INT-003,,client_puppy,,,,,,,,,,,,,,,
 INT-004,,client_puppy,,,,,,,,,,,,,,,
