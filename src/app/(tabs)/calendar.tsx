@@ -15,9 +15,16 @@ import { getVisibleAnnouncements } from '../../services/announcements.service';
 import { getVisibleEventOccurrenceCancellations } from '../../services/event-occurrence-cancellations.service';
 import { getVisibleEvents } from '../../services/events.service';
 import { clientReadKeys, readClientResource, writeClientResource, type CalendarClassesOfflineSnapshot } from '../../services/client-read-cache.service';
-import { formatProgramScheduleDetailLabel, formatProgramScheduleName, getProgramClassCancellations, getProgramScheduleTimeline, getPrograms, isProgramScheduleActiveOnDate } from '../../services/programs.service';
+import { formatProgramScheduleDetailLabel, formatProgramScheduleName, getAdminProgramRows, getProgramClassCancellations, getProgramScheduleTimeline, getPrograms, isProgramScheduleActiveOnDate } from '../../services/programs.service';
 import { getCachedMyPracticeActivity, getMyPracticeActivity, type PracticeActivityEntry } from '../../services/practice.service';
-import type { Announcement, EventOccurrence, EventOccurrenceCancellation, ProgramClassCancellation, ProgramSchedule, UcapsaEvent, UcapsaProgram } from '../../types/app.types';
+import {
+  adminRosterLevelLabel,
+  filterAdminClassRoster,
+  getAdminClassRosterRows,
+  getAdminCommandLevelCounts,
+  type AdminRosterLevel,
+} from '../../services/admin-class-roster.service';
+import type { Announcement, EventOccurrence, EventOccurrenceCancellation, ProgramClassCancellation, ProgramEnrollmentWithDetails, ProgramSchedule, UcapsaEvent, UcapsaProgram } from '../../types/app.types';
 import { expandEventOccurrences, formatDateKey, getUpcomingOccurrences, toDateKey, todayKey } from '../../utils/events.utils';
 import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
 
@@ -145,14 +152,17 @@ export default function CalendarScreen() {
   const [programs, setPrograms] = useState<UcapsaProgram[]>([]);
   const [programSchedules, setProgramSchedules] = useState<ProgramSchedule[]>([]);
   const [classCancellations, setClassCancellations] = useState<ProgramClassCancellation[]>([]);
+  const [adminProgramRows, setAdminProgramRows] = useState<ProgramEnrollmentWithDetails[]>([]);
   const [practiceActivity, setPracticeActivity] = useState<PracticeActivityEntry[]>([]);
   const [practiceLoadWarning, setPracticeLoadWarning] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(todayKey());
   const [classesExpanded, setClassesExpanded] = useState(false);
+  const [openRoster, setOpenRoster] = useState<{ occurrenceId: string; level: AdminRosterLevel } | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [classLoadWarning, setClassLoadWarning] = useState<string | null>(null);
+  const [adminRosterWarning, setAdminRosterWarning] = useState<string | null>(null);
   const [partialLoadWarning, setPartialLoadWarning] = useState<string | null>(null);
   const [usingSavedData, setUsingSavedData] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
@@ -164,6 +174,7 @@ export default function CalendarScreen() {
   const loadCalendarData = useCallback(async () => {
     setError(null);
     setClassLoadWarning(null);
+    setAdminRosterWarning(null);
     setPartialLoadWarning(null);
     setPracticeLoadWarning(null);
     setUsingSavedData(false);
@@ -190,7 +201,7 @@ export default function CalendarScreen() {
       setLoading(false);
     }
 
-    const [eventResult, eventCancellationResult, announcementResult, classResult, practiceResult] = await Promise.allSettled([
+    const [eventResult, eventCancellationResult, announcementResult, classResult, practiceResult, adminRosterResult] = await Promise.allSettled([
       withOperationTimeout(getVisibleEvents(), DEFAULT_READ_TIMEOUT_MS, 'calendar-events'),
       withOperationTimeout(
         getVisibleEventOccurrenceCancellations(),
@@ -206,6 +217,9 @@ export default function CalendarScreen() {
       user && !isAdmin
         ? withOperationTimeout(getMyPracticeActivity(user.id), DEFAULT_READ_TIMEOUT_MS, 'calendar-practice')
         : Promise.resolve(null),
+      isAdmin
+        ? withOperationTimeout(getAdminProgramRows(), DEFAULT_READ_TIMEOUT_MS, 'calendar-admin-rosters')
+        : Promise.resolve([] as ProgramEnrollmentWithDetails[]),
     ]);
 
     if (eventResult.status === 'fulfilled') {
@@ -236,6 +250,12 @@ export default function CalendarScreen() {
       setClassCancellations(snapshot.cancellations);
       await writeClientResource(cacheScope, clientReadKeys.calendarClasses, snapshot);
     }
+    if (adminRosterResult.status === 'fulfilled') {
+      setAdminProgramRows(adminRosterResult.value);
+    } else if (isAdmin) {
+      setAdminRosterWarning('Los inscritos por clase no se pudieron actualizar.');
+    }
+
     if (practiceResult.status === 'fulfilled' && practiceResult.value) {
       setPracticeActivity(practiceResult.value.entries);
       if (practiceResult.value.source !== 'remote' && practiceResult.value.entries.length > 0) {
@@ -304,6 +324,7 @@ export default function CalendarScreen() {
 
   useEffect(() => {
     setClassesExpanded(false);
+    setOpenRoster(null);
   }, [selectedDate]);
 
   const occurrences = useMemo(
@@ -465,6 +486,13 @@ export default function CalendarScreen() {
           <View style={styles.warningBox}>
             <Text style={styles.warningTitle}>Clases no disponibles</Text>
             <Text style={styles.warningText}>{classLoadWarning}</Text>
+          </View>
+        ) : null}
+
+        {adminRosterWarning ? (
+          <View style={styles.warningBox}>
+            <Text style={styles.warningTitle}>Inscritos no disponibles</Text>
+            <Text style={styles.warningText}>{adminRosterWarning}</Text>
           </View>
         ) : null}
 
