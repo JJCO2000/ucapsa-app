@@ -7,6 +7,7 @@ import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import { getAdminMembershipRows } from '../../services/memberships.service';
+import { getAdminClientFollowupRows } from '../../services/admin-client-followups.service';
 import { getAdminTrainingDecisionRows } from '../../services/admin-training-decisions.service';
 import { getAdminPaymentAttentionRows } from '../../services/payments.service';
 import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
@@ -15,12 +16,14 @@ type DashboardStats = {
   pendingRequests: number;
   paymentAttention: number;
   trainingDecisions: number;
+  clientFollowups: number;
 };
 
 const emptyStats: DashboardStats = {
   pendingRequests: 0,
   paymentAttention: 0,
   trainingDecisions: 0,
+  clientFollowups: 0,
 };
 
 export default function AdminHomeTab() {
@@ -36,17 +39,18 @@ export default function AdminHomeTab() {
     [profile?.full_name, user?.email],
   );
   const roleLabel = role === 'super_admin' ? 'Superadmin' : 'Admin';
-  const pendingTotal = stats.trainingDecisions + stats.pendingRequests + stats.paymentAttention;
+  const pendingTotal = stats.trainingDecisions + stats.pendingRequests + stats.paymentAttention + stats.clientFollowups;
 
   const load = useCallback(async () => {
     if (!isAdmin) return;
 
     setError(null);
-    const [memberships, paymentAttentionRows, trainingDecisions] = await withOperationTimeout(
+    const [memberships, paymentAttentionRows, trainingDecisions, clientFollowups] = await withOperationTimeout(
       Promise.all([
         getAdminMembershipRows(),
         getAdminPaymentAttentionRows(),
         getAdminTrainingDecisionRows(),
+        getAdminClientFollowupRows(),
       ]),
       DEFAULT_READ_TIMEOUT_MS,
       'admin-home-load',
@@ -61,6 +65,7 @@ export default function AdminHomeTab() {
       pendingRequests: memberships.filter((item) => item.membership.status === 'pending').length,
       paymentAttention: attentionUsers.size,
       trainingDecisions: trainingDecisions.length,
+      clientFollowups: clientFollowups.length,
     });
     setHasData(true);
   }, [isAdmin]);
@@ -138,6 +143,16 @@ export default function AdminHomeTab() {
 
       {hasData && pendingTotal > 0 ? (
         <View style={styles.decisionList}>
+          {stats.clientFollowups > 0 ? (
+            <DecisionCard
+              icon="priority-high"
+              title="Seguimiento de clientes"
+              detail="Perros con Puppy terminado sin continuidad o 30 días sin asistencia."
+              value={stats.clientFollowups}
+              tone="danger"
+              onPress={() => router.push('/admin/client-followups' as never)}
+            />
+          ) : null}
           {stats.trainingDecisions > 0 ? (
             <DecisionCard
               icon="task-alt"
@@ -196,24 +211,43 @@ function DecisionCard({
   detail,
   value,
   onPress,
+  tone = 'default',
 }: {
   icon: keyof typeof MaterialIcons.glyphMap;
   title: string;
   detail: string;
   value: number;
   onPress: () => void;
+  tone?: 'default' | 'danger';
 }) {
   return (
-    <Pressable style={({ pressed }) => [styles.decisionCard, pressed && styles.pressed]} onPress={onPress}>
-      <View style={styles.decisionIcon}>
-        <MaterialIcons name={icon} size={22} color={ucapsaBrand.colors.redDark} />
+    <Pressable
+      style={({ pressed }) => [
+        styles.decisionCard,
+        tone === 'danger' && styles.decisionCardDanger,
+        pressed && styles.pressed,
+      ]}
+      onPress={onPress}
+    >
+      <View style={[styles.decisionIcon, tone === 'danger' && styles.decisionIconDanger]}>
+        <MaterialIcons
+          name={icon}
+          size={22}
+          color={tone === 'danger' ? ucapsaBrand.colors.surface : ucapsaBrand.colors.redDark}
+        />
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={styles.decisionTitle}>{title}</Text>
         <Text style={styles.decisionDetail}>{detail}</Text>
       </View>
-      <View style={styles.decisionCount}><Text style={styles.decisionCountText}>{value}</Text></View>
-      <MaterialIcons name="chevron-right" size={22} color={ucapsaBrand.colors.redDark} />
+      <View style={[styles.decisionCount, tone === 'danger' && styles.decisionCountDanger]}>
+        <Text style={[styles.decisionCountText, tone === 'danger' && styles.decisionCountTextDanger]}>{value}</Text>
+      </View>
+      <MaterialIcons
+        name="chevron-right"
+        size={22}
+        color={tone === 'danger' ? ucapsaBrand.colors.danger : ucapsaBrand.colors.redDark}
+      />
     </Pressable>
   );
 }
@@ -299,6 +333,10 @@ const styles = StyleSheet.create({
     backgroundColor: ucapsaBrand.colors.surface,
     padding: 13,
   },
+  decisionCardDanger: {
+    borderColor: ucapsaBrand.colors.dangerBorder,
+    backgroundColor: ucapsaBrand.colors.dangerSoft,
+  },
   decisionIcon: {
     width: 42,
     height: 42,
@@ -307,6 +345,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: ucapsaBrand.colors.redSoft,
   },
+  decisionIconDanger: { backgroundColor: ucapsaBrand.colors.danger },
   decisionTitle: { color: ucapsaBrand.colors.text, fontSize: 15, fontWeight: '900' },
   decisionDetail: {
     color: ucapsaBrand.colors.muted,
@@ -323,7 +362,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: ucapsaBrand.colors.goldPale,
   },
+  decisionCountDanger: { backgroundColor: ucapsaBrand.colors.danger },
   decisionCountText: { color: ucapsaBrand.colors.goldDark, fontSize: 13, fontWeight: '900' },
+  decisionCountTextDanger: { color: ucapsaBrand.colors.surface },
   allClear: {
     flexDirection: 'row',
     alignItems: 'center',
