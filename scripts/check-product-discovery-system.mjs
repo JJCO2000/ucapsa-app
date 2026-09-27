@@ -49,7 +49,7 @@ for (const token of [
 }
 
 for (const token of [
-  'Estado: preparada, no realizada',
+  'preparada, no realizada',
   'No mezclar ambas capas',
   'Hipótesis previas',
   'No llenar.',
