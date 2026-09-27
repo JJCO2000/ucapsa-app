@@ -196,3 +196,36 @@ Cerrar el bloque cuando sepamos si el beneficio comprendido es:
 - útil sólo en ciertos momentos.
 
 No profundizar más después de conocer el porqué.
+
+
+## Cierre del bloque — valor percibido
+
+Ante la pregunta sobre si le sirve ver cuántas clases lleva y cuántas le faltan, el socio respondió afirmativamente y explicó:
+
+> “Así ya tengo conocimiento de primera mano la información.”
+
+### Resultado
+
+- **Valor comprendido:** sí.
+- **Valor relevante:** sí.
+- **Razón principal:** acceso directo a la información sin depender de intermediarios.
+- **Tipo de valor:** autonomía / autoservicio / conocimiento directo del estado de sus clases.
+
+### Diagnóstico
+
+El socio no sólo entiende la función de seguimiento de clases; la conecta con un beneficio concreto: **tener información de primera mano**.
+
+**Objetivo del bloque alcanzado. No profundizar más en relevancia.**
+
+## Siguiente bloque — alternativa previa
+
+Objetivo: identificar qué reemplaza la app para este trabajo específico.
+
+Pregunta:
+
+> Antes de la app, ¿cómo sabías cuántas clases llevabas y cuántas te faltaban?
+
+Condición de cierre:
+- saber el método anterior;
+- saber si implicaba preguntar, recordar o revisar otra fuente;
+- saber si la app sustituye o complementa ese método.
