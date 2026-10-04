@@ -57,15 +57,6 @@ function sortAchievementsForHome(items: AchievementWithState[]) {
   });
 }
 
-function isRecentlyUnlocked(item: AchievementWithState) {
-  const awardedAt = item.achievement?.awarded_at;
-  if (!item.unlocked || !awardedAt) return false;
-  const time = new Date(awardedAt).getTime();
-  if (!Number.isFinite(time)) return false;
-  const fourteenDays = 14 * 24 * 60 * 60 * 1000;
-  return Date.now() - time <= fourteenDays;
-}
-
 function achievementProgressLabel(item: AchievementWithState) {
   if (item.progressTarget != null && item.progressCurrent != null) {
     return `${Math.min(item.progressCurrent, item.progressTarget)} de ${item.progressTarget}`;
@@ -117,7 +108,6 @@ export function AchievementBadgeGrid({
         const lockedColor = premium ? ucapsaBrand.colors.premiumMuted : ucapsaBrand.colors.gray;
         const lockedBackground = premium ? ucapsaBrand.colors.premiumSurfaceAlt : ucapsaBrand.colors.graySoft;
         const progressLabel = achievementProgressLabel(item);
-        const newAchievement = isRecentlyUnlocked(item);
 
         return (
           <Pressable
@@ -134,11 +124,7 @@ export function AchievementBadgeGrid({
             ]}
           >
             <View style={styles.badgeTopRow}>
-              {newAchievement ? (
-                <View style={[styles.newPill, { backgroundColor: tone.main }]}>
-                  <Text style={styles.newPillText}>NUEVO</Text>
-                </View>
-              ) : <View />}
+              <View />
               {item.unlocked ? (
                 <MaterialCommunityIcons name="check-circle" size={19} color={tone.dark} />
               ) : null}
@@ -331,8 +317,6 @@ const styles = StyleSheet.create({
   badgeCardPremium: { backgroundColor: ucapsaBrand.colors.premiumSurface, borderColor: ucapsaBrand.colors.premiumBorder },
   badgeCardLocked: { opacity: 0.9 },
   badgeTopRow: { width: '100%', minHeight: 25, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  newPill: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
-  newPillText: { color: ucapsaBrand.colors.surface, fontSize: 9, lineHeight: 11, fontWeight: '900', letterSpacing: 0.35 },
   achievementSeal: { width: 86, height: 86, borderRadius: 30, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginTop: 1, marginBottom: 2 },
   achievementTarget: { position: 'absolute', right: -6, bottom: -7, minWidth: 34, height: 29, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 7, borderWidth: 2, borderColor: ucapsaBrand.colors.surface },
   achievementTargetText: { color: ucapsaBrand.colors.surface, fontSize: 13, lineHeight: 16, fontWeight: '900' },
