@@ -197,6 +197,14 @@ export default function CalendarScreen() {
     }
   }, [requestedDate]);
 
+    useEffect(() => {
+    if ((!user || isAdmin) && agendaFilter === 'practice') setAgendaFilter('all');
+  }, [agendaFilter, isAdmin, user]);
+
+  useEffect(() => {
+    if (isAdmin) setMonthExpanded(true);
+  }, [isAdmin]);
+
     const cacheScope = user?.id ?? 'public';
 
   const loadCalendarData = useCallback(async () => {
@@ -725,7 +733,7 @@ export default function CalendarScreen() {
               <View style={[styles.classGroupCard, allSelectedClassesCancelled && styles.classGroupCardCancelled]}>
                 <Pressable style={styles.classGroupHeader} onPress={() => setClassesExpanded((value) => !value)}>
                   <View style={[styles.classGroupIcon, allSelectedClassesCancelled && styles.classGroupIconCancelled]}>
-                    <MaterialIcons name={allSelectedClassesCancelled ? 'event-busy' : 'school'} size={22} color={allSelectedClassesCancelled ? ucapsaBrand.colors.red : ucapsaBrand.colors.red} />
+                    <MaterialIcons name={allSelectedClassesCancelled ? 'event-busy' : 'school'} size={22} color={allSelectedClassesCancelled ? ucapsaBrand.colors.red : ucapsaBrand.colors.blueDark} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.classKicker, allSelectedClassesCancelled && styles.classKickerCancelled]}>Clases</Text>
@@ -740,7 +748,7 @@ export default function CalendarScreen() {
                   <View style={[styles.classGroupPill, allSelectedClassesCancelled && styles.classGroupPillCancelled]}>
                     <Text style={styles.classGroupPillText}>{selectedClasses.length}</Text>
                   </View>
-                  <MaterialIcons name={classesExpanded ? 'expand-less' : 'expand-more'} size={24} color={allSelectedClassesCancelled ? ucapsaBrand.colors.red : ucapsaBrand.colors.red} />
+                  <MaterialIcons name={classesExpanded ? 'expand-less' : 'expand-more'} size={24} color={allSelectedClassesCancelled ? ucapsaBrand.colors.red : ucapsaBrand.colors.blueDark} />
                 </Pressable>
 
                 {classesExpanded ? (
