@@ -1,7 +1,7 @@
 # Opportunity Solution Tree — UCAPSA App
 
-**Estado:** descubrimiento inicial  
-**Regla:** no añadir oportunidades sin evidencia.
+**Estado:** discovery activo  
+**Regla:** no añadir soluciones como si fueran oportunidades.
 
 ## Outcome de producto
 
@@ -9,83 +9,115 @@
 
 ### Conexión con resultados de negocio
 
-Este outcome puede contribuir a:
-
-- reducir consultas administrativas repetitivas;
-- aumentar uso útil de la app;
-- mejorar continuidad entre programas;
-- detectar abandono antes;
-- mejorar retención.
-
-Estas relaciones son **hipótesis** hasta contar con evidencia. No deben presentarse como causalidad demostrada.
+Este outcome puede contribuir a reducir consultas repetitivas, aumentar uso útil y mejorar continuidad. Esas relaciones siguen siendo hipótesis mientras no exista evidencia causal.
 
 ---
 
 ## Árbol actual
 
 ```
-OUTCOME
-Que el cliente pueda saber por sí mismo:
-qué le toca → cómo va → qué sigue
-sin depender de preguntar a UCAPSA.
-
-├── OPORTUNIDADES CONFIRMADAS
-│   └── [vacío hasta que exista evidencia]
+OUTCOME CLIENTE
+qué me toca → cómo voy → qué sigue
+sin depender de preguntar a UCAPSA
 │
-├── OPORTUNIDADES EN OBSERVACIÓN
-│   ├── CAND-001 Personal necesita consultar información operativa sin depender de una sola persona (INT-002)
-│   └── CAND-002 Personal necesita una fuente oficial y actualizada para confiar en los datos operativos (INT-002)
+├── CLIENT-OPP-001 CONFIRMADA
+│   Entender programa, clases y estado actual sin ambigüedad
+│   Evidencia: INT-007 + INT-009
+│   Contraste/valor positivo: INT-010 + INT-011
 │
-└── SOLUCIONES
-    └── No añadir soluciones antes de identificar la oportunidad.
+├── CLIENT-CAND-002 OBSERVACIÓN
+│   Enterarme de cambios/cancelaciones por un canal oficial
+│   Evidencia: INT-011
+│   Solución existente a validar: anuncios + push + cancelaciones
+│
+├── CLIENT-CAND-003 EVIDENCIA PARCIAL
+│   Consultar estado administrativo/pagos con autonomía
+│   Evidencia principal: INT-010
+│   INT-011 sugiere pago en línea, pero eso sigue siendo solución propuesta
+│
+├── CLIENT-CAND-004 EVIDENCIA INCOMPLETA
+│   Saber cómo va el perro durante un servicio prolongado
+│   Evidencia operacional mayor que evidencia cliente
+│
+└── HYP-CLIENT-01 HIPÓTESIS
+    Mantenimiento/continuidad postentrenamiento
+    No construir hasta validar comportamiento real posterior a entrega
 ```
 
-## Qué cuenta como oportunidad
+## CLIENT-OPP-001 — Entender programa, clases y estado actual
 
-Una oportunidad describe una necesidad, dolor o deseo del usuario.
+**Estado:** confirmada.
 
-**Sí:**
-- “No recuerdo cuándo me toca la siguiente clase.”
-- “No sé cuántas clases llevo.”
-- “No sé qué ocurre después de Puppy.”
-- “Tengo que preguntarle a alguien para confiar en el horario.”
+### Qué cuenta como evidencia
 
-**No:**
-- “Necesitamos un calendario mejor.”
-- “Hay que poner push notifications.”
-- “Debemos agregar una tarjeta nueva.”
-- “Hay que rediseñar Home.”
+- INT-007: confusión entre “actividad” y clases restantes.
+- INT-009: confusión repetida entre clases, actividad, prácticas y progreso.
+- INT-010: cuando clases tomadas/restantes se presentan con claridad, son útiles.
+- INT-011: la participante valora que la app sustituya la tarjeta física perdida y permita saber cuántas clases quedan/cómo va.
 
-Las segundas son soluciones.
+### Decisión de solución ya autorizada
 
-## Registro de oportunidades
+Corregir la semántica de la experiencia existente:
+- programa/nivel;
+- clases tomadas/restantes para tarjeta finita;
+- acceso ilimitado para socio;
+- siguiente clase/acción;
+- historial de clases/visitas/prácticas por separado.
 
-| ID | Oportunidad | Estado | Evidencia | Segmentos | Frecuencia observada | Impacto | Próxima prueba |
-|---|---|---|---|---|---:|---|---|
-| CAND-001 | Consultar información operativa sin depender de una sola persona | observación | INT-002: deudas, hotel y programación se consultan a Secretaría/Administración | operación/admin | 1 entrevista, múltiples ejemplos | alta potencial, sin medir | reconstruir un episodio de indisponibilidad y medir consultas durante 1 semana |
-| CAND-002 | Tener una fuente oficial y actualizada para confiar en datos operativos | observación | INT-002: Secretaría/Administración funciona como fuente confiable de facto | operación/admin | 1 entrevista | media-alta potencial | preguntar por qué confía en esa fuente y qué necesitaría para confiar en el sistema |
+**No** convertir asistencia en porcentaje de aprendizaje o dominio.
 
-## Árbol de soluciones
+## CLIENT-CAND-002 — Cambios y cancelaciones por canal oficial
 
-No se abrirá una rama de solución hasta que exista una oportunidad con evidencia suficiente.
+**Estado:** observación.
 
-Cuando se abra, usar:
+INT-011 describe dificultad para enterarse de cambios de horario/cancelaciones y quiere evitar depender del grupo de WhatsApp.
 
-```
-OPP-###
-└── SOL-### propuesta
-    ├── ASSUMP-DES-### deseabilidad
-    ├── ASSUMP-USA-### usabilidad
-    ├── ASSUMP-FEA-### viabilidad técnica
-    └── ASSUMP-BUS-### viabilidad de negocio
-```
+La app ya tiene anuncios, cancelaciones y notificaciones. Por tanto, el siguiente paso no es crear otro módulo sino comprobar que la solución existente:
+- aparece en Inicio;
+- envía push en una versión instalada;
+- cubre tanto tarjeta finita como membresía.
 
-## Outcome de Admin separado
+## CLIENT-CAND-003 — Pagos/autonomía administrativa
 
-No mezclar problemas del cliente con problemas internos.
+**Estado:** evidencia parcial.
 
-Outcome provisional de Admin:
+No confundir:
+- problema/estado administrativo;
+- propuesta de pago en línea.
 
-> **Que Admin pueda saber quién necesita atención, quién viene a clase y qué requiere una decisión sin revisar cliente por cliente.**
+INT-011 menciona pago en línea como sugerencia. No se aprueba esa solución hasta reconstruir una historia real de pago y confirmar la fuente de verdad.
 
-Este outcome ya tiene soluciones implementadas —Inicio por decisiones, inscritos por clase, seguimiento 14/30—, pero sus oportunidades también deben validarse con historias reales de operación.
+## CLIENT-CAND-004 — Visibilidad durante servicio prolongado
+
+**Estado:** no cerrada.
+
+Hay evidencia operacional sobre videos/actualizaciones. Aún debe distinguirse entre:
+- incumplimiento de un contacto prometido;
+- necesidad de información adicional incluso cuando el contacto se cumple.
+
+## HYP-CLIENT-01 — Mantenimiento
+
+**Estado:** hipótesis estratégica.
+
+La continuidad Puppy → Comandos observada en INT-011 demuestra que existe recorrido entre programas, pero no prueba una necesidad de mantenimiento postentrenamiento.
+
+---
+
+## Outcome de operación separado
+
+> **Que el equipo UCAPSA pueda saber qué necesita atención, quién es responsable y qué ya se hizo sin depender de memoria o comunicación informal.**
+
+Las observaciones CAND-001/CAND-002/CAND-003 de INT-002 pertenecen a esta rama operacional, no al OST Cliente.
+
+Una futura UCAPSA Staff, CRM o integración son **soluciones candidatas** y no conclusiones automáticas.
+
+## Regla de evidencia
+
+Una observación individual puede generar una hipótesis/candidata. Una oportunidad se confirma cuando:
+- el patrón aparece en 2 o más historias independientes; o
+- aparece una vez, bloquea una tarea crítica y puede reproducirse; o
+- existe evidencia cuantitativa consistente.
+
+## Estado consolidado
+
+Ver `DISCOVERY_STATE_2026-10-04.md` para la síntesis actual y `INTERVIEW_011_SOCIA_PUPPY_COMANDOS.md` para la evidencia nueva.
