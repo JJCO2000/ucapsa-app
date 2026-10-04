@@ -40,6 +40,7 @@ type ClassOccurrence = {
 
 function announcementDateKey(announcement: Announcement): string | null {
   if (announcement.event?.start_date) return toDateKey(announcement.event.start_date);
+  if (announcement.announcement_date) return toDateKey(announcement.announcement_date);
   return toDateKey(announcement.created_at);
 }
 
