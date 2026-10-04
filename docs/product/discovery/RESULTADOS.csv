@@ -7,3 +7,6 @@ INT-005,,client_comandos_basic,,,,,,,,,,,,,,,
 INT-006,,client_comandos_other,,,,,,,,,,,,,,,
 INT-007,,member,,,,,,,,,,,,,,,
 INT-008,,lapsed_or_low_attendance,,,,,,,,,,,,,,,
+INT-009,,member,,,,,,,,,,,,,,,
+INT-010,,member,,,,,,,,,,,,,,,
+INT-011,2026-10-04,member,puppy_to_comandos,yes,"physical_attendance_card|whatsapp_group",yes,yes,,,,,,,official_updates_and_class_control,"CLIENT-OPP-001|CLIENT-CAND-002","A mí se me perdió esa tarjetita","Probar cancelación + push en build instalado para tarjeta y socio"\n
