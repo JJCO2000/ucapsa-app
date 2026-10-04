@@ -93,7 +93,7 @@ export function AnnouncementCard({
 
       <Text numberOfLines={compact ? 2 : undefined} style={styles.content}>{announcement.content}</Text>
 
-      {announcement.event && !compact ? (
+      {announcement.event ? (
         <Pressable
           accessibilityRole={onOpenEvent ? 'button' : undefined}
           accessibilityLabel={onOpenEvent ? `Abrir evento: ${announcement.event.title}` : undefined}
