@@ -57,8 +57,8 @@ for (const token of [
   if (!calendar.includes(token)) throw new Error('Agenda UX missing: ' + token);
 }
 
-if (/selected:\s*true,[\s\S]{0,180}practice/.test(calendar)) {
-  throw new Error('Practice dates must not masquerade as the selected calendar day.');
+if (/marks\[key\]\s*=\s*\{[^\n}]*selected:\s*true/.test(calendar)) {
+  throw new Error('Calendar activity markers must not masquerade as the selected day.');
 }
 
 for (const token of [
