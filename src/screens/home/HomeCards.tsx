@@ -129,7 +129,9 @@ export function ProgramCard({
               />
             </View>
             <Text style={[styles.programMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
-              Te faltan {attendanceRemaining} clase{attendanceRemaining === 1 ? '' : 's'}.
+              {attendanceRemaining > 0
+                ? `Te faltan ${attendanceRemaining} clase${attendanceRemaining === 1 ? '' : 's'}.`
+                : 'Clases requeridas completadas.'}
             </Text>
           </View>
         ) : null}
