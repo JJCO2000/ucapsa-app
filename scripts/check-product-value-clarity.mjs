@@ -14,7 +14,7 @@ for (const token of [
 
 for (const token of [
   'Clases tomadas',
-  'Te faltan {attendanceRemaining} clase',
+  'Clases requeridas completadas.',
   'Clases, visitas y prácticas',
   'clases registradas',
   'visitas de socio',
