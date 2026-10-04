@@ -10,6 +10,7 @@ import { isProgramCompletionAchievementCode } from '../../constants/programCompl
 import {
   awardAchievementToUser,
   getAchievementsForDog,
+  isTrainingAttendanceAchievementCode,
   getAchievementsForUser,
   grantTrainingAchievementToDog,
   type AchievementWithState,
@@ -44,7 +45,8 @@ export default function AdminCustomerAchievementsScreen() {
         ? selectedDogId
         : nextDogs[0]?.id ?? '';
       const nextTrainingItems = resolvedDogId
-        ? await getAchievementsForDog(userId, resolvedDogId)
+        ? (await getAchievementsForDog(userId, resolvedDogId))
+            .filter((item) => isProgramCompletionAchievementCode(item.definition.code))
         : [];
 
       setProfile(nextProfile);
@@ -52,7 +54,10 @@ export default function AdminCustomerAchievementsScreen() {
       setSelectedDogId(resolvedDogId);
       setTrainingItems(nextTrainingItems);
       setGlobalItems(
-        achievements.filter((item) => !isProgramCompletionAchievementCode(item.definition.code)),
+        achievements.filter((item) => (
+          !isProgramCompletionAchievementCode(item.definition.code)
+          && !isTrainingAttendanceAchievementCode(item.definition.code)
+        )),
       );
     } catch (cause) {
       Alert.alert(
