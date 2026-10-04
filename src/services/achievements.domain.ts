@@ -30,6 +30,8 @@ export type AchievementWithState = {
   unlocked: boolean;
   dogId: string | null;
   unlockSource?: 'stored' | 'program_completion' | null;
+  progressCurrent?: number | null;
+  progressTarget?: number | null;
 };
 
 export function mergeDefinitionsWithStoredAchievements(
