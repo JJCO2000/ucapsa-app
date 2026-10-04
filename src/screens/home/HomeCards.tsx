@@ -68,6 +68,7 @@ export function ProgramCard({
   const attendance = program?.attendanceCount ?? 0;
   const unlimited = program?.accessMode === 'membership';
   const attendancePercent = required > 0 ? Math.min(100, Math.round((attendance / required) * 100)) : 0;
+  const attendanceRemaining = program?.attendanceRemaining ?? Math.max(0, required - attendance);
   const streak = practice?.stats.currentStreak ?? snapshot.whatIUsed.practice?.currentStreak ?? 0;
   const weekPractices = practice?.stats.thisWeekCount ?? snapshot.whatIUsed.practice?.thisWeekCount ?? 0;
   const title = program ? programTitle(program) : membership?.isValidToday ? 'Membresía UCAPSA' : 'Sin programa activo';
@@ -103,7 +104,7 @@ export function ProgramCard({
         {program && unlimited ? (
           <View style={styles.attendanceBlock}>
             <View style={styles.attendanceLabels}>
-              <Text style={[styles.attendanceTitle, { color: format.cardText }]}>Asistencias registradas</Text>
+              <Text style={[styles.attendanceTitle, { color: format.cardText }]}>Clases registradas</Text>
               <Text style={[styles.attendanceValue, { color: premium ? ucapsaBrand.colors.premiumActionText : format.accentDark }]}>{attendance}</Text>
             </View>
             <Text style={[styles.programMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
@@ -113,8 +114,8 @@ export function ProgramCard({
         ) : program && required > 0 ? (
           <View style={styles.attendanceBlock}>
             <View style={styles.attendanceLabels}>
-              <Text style={[styles.attendanceTitle, { color: format.cardText }]}>Asistencias del programa</Text>
-              <Text style={[styles.attendanceValue, { color: premium ? ucapsaBrand.colors.premiumActionText : format.accentDark }]}>{attendance}/{required}</Text>
+              <Text style={[styles.attendanceTitle, { color: format.cardText }]}>Clases tomadas</Text>
+              <Text style={[styles.attendanceValue, { color: premium ? ucapsaBrand.colors.premiumActionText : format.accentDark }]}>{attendance} de {required}</Text>
             </View>
             <View style={[styles.progressTrack, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft }]}>
               <View
@@ -127,6 +128,9 @@ export function ProgramCard({
                 ]}
               />
             </View>
+            <Text style={[styles.programMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+              Te faltan {attendanceRemaining} clase{attendanceRemaining === 1 ? '' : 's'}.
+            </Text>
           </View>
         ) : null}
       </Pressable>
@@ -173,14 +177,14 @@ export function ActivityCard({
     <View style={[styles.activityCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
       <View style={styles.activityHeader}>
         <View>
-          <Text style={[styles.activityEyebrow, { color: format.muted }]}>LO QUE HAS APROVECHADO</Text>
-          <Text style={[styles.activityTitle, { color: format.cardText }]}>Tu actividad</Text>
+          <Text style={[styles.activityEyebrow, { color: format.muted }]}>HISTORIAL</Text>
+          <Text style={[styles.activityTitle, { color: format.cardText }]}>Clases, visitas y prácticas</Text>
         </View>
       </View>
       <View style={[styles.metricsRow, { borderTopColor: format.border }]}>
-        <MetricInline icon="school" value={snapshot.whatIUsed.attendanceTotal} label="clases" color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} onPress={onClasses} />
+        <MetricInline icon="school" value={snapshot.whatIUsed.attendanceTotal} label="clases registradas" color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} onPress={onClasses} />
         {onVisits ? <MetricDivider color={format.border} /> : null}
-        {onVisits ? <MetricInline icon="badge" value={visits} label="visitas" color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} onPress={onVisits} /> : null}
+        {onVisits ? <MetricInline icon="badge" value={visits} label="visitas de socio" color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} onPress={onVisits} /> : null}
         <MetricDivider color={format.border} />
         <MetricInline icon="pets" value={practices} label="prácticas este mes" color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} onPress={onPractices} />
       </View>
