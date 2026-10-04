@@ -74,8 +74,9 @@ if (/awardAchievementToUser\(userId, item\.definition\.code\)/.test(adminUi)
 }
 
 for (const token of [
-  'TRAINING_ATTENDANCE_CODE',
-  'getMyProgramEnrollments',
+  'getProgramEnrollmentsForUser(userId)',
+  'isTrainingAttendanceAchievementCode',
+  'getTrainingAttendanceAchievementTarget',
   'progressCurrent',
   'progressTarget',
 ]) {
@@ -86,13 +87,22 @@ for (const token of [
 
 for (const token of [
   'achievementProgressLabel',
-  'NUEVO',
   'achievementTarget',
   'modalProgressPill',
 ]) {
   if (!badgeUi.includes(token)) {
     throw new Error('Duolingo-style achievement feedback lost: ' + token);
   }
+}
+
+if (!/nextTrainingItems[\s\S]{0,260}isProgramCompletionAchievementCode/.test(adminUi)) {
+  throw new Error('Admin training grant surface must exclude automatic attendance milestones.');
+}
+if (!/!isTrainingAttendanceAchievementCode\(item\.definition\.code\)/.test(adminUi)) {
+  throw new Error('Automatic dog attendance milestones leaked into global manual achievements.');
+}
+if (badgeUi.includes('NUEVO') || badgeUi.includes('isRecentlyUnlocked')) {
+  throw new Error('Historical/backfilled achievements must not be presented as newly earned.');
 }
 
 console.log('Rango 1 formal dog training achievements: PASS');
