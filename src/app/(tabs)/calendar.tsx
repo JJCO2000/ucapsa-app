@@ -650,7 +650,7 @@ export default function CalendarScreen() {
                     textDayHeaderFontWeight: '800',
                   }}
                 />
-              )
+              )}
               <View style={styles.legendRow}>
                 {showClasses ? <Legend label="Clases" style={styles.classDot} /> : null}
                 {showEvents ? <Legend label="Eventos" style={styles.eventDot} /> : null}
