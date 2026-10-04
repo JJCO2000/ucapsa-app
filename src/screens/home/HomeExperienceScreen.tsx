@@ -401,7 +401,7 @@ export default function HomeExperienceScreen() {
           eyebrow="NUEVO LOGRO"
           title={recentAchievement.unlockedTitle || recentAchievement.title}
           detail={[recentAchievement.dogName, `Desbloqueado ${formatDate(recentAchievement.awardedAt) ?? 'recientemente'}`].filter(Boolean).join(' · ')}
-          onPress={() => router.push((recentAchievement.dogId ? `/dog?dogId=${encodeURIComponent(recentAchievement.dogId)}` : '/achievements') as never)}
+          onPress={() => router.push((recentAchievement.dogId ? `/client/dog-achievements?dogId=${encodeURIComponent(recentAchievement.dogId)}` : '/achievements') as never)}
           accent="gold"
         />
       ) : null}
