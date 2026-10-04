@@ -28,6 +28,9 @@ if (announcementDeliveryInsert < 0 || announcementFetch < 0 || announcementDeliv
 }
 
 for (const token of [
+  'access_mode?: string | null',
+  "enrollment.access_mode === 'membership'",
+  'enrollmentIsEligibleOnDate',
   'card_started_on',
   'card_expires_on',
   "date.getUTCFullYear() === year",
@@ -35,8 +38,9 @@ for (const token of [
   "date.getUTCDate() === day",
   "target_date inválido.",
   "Math.trunc(Number(payload.days_ahead))",
-  "classDateKey >= String(enrollment.card_started_on)",
-  "classDateKey <= String(enrollment.card_expires_on)",
+  "dateKey >= String(enrollment.card_started_on)",
+  "dateKey <= String(enrollment.card_expires_on)",
+  'enrollmentIsEligibleOnDate(enrollment, classDateKey)',
   "serviceClient.rpc('get_internal_cron_secret')",
   "lock.status !== 'failed'",
   "ignoreDuplicates: true",
@@ -78,8 +82,9 @@ for (const token of [
   "date.getUTCFullYear() === year",
   "date.getUTCMonth() === month - 1",
   "date.getUTCDate() === day",
-  "cancellationDate >= String(enrollment.card_started_on)",
-  "cancellationDate <= String(enrollment.card_expires_on)",
+  "dateKey >= String(enrollment.card_started_on)",
+  "dateKey <= String(enrollment.card_expires_on)",
+  'enrollmentIsEligibleOnDate(enrollment, cancellationDate)',
   "lock.status !== 'failed'",
   "ignoreDuplicates: true",
   "campaign_id: null",
