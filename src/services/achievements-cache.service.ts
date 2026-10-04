@@ -110,7 +110,10 @@ export async function getCachedAchievementsForDog(
   const cached = await getCachedAchievements(userId, dogId);
   if (!cached) return null;
   return cached
-    .filter((item) => isProgramCompletionAchievementCode(item.definition.code))
+    .filter((item) => (
+      isProgramCompletionAchievementCode(item.definition.code)
+      || /^training_attendance_\d+$/.test(item.definition.code)
+    ))
     .map((item) => ({ ...item, dogId }));
 }
 
