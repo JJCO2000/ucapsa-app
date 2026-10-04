@@ -601,6 +601,7 @@ Deno.serve(async (req) => {
         title,
         body,
         sound: 'default',
+        channelId: 'ucapsa-classes',
         data: {
           category: 'classes',
           source: 'class_cancellation',
