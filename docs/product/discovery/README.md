@@ -66,6 +66,9 @@ Muestra inicial de descubrimiento:
 - INT-006 — Cliente Comandos Intermedio/Avanzado.
 - INT-007 — Socio.
 - INT-008 — Cliente con disminución o abandono reciente.
+- INT-009 — Socio.
+- INT-010 — Socia.
+- INT-011 — Socia con recorrido Puppy → Comandos.
 
 No se usa esta muestra para estimar porcentajes poblacionales. Se usa para encontrar patrones y oportunidades.
 
@@ -76,3 +79,5 @@ No se usa esta muestra para estimar porcentajes poblacionales. Se usa para encon
 - `INTERVIEW_SNAPSHOT_TEMPLATE.md` — ficha posterior a cada entrevista.
 - `INTERVIEW_001_PAPA.md` — primera sesión preparada, sin conclusiones anticipadas.
 - `RESULTADOS.csv` — registro acumulado de resultados.
+- `DISCOVERY_STATE_2026-10-04.md` — consolidado vigente de oportunidades e hipótesis.
+- `INTERVIEW_011_SOCIA_PUPPY_COMANDOS.md` — evidencia de socia Puppy → Comandos.
