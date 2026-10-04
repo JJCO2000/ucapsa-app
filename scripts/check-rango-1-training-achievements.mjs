@@ -3,6 +3,8 @@ import fs from 'node:fs';
 const sql = fs.readFileSync('supabase/sql/ucapsa-rango-1-training-achievements.sql', 'utf8');
 const service = fs.readFileSync('src/services/achievements-admin.service.ts', 'utf8');
 const adminUi = fs.readFileSync('src/app/admin/customer-achievements.tsx', 'utf8');
+const readUi = fs.readFileSync('src/services/achievements-read.service.ts', 'utf8');
+const badgeUi = fs.readFileSync('src/components/domain/AchievementBadgeGrid.tsx', 'utf8');
 
 const required = [
   'ucapsa_validate_dog_achievement_owner',
@@ -69,6 +71,28 @@ for (const token of [
 if (/awardAchievementToUser\(userId, item\.definition\.code\)/.test(adminUi)
     && !/globalItems\.map/.test(adminUi)) {
   throw new Error('Admin UI can still route formal training achievements through the global grant.');
+}
+
+for (const token of [
+  'TRAINING_ATTENDANCE_CODE',
+  'getMyProgramEnrollments',
+  'progressCurrent',
+  'progressTarget',
+]) {
+  if (!readUi.includes(token)) {
+    throw new Error('Dog achievement progress lost canonical attendance evidence: ' + token);
+  }
+}
+
+for (const token of [
+  'achievementProgressLabel',
+  'NUEVO',
+  'achievementTarget',
+  'modalProgressPill',
+]) {
+  if (!badgeUi.includes(token)) {
+    throw new Error('Duolingo-style achievement feedback lost: ' + token);
+  }
 }
 
 console.log('Rango 1 formal dog training achievements: PASS');
