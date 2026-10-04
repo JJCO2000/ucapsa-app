@@ -117,18 +117,26 @@ async function hydrateEnrollments(
     .filter(Boolean) as ProgramEnrollmentWithDetails[];
 }
 
-export async function getMyProgramEnrollments(): Promise<ProgramEnrollmentWithDetails[]> {
-  const userId = await getProgramServiceCurrentUserId();
-  if (!userId) return [];
+export async function getProgramEnrollmentsForUser(
+  userId: string,
+): Promise<ProgramEnrollmentWithDetails[]> {
+  const cleanUserId = userId.trim();
+  if (!cleanUserId) return [];
 
   const { data, error } = await supabase
     .from('program_enrollments')
     .select('*')
-    .eq('user_id', userId)
+    .eq('user_id', cleanUserId)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
   return hydrateEnrollments((data ?? []).map(normalizeEnrollment));
+}
+
+export async function getMyProgramEnrollments(): Promise<ProgramEnrollmentWithDetails[]> {
+  const userId = await getProgramServiceCurrentUserId();
+  if (!userId) return [];
+  return getProgramEnrollmentsForUser(userId);
 }
 
 export async function getAdminProgramRows(): Promise<ProgramEnrollmentWithDetails[]> {
