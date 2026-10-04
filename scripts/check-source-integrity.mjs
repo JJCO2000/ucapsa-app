@@ -82,7 +82,7 @@ mustNot('src/screens/home/HomeExperienceScreen.tsx', /new Date\(selectedAnnounce
 must('src/services/customer-value-merge.service.ts', /cached_fallback:/, 'Falta trazabilidad de qué fuente de Inicio cayó a caché.');
 must('src/screens/home/HomeExperienceScreen.tsx', /nextClass[\s\S]*find\(\(program\) => program\.enrollmentId === nextClass\.enrollmentId\)/, 'Inicio volvió a elegir un programa principal arbitrario en vez del asociado a la próxima clase.');
 must('src/screens/home/HomeExperienceScreen.tsx', /recentAchievement\.dogId/, 'Inicio perdió el perro asociado al logro reciente.');
-must('src/screens/home/HomeExperienceScreen.tsx', /\/dog\?dogId=/, 'El logro formal de Inicio dejó de abrir Mi perro en el perro correcto.');
+must('src/screens/home/HomeExperienceScreen.tsx', /\/client\/dog-achievements\?dogId=/, 'El logro formal de Inicio dejó de abrir los logros del perro correcto.');
 must('src/services/customer-value.service.ts', /sourceId: string \| null;\s*dogId: string \| null;\s*dogName: string \| null;/, 'El snapshot de Inicio dejó de conservar la identidad del perro en logros.');
 must('src/services/customer-value.service.ts', /dogId,\s*dogName:/, 'El snapshot de Inicio dejó de mapear el perro real del logro.');
 
