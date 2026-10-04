@@ -52,6 +52,7 @@ for (const token of [
   "classDot: { backgroundColor: ucapsaBrand.colors.blue }",
   "practiceDot: { backgroundColor: ucapsaBrand.colors.green }",
   'useLocalSearchParams',
+  'if (announcement.announcement_date) return toDateKey(announcement.announcement_date);',
 ]) {
   if (!calendar.includes(token)) throw new Error('Agenda UX missing: ' + token);
 }
