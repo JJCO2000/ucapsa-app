@@ -1,12 +1,14 @@
 import { PROGRAM_COMPLETION_ACHIEVEMENT_CODES } from '../constants/programCompletion';
 import { supabase } from '../lib/supabase';
-import { getMyProgramEnrollments } from './programs.service';
+import { getProgramEnrollmentsForUser } from './program-enrollments.service';
 import {
   getCachedAchievementsForDog,
   getCachedAchievementsForUser,
   persistAchievementCache,
 } from './achievements-cache.service';
 import {
+  getTrainingAttendanceAchievementTarget,
+  isTrainingAttendanceAchievementCode,
   mergeDefinitionsWithStoredAchievements,
   type AchievementDefinition,
   type AchievementWithState,
@@ -14,18 +16,14 @@ import {
 } from './achievements.domain';
 
 const ACHIEVEMENT_QUERY_TIMEOUT_MS = 6000;
-const TRAINING_ATTENDANCE_CODE = /^training_attendance_(\d+)$/;
-
 function withDogAttendanceProgress(
   items: AchievementWithState[],
   attendanceTotal: number | null,
 ) {
   if (attendanceTotal == null) return items;
   return items.map((item) => {
-    const match = TRAINING_ATTENDANCE_CODE.exec(item.definition.code);
-    if (!match) return item;
-    const target = Number(match[1]);
-    if (!Number.isFinite(target) || target <= 0) return item;
+    const target = getTrainingAttendanceAchievementTarget(item.definition.code);
+    if (target == null) return item;
     return {
       ...item,
       progressCurrent: Math.min(attendanceTotal, target),
@@ -104,7 +102,7 @@ export async function getAchievementsForDog(
       .eq('user_id', userId)
       .eq('dog_id', dogId)
       .order('awarded_at', { ascending: false }),
-    getMyProgramEnrollments().then(
+    getProgramEnrollmentsForUser(userId).then(
       (value) => ({ status: 'fulfilled' as const, value }),
       () => ({ status: 'rejected' as const, value: [] }),
     ),
@@ -116,7 +114,7 @@ export async function getAchievementsForDog(
     PROGRAM_COMPLETION_ACHIEVEMENT_CODES.includes(
       definition.code as (typeof PROGRAM_COMPLETION_ACHIEVEMENT_CODES)[number],
     )
-    || TRAINING_ATTENDANCE_CODE.test(definition.code)
+    || isTrainingAttendanceAchievementCode(definition.code)
   ));
   const attendanceTotal = enrollmentResult.status === 'fulfilled'
     ? enrollmentResult.value
