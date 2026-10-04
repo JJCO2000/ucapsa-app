@@ -1,6 +1,6 @@
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Calendar, type DateData } from 'react-native-calendars';
@@ -163,6 +163,8 @@ function practiceTimeLabel(value: string) {
 }
 
 export default function CalendarScreen() {
+  const { date: dateParam } = useLocalSearchParams<{ date?: string | string[] }>();
+  const requestedDate = Array.isArray(dateParam) ? dateParam[0] ?? null : dateParam ?? null;
   const { user, role, isAdmin } = useSession();
   const [events, setEvents] = useState<UcapsaEvent[]>([]);
   const [eventCancellations, setEventCancellations] = useState<EventOccurrenceCancellation[]>([]);
@@ -189,7 +191,13 @@ export default function CalendarScreen() {
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [user, role, isAdmin]);
   const isPremium = format.key === 'member';
 
-  const cacheScope = user?.id ?? 'public';
+  useEffect(() => {
+    if (requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)) {
+      setSelectedDate(requestedDate);
+    }
+  }, [requestedDate]);
+
+    const cacheScope = user?.id ?? 'public';
 
   const loadCalendarData = useCallback(async () => {
     setError(null);
