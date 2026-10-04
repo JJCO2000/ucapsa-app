@@ -10,6 +10,8 @@ const files = {
   results: fs.readFileSync(root + 'RESULTADOS.csv', 'utf8'),
   int002: fs.readFileSync(root + 'INTERVIEW_002_OPERACION.md', 'utf8'),
   opsResearch: fs.readFileSync(root + 'RESEARCH_OPERATIONS_SYSTEM.md', 'utf8'),
+  int011: fs.readFileSync(root + 'INTERVIEW_011_SOCIA_PUPPY_COMANDOS.md', 'utf8'),
+  consolidated: fs.readFileSync(root + 'DISCOVERY_STATE_2026-10-04.md', 'utf8'),
 };
 
 for (const token of [
@@ -23,9 +25,10 @@ for (const token of [
 
 for (const token of [
   'Que el cliente pueda saber por sí mismo',
-  'OPORTUNIDADES CONFIRMADAS',
-  '[vacío hasta que exista evidencia]',
-  'No añadir soluciones antes de identificar la oportunidad',
+  'CLIENT-OPP-001',
+  'CLIENT-CAND-002',
+  'HYP-CLIENT-01',
+  'Outcome de operación separado',
 ]) {
   if (!files.ost.includes(token)) throw new Error('OST guard missing: ' + token);
 }
@@ -80,8 +83,33 @@ for (const token of [
   if (!files.opsResearch.includes(token)) throw new Error('Operations research guard missing: ' + token);
 }
 
-if (!files.ost.includes('CAND-001') || !files.ost.includes('observación')) {
-  throw new Error('INT-002 must remain an observed candidate in the OST until more evidence exists.');
+for (const token of [
+  'fácil de usar',
+  'A mí se me perdió esa tarjetita',
+  'cambios de horarios',
+  'pago en línea',
+  'preferencia de personalización',
+]) {
+  if (!files.int011.includes(token)) throw new Error('INT-011 evidence missing: ' + token);
+}
+
+for (const token of [
+  'CLIENT-OPP-001',
+  'CLIENT-CAND-002',
+  'CLIENT-CAND-003',
+  'CLIENT-CAND-004',
+  'HYP-CLIENT-01',
+  'Una futura UCAPSA Staff es una **solución candidata**',
+]) {
+  if (!files.consolidated.includes(token)) throw new Error('Consolidated discovery state missing: ' + token);
+}
+
+if (!files.ost.includes('CAND-001') || !files.ost.includes('INT-002')) {
+  throw new Error('INT-002 operational evidence must remain separated from the client OST.');
+}
+
+if (!files.results.includes('INT-011,2026-10-04,member,puppy_to_comandos')) {
+  throw new Error('INT-011 must be present in the structured results register.');
 }
 
 console.log('UCAPSA product discovery system: PASS');
