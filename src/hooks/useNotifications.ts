@@ -24,6 +24,8 @@ type NotificationPermissionResult = {
 type ExpoNotificationsModule = {
   AndroidImportance: {
     MAX: number;
+    DEFAULT: number;
+    LOW: number;
   };
   getPermissionsAsync: () => Promise<NotificationPermissionResult>;
   requestPermissionsAsync: () => Promise<NotificationPermissionResult>;
@@ -122,10 +124,28 @@ export function useNotifications() {
     const Notifications = await loadNotificationsModule();
 
     if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'UCAPSA',
-        importance: Notifications.AndroidImportance.MAX,
-      });
+      await Promise.all([
+        Notifications.setNotificationChannelAsync('default', {
+          name: 'UCAPSA',
+          importance: Notifications.AndroidImportance.DEFAULT,
+        }),
+        Notifications.setNotificationChannelAsync('ucapsa-classes', {
+          name: 'Clases y cambios',
+          importance: Notifications.AndroidImportance.DEFAULT,
+        }),
+        Notifications.setNotificationChannelAsync('ucapsa-updates', {
+          name: 'Avisos y eventos',
+          importance: Notifications.AndroidImportance.DEFAULT,
+        }),
+        Notifications.setNotificationChannelAsync('ucapsa-membership', {
+          name: 'Membresía',
+          importance: Notifications.AndroidImportance.DEFAULT,
+        }),
+        Notifications.setNotificationChannelAsync('ucapsa-achievements', {
+          name: 'Logros',
+          importance: Notifications.AndroidImportance.LOW,
+        }),
+      ]);
     }
 
     const existingPermission = await Notifications.getPermissionsAsync();
