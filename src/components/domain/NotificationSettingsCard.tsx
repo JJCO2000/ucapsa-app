@@ -19,14 +19,14 @@ type CategoryItem = {
 const categories: CategoryItem[] = [
   {
     key: 'announcements_events',
-    label: 'Anuncios y eventos',
-    description: 'Novedades y cambios importantes.',
+    label: 'Avisos y eventos',
+    description: 'Información oficial y actividades de UCAPSA.',
     icon: 'bullhorn-outline',
   },
   {
     key: 'classes',
     label: 'Clases',
-    description: 'Recordatorios y cancelaciones de clases.',
+    description: 'Cambios de horario, cancelaciones y recordatorios de tus clases.',
     icon: 'school-outline',
   },
   {
@@ -96,9 +96,16 @@ export function NotificationSettingsCard({ premium = false }: NotificationSettin
           <MaterialCommunityIcons name="bell-ring-outline" size={22} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.red} />
         </View>
         <View style={styles.headerTextWrap}>
-          <Text style={[styles.title, premium && styles.titlePremium]}>Recordatorios</Text>
-          <Text style={[styles.description, premium && styles.descriptionPremium]}>Recibe recordatorios de clases y novedades importantes de UCAPSA.</Text>
+          <Text style={[styles.title, premium && styles.titlePremium]}>Notificaciones UCAPSA</Text>
+          <Text style={[styles.description, premium && styles.descriptionPremium]}>Avisos directos y oficiales para ti. No incluyen mensajes de otros clientes ni conversaciones de grupo.</Text>
         </View>
+      </View>
+
+      <View style={[styles.directNotice, premium && styles.directNoticePremium]}>
+        <MaterialCommunityIcons name="shield-check-outline" size={18} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.redDark} />
+        <Text style={[styles.directNoticeText, premium && styles.descriptionPremium]}>
+          Tú decides las categorías. UCAPSA no usa estas alertas como un chat de clientes.
+        </Text>
       </View>
 
       <View style={[styles.statusRow, premium && styles.statusRowPremium]}>
@@ -171,7 +178,10 @@ const styles = StyleSheet.create({
   titlePremium: { color: ucapsaBrand.colors.premiumText },
   description: { color: ucapsaBrand.colors.muted, fontSize: 14, lineHeight: 20, fontWeight: '700', marginTop: 3 },
   descriptionPremium: { color: ucapsaBrand.colors.premiumMuted },
-  statusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderTopWidth: 1, borderTopColor: ucapsaBrand.colors.border, paddingTop: 12 },
+  directNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, backgroundColor: ucapsaBrand.colors.redSoft, padding: 11 },
+  directNoticePremium: { borderColor: withAlpha(ucapsaBrand.colors.gold, 0.25), backgroundColor: withAlpha(ucapsaBrand.colors.gold, 0.08) },
+  directNoticeText: { flex: 1, color: ucapsaBrand.colors.grayDark, fontSize: 12, lineHeight: 17, fontWeight: '700' },
+    statusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderTopWidth: 1, borderTopColor: ucapsaBrand.colors.border, paddingTop: 12 },
   statusRowPremium: { borderTopColor: withAlpha(ucapsaBrand.colors.gold, 0.18) },
   statusLabel: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
   statusLabelPremium: { color: ucapsaBrand.colors.premiumMuted },
