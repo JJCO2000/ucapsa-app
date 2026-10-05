@@ -46,8 +46,8 @@ export default function CustomerMembershipScreen() {
   const [saving, setSaving] = useState(false);
   const [dogAccess, setDogAccess] = useState<MembershipDogAccessRow[]>([]);
   const [stageDogId, setStageDogId] = useState<string | null>(null);
-  const [stageProgram, setStageProgram] = useState<ProgramCode>('comandos');
-  const [stageLevel, setStageLevel] = useState<ProgramLevel>('principiante');
+  const [stageProgram, setStageProgram] = useState<ProgramCode | null>(null);
+  const [stageLevel, setStageLevel] = useState<ProgramLevel | null>(null);
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -133,11 +133,15 @@ export default function CustomerMembershipScreen() {
     if (row?.program.code === 'puppy') {
       setStageProgram('puppy');
       setStageLevel('base');
-    } else {
+    } else if (
+      row?.program.code === 'comandos'
+      && ['principiante', 'medio', 'avanzado'].includes(row.enrollment.program_level)
+    ) {
       setStageProgram('comandos');
-      setStageLevel(row?.enrollment.program_level === 'medio' || row?.enrollment.program_level === 'avanzado'
-        ? row.enrollment.program_level
-        : 'principiante');
+      setStageLevel(row.enrollment.program_level as ProgramLevel);
+    } else {
+      setStageProgram(null);
+      setStageLevel(null);
     }
     setStageDogId(dogId);
   }
@@ -175,7 +179,7 @@ export default function CustomerMembershipScreen() {
   }
 
   async function saveStage() {
-    if (!record?.membership || !stageDogId) return;
+    if (!record?.membership || !stageDogId || !stageProgram || !stageLevel) return;
     const current = memberEnrollmentForDog(stageDogId);
     const currentRank = current?.program.code === 'puppy'
       ? 0
@@ -295,7 +299,7 @@ export default function CustomerMembershipScreen() {
                       </View>
                       {covered ? (
                         <Pressable disabled={saving} style={styles.dogAction} onPress={() => openStageEditor(item.dog_id)}>
-                          <Text style={styles.dogActionText}>Cambiar nivel</Text>
+                          <Text style={styles.dogActionText}>{memberEnrollmentForDog(item.dog_id) ? 'Cambiar nivel' : 'Asignar nivel'}</Text>
                         </Pressable>
                       ) : null}
                       <Pressable disabled={saving} style={[styles.coverageToggle, covered && styles.coverageToggleOn]} onPress={() => void setCoverage(item, !covered)}>
@@ -327,7 +331,11 @@ export default function CustomerMembershipScreen() {
       <KeyboardAwareModal visible={Boolean(stageDogId)} onClose={() => setStageDogId(null)}>
         <Text style={styles.modalKicker}>Entrenamiento de socio</Text>
         <Text style={styles.modalTitle}>{selectedStageDog?.name || 'Perro'}</Text>
-        <Text style={styles.modalText}>El nivel se cambia manualmente. Las asistencias nunca promueven por sí solas.</Text>
+        <Text style={styles.modalText}>
+          {memberEnrollmentForDog(stageDogId ?? '')
+            ? 'El nivel se cambia manualmente. Las asistencias nunca promueven por sí solas.'
+            : 'No hay una etapa respaldada por historial. Selecciona explícitamente la etapa real del perro.'}
+        </Text>
 
         <Text style={styles.label}>Etapa</Text>
         <View style={styles.stageChoices}>
@@ -337,8 +345,8 @@ export default function CustomerMembershipScreen() {
           <StageChoice label="Avanzado" active={stageProgram === 'comandos' && stageLevel === 'avanzado'} onPress={() => { setStageProgram('comandos'); setStageLevel('avanzado'); }} />
         </View>
 
-        <Pressable disabled={saving} style={styles.primary} onPress={() => void saveStage()}>
-          <Text style={styles.primaryText}>{saving ? 'Guardando...' : 'Guardar etapa'}</Text>
+        <Pressable disabled={saving || !stageProgram || !stageLevel} style={[styles.primary, (!stageProgram || !stageLevel) && { opacity: 0.5 }]} onPress={() => void saveStage()}>
+          <Text style={styles.primaryText}>{saving ? 'Guardando...' : stageProgram && stageLevel ? 'Guardar etapa' : 'Selecciona una etapa'}</Text>
         </Pressable>
         <Pressable disabled={saving} style={styles.secondary} onPress={() => setStageDogId(null)}>
           <Text style={styles.secondaryText}>Cancelar</Text>
