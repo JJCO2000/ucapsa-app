@@ -5,14 +5,16 @@ const allowedAdvisories = new Set([
   'GHSA-5P2G-FCMC-QVQQ', // image-size: JXL/HEIF parser DoS; no published patched release yet
   'GHSA-VCC3-GHJQ-M6FR', // decode-uri-component DoS; safe remediation depends on upstream chain
   'GHSA-W5HQ-G745-H8PQ', // uuid bounds check; transitive build-tool chain
+  'GHSA-VFJ7-8CJW-P6XM', // braces <=3.0.3; no patched release as of 2026-10-05; constrained to Metro glob tooling
+  'GHSA-86W9-CPQP-85RV', // node-forge 1.4.0 follow-up; no published patched npm version; constrained to Expo code-signing certificates
 ]);
 
 const baselineMaximums = {
   critical: 0,
-  high: 4,
-  moderate: 15,
+  high: 21,
+  moderate: 12,
   low: 0,
-  total: 19,
+  total: 33,
 };
 
 const result = spawnSync('npm', ['audit', '--omit=dev', '--json'], {
@@ -33,6 +35,48 @@ try {
 }
 
 const counts = report?.metadata?.vulnerabilities ?? {};
+const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+
+function directDependentsOf(packageName) {
+  const result = [];
+  for (const [packagePath, metadata] of Object.entries(lock.packages ?? {})) {
+    const ranges = {
+      ...(metadata.dependencies ?? {}),
+      ...(metadata.optionalDependencies ?? {}),
+      ...(metadata.devDependencies ?? {}),
+    };
+    if (ranges[packageName]) result.push(packagePath || '(root)');
+  }
+  return result.sort();
+}
+
+const reviewedNoFixBoundaries = {
+  braces: {
+    version: '3.0.3',
+    allowedDependents: ['node_modules/micromatch'],
+  },
+  'node-forge': {
+    version: '1.4.0',
+    allowedDependents: ['node_modules/@expo/code-signing-certificates'],
+  },
+};
+
+for (const [packageName, boundary] of Object.entries(reviewedNoFixBoundaries)) {
+  const installed = lock.packages?.[`node_modules/${packageName}`]?.version ?? null;
+  if (installed !== boundary.version) {
+    throw new Error(
+      `Reviewed no-fix boundary changed for ${packageName}: installed ${installed ?? 'missing'}, expected ${boundary.version}.`,
+    );
+  }
+  const dependents = directDependentsOf(packageName);
+  const unexpected = dependents.filter((item) => !boundary.allowedDependents.includes(item));
+  if (unexpected.length || dependents.length !== boundary.allowedDependents.length) {
+    throw new Error(
+      `Reviewed no-fix dependency boundary changed for ${packageName}: ${JSON.stringify(dependents)}.`,
+    );
+  }
+}
+
 const observed = new Set();
 const unknown = [];
 
