@@ -272,7 +272,8 @@ begin
   where p.id = v_program_id;
 
   if v_program_code = 'comandos' and v_level not in ('principiante', 'medio', 'avanzado') then
-    v_level := 'principiante';
+    raise exception 'El historial de Comandos tiene un nivel no válido; requiere revisión Admin.'
+      using errcode = '22023';
   elsif v_program_code = 'puppy' then
     v_level := 'base';
   end if;
