@@ -71,8 +71,9 @@ export function useNotificationNavigation(enabled: boolean) {
         return Notifications.getLastNotificationResponseAsync();
       })
       .then((response) => handle(response ?? null))
-      .catch(() => {
-        // La navegación por push es una mejora progresiva: nunca debe bloquear el arranque de la app.
+      .catch((error) => {
+        // Mejora progresiva: no bloquea el arranque, pero deja diagnóstico para soporte.
+        console.warn('[notifications] No se pudo inicializar la navegación desde push.', error);
       });
 
     return () => {
