@@ -57,6 +57,10 @@ for (const token of [
   'setMemberDogTrainingStageAdmin',
   'Todos entran por defecto',
   'Cambiar nivel',
+  'Asignar nivel',
+  'setStageProgram(null)',
+  'setStageLevel(null)',
+  'No hay una etapa respaldada por historial',
 ]) {
   if (!membershipAdmin.includes(token)) {
     throw new Error('Admin membership dog/level controls missing: ' + token);
