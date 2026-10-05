@@ -33,15 +33,6 @@ try {
 }
 
 const counts = report?.metadata?.vulnerabilities ?? {};
-for (const [severity, maximum] of Object.entries(baselineMaximums)) {
-  const actual = Number(counts[severity] ?? 0);
-  if (actual > maximum) {
-    throw new Error(
-      `npm audit ${severity} vulnerabilities increased: ${actual} > baseline ${maximum}.`,
-    );
-  }
-}
-
 const observed = new Set();
 const unknown = [];
 
@@ -71,6 +62,25 @@ for (const [pkg, vulnerability] of Object.entries(report?.vulnerabilities ?? {})
   }
 }
 
+const diagnostic = {
+  counts,
+  observedAdvisories: [...observed].sort(),
+  unreviewedAdvisories: [...new Set(unknown)].sort(),
+  reviewedAllowlist: [...allowedAdvisories].sort(),
+};
+
+console.log('UCAPSA npm advisory diagnostic');
+console.log(JSON.stringify(diagnostic, null, 2));
+
+for (const [severity, maximum] of Object.entries(baselineMaximums)) {
+  const actual = Number(counts[severity] ?? 0);
+  if (actual > maximum) {
+    throw new Error(
+      `npm audit ${severity} vulnerabilities increased: ${actual} > baseline ${maximum}.`,
+    );
+  }
+}
+
 if (unknown.length) {
   throw new Error(
     'npm audit contains advisory debt outside the reviewed baseline:\n' +
@@ -83,8 +93,3 @@ if (Number(counts.critical ?? 0) !== 0) {
 }
 
 console.log('UCAPSA npm advisory baseline: PASS');
-console.log(JSON.stringify({
-  counts,
-  observedAdvisories: [...observed].sort(),
-  reviewedAllowlist: [...allowedAdvisories].sort(),
-}, null, 2));
