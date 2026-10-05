@@ -58,7 +58,10 @@ const reviewedNoFixBoundaries = {
   },
   'node-forge': {
     version: '1.4.0',
-    allowedDependents: ['node_modules/@expo/code-signing-certificates'],
+    allowedDependents: [
+      'node_modules/@expo/code-signing-certificates',
+      'node_modules/expo/node_modules/@expo/cli',
+    ],
   },
 };
 
