@@ -81,6 +81,7 @@ for (const token of [
 
 for (const token of [
   'addNotificationResponseReceivedListener',
+  'clearLastNotificationResponseAsync',
   'class_cancellation',
   'class_reminder',
   '/calendar?date=',
