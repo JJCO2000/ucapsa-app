@@ -2,6 +2,8 @@ import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { useEffect, useRef } from 'react';
 
+import { devWarn } from '../lib/client-diagnostics';
+
 type NotificationData = Record<string, unknown>;
 
 type NotificationResponse = {
@@ -73,7 +75,7 @@ export function useNotificationNavigation(enabled: boolean) {
       .then((response) => handle(response ?? null))
       .catch((error) => {
         // Mejora progresiva: no bloquea el arranque, pero deja diagnóstico para soporte.
-        console.warn('[notifications] No se pudo inicializar la navegación desde push.', error);
+        devWarn('No se pudo inicializar la navegación desde push.', error);
       });
 
     return () => {
