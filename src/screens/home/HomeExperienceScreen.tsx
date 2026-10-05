@@ -398,9 +398,9 @@ export default function HomeExperienceScreen() {
         <ContextStrip
           format={format}
           icon="emoji-events"
-          eyebrow="NUEVO LOGRO"
+          eyebrow="LOGRO UCAPSA"
           title={recentAchievement.unlockedTitle || recentAchievement.title}
-          detail={[recentAchievement.dogName, `Desbloqueado ${formatDate(recentAchievement.awardedAt) ?? 'recientemente'}`].filter(Boolean).join(' · ')}
+          detail={[recentAchievement.dogName, formatDate(recentAchievement.awardedAt)].filter(Boolean).join(' · ')}
           onPress={() => router.push((recentAchievement.dogId ? `/client/dog-achievements?dogId=${encodeURIComponent(recentAchievement.dogId)}` : '/achievements') as never)}
           accent="gold"
         />
