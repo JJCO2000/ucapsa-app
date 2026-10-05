@@ -153,7 +153,6 @@
     "nanoid@>=4.0.0 <=5.1.10": "5.1.16",
     "browserslist": "4.28.7",
     "baseline-browser-mapping": "2.11.18",
-    "moment": "2.31.0",
-    "node-forge": "1.4.1"
+    "moment": "2.31.0"
   }
 }
