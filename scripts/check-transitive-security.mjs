@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 
 const floors = {
+  'brace-expansion': '5.0.12',
+  'moment': '2.31.0',
   'baseline-browser-mapping': '2.11.0',
   'browserslist': '4.28.7',
   'js-yaml': '4.3.2',
