@@ -22,6 +22,7 @@ type NotificationsModule = {
     listener: (response: NotificationResponse) => void,
   ) => { remove: () => void };
   getLastNotificationResponseAsync: () => Promise<NotificationResponse | null>;
+  clearLastNotificationResponseAsync: () => Promise<void>;
 };
 
 function stringValue(value: unknown) {
@@ -70,9 +71,11 @@ export function useNotificationNavigation(enabled: boolean) {
         if (!active) return;
         const Notifications = module as unknown as NotificationsModule;
         subscription = Notifications.addNotificationResponseReceivedListener(handle);
-        return Notifications.getLastNotificationResponseAsync();
+        return Notifications.getLastNotificationResponseAsync().then(async (response) => {
+          handle(response ?? null);
+          if (response) await Notifications.clearLastNotificationResponseAsync();
+        });
       })
-      .then((response) => handle(response ?? null))
       .catch((error) => {
         // Mejora progresiva: no bloquea el arranque, pero deja diagnóstico para soporte.
         devWarn('No se pudo inicializar la navegación desde push.', error);
