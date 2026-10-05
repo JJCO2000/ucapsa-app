@@ -96,6 +96,7 @@ for (const token of [
 }
 
 for (const token of [
+  'getProgramEnrollmentsForUser',
   'getMyProgramEnrollments',
   'getAdminProgramRows',
   'getProgramClientProfiles',

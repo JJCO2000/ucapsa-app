@@ -100,14 +100,14 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="home" options={{ href: isAdmin ? null : '/home', title: 'Inicio', tabBarIcon: icon('home') }} />
-      <Tabs.Screen name="services" options={{ href: isAdmin ? null : '/services', title: 'Servicios', tabBarIcon: icon('grid-view') }} />
       <Tabs.Screen name="classes" options={{ href: isClient ? '/classes' : null, title: 'Clases', tabBarIcon: icon('school') }} />
-      <Tabs.Screen name="payments" options={{ href: isClient ? '/payments' : null, title: 'Pagos', tabBarIcon: icon('account-balance-wallet') }} />
-      <Tabs.Screen name="dog" options={{ href: isClient ? '/dog' : null, title: 'Perros', tabBarIcon: icon('pets') }} />
+      <Tabs.Screen name="calendar" options={{ href: isAdmin ? null : '/calendar', title: isClient ? 'Agenda' : 'Calendario', tabBarIcon: icon('calendar-month') }} />
+      <Tabs.Screen name="dog" options={{ href: isClient ? '/dog' : null, title: 'Mis perros', tabBarIcon: icon('pets') }} />
+      <Tabs.Screen name="profile" options={{ href: isAdmin ? null : '/profile', title: 'Perfil', tabBarIcon: icon('person') }} />
 
-      <Tabs.Screen name="announcements" options={{ href: isGuest ? '/announcements' : null, title: 'Anuncios', tabBarIcon: icon('campaign') }} />
-      <Tabs.Screen name="calendar" options={{ href: isGuest ? '/calendar' : null, title: 'Calendario', tabBarIcon: icon('event') }} />
-      <Tabs.Screen name="profile" options={{ href: isGuest ? '/profile' : null, title: 'Perfil', tabBarIcon: icon('person') }} />
+      <Tabs.Screen name="services" options={{ href: isGuest ? '/services' : null, title: 'Servicios', tabBarIcon: icon('grid-view') }} />
+      <Tabs.Screen name="payments" options={{ href: null, title: 'Pagos', tabBarIcon: icon('account-balance-wallet') }} />
+      <Tabs.Screen name="announcements" options={{ href: isGuest ? '/announcements' : null, title: 'Avisos', tabBarIcon: icon('campaign') }} />
       <Tabs.Screen name="membership" options={{ href: null, title: 'Mi UCAPSA', tabBarIcon: icon('workspace-premium') }} />
 
       <Tabs.Screen name="admin-home" options={{ href: isAdmin ? '/admin-home' : null, title: 'Inicio', tabBarIcon: icon('home') }} />

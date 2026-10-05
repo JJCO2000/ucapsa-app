@@ -323,6 +323,7 @@ Deno.serve(async (req) => {
         title: `Recordatorio: ${announcement.title}`,
         body: String(announcement.content ?? '').slice(0, 220),
         sound: 'default',
+        channelId: 'ucapsa-updates',
         data: { category: 'announcements_events', source: 'announcement_reminder', announcement_id: announcement.id, campaign_id: campaign.id },
       }));
 

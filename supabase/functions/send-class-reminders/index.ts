@@ -33,6 +33,7 @@ type EnrollmentRow = {
   schedule_id: string;
   dog_name: string | null;
   status: string;
+  access_mode?: string | null;
   card_started_on: string | null;
   card_expires_on: string | null;
 };
@@ -150,6 +151,14 @@ function isScheduleActiveOnDate(schedule: ScheduleRow, classDateKey: string) {
   return diffWeeks % 2 === 0;
 }
 
+function enrollmentIsEligibleOnDate(enrollment: EnrollmentRow, dateKey: string) {
+  if (enrollment.access_mode === 'membership') return true;
+  return Boolean(enrollment.card_started_on)
+    && Boolean(enrollment.card_expires_on)
+    && dateKey >= String(enrollment.card_started_on)
+    && dateKey <= String(enrollment.card_expires_on);
+}
+
 function formatTime(value: string | null | undefined) {
   return String(value ?? '').slice(0, 5) || '--:--';
 }
@@ -262,7 +271,7 @@ Deno.serve(async (req) => {
   const [programsResult, schedulesResult, enrollmentsResult, cancellationsResult, tokenResult] = await Promise.all([
     serviceClient.from('programs').select('id,code,name,is_active').eq('is_active', true),
     serviceClient.rpc('get_effective_program_schedules', { p_date: classDateKey }),
-    serviceClient.from('program_enrollments').select('id,user_id,program_id,schedule_id,dog_name,status,card_started_on,card_expires_on').eq('status', 'active'),
+    serviceClient.from('program_enrollments').select('*').eq('status', 'active'),
     serviceClient.from('program_class_cancellations').select('schedule_id,cancellation_date,restored_at').eq('cancellation_date', classDateKey).is('restored_at', null),
     serviceClient.from('notification_tokens').select('id,user_id,expo_push_token,is_active').eq('is_active', true),
   ]);
@@ -291,10 +300,7 @@ Deno.serve(async (req) => {
   const scheduleById = new Map(targetSchedules.map((schedule) => [schedule.id, schedule]));
   const candidateEnrollments = enrollments.filter((enrollment) => (
     targetScheduleIds.has(enrollment.schedule_id)
-    && Boolean(enrollment.card_started_on)
-    && Boolean(enrollment.card_expires_on)
-    && classDateKey >= String(enrollment.card_started_on)
-    && classDateKey <= String(enrollment.card_expires_on)
+    && enrollmentIsEligibleOnDate(enrollment, classDateKey)
   ));
   const candidateEnrollmentIds = candidateEnrollments.map((enrollment) => enrollment.id);
   const candidateUserIds = [...new Set(candidateEnrollments.map((enrollment) => enrollment.user_id))];
@@ -663,6 +669,7 @@ Deno.serve(async (req) => {
         title,
         body,
         sound: 'default',
+        channelId: 'ucapsa-classes',
         data: {
           category: 'classes',
           source: 'class_reminder',

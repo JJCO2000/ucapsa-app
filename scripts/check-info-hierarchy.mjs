@@ -115,7 +115,7 @@ must('src/screens/home/HomeCards.tsx', /find\(\(item\) => item\.enrollmentId ===
 mustNot('src/screens/home/HomeCards.tsx', /Escanear QR|qr-code-scanner/, 'Inicio volvió a ejecutar la acción profunda de escanear QR desde el resumen general.');
 must('src/screens/home/HomeExperienceScreen.tsx', /\/client\/attendance-history/, 'Inicio perdió el acceso contextual al historial de clases.');
 must('src/screens/home/HomeExperienceScreen.tsx', /\/client\/practice-activity/, 'Inicio perdió el acceso contextual a Racha y práctica.');
-must('src/screens/home/HomeExperienceScreen.tsx', /\/dog\?dogId=/, 'Inicio perdió la navegación contextual al perro del logro.');
+must('src/screens/home/HomeExperienceScreen.tsx', /\/client\/dog-achievements\?dogId=/, 'Inicio perdió la navegación contextual a los logros del perro.');
 
 if (failures.length) {
   console.error('INFO HIERARCHY FAIL:');

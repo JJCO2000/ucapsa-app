@@ -1,11 +1,14 @@
 import { PROGRAM_COMPLETION_ACHIEVEMENT_CODES } from '../constants/programCompletion';
 import { supabase } from '../lib/supabase';
+import { getProgramEnrollmentsForUser } from './program-enrollments.service';
 import {
   getCachedAchievementsForDog,
   getCachedAchievementsForUser,
   persistAchievementCache,
 } from './achievements-cache.service';
 import {
+  getTrainingAttendanceAchievementTarget,
+  isTrainingAttendanceAchievementCode,
   mergeDefinitionsWithStoredAchievements,
   type AchievementDefinition,
   type AchievementWithState,
@@ -13,6 +16,21 @@ import {
 } from './achievements.domain';
 
 const ACHIEVEMENT_QUERY_TIMEOUT_MS = 6000;
+function withDogAttendanceProgress(
+  items: AchievementWithState[],
+  attendanceTotal: number | null,
+) {
+  if (attendanceTotal == null) return items;
+  return items.map((item) => {
+    const target = getTrainingAttendanceAchievementTarget(item.definition.code);
+    if (target == null) return item;
+    return {
+      ...item,
+      progressCurrent: Math.min(attendanceTotal, target),
+      progressTarget: target,
+    };
+  });
+}
 
 function normalizeDefinition(row: unknown): AchievementDefinition {
   return row as AchievementDefinition;
@@ -76,7 +94,7 @@ export async function getAchievementsForDog(
   userId: string,
   dogId: string,
 ): Promise<AchievementWithState[]> {
-  const [definitions, achievementResult] = await Promise.all([
+  const [definitions, achievementResult, enrollmentResult] = await Promise.all([
     getAchievementDefinitions(),
     supabase
       .from('user_achievements')
@@ -84,14 +102,30 @@ export async function getAchievementsForDog(
       .eq('user_id', userId)
       .eq('dog_id', dogId)
       .order('awarded_at', { ascending: false }),
+    getProgramEnrollmentsForUser(userId).then(
+      (value) => ({ status: 'fulfilled' as const, value }),
+      () => ({ status: 'rejected' as const, value: [] }),
+    ),
   ]);
 
   if (achievementResult.error) throw achievementResult.error;
   const achievements = (achievementResult.data ?? []).map(normalizeAchievement);
-  const dogDefinitions = PROGRAM_COMPLETION_ACHIEVEMENT_CODES
-    .map((code) => definitions.find((definition) => definition.code === code))
-    .filter((definition): definition is AchievementDefinition => Boolean(definition));
-  return mergeDefinitionsWithStoredAchievements(dogDefinitions, achievements, dogId);
+  const dogDefinitions = definitions.filter((definition) => (
+    PROGRAM_COMPLETION_ACHIEVEMENT_CODES.includes(
+      definition.code as (typeof PROGRAM_COMPLETION_ACHIEVEMENT_CODES)[number],
+    )
+    || isTrainingAttendanceAchievementCode(definition.code)
+  ));
+  const attendanceTotal = enrollmentResult.status === 'fulfilled'
+    ? enrollmentResult.value
+        .filter((item) => item.enrollment.dog_id === dogId)
+        .reduce((sum, item) => sum + item.attendances.length, 0)
+    : null;
+
+  return withDogAttendanceProgress(
+    mergeDefinitionsWithStoredAchievements(dogDefinitions, achievements, dogId),
+    attendanceTotal,
+  );
 }
 
 export async function refreshAchievementsForUser(

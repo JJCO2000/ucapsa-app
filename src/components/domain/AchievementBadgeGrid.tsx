@@ -57,6 +57,13 @@ function sortAchievementsForHome(items: AchievementWithState[]) {
   });
 }
 
+function achievementProgressLabel(item: AchievementWithState) {
+  if (item.progressTarget != null && item.progressCurrent != null) {
+    return `${Math.min(item.progressCurrent, item.progressTarget)} de ${item.progressTarget}`;
+  }
+  return item.unlocked ? 'Conseguido' : 'Por desbloquear';
+}
+
 export function AchievementBadgeGrid({
   items,
   premium = false,
@@ -75,13 +82,11 @@ export function AchievementBadgeGrid({
     return (
       <View style={[styles.emptyBox, premium && styles.emptyBoxPremium]}>
         <Text style={[styles.emptyTitle, premium && styles.emptyTitlePremium]}>Sin medallas configuradas</Text>
-        <Text style={[styles.emptyText, premium && styles.emptyTextPremium]}>Los logros todavia no estan disponibles.</Text>
+        <Text style={[styles.emptyText, premium && styles.emptyTextPremium]}>Los logros todavía no están disponibles.</Text>
       </View>
     );
   }
 
-  // En Mi perro, maxItems representa un resumen: sólo sellos pequeños y acceso a la ficha completa.
-  // El dogId viaja en el propio scope dog-specific para no depender del primer perro de la cuenta.
   if (maxItems && visibleItems[0]?.dogId) {
     const dogId = visibleItems[0].dogId;
     return (
@@ -97,53 +102,75 @@ export function AchievementBadgeGrid({
   }
 
   return (
-    <View style={styles.roadmap}>
-      {visibleItems.map((item, index) => {
+    <View style={styles.grid}>
+      {visibleItems.map((item) => {
         const tone = getTone(item);
         const lockedColor = premium ? ucapsaBrand.colors.premiumMuted : ucapsaBrand.colors.gray;
         const lockedBackground = premium ? ucapsaBrand.colors.premiumSurfaceAlt : ucapsaBrand.colors.graySoft;
-        const isLast = index === visibleItems.length - 1;
+        const progressLabel = achievementProgressLabel(item);
+
         return (
-          <View key={item.definition.code} style={styles.roadmapRow}>
-            <View style={styles.roadmapRail}>
-              <View style={[
-                styles.roadmapNode,
-                { backgroundColor: item.unlocked ? tone.soft : lockedBackground, borderColor: item.unlocked ? tone.main : premium ? ucapsaBrand.colors.premiumBorder : ucapsaBrand.colors.textLight },
-              ]}>
-                <MaterialCommunityIcons name={item.definition.icon as keyof typeof MaterialCommunityIcons.glyphMap} size={24} color={item.unlocked ? tone.dark : lockedColor} />
-              </View>
-              {!isLast ? <View style={[styles.roadmapLine, { backgroundColor: item.unlocked ? tone.main : premium ? ucapsaBrand.colors.premiumBorder : ucapsaBrand.colors.borderNeutral }]} /> : null}
-            </View>
-            <Pressable
-              style={({ pressed }) => [
-                styles.roadmapCard,
-                premium && styles.roadmapCardPremium,
-                item.unlocked ? { borderColor: tone.main } : null,
-                pressed && styles.pressed,
-              ]}
-              onPress={() => onSelect(item)}
-            >
-              <View style={styles.roadmapCardTop}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.roadmapStep, { color: item.unlocked ? tone.dark : lockedColor }]}>ETAPA {index + 1}</Text>
-                  <Text style={[styles.roadmapTitle, premium && styles.roadmapTitlePremium, !item.unlocked && styles.roadmapTitleLocked, premium && !item.unlocked && styles.roadmapTitleLockedPremium]}>
-                    {item.definition.title}
-                  </Text>
-                </View>
-                <View style={[styles.statePill, { backgroundColor: item.unlocked ? tone.soft : lockedBackground }]}>
-                  <Text style={[styles.badgeState, item.unlocked ? { color: tone.dark } : styles.badgeStateLocked, premium && !item.unlocked && styles.badgeStateLockedPremium]}>
-                    {item.unlocked ? 'COMPLETADO' : 'SIGUIENTE'}
-                  </Text>
-                </View>
-              </View>
-              <Text style={[styles.roadmapHint, premium && styles.roadmapHintPremium]}>
-                {item.unlocked ? item.definition.unlocked_title || 'Hito completado' : item.definition.description || 'Completa esta etapa para desbloquear la medalla.'}
-              </Text>
+          <Pressable
+            key={item.definition.code}
+            accessibilityRole="button"
+            accessibilityLabel={`${item.definition.title}. ${progressLabel}`}
+            onPress={() => onSelect(item)}
+            style={({ pressed }) => [
+              styles.badgeCard,
+              premium && styles.badgeCardPremium,
+              !item.unlocked && styles.badgeCardLocked,
+              item.unlocked ? { borderColor: tone.main } : null,
+              pressed && styles.pressed,
+            ]}
+          >
+            <View style={styles.badgeTopRow}>
+              <View />
               {item.unlocked ? (
-                <Text style={[styles.roadmapDate, { color: item.unlocked ? tone.dark : lockedColor }]}>{formatAchievementDate(item.achievement?.awarded_at)}</Text>
+                <MaterialCommunityIcons name="check-circle" size={19} color={tone.dark} />
               ) : null}
-            </Pressable>
-          </View>
+            </View>
+
+            <View
+              style={[
+                styles.achievementSeal,
+                {
+                  backgroundColor: item.unlocked ? tone.soft : lockedBackground,
+                  borderColor: item.unlocked ? tone.main : premium ? ucapsaBrand.colors.premiumBorder : ucapsaBrand.colors.textLight,
+                },
+              ]}
+            >
+              <MaterialCommunityIcons
+                name={item.definition.icon as keyof typeof MaterialCommunityIcons.glyphMap}
+                size={42}
+                color={item.unlocked ? tone.dark : lockedColor}
+              />
+              {item.progressTarget != null ? (
+                <View style={[styles.achievementTarget, { backgroundColor: item.unlocked ? tone.main : lockedColor }]}>
+                  <Text style={styles.achievementTargetText}>{item.progressTarget}</Text>
+                </View>
+              ) : null}
+            </View>
+
+            <Text
+              numberOfLines={2}
+              style={[
+                styles.badgeTitle,
+                premium && styles.badgeTitlePremium,
+                !item.unlocked && styles.badgeTitleLocked,
+                premium && !item.unlocked && styles.badgeTitleLockedPremium,
+              ]}
+            >
+              {item.definition.title}
+            </Text>
+            <Text style={[styles.achievementProgress, { color: item.unlocked ? tone.dark : lockedColor }]}>
+              {progressLabel}
+            </Text>
+            <Text numberOfLines={2} style={[styles.badgeHint, premium && styles.badgeHintPremium]}>
+              {item.unlocked
+                ? item.definition.unlocked_title || 'Logro conseguido'
+                : item.definition.description || 'Sigue avanzando para desbloquearlo.'}
+            </Text>
+          </Pressable>
         );
       })}
     </View>
@@ -212,11 +239,18 @@ export function AchievementDetailModal({
       <View style={styles.modalBackdrop}>
         <View style={[styles.modalCard, premium && styles.modalCardPremium]}>
           <View style={[styles.modalIcon, { backgroundColor: item.unlocked ? tone.soft : ucapsaBrand.colors.graySoft, borderColor: item.unlocked ? tone.main : ucapsaBrand.colors.textLight }]}>
-            <MaterialCommunityIcons name={item.definition.icon as keyof typeof MaterialCommunityIcons.glyphMap} size={44} color={item.unlocked ? tone.dark : ucapsaBrand.colors.gray} />
+            <MaterialCommunityIcons name={item.definition.icon as keyof typeof MaterialCommunityIcons.glyphMap} size={54} color={item.unlocked ? tone.dark : ucapsaBrand.colors.gray} />
           </View>
 
           <Text style={[styles.modalKicker, premium && styles.modalKickerPremium]}>{item.unlocked ? 'Logro desbloqueado' : 'Logro pendiente'}</Text>
           <Text style={[styles.modalTitle, premium && styles.modalTitlePremium]}>{item.unlocked ? unlockedTitle : lockedTitle}</Text>
+          {item.progressTarget != null && item.progressCurrent != null ? (
+            <View style={[styles.modalProgressPill, { backgroundColor: item.unlocked ? tone.soft : ucapsaBrand.colors.graySoft }]}>
+              <Text style={[styles.modalProgressText, { color: item.unlocked ? tone.dark : ucapsaBrand.colors.grayDark }]}>
+                {Math.min(item.progressCurrent, item.progressTarget)} de {item.progressTarget} clases
+              </Text>
+            </View>
+          ) : null}
           <Text style={[styles.modalText, premium && styles.modalTextPremium]}>
             {item.unlocked
               ? item.definition.unlocked_description || item.definition.description || 'Medalla obtenida en UCAPSA.'
@@ -224,7 +258,9 @@ export function AchievementDetailModal({
           </Text>
 
           {item.unlocked ? (
-            <Text style={[styles.modalDate, premium && styles.modalDatePremium]}>Obtenida: {formatAchievementDate(item.achievement?.awarded_at)}</Text>
+            <View style={[styles.modalDatePill, premium && styles.modalDatePillPremium]}>
+              <Text style={[styles.modalDate, premium && styles.modalDatePremium]}>{formatAchievementDate(item.achievement?.awarded_at)}</Text>
+            </View>
           ) : null}
 
           <Pressable style={[styles.closeButton, premium && styles.closeButtonPremium]} onPress={onClose}>
@@ -260,7 +296,7 @@ export function AchievementSummary({ items, premium = false, onPress }: { items:
 }
 
 const styles = StyleSheet.create({
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'stretch', gap: 12 },
   roadmap: { gap: 0 },
   roadmapRow: { flexDirection: 'row', alignItems: 'stretch', gap: 12 },
   roadmapRail: { width: 54, alignItems: 'center' },
@@ -277,17 +313,21 @@ const styles = StyleSheet.create({
   roadmapHint: { color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 16, fontWeight: '700' },
   roadmapHintPremium: { color: ucapsaBrand.colors.premiumMuted },
   roadmapDate: { fontSize: 10, lineHeight: 14, fontWeight: '900' },
-  badgeCard: { width: '48%', minHeight: 132, alignItems: 'stretch', justifyContent: 'space-between', gap: 9, padding: 13, borderRadius: 22, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.borderNeutral },
+  badgeCard: { width: '48%', minHeight: 212, alignItems: 'center', justifyContent: 'flex-start', gap: 8, padding: 13, borderRadius: 24, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.borderNeutral },
   badgeCardPremium: { backgroundColor: ucapsaBrand.colors.premiumSurface, borderColor: ucapsaBrand.colors.premiumBorder },
   badgeCardLocked: { opacity: 0.9 },
-  badgeTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  badgeTopRow: { width: '100%', minHeight: 25, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  achievementSeal: { width: 86, height: 86, borderRadius: 30, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginTop: 1, marginBottom: 2 },
+  achievementTarget: { position: 'absolute', right: -6, bottom: -7, minWidth: 34, height: 29, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 7, borderWidth: 2, borderColor: ucapsaBrand.colors.surface },
+  achievementTargetText: { color: ucapsaBrand.colors.surface, fontSize: 13, lineHeight: 16, fontWeight: '900' },
+  achievementProgress: { fontSize: 12, lineHeight: 15, fontWeight: '900', textAlign: 'center' },
   iconSeal: { width: 46, height: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: withAlpha(ucapsaBrand.colors.surface, 0.6) },
   statePill: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 5 },
-  badgeTitle: { color: ucapsaBrand.colors.cameraDark, fontSize: 14, lineHeight: 18, fontWeight: '900', textAlign: 'left' },
+  badgeTitle: { color: ucapsaBrand.colors.cameraDark, fontSize: 14, lineHeight: 18, fontWeight: '900', textAlign: 'center' },
   badgeTitlePremium: { color: ucapsaBrand.colors.premiumText },
   badgeTitleLocked: { color: ucapsaBrand.colors.mutedNeutral },
   badgeTitleLockedPremium: { color: ucapsaBrand.colors.premiumMuted },
-  badgeHint: { color: ucapsaBrand.colors.muted, fontSize: 10, lineHeight: 14, fontWeight: '700' },
+  badgeHint: { color: ucapsaBrand.colors.muted, fontSize: 10, lineHeight: 14, fontWeight: '700', textAlign: 'center' },
   badgeHintPremium: { color: ucapsaBrand.colors.premiumMuted },
   badgeState: { fontSize: 9, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 },
   badgeStateLocked: { color: ucapsaBrand.colors.gray },
@@ -309,14 +349,18 @@ const styles = StyleSheet.create({
   modalBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: withAlpha(ucapsaBrand.colors.cameraDark, 0.48) },
   modalCard: { width: '100%', gap: 10, alignItems: 'center', padding: 22, borderRadius: 30, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
   modalCardPremium: { backgroundColor: ucapsaBrand.colors.premiumSurface, borderColor: ucapsaBrand.colors.premiumBorder },
-  modalIcon: { width: 82, height: 82, borderRadius: 41, alignItems: 'center', justifyContent: 'center', borderWidth: 2, marginBottom: 6 },
+  modalIcon: { width: 108, height: 108, borderRadius: 38, alignItems: 'center', justifyContent: 'center', borderWidth: 2, marginBottom: 6 },
   modalKicker: { color: ucapsaBrand.colors.red, fontSize: 12, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.8 },
   modalKickerPremium: { color: ucapsaBrand.colors.premiumAction },
   modalTitle: { color: ucapsaBrand.colors.text, fontSize: 25, fontWeight: '900', textAlign: 'center' },
   modalTitlePremium: { color: ucapsaBrand.colors.premiumText },
   modalText: { color: ucapsaBrand.colors.muted, fontSize: 14, lineHeight: 20, fontWeight: '700', textAlign: 'center' },
   modalTextPremium: { color: ucapsaBrand.colors.premiumMuted },
-  modalDate: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900', marginTop: 4 },
+  modalProgressPill: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, marginTop: 2 },
+  modalProgressText: { fontSize: 12, lineHeight: 15, fontWeight: '900' },
+  modalDatePill: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: ucapsaBrand.colors.surfaceSubtle, marginTop: 4 },
+  modalDatePillPremium: { backgroundColor: ucapsaBrand.colors.premiumSurfaceAlt },
+  modalDate: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900' },
   modalDatePremium: { color: ucapsaBrand.colors.premiumAction },
   closeButton: { width: '100%', alignItems: 'center', borderRadius: 18, paddingVertical: 14, backgroundColor: ucapsaBrand.colors.red, marginTop: 8 },
   closeButtonPremium: { backgroundColor: ucapsaBrand.colors.gold },

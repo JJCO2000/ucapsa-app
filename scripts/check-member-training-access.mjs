@@ -12,6 +12,10 @@ const credential = fs.readFileSync('src/components/domain/ProgramCredentialCard.
 const nextSession = fs.readFileSync('src/services/program-next-session.service.ts', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
 
+if (accessSql.includes("v_level := 'principiante'")) {
+  throw new Error('Member access must not invent Comandos Principiante without training history.');
+}
+
 for (const token of [
   "access_mode text not null default 'card'",
   "check (access_mode in ('card', 'membership'))",
@@ -19,7 +23,8 @@ for (const token of [
   'program_enrollments_one_active_membership_stage_per_dog_idx',
   'admin_set_membership_dog_coverage',
   'admin_set_member_dog_training_stage',
-  "v_level := 'principiante'",
+  'No hay evidencia suficiente para inferir programa o nivel.',
+  'return null;',
   "where m.status = 'active'",
   'join public.dogs d',
   'a.is_covered = true',
@@ -52,6 +57,10 @@ for (const token of [
   'setMemberDogTrainingStageAdmin',
   'Todos entran por defecto',
   'Cambiar nivel',
+  'Asignar nivel',
+  'setStageProgram(null)',
+  'setStageLevel(null)',
+  'No hay una etapa respaldada por historial',
 ]) {
   if (!membershipAdmin.includes(token)) {
     throw new Error('Admin membership dog/level controls missing: ' + token);

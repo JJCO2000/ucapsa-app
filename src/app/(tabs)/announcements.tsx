@@ -29,6 +29,14 @@ export default function AnnouncementsScreen() {
   const [offlineEmpty, setOfflineEmpty] = useState(false);
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [user, role, isAdmin]);
   const isPremium = format.key === 'member';
+  const importantAnnouncements = useMemo(
+    () => announcements.filter((item) => item.is_pinned || item.priority === 'urgent' || item.priority === 'high'),
+    [announcements],
+  );
+  const regularAnnouncements = useMemo(
+    () => announcements.filter((item) => !item.is_pinned && item.priority !== 'urgent' && item.priority !== 'high'),
+    [announcements],
+  );
 
   const cacheScope = user?.id ?? 'public';
 
@@ -92,12 +100,22 @@ export default function AnnouncementsScreen() {
         <View style={[styles.header, { backgroundColor: format.surface, borderColor: format.border }]}>
           <View style={styles.headerRow}>
             <View style={styles.headerCopy}>
-              <Text style={[styles.kicker, { color: format.accentDark }]}>Anuncios</Text>
-              <Text style={[styles.title, { color: format.text }]}>Comunicación oficial</Text>
+              <Text style={[styles.kicker, { color: format.accentDark }]}>Avisos UCAPSA</Text>
+              <Text style={[styles.title, { color: format.text }]}>Información oficial</Text>
             </View>
             <View style={[styles.markCircle, { backgroundColor: format.accentSoft }]}>
               <Image source={mark} style={styles.mark} resizeMode="contain" />
             </View>
+          </View>
+        </View>
+
+        <View style={[styles.officialNotice, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
+          <View style={[styles.officialNoticeIcon, { backgroundColor: format.accentSoft }]}>
+            <MaterialIcons name="verified-user" size={20} color={format.accentDark} />
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={[styles.officialNoticeTitle, { color: format.cardText }]}>Solo comunicación de UCAPSA</Text>
+            <Text style={[styles.officialNoticeText, { color: format.muted }]}>Aquí no aparecen mensajes ni conversaciones de otros clientes.</Text>
           </View>
         </View>
 
@@ -136,7 +154,7 @@ export default function AnnouncementsScreen() {
         <View style={styles.sectionHeader}>
           <View style={styles.sectionCopy}>
             <Text style={[styles.sectionKicker, { color: isPremium ? ucapsaBrand.colors.premiumAction : format.muted }]}>Lista</Text>
-            <Text style={[styles.sectionTitle, { color: format.text }]}>Avisos publicados</Text>
+            <Text style={[styles.sectionTitle, { color: format.text }]}>Tus avisos</Text>
           </View>
           <View style={[styles.countPill, { backgroundColor: format.pillBackground }]}>
             <Text style={[styles.countText, { color: format.pillText }]}>{announcements.length}</Text>
@@ -174,15 +192,45 @@ export default function AnnouncementsScreen() {
           </View>
         ) : null}
 
-        {announcements.map((announcement) => (
-          <View key={announcement.id} style={styles.announcementWrap}>
-            <AnnouncementCard
-              announcement={announcement}
-              onPress={isAdmin ? () => router.push(`/admin/announcements?announcementId=${announcement.id}` as never) : () => setSelectedAnnouncement(announcement)}
-              onOpenEvent={announcement.event ? () => router.push('/calendar' as never) : undefined}
-            />
+        {importantAnnouncements.length > 0 ? (
+          <View style={styles.group}>
+            <View style={styles.groupHeader}>
+              <MaterialIcons name="priority-high" size={18} color={format.accentDark} />
+              <Text style={[styles.groupTitle, { color: format.text }]}>Importantes</Text>
+              <Text style={[styles.groupCount, { color: format.accentDark, backgroundColor: format.accentSoft }]}>{importantAnnouncements.length}</Text>
+            </View>
+            {importantAnnouncements.map((announcement) => (
+              <View key={announcement.id} style={styles.announcementWrap}>
+                <AnnouncementCard
+                  compact={!isAdmin}
+                  announcement={announcement}
+                  onPress={isAdmin ? () => router.push(`/admin/announcements?announcementId=${announcement.id}` as never) : () => setSelectedAnnouncement(announcement)}
+                  onOpenEvent={announcement.event ? () => router.push('/calendar' as never) : undefined}
+                />
+              </View>
+            ))}
           </View>
-        ))}
+        ) : null}
+
+        {regularAnnouncements.length > 0 ? (
+          <View style={styles.group}>
+            <View style={styles.groupHeader}>
+              <MaterialIcons name="schedule" size={18} color={format.muted} />
+              <Text style={[styles.groupTitle, { color: format.text }]}>Recientes</Text>
+              <Text style={[styles.groupCount, { color: format.muted, backgroundColor: format.surfaceAlt }]}>{regularAnnouncements.length}</Text>
+            </View>
+            {regularAnnouncements.map((announcement) => (
+              <View key={announcement.id} style={styles.announcementWrap}>
+                <AnnouncementCard
+                  compact={!isAdmin}
+                  announcement={announcement}
+                  onPress={isAdmin ? () => router.push(`/admin/announcements?announcementId=${announcement.id}` as never) : () => setSelectedAnnouncement(announcement)}
+                  onOpenEvent={announcement.event ? () => router.push('/calendar' as never) : undefined}
+                />
+              </View>
+            ))}
+          </View>
+        ) : null}
       </ScrollView>
 
       <UcapsaDetailModal
@@ -216,7 +264,15 @@ const styles = StyleSheet.create({
   title: { color: ucapsaBrand.colors.text, fontSize: 29, lineHeight: 34, fontWeight: '900', marginTop: 4 },
   markCircle: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
   mark: { width: 28, height: 28 },
-  sectionSwitch: { flexDirection: 'row', gap: 6, borderWidth: 1, borderRadius: 18, padding: 5 },
+  officialNotice: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 20, padding: 13 },
+  officialNoticeIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  officialNoticeTitle: { fontSize: 14, lineHeight: 19, fontWeight: '900' },
+  officialNoticeText: { marginTop: 2, fontSize: 11, lineHeight: 16, fontWeight: '700' },
+  group: { gap: 10 },
+  groupHeader: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 3 },
+  groupTitle: { flex: 1, fontSize: 15, lineHeight: 20, fontWeight: '900' },
+  groupCount: { overflow: 'hidden', minWidth: 28, textAlign: 'center', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4, fontSize: 11, fontWeight: '900' },
+    sectionSwitch: { flexDirection: 'row', gap: 6, borderWidth: 1, borderRadius: 18, padding: 5 },
   switchButton: { flex: 1, minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 14 },
   switchButtonActive: { backgroundColor: ucapsaBrand.colors.red },
   switchText: { fontSize: 13, fontWeight: '900' },

@@ -29,6 +29,16 @@ function medal(position: number) {
   return null;
 }
 
+function podiumTone(position: number) {
+  if (position === 1) {
+    return { background: ucapsaBrand.colors.goldPale, border: ucapsaBrand.colors.gold, text: ucapsaBrand.colors.goldDark };
+  }
+  if (position === 2) {
+    return { background: ucapsaBrand.colors.graySoft, border: ucapsaBrand.colors.gray, text: ucapsaBrand.colors.grayDark };
+  }
+  return { background: ucapsaBrand.colors.warningSoft, border: ucapsaBrand.colors.warning, text: ucapsaBrand.colors.warningDark };
+}
+
 export default function ClientCompetitionRankingScreen() {
   const params = useLocalSearchParams<{ seasonId?: string | string[] }>();
   const seasonId = Array.isArray(params.seasonId) ? params.seasonId[0] ?? '' : params.seasonId ?? '';
@@ -126,7 +136,7 @@ export default function ClientCompetitionRankingScreen() {
       <View style={styles.header}>
         <Text style={[styles.eyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>RANKING UCAPSA</Text>
         <Text style={[styles.title, { color: format.cardText }]}>{seasonName}</Text>
-        <Text style={[styles.subtitle, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Sólo perros elegibles. El Podio son las posiciones 1, 2 y 3 de esta misma tabla.</Text>
+        <Text style={[styles.subtitle, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Tu posición y el puntaje oficial de cada perro en esta temporada.</Text>
       </View>
 
       {usingSavedData ? (
@@ -190,22 +200,29 @@ export default function ClientCompetitionRankingScreen() {
 
             <Text style={[styles.sectionTitle, { color: format.cardText }]}>Podio</Text>
             <View style={styles.podiumRow}>
-              {podium.map((row) => (
-                <View
-                  key={row.dog_id ?? String(row.ranking_position)}
-                  style={[
-                    styles.podiumCard,
-                    {
-                      backgroundColor: row.dog_id && myDogIds.has(row.dog_id) ? format.secondaryButton : format.cardBackground,
-                      borderColor: row.dog_id && myDogIds.has(row.dog_id) ? format.accent : format.cardBorder,
-                    },
-                  ]}
-                >
-                  <Text style={styles.medal}>{medal(Number(row.ranking_position ?? 0))}</Text>
-                  <Text numberOfLines={1} style={[styles.podiumName, { color: format.cardText }]}>{row.dog_name || 'Perro'}</Text>
-                  <Text style={[styles.podiumScore, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>{numberLabel(row.competitive_score)} pts</Text>
-                </View>
-              ))}
+              {podium.map((row) => {
+                const position = Number(row.ranking_position ?? 0);
+                const tone = podiumTone(position);
+                const mine = Boolean(row.dog_id && myDogIds.has(row.dog_id));
+                return (
+                  <View
+                    key={row.dog_id ?? String(row.ranking_position)}
+                    style={[
+                      styles.podiumCard,
+                      {
+                        backgroundColor: tone.background,
+                        borderColor: tone.border,
+                      },
+                    ]}
+                  >
+                    <Text style={styles.medal}>{medal(position)}</Text>
+                    <Text style={[styles.podiumPosition, { color: tone.text }]}>#{position}</Text>
+                    <Text numberOfLines={1} style={[styles.podiumName, { color: format.cardText }]}>{row.dog_name || 'Perro'}</Text>
+                    <Text style={[styles.podiumScore, { color: tone.text }]}>{numberLabel(row.competitive_score)} pts</Text>
+                    {mine ? <Text style={[styles.podiumMine, { color: tone.text }]}>TUYO</Text> : null}
+                  </View>
+                );
+              })}
             </View>
 
             <Text style={[styles.sectionTitle, { color: format.cardText }]}>Clasificación</Text>
@@ -221,18 +238,31 @@ export default function ClientCompetitionRankingScreen() {
                       { backgroundColor: mine ? format.secondaryButton : format.cardBackground, borderColor: mine ? format.accent : format.cardBorder },
                     ]}
                   >
-                    <View style={[styles.rankBox, { backgroundColor: format.pillBackground }]}>
-                      <Text style={[styles.rankText, { color: format.pillText }]}>{position}</Text>
+                    <View
+                      style={[
+                        styles.rankBox,
+                        {
+                          backgroundColor: position <= 3 ? podiumTone(position).background : format.pillBackground,
+                          borderColor: position <= 3 ? podiumTone(position).border : format.cardBorder,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.rankText, { color: position <= 3 ? podiumTone(position).text : format.pillText }]}>
+                        {position <= 3 ? medal(position) : position}
+                      </Text>
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <View style={styles.titleLine}>
                         <Text numberOfLines={1} style={[styles.dogName, { color: format.cardText }]}>{row.dog_name || 'Perro'}</Text>
                         {mine ? <Text style={[styles.minePill, { color: premium ? ucapsaBrand.colors.premiumActionText : format.accentDark }]}>Tuyo</Text> : null}
                       </View>
-                      <Text style={[styles.score, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>{numberLabel(row.competitive_score)} pts · {row.range_name || 'Cobre'}</Text>
+                      <Text style={[styles.rangeText, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{row.range_name || 'Cobre'}</Text>
                       <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{Number(row.command_attendances_count ?? 0)} Comandos · {numberLabel(row.exam_points)} pts Exámenes</Text>
                     </View>
-                    {position <= 3 ? <Text style={styles.rowMedal}>{medal(position)}</Text> : null}
+                    <View style={styles.scoreBlock}>
+                      <Text style={[styles.scoreValue, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>{numberLabel(row.competitive_score)}</Text>
+                      <Text style={[styles.scoreLabel, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>PTS</Text>
+                    </View>
                   </View>
                 );
               })}
@@ -265,19 +295,23 @@ const styles = StyleSheet.create({
   myLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 0.7 },
   sectionTitle: { fontSize: 18, lineHeight: 23, fontWeight: '900', marginBottom: 8 },
   podiumRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  podiumCard: { flex: 1, minWidth: 0, alignItems: 'center', borderRadius: 17, borderWidth: 1, padding: 10 },
+  podiumCard: { flex: 1, minWidth: 0, minHeight: 142, alignItems: 'center', justifyContent: 'center', borderRadius: 20, borderWidth: 2, padding: 10 },
   medal: { fontSize: 24, marginBottom: 3 },
+  podiumPosition: { fontSize: 10, fontWeight: '900', marginBottom: 2 },
   podiumName: { width: '100%', textAlign: 'center', fontSize: 10, fontWeight: '900' },
-  podiumScore: { fontSize: 9, fontWeight: '900', marginTop: 3 },
+  podiumScore: { fontSize: 11, fontWeight: '900', marginTop: 4 },
+  podiumMine: { marginTop: 5, fontSize: 8, fontWeight: '900', letterSpacing: 0.7 },
   list: { gap: 8 },
   rankRow: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 17, borderWidth: 1, padding: 10 },
-  rankBox: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  rankText: { fontSize: 12, fontWeight: '900' },
+  rankBox: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  rankText: { fontSize: 13, fontWeight: '900' },
   titleLine: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   dogName: { flexShrink: 1, fontSize: 12, fontWeight: '900' },
   minePill: { borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2, fontSize: 8, fontWeight: '900' },
-  score: { fontSize: 10, fontWeight: '900', marginTop: 2 },
-  rowMedal: { fontSize: 19 },
+  rangeText: { fontSize: 10, fontWeight: '900', marginTop: 2 },
+  scoreBlock: { minWidth: 62, alignItems: 'flex-end', justifyContent: 'center' },
+  scoreValue: { fontSize: 17, lineHeight: 20, fontWeight: '900' },
+  scoreLabel: { marginTop: 1, fontSize: 8, lineHeight: 10, fontWeight: '900', letterSpacing: 0.8 },
   noteCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 15, borderWidth: 1, padding: 11, marginTop: 12, marginBottom: 12 },
   noteText: { flex: 1, fontSize: 10, lineHeight: 15, fontWeight: '800' },
 });

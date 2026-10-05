@@ -9,6 +9,7 @@ type Props = {
   onPress?: () => void;
   onOpenEvent?: () => void;
   showAdminStatus?: boolean;
+  compact?: boolean;
 };
 
 const colorMap: Record<UcapsaColorKey, { main: string; soft: string; text: string }> = {
@@ -54,6 +55,7 @@ export function AnnouncementCard({
   onPress,
   onOpenEvent,
   showAdminStatus = false,
+  compact = false,
 }: Props) {
   const archived = Boolean(announcement.archived_at);
   const unpublished = !announcement.is_published;
@@ -74,8 +76,10 @@ export function AnnouncementCard({
           <Text style={styles.title}>{announcement.title}</Text>
           <View style={styles.metaRow}>
             {announcement.is_pinned ? <Text style={styles.pin}>Fijado</Text> : null}
-            <Text style={[styles.badge, { color: tone.text, backgroundColor: tone.soft }]}>{audienceLabel(announcement.audience)}</Text>
-            <Text style={[styles.priorityBadge, priority === 'urgent' && styles.priorityUrgent, priority === 'high' && styles.priorityHigh]}>{priorityLabels[priority]}</Text>
+            {!compact ? <Text style={[styles.badge, { color: tone.text, backgroundColor: tone.soft }]}>{audienceLabel(announcement.audience)}</Text> : null}
+            {!compact || priority === 'urgent' || priority === 'high' ? (
+              <Text style={[styles.priorityBadge, priority === 'urgent' && styles.priorityUrgent, priority === 'high' && styles.priorityHigh]}>{priorityLabels[priority]}</Text>
+            ) : null}
           </View>
         </View>
       </View>
@@ -87,7 +91,7 @@ export function AnnouncementCard({
         </View>
       ) : null}
 
-      <Text style={styles.content}>{announcement.content}</Text>
+      <Text numberOfLines={compact ? 2 : undefined} style={styles.content}>{announcement.content}</Text>
 
       {announcement.event ? (
         <Pressable

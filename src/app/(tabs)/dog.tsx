@@ -457,6 +457,22 @@ export default function DogTab() {
                 </View>
               </View>
 
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Abrir perfil de ${selectedDog.name}`}
+                style={[styles.dogProfileShortcut, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}
+                onPress={openEditProfile}
+              >
+                <View style={[styles.dogProfileIcon, { backgroundColor: format.accentSoft }]}>
+                  <MaterialIcons name="account-circle" size={21} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={[styles.dogProfileTitle, { color: format.cardText }]}>Perfil de {selectedDog.name}</Text>
+                  <Text style={[styles.dogProfileMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Datos del perro y edición de su perfil.</Text>
+                </View>
+                <MaterialIcons name="chevron-right" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+              </Pressable>
+
               {!programWarning && selectedEnrollments.length === 0 ? (
                 <View style={styles.dogEmptyProgram}>
                   <MaterialIcons name="school" size={24} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
@@ -483,7 +499,7 @@ export default function DogTab() {
                       <Text style={[styles.dogProgramEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>ENTRENAMIENTO ACTUAL</Text>
                       <Text style={[styles.dogProgramTitle, { color: format.cardText }]}>{programLabel}</Text>
                       <Text style={[styles.dogProgramMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
-                        {unlimited ? `${item.attendances.length} asistencias · acceso ilimitado` : `${item.attendances.length} asistencias registradas`}
+                        {unlimited ? `${item.attendances.length} clases registradas · acceso ilimitado` : `${item.attendances.length} clases tomadas`}
                       </Text>
                     </View>
                     {!unlimited && remaining != null ? <View style={[styles.dogRemainingBox, { backgroundColor: format.accent }]}><Text style={[styles.dogRemainingValue, { color: format.primaryButtonText }]}>{remaining}</Text><Text style={[styles.dogRemainingLabel, { color: format.primaryButtonText }]}>restantes</Text></View> : <MaterialIcons name="chevron-right" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />}
@@ -516,6 +532,15 @@ export default function DogTab() {
                         {unlockedAchievementCount} de {achievements.length} medallas obtenidas por {selectedDog.name}.
                       </Text>
                       <AchievementBadgeGrid items={achievements} premium={premium} maxItems={4} onSelect={setSelectedAchievement} />
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Ver todos los logros de ${selectedDog.name}`}
+                        style={[styles.achievementAllButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}
+                        onPress={() => router.push(`/client/dog-achievements?dogId=${encodeURIComponent(selectedDog.id)}` as never)}
+                      >
+                        <Text style={[styles.achievementAllText, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Ver todos los logros</Text>
+                        <MaterialIcons name="chevron-right" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                      </Pressable>
                     </>
                   ) : (
                     <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Los logros de {selectedDog.name} todavía no están disponibles.</Text>
@@ -541,7 +566,7 @@ export default function DogTab() {
                     <View style={[styles.classIcon, { backgroundColor: format.pillBackground }]}><MaterialIcons name="history" size={19} color={format.pillText} /></View>
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text style={[styles.classTitle, { color: format.cardText }]}>{historyLabel}</Text>
-                      <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{item.attendances.length} asistencias registradas</Text>
+                      <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{item.attendances.length} clases registradas</Text>
                     </View>
                     <MaterialIcons name="chevron-right" size={21} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
                   </Pressable>
@@ -643,7 +668,13 @@ const styles = StyleSheet.create({
   offlineCopy: { flex: 1, minWidth: 0, gap: 3 },
   offlineTitle: { fontSize: 15, lineHeight: 20, fontWeight: '900' },
   card: { gap: 12, borderRadius: 22, borderWidth: 1, padding: 16, marginBottom: 14 },
-  competitionAccountCard: { minHeight: 88, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 22, borderWidth: 1, padding: 13, marginBottom: 14 },
+  achievementAllButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, borderRadius: 14, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9 },
+  achievementAllText: { fontSize: 12, lineHeight: 16, fontWeight: '900' },
+    dogProfileShortcut: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, borderWidth: 1, padding: 11 },
+  dogProfileIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  dogProfileTitle: { fontSize: 14, lineHeight: 19, fontWeight: '900' },
+  dogProfileMeta: { marginTop: 1, fontSize: 11, lineHeight: 15, fontWeight: '700' },
+    competitionAccountCard: { minHeight: 88, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 22, borderWidth: 1, padding: 13, marginBottom: 14 },
   competitionAccountIcon: { width: 46, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   competitionAccountEyebrow: { fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 0.8 },
   competitionAccountTitle: { marginTop: 1, fontSize: 17, lineHeight: 21, fontWeight: '900' },

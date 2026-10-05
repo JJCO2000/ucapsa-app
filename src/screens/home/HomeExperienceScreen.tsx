@@ -204,7 +204,7 @@ export default function HomeExperienceScreen() {
   const displayName = profile?.full_name || snapshot?.identity.displayName || profile?.email || user?.email || 'Visitante';
   const dogName = mainProgram?.dogName || profile?.dog_name || null;
   const identityDetail = user
-    ? 'Tu próxima clase · asistencias · logros · siguiente paso'
+    ? 'Tu próxima clase · clases tomadas · logros · siguiente paso'
     : 'Todo el recorrido de tu perro en un solo lugar';
   const profileComplete = Boolean((profile?.full_name ?? '').trim() && (profile?.phone ?? '').trim());
   const nextAction = snapshot ? getCustomerValuePrimaryNextAction(snapshot) : null;
@@ -293,7 +293,7 @@ export default function HomeExperienceScreen() {
           </View>
           <View style={styles.guestBody}>
             <Text style={[styles.guestTitle, { color: format.cardText }]}>Sabe qué toca y cómo va tu perro</Text>
-            <Text style={[styles.guestText, { color: format.muted }]}>Después de inscribirte, consulta en segundos tu próxima clase, asistencias, logros y siguiente paso.</Text>
+            <Text style={[styles.guestText, { color: format.muted }]}>Después de inscribirte, consulta en segundos tu próxima clase, clases tomadas, logros y siguiente paso.</Text>
             <View style={styles.guestActions}>
               <Pressable style={[styles.primaryButton, { backgroundColor: format.primaryButton }]} onPress={() => void openGuestWhatsApp()}>
                 <MaterialIcons name="chat" size={18} color={format.primaryButtonText} />
@@ -398,10 +398,10 @@ export default function HomeExperienceScreen() {
         <ContextStrip
           format={format}
           icon="emoji-events"
-          eyebrow="NUEVO LOGRO"
+          eyebrow="LOGRO UCAPSA"
           title={recentAchievement.unlockedTitle || recentAchievement.title}
-          detail={[recentAchievement.dogName, `Desbloqueado ${formatDate(recentAchievement.awardedAt) ?? 'recientemente'}`].filter(Boolean).join(' · ')}
-          onPress={() => router.push((recentAchievement.dogId ? `/dog?dogId=${encodeURIComponent(recentAchievement.dogId)}` : '/achievements') as never)}
+          detail={[recentAchievement.dogName, formatDate(recentAchievement.awardedAt)].filter(Boolean).join(' · ')}
+          onPress={() => router.push((recentAchievement.dogId ? `/client/dog-achievements?dogId=${encodeURIComponent(recentAchievement.dogId)}` : '/achievements') as never)}
           accent="gold"
         />
       ) : null}

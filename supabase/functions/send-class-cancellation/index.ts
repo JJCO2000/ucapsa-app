@@ -30,6 +30,7 @@ type EnrollmentRow = {
   schedule_id: string;
   dog_name: string | null;
   status: string;
+  access_mode?: string | null;
   card_started_on: string | null;
   card_expires_on: string | null;
 };
@@ -96,6 +97,14 @@ function isValidDateKey(value: unknown) {
   return date.getUTCFullYear() === year
     && date.getUTCMonth() === month - 1
     && date.getUTCDate() === day;
+}
+
+function enrollmentIsEligibleOnDate(enrollment: EnrollmentRow, dateKey: string) {
+  if (enrollment.access_mode === 'membership') return true;
+  return Boolean(enrollment.card_started_on)
+    && Boolean(enrollment.card_expires_on)
+    && dateKey >= String(enrollment.card_started_on)
+    && dateKey <= String(enrollment.card_expires_on);
 }
 
 function formatTime(value: string | null | undefined) {
@@ -197,7 +206,7 @@ Deno.serve(async (req) => {
       .is('restored_at', null),
     serviceClient
       .from('program_enrollments')
-      .select('id,user_id,program_id,schedule_id,dog_name,status,card_started_on,card_expires_on')
+      .select('*')
       .in('schedule_id', scheduleIds)
       .eq('status', 'active'),
     serviceClient
@@ -223,10 +232,7 @@ Deno.serve(async (req) => {
   const candidateEnrollments = ((enrollmentsResult.data ?? []) as EnrollmentRow[])
     .filter((enrollment) => (
       targetScheduleIds.has(enrollment.schedule_id)
-      && Boolean(enrollment.card_started_on)
-      && Boolean(enrollment.card_expires_on)
-      && cancellationDate >= String(enrollment.card_started_on)
-      && cancellationDate <= String(enrollment.card_expires_on)
+      && enrollmentIsEligibleOnDate(enrollment, cancellationDate)
     ));
 
   const candidateEnrollmentIds = candidateEnrollments.map((enrollment) => enrollment.id);
@@ -595,6 +601,7 @@ Deno.serve(async (req) => {
         title,
         body,
         sound: 'default',
+        channelId: 'ucapsa-classes',
         data: {
           category: 'classes',
           source: 'class_cancellation',

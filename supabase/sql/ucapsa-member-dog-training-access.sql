@@ -9,7 +9,7 @@
 --   * un Admin puede excluir/reincluir un perro como excepción;
 --   * un perro cubierto tiene una sola etapa de entrenamiento de membresía activa;
 --   * si ya cursaba una tarjeta, conserva programa/nivel al convertirse en socio;
---   * si no tenía historia, inicia en Comandos · Básico;
+--   * si no tenía historia, NO se inventa programa/nivel: Admin debe asignarlo;
 --   * cancelar membresía retira acceso ilimitado, pero nunca borra nivel/historia.
 
 begin;
@@ -253,19 +253,10 @@ begin
     where id = v_reference.id
       and v_reference.status = 'active';
   else
-    select p.id into v_program_id
-    from public.programs p
-    where p.code = 'comandos'
-      and p.is_active = true
-    order by p.created_at asc
-    limit 1;
-
-    if v_program_id is null then
-      raise exception 'No existe Comandos activo para asignar al nuevo socio.';
-    end if;
-
-    v_schedule_id := public.ucapsa_pick_active_program_schedule(v_program_id);
-    v_level := 'principiante';
+    -- No hay evidencia suficiente para inferir programa o nivel.
+    -- Se conserva la cobertura de membresía, pero Admin debe asignar
+    -- explícitamente la etapa real antes de crear una inscripción ilimitada.
+    return null;
   end if;
 
   if v_schedule_id is null then
@@ -281,7 +272,8 @@ begin
   where p.id = v_program_id;
 
   if v_program_code = 'comandos' and v_level not in ('principiante', 'medio', 'avanzado') then
-    v_level := 'principiante';
+    raise exception 'El historial de Comandos tiene un nivel no válido; requiere revisión Admin.'
+      using errcode = '22023';
   elsif v_program_code = 'puppy' then
     v_level := 'base';
   end if;

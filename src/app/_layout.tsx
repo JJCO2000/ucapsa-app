@@ -5,6 +5,7 @@ import { AppState } from 'react-native';
 
 import { LoadingScreen } from '../components/ui/LoadingScreen';
 import { devWarn } from '../lib/client-diagnostics';
+import { useNotificationNavigation } from '../hooks/useNotificationNavigation';
 import { SessionProvider, useSession } from '../hooks/useSession';
 import { flushPendingAttendanceOperations } from '../services/attendance-sync.service';
 import { warmClientOfflineData } from '../services/client-offline-sync.service';
@@ -15,6 +16,7 @@ function RootNavigator() {
   const { loading, startupError, retryStartup, user, isAdmin } = useSession();
   const warmedUserRef = useRef<string | null>(null);
   const appStateRef = useRef(AppState.currentState);
+  useNotificationNavigation(!loading && !startupError && Boolean(user) && !isAdmin);
 
   useEffect(() => {
     if (loading || startupError || !user || isAdmin || warmedUserRef.current === user.id) return;

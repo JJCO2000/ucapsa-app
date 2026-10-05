@@ -30,6 +30,8 @@ export type AchievementWithState = {
   unlocked: boolean;
   dogId: string | null;
   unlockSource?: 'stored' | 'program_completion' | null;
+  progressCurrent?: number | null;
+  progressTarget?: number | null;
 };
 
 export function mergeDefinitionsWithStoredAchievements(
@@ -54,6 +56,17 @@ export function mergeDefinitionsWithStoredAchievements(
       unlockSource: achievement ? 'stored' : null,
     };
   });
+}
+
+export function getTrainingAttendanceAchievementTarget(code: string | null | undefined) {
+  const match = /^training_attendance_(\d+)$/.exec(code ?? '');
+  if (!match) return null;
+  const target = Number(match[1]);
+  return Number.isFinite(target) && target > 0 ? target : null;
+}
+
+export function isTrainingAttendanceAchievementCode(code: string | null | undefined) {
+  return getTrainingAttendanceAchievementTarget(code) != null;
 }
 
 export function countUnlockedAchievements(items: AchievementWithState[]) {

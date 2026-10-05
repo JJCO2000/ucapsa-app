@@ -16,7 +16,7 @@ El trabajo ahora no es añadir funciones por añadirlas, sino hacer visible esa 
 
 ### Cliente
 
-**Tu próxima clase, tus asistencias, tus logros y el siguiente paso de tu perro, en un solo lugar.**
+**Tu próxima clase, tus clases tomadas, tus logros y el siguiente paso de tu perro, en un solo lugar.**
 
 La app debe responder rápidamente cuatro preguntas:
 
@@ -49,7 +49,7 @@ La app debe reducir trabajo de memoria y seguimiento:
 
 **Con UCAPSA App**
 - próxima clase visible;
-- asistencias y práctica visibles;
+- clases tomadas (asistencias registradas) y práctica visibles;
 - logros y Competencia visibles;
 - siguiente acción visible;
 - pagos, membresía y calendario en la misma cuenta.
@@ -114,7 +114,7 @@ No preguntar primero "¿te gusta?", porque mide opinión superficial y no compre
 No rediseñar todo Home de una vez.
 
 Primera prueba:
-- hacer explícita en Home la promesa concreta "próxima clase · asistencias · logros · siguiente paso";
+- hacer explícita en Home la promesa concreta "próxima clase · clases tomadas · logros · siguiente paso";
 - observar si las personas pueden explicar el valor más rápido;
 - conservar la instrumentación de continuidad ya existente para estudiar uso posterior, sin interpretar correlación como causalidad.
 

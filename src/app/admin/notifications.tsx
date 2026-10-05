@@ -22,14 +22,14 @@ type ViewMode = 'send' | 'history';
 type Option<T extends string> = { value: T; label: string; description: string };
 
 const audienceOptions: Option<AudienceType>[] = [
-  { value: 'public', label: 'Todos', description: 'Todos los usuarios con notificaciones activas.' },
+  { value: 'public', label: 'Todos', description: 'Todos los usuarios con notificaciones activas. Úsalo solo para información realmente general.' },
   { value: 'clients', label: 'Clientes', description: 'Clientes y socios.' },
   { value: 'members', label: 'Socios', description: 'Solo socios.' },
   { value: 'admins', label: 'Admins', description: 'Solo equipo administrativo.' },
 ];
 
 const categoryOptions: Option<AdminNotificationCategory>[] = [
-  { value: 'announcements_events', label: 'Anuncios', description: 'Avisos, eventos y comunicados.' },
+  { value: 'announcements_events', label: 'Avisos', description: 'Avisos oficiales, eventos y cambios relevantes.' },
   { value: 'classes', label: 'Clases', description: 'Puppy, Comandos y cambios operativos.' },
   { value: 'membership', label: 'Membresia', description: 'Pagos, vigencia y estado.' },
   { value: 'achievements', label: 'Logros', description: 'Avances y reconocimientos.' },
@@ -186,7 +186,7 @@ export default function AdminNotificationsScreen() {
       {mode === 'send' ? (
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Nuevo envio</Text>
-          <Text style={styles.muted}>Usa mensajes cortos y solo cuando aporten valor.</Text>
+          <Text style={styles.muted}>Usa mensajes cortos, oficiales y dirigidos a la audiencia mínima necesaria. Evita duplicar lo que ya notifican automáticamente clases y cancelaciones.</Text>
 
           <Text style={styles.label}>Titulo</Text>
           <TextInput value={title} onChangeText={setTitle} placeholder="Ej. Cambio de clase" maxLength={ADMIN_NOTIFICATION_TITLE_MAX_LENGTH} style={styles.input} />

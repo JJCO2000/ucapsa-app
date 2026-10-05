@@ -80,6 +80,13 @@ function cleanText(value: unknown, maxLength: number) {
   return value.trim().slice(0, maxLength);
 }
 
+function channelIdForCategory(category: Category) {
+  if (category === 'classes') return 'ucapsa-classes';
+  if (category === 'membership') return 'ucapsa-membership';
+  if (category === 'achievements') return 'ucapsa-achievements';
+  return 'ucapsa-updates';
+}
+
 function audienceMatches(role: string | null | undefined, audience: Audience) {
   if (audience === 'public') return true;
   if (audience === 'clients') return role === 'client' || role === 'member';
@@ -396,6 +403,7 @@ Deno.serve(async (req) => {
       title,
       body,
       sound: 'default',
+      channelId: channelIdForCategory(category),
       data: {
         category,
         audience,
