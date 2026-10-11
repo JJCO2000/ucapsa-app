@@ -96,6 +96,68 @@ export function NextActionCard({
   );
 }
 
+export function ClassRsvpPrompt({
+  title,
+  detail,
+  format,
+  rsvpResponse,
+  rsvpSaving = false,
+  onOpen,
+  onRsvp,
+}: {
+  title: string;
+  detail: string;
+  format: ReturnType<typeof resolveUcapsaFormat>;
+  rsvpResponse: 'yes' | 'no' | null;
+  rsvpSaving?: boolean;
+  onOpen: () => void;
+  onRsvp: (response: 'yes' | 'no') => void;
+}) {
+  return (
+    <View style={[styles.rsvpPrompt, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
+      <Pressable accessibilityRole="button" onPress={onOpen} style={styles.rsvpPromptMain}>
+        <View style={[styles.rsvpPromptIcon, { backgroundColor: ucapsaBrand.colors.goldPale }]}>
+          <MaterialIcons name="event-available" size={22} color={ucapsaBrand.colors.goldDark} />
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={[styles.rsvpPromptEyebrow, { color: format.accentDark }]}>CLASE DE MAÑANA</Text>
+          <Text numberOfLines={1} style={[styles.rsvpPromptTitle, { color: format.cardText }]}>{title}</Text>
+          <Text numberOfLines={1} style={[styles.rsvpPromptDetail, { color: format.muted }]}>{detail}</Text>
+        </View>
+        <MaterialIcons name="chevron-right" size={22} color={format.accentDark} />
+      </Pressable>
+      <View style={[styles.rsvpPromptActions, { borderTopColor: format.border }]}>
+        <Pressable
+          disabled={rsvpSaving}
+          style={[
+            styles.rsvpPromptYes,
+            { backgroundColor: rsvpResponse === 'yes' ? ucapsaBrand.colors.success : ucapsaBrand.colors.greenSoft },
+          ]}
+          onPress={() => onRsvp('yes')}
+        >
+          <MaterialIcons name={rsvpResponse === 'yes' ? 'check-circle' : 'event-available'} size={18} color={rsvpResponse === 'yes' ? ucapsaBrand.colors.surface : ucapsaBrand.colors.greenDark} />
+          <Text style={[styles.rsvpPromptYesText, { color: rsvpResponse === 'yes' ? ucapsaBrand.colors.surface : ucapsaBrand.colors.greenDark }]}>
+            {rsvpSaving ? 'Guardando...' : rsvpResponse === 'yes' ? 'Asistencia confirmada' : 'Voy a asistir'}
+          </Text>
+        </Pressable>
+        <Pressable
+          disabled={rsvpSaving}
+          style={[
+            styles.rsvpPromptNo,
+            { borderColor: rsvpResponse === 'no' ? ucapsaBrand.colors.danger : format.cardBorder },
+          ]}
+          onPress={() => onRsvp('no')}
+        >
+          <MaterialIcons name="event-busy" size={17} color={rsvpResponse === 'no' ? ucapsaBrand.colors.danger : format.muted} />
+          <Text style={[styles.rsvpPromptNoText, { color: rsvpResponse === 'no' ? ucapsaBrand.colors.danger : format.muted }]}>
+            {rsvpResponse === 'no' ? 'No asistiré' : 'No podré ir'}
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 export function ProgramCard({
   snapshot,
   practice,
