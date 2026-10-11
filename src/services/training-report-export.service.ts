@@ -26,6 +26,10 @@ function columnName(index: number) {
   return name;
 }
 
+function packagePartName(value: string) {
+  return `/${value.replace(/^\/+/, '')}`;
+}
+
 function inlineCell(reference: string, value: string | number | boolean, style = 0) {
   if (typeof value === 'number') {
     return `<c r="${reference}" s="${style}"><v>${value}</v></c>`;
@@ -90,9 +94,9 @@ function workbookBytes(rows: StaffTrainingReportRow[]) {
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
-  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
-  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
-  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+  <Override PartName="${packagePartName('xl/workbook.xml')}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="${packagePartName('xl/worksheets/sheet1.xml')}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="${packagePartName('xl/styles.xml')}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
 </Types>`),
     '_rels/.rels': strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
