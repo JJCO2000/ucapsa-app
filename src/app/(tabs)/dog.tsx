@@ -26,8 +26,10 @@ function sameDogName(left: string | null | undefined, right: string | null | und
 }
 
 export default function DogTab() {
-  const { dogId: dogIdParam } = useLocalSearchParams<{ dogId?: string | string[] }>();
+  const { dogId: dogIdParam, from } = useLocalSearchParams<{ dogId?: string | string[]; from?: string | string[] }>();
   const requestedDogId = Array.isArray(dogIdParam) ? dogIdParam[0] ?? null : dogIdParam ?? null;
+  const fromProfile = (Array.isArray(from) ? from[0] : from) === 'profile';
+  const backToProfile = useReturnToProfile(fromProfile);
   const { user, role, isAdmin } = useSession();
   const [dogs, setDogs] = useState<BasicDog[]>([]);
   const [rows, setRows] = useState<ProgramEnrollmentWithDetails[]>([]);
@@ -256,7 +258,7 @@ export default function DogTab() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={format.accent} />}
     >
       <UcapsaAmbientBackground format={format} variant="dog" />
-      <CompactDogHeader dogsCount={dogs.length} offlineEmpty={offlineEmpty} premium={premium} format={format} />
+      <CompactDogHeader dogsCount={dogs.length} offlineEmpty={offlineEmpty} premium={premium} format={format} onBack={fromProfile ? backToProfile : undefined} />
 
       {usingSavedData ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} label="Mostrando información guardada" /> : null}
 
@@ -526,11 +528,13 @@ function CompactDogHeader({
   offlineEmpty,
   premium,
   format,
+  onBack,
 }: {
   dogsCount: number;
   offlineEmpty: boolean;
   premium: boolean;
   format: ReturnType<typeof resolveUcapsaFormat>;
+  onBack?: () => void;
 }) {
   const subtitle = offlineEmpty
     ? 'Sincroniza una vez para ver tus perros'
@@ -542,6 +546,11 @@ function CompactDogHeader({
 
   return (
     <View style={styles.header}>
+      {onBack ? (
+        <Pressable accessibilityRole="button" accessibilityLabel="Volver a Perfil" style={[styles.headerBack, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]} onPress={onBack}>
+          <MaterialIcons name="arrow-back" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+        </Pressable>
+      ) : null}
       <View style={[styles.headerIcon, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft, borderColor: premium ? ucapsaBrand.colors.premiumBorder : format.border }]}>
         <MaterialIcons name="pets" size={25} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
       </View>
@@ -557,6 +566,7 @@ const styles = StyleSheet.create({
   screenContent: { position: 'relative' },
   premiumContent: { backgroundColor: ucapsaBrand.colors.premiumBackground },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16, paddingHorizontal: 2 },
+  headerBack: { width: 44, height: 44, borderRadius: 15, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   headerIcon: { width: 48, height: 48, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   headerCopy: { flex: 1, minWidth: 0 },
   headerTitle: { fontSize: 29, lineHeight: 34, fontWeight: '900', letterSpacing: -0.45 },
