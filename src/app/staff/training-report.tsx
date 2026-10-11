@@ -24,7 +24,7 @@ function dateLabel(value: string) {
 }
 
 export default function StaffTrainingReportScreen() {
-  const { isStaff } = useSession();
+  const { isAdmin, capabilities } = useSession();
   const month = useMemo(() => currentMonthRange(), []);
   const [startDate, setStartDate] = useState(month.startDate);
   const [endDate, setEndDate] = useState(month.endDate);
