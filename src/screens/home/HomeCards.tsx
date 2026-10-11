@@ -16,30 +16,83 @@ export function NextActionCard({
   action,
   format,
   onPress,
+  rsvpResponse,
+  rsvpSaving = false,
+  onRsvp,
 }: {
   snapshot: CustomerValueSnapshot;
   action: Exclude<CustomerValuePrimaryNextAction, null>;
   format: ReturnType<typeof resolveUcapsaFormat>;
   onPress: () => void;
+  rsvpResponse?: 'yes' | 'no' | null;
+  rsvpSaving?: boolean;
+  onRsvp?: (response: 'yes' | 'no') => void;
 }) {
   const presentation = nextPresentation(snapshot, action);
+  const showRsvp = action.kind === 'class' && Boolean(onRsvp);
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${presentation.eyebrow}. ${presentation.title}. ${presentation.detail}`}
-      onPress={onPress}
-      style={[styles.nextCard, { backgroundColor: format.primaryButton }]}
-    >
-      <View style={[styles.nextIcon, { backgroundColor: withAlpha(format.primaryButtonText, 0.14) }]}>
-        <MaterialIcons name={presentation.icon} size={24} color={format.primaryButtonText} />
-      </View>
-      <View style={styles.nextCopy}>
-        <Text style={[styles.nextEyebrow, { color: format.primaryButtonText }]}>{presentation.eyebrow}</Text>
-        <Text numberOfLines={2} style={[styles.nextTitle, { color: format.primaryButtonText }]}>{presentation.title}</Text>
-        <Text numberOfLines={2} style={[styles.nextDetail, { color: format.primaryButtonText }]}>{presentation.detail}</Text>
-      </View>
-      <MaterialIcons name="arrow-forward" size={23} color={format.primaryButtonText} />
-    </Pressable>
+    <View style={[styles.nextCard, { backgroundColor: format.primaryButton }]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${presentation.eyebrow}. ${presentation.title}. ${presentation.detail}`}
+        onPress={onPress}
+        style={styles.nextCardMain}
+      >
+        <View style={[styles.nextIcon, { backgroundColor: withAlpha(format.primaryButtonText, 0.14) }]}>
+          <MaterialIcons name={presentation.icon} size={24} color={format.primaryButtonText} />
+        </View>
+        <View style={styles.nextCopy}>
+          <Text style={[styles.nextEyebrow, { color: format.primaryButtonText }]}>{presentation.eyebrow}</Text>
+          <Text numberOfLines={2} style={[styles.nextTitle, { color: format.primaryButtonText }]}>{presentation.title}</Text>
+          <Text numberOfLines={2} style={[styles.nextDetail, { color: format.primaryButtonText }]}>{presentation.detail}</Text>
+        </View>
+        <MaterialIcons name="arrow-forward" size={23} color={format.primaryButtonText} />
+      </Pressable>
+
+      {showRsvp ? (
+        <View style={[styles.rsvpRow, { borderTopColor: withAlpha(format.primaryButtonText, 0.18) }]}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Confirmar que voy a asistir"
+            disabled={rsvpSaving}
+            onPress={() => onRsvp?.('yes')}
+            style={[
+              styles.rsvpPrimary,
+              {
+                backgroundColor: rsvpResponse === 'yes'
+                  ? ucapsaBrand.colors.success
+                  : withAlpha(format.primaryButtonText, 0.14),
+              },
+            ]}
+          >
+            <MaterialIcons name={rsvpResponse === 'yes' ? 'check-circle' : 'event-available'} size={18} color={format.primaryButtonText} />
+            <Text style={[styles.rsvpPrimaryText, { color: format.primaryButtonText }]}>
+              {rsvpSaving ? 'Guardando...' : rsvpResponse === 'yes' ? 'Asistencia confirmada' : 'Voy a asistir'}
+            </Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Avisar que no podré asistir"
+            disabled={rsvpSaving}
+            onPress={() => onRsvp?.('no')}
+            style={[
+              styles.rsvpSecondary,
+              {
+                borderColor: withAlpha(format.primaryButtonText, 0.28),
+                backgroundColor: rsvpResponse === 'no'
+                  ? withAlpha(ucapsaBrand.colors.danger, 0.22)
+                  : 'transparent',
+              },
+            ]}
+          >
+            <MaterialIcons name={rsvpResponse === 'no' ? 'cancel' : 'event-busy'} size={17} color={format.primaryButtonText} />
+            <Text style={[styles.rsvpSecondaryText, { color: format.primaryButtonText }]}>
+              {rsvpResponse === 'no' ? 'No asistiré' : 'No podré ir'}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+    </View>
   );
 }
 
