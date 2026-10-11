@@ -44,7 +44,7 @@ function groupSummary(rows: StaffClassSummary[]): SummaryGroup[] {
 }
 
 export default function TrainerHomeTab() {
-  const { profile, isTrainer, isAdmin } = useSession();
+  const { profile, isTrainer, isStaff, isAdmin } = useSession();
   const [rows, setRows] = useState<StaffClassSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -63,11 +63,11 @@ export default function TrainerHomeTab() {
   }, [tomorrow]);
 
   useFocusEffect(useCallback(() => {
-    if (!isTrainer) return undefined;
+    if (!isStaff) return undefined;
     setLoading(true);
     void load();
     return undefined;
-  }, [isTrainer, load]));
+  }, [isStaff, load]));
 
   const groups = useMemo(() => groupSummary(rows), [rows]);
   const totalConfirmed = rows.reduce((sum, row) => sum + row.confirmedCount, 0);
@@ -79,7 +79,7 @@ export default function TrainerHomeTab() {
     try { await load(); } finally { setRefreshing(false); }
   }
 
-  if (!isTrainer) return <Redirect href={isAdmin ? '/admin-home' : '/home'} />;
+  if (!isStaff) return <Redirect href={isAdmin ? '/admin-home' : '/home'} />;
 
   return (
     <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={ucapsaBrand.colors.green} />}>
