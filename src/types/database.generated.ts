@@ -5513,6 +5513,17 @@ export type Database = {
           owner_name: string
         }[]
       }
+      get_trainer_exam_items: {
+        Args: { p_exam_id: string }
+        Returns: {
+          description: string
+          id: string
+          item_number: number
+          max_points: number
+          sort_order: number
+          title: string
+        }[]
+      }
       is_ucapsa_staff: { Args: never; Returns: boolean }
       is_ucapsa_trainer: { Args: never; Returns: boolean }
       get_admin_training_decision_history: {
@@ -5944,6 +5955,10 @@ export type Database = {
           p_presented_at?: string
         }
         Returns: string
+      }
+      trainer_import_ucapsa_exam_results: {
+        Args: { p_exam_id: string; p_file_name: string; p_rows: Json }
+        Returns: Json
       }
       trainer_review_ucapsa_exam_attempt: {
         Args: { p_attempt_id: string }
