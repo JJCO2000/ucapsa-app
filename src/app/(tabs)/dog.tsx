@@ -256,7 +256,9 @@ export default function DogTab() {
       .then((cached) => {
         if (active && cached) setDogAchievements(cached);
       })
-      .catch(() => undefined);
+      .catch((cause) => {
+        devWarn('No se pudo leer el caché de logros del perro.', cause);
+      });
 
     void getMyDogAchievements(selectedDog.id, {
       userId: user.id,
@@ -266,7 +268,9 @@ export default function DogTab() {
       .then((fresh) => {
         if (active) setDogAchievements(fresh);
       })
-      .catch(() => undefined);
+      .catch((cause) => {
+        devWarn('No se pudieron actualizar los logros del perro; se conserva el último estado disponible.', cause);
+      });
 
     return () => { active = false; };
   }, [isAdmin, selectedDog?.id, user]);
