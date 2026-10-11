@@ -1,8 +1,8 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 
 import { devWarn } from '../lib/client-diagnostics';
+import { readStaffWorkspaceMode, writeStaffWorkspaceMode } from '../services/staff-workspace.service';
 import { useSession } from './useSession';
 
 export type StaffWorkspaceMode = 'admin' | 'trainer';
@@ -15,12 +15,6 @@ type StaffWorkspaceContextValue = {
 };
 
 const StaffWorkspaceContext = createContext<StaffWorkspaceContextValue | undefined>(undefined);
-const STORAGE_PREFIX = 'ucapsa:staff-workspace:v1:';
-
-function storageKey(userId: string) {
-  return `${STORAGE_PREFIX}${userId}`;
-}
-
 export function StaffWorkspaceProvider({ children }: { children: ReactNode }) {
   const { user, isTrainer, capabilities } = useSession();
   const [storedMode, setStoredMode] = useState<StaffWorkspaceMode>('admin');
@@ -42,10 +36,10 @@ export function StaffWorkspaceProvider({ children }: { children: ReactNode }) {
     }
 
     setLoading(true);
-    void AsyncStorage.getItem(storageKey(user.id))
+    void readStaffWorkspaceMode(user.id)
       .then((value) => {
         if (!active) return;
-        setStoredMode(value === 'trainer' ? 'trainer' : 'admin');
+        setStoredMode(value);
       })
       .catch((error) => {
         if (!active) return;
@@ -74,7 +68,7 @@ export function StaffWorkspaceProvider({ children }: { children: ReactNode }) {
 
     setStoredMode(nextMode);
     try {
-      await AsyncStorage.setItem(storageKey(user.id), nextMode);
+      await writeStaffWorkspaceMode(user.id, nextMode);
     } catch (error) {
       devWarn('Could not persist UCAPSA staff workspace mode.', error);
     }
