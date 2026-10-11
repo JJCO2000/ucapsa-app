@@ -260,7 +260,14 @@ export default function DogTab() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={format.accent} />}
     >
       <UcapsaAmbientBackground format={format} variant="dog" />
-      <CompactDogHeader dogsCount={dogs.length} offlineEmpty={offlineEmpty} premium={premium} format={format} onBack={fromProfile ? backToProfile : undefined} />
+      <CompactDogHeader
+        dogsCount={dogs.length}
+        offlineEmpty={offlineEmpty}
+        premium={premium}
+        format={format}
+        onBack={fromProfile ? backToProfile : undefined}
+        onAdd={openCreate}
+      />
 
       {usingSavedData ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} label="Mostrando información guardada" /> : null}
 
@@ -395,14 +402,6 @@ export default function DogTab() {
                   >
                     <MaterialIcons name="leaderboard" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
                   </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Agregar otro perro"
-                    style={[styles.pencilButton, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}
-                    onPress={openCreate}
-                  >
-                    <MaterialIcons name="add" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-                  </Pressable>
                 </View>
               </View>
 
@@ -533,12 +532,14 @@ function CompactDogHeader({
   premium,
   format,
   onBack,
+  onAdd,
 }: {
   dogsCount: number;
   offlineEmpty: boolean;
   premium: boolean;
   format: ReturnType<typeof resolveUcapsaFormat>;
   onBack?: () => void;
+  onAdd: () => void;
 }) {
   const subtitle = offlineEmpty
     ? 'Sincroniza una vez para ver tus perros'
@@ -562,6 +563,16 @@ function CompactDogHeader({
         <Text style={[styles.headerTitle, { color: format.text }]}>{dogsCount > 1 ? 'Mis perros' : 'Mi perro'}</Text>
         <Text style={[styles.headerSubtitle, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{subtitle}</Text>
       </View>
+      {!offlineEmpty ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Agregar otro perro"
+          style={[styles.headerAddButton, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}
+          onPress={onAdd}
+        >
+          <MaterialIcons name="add" size={23} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -573,6 +584,7 @@ const styles = StyleSheet.create({
   headerBack: { width: 44, height: 44, borderRadius: 15, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   headerIcon: { width: 48, height: 48, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   headerCopy: { flex: 1, minWidth: 0 },
+  headerAddButton: { width: 44, height: 44, borderRadius: 15, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 29, lineHeight: 34, fontWeight: '900', letterSpacing: -0.45 },
   headerSubtitle: { marginTop: 1, fontSize: 13, lineHeight: 18, fontWeight: '700' },
   muted: { fontSize: 14, lineHeight: 20, fontWeight: '700' },
