@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
+import { useStaffWorkspace } from '../../hooks/useStaffWorkspace';
 
 function TabIcon({
   name,
@@ -39,10 +40,13 @@ function TabIcon({
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const { user, role, isAdmin, isTrainer, isStaff } = useSession();
+  const { mode: staffWorkspaceMode } = useStaffWorkspace();
   const format = resolveUcapsaFormat({ user, role, isAdmin });
   const systemBottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 20 : 10);
   const navigationBreathingRoom = Platform.OS === 'android' ? 8 : 4;
   const tabBottomInset = systemBottomInset + navigationBreathingRoom;
+  const trainerWorkspace = isTrainer || (isAdmin && staffWorkspaceMode === 'trainer');
+  const adminWorkspace = isAdmin && !trainerWorkspace;
   const isPremium = format.key === 'member';
   const tabBackground = isStaff
     ? ucapsaBrand.colors.surface
@@ -59,10 +63,16 @@ export default function TabsLayout() {
     : isPremium
       ? ucapsaBrand.colors.premiumMuted
       : ucapsaBrand.colors.muted;
-  const activeTint = isStaff ? ucapsaBrand.colors.red : isPremium ? ucapsaBrand.colors.premiumActionText : format.accent;
-  const activeSurface = isStaff
-    ? ucapsaBrand.colors.redSoft
-    : isPremium
+  const activeTint = trainerWorkspace
+    ? ucapsaBrand.colors.greenDark
+    : isStaff
+      ? ucapsaBrand.colors.red
+      : isPremium ? ucapsaBrand.colors.premiumActionText : format.accent;
+  const activeSurface = trainerWorkspace
+    ? ucapsaBrand.colors.greenSoft
+    : isStaff
+      ? ucapsaBrand.colors.redSoft
+      : isPremium
       ? ucapsaBrand.colors.premiumSurfaceAlt
       : ucapsaBrand.colors.redSoft;
   const isClient = Boolean(user) && !isStaff;
@@ -73,7 +83,7 @@ export default function TabsLayout() {
 
   return (
     <Tabs
-      initialRouteName={isAdmin ? 'admin-home' : isTrainer ? 'trainer-home' : 'home'}
+      initialRouteName={trainerWorkspace ? 'trainer-home' : adminWorkspace ? 'admin-home' : 'home'}
       screenOptions={{
         headerShown: false,
         tabBarHideOnKeyboard: true,
@@ -110,17 +120,17 @@ export default function TabsLayout() {
       <Tabs.Screen name="announcements" options={{ href: isGuest ? '/announcements' : null, title: 'Avisos', tabBarIcon: icon('campaign') }} />
       <Tabs.Screen name="membership" options={{ href: null, title: 'Mi UCAPSA', tabBarIcon: icon('workspace-premium') }} />
 
-      <Tabs.Screen name="admin-home" options={{ href: isAdmin ? '/admin-home' : null, title: 'Inicio', tabBarIcon: icon('home') }} />
-      <Tabs.Screen name="admin-clients" options={{ href: isAdmin ? '/admin-clients' : null, title: 'Clientes', tabBarIcon: icon('people-alt') }} />
-      <Tabs.Screen name="admin-classes" options={{ href: isAdmin ? '/admin-classes' : null, title: 'Clases', tabBarIcon: icon('school') }} />
-      <Tabs.Screen name="admin-payments" options={{ href: isAdmin ? '/admin-payments' : null, title: 'Pagos', tabBarIcon: icon('payments') }} />
-      <Tabs.Screen name="admin-communication" options={{ href: isAdmin ? '/admin-communication' : null, title: 'Comunic.', tabBarIcon: icon('campaign') }} />
+      <Tabs.Screen name="admin-home" options={{ href: adminWorkspace ? '/admin-home' : null, title: 'Inicio', tabBarIcon: icon('home') }} />
+      <Tabs.Screen name="admin-clients" options={{ href: adminWorkspace ? '/admin-clients' : null, title: 'Clientes', tabBarIcon: icon('people-alt') }} />
+      <Tabs.Screen name="admin-classes" options={{ href: adminWorkspace ? '/admin-classes' : null, title: 'Clases', tabBarIcon: icon('school') }} />
+      <Tabs.Screen name="admin-payments" options={{ href: adminWorkspace ? '/admin-payments' : null, title: 'Pagos', tabBarIcon: icon('payments') }} />
+      <Tabs.Screen name="admin-communication" options={{ href: adminWorkspace ? '/admin-communication' : null, title: 'Comunic.', tabBarIcon: icon('campaign') }} />
       <Tabs.Screen name="admin-more" options={{ href: null, title: 'Herramientas', tabBarIcon: icon('settings') }} />
 
-      <Tabs.Screen name="trainer-home" options={{ href: isTrainer ? '/trainer-home' : null, title: 'Inicio', tabBarIcon: icon('home') }} />
-      <Tabs.Screen name="trainer-classes" options={{ href: isTrainer ? '/trainer-classes' : null, title: 'Clases', tabBarIcon: icon('school') }} />
-      <Tabs.Screen name="trainer-exams" options={{ href: isTrainer ? '/trainer-exams' : null, title: 'Exámenes', tabBarIcon: icon('assignment') }} />
-      <Tabs.Screen name="trainer-more" options={{ href: isTrainer ? '/trainer-more' : null, title: 'Más', tabBarIcon: icon('more-horiz') }} />
+      <Tabs.Screen name="trainer-home" options={{ href: trainerWorkspace ? '/trainer-home' : null, title: 'Inicio', tabBarIcon: icon('home') }} />
+      <Tabs.Screen name="trainer-classes" options={{ href: trainerWorkspace ? '/trainer-classes' : null, title: 'Clases', tabBarIcon: icon('school') }} />
+      <Tabs.Screen name="trainer-exams" options={{ href: trainerWorkspace ? '/trainer-exams' : null, title: 'Exámenes', tabBarIcon: icon('assignment') }} />
+      <Tabs.Screen name="trainer-more" options={{ href: trainerWorkspace ? '/trainer-more' : null, title: 'Más', tabBarIcon: icon('more-horiz') }} />
     </Tabs>
   );
 }
