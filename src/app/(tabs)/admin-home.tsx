@@ -6,6 +6,7 @@ import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
+import { devWarn } from '../../lib/client-diagnostics';
 import { getAdminClassRsvpSummary, tomorrowDateKey, type AdminClassRsvpSummary } from '../../services/class-rsvp.service';
 import { getAdminMembershipRows } from '../../services/memberships.service';
 import { getAdminClientFollowupRows } from '../../services/admin-client-followups.service';
@@ -146,7 +147,8 @@ export default function AdminHomeTab() {
       );
       setTomorrowClasses(tomorrowSummary);
       setTomorrowSummaryFailed(false);
-    } catch {
+    } catch (cause) {
+      devWarn('admin-home: could not load tomorrow class RSVP summary; showing unavailable state.', cause);
       setTomorrowClasses([]);
       setTomorrowSummaryFailed(true);
     }

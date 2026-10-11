@@ -95,6 +95,7 @@ const sqlFiles = fs.readdirSync('supabase/sql')
   .sort();
 
 const adminRoleGuard = /\b(?:public\.)?(?:is_ucapsa_admin|is_admin|is_super_admin)\s*\(/i;
+const staffRoleGuard = /\b(?:public\.)?(?:is_ucapsa_staff|is_ucapsa_trainer)\s*\(/i;
 let adminFunctionDefinitions = 0;
 
 for (const file of sqlFiles) {
@@ -205,7 +206,7 @@ for (const file of sqlFiles) {
       continue;
     }
 
-    if (selfScopeGuard.test(block) || adminRoleGuard.test(block)) continue;
+    if (selfScopeGuard.test(block) || adminRoleGuard.test(block) || staffRoleGuard.test(block)) continue;
     if (readHelperAllowlist.has(functionName)) continue;
 
     const sameNameWrapper = new RegExp(

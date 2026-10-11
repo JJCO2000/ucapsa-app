@@ -25,7 +25,7 @@ const activityAchievements = read('src/constants/activityAchievements.ts');
 for (const token of [
   "title: isClient ? 'Agenda' : 'Calendario'",
   "title: 'Mis perros'",
-  "href: isAdmin ? null : '/profile'",
+  "href: isStaff ? null : '/profile'",
   "href: isGuest ? '/services' : null",
   'name="payments" options={{ href: null',
 ]) {
