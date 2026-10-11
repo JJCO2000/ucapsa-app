@@ -6,10 +6,12 @@ import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
+import { getAdminClassRsvpSummary, tomorrowDateKey, type AdminClassRsvpSummary } from '../../services/class-rsvp.service';
 import { getAdminMembershipRows } from '../../services/memberships.service';
 import { getAdminClientFollowupRows } from '../../services/admin-client-followups.service';
 import { getAdminTrainingDecisionRows } from '../../services/admin-training-decisions.service';
 import { getAdminPaymentAttentionRows } from '../../services/payments.service';
+import { getProgramLevelLabel } from '../../services/programs.service';
 import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
 
 type DashboardStats = {
@@ -29,6 +31,8 @@ const emptyStats: DashboardStats = {
 export default function AdminHomeTab() {
   const { user, profile, role, isAdmin } = useSession();
   const [stats, setStats] = useState<DashboardStats>(emptyStats);
+  const [tomorrowClasses, setTomorrowClasses] = useState<AdminClassRsvpSummary[]>([]);
+  const [tomorrowSummaryFailed, setTomorrowSummaryFailed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +71,20 @@ export default function AdminHomeTab() {
       trainingDecisions: trainingDecisions.length,
       clientFollowups: clientFollowups.length,
     });
+
+    try {
+      const tomorrowSummary = await withOperationTimeout(
+        getAdminClassRsvpSummary(),
+        DEFAULT_READ_TIMEOUT_MS,
+        'admin-home-class-rsvp',
+      );
+      setTomorrowClasses(tomorrowSummary);
+      setTomorrowSummaryFailed(false);
+    } catch {
+      setTomorrowClasses([]);
+      setTomorrowSummaryFailed(true);
+    }
+
     setHasData(true);
   }, [isAdmin]);
 
@@ -130,6 +148,67 @@ export default function AdminHomeTab() {
           </Pressable>
         </View>
       ) : null}
+
+      <View style={styles.tomorrowSection}>
+        <View style={styles.tomorrowHeader}>
+          <View>
+            <Text style={styles.sectionEyebrow}>MAÑANA</Text>
+            <Text style={styles.sectionTitle}>Asistencia esperada</Text>
+          </View>
+          <View style={styles.tomorrowDatePill}>
+            <MaterialIcons name="event" size={15} color={ucapsaBrand.colors.redDark} />
+            <Text style={styles.tomorrowDateText}>{tomorrowDateKey()}</Text>
+          </View>
+        </View>
+
+        {tomorrowClasses.length > 0 ? (
+          <View style={styles.tomorrowList}>
+            {tomorrowClasses.map((item) => {
+              const programLabel = item.programCode === 'puppy'
+                ? 'Puppy'
+                : `Comandos · ${getProgramLevelLabel(item.programLevel as never)}`;
+              return (
+                <Pressable
+                  key={`${item.scheduleId}:${item.programLevel}`}
+                  style={styles.tomorrowRow}
+                  onPress={() => router.push(`/admin/classes?program=${encodeURIComponent(item.programCode)}&status=active` as never)}
+                >
+                  <View style={[
+                    styles.tomorrowIcon,
+                    { backgroundColor: item.programCode === 'puppy' ? ucapsaBrand.colors.goldPale : ucapsaBrand.colors.purpleSoft },
+                  ]}>
+                    <MaterialIcons
+                      name={item.programCode === 'puppy' ? 'pets' : 'school'}
+                      size={20}
+                      color={item.programCode === 'puppy' ? ucapsaBrand.colors.goldDark : ucapsaBrand.colors.purpleDark}
+                    />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={styles.tomorrowProgram}>{programLabel}</Text>
+                    <Text style={styles.tomorrowConfirmed}>
+                      {item.confirmedCount} / {item.eligibleCount} a las {item.startTime} confirmados
+                    </Text>
+                    <Text style={styles.tomorrowMeta}>
+                      {item.declinedCount} no irá · {item.noResponseCount} sin responder
+                    </Text>
+                  </View>
+                  <MaterialIcons name="chevron-right" size={22} color={ucapsaBrand.colors.redDark} />
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : tomorrowSummaryFailed ? (
+          <View style={styles.tomorrowEmpty}>
+            <MaterialIcons name="cloud-off" size={20} color={ucapsaBrand.colors.muted} />
+            <Text style={styles.tomorrowEmptyText}>No se pudo actualizar la asistencia esperada.</Text>
+          </View>
+        ) : !loading ? (
+          <View style={styles.tomorrowEmpty}>
+            <MaterialIcons name="event-busy" size={20} color={ucapsaBrand.colors.muted} />
+            <Text style={styles.tomorrowEmptyText}>No hay clases programadas mañana.</Text>
+          </View>
+        ) : null}
+      </View>
 
       <View style={styles.sectionHeader}>
         <View>
@@ -298,6 +377,18 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
   },
   retryText: { color: ucapsaBrand.colors.surface, fontSize: 12, fontWeight: '900' },
+  tomorrowSection: { marginBottom: 20 },
+  tomorrowHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 },
+  tomorrowDatePill: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, backgroundColor: ucapsaBrand.colors.redSoft, paddingHorizontal: 9, paddingVertical: 6 },
+  tomorrowDateText: { color: ucapsaBrand.colors.redDark, fontSize: 10, fontWeight: '900' },
+  tomorrowList: { gap: 8 },
+  tomorrowRow: { minHeight: 78, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 19, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 12 },
+  tomorrowIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  tomorrowProgram: { color: ucapsaBrand.colors.text, fontSize: 13, lineHeight: 17, fontWeight: '900' },
+  tomorrowConfirmed: { color: ucapsaBrand.colors.text, fontSize: 15, lineHeight: 19, fontWeight: '900', marginTop: 2 },
+  tomorrowMeta: { color: ucapsaBrand.colors.muted, fontSize: 10, lineHeight: 14, fontWeight: '800', marginTop: 2 },
+  tomorrowEmpty: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 17, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 12 },
+  tomorrowEmptyText: { flex: 1, color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 16, fontWeight: '800' },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
