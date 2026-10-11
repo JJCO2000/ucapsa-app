@@ -12,6 +12,11 @@ const announcements = read('src/app/(tabs)/announcements.tsx');
 const notificationSettings = read('src/components/domain/NotificationSettingsCard.tsx');
 const notificationNavigation = read('src/hooks/useNotificationNavigation.ts');
 const home = read('src/screens/home/HomeExperienceScreen.tsx');
+const dogProfile = read('src/app/client/dog-profile.tsx');
+const payments = read('src/app/(tabs)/payments.tsx');
+const services = read('src/app/(tabs)/services.tsx');
+const membership = read('src/app/client/membership.tsx');
+const accountSettings = read('src/app/account-settings.tsx');
 
 for (const token of [
   "title: isClient ? 'Agenda' : 'Calendario'",
@@ -25,10 +30,12 @@ for (const token of [
 
 for (const token of [
   'Perfil, perros, pagos, notificaciones y accesos en un solo lugar.',
-  "router.push('/payments'",
-  "router.push('/client/membership'",
-  "router.push('/account-settings?section=notifications'",
-  "router.push('/services'",
+  "router.push('/payments?from=profile'",
+  "router.push('/client/membership?from=profile'",
+  "router.push('/account-settings?section=notifications&from=profile'",
+  "router.push('/services?from=profile'",
+  "title=\"Mis logros\"",
+  "title=\"Insignias de actividad\"",
 ]) {
   if (!profile.includes(token)) throw new Error('Profile hub missing: ' + token);
 }
@@ -36,25 +43,31 @@ for (const token of [
 for (const token of [
   'Perfil de {selectedDog.name}',
   '/client/dog-profile?dogId=',
-  'Ver todos los logros',
-  '/client/dog-achievements?dogId=',
+  'Detalle competitivo',
+  'Historial',
   'clases tomadas',
+  '<DogAvatar',
 ]) {
   if (!dog.includes(token)) throw new Error('Dog clarity missing: ' + token);
 }
+for (const token of ['LOGROS UCAPSA', 'AchievementBadgeGrid', 'Tus perros y Ranking']) {
+  if (dog.includes(token)) throw new Error('Mi perro volvió a mezclar un dominio secundario: ' + token);
+}
 
 for (const token of [
-  "type AgendaFilter = 'all' | 'classes' | 'events' | 'announcements' | 'practice'",
   'getWeekDateKeys',
-  'Ver mes',
-  'Ver semana',
-  'showClasses ? <Legend label="Clases"',
-  "classDot: { backgroundColor: ucapsaBrand.colors.blue }",
-  "practiceDot: { backgroundColor: ucapsaBrand.colors.green }",
+  "'Todo el día'",
+  'dayAgendaItems.map',
+  'timelineRow',
+  "setMonthExpanded(false)",
+  "activityDateKeys.has(dateKey)",
   'useLocalSearchParams',
   'if (announcement.announcement_date) return toDateKey(announcement.announcement_date);',
 ]) {
   if (!calendar.includes(token)) throw new Error('Agenda UX missing: ' + token);
+}
+for (const token of ['AgendaFilter', 'agendaFilters', '<Legend', 'legendRow']) {
+  if (calendar.includes(token)) throw new Error('Agenda volvió a saturarse con controles redundantes: ' + token);
 }
 
 if (/marks\[key\]\s*=\s*\{[^\n}]*selected:\s*true/.test(calendar)) {
@@ -93,6 +106,20 @@ for (const token of [
 
 if (!home.includes('/client/dog-achievements?dogId=')) {
   throw new Error('Recent achievement must open the dog achievement detail directly.');
+}
+if (!home.includes("router.push('/client/competition'")) {
+  throw new Error('Inicio perdió el acceso visible al Ranking.');
+}
+
+for (const source of [payments, services, membership, accountSettings]) {
+  if (!source.includes('profile')) throw new Error('Un acceso desde Perfil perdió su retorno contextual.');
+}
+
+for (const token of ['DOG_AVATAR_OPTIONS', 'DOG_AVATAR_COLORS', 'No pide acceso a tus fotos']) {
+  if (!dogProfile.includes(token)) throw new Error('Avatar local del perro incompleto: ' + token);
+}
+if (/expo-image-picker|requestMediaLibraryPermissionsAsync|launchImageLibraryAsync/.test(dogProfile)) {
+  throw new Error('El avatar del perro no debe pedir permisos de fototeca.');
 }
 
 console.log('UCAPSA client UX clarity: PASS');
