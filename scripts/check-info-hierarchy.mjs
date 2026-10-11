@@ -22,15 +22,15 @@ must('src/app/account-settings.tsx', /NotificationSettingsCard/, 'Notificaciones
 mustNot('src/app/account-settings.tsx', />ABRIR</, 'Ajustes volvió a añadir el texto redundante ABRIR a tarjetas ya navegables.');
 mustNot('src/app/account-settings.tsx', /Socio UCAPSA/, 'Cuenta volvió a repetir una tarjeta de identidad antes de la tarea concreta.');
 
-// Mi perro = perro seleccionado -> perfil -> entrenamiento actual -> detalle competitivo -> historial colapsado.
-// Logros salen de esta pantalla para reducir carga cognitiva y viven en Perfil / fichas dedicadas.
+// Mis perros = perro seleccionado -> perfil -> entrenamiento actual -> accesos breves a logros/historial.
+// Ranking vive en Inicio/Competencia; los detalles secundarios no se expanden en el overview.
 mustNot('src/app/(tabs)/dog.tsx', /ClientPageHeader/, 'Mi perro volvió al hero grande redundante.');
 must('src/app/(tabs)/dog.tsx', /\/client\/dog-profile\?dogId=/, 'Mi perro perdió la edición del perro seleccionado.');
 must('src/app/(tabs)/dog.tsx', /ENTRENAMIENTO ACTUAL/, 'Mi perro perdió el entrenamiento actual como estado principal.');
-must('src/app/(tabs)/dog.tsx', /Detalle competitivo/, 'Mi perro perdió el acceso particular a competencia.');
-must('src/app/(tabs)/dog.tsx', /historyExpanded/, 'Mi perro dejó de ocultar historial secundario por defecto.');
-must('src/app/(tabs)/dog.tsx', /\/client\/class-detail\?enrollmentId=/, 'El historial de Mi perro dejó de bajar al detalle de clase.');
-mustNot('src/app/(tabs)/dog.tsx', /LOGROS UCAPSA|AchievementBadgeGrid|Tus perros y Ranking/, 'Mi perro volvió a mezclar logros o ranking global.');
+must('src/app/(tabs)/dog.tsx', /\/client\/dog-achievements\?dogId=/, 'Mis perros perdió el acceso breve a Logros.');
+must('src/app/(tabs)/dog.tsx', /\/client\/dog-history\?dogId=/, 'Mis perros perdió el acceso breve a Historial.');
+must('src/app/client/dog-history.tsx', /\/client\/class-detail\?enrollmentId=/, 'El historial dedicado dejó de bajar al detalle de clase.');
+mustNot('src/app/(tabs)/dog.tsx', /LOGROS UCAPSA|AchievementBadgeGrid|Tus perros y Ranking|Detalle competitivo|historyExpanded/, 'Mis perros volvió a mezclar detalles secundarios.');
 must('src/app/(tabs)/profile.tsx', /title="Mis logros"/, 'Perfil perdió el acceso general a Mis logros.');
 must('src/app/(tabs)/profile.tsx', /title="Insignias de actividad"/, 'Perfil perdió hitos de actividad.');
 must('src/app/client/dog-achievements.tsx', /useLocalSearchParams<\{ dogId\?/, 'La ficha de logros dejó de resolver un perro concreto por dogId.');
