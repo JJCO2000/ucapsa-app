@@ -306,6 +306,19 @@ for (const token of [
   if (!examXlsx.includes(token)) throw new Error('Exam definition Excel parser missing: ' + token);
 }
 
+for (const token of [
+  'function selectDate(nextDate: string)',
+  'if (nextDate === dateKey)',
+  'void load();',
+  'onPress={() => selectDate(today)}',
+  'onPress={() => selectDate(tomorrow)}',
+]) {
+  if (!trainerClasses.includes(token)) throw new Error('Roster day reselection must trigger a reload: ' + token);
+}
+if (trainerClasses.includes('setDateKey(today); setLoading(true)') || trainerClasses.includes('setDateKey(tomorrow); setLoading(true)')) {
+  throw new Error('Roster day reselection spinner regression detected.');
+}
+
 if (!pkg.includes('"check:trainer-role"')) {
   throw new Error('npm verify does not include trainer role guard.');
 }
