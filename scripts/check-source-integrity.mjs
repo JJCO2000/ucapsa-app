@@ -17,13 +17,14 @@ if (!/p_captured_at: string/.test(generated)) failures.push('Los tipos generados
 must('src/types/database.helpers.ts', /database\.types/, 'Los helpers de base no usan los tipos canónicos.');
 
 mustNot('src/app/(tabs)/dog.tsx', /account-settings\?section=profile/, 'Mi perro volvió a mezclar datos de cuenta con la ficha del perro.');
-must('src/app/(tabs)/dog.tsx', /\/client\/dog-profile\?dogId=/, 'El lápiz de Mi perro dejó de editar al perro seleccionado.');
+must('src/app/(tabs)/dog.tsx', /\/client\/dog-profile\?dogId=/, 'Mis perros perdió el acceso explícito al perfil del perro seleccionado.');
 must('src/app/(tabs)/dog.tsx', /useLocalSearchParams/, 'Mi perro dejó de aceptar el dogId de navegación contextual.');
 must('src/app/(tabs)/dog.tsx', /loadRunRef/, 'Mi perro perdió la guarda contra respuestas asíncronas obsoletas.');
 must('src/app/(tabs)/dog.tsx', /cacheScopeRef/, 'Mi perro dejó de limpiar el estado al cambiar de usuario.');
-must('src/app/(tabs)/dog.tsx', /selectedHistory/, 'Mi perro volvió a mezclar el historial con el bloque de entrenamiento.');
-must('src/app/(tabs)/dog.tsx', /!programWarning && selectedActive\[0\]/, 'Mi perro dejó de aislar el entrenamiento de otras secciones.');
-must('src/app/(tabs)/dog.tsx', /achievementReady \? \(/, 'Mi perro perdió el bloque independiente de logros por perro.');
+mustNot('src/app/(tabs)/dog.tsx', /selectedHistory|historyExpanded/, 'Mis perros volvió a desplegar historial secundario dentro del overview.');
+must('src/app/(tabs)/dog.tsx', /!programWarning && selectedActive\[0\]/, 'Mis perros dejó de aislar el entrenamiento actual.');
+must('src/app/(tabs)/dog.tsx', /\/client\/dog-achievements\?dogId=/, 'Mis perros perdió el acceso breve a logros.');
+must('src/app/(tabs)/dog.tsx', /\/client\/dog-history\?dogId=/, 'Mis perros perdió el acceso breve al historial dedicado.');
 
 mustNot('src/app/admin/classes.tsx', /TextInput\s+value=\{form\.dogName\}/, 'Admin Clases aún usa perro como texto libre al crear.');
 mustNot('src/app/admin/classes.tsx', /TextInput\s+value=\{editForm\.dogName\}/, 'Admin Clases aún usa perro como texto libre al editar.');
