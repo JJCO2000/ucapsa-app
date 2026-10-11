@@ -18,8 +18,6 @@ import { DEFAULT_WRITE_TIMEOUT_MS, friendlyWriteError, withOperationTimeout } fr
 
 type SettingsSection = 'notifications' | 'profile' | 'delete';
 
-const avatarColors: string[] = [ucapsaBrand.colors.red, ucapsaBrand.colors.redDark, ucapsaBrand.colors.blue, ucapsaBrand.colors.purple, ucapsaBrand.colors.green];
-
 export default function AccountSettingsScreen() {
   const { loading, user, profile, role, isAdmin, signOut, refreshProfile, acceptProfile, isOfflineFallback, lastProfileSyncAt } = useSession();
   const params = useLocalSearchParams<{ section?: string; from?: string }>();
@@ -28,7 +26,6 @@ export default function AccountSettingsScreen() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [avatarColor, setAvatarColor] = useState<string>(ucapsaBrand.colors.red);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -47,7 +44,6 @@ export default function AccountSettingsScreen() {
     setFullName(profile?.full_name ?? '');
     setEmail(profile?.email ?? user?.email ?? '');
     setPhone(profile?.phone ?? '');
-    setAvatarColor(profile?.avatar_color ?? ucapsaBrand.colors.red);
   }, [profile, user?.email]);
 
   const refreshDeletionRequest = useCallback(async () => {
@@ -118,7 +114,6 @@ export default function AccountSettingsScreen() {
         updateMyProfile({
           full_name: fullName,
           phone,
-          avatar_color: avatarColor,
         }),
         DEFAULT_WRITE_TIMEOUT_MS,
         'profile-save',
@@ -237,7 +232,7 @@ export default function AccountSettingsScreen() {
           <SettingsButton
             icon="person"
             title={isAdmin ? 'Mis datos administrativos' : 'Mis datos'}
-            subtitle={profileComplete ? 'Nombre, contacto y avatar.' : 'Falta completar información de contacto.'}
+            subtitle={profileComplete ? 'Nombre, correo y teléfono.' : 'Falta completar información de contacto.'}
             badge={!profileComplete ? 'Pendiente' : undefined}
             premium={premium}
             onPress={() => openSection('profile')}
@@ -293,7 +288,7 @@ export default function AccountSettingsScreen() {
       {section === 'profile' ? (
         <View style={[styles.sectionCard, premium && styles.premiumCard]}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionIntro, premium && styles.premiumText]}>Nombre, correo, teléfono y avatar.</Text>
+            <Text style={[styles.sectionIntro, premium && styles.premiumText]}>Nombre, correo y teléfono.</Text>
             <Pressable style={[styles.smallButton, premium && styles.premiumSmallButton]} onPress={() => setEditing(true)}><Text style={[styles.smallButtonText, premium && styles.premiumSmallButtonText]}>{profileComplete ? 'Editar' : 'Completar'}</Text></Pressable>
           </View>
           <ReadonlyRow label="Nombre" value={profile?.full_name || 'Pendiente'} premium={premium} />
@@ -381,8 +376,6 @@ export default function AccountSettingsScreen() {
         />
         <Text style={[styles.label, premium && styles.premiumLabel]}>Teléfono</Text>
         <TextInput value={phone} onChangeText={setPhone} placeholder="Teléfono" keyboardType="phone-pad" placeholderTextColor={premium ? ucapsaBrand.colors.redBorder : ucapsaBrand.colors.gray} style={[styles.input, premium && styles.premiumInput]} />
-        <Text style={[styles.label, premium && styles.premiumLabel]}>Color de avatar</Text>
-        <View style={styles.colorRow}>{avatarColors.map((color) => <Pressable key={color} onPress={() => setAvatarColor(color)} style={[styles.colorDot, { backgroundColor: color }, avatarColor === color && styles.colorDotActive]} />)}</View>
         <Pressable disabled={saving} style={[styles.primaryButton, { backgroundColor: format.primaryButton }, saving && styles.disabled]} onPress={handleSaveProfile}><Text style={[styles.primaryButtonText, { color: format.primaryButtonText }]}>{saving ? 'Guardando...' : 'Guardar cambios'}</Text></Pressable>
       </KeyboardAwareModal>
     </KeyboardAwareScreen>
