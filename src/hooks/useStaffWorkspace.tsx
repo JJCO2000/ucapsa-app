@@ -22,14 +22,14 @@ function storageKey(userId: string) {
 }
 
 export function StaffWorkspaceProvider({ children }: { children: ReactNode }) {
-  const { user, role, isAdmin, isTrainer } = useSession();
+  const { user, role, isTrainer, capabilities } = useSession();
   const [storedMode, setStoredMode] = useState<StaffWorkspaceMode>('admin');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     let active = true;
 
-    if (!user || (!isAdmin && !isTrainer)) {
+    if (!user || !capabilities.canUseTrainingWorkspace) {
       setStoredMode('admin');
       setLoading(false);
       return () => { active = false; };
@@ -57,10 +57,10 @@ export function StaffWorkspaceProvider({ children }: { children: ReactNode }) {
       });
 
     return () => { active = false; };
-  }, [isAdmin, isTrainer, role, user]);
+  }, [capabilities.canUseTrainingWorkspace, isTrainer, role, user]);
 
   const mode: StaffWorkspaceMode = isTrainer ? 'trainer' : storedMode;
-  const canSwitch = Boolean(user && isAdmin);
+  const canSwitch = Boolean(user && capabilities.canSwitchStaffWorkspace);
 
   async function setMode(nextMode: StaffWorkspaceMode) {
     if (!user) return;
@@ -68,7 +68,7 @@ export function StaffWorkspaceProvider({ children }: { children: ReactNode }) {
       if (nextMode !== 'trainer') throw new Error('La cuenta Entrenador no tiene acceso al modo Administración.');
       return;
     }
-    if (!isAdmin) throw new Error('Esta cuenta no tiene modos de staff.');
+    if (!capabilities.canSwitchStaffWorkspace) throw new Error('Esta cuenta no puede cambiar de modo de staff.');
 
     setStoredMode(nextMode);
     try {
