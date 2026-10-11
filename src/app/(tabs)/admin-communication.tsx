@@ -22,12 +22,14 @@ export default function AdminCommunicationTab() {
       <View style={styles.card}>
         <MenuRow
           icon="campaign"
+          tone="red"
           title="Avisos"
           subtitle="Crear, publicar, archivar y programar recordatorios"
           onPress={() => router.push('/admin/announcements' as never)}
         />
         <MenuRow
           icon="notifications-active"
+          tone="purple"
           title="Notificaciones"
           subtitle="Enviar avisos directos a clientes y socios"
           onPress={() => router.push('/admin/notifications' as never)}
@@ -39,12 +41,14 @@ export default function AdminCommunicationTab() {
       <View style={styles.card}>
         <MenuRow
           icon="calendar-month"
+          tone="blue"
           title="Calendario"
           subtitle="Vista unificada de clases, eventos, anuncios y actividad"
           onPress={() => router.push('/calendar' as never)}
         />
         <MenuRow
           icon="event"
+          tone="green"
           title="Eventos"
           subtitle="Crear fechas, recurrencias y administrar cancelaciones"
           onPress={() => router.push('/admin/events' as never)}
@@ -56,6 +60,7 @@ export default function AdminCommunicationTab() {
       <View style={styles.card}>
         <MenuRow
           icon="rate-review"
+          tone="yellow"
           title="Reseñas Google"
           subtitle="Abrir el asistente para redactar una reseña real"
           onPress={() => router.push('/reviews' as never)}
@@ -66,23 +71,36 @@ export default function AdminCommunicationTab() {
   );
 }
 
+type MenuTone = 'red' | 'blue' | 'green' | 'yellow' | 'purple';
+
+function menuTone(tone: MenuTone) {
+  if (tone === 'blue') return { bg: ucapsaBrand.colors.blueSoft, fg: ucapsaBrand.colors.blueDark };
+  if (tone === 'green') return { bg: ucapsaBrand.colors.greenSoft, fg: ucapsaBrand.colors.greenDark };
+  if (tone === 'yellow') return { bg: ucapsaBrand.colors.goldPale, fg: ucapsaBrand.colors.goldDark };
+  if (tone === 'purple') return { bg: ucapsaBrand.colors.purpleSoft, fg: ucapsaBrand.colors.purpleDark };
+  return { bg: ucapsaBrand.colors.redSoft, fg: ucapsaBrand.colors.redDark };
+}
+
 function MenuRow({
   icon,
+  tone = 'red',
   title,
   subtitle,
   onPress,
   last = false,
 }: {
   icon: keyof typeof MaterialIcons.glyphMap;
+  tone?: MenuTone;
   title: string;
   subtitle: string;
   onPress: () => void;
   last?: boolean;
 }) {
+  const palette = menuTone(tone);
   return (
     <Pressable style={({ pressed }) => [styles.row, last && styles.rowLast, pressed && styles.pressed]} onPress={onPress}>
-      <View style={styles.iconBox}>
-        <MaterialIcons name={icon} size={22} color={ucapsaBrand.colors.redDark} />
+      <View style={[styles.iconBox, { backgroundColor: palette.bg }]}>
+        <MaterialIcons name={icon} size={22} color={palette.fg} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.rowTitle}>{title}</Text>
