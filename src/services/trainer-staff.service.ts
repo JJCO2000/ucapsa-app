@@ -349,6 +349,14 @@ export async function createTrainerExamDraft(input: {
   return data;
 }
 
+export async function publishTrainerExam(examId: string) {
+  const { data, error } = await supabase.rpc('staff_publish_ucapsa_exam', {
+    p_exam_id: examId,
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function getStaffTrainingReport(startDate: string, endDate: string): Promise<StaffTrainingReportRow[]> {
   const { data, error } = await supabase.rpc('get_staff_training_report', {
     p_start_date: startDate,
