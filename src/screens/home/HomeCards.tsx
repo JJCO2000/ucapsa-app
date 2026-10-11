@@ -49,9 +49,9 @@ export function NextActionCard({
           accessibilityLabel="Registrar asistencia"
           onPress={onAttendance}
           hitSlop={5}
-          style={[styles.nextAttendanceButton, { backgroundColor: withAlpha(format.primaryButtonText, 0.14) }]}
+          style={[styles.nextAttendanceButton, { backgroundColor: ucapsaBrand.colors.goldPale }]}
         >
-          <MaterialIcons name="photo-camera" size={20} color={format.primaryButtonText} />
+          <MaterialIcons name="photo-camera" size={20} color={ucapsaBrand.colors.goldDark} />
         </Pressable>
       ) : null}
     </View>
