@@ -33,6 +33,7 @@ export function notificationRouteFromData(data: NotificationData | undefined) {
   const source = stringValue(data?.source);
   const category = stringValue(data?.category);
 
+  if (source === 'trainer_class_summary') return '/trainer-home';
   if (source === 'class_reminder') return '/home';
 
   if (source === 'class_cancellation' || category === 'classes') {
