@@ -23,6 +23,12 @@ export default function AdminMoreTab() {
       <Text style={styles.sectionTitle}>Operación especial</Text>
       <View style={styles.card}>
         <MenuRow
+          icon="table-chart"
+          title="Reportes de clases"
+          subtitle="Excel mensual o por rango de fechas"
+          onPress={() => router.push('/trainer-reports' as never)}
+        />
+        <MenuRow
           icon="restaurant-menu"
           title="Restaurante"
           subtitle="Editar menú, precios y disponibilidad"
@@ -37,8 +43,8 @@ export default function AdminMoreTab() {
           <View style={styles.card}>
             <MenuRow
               icon="manage-accounts"
-              title="Usuarios"
-              subtitle="Clientes, socios y cuentas administrativas"
+              title="Usuarios y staff"
+              subtitle="Clientes, socios, entrenadores y cuentas internas"
               onPress={() => router.push('/admin/users' as never)}
             />
             <MenuRow
