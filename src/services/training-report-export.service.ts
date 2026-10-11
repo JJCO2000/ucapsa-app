@@ -17,9 +17,13 @@ export type TrainingReportStats = {
   declined: number;
   noResponse: number;
   attended: number;
+  absent: number;
+  unmarked: number;
   missingAttendance: number;
+  markedOutcomes: number;
   confirmedAttended: number;
   attendanceRate: number;
+  markCoverageRate: number;
   confirmedAttendanceRate: number;
 };
 
@@ -85,6 +89,9 @@ export function buildTrainingReportStats(rows: StaffTrainingReportRow[]): Traini
   const declined = rows.filter((row) => row.rsvpResponse === 'no').length;
   const noResponse = rows.length - confirmed - declined;
   const attended = rows.filter((row) => row.attended).length;
+  const absent = rows.filter((row) => row.absent).length;
+  const markedOutcomes = attended + absent;
+  const unmarked = Math.max(0, rows.length - markedOutcomes);
   const confirmedAttended = rows.filter((row) => row.rsvpResponse === 'yes' && row.attended).length;
 
   return {
@@ -96,9 +103,13 @@ export function buildTrainingReportStats(rows: StaffTrainingReportRow[]): Traini
     declined,
     noResponse,
     attended,
-    missingAttendance: rows.length - attended,
+    absent,
+    unmarked,
+    missingAttendance: unmarked,
+    markedOutcomes,
     confirmedAttended,
-    attendanceRate: rows.length > 0 ? attended / rows.length : 0,
+    attendanceRate: markedOutcomes > 0 ? attended / markedOutcomes : 0,
+    markCoverageRate: rows.length > 0 ? markedOutcomes / rows.length : 0,
     confirmedAttendanceRate: confirmed > 0 ? confirmedAttended / confirmed : 0,
   };
 }
@@ -108,11 +119,14 @@ type ProgramStats = {
   level: string;
   eligible: number;
   attended: number;
+  absent: number;
+  unmarked: number;
   missingAttendance: number;
   confirmed: number;
   declined: number;
   noResponse: number;
   attendanceRate: number;
+  markCoverageRate: number;
 };
 
 function buildProgramStats(rows: StaffTrainingReportRow[]): ProgramStats[] {
@@ -121,6 +135,7 @@ function buildProgramStats(rows: StaffTrainingReportRow[]): ProgramStats[] {
     level: string;
     eligible: number;
     attended: number;
+    absent: number;
     confirmed: number;
     declined: number;
     noResponse: number;
@@ -134,12 +149,14 @@ function buildProgramStats(rows: StaffTrainingReportRow[]): ProgramStats[] {
       level,
       eligible: 0,
       attended: 0,
+      absent: 0,
       confirmed: 0,
       declined: 0,
       noResponse: 0,
     };
     current.eligible += 1;
     if (row.attended) current.attended += 1;
+    if (row.absent) current.absent += 1;
     if (row.rsvpResponse === 'yes') current.confirmed += 1;
     else if (row.rsvpResponse === 'no') current.declined += 1;
     else current.noResponse += 1;
@@ -149,8 +166,10 @@ function buildProgramStats(rows: StaffTrainingReportRow[]): ProgramStats[] {
   return [...groups.values()]
     .map((item) => ({
       ...item,
-      missingAttendance: item.eligible - item.attended,
-      attendanceRate: item.eligible > 0 ? item.attended / item.eligible : 0,
+      unmarked: Math.max(0, item.eligible - item.attended - item.absent),
+      missingAttendance: Math.max(0, item.eligible - item.attended - item.absent),
+      attendanceRate: (item.attended + item.absent) > 0 ? item.attended / (item.attended + item.absent) : 0,
+      markCoverageRate: item.eligible > 0 ? (item.attended + item.absent) / item.eligible : 0,
     }))
     .sort((left, right) =>
       left.program.localeCompare(right.program, 'es-MX') || left.level.localeCompare(right.level, 'es-MX'),
@@ -195,25 +214,29 @@ function workbookBytes(rows: StaffTrainingReportRow[], startDate: string, endDat
     ['Confirmaron asistencia', stats.confirmed],
     ['Indicaron que no asistirían', stats.declined],
     ['Sin respuesta RSVP', stats.noResponse],
-    ['Asistencias registradas', stats.attended],
-    ['Sin asistencia registrada', stats.missingAttendance],
-    ['Tasa de asistencia', percentage(stats.attendanceRate)],
+    ['Asistieron', stats.attended],
+    ['No asistieron', stats.absent],
+    ['Sin resultado registrado', stats.unmarked],
+    ['Tasa de asistencia sobre resultados marcados', percentage(stats.attendanceRate)],
+    ['Cobertura del registro de asistencia', percentage(stats.markCoverageRate)],
     ['Confirmados que asistieron', stats.confirmedAttended],
     ['Tasa confirmados → asistencia', percentage(stats.confirmedAttendanceRate)],
   ];
 
   const programRows: CellValue[][] = [
-    ['Programa', 'Nivel', 'Elegibles', 'Asistencias', 'Sin asistencia registrada', 'Confirmaron', 'No asistirán', 'Sin respuesta', 'Tasa asistencia'],
+    ['Programa', 'Nivel', 'Elegibles', 'Asistieron', 'No asistieron', 'Sin registrar', 'Confirmaron', 'No asistirán (RSVP)', 'Sin respuesta', 'Tasa asistencia', 'Cobertura registro'],
     ...buildProgramStats(rows).map((item) => [
       item.program,
       item.level,
       item.eligible,
       item.attended,
-      item.missingAttendance,
+      item.absent,
+      item.unmarked,
       item.confirmed,
       item.declined,
       item.noResponse,
       percentage(item.attendanceRate),
+      percentage(item.markCoverageRate),
     ]),
   ];
 
@@ -227,7 +250,7 @@ function workbookBytes(rows: StaffTrainingReportRow[], startDate: string, endDat
       row.clientName,
       row.dogName,
       rsvpLabel(row.rsvpResponse),
-      row.attended ? 'Asistió' : 'Sin asistencia registrada',
+      row.attended ? 'Asistió' : row.absent ? 'No asistió' : 'Sin registrar',
     ]),
   ];
 
@@ -276,7 +299,7 @@ function workbookBytes(rows: StaffTrainingReportRow[], startDate: string, endDat
   </cellXfs>
 </styleSheet>`),
     'xl/worksheets/sheet1.xml': strToU8(worksheetXml(summaryRows, [34, 22], false)),
-    'xl/worksheets/sheet2.xml': strToU8(worksheetXml(programRows, [22, 18, 12, 12, 24, 12, 12, 12, 16])),
+    'xl/worksheets/sheet2.xml': strToU8(worksheetXml(programRows, [22, 18, 12, 12, 14, 14, 12, 18, 12, 16, 16])),
     'xl/worksheets/sheet3.xml': strToU8(worksheetXml(detailRows, [13, 10, 20, 18, 24, 24, 18, 24])),
   };
 
