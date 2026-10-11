@@ -7,7 +7,7 @@ import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
-import { getAdminProfiles } from '../../services/profiles.service';
+import { getAdminProfiles, setStaffRoleSuperAdmin } from '../../services/profiles.service';
 import type { AppRole, Profile } from '../../types/app.types';
 
 type UserFilter = 'clients_and_members' | 'clients' | 'members' | 'admins';
@@ -16,12 +16,13 @@ const filterOptions: Array<{ value: UserFilter; label: string; helper: string }>
   { value: 'clients_and_members', label: 'Todos', helper: 'Clientes y socios' },
   { value: 'clients', label: 'Clientes', helper: 'Sin rol de socio' },
   { value: 'members', label: 'Socios', helper: 'Con membresía' },
-  { value: 'admins', label: 'Admins', helper: 'Administración' },
+  { value: 'admins', label: 'Staff', helper: 'Entrenadores y administración' },
 ];
 
 function getRoleLabel(role: AppRole) {
   if (role === 'super_admin') return 'Super admin';
   if (role === 'admin') return 'Admin';
+  if (role === 'trainer') return 'Entrenador';
   if (role === 'member') return 'Socio';
   return 'Cliente';
 }
@@ -30,7 +31,7 @@ function matchesFilter(profile: Profile, filter: UserFilter) {
   if (filter === 'clients_and_members') return profile.role === 'client' || profile.role === 'member';
   if (filter === 'clients') return profile.role === 'client';
   if (filter === 'members') return profile.role === 'member';
-  return profile.role === 'admin' || profile.role === 'super_admin';
+  return profile.role === 'trainer' || profile.role === 'admin' || profile.role === 'super_admin';
 }
 
 function getFilterLabel(filter: UserFilter) {
@@ -120,7 +121,7 @@ export default function AdminUsersScreen() {
     clients: profiles.filter((profile) => profile.role === 'client').length,
     members: profiles.filter((profile) => profile.role === 'member').length,
     admins: profiles.filter(
-      (profile) => profile.role === 'admin' || profile.role === 'super_admin',
+      (profile) => profile.role === 'trainer' || profile.role === 'admin' || profile.role === 'super_admin',
     ).length,
   }), [profiles]);
 
@@ -130,6 +131,18 @@ export default function AdminUsersScreen() {
       return;
     }
     setSelectedAdmin(profile);
+  }
+
+  async function changeStaffRole(profile: Profile, nextRole: Extract<AppRole, 'client' | 'trainer' | 'admin'>) {
+    try {
+      await setStaffRoleSuperAdmin(profile.user_id, nextRole);
+      const nextProfiles = await getAdminProfiles();
+      setProfiles(nextProfiles);
+      setSelectedAdmin(nextProfiles.find((item) => item.user_id === profile.user_id) ?? null);
+    } catch (cause) {
+      Alert.alert('No se pudo cambiar el rol', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+      throw cause;
+    }
   }
 
   return (
@@ -158,7 +171,7 @@ export default function AdminUsersScreen() {
             <Summary label="Todos" value={counts.clientsAndMembers} />
             <Summary label="Clientes" value={counts.clients} />
             <Summary label="Socios" value={counts.members} />
-            <Summary label="Admins" value={counts.admins} />
+            <Summary label="Staff" value={counts.admins} />
           </View>
 
           <View style={styles.filterGrid}>
@@ -214,6 +227,19 @@ export default function AdminUsersScreen() {
               <Text style={styles.userEmail}>{item.email || 'Sin correo'}</Text>
               <Text style={styles.userRole}>{getRoleLabel(item.role)}</Text>
             </View>
+            {role === 'super_admin' && item.role !== 'super_admin' ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Gestionar rol de ${item.full_name || item.email || 'usuario'}`}
+                style={styles.roleButton}
+                onPress={(event) => {
+                  event.stopPropagation();
+                  setSelectedAdmin(item);
+                }}
+              >
+                <MaterialCommunityIcons name="shield-account-outline" size={20} color={ucapsaBrand.colors.purpleDark} />
+              </Pressable>
+            ) : null}
             <MaterialCommunityIcons name="chevron-right" size={22} color={ucapsaBrand.colors.red} />
           </Pressable>
         ))}
@@ -221,6 +247,8 @@ export default function AdminUsersScreen() {
 
       <AdminAccountDetailModal
         profile={selectedAdmin}
+        canManageRoles={role === 'super_admin'}
+        onRoleChange={changeStaffRole}
         onClose={() => setSelectedAdmin(null)}
       />
     </KeyboardAwareScreen>
@@ -238,12 +266,45 @@ function Summary({ label, value }: { label: string; value: number }) {
 
 function AdminAccountDetailModal({
   profile,
+  canManageRoles,
+  onRoleChange,
   onClose,
 }: {
   profile: Profile | null;
+  canManageRoles: boolean;
+  onRoleChange: (profile: Profile, role: Extract<AppRole, 'client' | 'trainer' | 'admin'>) => Promise<void>;
   onClose: () => void;
 }) {
+  const [savingRole, setSavingRole] = useState(false);
   if (!profile) return null;
+
+  const canEditThisRole = canManageRoles && profile.role !== 'super_admin' && profile.role !== 'member';
+
+  async function setRole(nextRole: Extract<AppRole, 'client' | 'trainer' | 'admin'>) {
+    if (!profile || savingRole || !canEditThisRole || profile.role === nextRole) return;
+    Alert.alert(
+      'Cambiar rol',
+      nextRole === 'trainer'
+        ? 'Esta cuenta verá únicamente las herramientas operativas de Entrenador.'
+        : nextRole === 'admin'
+          ? 'Esta cuenta tendrá acceso administrativo completo.'
+          : 'Esta cuenta volverá a la experiencia de cliente.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Confirmar',
+          onPress: async () => {
+            try {
+              setSavingRole(true);
+              await onRoleChange(profile, nextRole);
+            } finally {
+              setSavingRole(false);
+            }
+          },
+        },
+      ],
+    );
+  }
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
@@ -259,6 +320,37 @@ function AdminAccountDetailModal({
             <Detail label="Teléfono" value={profile.phone} />
             <Detail label="Rol" value={getRoleLabel(profile.role)} />
           </View>
+
+          {canManageRoles ? (
+            <View style={styles.roleManager}>
+              <Text style={styles.roleManagerTitle}>Acceso del equipo</Text>
+              {profile.role === 'member' ? (
+                <Text style={styles.roleManagerHint}>Una cuenta de socio conserva su rol de cliente. Para staff usa una cuenta separada y así no mezclas permisos internos con membresía.</Text>
+              ) : profile.role === 'super_admin' ? (
+                <Text style={styles.roleManagerHint}>Las cuentas Superadmin no se modifican desde esta pantalla.</Text>
+              ) : (
+                <>
+                  <Text style={styles.roleManagerHint}>Entrenador sólo ve clases, roster, asistencia, exámenes, notas internas y reportes. No ve pagos, comunicación ni estadísticas internas.</Text>
+                  <View style={styles.roleOptions}>
+                    {([
+                      { value: 'client', label: 'Cliente' },
+                      { value: 'trainer', label: 'Entrenador' },
+                      { value: 'admin', label: 'Admin' },
+                    ] as const).map((option) => (
+                      <Pressable
+                        key={option.value}
+                        disabled={savingRole}
+                        style={[styles.roleOption, profile.role === option.value && styles.roleOptionActive]}
+                        onPress={() => void setRole(option.value)}
+                      >
+                        <Text style={[styles.roleOptionText, profile.role === option.value && styles.roleOptionTextActive]}>{option.label}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </>
+              )}
+            </View>
+          ) : null}
 
           <Pressable style={styles.closeButton} onPress={onClose}>
             <Text style={styles.closeButtonText}>Cerrar</Text>
@@ -308,6 +400,7 @@ const styles = StyleSheet.create({
   userName: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900' },
   userEmail: { color: ucapsaBrand.colors.muted, fontSize: 13, marginTop: 2 },
   userRole: { color: ucapsaBrand.colors.red, fontSize: 12, fontWeight: '900', marginTop: 4 },
+  roleButton: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.purpleSoft },
   modalBackdrop: { flex: 1, backgroundColor: withAlpha(ucapsaBrand.colors.text, 0.35) },
   modalContent: { backgroundColor: ucapsaBrand.colors.background, marginTop: 40, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingBottom: 40 },
   modalTitle: { color: ucapsaBrand.colors.text, fontSize: 28, fontWeight: '900', marginTop: 4 },
@@ -315,6 +408,14 @@ const styles = StyleSheet.create({
   detailRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.redSoft },
   detailLabel: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
   detailValue: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '700', marginTop: 3 },
+  roleManager: { gap: 8, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.purple, backgroundColor: ucapsaBrand.colors.purpleSoft, padding: 12, marginTop: 12 },
+  roleManagerTitle: { color: ucapsaBrand.colors.purpleDark, fontSize: 13, fontWeight: '900' },
+  roleManagerHint: { color: ucapsaBrand.colors.purpleDark, fontSize: 10, lineHeight: 15, fontWeight: '700' },
+  roleOptions: { flexDirection: 'row', gap: 7, flexWrap: 'wrap' },
+  roleOption: { minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 12, borderWidth: 1, borderColor: ucapsaBrand.colors.purple, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 11 },
+  roleOptionActive: { backgroundColor: ucapsaBrand.colors.purple, borderColor: ucapsaBrand.colors.purple },
+  roleOptionText: { color: ucapsaBrand.colors.purpleDark, fontSize: 10, fontWeight: '900' },
+  roleOptionTextActive: { color: ucapsaBrand.colors.surface },
   closeButton: { backgroundColor: ucapsaBrand.colors.text, borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 12 },
   closeButtonText: { color: ucapsaBrand.colors.surface, fontSize: 14, fontWeight: '900' },
 });

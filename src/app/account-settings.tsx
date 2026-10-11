@@ -19,10 +19,10 @@ import { DEFAULT_WRITE_TIMEOUT_MS, friendlyWriteError, withOperationTimeout } fr
 type SettingsSection = 'notifications' | 'profile' | 'delete';
 
 export default function AccountSettingsScreen() {
-  const { loading, user, profile, role, isAdmin, signOut, refreshProfile, acceptProfile, isOfflineFallback, lastProfileSyncAt } = useSession();
+  const { loading, user, profile, role, isAdmin, isTrainer, isStaff, signOut, refreshProfile, acceptProfile, isOfflineFallback, lastProfileSyncAt } = useSession();
   const params = useLocalSearchParams<{ section?: string; from?: string }>();
   const fromProfile = params.from === 'profile';
-  const section = normalizeSection(params.section, isAdmin);
+  const section = normalizeSection(params.section, isAdmin, isTrainer);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -33,7 +33,7 @@ export default function AccountSettingsScreen() {
   const [deletionLoading, setDeletionLoading] = useState(false);
 
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [user, role, isAdmin]);
-  const premium = Boolean(user) && format.key === 'member' && !isAdmin;
+  const premium = Boolean(user) && format.key === 'member' && !isStaff;
   const deletionOpen = isAccountDeletionOpen(deletionRequest);
   const deletionCompleted = deletionRequest?.status === 'completed';
   const deletionLocked = deletionCompleted || deletionRequest?.status === 'blocked';
@@ -47,17 +47,17 @@ export default function AccountSettingsScreen() {
   }, [profile, user?.email]);
 
   const refreshDeletionRequest = useCallback(async () => {
-    if (!user || isAdmin) {
+    if (!user || isStaff) {
       setDeletionRequest(null);
       return;
     }
     const request = await getMyAccountDeletionRequest();
     setDeletionRequest(request);
-  }, [isAdmin, user]);
+  }, [isStaff, user]);
 
   useEffect(() => {
     let active = true;
-    if (!user || isAdmin) {
+    if (!user || isStaff) {
       setDeletionRequest(null);
       setDeletionLoading(false);
       return undefined;
@@ -79,7 +79,7 @@ export default function AccountSettingsScreen() {
     return () => {
       active = false;
     };
-  }, [isAdmin, user]);
+  }, [isStaff, user]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -205,7 +205,13 @@ export default function AccountSettingsScreen() {
     );
   }
 
-  const pageTitle = section === 'profile' ? (isAdmin ? 'Mis datos administrativos' : 'Mis datos') : section === 'notifications' ? 'Notificaciones' : section === 'delete' ? 'Eliminar cuenta' : 'Ajustes de cuenta';
+  const pageTitle = section === 'profile'
+    ? (isStaff ? 'Mis datos del equipo' : 'Mis datos')
+    : section === 'notifications'
+      ? 'Notificaciones'
+      : section === 'delete'
+        ? 'Eliminar cuenta'
+        : 'Ajustes de cuenta';
   const pageSubtitle = section
     ? section === 'profile'
       ? 'Revisa o edita tu información de cuenta.'
@@ -231,13 +237,13 @@ export default function AccountSettingsScreen() {
         <View style={styles.menuStack}>
           <SettingsButton
             icon="person"
-            title={isAdmin ? 'Mis datos administrativos' : 'Mis datos'}
+            title={isStaff ? 'Mis datos del equipo' : 'Mis datos'}
             subtitle={profileComplete ? 'Nombre, correo y teléfono.' : 'Falta completar información de contacto.'}
             badge={!profileComplete ? 'Pendiente' : undefined}
             premium={premium}
             onPress={() => openSection('profile')}
           />
-          {!isAdmin ? (
+          {!isStaff ? (
             <SettingsButton
               icon="pets"
               title="Mis perros"
@@ -249,7 +255,7 @@ export default function AccountSettingsScreen() {
           <SettingsButton
             icon="notifications-none"
             title="Notificaciones"
-            subtitle="Clases, membresía, anuncios y logros."
+            subtitle={isTrainer ? 'Resumen de clases y aforo esperado.' : 'Clases, membresía, anuncios y logros.'}
             premium={premium}
             onPress={() => openSection('notifications')}
           />
@@ -267,7 +273,7 @@ export default function AccountSettingsScreen() {
             premium={premium}
             onPress={() => router.push('/terms' as never)}
           />
-          {!isAdmin ? (
+          {!isStaff ? (
             <SettingsButton
               icon="delete-outline"
               title="Eliminar cuenta"
@@ -299,7 +305,7 @@ export default function AccountSettingsScreen() {
 
       {section === 'notifications' ? (
         <View style={styles.notificationSection}>
-          <NotificationSettingsCard premium={premium} />
+          <NotificationSettingsCard premium={premium} mode={isTrainer ? 'trainer' : 'client'} />
           {isAdmin ? (
             <Pressable style={[styles.adminNoticeButton, premium && styles.adminNoticeButtonPremium]} onPress={() => router.push('/admin/notifications' as never)}>
               <MaterialIcons name="send" size={22} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.redDark} />
@@ -360,7 +366,7 @@ export default function AccountSettingsScreen() {
         sheetStyle={premium ? styles.premiumModalSheet : undefined}
         contentContainerStyle={styles.modalContent}
       >
-        <View style={styles.modalHeader}><Text style={[styles.modalTitle, premium && styles.premiumTitle]}>{isAdmin ? 'Editar datos administrativos' : 'Editar mis datos'}</Text><Pressable onPress={() => setEditing(false)}><MaterialIcons name="close" size={24} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.text} /></Pressable></View>
+        <View style={styles.modalHeader}><Text style={[styles.modalTitle, premium && styles.premiumTitle]}>{isStaff ? 'Editar datos del equipo' : 'Editar mis datos'}</Text><Pressable onPress={() => setEditing(false)}><MaterialIcons name="close" size={24} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.text} /></Pressable></View>
         <Text style={[styles.label, premium && styles.premiumLabel]}>Nombre completo</Text>
         <TextInput value={fullName} onChangeText={setFullName} placeholder="Nombre" placeholderTextColor={premium ? ucapsaBrand.colors.redBorder : ucapsaBrand.colors.gray} style={[styles.input, premium && styles.premiumInput]} />
         <Text style={[styles.label, premium && styles.premiumLabel]}>Correo</Text>
@@ -382,9 +388,9 @@ export default function AccountSettingsScreen() {
   );
 }
 
-function normalizeSection(value: string | undefined, isAdmin: boolean): SettingsSection | null {
+function normalizeSection(value: string | undefined, isAdmin: boolean, isTrainer: boolean): SettingsSection | null {
   if (value === 'profile' || value === 'notifications') return value;
-  if (value === 'delete' && !isAdmin) return value;
+  if (value === 'delete' && !isAdmin && !isTrainer) return value;
   return null;
 }
 

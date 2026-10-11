@@ -3,6 +3,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { AdminStatusPill } from '../../components/admin/AdminStatusPill';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import {
@@ -135,8 +136,18 @@ function MemberRow({ row, last }: { row: MembershipAdminRow; last: boolean }) {
         <View style={styles.avatar}><Text style={styles.avatarText}>{getDisplayName(row.profile).slice(0, 1).toUpperCase()}</Text></View>
         <View style={{ flex: 1 }}>
           <Text style={styles.rowTitle}>{getDisplayName(row.profile)}</Text>
-          <Text style={styles.rowMeta}>{row.membership.member_number || 'Numero pendiente'} - {getMembershipStatusLabel(row.membership.status)}</Text>
-          <Text style={styles.rowMeta}>Pago: {getPaymentStatusLabel(row.membership.current_payment_status)} - Duracion: toda la vida del perro</Text>
+          <Text style={styles.rowMeta}>{row.membership.member_number || 'Número pendiente'}</Text>
+          <View style={styles.rowStatus}>
+            <AdminStatusPill
+              label={getMembershipStatusLabel(row.membership.status)}
+              tone={row.membership.status === 'active' ? 'success' : row.membership.status === 'pending' ? 'warning' : row.membership.status === 'rejected' || row.membership.status === 'cancelled' ? 'danger' : 'neutral'}
+            />
+            <AdminStatusPill
+              label={getPaymentStatusLabel(row.membership.current_payment_status)}
+              tone={row.membership.current_payment_status === 'paid' || row.membership.current_payment_status === 'not_required' ? 'success' : row.membership.current_payment_status === 'overdue' ? 'danger' : 'warning'}
+              icon="payments"
+            />
+          </View>
         </View>
         <MaterialIcons name="chevron-right" size={23} color={ucapsaBrand.colors.redDark} />
       </Pressable>
@@ -178,7 +189,8 @@ const styles = StyleSheet.create({
   avatar: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
   avatarText: { color: ucapsaBrand.colors.redDark, fontSize: 16, fontWeight: '900' },
   rowTitle: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
-  rowMeta: { color: ucapsaBrand.colors.muted, fontSize: 10, lineHeight: 15, fontWeight: '700', marginTop: 2 },
+  rowMeta: { color: ucapsaBrand.colors.muted, fontSize: 10, lineHeight: 15, fontWeight: '800', marginTop: 2 },
+  rowStatus: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 7 },
   actions: { flexDirection: 'row', gap: 7, marginTop: 9, marginLeft: 50 },
   action: { borderRadius: 11, backgroundColor: ucapsaBrand.colors.redSoft, paddingHorizontal: 11, paddingVertical: 8 },
   actionText: { color: ucapsaBrand.colors.redDark, fontSize: 10, fontWeight: '900' },

@@ -2,7 +2,7 @@ import type { AppRole, MembershipStatus } from '../types/app.types';
 
 import { ucapsaBrand } from './brand';
 
-export type UcapsaFormatKey = 'visitor' | 'client' | 'member' | 'admin';
+export type UcapsaFormatKey = 'visitor' | 'client' | 'member' | 'trainer' | 'admin';
 
 export type UcapsaFormat = {
   key: UcapsaFormatKey;
@@ -122,6 +122,35 @@ export const ucapsaFormats: Record<UcapsaFormatKey, UcapsaFormat> = {
     pillBackground: ucapsaBrand.colors.premiumPillBackground,
     pillText: ucapsaBrand.colors.redDeep,
   },
+  trainer: {
+    key: 'trainer',
+    label: 'Entrenador UCAPSA',
+    shortLabel: 'Entrenador',
+    title: 'Espacio de entrenador',
+    subtitle: 'Clases, evaluaciones, historial operativo y reportes necesarios para entrenar.',
+    icon: 'school',
+    accent: ucapsaBrand.colors.purple,
+    accentDark: ucapsaBrand.colors.purpleDark,
+    accentSoft: ucapsaBrand.colors.purpleSoft,
+    background: ucapsaBrand.colors.adminBackground,
+    surface: ucapsaBrand.colors.surface,
+    surfaceAlt: ucapsaBrand.colors.purpleSoft,
+    border: ucapsaBrand.colors.adminBorder,
+    text: ucapsaBrand.colors.adminText,
+    muted: ucapsaBrand.colors.adminMuted,
+    heroBackground: ucapsaBrand.colors.purpleDark,
+    heroText: ucapsaBrand.colors.surface,
+    heroMuted: ucapsaBrand.colors.purpleSoft,
+    primaryButton: ucapsaBrand.colors.purple,
+    primaryButtonText: ucapsaBrand.colors.surface,
+    secondaryButton: ucapsaBrand.colors.purpleSoft,
+    secondaryButtonText: ucapsaBrand.colors.purpleDark,
+    cardBackground: ucapsaBrand.colors.surface,
+    cardBorder: ucapsaBrand.colors.adminBorder,
+    cardText: ucapsaBrand.colors.adminText,
+    pillBackground: ucapsaBrand.colors.purpleSoft,
+    pillText: ucapsaBrand.colors.purpleDark,
+  },
   admin: {
     key: 'admin',
     label: 'Administración',
@@ -161,6 +190,7 @@ export function resolveUcapsaFormat(input: {
   hasActivePrograms?: boolean;
 }): UcapsaFormat {
   if (input.isAdmin || input.role === 'admin' || input.role === 'super_admin') return ucapsaFormats.admin;
+  if (input.role === 'trainer') return ucapsaFormats.trainer;
   if (input.role === 'member' || input.membershipStatus === 'active') return ucapsaFormats.member;
   if (input.user || input.hasActivePrograms || input.membershipStatus === 'pending') return ucapsaFormats.client;
   return ucapsaFormats.visitor;
@@ -181,6 +211,7 @@ export function getActiveModuleLabels(input: {
 export function getFormatTitle(format: UcapsaFormat, displayName?: string | null) {
   if (format.key === 'visitor') return 'Bienvenido a UCAPSA';
   if (format.key === 'admin') return 'Panel administrativo';
+  if (format.key === 'trainer') return 'Espacio de entrenador';
   if (format.key === 'member') return displayName || 'Socio UCAPSA';
   return `Hola, ${displayName || 'Cliente UCAPSA'}`;
 }

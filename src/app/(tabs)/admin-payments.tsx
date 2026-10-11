@@ -3,6 +3,7 @@ import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { AdminStatusPill } from '../../components/admin/AdminStatusPill';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
@@ -157,9 +158,9 @@ export default function AdminPaymentsTab() {
               <Text style={styles.name}>{row.profile?.full_name || row.profile?.email || 'Cliente UCAPSA'}</Text>
               <Text style={styles.meta}>{row.obligations > 0 ? `${row.obligations} obligaciones abiertas` : 'Pago pendiente por revisar'}</Text>
               <View style={styles.statusRow}>
-                {row.overdue ? <Badge label="Vencido" tone="danger" /> : <Badge label="Pendiente" tone="warning" />}
-                {row.legacyPending && row.obligations === 0 ? <Badge label="Membresia" tone="info" /> : null}
-                {row.partial ? <Badge label="Parcial" tone="info" /> : null}
+                {row.overdue ? <AdminStatusPill label="Vencido" tone="danger" icon="error" /> : <AdminStatusPill label="Pendiente" tone="warning" icon="schedule" />}
+                {row.legacyPending && row.obligations === 0 ? <AdminStatusPill label="Membresía" tone="purple" icon="workspace-premium" /> : null}
+                {row.partial ? <AdminStatusPill label="Parcial" tone="info" icon="pie-chart" /> : null}
               </View>
             </View>
             <View style={styles.balanceBox}><Text style={styles.balanceLabel}>Saldo</Text><Text style={styles.balance}>{row.balance === null ? 'Revisar' : money(row.balance)}</Text></View>
@@ -184,11 +185,6 @@ function Filter({ label, active, onPress }: { label: string; active: boolean; on
   return <Pressable style={[styles.filter, active && styles.filterActive]} onPress={onPress}><Text style={[styles.filterText, active && styles.filterTextActive]}>{label}</Text></Pressable>;
 }
 
-function Badge({ label, tone }: { label: string; tone: 'danger' | 'warning' | 'info' }) {
-  const style = tone === 'danger' ? styles.badgeDanger : tone === 'info' ? styles.badgeInfo : styles.badgeWarning;
-  return <View style={[styles.badge, style]}><Text style={styles.badgeText}>{label}</Text></View>;
-}
-
 const styles = StyleSheet.create({
   header: { marginBottom: 16 },
   kicker: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.8 },
@@ -199,9 +195,9 @@ const styles = StyleSheet.create({
   bankSettingsIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
   bankSettingsTitle: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
   bankSettingsText: { color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 16, fontWeight: '700', marginTop: 2 },
-  metric: { flex: 1, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 12 },
-  metricValue: { color: ucapsaBrand.colors.text, fontSize: 22, fontWeight: '900' },
-  metricLabel: { color: ucapsaBrand.colors.muted, fontSize: 11, fontWeight: '800', marginTop: 2 },
+  metric: { flex: 1, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.borderNeutral, backgroundColor: ucapsaBrand.colors.surface, padding: 12 },
+  metricValue: { color: ucapsaBrand.colors.cameraDark, fontSize: 22, fontWeight: '900' },
+  metricLabel: { color: ucapsaBrand.colors.grayDark, fontSize: 11, fontWeight: '900', marginTop: 2 },
   search: { backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12, color: ucapsaBrand.colors.text, fontSize: 14, marginBottom: 10 },
   filters: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   filter: { flex: 1, alignItems: 'center', borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingVertical: 9 },
@@ -221,12 +217,7 @@ const styles = StyleSheet.create({
   rowLast: { borderBottomWidth: 0 },
   name: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
   meta: { color: ucapsaBrand.colors.muted, fontSize: 11, marginTop: 2 },
-  statusRow: { flexDirection: 'row', gap: 6, marginTop: 7 },
-  badge: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 },
-  badgeDanger: { backgroundColor: ucapsaBrand.colors.premiumMuted },
-  badgeWarning: { backgroundColor: ucapsaBrand.colors.goldPale },
-  badgeInfo: { backgroundColor: ucapsaBrand.colors.borderNeutral },
-  badgeText: { color: ucapsaBrand.colors.premiumSurfaceAlt, fontSize: 10, fontWeight: '900' },
+  statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 7 },
   balanceBox: { alignItems: 'flex-end' },
   balanceLabel: { color: ucapsaBrand.colors.muted, fontSize: 10, fontWeight: '800' },
   balance: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900', marginTop: 2 },

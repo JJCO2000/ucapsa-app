@@ -16,30 +16,161 @@ export function NextActionCard({
   action,
   format,
   onPress,
+  onAttendance,
+  rsvpResponse,
+  rsvpSaving = false,
+  onRsvp,
 }: {
   snapshot: CustomerValueSnapshot;
   action: Exclude<CustomerValuePrimaryNextAction, null>;
   format: ReturnType<typeof resolveUcapsaFormat>;
   onPress: () => void;
+  onAttendance?: () => void;
+  rsvpResponse?: 'yes' | 'no' | null;
+  rsvpSaving?: boolean;
+  onRsvp?: (response: 'yes' | 'no') => void;
 }) {
   const presentation = nextPresentation(snapshot, action);
+  const showAttendanceShortcut = action.kind === 'class' && Boolean(onAttendance);
+  const showRsvp = action.kind === 'class' && Boolean(onRsvp);
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${presentation.eyebrow}. ${presentation.title}. ${presentation.detail}`}
-      onPress={onPress}
-      style={[styles.nextCard, { backgroundColor: format.primaryButton }]}
-    >
-      <View style={[styles.nextIcon, { backgroundColor: withAlpha(format.primaryButtonText, 0.14) }]}>
-        <MaterialIcons name={presentation.icon} size={24} color={format.primaryButtonText} />
+    <View style={[styles.nextCard, { backgroundColor: format.primaryButton }]}>
+      <View style={styles.nextCardTop}>
+        <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${presentation.eyebrow}. ${presentation.title}. ${presentation.detail}`}
+        onPress={onPress}
+        style={styles.nextCardMain}
+      >
+        <View style={[styles.nextIcon, { backgroundColor: withAlpha(format.primaryButtonText, 0.14) }]}>
+          <MaterialIcons name={presentation.icon} size={24} color={format.primaryButtonText} />
+        </View>
+        <View style={styles.nextCopy}>
+          <Text style={[styles.nextEyebrow, { color: format.primaryButtonText }]}>{presentation.eyebrow}</Text>
+          <Text numberOfLines={2} style={[styles.nextTitle, { color: format.primaryButtonText }]}>{presentation.title}</Text>
+          <Text numberOfLines={2} style={[styles.nextDetail, { color: format.primaryButtonText }]}>{presentation.detail}</Text>
+        </View>
+        <MaterialIcons name="arrow-forward" size={23} color={format.primaryButtonText} />
+        </Pressable>
+        {showAttendanceShortcut ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Registrar asistencia"
+            onPress={onAttendance}
+            hitSlop={5}
+            style={[styles.nextAttendanceButton, { backgroundColor: ucapsaBrand.colors.goldPale }]}
+          >
+            <MaterialIcons name="photo-camera" size={20} color={ucapsaBrand.colors.goldDark} />
+          </Pressable>
+        ) : null}
       </View>
-      <View style={styles.nextCopy}>
-        <Text style={[styles.nextEyebrow, { color: format.primaryButtonText }]}>{presentation.eyebrow}</Text>
-        <Text numberOfLines={2} style={[styles.nextTitle, { color: format.primaryButtonText }]}>{presentation.title}</Text>
-        <Text numberOfLines={2} style={[styles.nextDetail, { color: format.primaryButtonText }]}>{presentation.detail}</Text>
+
+      {showRsvp ? (
+        <View style={[styles.rsvpRow, { borderTopColor: withAlpha(format.primaryButtonText, 0.18) }]}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Confirmar que voy a asistir"
+            disabled={rsvpSaving}
+            onPress={() => onRsvp?.('yes')}
+            style={[
+              styles.rsvpPrimary,
+              {
+                backgroundColor: rsvpResponse === 'yes'
+                  ? ucapsaBrand.colors.success
+                  : withAlpha(format.primaryButtonText, 0.14),
+              },
+            ]}
+          >
+            <MaterialIcons name={rsvpResponse === 'yes' ? 'check-circle' : 'event-available'} size={18} color={format.primaryButtonText} />
+            <Text style={[styles.rsvpPrimaryText, { color: format.primaryButtonText }]}>
+              {rsvpSaving ? 'Guardando...' : rsvpResponse === 'yes' ? 'Asistencia confirmada' : 'Voy a asistir'}
+            </Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Avisar que no podré asistir"
+            disabled={rsvpSaving}
+            onPress={() => onRsvp?.('no')}
+            style={[
+              styles.rsvpSecondary,
+              {
+                borderColor: withAlpha(format.primaryButtonText, 0.28),
+                backgroundColor: rsvpResponse === 'no'
+                  ? withAlpha(ucapsaBrand.colors.danger, 0.22)
+                  : 'transparent',
+              },
+            ]}
+          >
+            <MaterialIcons name={rsvpResponse === 'no' ? 'cancel' : 'event-busy'} size={17} color={format.primaryButtonText} />
+            <Text style={[styles.rsvpSecondaryText, { color: format.primaryButtonText }]}>
+              {rsvpResponse === 'no' ? 'No asistiré' : 'No podré ir'}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+export function ClassRsvpPrompt({
+  title,
+  detail,
+  format,
+  rsvpResponse,
+  rsvpSaving = false,
+  onOpen,
+  onRsvp,
+}: {
+  title: string;
+  detail: string;
+  format: ReturnType<typeof resolveUcapsaFormat>;
+  rsvpResponse: 'yes' | 'no' | null;
+  rsvpSaving?: boolean;
+  onOpen: () => void;
+  onRsvp: (response: 'yes' | 'no') => void;
+}) {
+  return (
+    <View style={[styles.rsvpPrompt, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
+      <Pressable accessibilityRole="button" onPress={onOpen} style={styles.rsvpPromptMain}>
+        <View style={[styles.rsvpPromptIcon, { backgroundColor: ucapsaBrand.colors.goldPale }]}>
+          <MaterialIcons name="event-available" size={22} color={ucapsaBrand.colors.goldDark} />
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={[styles.rsvpPromptEyebrow, { color: format.accentDark }]}>CLASE DE MAÑANA</Text>
+          <Text numberOfLines={1} style={[styles.rsvpPromptTitle, { color: format.cardText }]}>{title}</Text>
+          <Text numberOfLines={1} style={[styles.rsvpPromptDetail, { color: format.muted }]}>{detail}</Text>
+        </View>
+        <MaterialIcons name="chevron-right" size={22} color={format.accentDark} />
+      </Pressable>
+      <View style={[styles.rsvpPromptActions, { borderTopColor: format.border }]}>
+        <Pressable
+          disabled={rsvpSaving}
+          style={[
+            styles.rsvpPromptYes,
+            { backgroundColor: rsvpResponse === 'yes' ? ucapsaBrand.colors.success : ucapsaBrand.colors.greenSoft },
+          ]}
+          onPress={() => onRsvp('yes')}
+        >
+          <MaterialIcons name={rsvpResponse === 'yes' ? 'check-circle' : 'event-available'} size={18} color={rsvpResponse === 'yes' ? ucapsaBrand.colors.surface : ucapsaBrand.colors.greenDark} />
+          <Text style={[styles.rsvpPromptYesText, { color: rsvpResponse === 'yes' ? ucapsaBrand.colors.surface : ucapsaBrand.colors.greenDark }]}>
+            {rsvpSaving ? 'Guardando...' : rsvpResponse === 'yes' ? 'Asistencia confirmada' : 'Voy a asistir'}
+          </Text>
+        </Pressable>
+        <Pressable
+          disabled={rsvpSaving}
+          style={[
+            styles.rsvpPromptNo,
+            { borderColor: rsvpResponse === 'no' ? ucapsaBrand.colors.danger : format.cardBorder },
+          ]}
+          onPress={() => onRsvp('no')}
+        >
+          <MaterialIcons name="event-busy" size={17} color={rsvpResponse === 'no' ? ucapsaBrand.colors.danger : format.muted} />
+          <Text style={[styles.rsvpPromptNoText, { color: rsvpResponse === 'no' ? ucapsaBrand.colors.danger : format.muted }]}>
+            {rsvpResponse === 'no' ? 'No asistiré' : 'No podré ir'}
+          </Text>
+        </Pressable>
       </View>
-      <MaterialIcons name="arrow-forward" size={23} color={format.primaryButtonText} />
-    </Pressable>
+    </View>
   );
 }
 
@@ -50,6 +181,7 @@ export function ProgramCard({
   format,
   onPress,
   onPractice,
+  onAchievements,
 }: {
   snapshot: CustomerValueSnapshot;
   practice: PracticeActivitySnapshot | null;
@@ -57,6 +189,7 @@ export function ProgramCard({
   format: ReturnType<typeof resolveUcapsaFormat>;
   onPress: () => void;
   onPractice: () => void;
+  onAchievements: () => void;
 }) {
   const premium = format.key === 'member';
   const nextClass = snapshot.whatIsNext.nextClass ?? null;
@@ -82,23 +215,35 @@ export function ProgramCard({
 
   return (
     <View style={[styles.programCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
-      <Pressable accessibilityRole="button" onPress={onPress} style={styles.programMain}>
+      <View style={styles.programMain}>
         <View style={styles.programTop}>
-          <View style={[styles.programIcon, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft }]}>
-            <MaterialIcons
-              name={program ? 'school' : membership?.isValidToday ? 'workspace-premium' : 'pets'}
-              size={23}
-              color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark}
-            />
-          </View>
-          <View style={styles.programCopy}>
-            <Text style={[styles.programEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>
-              {program ? 'TU PROGRAMA' : membership?.isValidToday ? 'TU ACCESO' : 'TU RECORRIDO'}
-            </Text>
-            <Text numberOfLines={2} style={[styles.programTitle, { color: format.cardText }]}>{title}</Text>
-            <Text style={[styles.programMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{meta}</Text>
-          </View>
-          <MaterialIcons name="chevron-right" size={23} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+          <Pressable accessibilityRole="button" onPress={onPress} style={styles.programTopPressable}>
+            <View style={[styles.programIcon, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : ucapsaBrand.colors.goldPale }]}>
+              <MaterialIcons
+                name={program ? 'school' : membership?.isValidToday ? 'workspace-premium' : 'pets'}
+                size={23}
+                color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.goldDark}
+              />
+            </View>
+            <View style={styles.programCopy}>
+              <Text style={[styles.programEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>
+                {program ? 'TU PROGRAMA' : membership?.isValidToday ? 'TU ACCESO' : 'TU RECORRIDO'}
+              </Text>
+              <Text numberOfLines={2} style={[styles.programTitle, { color: format.cardText }]}>{title}</Text>
+              <Text style={[styles.programMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{meta}</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={23} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+          </Pressable>
+          {program ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Ver logros de ${program.dogName}`}
+              onPress={onAchievements}
+              style={[styles.programAchievementButton, { backgroundColor: ucapsaBrand.colors.purpleSoft }]}
+            >
+              <MaterialIcons name="military-tech" size={20} color={ucapsaBrand.colors.purpleDark} />
+            </Pressable>
+          ) : null}
         </View>
 
         {program && unlimited ? (
@@ -135,7 +280,7 @@ export function ProgramCard({
             </Text>
           </View>
         ) : null}
-      </Pressable>
+      </View>
 
       {program ? (
         <Pressable accessibilityRole="button" onPress={onPractice} style={[styles.practiceSummary, { borderTopColor: format.border }]}>

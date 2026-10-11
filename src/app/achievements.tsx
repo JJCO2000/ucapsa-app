@@ -4,7 +4,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
-import { AchievementBadgeGrid, AchievementDetailModal, AchievementSummary } from '../components/domain/AchievementBadgeGrid';
+import { AchievementBadgeGrid, AchievementDetailModal } from '../components/domain/AchievementBadgeGrid';
 import { ClientPageHeader } from '../components/layout/ClientPageHeader';
 import { KeyboardAwareScreen } from '../components/ui/KeyboardAwareScreen';
 import { resolveUcapsaFormat } from '../constants/ucapsaFormats';
@@ -118,15 +118,12 @@ export default function AchievementsScreen() {
     >
       <ClientPageHeader
         format={format}
-        eyebrow="Tu recorrido"
+        eyebrow="UCAPSA"
         title="Logros"
-        subtitle="Hitos reales que ya alcanzaste con tu perro en UCAPSA."
         icon="emoji-events"
         onBack={fromProfile ? backToProfile : undefined}
         backLabel="Volver a Perfil"
       />
-
-      {hasAchievements ? <AchievementSummary items={achievements} premium={premium} /> : null}
 
       {loading && !hasAchievements ? (
         <View style={styles.loadingBox}>
@@ -163,7 +160,6 @@ export default function AchievementsScreen() {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.activityBadgesTitle, premium && styles.activityBadgesTitlePremium]}>Insignias de actividad</Text>
-          <Text style={[styles.activityBadgesText, premium && styles.activityBadgesTextPremium]}>Asistencias, prácticas, visitas y rachas. Tus 4 medallas principales no cambian.</Text>
         </View>
         <MaterialCommunityIcons name="chevron-right" size={24} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.red} />
       </Pressable>

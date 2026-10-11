@@ -100,17 +100,18 @@ export default function AdminCustomerScreen() {
 
           <Text style={styles.sectionTitle}>Informacion</Text>
           <View style={styles.card}>
-            <MenuRow icon="person" title="Datos" subtitle="Nombre, contacto y perfil" section="profile" userId={userId} />
-            <MenuRow icon="badge" title="Membresia" subtitle="Estado, vigencia, numero y visitas" section="membership" userId={userId} />
-            <MenuRow icon="school" title="Clases" subtitle="Programas, nivel, horario y tarjeta" section="classes" userId={userId} />
-            <MenuRow icon="fact-check" title="Asistencias" subtitle="Historial real de clases" section="attendance" userId={userId} />
+            <MenuRow icon="person" tone="blue" title="Datos" subtitle="Nombre, contacto y perfil" section="profile" userId={userId} />
+            <MenuRow icon="badge" tone="purple" title="Membresía" subtitle="Estado, vigencia, número y visitas" section="membership" userId={userId} />
+            <MenuRow icon="school" tone="yellow" title="Clases" subtitle="Programas, nivel, horario y tarjeta" section="classes" userId={userId} />
+            <MenuRow icon="fact-check" tone="green" title="Asistencias" subtitle="Historial real de clases" section="attendance" userId={userId} />
             <DirectMenuRow
               icon="emoji-events"
+              tone="purple"
               title="Logros"
               subtitle="Reconocimientos y completados"
               onPress={() => router.push(`/admin/customer-achievements?userId=${encodeURIComponent(userId)}` as never)}
             />
-            <MenuRow icon="payments" title="Pagos" subtitle="Obligaciones, pagos y saldo" section="payments" userId={userId} last />
+            <MenuRow icon="payments" tone="red" title="Pagos" subtitle="Obligaciones, pagos y saldo" section="payments" userId={userId} last />
           </View>
         </>
       ) : null}
@@ -122,20 +123,32 @@ function Metric({ label, value, small = false }: { label: string; value: string;
   return <View style={styles.metric}><Text style={[styles.metricValue, small && styles.metricValueSmall]} numberOfLines={1}>{value}</Text><Text style={styles.metricLabel}>{label}</Text></View>;
 }
 
-function DirectMenuRow({ icon, title, subtitle, onPress }: { icon: keyof typeof MaterialIcons.glyphMap; title: string; subtitle: string; onPress: () => void }) {
+type MenuTone = 'red' | 'blue' | 'green' | 'yellow' | 'purple';
+
+function menuTone(tone: MenuTone) {
+  if (tone === 'blue') return { bg: ucapsaBrand.colors.blueSoft, fg: ucapsaBrand.colors.blueDark };
+  if (tone === 'green') return { bg: ucapsaBrand.colors.greenSoft, fg: ucapsaBrand.colors.greenDark };
+  if (tone === 'yellow') return { bg: ucapsaBrand.colors.goldPale, fg: ucapsaBrand.colors.goldDark };
+  if (tone === 'purple') return { bg: ucapsaBrand.colors.purpleSoft, fg: ucapsaBrand.colors.purpleDark };
+  return { bg: ucapsaBrand.colors.redSoft, fg: ucapsaBrand.colors.redDark };
+}
+
+function DirectMenuRow({ icon, tone = 'red', title, subtitle, onPress }: { icon: keyof typeof MaterialIcons.glyphMap; tone?: MenuTone; title: string; subtitle: string; onPress: () => void }) {
+  const palette = menuTone(tone);
   return (
     <Pressable style={styles.row} onPress={onPress}>
-      <View style={styles.iconBox}><MaterialIcons name={icon} size={21} color={ucapsaBrand.colors.redDark} /></View>
+      <View style={[styles.iconBox, { backgroundColor: palette.bg }]}><MaterialIcons name={icon} size={21} color={palette.fg} /></View>
       <View style={{ flex: 1 }}><Text style={styles.rowTitle}>{title}</Text><Text style={styles.rowSubtitle}>{subtitle}</Text></View>
       <MaterialIcons name="chevron-right" size={24} color={ucapsaBrand.colors.redDark} />
     </Pressable>
   );
 }
 
-function MenuRow({ icon, title, subtitle, section, userId, last = false }: { icon: keyof typeof MaterialIcons.glyphMap; title: string; subtitle: string; section: string; userId: string; last?: boolean }) {
+function MenuRow({ icon, tone = 'red', title, subtitle, section, userId, last = false }: { icon: keyof typeof MaterialIcons.glyphMap; tone?: MenuTone; title: string; subtitle: string; section: string; userId: string; last?: boolean }) {
+  const palette = menuTone(tone);
   return (
     <Pressable style={[styles.row, last && styles.rowLast]} onPress={() => router.push(`/admin/customer-section?userId=${encodeURIComponent(userId)}&section=${section}` as never)}>
-      <View style={styles.iconBox}><MaterialIcons name={icon} size={21} color={ucapsaBrand.colors.redDark} /></View>
+      <View style={[styles.iconBox, { backgroundColor: palette.bg }]}><MaterialIcons name={icon} size={21} color={palette.fg} /></View>
       <View style={{ flex: 1 }}><Text style={styles.rowTitle}>{title}</Text><Text style={styles.rowSubtitle}>{subtitle}</Text></View>
       <MaterialIcons name="chevron-right" size={24} color={ucapsaBrand.colors.redDark} />
     </Pressable>

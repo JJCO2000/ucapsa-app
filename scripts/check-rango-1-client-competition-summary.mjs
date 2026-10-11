@@ -24,8 +24,11 @@ const homeCards = read('src/screens/home/HomeCards.tsx');
 const warm = read('src/services/client-offline-sync.service.ts');
 const pkg = read('package.json');
 
-if (/Detalle competitivo|competition-dog\?dogId=|router\.push\('\/client\/competition'/.test(dog)) {
-  failures.push('Mis perros volvió a absorber Competencia; debe vivir en Inicio/Competencia.');
+if (/Detalle competitivo|competition-dog\?dogId=/.test(dog)) {
+  failures.push('Mis perros volvió a absorber el detalle de Competencia; debe vivir en las pantallas de Competencia.');
+}
+if (!/accessibilityLabel=["'`]Abrir ranking["'`]/.test(dog) || !/router\.push\('\/client\/competition'/.test(dog)) {
+  failures.push('Mi perro perdió el acceso compacto al Ranking.');
 }
 if (!/name=["']competition["']/.test(layout) || !/name=["']competition-dog["']/.test(layout)) {
   failures.push('Client layout no registra Competencia de cuenta y detalle por perro.');
@@ -92,11 +95,11 @@ if (/constancy_percentile/.test(dogDetail) || /Percentil desde la cima/.test(dog
   failures.push('El percentil exacto pertenece al detalle de Constancia, no al resumen por perro.');
 }
 
-if (!/CompetitionHomeCard/.test(home) || !/router\.push\('\/client\/competition'/.test(home)) {
-  failures.push('Inicio perdió el acceso contextual a Competencia de cuenta.');
+if (!/accessibilityLabel=["'`]Abrir ranking["'`]/.test(home) || !/router\.push\('\/client\/competition'/.test(home)) {
+  failures.push('Inicio perdió el acceso compacto a Competencia de cuenta.');
 }
-if (!/RANKING UCAPSA/.test(homeCards) || !/rankingPosition/.test(homeCards)) {
-  failures.push('Tarjeta de Inicio perdió el resumen/entrada de Ranking.');
+if (!/CompetitionHomeCard/.test(homeCards) || !/rankingPosition/.test(homeCards)) {
+  failures.push('Componente de resumen de Ranking perdió su contrato de datos reutilizable.');
 }
 
 for (const token of [

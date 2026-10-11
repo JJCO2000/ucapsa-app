@@ -201,6 +201,19 @@ export default function CustomerClassScreen() {
               <>
                 <Pressable style={styles.primary} onPress={() => setEditing(true)}><Text style={styles.primaryText}>Editar clase</Text></Pressable>
                 <Pressable style={styles.secondary} onPress={() => router.push(`/admin/customer-attendance?userId=${encodeURIComponent(userId)}&enrollmentId=${encodeURIComponent(row.enrollment.id)}` as never)}><Text style={styles.secondaryText}>Administrar asistencias</Text></Pressable>
+                {row.enrollment.dog_id ? (
+                  <Pressable
+                    style={styles.staffNotesAction}
+                    onPress={() => router.push(`/staff/dog-notes?dogId=${encodeURIComponent(row.enrollment.dog_id ?? '')}&dogName=${encodeURIComponent(getProgramEnrollmentDogName(row))}` as never)}
+                  >
+                    <MaterialIcons name="description" size={19} color={ucapsaBrand.colors.blueDark} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.staffNotesTitle}>Historial interno del perro</Text>
+                      <Text style={styles.staffNotesText}>Conducta, incidentes y contexto útil para el equipo.</Text>
+                    </View>
+                    <MaterialIcons name="chevron-right" size={21} color={ucapsaBrand.colors.blueDark} />
+                  </Pressable>
+                ) : null}
               </>
             )}
           </View>
@@ -278,6 +291,9 @@ const styles = StyleSheet.create({
   primaryText: { color: ucapsaBrand.colors.surface, fontSize: 14, fontWeight: '900' },
   secondary: { borderRadius: 15, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, alignItems: 'center', paddingVertical: 13 },
   secondaryText: { color: ucapsaBrand.colors.redDark, fontSize: 14, fontWeight: '900' },
+  staffNotesAction: { minHeight: 60, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 15, borderWidth: 1, borderColor: ucapsaBrand.colors.blue, backgroundColor: ucapsaBrand.colors.blueSoft, padding: 11 },
+  staffNotesTitle: { color: ucapsaBrand.colors.blueDark, fontSize: 12, fontWeight: '900' },
+  staffNotesText: { color: ucapsaBrand.colors.blueDark, fontSize: 9, lineHeight: 13, fontWeight: '700', marginTop: 2 },
   statusAction: { marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 13 },
   statusActionTitle: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
   modalKicker: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },

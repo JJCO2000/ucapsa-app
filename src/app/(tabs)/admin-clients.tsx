@@ -3,6 +3,7 @@ import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-rou
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { AdminStatusPill } from '../../components/admin/AdminStatusPill';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
@@ -174,7 +175,14 @@ export default function AdminClientsTab() {
                 <Text style={styles.meta}>{profile.email || profile.phone || 'Sin contacto'}</Text>
                 {(dogNamesByUser[profile.user_id] ?? []).length > 0 ? <Text style={styles.dogs}>Perros: {(dogNamesByUser[profile.user_id] ?? []).join(', ')}</Text> : null}
                 {needsFollowup ? <Text style={styles.followupText}>Seguimiento: {followupDogs.join(', ')}</Text> : null}
-                <Text style={styles.role}>{labelForRole(profile.role)}</Text>
+                <View style={styles.clientStatusRow}>
+                  <AdminStatusPill
+                    label={labelForRole(profile.role)}
+                    tone={profile.role === 'member' ? 'purple' : 'info'}
+                    icon={profile.role === 'member' ? 'workspace-premium' : 'person'}
+                  />
+                  {needsFollowup ? <AdminStatusPill label="Requiere seguimiento" tone="danger" icon="priority-high" /> : null}
+                </View>
               </View>
               <MaterialIcons name="chevron-right" size={24} color={needsFollowup ? ucapsaBrand.colors.danger : ucapsaBrand.colors.redDark} />
             </Pressable>
@@ -256,5 +264,5 @@ const styles = StyleSheet.create({
   meta: { color: ucapsaBrand.colors.muted, fontSize: 12, marginTop: 2 },
   dogs: { color: ucapsaBrand.colors.text, fontSize: 11, fontWeight: '800', marginTop: 3 },
   followupText: { color: ucapsaBrand.colors.danger, fontSize: 11, lineHeight: 16, fontWeight: '900', marginTop: 3 },
-  role: { color: ucapsaBrand.colors.redDark, fontSize: 11, fontWeight: '900', marginTop: 3 },
+  clientStatusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 7 },
 });

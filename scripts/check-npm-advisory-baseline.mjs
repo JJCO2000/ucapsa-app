@@ -4,8 +4,6 @@ import { spawnSync } from 'node:child_process';
 const allowedAdvisories = new Set([
   'GHSA-W3RX-R6R6-PGPR', // image-size: ICNS parser DoS; no published patched release yet
   'GHSA-5P2G-FCMC-QVQQ', // image-size: JXL/HEIF parser DoS; no published patched release yet
-  'GHSA-VCC3-GHJQ-M6FR', // decode-uri-component DoS; safe remediation depends on upstream chain
-  'GHSA-W5HQ-G745-H8PQ', // uuid bounds check; transitive build-tool chain
   'GHSA-VFJ7-8CJW-P6XM', // braces <=3.0.3; no patched release as of 2026-10-05; constrained to Metro glob tooling
   'GHSA-86W9-CPQP-85RV', // node-forge 1.4.0 follow-up; no published patched npm version; constrained to Expo code-signing certificates
 ]);
@@ -13,9 +11,9 @@ const allowedAdvisories = new Set([
 const baselineMaximums = {
   critical: 0,
   high: 21,
-  moderate: 12,
+  moderate: 0,
   low: 0,
-  total: 33,
+  total: 21,
 };
 
 const result = spawnSync('npm', ['audit', '--omit=dev', '--json'], {
@@ -54,18 +52,29 @@ function directDependentsOf(packageName) {
 const reviewedNoFixBoundaries = {
   braces: {
     version: '3.0.3',
+    reviewBy: '2026-11-15',
     allowedDependents: ['node_modules/micromatch'],
   },
   'node-forge': {
     version: '1.4.0',
+    reviewBy: '2026-11-15',
     allowedDependents: [
       'node_modules/@expo/code-signing-certificates',
       'node_modules/expo/node_modules/@expo/cli',
     ],
   },
+  'image-size': {
+    version: '1.2.1',
+    reviewBy: '2026-11-15',
+    allowedDependents: ['node_modules/metro'],
+  },
 };
 
 for (const [packageName, boundary] of Object.entries(reviewedNoFixBoundaries)) {
+  const reviewDeadline = new Date(boundary.reviewBy + 'T23:59:59Z');
+  if (Number.isNaN(reviewDeadline.getTime()) || Date.now() > reviewDeadline.getTime()) {
+    throw new Error(`Reviewed no-fix boundary expired for ${packageName}: ${boundary.reviewBy}.`);
+  }
   const installed = lock.packages?.[`node_modules/${packageName}`]?.version ?? null;
   if (installed !== boundary.version) {
     throw new Error(
