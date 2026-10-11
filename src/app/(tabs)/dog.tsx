@@ -499,10 +499,10 @@ export default function DogTab() {
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel="Abrir ranking"
-                    style={[styles.pencilButton, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}
+                    style={[styles.pencilButton, { backgroundColor: premium ? format.secondaryButton : ucapsaBrand.colors.purpleSoft, borderColor: premium ? format.cardBorder : ucapsaBrand.colors.purple }]}
                     onPress={() => router.push('/client/competition' as never)}
                   >
-                    <MaterialIcons name="leaderboard" size={20} color={ucapsaBrand.colors.purpleDark} />
+                    <MaterialIcons name="leaderboard" size={20} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.purpleDark} />
                   </Pressable>
                 </View>
               </View>
