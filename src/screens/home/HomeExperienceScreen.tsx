@@ -17,7 +17,7 @@ import {
   refreshCompetitionHomeSummary,
   type ClientCompetitionHomeSummary,
 } from '../../services/client-competition-home.service';
-import { getMyClassRsvp, setMyClassRsvp, type ClassRsvpResponse } from '../../services/class-rsvp.service';
+import { getMyClassRsvp, setMyClassRsvp, tomorrowDateKey, type ClassRsvpResponse } from '../../services/class-rsvp.service';
 import { readCustomerValueSnapshotCache, writeCustomerValueSnapshotCache } from '../../services/customer-value-cache.service';
 import { mergeCustomerValueSnapshotWithCache } from '../../services/customer-value-merge.service';
 import {
@@ -36,7 +36,7 @@ import {
 import { getCachedMyPracticeActivity, getMyPracticeActivity, type PracticeActivitySnapshot } from '../../services/practice.service';
 import type { Announcement } from '../../types/app.types';
 import { DEFAULT_READ_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
-import { ActivityCard, CompetitionHomeCard, ContextNotice, ContextStrip, NextActionCard, ProgramCard } from './HomeCards';
+import { ActivityCard, ClassRsvpPrompt, CompetitionHomeCard, ContextNotice, ContextStrip, NextActionCard, ProgramCard } from './HomeCards';
 import {
   firstName,
   formatDate,
@@ -211,8 +211,10 @@ export default function HomeExperienceScreen() {
     : 'Todo el recorrido de tu perro en un solo lugar';
   const profileComplete = Boolean((profile?.full_name ?? '').trim() && (profile?.phone ?? '').trim());
   const nextAction = snapshot ? getCustomerValuePrimaryNextAction(snapshot) : null;
-  const nextClassEnrollmentId = nextAction?.kind === 'class' ? nextAction.enrollmentId : null;
-  const nextClassDate = nextAction?.kind === 'class' ? nextAction.dateKey : null;
+  const rsvpClass = snapshot?.whatIsNext.nextClass ?? null;
+  const nextClassEnrollmentId = rsvpClass?.enrollmentId ?? null;
+  const nextClassDate = rsvpClass?.dateKey ?? null;
+  const classIsTomorrow = Boolean(nextClassDate && nextClassDate === tomorrowDateKey());
   const recentAchievement = newestRecentAchievement(snapshot);
   const homeNotice = announcements[0] ?? null;
   const practiceGoal = getPracticeGoalProgress((practice?.entries ?? []).map((entry) => entry.completedAt), targetDays);
@@ -387,7 +389,19 @@ export default function HomeExperienceScreen() {
           onPress={() => openNext(nextAction)}
           rsvpResponse={classRsvp}
           rsvpSaving={classRsvpSaving}
-          onRsvp={nextAction.kind === 'class' ? (response) => void handleClassRsvp(response) : undefined}
+          onRsvp={nextAction.kind === 'class' && classIsTomorrow ? (response) => void handleClassRsvp(response) : undefined}
+        />
+      ) : null}
+
+      {!loading && user && snapshot && rsvpClass && classIsTomorrow && nextAction?.kind !== 'class' ? (
+        <ClassRsvpPrompt
+          title={`${rsvpClass.programName} · ${rsvpClass.dogName}`}
+          detail={`${rsvpClass.startTime} · ${rsvpClass.scheduleName}`}
+          format={format}
+          rsvpResponse={classRsvp}
+          rsvpSaving={classRsvpSaving}
+          onOpen={() => router.push(`/client/class-detail?enrollmentId=${encodeURIComponent(rsvpClass.enrollmentId)}` as never)}
+          onRsvp={(response) => void handleClassRsvp(response)}
         />
       ) : null}
 
