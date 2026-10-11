@@ -367,7 +367,8 @@ for (const token of [
   "value === null ? 'Sin datos'",
   'attendanceRate: markedOutcomes > 0 ? attended / markedOutcomes : null',
   'markCoverageRate: rows.length > 0 ? markedOutcomes / rows.length : null',
-  'confirmedAttendanceRate: confirmed > 0 ? confirmedAttended / confirmed : null',
+  'confirmedAttendanceRate: confirmedMarked > 0 ? confirmedAttended / confirmedMarked : null',
+  'Confirmados con asistencia registrada',
   'item.attended / (item.attended + item.absent) : null',
   'formatTrainingPercentage(item.attendanceRate)',
 ]) {
