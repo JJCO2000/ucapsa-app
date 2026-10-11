@@ -10,12 +10,14 @@ import { useSession } from '../../hooks/useSession';
 import {
   createTrainerExamAttempt,
   createTrainerExamDraft,
+  getStaffExamDrafts,
   getTrainerExamCatalog,
   getTrainerExamDogs,
   getTrainerExamItems,
   uploadTrainerExamResults,
   type TrainerExamCatalogRow,
   type TrainerExamDog,
+  type TrainerExamDraftRow,
 } from '../../services/trainer-staff.service';
 import {
   pickAndParseUcapsaExamDefinitionXlsx,
@@ -26,6 +28,7 @@ import {
 export default function TrainerExamsTab() {
   const { isAdmin, capabilities } = useSession();
   const [exams, setExams] = useState<TrainerExamCatalogRow[]>([]);
+  const [drafts, setDrafts] = useState<TrainerExamDraftRow[]>([]);
   const [dogs, setDogs] = useState<TrainerExamDog[]>([]);
   const [selectedExam, setSelectedExam] = useState<TrainerExamCatalogRow | null>(null);
   const [dogQuery, setDogQuery] = useState('');
@@ -44,11 +47,13 @@ export default function TrainerExamsTab() {
     if (!capabilities.canUseTrainingWorkspace) return;
     setError(null);
     try {
-      const [examRows, dogRows] = await Promise.all([
+      const [examRows, draftRows, dogRows] = await Promise.all([
         getTrainerExamCatalog(),
+        getStaffExamDrafts(),
         getTrainerExamDogs(),
       ]);
       setExams(examRows);
+      setDrafts(draftRows);
       setDogs(dogRows);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No se pudieron cargar los exámenes.');
@@ -169,6 +174,7 @@ export default function TrainerExamsTab() {
       });
       setUploadOpen(false);
       resetDraftUpload();
+      await load();
       Alert.alert(
         'Examen cargado',
         'Quedó guardado como borrador. Administración conserva la publicación y la oficialidad.',
@@ -197,6 +203,33 @@ export default function TrainerExamsTab() {
           <Text style={styles.newExamButtonText}>Subir examen</Text>
         </Pressable>
       </View>
+
+      {drafts.length > 0 ? (
+        <View style={styles.draftsSection}>
+          <Text style={styles.sectionKicker}>BORRADORES</Text>
+          <Text style={styles.sectionTitle}>Pendientes de Administración</Text>
+          <View style={styles.draftList}>
+            {drafts.map((draft) => (
+              <View key={draft.examId} style={styles.draftCard}>
+                <View style={styles.draftIcon}>
+                  <MaterialIcons name="pending-actions" size={19} color={ucapsaBrand.colors.goldDark} />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.draftCode}>{draft.examCode}</Text>
+                  <Text style={styles.draftTitle}>{draft.examTitle}</Text>
+                  <Text style={styles.draftMeta}>
+                    {draft.seasonName} · {draft.itemCount} ejercicios · {draft.maxPoints} pts
+                    {draft.examDate ? ` · ${draft.examDate}` : ''}
+                  </Text>
+                </View>
+                <View style={styles.pendingPill}>
+                  <Text style={styles.pendingPillText}>Borrador</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : null}
 
       {loading ? (
         <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando exámenes…</Text></View>
@@ -357,6 +390,17 @@ const styles = StyleSheet.create({
   subtitle: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 3 },
   newExamButton: { alignSelf: 'flex-start', minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, backgroundColor: ucapsaBrand.colors.greenDark, paddingHorizontal: 11, marginTop: 10 },
   newExamButtonText: { color: ucapsaBrand.colors.surface, fontSize: 10, fontWeight: '900' },
+  draftsSection: { marginBottom: 16 },
+  sectionKicker: { color: ucapsaBrand.colors.goldDark, fontSize: 9, fontWeight: '900', letterSpacing: 0.7 },
+  sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 17, fontWeight: '900', marginTop: 1, marginBottom: 8 },
+  draftList: { gap: 7 },
+  draftCard: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.gold, backgroundColor: ucapsaBrand.colors.goldPale, padding: 10 },
+  draftIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.surface },
+  draftCode: { color: ucapsaBrand.colors.goldDark, fontSize: 8, fontWeight: '900', letterSpacing: 0.5 },
+  draftTitle: { color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '900', marginTop: 1 },
+  draftMeta: { color: ucapsaBrand.colors.muted, fontSize: 9, lineHeight: 13, fontWeight: '700', marginTop: 2 },
+  pendingPill: { borderRadius: 999, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 8, paddingVertical: 5 },
+  pendingPillText: { color: ucapsaBrand.colors.goldDark, fontSize: 8, fontWeight: '900' },
   loading: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12 },
   muted: { color: ucapsaBrand.colors.muted, fontSize: 11, fontWeight: '700' },
   errorCard: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 16, backgroundColor: ucapsaBrand.colors.dangerSoft, borderWidth: 1, borderColor: ucapsaBrand.colors.dangerBorder, padding: 12 },
