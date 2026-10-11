@@ -6,6 +6,7 @@ import { Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'reac
 
 import { DogAvatar } from '../../components/domain/DogAvatar';
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
+import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
