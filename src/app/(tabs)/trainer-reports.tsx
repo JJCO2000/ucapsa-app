@@ -29,7 +29,7 @@ function validDate(value: string) {
 }
 
 export default function TrainerReportsTab() {
-  const { isTrainer, isStaff, isAdmin } = useSession();
+  const { isStaff, isAdmin } = useSession();
   const month = useMemo(currentMonthRange, []);
   const [fromDate, setFromDate] = useState(month.from);
   const [toDate, setToDate] = useState(month.to);
