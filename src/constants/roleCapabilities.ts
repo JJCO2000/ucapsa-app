@@ -8,6 +8,7 @@ export type UcapsaCapabilities = {
   canManageClassRoster: boolean;
   canRecordAttendance: boolean;
   canUploadExamDefinition: boolean;
+  canPublishExamDefinition: boolean;
   canCaptureExamResults: boolean;
   canUploadExamResults: boolean;
   canViewOperationalDogData: boolean;
@@ -34,6 +35,7 @@ const CUSTOMER: UcapsaCapabilities = {
   canManageClassRoster: false,
   canRecordAttendance: false,
   canUploadExamDefinition: false,
+  canPublishExamDefinition: false,
   canCaptureExamResults: false,
   canUploadExamResults: false,
   canViewOperationalDogData: false,
@@ -60,6 +62,7 @@ const TRAINER: UcapsaCapabilities = {
   canManageClassRoster: true,
   canRecordAttendance: true,
   canUploadExamDefinition: true,
+  canPublishExamDefinition: true,
   canCaptureExamResults: true,
   canUploadExamResults: true,
   canViewOperationalDogData: true,
