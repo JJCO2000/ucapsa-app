@@ -3,10 +3,14 @@ import type { AppRole } from '../types/app.types';
 export type UcapsaCapabilities = {
   isCustomer: boolean;
   isStaff: boolean;
+  canUseTrainingWorkspace: boolean;
+  canSwitchStaffWorkspace: boolean;
   canManageClassRoster: boolean;
   canRecordAttendance: boolean;
+  canUploadExamDefinition: boolean;
   canCaptureExamResults: boolean;
   canUploadExamResults: boolean;
+  canViewOperationalDogData: boolean;
   canViewInternalDogNotes: boolean;
   canEditInternalDogNotes: boolean;
   canRequestMembershipReview: boolean;
@@ -25,10 +29,14 @@ export type UcapsaCapabilities = {
 const CUSTOMER: UcapsaCapabilities = {
   isCustomer: true,
   isStaff: false,
+  canUseTrainingWorkspace: false,
+  canSwitchStaffWorkspace: false,
   canManageClassRoster: false,
   canRecordAttendance: false,
+  canUploadExamDefinition: false,
   canCaptureExamResults: false,
   canUploadExamResults: false,
+  canViewOperationalDogData: false,
   canViewInternalDogNotes: false,
   canEditInternalDogNotes: false,
   canRequestMembershipReview: false,
@@ -48,10 +56,13 @@ const TRAINER: UcapsaCapabilities = {
   ...CUSTOMER,
   isCustomer: false,
   isStaff: true,
+  canUseTrainingWorkspace: true,
   canManageClassRoster: true,
   canRecordAttendance: true,
+  canUploadExamDefinition: true,
   canCaptureExamResults: true,
   canUploadExamResults: true,
+  canViewOperationalDogData: true,
   canViewInternalDogNotes: true,
   canEditInternalDogNotes: true,
   canRequestMembershipReview: true,
@@ -60,6 +71,7 @@ const TRAINER: UcapsaCapabilities = {
 
 const ADMIN: UcapsaCapabilities = {
   ...TRAINER,
+  canSwitchStaffWorkspace: true,
   canManageCustomers: true,
   canManageMemberships: true,
   canManagePayments: true,
