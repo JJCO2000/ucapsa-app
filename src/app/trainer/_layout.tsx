@@ -22,6 +22,8 @@ export default function TrainerStackLayout() {
       <Stack.Screen name="roster" options={{ title: 'Clase' }} />
       <Stack.Screen name="dog" options={{ title: 'Perro' }} />
       <Stack.Screen name="exam-attempt" options={{ title: 'Evaluación' }} />
+      <Stack.Screen name="exam-upload" options={{ title: 'Subir examen' }} />
+      <Stack.Screen name="exam-results-import" options={{ title: 'Subir calificaciones' }} />
     </Stack>
   );
 }
