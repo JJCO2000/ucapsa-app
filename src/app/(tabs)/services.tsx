@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Redirect, router, useFocusEffect } from 'expo-router';
+import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
@@ -11,6 +11,7 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { SocialLinksRow } from '../../components/ui/SocialLinksRow';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
+import { useReturnToProfile } from '../../hooks/useReturnToProfile';
 import { useSession } from '../../hooks/useSession';
 import { clientReadKeys, createMembershipOfflineSummary, readClientResource, writeClientResource, type MembershipOfflineSummary } from '../../services/client-read-cache.service';
 import { getMembershipEffectiveStatus, getMyMembership, type MembershipEffectiveStatus } from '../../services/memberships.service';
@@ -27,6 +28,9 @@ async function openExternal(url: string) {
 }
 
 export default function ServicesTab() {
+  const { from } = useLocalSearchParams<{ from?: string | string[] }>();
+  const fromProfile = (Array.isArray(from) ? from[0] : from) === 'profile';
+  const backToProfile = useReturnToProfile(fromProfile);
   const { user, role, isAdmin } = useSession();
   const [membershipStatus, setMembershipStatus] = useState<MembershipEffectiveStatus | null>(null);
   const [loading, setLoading] = useState(Boolean(user));
@@ -166,7 +170,7 @@ export default function ServicesTab() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={format.accent} />}
     >
       <UcapsaAmbientBackground format={format} variant="services" />
-      <CompactServicesHeader premium={premium} accent={format.accent} muted={format.muted} />
+      <CompactServicesHeader premium={premium} accent={format.accent} muted={format.muted} onBack={fromProfile ? backToProfile : undefined} />
 
       {usingSavedData ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} /> : null}
 
@@ -228,9 +232,14 @@ export default function ServicesTab() {
   );
 }
 
-function CompactServicesHeader({ premium, accent, muted }: { premium: boolean; accent: string; muted: string }) {
+function CompactServicesHeader({ premium, accent, muted, onBack }: { premium: boolean; accent: string; muted: string; onBack?: () => void }) {
   return (
     <View style={styles.compactHeader}>
+      {onBack ? (
+        <Pressable accessibilityRole="button" accessibilityLabel="Volver a Perfil" style={styles.compactBackButton} onPress={onBack}>
+          <MaterialIcons name="arrow-back" size={22} color={accent} />
+        </Pressable>
+      ) : null}
       <View style={[styles.compactHeaderIcon, premium && styles.compactHeaderIconPremium]}>
         <MaterialIcons name="grid-view" size={22} color={accent} />
       </View>
@@ -349,7 +358,8 @@ function GuestServiceCard({ icon, title, subtitle, onPress }: {
 const styles = StyleSheet.create({
   screenContent: { position: 'relative' },
   premiumContent: { backgroundColor: ucapsaBrand.colors.premiumBackground },
-  compactHeader: { flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 14 },
+  compactBackButton: { width: 44, height: 44, borderRadius: 15, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, alignItems: 'center', justifyContent: 'center' },
+    compactHeader: { flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 14 },
   compactHeaderIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder },
   compactHeaderIconPremium: { backgroundColor: ucapsaBrand.colors.premiumSurfaceAlt, borderColor: ucapsaBrand.colors.premiumBorder },
   compactHeaderCopy: { flex: 1, minWidth: 0 },
