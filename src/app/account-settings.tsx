@@ -252,15 +252,13 @@ export default function AccountSettingsScreen() {
               onPress={() => router.push('/dog' as never)}
             />
           ) : null}
-          {!isTrainer ? (
-            <SettingsButton
-              icon="notifications-none"
-              title="Notificaciones"
-              subtitle="Clases, membresía, anuncios y logros."
-              premium={premium}
-              onPress={() => openSection('notifications')}
-            />
-          ) : null}
+          <SettingsButton
+            icon="notifications-none"
+            title="Notificaciones"
+            subtitle={isTrainer ? 'Resumen de clases y aforo esperado.' : 'Clases, membresía, anuncios y logros.'}
+            premium={premium}
+            onPress={() => openSection('notifications')}
+          />
           <SettingsButton
             icon="policy"
             title="Aviso de privacidad"
@@ -307,7 +305,7 @@ export default function AccountSettingsScreen() {
 
       {section === 'notifications' ? (
         <View style={styles.notificationSection}>
-          <NotificationSettingsCard premium={premium} />
+          <NotificationSettingsCard premium={premium} mode={isTrainer ? 'trainer' : 'client'} />
           {isAdmin ? (
             <Pressable style={[styles.adminNoticeButton, premium && styles.adminNoticeButtonPremium]} onPress={() => router.push('/admin/notifications' as never)}>
               <MaterialIcons name="send" size={22} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.redDark} />
@@ -391,8 +389,7 @@ export default function AccountSettingsScreen() {
 }
 
 function normalizeSection(value: string | undefined, isAdmin: boolean, isTrainer: boolean): SettingsSection | null {
-  if (value === 'profile') return value;
-  if (value === 'notifications' && !isTrainer) return value;
+  if (value === 'profile' || value === 'notifications') return value;
   if (value === 'delete' && !isAdmin && !isTrainer) return value;
   return null;
 }
