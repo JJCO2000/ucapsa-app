@@ -287,20 +287,6 @@ export default function HomeExperienceScreen() {
               >
                 <MaterialIcons name="emoji-events" size={18} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
               </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Registrar asistencia"
-                onPress={() => router.push('/attendance' as never)}
-                style={[
-                  styles.headerQuickAction,
-                  {
-                    borderColor: premium ? ucapsaBrand.colors.premiumBorderStrong : format.border,
-                    backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft,
-                  },
-                ]}
-              >
-                <MaterialIcons name="photo-camera" size={18} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-              </Pressable>
             </>
           ) : null}
           <Pressable
@@ -363,7 +349,13 @@ export default function HomeExperienceScreen() {
       ) : null}
 
       {!loading && user && snapshot && nextAction ? (
-        <NextActionCard snapshot={snapshot} action={nextAction} format={format} onPress={() => openNext(nextAction)} />
+        <NextActionCard
+          snapshot={snapshot}
+          action={nextAction}
+          format={format}
+          onPress={() => openNext(nextAction)}
+          onAttendance={() => router.push('/attendance' as never)}
+        />
       ) : null}
 
       {!loading && user && snapshot ? (
