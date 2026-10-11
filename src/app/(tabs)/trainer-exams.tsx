@@ -14,6 +14,7 @@ import {
   getTrainerExamCatalog,
   getTrainerExamDogs,
   getTrainerExamItems,
+  publishTrainerExam,
   uploadTrainerExamResults,
   type TrainerExamCatalogRow,
   type TrainerExamDog,
@@ -177,10 +178,39 @@ export default function TrainerExamsTab() {
       await load();
       Alert.alert(
         'Examen cargado',
-        'Quedó guardado como borrador. Administración conserva la publicación y la oficialidad.',
+        'Quedó guardado como borrador. Puedes publicarlo desde esta misma pantalla.',
       );
     } catch (cause) {
       Alert.alert('No se pudo cargar el examen', cause instanceof Error ? cause.message : 'Revisa los datos e intenta de nuevo.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function confirmPublishDraft(draft: TrainerExamDraftRow) {
+    if (saving || !capabilities.canPublishExamDefinition) return;
+    Alert.alert(
+      'Publicar examen',
+      'Al publicarlo, la estructura del examen queda congelada. Podrás capturar y subir calificaciones después.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Publicar',
+          onPress: () => void runPublishDraft(draft),
+        },
+      ],
+    );
+  }
+
+  async function runPublishDraft(draft: TrainerExamDraftRow) {
+    if (saving || !capabilities.canPublishExamDefinition) return;
+    try {
+      setSaving(true);
+      await publishTrainerExam(draft.examId);
+      await load();
+      Alert.alert('Examen publicado', `${draft.examTitle} ya está disponible para evaluación.`);
+    } catch (cause) {
+      Alert.alert('No se pudo publicar', cause instanceof Error ? cause.message : 'Revisa el examen e intenta de nuevo.');
     } finally {
       setSaving(false);
     }
@@ -193,7 +223,7 @@ export default function TrainerExamsTab() {
       <View style={styles.header}>
         <Text style={styles.kicker}>Entrenador · Evaluación</Text>
         <Text style={styles.title}>Exámenes</Text>
-        <Text style={styles.subtitle}>Carga exámenes, captura resultados o sube calificaciones por Excel. Administración conserva publicación y oficialidad.</Text>
+        <Text style={styles.subtitle}>Carga y publica exámenes, captura resultados o sube calificaciones por Excel. Administración conserva la oficialidad de resultados y los cambios de nivel.</Text>
         <Pressable
           disabled={saving}
           style={styles.newExamButton}
@@ -207,7 +237,7 @@ export default function TrainerExamsTab() {
       {drafts.length > 0 ? (
         <View style={styles.draftsSection}>
           <Text style={styles.sectionKicker}>BORRADORES</Text>
-          <Text style={styles.sectionTitle}>Pendientes de Administración</Text>
+          <Text style={styles.sectionTitle}>Borradores listos para publicar</Text>
           <View style={styles.draftList}>
             {drafts.map((draft) => (
               <View key={draft.examId} style={styles.draftCard}>
@@ -222,8 +252,20 @@ export default function TrainerExamsTab() {
                     {draft.examDate ? ` · ${draft.examDate}` : ''}
                   </Text>
                 </View>
-                <View style={styles.pendingPill}>
-                  <Text style={styles.pendingPillText}>Borrador</Text>
+                <View style={styles.draftActions}>
+                  <View style={styles.pendingPill}>
+                    <Text style={styles.pendingPillText}>Borrador</Text>
+                  </View>
+                  {capabilities.canPublishExamDefinition ? (
+                    <Pressable
+                      disabled={saving}
+                      style={[styles.publishDraftButton, saving && styles.disabled]}
+                      onPress={() => confirmPublishDraft(draft)}
+                    >
+                      <MaterialIcons name="publish" size={16} color={ucapsaBrand.colors.surface} />
+                      <Text style={styles.publishDraftText}>Publicar</Text>
+                    </Pressable>
+                  ) : null}
                 </View>
               </View>
             ))}
@@ -284,7 +326,7 @@ export default function TrainerExamsTab() {
         <Text style={styles.modalKicker}>Nuevo examen</Text>
         <Text style={styles.modalTitle}>Subir examen</Text>
         <Text style={styles.modalSubtitle}>
-          El Excel define los ejercicios. Se guarda como borrador; Administración decide cuándo publicarlo.
+          El Excel define los ejercicios. Puedes guardarlo como borrador y publicarlo desde Entrenamiento cuando esté listo.
         </Text>
 
         <Text style={styles.fieldLabel}>Código</Text>
@@ -399,8 +441,11 @@ const styles = StyleSheet.create({
   draftCode: { color: ucapsaBrand.colors.goldDark, fontSize: 8, fontWeight: '900', letterSpacing: 0.5 },
   draftTitle: { color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '900', marginTop: 1 },
   draftMeta: { color: ucapsaBrand.colors.muted, fontSize: 9, lineHeight: 13, fontWeight: '700', marginTop: 2 },
+  draftActions: { alignItems: 'flex-end', gap: 6 },
   pendingPill: { borderRadius: 999, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 8, paddingVertical: 5 },
   pendingPillText: { color: ucapsaBrand.colors.goldDark, fontSize: 8, fontWeight: '900' },
+  publishDraftButton: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 10, backgroundColor: ucapsaBrand.colors.greenDark, paddingHorizontal: 8 },
+  publishDraftText: { color: ucapsaBrand.colors.surface, fontSize: 8, fontWeight: '900' },
   loading: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12 },
   muted: { color: ucapsaBrand.colors.muted, fontSize: 11, fontWeight: '700' },
   errorCard: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 16, backgroundColor: ucapsaBrand.colors.dangerSoft, borderWidth: 1, borderColor: ucapsaBrand.colors.dangerBorder, padding: 12 },
