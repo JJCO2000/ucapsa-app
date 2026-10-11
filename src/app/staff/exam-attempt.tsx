@@ -21,7 +21,7 @@ type ScoreDraft = {
 export default function StaffExamAttemptScreen() {
   const params = useLocalSearchParams<{ attemptId?: string }>();
   const attemptId = typeof params.attemptId === 'string' ? params.attemptId : '';
-  const { isStaff } = useSession();
+  const { isAdmin, capabilities } = useSession();
   const [detail, setDetail] = useState<TrainerExamAttempt | null>(null);
   const [drafts, setDrafts] = useState<Record<string, ScoreDraft>>({});
   const [loading, setLoading] = useState(true);
@@ -29,7 +29,7 @@ export default function StaffExamAttemptScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!isStaff || !attemptId) return;
+    if (!capabilities.canUseTrainingWorkspace || !attemptId) return;
     setError(null);
     try {
       const next = await getTrainerExamAttempt(attemptId);
@@ -47,7 +47,7 @@ export default function StaffExamAttemptScreen() {
     } finally {
       setLoading(false);
     }
-  }, [attemptId, isStaff]);
+  }, [attemptId, capabilities.canUseTrainingWorkspace]);
 
   useFocusEffect(useCallback(() => {
     setLoading(true);
