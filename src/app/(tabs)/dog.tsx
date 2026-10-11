@@ -1,3 +1,4 @@
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -8,14 +9,19 @@ import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBa
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
+import { activityAchievementDefinitions, activityAchievementValue, type ActivityAchievementMetric } from '../../constants/activityAchievements';
+import { PROGRAM_COMPLETION_ACHIEVEMENT_CODES } from '../../constants/programCompletion';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { useReturnToProfile } from '../../hooks/useReturnToProfile';
 import { useSession } from '../../hooks/useSession';
 import { devWarn } from '../../lib/client-diagnostics';
+import { getCachedAchievementsForDog, getMyDogAchievements, type AchievementWithState } from '../../services/achievements.service';
 import { getPrivateDogPhotoUrls } from '../../services/dog-photos.service';
 import { createMyDog, getMyDogs, type BasicDog } from '../../services/dogs.service';
 import { clientReadKeys, readClientResource, sanitizeProgramRowsForCache, writeClientResource } from '../../services/client-read-cache.service';
+import { buildPracticeEngagementStats } from '../../services/practice.domain';
+import { getCachedMyPracticeActivity, getMyPracticeActivity, type PracticeActivitySnapshot } from '../../services/practice.service';
 import { getMyProgramEnrollments, getProgramCodeLabel, getProgramLevelDisplayLabel } from '../../services/programs.service';
 import type { ProgramEnrollmentWithDetails } from '../../types/app.types';
 import { DEFAULT_READ_TIMEOUT_MS, friendlyWriteError, withOperationTimeout } from '../../utils/async.utils';
@@ -26,6 +32,42 @@ function sameDogName(left: string | null | undefined, right: string | null | und
   return (left ?? '').trim().toLocaleLowerCase('es-MX') === (right ?? '').trim().toLocaleLowerCase('es-MX');
 }
 
+const programAchievementRank = new Map(PROGRAM_COMPLETION_ACHIEVEMENT_CODES.map((code, index) => [code, index]));
+
+function mostAdvancedProgramAchievement(items: AchievementWithState[]) {
+  return items
+    .filter((item) => item.unlocked && programAchievementRank.has(item.definition.code as any))
+    .sort(
+      (left, right) =>
+        (programAchievementRank.get(right.definition.code as any) ?? -1)
+        - (programAchievementRank.get(left.definition.code as any) ?? -1),
+    )[0] ?? null;
+}
+
+function mostAdvancedActivityBadge(facts: {
+  attendanceTotal: number;
+  practiceTotal: number;
+  longestPracticeStreak: number;
+}) {
+  const metrics: ActivityAchievementMetric[] = ['attendance', 'practice', 'streak'];
+  const candidates = metrics.flatMap((metric) => {
+    const definitions = activityAchievementDefinitions.filter((item) => item.metric === metric);
+    const value = activityAchievementValue(metric, {
+      ...facts,
+      memberVisitsTotal: 0,
+    });
+    return definitions
+      .map((definition, index) => ({ definition, index, total: definitions.length }))
+      .filter(({ definition }) => value >= definition.threshold);
+  });
+
+  return candidates.sort((left, right) => {
+    const leftStage = (left.index + 1) / left.total;
+    const rightStage = (right.index + 1) / right.total;
+    return rightStage - leftStage || right.definition.threshold - left.definition.threshold;
+  })[0]?.definition ?? null;
+}
+
 export default function DogTab() {
   const { dogId: dogIdParam, from } = useLocalSearchParams<{ dogId?: string | string[]; from?: string | string[] }>();
   const requestedDogId = Array.isArray(dogIdParam) ? dogIdParam[0] ?? null : dogIdParam ?? null;
@@ -34,6 +76,8 @@ export default function DogTab() {
   const { user, role, isAdmin } = useSession();
   const [dogs, setDogs] = useState<BasicDog[]>([]);
   const [rows, setRows] = useState<ProgramEnrollmentWithDetails[]>([]);
+  const [practiceSnapshot, setPracticeSnapshot] = useState<PracticeActivitySnapshot | null>(null);
+  const [dogAchievements, setDogAchievements] = useState<AchievementWithState[]>([]);
   const [photoUrls, setPhotoUrls] = useState<Record<string, string | null>>({});
   const [selectedDogId, setSelectedDogId] = useState<string | null>(null);
   const [editorMode, setEditorMode] = useState<EditorMode>(null);
@@ -59,6 +103,8 @@ export default function DogTab() {
       cacheScopeRef.current = scope;
       setDogs([]);
       setRows([]);
+      setPracticeSnapshot(null);
+      setDogAchievements([]);
       setPhotoUrls({});
       setSelectedDogId(null);
       setLocalReady(false);
@@ -75,14 +121,16 @@ export default function DogTab() {
     setProgramWarning(false);
     setOfflineEmpty(false);
 
-    const [dogCache, programCache] = await Promise.all([
+    const [dogCache, programCache, practiceCache] = await Promise.all([
       readClientResource<BasicDog[]>(user.id, clientReadKeys.dogs),
       readClientResource<ProgramEnrollmentWithDetails[]>(user.id, clientReadKeys.programs),
+      getCachedMyPracticeActivity(user.id),
     ]);
     if (!isCurrentRun()) return;
 
     let nextDogs = dogCache?.data ?? [];
     let nextPrograms = programCache?.data ?? [];
+    if (practiceCache) setPracticeSnapshot(practiceCache);
 
     if (dogCache || programCache) {
       setDogs(nextDogs);
@@ -95,9 +143,10 @@ export default function DogTab() {
     });
     setLocalReady(true);
 
-    const [dogResult, programResult] = await Promise.allSettled([
+    const [dogResult, programResult, practiceResult] = await Promise.allSettled([
       withOperationTimeout(getMyDogs(), DEFAULT_READ_TIMEOUT_MS, 'dogs'),
       withOperationTimeout(getMyProgramEnrollments(), DEFAULT_READ_TIMEOUT_MS, 'dog-programs'),
+      withOperationTimeout(getMyPracticeActivity(user.id), DEFAULT_READ_TIMEOUT_MS, 'dog-practice'),
     ]);
     if (!isCurrentRun()) return;
 
@@ -111,6 +160,9 @@ export default function DogTab() {
       nextPrograms = programResult.value;
       await writeClientResource(user.id, clientReadKeys.programs, sanitizeProgramRowsForCache(nextPrograms));
       if (!isCurrentRun()) return;
+    }
+    if (practiceResult.status === 'fulfilled') {
+      setPracticeSnapshot(practiceResult.value);
     }
 
     setDogs(nextDogs);
@@ -191,6 +243,56 @@ export default function DogTab() {
     });
   }, [rows, selectedDog]);
   const selectedActive = useMemo(() => selectedEnrollments.filter((item) => item.enrollment.status === 'active'), [selectedEnrollments]);
+
+  useEffect(() => {
+    let active = true;
+    if (!user || isAdmin || !selectedDog?.id) {
+      setDogAchievements([]);
+      return () => { active = false; };
+    }
+
+    setDogAchievements([]);
+    void getCachedAchievementsForDog(user.id, selectedDog.id)
+      .then((cached) => {
+        if (active && cached) setDogAchievements(cached);
+      })
+      .catch(() => undefined);
+
+    void getMyDogAchievements(selectedDog.id, {
+      userId: user.id,
+      forceRefresh: true,
+      allowCachedOnError: true,
+    })
+      .then((fresh) => {
+        if (active) setDogAchievements(fresh);
+      })
+      .catch(() => undefined);
+
+    return () => { active = false; };
+  }, [isAdmin, selectedDog?.id, user]);
+
+  const advancedProgramAchievement = useMemo(
+    () => mostAdvancedProgramAchievement(dogAchievements),
+    [dogAchievements],
+  );
+  const selectedPracticeEntries = useMemo(() => {
+    if (!selectedDog) return [];
+    return (practiceSnapshot?.entries ?? []).filter((item) =>
+      item.dogId ? item.dogId === selectedDog.id : sameDogName(item.dogName, selectedDog.name),
+    );
+  }, [practiceSnapshot?.entries, selectedDog]);
+  const selectedPracticeStats = useMemo(
+    () => buildPracticeEngagementStats(selectedPracticeEntries),
+    [selectedPracticeEntries],
+  );
+  const advancedActivityBadge = useMemo(
+    () => mostAdvancedActivityBadge({
+      attendanceTotal: selectedEnrollments.reduce((sum, item) => sum + item.attendances.length, 0),
+      practiceTotal: selectedPracticeEntries.length,
+      longestPracticeStreak: selectedPracticeStats.longestStreak,
+    }),
+    [selectedEnrollments, selectedPracticeEntries.length, selectedPracticeStats.longestStreak],
+  );
 
   async function refresh() {
     setRefreshing(true);
@@ -400,7 +502,7 @@ export default function DogTab() {
                     style={[styles.pencilButton, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}
                     onPress={() => router.push('/client/competition' as never)}
                   >
-                    <MaterialIcons name="leaderboard" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                    <MaterialIcons name="leaderboard" size={20} color={ucapsaBrand.colors.purpleDark} />
                   </Pressable>
                 </View>
               </View>
@@ -446,12 +548,35 @@ export default function DogTab() {
                   style={[styles.dogSecondaryAction, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}
                   onPress={() => router.push(`/client/dog-achievements?dogId=${encodeURIComponent(selectedDog.id)}` as never)}
                 >
-                  <MaterialIcons name="emoji-events" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={[styles.dogSecondaryTitle, { color: format.cardText }]}>Logros</Text>
-                    <Text style={[styles.dogSecondaryMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Medallas de {selectedDog.name}</Text>
+                  <View style={[styles.secondaryIconBox, { backgroundColor: ucapsaBrand.colors.goldPale }]}>
+                    <MaterialIcons name="emoji-events" size={20} color={ucapsaBrand.colors.goldDark} />
                   </View>
-                  <MaterialIcons name="chevron-right" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={[styles.dogSecondaryTitle, { color: format.cardText }]}>Logros {selectedDog.name}</Text>
+                    <View style={styles.dogAchievementPreview}>
+                      <View
+                        style={[styles.previewSeal, { backgroundColor: advancedProgramAchievement ? ucapsaBrand.colors.purpleSoft : ucapsaBrand.colors.graySoft }]}
+                        accessibilityLabel={advancedProgramAchievement ? `Logro más avanzado: ${advancedProgramAchievement.definition.title}` : 'Sin logro de programa desbloqueado'}
+                      >
+                        <MaterialCommunityIcons
+                          name={(advancedProgramAchievement?.definition.icon || 'medal-outline') as keyof typeof MaterialCommunityIcons.glyphMap}
+                          size={18}
+                          color={advancedProgramAchievement ? ucapsaBrand.colors.purpleDark : ucapsaBrand.colors.gray}
+                        />
+                      </View>
+                      <View
+                        style={[styles.previewSeal, { backgroundColor: advancedActivityBadge ? ucapsaBrand.colors.greenSoft : ucapsaBrand.colors.graySoft }]}
+                        accessibilityLabel={advancedActivityBadge ? `Insignia de actividad más avanzada: ${advancedActivityBadge.title}` : 'Sin insignia de actividad desbloqueada'}
+                      >
+                        <MaterialIcons
+                          name={advancedActivityBadge?.icon ?? 'star-outline'}
+                          size={18}
+                          color={advancedActivityBadge ? ucapsaBrand.colors.greenDark : ucapsaBrand.colors.gray}
+                        />
+                      </View>
+                    </View>
+                  </View>
+                  <MaterialIcons name="chevron-right" size={20} color={ucapsaBrand.colors.goldDark} />
                 </Pressable>
 
                 <Pressable
@@ -460,7 +585,9 @@ export default function DogTab() {
                   style={[styles.dogSecondaryAction, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}
                   onPress={() => router.push(`/client/dog-history?dogId=${encodeURIComponent(selectedDog.id)}` as never)}
                 >
-                  <MaterialIcons name="history" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                  <View style={[styles.secondaryIconBox, { backgroundColor: ucapsaBrand.colors.blueSoft }]}>
+                    <MaterialIcons name="history" size={20} color={ucapsaBrand.colors.blueDark} />
+                  </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={[styles.dogSecondaryTitle, { color: format.cardText }]}>Historial</Text>
                     <Text style={[styles.dogSecondaryMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Programas y clases anteriores</Text>
@@ -599,6 +726,9 @@ const styles = StyleSheet.create({
   dogSecondaryAction: { flex: 1, minWidth: 0, minHeight: 74, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 17, padding: 10 },
   dogSecondaryTitle: { fontSize: 13, lineHeight: 17, fontWeight: '900' },
   dogSecondaryMeta: { marginTop: 2, fontSize: 9, lineHeight: 13, fontWeight: '700' },
+  secondaryIconBox: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  dogAchievementPreview: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 5 },
+  previewSeal: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
     dogProfileShortcut: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, borderWidth: 1, padding: 11 },
   dogProfileIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   dogProfileTitle: { fontSize: 14, lineHeight: 19, fontWeight: '900' },
