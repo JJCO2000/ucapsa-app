@@ -117,7 +117,7 @@ export async function removeMyDogPhoto(dogId: string) {
 
   const { error } = await supabase.rpc('set_my_dog_photo_path', {
     p_dog_id: cleanDogId,
-    p_photo_path: null,
+    p_photo_path: '',
   });
   if (error) throw error;
 
