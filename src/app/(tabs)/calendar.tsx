@@ -173,7 +173,7 @@ export default function CalendarScreen() {
   const [practiceActivity, setPracticeActivity] = useState<PracticeActivityEntry[]>([]);
   const [practiceLoadWarning, setPracticeLoadWarning] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(todayKey());
-  const [monthExpanded, setMonthExpanded] = useState(isAdmin);
+  const [monthExpanded, setMonthExpanded] = useState(true);
   const [openRoster, setOpenRoster] = useState<{ occurrenceId: string; level: AdminRosterLevel } | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -487,6 +487,7 @@ export default function CalendarScreen() {
   const cancelledClassesCount = selectedClasses.filter((occurrence) => Boolean(occurrence.cancellation)).length;
   const activeClassesCount = selectedClasses.length - cancelledClassesCount;
   const dayCount = dayAgendaItems.length;
+  const hasClientSyncWarning = usingSavedData || Boolean(partialLoadWarning || classLoadWarning || practiceLoadWarning);
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: format.background }]} edges={['top']}>
@@ -525,7 +526,7 @@ export default function CalendarScreen() {
           </View>
         ) : null}
 
-        {usingSavedData ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void onRefresh()} premium={isPremium} /> : null}
+        {!isAdmin && hasClientSyncWarning ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void onRefresh()} premium={isPremium} /> : null}
 
         {loading && dayCount === 0 ? (
           <View style={styles.centerBox}>
@@ -544,31 +545,10 @@ export default function CalendarScreen() {
           </View>
         ) : null}
 
-        {partialLoadWarning ? (
-          <View style={styles.warningBox}>
-            <Text style={styles.warningTitle}>Actualizacion parcial</Text>
-            <Text style={styles.warningText}>{partialLoadWarning}</Text>
-          </View>
-        ) : null}
-
-        {classLoadWarning ? (
-          <View style={styles.warningBox}>
-            <Text style={styles.warningTitle}>Clases no disponibles</Text>
-            <Text style={styles.warningText}>{classLoadWarning}</Text>
-          </View>
-        ) : null}
-
-        {adminRosterWarning ? (
+        {isAdmin && adminRosterWarning ? (
           <View style={styles.warningBox}>
             <Text style={styles.warningTitle}>Inscritos no disponibles</Text>
             <Text style={styles.warningText}>{adminRosterWarning}</Text>
-          </View>
-        ) : null}
-
-        {practiceLoadWarning ? (
-          <View style={styles.warningBox}>
-            <Text style={styles.warningTitle}>Actividad sin actualizar</Text>
-            <Text style={styles.warningText}>{practiceLoadWarning}</Text>
           </View>
         ) : null}
 
@@ -596,7 +576,7 @@ export default function CalendarScreen() {
                   current={selectedDate}
                   onDayPress={(day: DateData) => {
                     setSelectedDate(day.dateString);
-                    if (!isAdmin) setMonthExpanded(false);
+                    if (!isAdmin) setMonthExpanded(true);
                   }}
                   markedDates={markedDates}
                   firstDay={1}
@@ -650,8 +630,7 @@ export default function CalendarScreen() {
                 </>
               )}
 
-              {!monthExpanded ? (
-                <View style={[styles.daySchedule, { borderTopColor: format.cardBorder }]}>
+              <View style={[styles.daySchedule, { borderTopColor: format.cardBorder }]}>
                   {dayAgendaItems.length === 0 ? (
                     <View style={styles.dayEmpty}>
                       <MaterialIcons name="event-available" size={24} color={format.muted} />
@@ -711,7 +690,6 @@ export default function CalendarScreen() {
                     );
                   })}
                 </View>
-              ) : null}
             </View>
 
             {isAdmin && selectedClasses.length > 0 ? (
