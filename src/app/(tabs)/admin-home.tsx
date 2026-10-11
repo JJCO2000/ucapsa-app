@@ -7,6 +7,7 @@ import { StaffWorkspaceSwitcher } from '../../components/domain/StaffWorkspaceSw
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
+import { useStaffWorkspace } from '../../hooks/useStaffWorkspace';
 import { devWarn } from '../../lib/client-diagnostics';
 import { getAdminClassRsvpSummary, tomorrowDateKey, type AdminClassRsvpSummary } from '../../services/class-rsvp.service';
 import { getAdminMembershipRows } from '../../services/memberships.service';
@@ -97,6 +98,7 @@ const emptyStats: DashboardStats = {
 
 export default function AdminHomeTab() {
   const { user, profile, role, isAdmin } = useSession();
+  const { mode: staffWorkspaceMode, loading: workspaceLoading } = useStaffWorkspace();
   const [stats, setStats] = useState<DashboardStats>(emptyStats);
   const [tomorrowClasses, setTomorrowClasses] = useState<AdminClassRsvpSummary[]>([]);
   const [tomorrowSummaryFailed, setTomorrowSummaryFailed] = useState(false);
@@ -178,6 +180,7 @@ export default function AdminHomeTab() {
   }
 
   if (!isAdmin) return <Redirect href="/home" />;
+  if (!workspaceLoading && staffWorkspaceMode === 'trainer') return <Redirect href="/trainer-home" />;
 
   return (
     <KeyboardAwareScreen
