@@ -2,6 +2,7 @@ import type { Session, User } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
+import { getRoleCapabilities, type UcapsaCapabilities } from '../constants/roleCapabilities';
 import { devWarn } from '../lib/client-diagnostics';
 import { clearAchievementCacheForUser } from '../services/achievements.service';
 import { getCurrentSession, signOutLocal, subscribeToAuthState } from '../services/auth.service';
@@ -33,6 +34,7 @@ type SessionContextValue = {
   isAdmin: boolean;
   isTrainer: boolean;
   isStaff: boolean;
+  capabilities: UcapsaCapabilities;
   refreshProfile: () => Promise<void>;
   acceptProfile: (nextProfile: UserProfile) => Promise<void>;
   retryStartup: () => void;
@@ -63,9 +65,10 @@ export function SessionProvider({ children }: SessionProviderProps) {
 
   const user = session?.user ?? null;
   const role = profile?.role ?? null;
+  const capabilities = useMemo(() => getRoleCapabilities(role), [role]);
   const isAdmin = role === 'admin' || role === 'super_admin';
   const isTrainer = role === 'trainer';
-  const isStaff = isAdmin || isTrainer;
+  const isStaff = capabilities.isStaff;
 
   async function applyFreshProfile(userId: string, nextProfile: UserProfile | null) {
     if (nextProfile) {
@@ -321,6 +324,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       isAdmin,
       isTrainer,
       isStaff,
+      capabilities,
       refreshProfile,
       acceptProfile,
       retryStartup,
@@ -339,6 +343,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       isAdmin,
       isTrainer,
       isStaff,
+      capabilities,
     ],
   );
 
