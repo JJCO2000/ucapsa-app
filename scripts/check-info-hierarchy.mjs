@@ -22,14 +22,17 @@ must('src/app/account-settings.tsx', /NotificationSettingsCard/, 'Notificaciones
 mustNot('src/app/account-settings.tsx', />ABRIR</, 'Ajustes volvió a añadir el texto redundante ABRIR a tarjetas ya navegables.');
 mustNot('src/app/account-settings.tsx', /Socio UCAPSA/, 'Cuenta volvió a repetir una tarjeta de identidad antes de la tarea concreta.');
 
-// Mi perro = perro seleccionado -> resumen compacto de logros -> ficha completa dog-specific.
+// Mi perro = perro seleccionado -> perfil -> entrenamiento actual -> detalle competitivo -> historial colapsado.
+// Logros salen de esta pantalla para reducir carga cognitiva y viven en Perfil / fichas dedicadas.
 mustNot('src/app/(tabs)/dog.tsx', /ClientPageHeader/, 'Mi perro volvió al hero grande redundante.');
 must('src/app/(tabs)/dog.tsx', /\/client\/dog-profile\?dogId=/, 'Mi perro perdió la edición del perro seleccionado.');
+must('src/app/(tabs)/dog.tsx', /ENTRENAMIENTO ACTUAL/, 'Mi perro perdió el entrenamiento actual como estado principal.');
+must('src/app/(tabs)/dog.tsx', /Detalle competitivo/, 'Mi perro perdió el acceso particular a competencia.');
+must('src/app/(tabs)/dog.tsx', /historyExpanded/, 'Mi perro dejó de ocultar historial secundario por defecto.');
 must('src/app/(tabs)/dog.tsx', /\/client\/class-detail\?enrollmentId=/, 'El historial de Mi perro dejó de bajar al detalle de clase.');
-must('src/app/(tabs)/dog.tsx', /LOGROS UCAPSA/, 'Mi perro perdió el bloque canónico de logros del perro.');
-must('src/app/(tabs)/dog.tsx', /AchievementBadgeGrid[\s\S]*maxItems=\{4\}/, 'Mi perro dejó de limitar los logros al resumen compacto de cuatro etapas.');
-must('src/components/domain/AchievementBadgeGrid.tsx', /if \(maxItems && visibleItems\[0\]\?\.dogId\)/, 'El resumen de Mi perro dejó de compactar la progresión dog-specific.');
-must('src/components/domain/AchievementBadgeGrid.tsx', /\/client\/dog-achievements\?dogId=/, 'El resumen de logros perdió el acceso a la ficha completa del perro.');
+mustNot('src/app/(tabs)/dog.tsx', /LOGROS UCAPSA|AchievementBadgeGrid|Tus perros y Ranking/, 'Mi perro volvió a mezclar logros o ranking global.');
+must('src/app/(tabs)/profile.tsx', /title="Mis logros"/, 'Perfil perdió el acceso general a Mis logros.');
+must('src/app/(tabs)/profile.tsx', /title="Insignias de actividad"/, 'Perfil perdió hitos de actividad.');
 must('src/app/client/dog-achievements.tsx', /useLocalSearchParams<\{ dogId\?/, 'La ficha de logros dejó de resolver un perro concreto por dogId.');
 must('src/app/client/dog-achievements.tsx', /getCachedAchievementsForDog\(user\.id, dogId\)/, 'La ficha de logros dejó de hidratar caché por perro.');
 must('src/app/client/dog-achievements.tsx', /getMyDogAchievements\(dogId,/, 'La ficha de logros dejó de refrescar la progresión del perro seleccionado.');
@@ -116,6 +119,7 @@ mustNot('src/screens/home/HomeCards.tsx', /Escanear QR|qr-code-scanner/, 'Inicio
 must('src/screens/home/HomeExperienceScreen.tsx', /\/client\/attendance-history/, 'Inicio perdió el acceso contextual al historial de clases.');
 must('src/screens/home/HomeExperienceScreen.tsx', /\/client\/practice-activity/, 'Inicio perdió el acceso contextual a Racha y práctica.');
 must('src/screens/home/HomeExperienceScreen.tsx', /\/client\/dog-achievements\?dogId=/, 'Inicio perdió la navegación contextual a los logros del perro.');
+must('src/screens/home/HomeExperienceScreen.tsx', /\/client\/competition/, 'Inicio perdió el acceso visible al Ranking.');
 
 if (failures.length) {
   console.error('INFO HIERARCHY FAIL:');
