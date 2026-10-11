@@ -360,6 +360,8 @@ begin
       dte.class_date,
       e.id as enrollment_id,
       e.schedule_id,
+      e.user_id,
+      e.dog_id,
       p.code::text as program_code,
       p.name::text as program_name,
       e.program_level::text as program_level,
