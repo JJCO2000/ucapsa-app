@@ -1,23 +1,23 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { DogAvatar } from '../../components/domain/DogAvatar';
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
+import {
+  DEFAULT_DOG_AVATAR_COLOR,
+  DEFAULT_DOG_AVATAR_KEY,
+  DOG_AVATAR_COLORS,
+  DOG_AVATAR_OPTIONS,
+  type DogAvatarColor,
+  type DogAvatarKey,
+} from '../../constants/dogAvatar';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
-import {
-  getMyDogPhotoUrl,
-  getMyDogProfile,
-  removeMyDogPhoto,
-  updateMyDogProfile,
-  uploadMyDogPhoto,
-  type DogProfile,
-} from '../../services/dogs.service';
+import { getMyDogProfile, updateMyDogProfile, type DogProfile } from '../../services/dogs.service';
 import { DEFAULT_READ_TIMEOUT_MS, DEFAULT_WRITE_TIMEOUT_MS, friendlyWriteError, withOperationTimeout } from '../../utils/async.utils';
 
 type DogSex = DogProfile['sex'];
@@ -28,6 +28,8 @@ type ProfileDraft = {
   birthDate: string;
   sex: DogSex;
   weight: string;
+  avatarKey: DogAvatarKey;
+  avatarColor: DogAvatarColor;
 };
 
 const EMPTY_DRAFT: ProfileDraft = {
@@ -36,6 +38,8 @@ const EMPTY_DRAFT: ProfileDraft = {
   birthDate: '',
   sex: null,
   weight: '',
+  avatarKey: DEFAULT_DOG_AVATAR_KEY,
+  avatarColor: DEFAULT_DOG_AVATAR_COLOR,
 };
 
 function getParam(value: string | string[] | undefined) {
@@ -49,6 +53,8 @@ function draftFromProfile(profile: DogProfile): ProfileDraft {
     birthDate: profile.birth_date ?? '',
     sex: profile.sex,
     weight: profile.weight_kg == null ? '' : String(profile.weight_kg),
+    avatarKey: profile.avatar_key,
+    avatarColor: profile.avatar_color,
   };
 }
 
@@ -73,8 +79,6 @@ export default function DogProfileScreen() {
   const [profile, setProfile] = useState<DogProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [photoSaving, setPhotoSaving] = useState(false);
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
@@ -85,7 +89,6 @@ export default function DogProfileScreen() {
       const nextProfile = await withOperationTimeout(getMyDogProfile(dogId), DEFAULT_READ_TIMEOUT_MS, 'dog-profile');
       setProfile(nextProfile);
       setDraft(draftFromProfile(nextProfile));
-      setPhotoUrl(await getMyDogPhotoUrl(nextProfile.photo_path).catch(() => null));
     } catch {
       setLoadError(true);
     } finally {
@@ -131,6 +134,8 @@ export default function DogProfileScreen() {
           birth_date: birthDate,
           sex: draft.sex,
           weight_kg: weight,
+          avatar_key: draft.avatarKey,
+          avatar_color: draft.avatarColor,
         }),
         DEFAULT_WRITE_TIMEOUT_MS,
         'dog-profile-save',
@@ -142,51 +147,6 @@ export default function DogProfileScreen() {
       Alert.alert('No se pudo guardar', friendlyWriteError(cause, 'Conéctate a internet y vuelve a intentar.'));
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function choosePhoto() {
-    if (!dogId || !user) return;
-
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Permiso necesario', 'Autoriza acceso a tus fotos para elegir una imagen de tu perro.');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.75,
-      selectionLimit: 1,
-    });
-    if (result.canceled || !result.assets[0]) return;
-
-    setPhotoSaving(true);
-    try {
-      const asset = result.assets[0];
-      const saved = await uploadMyDogPhoto(dogId, asset.uri, asset.mimeType);
-      setProfile(saved);
-      setPhotoUrl(await getMyDogPhotoUrl(saved.photo_path));
-    } catch (cause) {
-      Alert.alert('No se pudo guardar la foto', friendlyWriteError(cause, 'Intenta con otra imagen o vuelve a intentarlo.'));
-    } finally {
-      setPhotoSaving(false);
-    }
-  }
-
-  async function clearPhoto() {
-    if (!dogId || !user || !profile?.photo_path) return;
-    setPhotoSaving(true);
-    try {
-      const saved = await removeMyDogPhoto(dogId);
-      setProfile(saved);
-      setPhotoUrl(null);
-    } catch (cause) {
-      Alert.alert('No se pudo quitar la foto', friendlyWriteError(cause, 'Vuelve a intentarlo.'));
-    } finally {
-      setPhotoSaving(false);
     }
   }
 
@@ -246,35 +206,63 @@ export default function DogProfileScreen() {
         </View>
       ) : (
         <>
-          <View style={[styles.photoCard, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
-            {photoUrl ? (
-              <Image source={{ uri: photoUrl }} style={styles.dogPhoto} contentFit="cover" transition={120} />
-            ) : (
-              <View style={[styles.dogPhotoPlaceholder, { backgroundColor: format.accentSoft }]}>
-                <MaterialIcons name="pets" size={34} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+          <View style={[styles.avatarCard, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
+            <View style={styles.avatarHeader}>
+              <DogAvatar
+                avatarKey={draft.avatarKey}
+                avatarColor={draft.avatarColor}
+                size={82}
+                accessibilityLabel={`Avatar de ${draft.name || 'tu perro'}`}
+              />
+              <View style={styles.avatarCopy}>
+                <Text style={[styles.sectionTitle, { color: format.cardText }]}>Avatar de {draft.name || 'tu perro'}</Text>
+                <Text style={[styles.avatarHint, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+                  Elige un emoji o caricatura y un color. No pide acceso a tus fotos.
+                </Text>
               </View>
-            )}
-            <View style={styles.photoCopy}>
-              <Text style={[styles.sectionTitle, { color: format.cardText }]}>Foto de {profile?.name || 'tu perro'}</Text>
-              <Text style={[styles.photoHint, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
-                Aparece en su perfil y en tu tarjeta del Ranking. No se publica a otros usuarios.
-              </Text>
-              <View style={styles.photoActions}>
-                <Pressable
-                  accessibilityRole="button"
-                  disabled={photoSaving}
-                  style={[styles.photoButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}
-                  onPress={() => void choosePhoto()}
-                >
-                  <MaterialIcons name="photo-library" size={18} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-                  <Text style={[styles.photoButtonText, { color: format.secondaryButtonText }]}>{photoSaving ? 'Guardando…' : photoUrl ? 'Cambiar' : 'Elegir foto'}</Text>
-                </Pressable>
-                {photoUrl ? (
-                  <Pressable accessibilityRole="button" disabled={photoSaving} style={styles.removePhotoButton} onPress={() => void clearPhoto()}>
-                    <Text style={styles.removePhotoText}>Quitar</Text>
+            </View>
+
+            <Text style={[styles.avatarLabel, { color: format.cardText }]}>Estilo</Text>
+            <View style={styles.avatarOptions}>
+              {DOG_AVATAR_OPTIONS.map((option) => {
+                const selected = draft.avatarKey === option.key;
+                return (
+                  <Pressable
+                    key={option.key}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Avatar ${option.label}`}
+                    accessibilityState={{ selected }}
+                    style={[
+                      styles.avatarOption,
+                      { borderColor: selected ? format.accent : format.cardBorder },
+                      selected && { backgroundColor: format.accentSoft },
+                    ]}
+                    onPress={() => setField('avatarKey', option.key)}
+                  >
+                    <DogAvatar avatarKey={option.key} avatarColor={draft.avatarColor} size={46} />
+                    <Text numberOfLines={1} style={[styles.avatarOptionText, { color: selected ? format.accentDark : format.muted }]}>{option.label}</Text>
                   </Pressable>
-                ) : null}
-              </View>
+                );
+              })}
+            </View>
+
+            <Text style={[styles.avatarLabel, { color: format.cardText }]}>Color</Text>
+            <View style={styles.colorOptions}>
+              {DOG_AVATAR_COLORS.map((color) => {
+                const selected = draft.avatarColor === color;
+                return (
+                  <Pressable
+                    key={color}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Color ${color}`}
+                    accessibilityState={{ selected }}
+                    style={[styles.colorOption, selected && { borderColor: format.accent, borderWidth: 3 }]}
+                    onPress={() => setField('avatarColor', color)}
+                  >
+                    <View style={[styles.colorSwatch, { backgroundColor: color }]} />
+                  </Pressable>
+                );
+              })}
             </View>
           </View>
 
@@ -387,16 +375,17 @@ const styles = StyleSheet.create({
   title: { marginTop: 2, fontSize: 28, lineHeight: 34, fontWeight: '900' },
   subtitle: { marginTop: 4, fontSize: 14, lineHeight: 20, fontWeight: '700' },
   card: { gap: 12, borderRadius: 22, borderWidth: 1, padding: 16, marginBottom: 14 },
-  photoCard: { minHeight: 126, flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 22, borderWidth: 1, padding: 14, marginBottom: 14 },
-  dogPhoto: { width: 92, height: 92, borderRadius: 24 },
-  dogPhotoPlaceholder: { width: 92, height: 92, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  photoCopy: { flex: 1, minWidth: 0, gap: 5 },
-  photoHint: { fontSize: 11, lineHeight: 16, fontWeight: '700' },
-  photoActions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
-  photoButton: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderRadius: 13, paddingHorizontal: 11 },
-  photoButtonText: { fontSize: 12, lineHeight: 16, fontWeight: '900' },
-  removePhotoButton: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 8 },
-  removePhotoText: { color: ucapsaBrand.colors.redDark, fontSize: 12, lineHeight: 16, fontWeight: '900' },
+  avatarCard: { gap: 12, borderRadius: 22, borderWidth: 1, padding: 14, marginBottom: 14 },
+  avatarHeader: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  avatarCopy: { flex: 1, minWidth: 0, gap: 4 },
+  avatarHint: { fontSize: 11, lineHeight: 16, fontWeight: '700' },
+  avatarLabel: { marginTop: 2, fontSize: 12, lineHeight: 16, fontWeight: '900' },
+  avatarOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  avatarOption: { width: '30%', minWidth: 86, alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 16, paddingHorizontal: 6, paddingVertical: 9 },
+  avatarOptionText: { width: '100%', textAlign: 'center', fontSize: 9, lineHeight: 12, fontWeight: '800' },
+  colorOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  colorOption: { width: 38, height: 38, borderRadius: 19, borderWidth: 1, borderColor: ucapsaBrand.colors.border, alignItems: 'center', justifyContent: 'center' },
+  colorSwatch: { width: 28, height: 28, borderRadius: 14 },
   sectionTitle: { fontSize: 18, lineHeight: 23, fontWeight: '900' },
   helper: { fontSize: 14, lineHeight: 20, fontWeight: '700' },
   fieldGroup: { gap: 6 },
