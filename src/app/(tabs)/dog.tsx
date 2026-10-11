@@ -3,7 +3,6 @@ import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-rou
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { AchievementBadgeGrid, AchievementDetailModal } from '../../components/domain/AchievementBadgeGrid';
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -11,7 +10,6 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
-import { countUnlockedAchievements, getCachedAchievementsForDog, getMyDogAchievements, type AchievementWithState } from '../../services/achievements.service';
 import { createMyDog, getMyDogs, type BasicDog } from '../../services/dogs.service';
 import { clientReadKeys, readClientResource, sanitizeProgramRowsForCache, writeClientResource } from '../../services/client-read-cache.service';
 import { getMyProgramEnrollments, getProgramCodeLabel, getProgramLevelDisplayLabel } from '../../services/programs.service';
@@ -31,11 +29,8 @@ export default function DogTab() {
   const [dogs, setDogs] = useState<BasicDog[]>([]);
   const [rows, setRows] = useState<ProgramEnrollmentWithDetails[]>([]);
   const [selectedDogId, setSelectedDogId] = useState<string | null>(null);
-  const [achievements, setAchievements] = useState<AchievementWithState[]>([]);
-  const [selectedAchievement, setSelectedAchievement] = useState<AchievementWithState | null>(null);
-  const [achievementReady, setAchievementReady] = useState(false);
-  const [achievementWarning, setAchievementWarning] = useState(false);
   const [editorMode, setEditorMode] = useState<EditorMode>(null);
+  const [historyExpanded, setHistoryExpanded] = useState(false);
   const [draftName, setDraftName] = useState('');
   const [saving, setSaving] = useState(false);
   const [localReady, setLocalReady] = useState(false);
@@ -59,10 +54,6 @@ export default function DogTab() {
       setDogs([]);
       setRows([]);
       setSelectedDogId(null);
-      setAchievements([]);
-      setSelectedAchievement(null);
-      setAchievementReady(false);
-      setAchievementWarning(false);
       setLocalReady(false);
       setUsingSavedData(false);
       setSavedAt(null);
@@ -180,77 +171,19 @@ export default function DogTab() {
   }, [rows, selectedDog]);
   const selectedActive = useMemo(() => selectedEnrollments.filter((item) => item.enrollment.status === 'active'), [selectedEnrollments]);
   const selectedHistory = useMemo(() => selectedEnrollments.filter((item) => item.enrollment.status !== 'active'), [selectedEnrollments]);
-  const unlockedAchievementCount = useMemo(() => countUnlockedAchievements(achievements), [achievements]);
-
-  useEffect(() => {
-    if (!user || isAdmin || !selectedDog) {
-      setAchievements([]);
-      setSelectedAchievement(null);
-      setAchievementReady(false);
-      setAchievementWarning(false);
-      return;
-    }
-
-    let cancelled = false;
-    const userId = user.id;
-    const dogId = selectedDog.id;
-
-    setSelectedAchievement(null);
-    setAchievementReady(false);
-    setAchievementWarning(false);
-
-    void (async () => {
-      const cached = await getCachedAchievementsForDog(userId, dogId);
-      if (cancelled) return;
-      if (cached) {
-        setAchievements(cached);
-        setAchievementReady(true);
-      } else {
-        setAchievements([]);
-      }
-
-      try {
-        const fresh = await getMyDogAchievements(dogId, {
-          userId,
-          forceRefresh: true,
-          allowCachedOnError: false,
-        });
-        if (cancelled) return;
-        setAchievements(fresh);
-        setAchievementReady(true);
-        setAchievementWarning(false);
-      } catch {
-        if (cancelled) return;
-        setAchievementReady(true);
-        setAchievementWarning(true);
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [isAdmin, selectedDog, user]);
 
   async function refresh() {
     setRefreshing(true);
     try {
       await load();
-      if (user && selectedDog && !isAdmin) {
-        try {
-          const fresh = await getMyDogAchievements(selectedDog.id, {
-            userId: user.id,
-            forceRefresh: true,
-            allowCachedOnError: false,
-          });
-          setAchievements(fresh);
-          setAchievementReady(true);
-          setAchievementWarning(false);
-        } catch {
-          setAchievementWarning(true);
-        }
-      }
     } finally {
       setRefreshing(false);
     }
   }
+
+  useEffect(() => {
+    setHistoryExpanded(false);
+  }, [selectedDogId]);
 
   function openCreate() {
     setDraftName('');
@@ -324,24 +257,7 @@ export default function DogTab() {
         </View>
       ) : null}
 
-      {!offlineEmpty && dogs.length > 0 ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Abrir Competencia UCAPSA de todos tus perros"
-          style={[styles.competitionAccountCard, { borderColor: format.cardBorder, backgroundColor: premium ? ucapsaBrand.colors.premiumHero : format.cardBackground }]}
-          onPress={() => router.push('/client/competition' as never)}
-        >
-          <View style={[styles.competitionAccountIcon, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft }]}>
-            <MaterialIcons name="emoji-events" size={23} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-          </View>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={[styles.competitionAccountEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>COMPETENCIA UCAPSA</Text>
-            <Text style={[styles.competitionAccountTitle, { color: premium ? ucapsaBrand.colors.premiumText : format.cardText }]}>Tus perros y Ranking</Text>
-            <Text style={[styles.competitionAccountText, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Compara tus perros y entra a la clasificación desde un solo lugar.</Text>
-          </View>
-          <MaterialIcons name="chevron-right" size={23} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-        </Pressable>
-      ) : null}
+
 
       {localReady ? (
         <>
@@ -523,65 +439,51 @@ export default function DogTab() {
                 <MaterialIcons name="chevron-right" size={21} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
               </Pressable>
 
-              {achievementReady ? (
+              {!programWarning && selectedHistory.length > 0 ? (
                 <>
-                  <Text style={[styles.dogHistoryLabel, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>LOGROS UCAPSA</Text>
-                  {achievements.length > 0 ? (
-                    <>
-                      <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
-                        {unlockedAchievementCount} de {achievements.length} medallas obtenidas por {selectedDog.name}.
-                      </Text>
-                      <AchievementBadgeGrid items={achievements} premium={premium} maxItems={4} onSelect={setSelectedAchievement} />
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`Ver todos los logros de ${selectedDog.name}`}
-                        style={[styles.achievementAllButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}
-                        onPress={() => router.push(`/client/dog-achievements?dogId=${encodeURIComponent(selectedDog.id)}` as never)}
-                      >
-                        <Text style={[styles.achievementAllText, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Ver todos los logros</Text>
-                        <MaterialIcons name="chevron-right" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-                      </Pressable>
-                    </>
-                  ) : (
-                    <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Los logros de {selectedDog.name} todavía no están disponibles.</Text>
-                  )}
-                  {achievementWarning ? (
-                    <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>No pudimos verificar los logros en línea. Se conserva la información guardada en este dispositivo.</Text>
-                  ) : null}
-                </>
-              ) : null}
-
-              {!programWarning && selectedHistory.length > 0 ? <Text style={[styles.dogHistoryLabel, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>HISTORIAL UCAPSA</Text> : null}
-              {!programWarning ? selectedHistory.map((item) => {
-                const levelLabel = getProgramLevelDisplayLabel(item.program.code, item.enrollment.program_level);
-                const historyLabel = `${getProgramCodeLabel(item.program.code)}${levelLabel ? ` ${levelLabel}` : ''}`;
-                return (
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={`Abrir ${historyLabel} de ${selectedDog.name}`}
-                    key={item.enrollment.id}
+                    accessibilityState={{ expanded: historyExpanded }}
                     style={[styles.classRow, premium && styles.rowPremium]}
-                    onPress={() => router.push(`/client/class-detail?enrollmentId=${encodeURIComponent(item.enrollment.id)}` as never)}
+                    onPress={() => setHistoryExpanded((value) => !value)}
                   >
-                    <View style={[styles.classIcon, { backgroundColor: format.pillBackground }]}><MaterialIcons name="history" size={19} color={format.pillText} /></View>
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={[styles.classTitle, { color: format.cardText }]}>{historyLabel}</Text>
-                      <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{item.attendances.length} clases registradas</Text>
+                    <View style={[styles.classIcon, { backgroundColor: format.pillBackground }]}>
+                      <MaterialIcons name="history" size={19} color={format.pillText} />
                     </View>
-                    <MaterialIcons name="chevron-right" size={21} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={[styles.classTitle, { color: format.cardText }]}>Historial</Text>
+                      <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+                        {selectedHistory.length} etapa{selectedHistory.length === 1 ? '' : 's'} anterior{selectedHistory.length === 1 ? '' : 'es'}
+                      </Text>
+                    </View>
+                    <MaterialIcons name={historyExpanded ? 'expand-less' : 'expand-more'} size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
                   </Pressable>
-                );
-              }) : null}
+
+                  {historyExpanded ? selectedHistory.map((item) => {
+                    const levelLabel = getProgramLevelDisplayLabel(item.program.code, item.enrollment.program_level);
+                    const historyLabel = `${getProgramCodeLabel(item.program.code)}${levelLabel ? ` ${levelLabel}` : ''}`;
+                    return (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Abrir ${historyLabel} de ${selectedDog.name}`}
+                        key={item.enrollment.id}
+                        style={[styles.historyChild, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}
+                        onPress={() => router.push(`/client/class-detail?enrollmentId=${encodeURIComponent(item.enrollment.id)}` as never)}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.classTitle, { color: format.cardText }]}>{historyLabel}</Text>
+                          <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{item.attendances.length} clases registradas</Text>
+                        </View>
+                        <MaterialIcons name="chevron-right" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                      </Pressable>
+                    );
+                  }) : null}
+                </>
+              ) : null}
             </View>
           ) : null}
         </>
       ) : null}
-
-      <AchievementDetailModal
-        item={selectedAchievement}
-        premium={premium}
-        onClose={() => setSelectedAchievement(null)}
-      />
 
       <KeyboardAwareModal
         visible={editorMode !== null}
@@ -636,9 +538,9 @@ function CompactDogHeader({
   const subtitle = offlineEmpty
     ? 'Sincroniza una vez para ver tus perros'
     : dogsCount > 1
-      ? 'Elige un perro y revisa su progreso'
+      ? 'Elige un perro y revisa su perfil'
       : dogsCount === 1
-        ? 'Entrenamiento, logros e historial'
+        ? 'Perfil y entrenamiento'
         : 'Agrega tu primer perro';
 
   return (
@@ -696,6 +598,7 @@ const styles = StyleSheet.create({
   dogHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   pencilButton: { width: 48, height: 48, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   classRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: ucapsaBrand.colors.border, paddingTop: 11, paddingBottom: 2 },
+  historyChild: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 9 },
   rowPremium: { borderTopColor: withAlpha(ucapsaBrand.colors.gold, 0.16) },
   classIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   classTitle: { fontSize: 15, lineHeight: 20, fontWeight: '900' },
