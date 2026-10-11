@@ -3,6 +3,7 @@ import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-rou
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { DogAvatar } from '../../components/domain/DogAvatar';
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -325,7 +326,7 @@ export default function DogTab() {
                         ]}
                         onPress={() => setSelectedDogId(dog.id)}
                       >
-                        <MaterialIcons name="pets" size={18} color={selected ? format.pillText : premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                        <DogAvatar avatarKey={dog.avatar_key} avatarColor={dog.avatar_color} size={30} accessibilityLabel={`Avatar de ${dog.name}`} />
                         <Text style={[styles.dogChipText, { color: selected ? format.pillText : format.cardText }]} numberOfLines={1}>{dog.name}</Text>
                         {memberDogIds.has(dog.id) ? (
                           <View style={[styles.memberCrownMini, { backgroundColor: selected ? format.cardBackground : ucapsaBrand.colors.goldPale }]}>
@@ -344,6 +345,7 @@ export default function DogTab() {
           {selectedDog ? (
             <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
               <View style={styles.sectionHeader}>
+                <DogAvatar avatarKey={selectedDog.avatar_key} avatarColor={selectedDog.avatar_color} size={52} accessibilityLabel={`Avatar de ${selectedDog.name}`} />
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <View style={styles.dogNameRow}>
                     <Text style={[styles.sectionTitle, { color: format.cardText }]}>{selectedDog.name}</Text>
