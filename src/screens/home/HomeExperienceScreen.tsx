@@ -1,8 +1,8 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, RefreshControl, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, Text, View } from 'react-native';
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -17,6 +17,7 @@ import {
   refreshCompetitionHomeSummary,
   type ClientCompetitionHomeSummary,
 } from '../../services/client-competition-home.service';
+import { getMyClassRsvp, setMyClassRsvp, type ClassRsvpResponse } from '../../services/class-rsvp.service';
 import { readCustomerValueSnapshotCache, writeCustomerValueSnapshotCache } from '../../services/customer-value-cache.service';
 import { mergeCustomerValueSnapshotWithCache } from '../../services/customer-value-merge.service';
 import {
@@ -58,6 +59,8 @@ export default function HomeExperienceScreen() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [competitionSummary, setCompetitionSummary] = useState<ClientCompetitionHomeSummary | null>(null);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
+  const [classRsvp, setClassRsvp] = useState<ClassRsvpResponse | null>(null);
+  const [classRsvpSaving, setClassRsvpSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const cacheScopeRef = useRef<string | null>(null);
@@ -208,6 +211,8 @@ export default function HomeExperienceScreen() {
     : 'Todo el recorrido de tu perro en un solo lugar';
   const profileComplete = Boolean((profile?.full_name ?? '').trim() && (profile?.phone ?? '').trim());
   const nextAction = snapshot ? getCustomerValuePrimaryNextAction(snapshot) : null;
+  const nextClassEnrollmentId = nextAction?.kind === 'class' ? nextAction.enrollmentId : null;
+  const nextClassDate = nextAction?.kind === 'class' ? nextAction.dateKey : null;
   const recentAchievement = newestRecentAchievement(snapshot);
   const homeNotice = announcements[0] ?? null;
   const practiceGoal = getPracticeGoalProgress((practice?.entries ?? []).map((entry) => entry.completedAt), targetDays);
@@ -220,6 +225,41 @@ export default function HomeExperienceScreen() {
         : homeNotice
           ? 'notice'
           : null;
+
+  useEffect(() => {
+    let active = true;
+    if (!user || !nextClassEnrollmentId || !nextClassDate) {
+      setClassRsvp(null);
+      return () => { active = false; };
+    }
+
+    setClassRsvp(null);
+    void getMyClassRsvp(nextClassEnrollmentId, nextClassDate)
+      .then((value) => {
+        if (active) setClassRsvp(value?.response ?? null);
+      })
+      .catch((cause) => {
+        devWarn('Could not load class RSVP on Home.', cause);
+      });
+
+    return () => { active = false; };
+  }, [nextClassDate, nextClassEnrollmentId, user]);
+
+  async function handleClassRsvp(response: ClassRsvpResponse) {
+    if (!nextClassEnrollmentId || !nextClassDate || classRsvpSaving) return;
+    try {
+      setClassRsvpSaving(true);
+      const saved = await setMyClassRsvp(nextClassEnrollmentId, nextClassDate, response);
+      setClassRsvp(saved.response);
+    } catch (cause) {
+      Alert.alert(
+        'No se pudo guardar',
+        cause instanceof Error ? cause.message : 'Intenta de nuevo.',
+      );
+    } finally {
+      setClassRsvpSaving(false);
+    }
+  }
 
   function openNext(action: Exclude<CustomerValuePrimaryNextAction, null>) {
     if (action.kind === 'payment') {
@@ -340,7 +380,15 @@ export default function HomeExperienceScreen() {
       ) : null}
 
       {!loading && user && snapshot && nextAction ? (
-        <NextActionCard snapshot={snapshot} action={nextAction} format={format} onPress={() => openNext(nextAction)} />
+        <NextActionCard
+          snapshot={snapshot}
+          action={nextAction}
+          format={format}
+          onPress={() => openNext(nextAction)}
+          rsvpResponse={classRsvp}
+          rsvpSaving={classRsvpSaving}
+          onRsvp={nextAction.kind === 'class' ? (response) => void handleClassRsvp(response) : undefined}
+        />
       ) : null}
 
       {!loading && user && snapshot ? (
