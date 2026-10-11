@@ -495,34 +495,20 @@ export default function CalendarScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        <View style={[styles.hero, { backgroundColor: format.heroBackground }]}>
-          <View style={[styles.heroIcon, { backgroundColor: format.pillBackground }]}>
-            <MaterialIcons name="event" size={28} color={format.pillText} />
+        <View style={styles.pageHeader}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={[styles.pageEyebrow, { color: isPremium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>UCAPSA</Text>
+            <Text style={[styles.pageTitle, { color: format.text }]}>Agenda</Text>
+            <Text style={[styles.pageSubtitle, { color: format.muted }]}>Selecciona un día y revisa su horario.</Text>
           </View>
-          <View style={styles.heroText}>
-            <Text style={[styles.kicker, { color: format.heroMuted }]}>Agenda UCAPSA</Text>
-            <Text style={[styles.title, { color: format.heroText }]}>Lo que pasa y lo que te toca</Text>
-            <Text style={[styles.subtitle, { color: format.heroMuted }]}>Selecciona un día y revisa su horario.</Text>
-          </View>
-        </View>
-
-        <View style={[styles.sectionSwitch, { borderColor: format.border, backgroundColor: format.cardBackground }]}>
           <Pressable
-            accessibilityRole="tab"
-            accessibilityState={{ selected: false }}
-            style={styles.switchButton}
+            accessibilityRole="button"
+            accessibilityLabel="Abrir avisos"
+            style={[styles.noticeShortcut, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}
             onPress={() => router.push('/announcements' as never)}
           >
-            <MaterialIcons name="campaign" size={18} color={format.accentDark} />
-            <Text style={[styles.switchText, { color: format.accentDark }]}>Avisos</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="tab"
-            accessibilityState={{ selected: true }}
-            style={[styles.switchButton, { backgroundColor: format.primaryButton }]}
-          >
-            <MaterialIcons name="calendar-month" size={18} color={format.primaryButtonText} />
-            <Text style={[styles.switchText, { color: format.primaryButtonText }]}>Agenda</Text>
+            <MaterialIcons name="campaign" size={19} color={format.accentDark} />
+            <Text style={[styles.noticeShortcutText, { color: format.accentDark }]}>Avisos</Text>
           </Pressable>
         </View>
 
@@ -851,7 +837,13 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: ucapsaBrand.colors.redPale },
   container: { flex: 1, backgroundColor: ucapsaBrand.colors.redPale },
   content: { gap: 16, padding: 20, paddingBottom: 110 },
-  hero: { flexDirection: 'row', gap: 12, padding: 14, borderRadius: 20, backgroundColor: ucapsaBrand.colors.redDeep },
+  pageHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 2, paddingVertical: 4 },
+  pageEyebrow: { fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 1 },
+  pageTitle: { marginTop: 1, fontSize: 25, lineHeight: 30, fontWeight: '900' },
+  pageSubtitle: { marginTop: 1, fontSize: 11, lineHeight: 15, fontWeight: '700' },
+  noticeShortcut: { minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 14, paddingHorizontal: 11 },
+  noticeShortcutText: { fontSize: 11, lineHeight: 14, fontWeight: '900' },
+    hero: { flexDirection: 'row', gap: 12, padding: 14, borderRadius: 20, backgroundColor: ucapsaBrand.colors.redDeep },
   heroIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
   heroText: { flex: 1, gap: 6 },
   kicker: { color: ucapsaBrand.colors.redSoftStrong, fontSize: 12, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
