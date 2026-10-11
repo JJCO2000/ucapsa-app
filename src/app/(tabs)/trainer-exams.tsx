@@ -19,7 +19,7 @@ import {
 import { pickAndParseUcapsaExamXlsx } from '../../services/ucapsa-exam-xlsx';
 
 export default function TrainerExamsTab() {
-  const { isTrainer } = useSession();
+  const { isAdmin, capabilities } = useSession();
   const [exams, setExams] = useState<TrainerExamCatalogRow[]>([]);
   const [dogs, setDogs] = useState<TrainerExamDog[]>([]);
   const [selectedExam, setSelectedExam] = useState<TrainerExamCatalogRow | null>(null);
@@ -30,7 +30,7 @@ export default function TrainerExamsTab() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!isTrainer) return;
+    if (!capabilities.canUseTrainingWorkspace) return;
     setError(null);
     try {
       const [examRows, dogRows] = await Promise.all([
@@ -106,7 +106,7 @@ export default function TrainerExamsTab() {
     }
   }
 
-  if (!isTrainer) return <Redirect href="/home" />;
+  if (!capabilities.canUseTrainingWorkspace) return <Redirect href={isAdmin ? '/admin-home' : '/home'} />;
 
   return (
     <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={ucapsaBrand.colors.red} />}>
