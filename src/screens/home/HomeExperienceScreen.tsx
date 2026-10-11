@@ -12,11 +12,6 @@ import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import { devWarn } from '../../lib/client-diagnostics';
 import { getHomeAnnouncements, rankHomeAnnouncements } from '../../services/announcements.service';
-import {
-  getCachedCompetitionHomeSummary,
-  refreshCompetitionHomeSummary,
-  type ClientCompetitionHomeSummary,
-} from '../../services/client-competition-home.service';
 import { readCustomerValueSnapshotCache, writeCustomerValueSnapshotCache } from '../../services/customer-value-cache.service';
 import { mergeCustomerValueSnapshotWithCache } from '../../services/customer-value-merge.service';
 import {
@@ -56,7 +51,6 @@ export default function HomeExperienceScreen() {
   const [practice, setPractice] = useState<PracticeActivitySnapshot | null>(null);
   const [targetDays, setTargetDays] = useState<PracticeTargetDay[]>(DEFAULT_PRACTICE_TARGET_DAYS);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [competitionSummary, setCompetitionSummary] = useState<ClientCompetitionHomeSummary | null>(null);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -82,7 +76,6 @@ export default function HomeExperienceScreen() {
       setPractice(null);
       setTargetDays(DEFAULT_PRACTICE_TARGET_DAYS);
       setAnnouncements([]);
-      setCompetitionSummary(null);
       setSelectedAnnouncement(null);
     }
 
@@ -94,11 +87,10 @@ export default function HomeExperienceScreen() {
 
     let cachedSnapshot: Awaited<ReturnType<typeof readCustomerValueSnapshotCache>> = null;
     if (user) {
-      const [savedSnapshot, savedPractice, savedTargetDays, savedCompetition] = await Promise.all([
+      const [savedSnapshot, savedPractice, savedTargetDays] = await Promise.all([
         readCustomerValueSnapshotCache(user.id),
         getCachedMyPracticeActivity(user.id),
         getPracticeTargetDays(user.id),
-        getCachedCompetitionHomeSummary(user.id),
       ]);
       if (!isCurrentRun()) return;
 
@@ -111,24 +103,9 @@ export default function HomeExperienceScreen() {
         setLoading(false);
       }
       if (savedPractice) setPractice(savedPractice);
-      if (savedCompetition) setCompetitionSummary(savedCompetition);
       setTargetDays(savedTargetDays);
     } else if (cachedAnnouncements.length > 0) {
       setLoading(false);
-    }
-
-    if (user) {
-      void withOperationTimeout(
-        refreshCompetitionHomeSummary(user.id),
-        DEFAULT_READ_TIMEOUT_MS,
-        'home-competition',
-      )
-        .then((nextCompetition) => {
-          if (isCurrentRun()) setCompetitionSummary(nextCompetition);
-        })
-        .catch((cause) => {
-          devWarn('Could not refresh competition context on Home.', cause);
-        });
     }
 
     const [announcementResult, snapshotResult, practiceResult, targetDaysResult] = await Promise.allSettled([
