@@ -5411,6 +5411,8 @@ export type Database = {
       get_staff_class_roster: {
         Args: { p_class_date: string }
         Returns: {
+          attendance_id: string | null
+          attended: boolean
           dog_id: string | null
           dog_name: string
           enrollment_id: string
@@ -5971,6 +5973,15 @@ export type Database = {
           p_rows: Json
         }
         Returns: Json
+      }
+      trainer_register_program_attendance: {
+        Args: {
+          p_attendance_date: string
+          p_enrollment_id: string
+          p_notes?: string
+          p_schedule_id: string
+        }
+        Returns: string
       }
       trainer_review_ucapsa_exam_attempt: {
         Args: { p_attempt_id: string }
