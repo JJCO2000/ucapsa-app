@@ -75,6 +75,33 @@ export type StaffExam = {
   seasonName: string;
 };
 
+export type StaffExamDraft = {
+  examId: string;
+  examCode: string;
+  examTitle: string;
+  examDate: string | null;
+  itemsCount: number;
+  createdBy: string | null;
+  createdByName: string;
+  createdAt: string;
+};
+
+export type StaffExamImportErrorRow = {
+  rowNumber: number;
+  memberNumber: string | null;
+  dogName: string | null;
+  errors: Array<{ code?: string; message?: string; [key: string]: unknown }>;
+};
+
+export type StaffExamImportResult = {
+  batchId: string;
+  status: 'invalid' | 'reviewed';
+  rowsTotal: number;
+  rowsValid: number;
+  rowsInvalid: number;
+  errors: StaffExamImportErrorRow[];
+};
+
 export type StaffExamAttempt = {
   attemptId: string;
   examId: string;
@@ -209,6 +236,84 @@ export async function addStaffDogNote(input: {
   });
   if (error) throw error;
   return data;
+}
+
+export async function getStaffExamDrafts(): Promise<StaffExamDraft[]> {
+  const { data, error } = await supabase.rpc('get_staff_exam_drafts');
+  if (error) throw error;
+  return (data ?? []).map((row) => ({
+    examId: row.exam_id,
+    examCode: row.exam_code,
+    examTitle: row.exam_title,
+    examDate: row.exam_date ?? null,
+    itemsCount: Number(row.items_count ?? 0),
+    createdBy: row.created_by ?? null,
+    createdByName: row.created_by_name,
+    createdAt: row.created_at,
+  }));
+}
+
+export async function createStaffExamDraft(input: {
+  code: string;
+  title: string;
+  examDate?: string | null;
+  items: Array<{ title: string; description?: string | null; max_points: number }>;
+}) {
+  const { data, error } = await supabase.rpc('trainer_create_ucapsa_exam_draft', {
+    p_code: input.code.trim(),
+    p_title: input.title.trim(),
+    p_exam_date: input.examDate?.trim() || null,
+    p_items: input.items as never,
+  });
+  if (error) throw error;
+  if (!data) throw new Error('No se pudo crear el borrador de examen.');
+  return String(data);
+}
+
+function asObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+export async function importStaffExamResults(input: {
+  examId: string;
+  fileName: string;
+  rows: Array<{
+    member_number: string;
+    dog_name: string;
+    scores: Record<string, number | string>;
+  }>;
+}): Promise<StaffExamImportResult> {
+  const { data, error } = await supabase.rpc('trainer_import_ucapsa_exam_results', {
+    p_exam_id: input.examId.trim(),
+    p_file_name: input.fileName.trim(),
+    p_rows: input.rows as never,
+  });
+  if (error) throw error;
+
+  const payload = asObject(data);
+  const rawErrors = Array.isArray(payload.errors) ? payload.errors : [];
+  const errors: StaffExamImportErrorRow[] = rawErrors.map((entry) => {
+    const row = asObject(entry);
+    return {
+      rowNumber: Number(row.row_number ?? 0),
+      memberNumber: typeof row.member_number === 'string' ? row.member_number : null,
+      dogName: typeof row.dog_name === 'string' ? row.dog_name : null,
+      errors: Array.isArray(row.errors)
+        ? row.errors.map((item) => asObject(item) as StaffExamImportErrorRow['errors'][number])
+        : [],
+    };
+  });
+
+  return {
+    batchId: String(payload.batch_id ?? ''),
+    status: payload.status === 'reviewed' ? 'reviewed' : 'invalid',
+    rowsTotal: Number(payload.rows_total ?? 0),
+    rowsValid: Number(payload.rows_valid ?? 0),
+    rowsInvalid: Number(payload.rows_invalid ?? 0),
+    errors,
+  };
 }
 
 export async function getStaffPublishedExams(): Promise<StaffExam[]> {
