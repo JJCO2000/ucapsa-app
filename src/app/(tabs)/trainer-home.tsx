@@ -3,6 +3,7 @@ import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
+import { StaffWorkspaceSwitcher } from '../../components/domain/StaffWorkspaceSwitcher';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
@@ -80,7 +81,7 @@ function groupClasses(rows: StaffClassSummaryRow[]): GroupedClass[] {
 
 
 export default function TrainerHomeTab() {
-  const { profile, isTrainer } = useSession();
+  const { profile, isAdmin, capabilities } = useSession();
   const [rows, setRows] = useState<StaffClassSummaryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -91,7 +92,7 @@ export default function TrainerHomeTab() {
   const firstName = (profile?.full_name || 'Entrenador').trim().split(/s+/)[0] || 'Entrenador';
 
   const load = useCallback(async () => {
-    if (!isTrainer) return;
+    if (!capabilities.canUseTrainingWorkspace) return;
     setError(null);
     try {
       setRows(await getStaffClassSummary(dateKey));
@@ -100,7 +101,7 @@ export default function TrainerHomeTab() {
     } finally {
       setLoading(false);
     }
-  }, [dateKey, isTrainer]);
+  }, [capabilities.canUseTrainingWorkspace, dateKey]);
 
   useFocusEffect(useCallback(() => {
     setLoading(true);
@@ -113,7 +114,7 @@ export default function TrainerHomeTab() {
     try { await load(); } finally { setRefreshing(false); }
   }
 
-  if (!isTrainer) return <Redirect href="/home" />;
+  if (!capabilities.canUseTrainingWorkspace) return <Redirect href={isAdmin ? '/admin-home' : '/home'} />;
 
   return (
     <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={ucapsaBrand.colors.red} />}>
@@ -122,6 +123,7 @@ export default function TrainerHomeTab() {
           <Text style={styles.kicker}>Entrenador</Text>
           <Text style={styles.title}>Hola, {firstName}</Text>
           <Text style={styles.subtitle}>Lo necesario para operar clases y evaluar perros.</Text>
+          <View style={styles.modeSwitch}><StaffWorkspaceSwitcher /></View>
         </View>
         <Pressable style={styles.profileButton} onPress={() => router.push('/trainer-more' as never)}>
           <MaterialIcons name="person" size={21} color={ucapsaBrand.colors.surface} />
@@ -215,6 +217,7 @@ const styles = StyleSheet.create({
   hero: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: ucapsaBrand.colors.red, borderRadius: 26, padding: 18, marginBottom: 18 },
   kicker: { color: ucapsaBrand.colors.redSoftStrong, fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.7 },
   title: { color: ucapsaBrand.colors.surface, fontSize: 27, lineHeight: 32, fontWeight: '900' },
+  modeSwitch: { marginTop: 10 },
   subtitle: { color: ucapsaBrand.colors.redSoft, fontSize: 12, lineHeight: 17, fontWeight: '700', marginTop: 2 },
   profileButton: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redDark },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 },
