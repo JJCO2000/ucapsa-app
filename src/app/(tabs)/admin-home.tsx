@@ -42,8 +42,18 @@ export default function AdminHomeTab() {
     () => profile?.full_name?.trim() || user?.email || 'Administrador',
     [profile?.full_name, user?.email],
   );
-  const roleLabel = role === 'super_admin' ? 'Superadmin' : 'Admin';
+  const roleLabel = role === 'super_admin' ? 'Superadmin' : 'Staff UCAPSA';
   const pendingTotal = stats.trainingDecisions + stats.pendingRequests + stats.paymentAttention + stats.clientFollowups;
+  const tomorrowGroups = useMemo(() => {
+    const groups = new Map<string, { key: string; scheduleId: string; programCode: string; startTime: string; rows: AdminClassRsvpSummary[] }>();
+    for (const row of tomorrowClasses) {
+      const key = `${row.programCode}:${row.scheduleId}:${row.startTime}`;
+      const current = groups.get(key);
+      if (current) current.rows.push(row);
+      else groups.set(key, { key, scheduleId: row.scheduleId, programCode: row.programCode, startTime: row.startTime, rows: [row] });
+    }
+    return [...groups.values()].sort((a, b) => a.startTime.localeCompare(b.startTime));
+  }, [tomorrowClasses]);
 
   const load = useCallback(async () => {
     if (!isAdmin) return;
@@ -161,36 +171,53 @@ export default function AdminHomeTab() {
           </View>
         </View>
 
-        {tomorrowClasses.length > 0 ? (
+        {tomorrowGroups.length > 0 ? (
           <View style={styles.tomorrowList}>
-            {tomorrowClasses.map((item) => {
-              const programLabel = item.programCode === 'puppy'
-                ? 'Puppy'
-                : `Comandos · ${getProgramLevelLabel(item.programLevel as never)}`;
+            {tomorrowGroups.map((group) => {
+              const puppy = group.programCode === 'puppy';
+              const confirmed = group.rows.reduce((sum, row) => sum + row.confirmedCount, 0);
+              const eligible = group.rows.reduce((sum, row) => sum + row.eligibleCount, 0);
+              const declined = group.rows.reduce((sum, row) => sum + row.declinedCount, 0);
+              const pending = group.rows.reduce((sum, row) => sum + row.noResponseCount, 0);
               return (
                 <Pressable
-                  key={`${item.scheduleId}:${item.programLevel}`}
+                  key={group.key}
                   style={styles.tomorrowRow}
-                  onPress={() => router.push(`/admin/classes?program=${encodeURIComponent(item.programCode)}&status=active` as never)}
+                  onPress={() => router.push(`/trainer/roster?date=${encodeURIComponent(tomorrowDateKey())}&scheduleId=${encodeURIComponent(group.scheduleId)}` as never)}
                 >
                   <View style={[
                     styles.tomorrowIcon,
-                    { backgroundColor: item.programCode === 'puppy' ? ucapsaBrand.colors.goldPale : ucapsaBrand.colors.purpleSoft },
+                    { backgroundColor: puppy ? ucapsaBrand.colors.goldPale : ucapsaBrand.colors.purpleSoft },
                   ]}>
                     <MaterialIcons
-                      name={item.programCode === 'puppy' ? 'pets' : 'school'}
+                      name={puppy ? 'pets' : 'school'}
                       size={20}
-                      color={item.programCode === 'puppy' ? ucapsaBrand.colors.goldDark : ucapsaBrand.colors.purpleDark}
+                      color={puppy ? ucapsaBrand.colors.goldDark : ucapsaBrand.colors.purpleDark}
                     />
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.tomorrowProgram}>{programLabel}</Text>
-                    <Text style={styles.tomorrowConfirmed}>
-                      {item.confirmedCount} / {item.eligibleCount} a las {item.startTime} confirmados
-                    </Text>
-                    <Text style={styles.tomorrowMeta}>
-                      {item.declinedCount} no irá · {item.noResponseCount} sin responder
-                    </Text>
+                    <View style={styles.tomorrowProgramLine}>
+                      <Text style={styles.tomorrowProgram}>{puppy ? 'Puppy' : 'Comandos'}</Text>
+                      <Text style={styles.tomorrowTime}>{group.startTime}</Text>
+                    </View>
+                    {puppy ? (
+                      <Text style={styles.tomorrowConfirmed}>{confirmed} / {eligible} confirmados</Text>
+                    ) : (
+                      <View style={styles.tomorrowLevels}>
+                        {group.rows
+                          .sort((a, b) => {
+                            const order = { principiante: 1, medio: 2, avanzado: 3 } as Record<string, number>;
+                            return (order[a.programLevel] ?? 9) - (order[b.programLevel] ?? 9);
+                          })
+                          .map((row) => (
+                            <View key={row.programLevel} style={styles.tomorrowLevelRow}>
+                              <Text style={styles.tomorrowLevelName}>{getProgramLevelLabel(row.programLevel as never)}</Text>
+                              <Text style={styles.tomorrowLevelCount}>{row.confirmedCount} / {row.eligibleCount}</Text>
+                            </View>
+                          ))}
+                      </View>
+                    )}
+                    <Text style={styles.tomorrowMeta}>{declined} no irá · {pending} sin responder</Text>
                   </View>
                   <MaterialIcons name="chevron-right" size={22} color={ucapsaBrand.colors.redDark} />
                 </Pressable>
@@ -384,8 +411,14 @@ const styles = StyleSheet.create({
   tomorrowList: { gap: 8 },
   tomorrowRow: { minHeight: 78, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 19, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 12 },
   tomorrowIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  tomorrowProgramLine: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 },
   tomorrowProgram: { color: ucapsaBrand.colors.text, fontSize: 13, lineHeight: 17, fontWeight: '900' },
+  tomorrowTime: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900' },
   tomorrowConfirmed: { color: ucapsaBrand.colors.text, fontSize: 15, lineHeight: 19, fontWeight: '900', marginTop: 2 },
+  tomorrowLevels: { gap: 2, marginTop: 4 },
+  tomorrowLevelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  tomorrowLevelName: { color: ucapsaBrand.colors.text, fontSize: 10, fontWeight: '800' },
+  tomorrowLevelCount: { color: ucapsaBrand.colors.purpleDark, fontSize: 11, fontWeight: '900' },
   tomorrowMeta: { color: ucapsaBrand.colors.muted, fontSize: 10, lineHeight: 14, fontWeight: '800', marginTop: 2 },
   tomorrowEmpty: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 17, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 12 },
   tomorrowEmptyText: { flex: 1, color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 16, fontWeight: '800' },
