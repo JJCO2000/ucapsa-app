@@ -23,7 +23,7 @@ function statusLabel(value: string) {
 }
 
 export default function TrainerExamsTab() {
-  const { isTrainer, isStaff, isAdmin } = useSession();
+  const { isStaff, isAdmin } = useSession();
   const [exams, setExams] = useState<StaffExam[]>([]);
   const [attempts, setAttempts] = useState<StaffExamAttempt[]>([]);
   const [dogs, setDogs] = useState<StaffDogRow[]>([]);
