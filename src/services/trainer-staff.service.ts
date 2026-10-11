@@ -77,6 +77,22 @@ export type TrainerExamDog = {
   ownerName: string;
 };
 
+export type TrainerExamItem = {
+  id: string;
+  item_number: number;
+  title: string;
+  description: string | null;
+  max_points: number;
+  sort_order: number;
+};
+
+export type TrainerExamUploadResult = {
+  batchId: string;
+  rowsImported: number;
+  attemptsReviewed: number;
+  status: string;
+};
+
 export type TrainerExamAttempt = {
   attempt: {
     id: string;
@@ -300,6 +316,49 @@ export async function getTrainerExamDogs(): Promise<TrainerExamDog[]> {
     dogName: row.dog_name,
     ownerName: row.owner_name,
   }));
+}
+
+export async function getTrainerExamItems(examId: string): Promise<TrainerExamItem[]> {
+  const { data, error } = await supabase.rpc('get_trainer_exam_items', {
+    p_exam_id: examId,
+  });
+  if (error) throw error;
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    item_number: Number(row.item_number),
+    title: row.title,
+    description: row.description ?? null,
+    max_points: Number(row.max_points),
+    sort_order: Number(row.sort_order),
+  }));
+}
+
+export async function uploadTrainerExamResults(input: {
+  examId: string;
+  fileName: string;
+  rows: Array<{
+    member_number: string;
+    dog_name: string;
+    scores: Record<string, number | string>;
+  }>;
+}): Promise<TrainerExamUploadResult> {
+  const { data, error } = await supabase.rpc('trainer_import_ucapsa_exam_results', {
+    p_exam_id: input.examId,
+    p_file_name: input.fileName,
+    p_rows: input.rows,
+  });
+  if (error) throw error;
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new Error('UCAPSA devolvió un resultado de importación inválido.');
+  }
+
+  const result = data as Record<string, unknown>;
+  return {
+    batchId: String(result.batch_id ?? ''),
+    rowsImported: Number(result.rows_imported ?? 0),
+    attemptsReviewed: Number(result.attempts_reviewed ?? 0),
+    status: String(result.status ?? ''),
+  };
 }
 
 export async function createTrainerExamAttempt(examId: string, dogId: string) {
