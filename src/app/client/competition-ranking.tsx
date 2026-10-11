@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -9,6 +9,7 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
+import { getPrivateDogPhotoUrls } from '../../services/dog-photos.service';
 import { getMyDogs } from '../../services/dogs.service';
 import {
   getCachedCompetitionLeaderboard,
@@ -48,7 +49,7 @@ export default function ClientCompetitionRankingScreen() {
   const premium = format.key === 'member';
 
   const [rows, setRows] = useState<ClientCompetitionLeaderboardRow[]>([]);
-  const [myDogs, setMyDogs] = useState<Array<{ id: string; name: string; avatarKey: string; avatarColor: string }>>([]);
+  const [myDogs, setMyDogs] = useState<Array<{ id: string; name: string; avatarKey: string; avatarColor: string; photoUrl: string | null }>>([]);
   const [localReady, setLocalReady] = useState(false);
   const [usingSavedData, setUsingSavedData] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
@@ -79,6 +80,7 @@ export default function ClientCompetitionRankingScreen() {
         name: dog.dog_name,
         avatarKey: 'dog_face',
         avatarColor: '#F2E3C6',
+        photoUrl: null,
       })));
     }
 
@@ -88,11 +90,15 @@ export default function ClientCompetitionRankingScreen() {
     ]);
 
     if (dogsResult.status === 'fulfilled') {
+      const photoUrls = await getPrivateDogPhotoUrls(
+        Object.fromEntries(dogsResult.value.map((dog) => [dog.id, dog.photo_path])),
+      ).catch(() => ({} as Record<string, string | null>));
       setMyDogs(dogsResult.value.map((dog) => ({
         id: dog.id,
         name: dog.name,
         avatarKey: dog.avatar_key,
         avatarColor: dog.avatar_color,
+        photoUrl: photoUrls[dog.id] ?? null,
       })));
     }
 
@@ -186,11 +192,12 @@ export default function ClientCompetitionRankingScreen() {
                 <Text style={[styles.sectionTitle, { color: format.cardText }]}>Tus perros</Text>
                 {myRows.map(({ dog, row }) => (
                   <View key={dog.id} style={[styles.myCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
-                    <DogAvatar
+                    <RankingDogAvatar
+                      name={dog.name}
+                      photoUrl={dog.photoUrl}
                       avatarKey={dog.avatarKey}
                       avatarColor={dog.avatarColor}
                       size={52}
-                      accessibilityLabel={`Avatar de ${dog.name}`}
                     />
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.myLabel, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>
@@ -231,11 +238,12 @@ export default function ClientCompetitionRankingScreen() {
                     ]}
                   >
                     <Text style={styles.medal}>{medal(position)}</Text>
-                    <DogAvatar
+                    <RankingDogAvatar
+                      name={row.dog_name ?? 'perro'}
+                      photoUrl={mine && row.dog_id ? myDogs.find((dog) => dog.id === row.dog_id)?.photoUrl ?? null : null}
                       avatarKey={row.dog_avatar_key}
                       avatarColor={row.dog_avatar_color}
                       size={38}
-                      accessibilityLabel={`Avatar de ${row.dog_name ?? 'perro'}`}
                     />
                     <Text style={[styles.podiumPosition, { color: tone.text }]}>#{position}</Text>
                     <Text numberOfLines={1} style={[styles.podiumName, { color: format.cardText }]}>{row.dog_name || 'Perro'}</Text>
@@ -272,11 +280,12 @@ export default function ClientCompetitionRankingScreen() {
                         {position <= 3 ? medal(position) : position}
                       </Text>
                     </View>
-                    <DogAvatar
+                    <RankingDogAvatar
+                      name={row.dog_name ?? 'perro'}
+                      photoUrl={mine && row.dog_id ? myDogs.find((dog) => dog.id === row.dog_id)?.photoUrl ?? null : null}
                       avatarKey={row.dog_avatar_key}
                       avatarColor={row.dog_avatar_color}
                       size={38}
-                      accessibilityLabel={`Avatar de ${row.dog_name ?? 'perro'}`}
                     />
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <View style={styles.titleLine}>
@@ -303,6 +312,39 @@ export default function ClientCompetitionRankingScreen() {
         )
       ) : null}
     </KeyboardAwareScreen>
+  );
+}
+
+function RankingDogAvatar({
+  name,
+  photoUrl,
+  avatarKey,
+  avatarColor,
+  size,
+}: {
+  name: string;
+  photoUrl: string | null;
+  avatarKey: string | null | undefined;
+  avatarColor: string | null | undefined;
+  size: number;
+}) {
+  if (photoUrl) {
+    return (
+      <Image
+        source={{ uri: photoUrl }}
+        style={{ width: size, height: size, borderRadius: Math.round(size * 0.34) }}
+        resizeMode="cover"
+        accessibilityLabel={`Foto de ${name}`}
+      />
+    );
+  }
+  return (
+    <DogAvatar
+      avatarKey={avatarKey}
+      avatarColor={avatarColor}
+      size={size}
+      accessibilityLabel={`Avatar de ${name}`}
+    />
   );
 }
 
