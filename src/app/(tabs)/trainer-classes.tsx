@@ -124,6 +124,36 @@ export default function TrainerClassesTab() {
     );
   }
 
+  async function markAbsent(row: StaffRosterRow) {
+    if (row.absent || row.attended || busyId) return;
+    Alert.alert(
+      'Registrar ausencia',
+      `¿Confirmas que ${row.dogName} no asistió a esta clase?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'No asistió',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setBusyId(row.enrollmentId);
+              await markStaffAbsence({
+                enrollmentId: row.enrollmentId,
+                attendanceDate: dateKey,
+                scheduleId: row.scheduleId,
+              });
+              await load();
+            } catch (cause) {
+              Alert.alert('No se pudo registrar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+            } finally {
+              setBusyId(null);
+            }
+          },
+        },
+      ],
+    );
+  }
+
   async function requestMembership(row: StaffRosterRow) {
     if (busyId) return;
     Alert.alert(
@@ -160,7 +190,7 @@ export default function TrainerClassesTab() {
       <View style={styles.header}>
         <Text style={styles.kicker}>Entrenador · Clases</Text>
         <Text style={styles.title}>Roster</Text>
-        <Text style={styles.subtitle}>Quién viene, alertas del perro y asistencia real. Sin datos de pagos ni estadísticas internas.</Text>
+        <Text style={styles.subtitle}>Quién viene, alertas y resultado real: Asistió / No asistió / Sin registrar. Sin datos financieros.</Text>
       </View>
 
       <View style={styles.dateSwitch}>
@@ -243,8 +273,30 @@ export default function TrainerClassesTab() {
                         style={[styles.attendanceButton, row.attended && styles.attendanceDone, (!canMarkAttendance || busy) && styles.disabled]}
                         onPress={() => void markAttendance(row)}
                       >
-                        <MaterialIcons name={row.attended ? 'check-circle' : 'how-to-reg'} size={18} color={row.attended ? ucapsaBrand.colors.surface : ucapsaBrand.colors.greenDark} />
-                        <Text style={[styles.attendanceText, row.attended && styles.attendanceTextDone]}>{row.attended ? 'Asistió' : 'Registrar'}</Text>
+                        <MaterialIcons
+                          name={row.attended ? 'check-circle' : 'how-to-reg'}
+                          size={18}
+                          color={row.attended ? ucapsaBrand.colors.surface : ucapsaBrand.colors.greenDark}
+                        />
+                        <Text style={[styles.attendanceText, row.attended && styles.attendanceTextDone]}>
+                          {row.attended ? 'Asistió' : row.absent ? 'Cambiar a asistió' : 'Asistió'}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        disabled={!canMarkAttendance || row.attended || row.absent || busy}
+                        style={[
+                          styles.absenceButton,
+                          row.absent && styles.absenceDone,
+                          (!canMarkAttendance || row.attended || busy) && styles.disabled,
+                        ]}
+                        onPress={() => void markAbsent(row)}
+                      >
+                        <MaterialIcons
+                          name={row.absent ? 'cancel' : 'person-off'}
+                          size={18}
+                          color={row.absent ? ucapsaBrand.colors.surface : ucapsaBrand.colors.danger}
+                        />
+                        <Text style={[styles.absenceText, row.absent && styles.absenceTextDone]}>No asistió</Text>
                       </Pressable>
                     </View>
                   </View>
@@ -302,5 +354,9 @@ const styles = StyleSheet.create({
   attendanceDone: { backgroundColor: ucapsaBrand.colors.success },
   attendanceText: { color: ucapsaBrand.colors.greenDark, fontSize: 9, fontWeight: '900' },
   attendanceTextDone: { color: ucapsaBrand.colors.surface },
+  absenceButton: { minHeight: 38, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, backgroundColor: ucapsaBrand.colors.dangerSoft, paddingHorizontal: 9 },
+  absenceDone: { backgroundColor: ucapsaBrand.colors.danger },
+  absenceText: { color: ucapsaBrand.colors.danger, fontSize: 9, fontWeight: '900' },
+  absenceTextDone: { color: ucapsaBrand.colors.surface },
   disabled: { opacity: 0.45 },
 });
