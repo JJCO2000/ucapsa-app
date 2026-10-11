@@ -44,7 +44,7 @@ function groupSummary(rows: StaffClassSummary[]): SummaryGroup[] {
 }
 
 export default function TrainerHomeTab() {
-  const { profile, isTrainer, isStaff, isAdmin } = useSession();
+  const { profile, isStaff, isAdmin } = useSession();
   const [rows, setRows] = useState<StaffClassSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
