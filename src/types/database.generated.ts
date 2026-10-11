@@ -5033,6 +5033,8 @@ export type Database = {
         Args: { p_award_id: string; p_note?: string }
         Returns: string
       }
+      admin_resolve_training_card_decision: {
+      get_admin_training_decision_history: {
       admin_save_privacy_notice: {
         Args: {
           p_arco_procedure: string
