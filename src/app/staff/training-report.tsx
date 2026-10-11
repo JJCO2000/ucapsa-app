@@ -164,9 +164,11 @@ export default function StaffTrainingReportScreen() {
           <Summary value={stats.uniqueClients} label="Clientes únicos" />
           <Summary value={stats.uniqueDogs} label="Perros únicos" />
           <Summary value={stats.classOccurrences} label="Clases con inscritos" />
-          <Summary value={stats.attended} label="Asistencias" />
-          <Summary value={stats.missingAttendance} label="Sin asistencia registrada" />
+          <Summary value={stats.attended} label="Asistieron" />
+          <Summary value={stats.absent} label="No asistieron" />
+          <Summary value={stats.unmarked} label="Sin registrar" />
           <Summary value={`${(stats.attendanceRate * 100).toFixed(1)}%`} label="Tasa de asistencia" />
+          <Summary value={`${(stats.markCoverageRate * 100).toFixed(1)}%`} label="Cobertura del registro" />
         </View>
       ) : null}
 
@@ -178,7 +180,11 @@ export default function StaffTrainingReportScreen() {
                 <Text style={styles.previewTitle}>{row.dogName} · {row.programName}</Text>
                 <Text style={styles.previewMeta}>{row.classDate} · {row.startTime} · {row.clientName}</Text>
               </View>
-              <Text style={[styles.previewStatus, row.attended && styles.previewStatusDone]}>{row.attended ? 'Asistió' : 'No registrada'}</Text>
+              <Text style={[
+                styles.previewStatus,
+                row.attended && styles.previewStatusDone,
+                row.absent && styles.previewStatusAbsent,
+              ]}>{row.attended ? 'Asistió' : row.absent ? 'No asistió' : 'Sin registrar'}</Text>
             </View>
           ))}
           {rows.length > 12 ? <Text style={styles.moreText}>+ {rows.length - 12} filas adicionales en el Excel</Text> : null}
@@ -226,6 +232,7 @@ const styles = StyleSheet.create({
   previewMeta: { color: ucapsaBrand.colors.muted, fontSize: 8, lineHeight: 12, fontWeight: '700', marginTop: 2 },
   previewStatus: { color: ucapsaBrand.colors.muted, fontSize: 8, fontWeight: '900' },
   previewStatusDone: { color: ucapsaBrand.colors.greenDark },
+  previewStatusAbsent: { color: ucapsaBrand.colors.danger },
   moreText: { color: ucapsaBrand.colors.muted, fontSize: 9, fontWeight: '800', padding: 10, textAlign: 'center' },
   disabled: { opacity: 0.5 },
 });
