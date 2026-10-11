@@ -18,6 +18,11 @@ const examAttempt = read('src/app/staff/exam-attempt.tsx');
 const report = read('src/app/staff/training-report.tsx');
 const trainerService = read('src/services/trainer-staff.service.ts');
 const trainerSql = read('supabase/sql/ucapsa-trainer-workspace.sql');
+const trainerModeSql = read('supabase/sql/ucapsa-trainer-workspace-exam-upload.sql');
+const trainerSqlAll = trainerSql + '\n' + trainerModeSql;
+const staffWorkspace = read('src/hooks/useStaffWorkspace.tsx');
+const staffSwitcher = read('src/components/domain/StaffWorkspaceSwitcher.tsx');
+const examXlsx = read('src/services/ucapsa-exam-xlsx.ts');
 const users = read('src/app/admin/users.tsx');
 const adminHome = read('src/app/(tabs)/admin-home.tsx');
 const notificationCard = read('src/components/domain/NotificationSettingsCard.tsx');
@@ -37,10 +42,14 @@ if (!dbTypes.includes('app_role: "client" | "member" | "trainer" | "admin" | "su
 }
 
 for (const token of [
+  'canUseTrainingWorkspace: true',
+  'canSwitchStaffWorkspace: true',
   'canManageClassRoster: true',
   'canRecordAttendance: true',
+  'canUploadExamDefinition: true',
   'canCaptureExamResults: true',
   'canUploadExamResults: true',
+  'canViewOperationalDogData: true',
   'canViewInternalDogNotes: true',
   'canRequestMembershipReview: true',
   'canExportOperationalReports: true',
@@ -64,7 +73,9 @@ for (const token of [
   'name="trainer-classes"',
   'name="trainer-exams"',
   'name="trainer-more"',
-  "initialRouteName={isAdmin ? 'admin-home' : isTrainer ? 'trainer-home' : 'home'}",
+  "initialRouteName={trainerWorkspace ? 'trainer-home' : adminWorkspace ? 'admin-home' : 'home'}",
+  "href: trainerWorkspace ? '/trainer-home' : null",
+  "href: adminWorkspace ? '/admin-home' : null",
   "href: isStaff ? null : '/home'",
 ]) {
   if (!tabs.includes(token)) throw new Error('Trainer tab mode missing: ' + token);
@@ -78,6 +89,16 @@ for (const token of [
   'levels.map',
 ]) {
   if (!trainerHome.includes(token)) throw new Error('Trainer tomorrow dashboard missing: ' + token);
+}
+
+if (!trainerHome.includes("const key = `${row.scheduleId}:${row.startTime}:${row.programCode}`")) {
+  throw new Error('Comandos debe ser una sola clase por horario; el nivel no puede formar parte de la clave de agrupación.');
+}
+if (trainerHome.includes("row.programLevel}:") || trainerHome.includes(":${row.programLevel}")) {
+  throw new Error('Comandos no puede dividirse en clases separadas por nivel.');
+}
+if (!trainerClasses.includes("const key = `${row.scheduleId}:${row.programCode}:${row.startTime}`")) {
+  throw new Error('El roster debe agrupar Comandos por horario, no por nivel.');
 }
 
 for (const token of [
@@ -95,6 +116,9 @@ for (const token of [
   'getTrainerExamItems',
   'uploadTrainerExamResults',
   'pickAndParseUcapsaExamXlsx',
+  'pickAndParseUcapsaExamDefinitionXlsx',
+  'createTrainerExamDraft',
+  'Subir examen',
   'Subir Excel',
   'Capturar',
 ]) {
@@ -111,6 +135,10 @@ for (const token of [
 
 for (const token of [
   'getStaffDogNotes',
+  'getStaffDogOperationalProfile',
+  'Datos para entrenamiento',
+  'Alergias',
+  'Medicamentos',
   'addStaffDogNote',
   'resolveStaffDogNote',
   'Estas notas son internas',
@@ -143,11 +171,14 @@ for (const token of [
   'trainer_import_ucapsa_exam_results',
   'reviewed_pending_admin_publish',
   'superadmin_set_profile_role',
+  'trainer_create_ucapsa_exam_draft',
+  'get_staff_dog_operational_profile',
+  'draft_pending_admin_publish',
 ]) {
-  if (!trainerSql.includes(token)) throw new Error('Trainer SQL boundary missing: ' + token);
+  if (!trainerSqlAll.includes(token)) throw new Error('Trainer SQL boundary missing: ' + token);
 }
 
-if (/trainer_import_ucapsa_exam_results[sS]*admin_publish_ucapsa_exam_attempt/.test(trainerSql)) {
+if (/trainer_import_ucapsa_exam_results[sS]*admin_publish_ucapsa_exam_attempt/.test(trainerSqlAll)) {
   throw new Error('Trainer bulk upload must not publish or officialize exam attempts.');
 }
 
@@ -210,8 +241,28 @@ for (const token of [
   "supabase.rpc('get_staff_class_roster'",
   "supabase.rpc('staff_register_program_attendance'",
   "supabase.rpc('trainer_import_ucapsa_exam_results'",
+  "supabase.rpc('trainer_create_ucapsa_exam_draft'",
+  "supabase.rpc('get_staff_dog_operational_profile'",
 ]) {
   if (!trainerService.includes(token)) throw new Error('Trainer app service boundary missing: ' + token);
+}
+
+for (const token of [
+  "export type StaffWorkspaceMode = 'admin' | 'trainer'",
+  'canSwitchStaffWorkspace',
+  "value === 'trainer' ? 'trainer' : 'admin'",
+]) {
+  if (!staffWorkspace.includes(token)) throw new Error('Staff workspace mode missing: ' + token);
+}
+for (const token of ['Administración', 'Entrenamiento', '/trainer-home', '/admin-home']) {
+  if (!staffSwitcher.includes(token)) throw new Error('Staff workspace switcher missing: ' + token);
+}
+for (const token of [
+  'parseUcapsaExamDefinitionXlsx',
+  'pickAndParseUcapsaExamDefinitionXlsx',
+  'Puntos máximos',
+]) {
+  if (!examXlsx.includes(token)) throw new Error('Exam definition Excel parser missing: ' + token);
 }
 
 if (!pkg.includes('"check:trainer-role"')) {
