@@ -5365,6 +5365,13 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_my_dog_photo_paths: {
+        Args: never
+        Returns: {
+          dog_id: string
+          photo_path: string
+        }[]
+      }
       get_my_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
@@ -5649,6 +5656,10 @@ export type Database = {
       rotate_attendance_qr_code: {
         Args: { p_program_code: string }
         Returns: string
+      }
+      set_my_dog_photo_path: {
+        Args: { p_dog_id: string; p_photo_path: string }
+        Returns: undefined
       }
       ucapsa_achievement_code_for_enrollment: {
         Args: { p_enrollment_id: string }
