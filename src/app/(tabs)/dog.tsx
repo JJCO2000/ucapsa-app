@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { DogAvatar } from '../../components/domain/DogAvatar';
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
@@ -11,6 +11,7 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
+import { getPrivateDogPhotoUrls } from '../../services/dog-photos.service';
 import { createMyDog, getMyDogs, type BasicDog } from '../../services/dogs.service';
 import { clientReadKeys, readClientResource, sanitizeProgramRowsForCache, writeClientResource } from '../../services/client-read-cache.service';
 import { getMyProgramEnrollments, getProgramCodeLabel, getProgramLevelDisplayLabel } from '../../services/programs.service';
@@ -29,6 +30,7 @@ export default function DogTab() {
   const { user, role, isAdmin } = useSession();
   const [dogs, setDogs] = useState<BasicDog[]>([]);
   const [rows, setRows] = useState<ProgramEnrollmentWithDetails[]>([]);
+  const [photoUrls, setPhotoUrls] = useState<Record<string, string | null>>({});
   const [selectedDogId, setSelectedDogId] = useState<string | null>(null);
   const [editorMode, setEditorMode] = useState<EditorMode>(null);
   const [draftName, setDraftName] = useState('');
@@ -53,6 +55,7 @@ export default function DogTab() {
       cacheScopeRef.current = scope;
       setDogs([]);
       setRows([]);
+      setPhotoUrls({});
       setSelectedDogId(null);
       setLocalReady(false);
       setUsingSavedData(false);
@@ -147,7 +150,20 @@ export default function DogTab() {
     setSelectedDogId(requestedDogId);
   }, [dogs, requestedDogId]);
 
-  const activeEnrollments = useMemo(() => rows.filter((item) => item.enrollment.status === 'active'), [rows]);
+  useEffect(() => {
+    let active = true;
+    const paths = Object.fromEntries(dogs.map((dog) => [dog.id, dog.photo_path]));
+    void getPrivateDogPhotoUrls(paths)
+      .then((urls) => {
+        if (active) setPhotoUrls(urls);
+      })
+      .catch(() => {
+        if (active) setPhotoUrls({});
+      });
+    return () => { active = false; };
+  }, [dogs]);
+
+    const activeEnrollments = useMemo(() => rows.filter((item) => item.enrollment.status === 'active'), [rows]);
   const memberDogIds = useMemo(
     () => new Set(
       activeEnrollments
@@ -321,7 +337,7 @@ export default function DogTab() {
                         ]}
                         onPress={() => setSelectedDogId(dog.id)}
                       >
-                        <DogAvatar avatarKey={dog.avatar_key} avatarColor={dog.avatar_color} size={30} accessibilityLabel={`Avatar de ${dog.name}`} />
+                        <DogTabPortrait dog={dog} photoUrl={photoUrls[dog.id] ?? null} size={30} />
                         <Text style={[styles.dogChipText, { color: selected ? format.pillText : format.cardText }]} numberOfLines={1}>{dog.name}</Text>
                         {memberDogIds.has(dog.id) ? (
                           <View style={[styles.memberCrownMini, { backgroundColor: selected ? format.cardBackground : ucapsaBrand.colors.goldPale }]}>
@@ -340,7 +356,7 @@ export default function DogTab() {
           {selectedDog ? (
             <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
               <View style={styles.sectionHeader}>
-                <DogAvatar avatarKey={selectedDog.avatar_key} avatarColor={selectedDog.avatar_color} size={52} accessibilityLabel={`Avatar de ${selectedDog.name}`} />
+                <DogTabPortrait dog={selectedDog} photoUrl={photoUrls[selectedDog.id] ?? null} size={52} />
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <View style={styles.dogNameRow}>
                     <Text style={[styles.sectionTitle, { color: format.cardText }]}>{selectedDog.name}</Text>
@@ -488,6 +504,20 @@ export default function DogTab() {
       </KeyboardAwareModal>
     </KeyboardAwareScreen>
   );
+}
+
+function DogTabPortrait({ dog, photoUrl, size }: { dog: BasicDog; photoUrl: string | null; size: number }) {
+  if (photoUrl) {
+    return (
+      <Image
+        source={{ uri: photoUrl }}
+        style={{ width: size, height: size, borderRadius: Math.round(size * 0.34) }}
+        resizeMode="cover"
+        accessibilityLabel={`Foto de ${dog.name}`}
+      />
+    );
+  }
+  return <DogAvatar avatarKey={dog.avatar_key} avatarColor={dog.avatar_color} size={size} accessibilityLabel={`Avatar de ${dog.name}`} />;
 }
 
 function CompactDogHeader({
