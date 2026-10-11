@@ -160,7 +160,7 @@ export function resolveUcapsaFormat(input: {
   membershipStatus?: MembershipStatus | null;
   hasActivePrograms?: boolean;
 }): UcapsaFormat {
-  if (input.isAdmin || input.role === 'admin' || input.role === 'super_admin') return ucapsaFormats.admin;
+  if (input.isAdmin || input.role === 'trainer' || input.role === 'admin' || input.role === 'super_admin') return ucapsaFormats.admin;
   if (input.role === 'member' || input.membershipStatus === 'active') return ucapsaFormats.member;
   if (input.user || input.hasActivePrograms || input.membershipStatus === 'pending') return ucapsaFormats.client;
   return ucapsaFormats.visitor;
