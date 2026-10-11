@@ -3,6 +3,7 @@ import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
+import { StaffWorkspaceSwitcher } from '../../components/domain/StaffWorkspaceSwitcher';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
@@ -87,6 +88,7 @@ export default function TrainerHomeTab() {
         <Text style={styles.kicker}>ENTRENAMIENTO</Text>
         <Text style={styles.title}>Hola, {(profile?.full_name || 'Entrenador').split(' ')[0]}</Text>
         <Text style={styles.subtitle}>Lo necesario para preparar las clases y trabajar con los perros.</Text>
+        <View style={styles.modeSwitch}><StaffWorkspaceSwitcher /></View>
       </View>
 
       <View style={styles.tomorrowHeader}>
@@ -208,6 +210,7 @@ const styles = StyleSheet.create({
   hero: { borderRadius: 25, backgroundColor: ucapsaBrand.colors.greenDark, padding: 18, marginBottom: 18 },
   kicker: { color: ucapsaBrand.colors.greenSoft, fontSize: 10, fontWeight: '900', letterSpacing: 0.9 },
   title: { color: ucapsaBrand.colors.surface, fontSize: 26, lineHeight: 31, fontWeight: '900', marginTop: 3 },
+  modeSwitch: { marginTop: 12 },
   subtitle: { color: ucapsaBrand.colors.greenSoft, fontSize: 12, lineHeight: 17, fontWeight: '700', marginTop: 4 },
   tomorrowHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 },
   eyebrow: { color: ucapsaBrand.colors.greenDark, fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
