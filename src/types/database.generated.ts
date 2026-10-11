@@ -5981,6 +5981,10 @@ export type Database = {
         Args: { p_role: string; p_user_id: string }
         Returns: string
       }
+      staff_publish_ucapsa_exam: {
+        Args: { p_exam_id: string }
+        Returns: string
+      }
       trainer_create_ucapsa_exam_draft: {
         Args: {
           p_code: string
