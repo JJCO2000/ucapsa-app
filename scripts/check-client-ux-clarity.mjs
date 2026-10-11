@@ -67,7 +67,7 @@ for (const token of [
   'timelineRow',
   "setMonthExpanded(false)",
   "activityDateKeys.has(dateKey)",
-  "'Día libre'",
+  'Día libre',
   "'Mes'",
   "'Semana'",
   'useLocalSearchParams',
