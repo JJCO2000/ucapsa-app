@@ -1,13 +1,18 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, RefreshControl, StyleSheet, Text, View, Pressable } from 'react-native';
+import { ActivityIndicator, Alert, RefreshControl, StyleSheet, Text, View, Pressable } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
+import { localDateKey } from '../../services/class-rsvp.service';
 import { getProgramLevelLabel } from '../../services/programs.service';
-import { getStaffClassRoster, type StaffClassRosterRow } from '../../services/staff-operations.service';
+import {
+  getStaffClassRoster,
+  registerStaffClassAttendance,
+  type StaffClassRosterRow,
+} from '../../services/staff-operations.service';
 
 function responseMeta(value: StaffClassRosterRow['rsvpResponse']) {
   if (value === 'yes') return { label: 'Confirmado', icon: 'check-circle' as const, bg: ucapsaBrand.colors.successSoft, fg: ucapsaBrand.colors.successDark };
@@ -29,7 +34,10 @@ export default function TrainerRosterScreen() {
   const [rows, setRows] = useState<StaffClassRosterRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [markingEnrollmentId, setMarkingEnrollmentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const today = localDateKey();
+  const canMarkAttendance = Boolean(dateKey && dateKey <= today);
 
   const load = useCallback(async () => {
     if (!dateKey) {
@@ -69,6 +77,23 @@ export default function TrainerRosterScreen() {
   async function refresh() {
     setRefreshing(true);
     try { await load(); } finally { setRefreshing(false); }
+  }
+
+  async function markAttendance(row: StaffClassRosterRow) {
+    if (!canMarkAttendance || row.attended || markingEnrollmentId) return;
+    try {
+      setMarkingEnrollmentId(row.enrollmentId);
+      await registerStaffClassAttendance({
+        enrollmentId: row.enrollmentId,
+        classDate: dateKey,
+        scheduleId: row.scheduleId,
+      });
+      await load();
+    } catch (cause) {
+      Alert.alert('No se pudo registrar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+    } finally {
+      setMarkingEnrollmentId(null);
+    }
   }
 
   if (!isStaff) return <Redirect href={isAdmin ? '/admin-home' : '/home'} />;
@@ -123,7 +148,28 @@ export default function TrainerRosterScreen() {
                   {row.membershipStatus === 'active' ? <Text style={styles.member}>Socio</Text> : null}
                 </View>
               </View>
-              {row.dogId ? <MaterialIcons name="chevron-right" size={22} color={ucapsaBrand.colors.greenDark} /> : null}
+              <View style={styles.rowActions}>
+                {row.attended ? (
+                  <View style={styles.attendedPill}>
+                    <MaterialIcons name="check" size={14} color={ucapsaBrand.colors.successDark} />
+                    <Text style={styles.attendedText}>Asistió</Text>
+                  </View>
+                ) : canMarkAttendance ? (
+                  <Pressable
+                    disabled={Boolean(markingEnrollmentId)}
+                    style={styles.arrivalButton}
+                    onPress={(event) => {
+                      event.stopPropagation();
+                      void markAttendance(row);
+                    }}
+                  >
+                    {markingEnrollmentId === row.enrollmentId
+                      ? <ActivityIndicator size="small" color={ucapsaBrand.colors.greenDark} />
+                      : <Text style={styles.arrivalText}>Llegó</Text>}
+                  </Pressable>
+                ) : null}
+                {row.dogId ? <MaterialIcons name="chevron-right" size={22} color={ucapsaBrand.colors.greenDark} /> : null}
+              </View>
             </Pressable>
           );
         })}
@@ -177,4 +223,9 @@ const styles = StyleSheet.create({
   metaLine: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 5 },
   responseText: { fontSize: 9, fontWeight: '900' },
   member: { color: ucapsaBrand.colors.purpleDark, backgroundColor: ucapsaBrand.colors.purpleSoft, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2, fontSize: 8, fontWeight: '900' },
+  rowActions: { alignItems: 'flex-end', justifyContent: 'center', gap: 5 },
+  arrivalButton: { minWidth: 54, minHeight: 31, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: ucapsaBrand.colors.greenSoft, paddingHorizontal: 8 },
+  arrivalText: { color: ucapsaBrand.colors.greenDark, fontSize: 9, fontWeight: '900' },
+  attendedPill: { flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 999, backgroundColor: ucapsaBrand.colors.successSoft, paddingHorizontal: 7, paddingVertical: 5 },
+  attendedText: { color: ucapsaBrand.colors.successDark, fontSize: 8, fontWeight: '900' },
 });
