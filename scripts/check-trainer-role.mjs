@@ -5,7 +5,10 @@ function read(path) {
 }
 
 const enumSql = read('supabase/sql/ucapsa-trainer-00-role.sql');
-const roleSql = read('supabase/sql/ucapsa-trainer-operations.sql');
+const roleSql = read('supabase/sql/ucapsa-trainer-10-operations.sql');
+const attendanceSql = read('supabase/sql/ucapsa-trainer-20-attendance.sql');
+const examUploadSql = read('supabase/sql/ucapsa-trainer-30-exam-uploads.sql');
+const privilegedSql = [roleSql, attendanceSql, examUploadSql].join('\n');
 const appTypes = read('src/types/app.types.ts');
 const dbTypes = read('src/types/database.generated.ts');
 const session = read('src/hooks/useSession.tsx');
@@ -15,6 +18,12 @@ const trainerDogs = read('src/app/(tabs)/trainer-dogs.tsx');
 const trainerExams = read('src/app/(tabs)/trainer-exams.tsx');
 const trainerReports = read('src/app/(tabs)/trainer-reports.tsx');
 const examAttempt = read('src/app/trainer/exam-attempt.tsx');
+const examUpload = read('src/app/trainer/exam-upload.tsx');
+const examResultsImport = read('src/app/trainer/exam-results-import.tsx');
+const roster = read('src/app/trainer/roster.tsx');
+const trainerDog = read('src/app/trainer/dog.tsx');
+const workspaceHook = read('src/hooks/useStaffWorkspace.tsx');
+const workspaceSwitcher = read('src/components/domain/StaffWorkspaceSwitcher.tsx');
 const users = read('src/app/admin/users.tsx');
 const rsvp = read('src/services/class-rsvp.service.ts');
 const reminderCron = read('supabase/sql/ucapsa-class-reminders-cron.sql');
@@ -26,7 +35,7 @@ for (const [source, token] of [
   [dbTypes, '"trainer"'],
   [session, "const isTrainer = role === 'trainer'"],
   [session, 'const isStaff = isAdmin || isTrainer'],
-  [tabs, "initialRouteName={isAdmin ? 'admin-home' : isTrainer ? 'trainer-home' : 'home'}"],
+  [tabs, "initialRouteName={trainerWorkspace ? 'trainer-home' : adminWorkspace ? 'admin-home' : 'home'}"],
   [tabs, 'name="trainer-home"'],
   [tabs, 'name="trainer-dogs"'],
   [tabs, 'name="trainer-exams"'],
@@ -57,6 +66,36 @@ for (const token of [
   if (!roleSql.includes(token)) throw new Error('Trainer SQL contract missing: ' + token);
 }
 
+for (const token of [
+  'trainer_register_program_attendance',
+]) {
+  if (!attendanceSql.includes(token)) throw new Error('Trainer attendance contract missing: ' + token);
+}
+
+for (const token of [
+  'trainer_create_ucapsa_exam_draft',
+  'trainer_import_ucapsa_exam_results',
+  'get_staff_exam_drafts',
+]) {
+  if (!examUploadSql.includes(token)) throw new Error('Trainer exam upload contract missing: ' + token);
+}
+
+for (const [source, token] of [
+  [workspaceHook, "export type StaffWorkspaceMode = 'admin' | 'trainer'"],
+  [workspaceHook, "if (isTrainer)"],
+  [workspaceSwitcher, 'Administración'],
+  [workspaceSwitcher, 'Entrenamiento'],
+  [trainerExams, '/trainer/exam-upload'],
+  [trainerExams, '/trainer/exam-results-import?examId='],
+  [examUpload, 'pickAndParseUcapsaExamDefinitionXlsx'],
+  [examResultsImport, 'pickAndParseUcapsaExamXlsx'],
+  [roster, 'registerStaffClassAttendance'],
+  [trainerDog, 'Datos operativos'],
+  [trainerDog, 'Alergias:'],
+]) {
+  if (!source.includes(token)) throw new Error('Trainer operational UI missing: ' + token);
+}
+
 if (!/group by[\s\S]*x\.schedule_id[\s\S]*x\.program_level[\s\S]*x\.start_time/i.test(roleSql)) {
   throw new Error('Class capacity must group one Comandos schedule by level.');
 }
@@ -67,22 +106,22 @@ if (!trainerHome.includes('getProgramLevelLabel(row.programLevel')) {
   throw new Error('Trainer Home lost Básico/Intermedio/Avanzado breakdown.');
 }
 
-for (const source of [trainerHome, trainerDogs, trainerExams, trainerReports, examAttempt]) {
+for (const source of [trainerHome, trainerDogs, trainerExams, trainerReports, examAttempt, examUpload, examResultsImport, roster, trainerDog]) {
   for (const forbidden of ['/admin-payments', '/admin/members', '/admin-communication', 'getAdminPayment', 'getAdminMembership']) {
     if (source.includes(forbidden)) throw new Error('Trainer UI exposes internal administration: ' + forbidden);
   }
 }
 
-if (/trainer_[a-z0-9_]*(?:publish|official|membership|payment)/i.test(roleSql)) {
+if (/trainer_[a-z0-9_]*(?:publish|official|membership|payment)/i.test(privilegedSql)) {
   throw new Error('Trainer SQL gained publishing, membership or payment authority.');
 }
-if (/\b(?:insert\s+into|update|delete\s+from)\s+public\.memberships\b/i.test(roleSql)) {
+if (/\b(?:insert\s+into|update|delete\s+from)\s+public\.memberships\b/i.test(privilegedSql)) {
   throw new Error('Trainer operations must not mutate memberships.');
 }
-if (/\b(?:insert\s+into|update|delete\s+from)\s+public\.(?:payments|payment_obligations|payment_settings)\b/i.test(roleSql)) {
+if (/\b(?:insert\s+into|update|delete\s+from)\s+public\.(?:payments|payment_obligations|payment_settings)\b/i.test(privilegedSql)) {
   throw new Error('Trainer operations must not mutate financial tables.');
 }
-if (/update\s+public\.dog_staff_notes/i.test(roleSql)) {
+if (/update\s+public\.dog_staff_notes/i.test(privilegedSql)) {
   throw new Error('Dog staff history must remain append-only.');
 }
 
