@@ -5455,6 +5455,26 @@ export type Database = {
           start_time: string
         }[]
       }
+      get_staff_dog_operational_profile: {
+        Args: { p_dog_id: string }
+        Returns: {
+          allergies: string | null
+          behavior_notes: string | null
+          birth_date: string | null
+          breed: string | null
+          dog_id: string
+          dog_name: string
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          feeding_notes: string | null
+          medications: string | null
+          owner_name: string
+          sex: string | null
+          veterinarian_name: string | null
+          veterinarian_phone: string | null
+          weight_kg: number | null
+        }[]
+      }
       get_staff_dog_notes: {
         Args: { p_dog_id: string }
         Returns: {
@@ -5946,6 +5966,15 @@ export type Database = {
       }
       superadmin_set_profile_role: {
         Args: { p_role: string; p_user_id: string }
+        Returns: string
+      }
+      trainer_create_ucapsa_exam_draft: {
+        Args: {
+          p_code: string
+          p_exam_date: string | null
+          p_items: Json
+          p_title: string
+        }
         Returns: string
       }
       trainer_create_ucapsa_exam_attempt: {
