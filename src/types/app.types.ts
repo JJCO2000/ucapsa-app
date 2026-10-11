@@ -1,4 +1,4 @@
-export type AppRole = 'client' | 'member' | 'admin' | 'super_admin';
+export type AppRole = 'client' | 'member' | 'trainer' | 'admin' | 'super_admin';
 
 export type MembershipStatus =
   | 'none'
