@@ -104,8 +104,6 @@ export default function ActivityAchievementsScreen() {
         </Pressable>
       ) : null}
 
-      <Text style={[styles.intro, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Reconocen tu actividad real. Las 4 medallas de Puppy y Comandos se consultan en Mi perro.</Text>
-
       {usingSavedData ? (
         <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} label="Mostrando insignias guardadas" />
       ) : null}
@@ -135,7 +133,6 @@ function AchievementCategory({ metric, facts, format, premium }: { metric: Activ
         <View style={[styles.categoryIcon, { backgroundColor: format.accentSoft }]}><MaterialIcons name={meta.icon} size={22} color={format.accentDark} /></View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.categoryTitle, { color: format.cardText }]}>{meta.title}</Text>
-          <Text style={[styles.categorySubtitle, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{meta.subtitle}</Text>
         </View>
         <Text style={[styles.categoryCount, { color: format.accentDark }]}>{unlocked}/{definitions.length}</Text>
       </View>
@@ -149,9 +146,32 @@ function AchievementCategory({ metric, facts, format, premium }: { metric: Activ
       <View style={styles.badgesGrid}>
         {definitions.map((definition) => {
           const isUnlocked = value >= definition.threshold;
+          const isTopTier = definition.threshold === definitions[definitions.length - 1]?.threshold;
           return (
-            <View key={definition.code} style={[styles.badge, { borderColor: isUnlocked ? format.accent : format.cardBorder, backgroundColor: isUnlocked ? format.accentSoft : format.surfaceAlt }]}>
-              <View style={[styles.badgeSeal, { backgroundColor: isUnlocked ? format.accent : format.secondaryButton }]}><MaterialIcons name={definition.icon} size={18} color={isUnlocked ? format.primaryButtonText : format.muted} /></View>
+            <View
+              key={definition.code}
+              style={[
+                styles.badge,
+                isTopTier && styles.badgeTopTier,
+                {
+                  borderColor: isUnlocked ? format.accent : format.cardBorder,
+                  backgroundColor: isUnlocked ? format.accentSoft : format.surfaceAlt,
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.badgeSeal,
+                  isTopTier && styles.badgeSealTopTier,
+                  { backgroundColor: isUnlocked ? format.accent : format.secondaryButton },
+                ]}
+              >
+                <MaterialIcons
+                  name={definition.icon}
+                  size={isTopTier ? 24 : 21}
+                  color={isUnlocked ? format.primaryButtonText : format.muted}
+                />
+              </View>
               <Text numberOfLines={2} style={[styles.badgeTitle, { color: isUnlocked ? format.cardText : format.muted }]}>{definition.title}</Text>
               <Text style={[styles.badgeThreshold, { color: isUnlocked ? format.accentDark : format.muted }]}>{definition.threshold}</Text>
             </View>
@@ -166,7 +186,6 @@ const styles = StyleSheet.create({
   premiumContent: { backgroundColor: ucapsaBrand.colors.premiumBackground },
   backButton: { alignSelf: 'flex-start', minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 14, paddingHorizontal: 11, marginBottom: 12 },
   backText: { fontSize: 13, fontWeight: '900' },
-  intro: { fontSize: 13, lineHeight: 19, fontWeight: '700', marginBottom: 14 },
   loading: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 16 },
   muted: { fontSize: 13, lineHeight: 19, fontWeight: '700' },
   stateCard: { borderWidth: 1, borderRadius: 22, padding: 18 },
@@ -175,7 +194,6 @@ const styles = StyleSheet.create({
   categoryHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   categoryIcon: { width: 46, height: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   categoryTitle: { fontSize: 17, lineHeight: 21, fontWeight: '900' },
-  categorySubtitle: { marginTop: 2, fontSize: 10, lineHeight: 14, fontWeight: '700' },
   categoryCount: { fontSize: 14, fontWeight: '900' },
   progressHeader: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
   progressValue: { fontSize: 27, lineHeight: 30, fontWeight: '900' },
@@ -183,8 +201,10 @@ const styles = StyleSheet.create({
   track: { height: 8, borderRadius: 999, overflow: 'hidden' },
   fill: { height: '100%', borderRadius: 999 },
   badgesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  badge: { width: '31.5%', minHeight: 108, alignItems: 'center', justifyContent: 'space-between', gap: 6, borderWidth: 1, borderRadius: 17, padding: 9 },
-  badgeSeal: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  badgeTitle: { minHeight: 30, textAlign: 'center', fontSize: 10, lineHeight: 14, fontWeight: '900' },
+  badge: { width: '48.5%', minHeight: 132, alignItems: 'center', justifyContent: 'space-between', gap: 8, borderWidth: 1, borderRadius: 20, padding: 12 },
+  badgeTopTier: { borderWidth: 2, minHeight: 144 },
+  badgeSeal: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  badgeSealTopTier: { width: 58, height: 58, borderRadius: 20 },
+  badgeTitle: { minHeight: 34, textAlign: 'center', fontSize: 12, lineHeight: 16, fontWeight: '900' },
   badgeThreshold: { fontSize: 11, fontWeight: '900' },
 });
