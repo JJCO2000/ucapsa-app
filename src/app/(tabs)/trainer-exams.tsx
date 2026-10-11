@@ -113,7 +113,7 @@ export default function TrainerExamsTab() {
 
       Alert.alert(
         'Calificaciones subidas',
-        `${result.rowsImported} resultado${result.rowsImported === 1 ? '' : 's'} quedaron revisados y listos para que Administración publique/oficialice.`,
+        `${result.rowsImported} resultado${result.rowsImported === 1 ? '' : 's'} quedaron revisados y listos para que Administración determine la oficialidad del resultado.`,
       );
       await load();
     } catch (cause) {
