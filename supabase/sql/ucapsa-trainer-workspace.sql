@@ -386,6 +386,8 @@ begin
   with eligible as (
     select
       e.id as enrollment_id,
+      e.user_id,
+      e.dog_id,
       e.schedule_id,
       p.code::text as program_code,
       p.name::text as program_name,
@@ -773,6 +775,8 @@ returns table (
   program_level text,
   start_time time,
   enrollment_id uuid,
+  user_id uuid,
+  dog_id uuid,
   client_name text,
   dog_name text,
   rsvp_response text,
@@ -853,6 +857,8 @@ begin
     x.program_level,
     x.start_time,
     x.enrollment_id,
+    x.user_id,
+    x.dog_id,
     x.client_name,
     x.dog_name,
     r.response,
