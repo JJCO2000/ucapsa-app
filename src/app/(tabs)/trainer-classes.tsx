@@ -9,6 +9,7 @@ import { useSession } from '../../hooks/useSession';
 import {
   getStaffClassRoster,
   localDateKey,
+  markStaffAbsence,
   registerStaffAttendance,
   requestMembershipReviewFromStaff,
   tomorrowKey,
