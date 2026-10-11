@@ -5423,6 +5423,7 @@ export type Database = {
       get_staff_class_roster: {
         Args: { p_class_date: string }
         Returns: {
+          absent: boolean
           attended: boolean
           client_name: string
           dog_id: string
@@ -5507,6 +5508,7 @@ export type Database = {
       get_staff_training_report: {
         Args: { p_end_date: string; p_start_date: string }
         Returns: {
+          absent: boolean
           attended: boolean
           class_date: string
           client_name: string
@@ -5981,6 +5983,15 @@ export type Database = {
       }
       superadmin_set_profile_role: {
         Args: { p_role: string; p_user_id: string }
+        Returns: string
+      }
+      staff_mark_program_absence: {
+        Args: {
+          p_attendance_date: string
+          p_enrollment_id: string
+          p_notes?: string
+          p_schedule_id: string
+        }
         Returns: string
       }
       staff_publish_ucapsa_exam: {
