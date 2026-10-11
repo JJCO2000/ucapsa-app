@@ -28,6 +28,19 @@ for (const token of [
   if (!sql.includes(token)) throw new Error('Class RSVP SQL contract missing: ' + token);
 }
 
+// PostgreSQL treats RETURNS TABLE output names (enrollment_id, class_date)
+// as PL/pgSQL variables. An inferred ON CONFLICT column list raises 42702.
+// Named constraint resolution is unambiguous for both first insert and upsert.
+const hotfix = read('supabase/sql/ucapsa-class-rsvp-conflict-hotfix.sql');
+for (const [source, label] of [[sql, 'base'], [hotfix, 'hotfix']]) {
+  if (!source.includes('on conflict on constraint program_class_rsvps_enrollment_date_unique do update')) {
+    throw new Error('RSVP upsert can fail with SQLSTATE 42702 (' + label + ').');
+  }
+  if (/on conflict\\s*\\(\\s*enrollment_id\\s*,\\s*class_date\\s*\\)/i.test(source)) {
+    throw new Error('Ambiguous RSVP inferred ON CONFLICT columns remain (' + label + ').');
+  }
+}
+
 if (/insert\s+into\s+public\.program_attendances/i.test(sql)) {
   throw new Error('RSVP must never create real attendance rows.');
 }
