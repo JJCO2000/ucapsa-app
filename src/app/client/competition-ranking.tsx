@@ -11,6 +11,7 @@ import { ucapsaBrand } from '../../constants/brand';
 import { DEFAULT_DOG_AVATAR_COLOR, DEFAULT_DOG_AVATAR_KEY } from '../../constants/dogAvatar';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
+import { devWarn } from '../../lib/client-diagnostics';
 import { getPrivateDogPhotoUrls } from '../../services/dog-photos.service';
 import { getMyDogs } from '../../services/dogs.service';
 import {
@@ -94,7 +95,10 @@ export default function ClientCompetitionRankingScreen() {
     if (dogsResult.status === 'fulfilled') {
       const photoUrls = await getPrivateDogPhotoUrls(
         Object.fromEntries(dogsResult.value.map((dog) => [dog.id, dog.photo_path])),
-      ).catch(() => ({} as Record<string, string | null>));
+      ).catch((cause) => {
+        devWarn('competition-ranking: could not resolve private dog photo URLs; falling back to preset avatars.', cause);
+        return {} as Record<string, string | null>;
+      });
       setMyDogs(dogsResult.value.map((dog) => ({
         id: dog.id,
         name: dog.name,
