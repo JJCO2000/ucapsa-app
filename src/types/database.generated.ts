@@ -5942,6 +5942,23 @@ export type Database = {
         }
         Returns: string
       }
+      trainer_create_ucapsa_exam_draft: {
+        Args: {
+          p_code: string
+          p_exam_date: string | null
+          p_items: Json
+          p_title: string
+        }
+        Returns: string
+      }
+      trainer_import_ucapsa_exam_results: {
+        Args: {
+          p_exam_id: string
+          p_file_name: string
+          p_rows: Json
+        }
+        Returns: Json
+      }
       trainer_review_ucapsa_exam_attempt: {
         Args: { p_attempt_id: string }
         Returns: string
