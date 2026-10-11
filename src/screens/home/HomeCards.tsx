@@ -16,30 +16,45 @@ export function NextActionCard({
   action,
   format,
   onPress,
+  onAttendance,
 }: {
   snapshot: CustomerValueSnapshot;
   action: Exclude<CustomerValuePrimaryNextAction, null>;
   format: ReturnType<typeof resolveUcapsaFormat>;
   onPress: () => void;
+  onAttendance?: () => void;
 }) {
   const presentation = nextPresentation(snapshot, action);
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${presentation.eyebrow}. ${presentation.title}. ${presentation.detail}`}
-      onPress={onPress}
-      style={[styles.nextCard, { backgroundColor: format.primaryButton }]}
-    >
-      <View style={[styles.nextIcon, { backgroundColor: withAlpha(format.primaryButtonText, 0.14) }]}>
-        <MaterialIcons name={presentation.icon} size={24} color={format.primaryButtonText} />
-      </View>
-      <View style={styles.nextCopy}>
-        <Text style={[styles.nextEyebrow, { color: format.primaryButtonText }]}>{presentation.eyebrow}</Text>
-        <Text numberOfLines={2} style={[styles.nextTitle, { color: format.primaryButtonText }]}>{presentation.title}</Text>
-        <Text numberOfLines={2} style={[styles.nextDetail, { color: format.primaryButtonText }]}>{presentation.detail}</Text>
-      </View>
-      <MaterialIcons name="arrow-forward" size={23} color={format.primaryButtonText} />
-    </Pressable>
+    <View style={[styles.nextCard, { backgroundColor: format.primaryButton }]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${presentation.eyebrow}. ${presentation.title}. ${presentation.detail}`}
+        onPress={onPress}
+        style={styles.nextCardMain}
+      >
+        <View style={[styles.nextIcon, { backgroundColor: withAlpha(format.primaryButtonText, 0.14) }]}>
+          <MaterialIcons name={presentation.icon} size={24} color={format.primaryButtonText} />
+        </View>
+        <View style={styles.nextCopy}>
+          <Text style={[styles.nextEyebrow, { color: format.primaryButtonText }]}>{presentation.eyebrow}</Text>
+          <Text numberOfLines={2} style={[styles.nextTitle, { color: format.primaryButtonText }]}>{presentation.title}</Text>
+          <Text numberOfLines={2} style={[styles.nextDetail, { color: format.primaryButtonText }]}>{presentation.detail}</Text>
+        </View>
+        <MaterialIcons name="arrow-forward" size={23} color={format.primaryButtonText} />
+      </Pressable>
+      {action.kind === 'class' && onAttendance ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Registrar asistencia"
+          onPress={onAttendance}
+          hitSlop={5}
+          style={[styles.nextAttendanceButton, { backgroundColor: ucapsaBrand.colors.goldPale }]}
+        >
+          <MaterialIcons name="photo-camera" size={20} color={ucapsaBrand.colors.goldDark} />
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
 
@@ -50,6 +65,7 @@ export function ProgramCard({
   format,
   onPress,
   onPractice,
+  onAchievements,
 }: {
   snapshot: CustomerValueSnapshot;
   practice: PracticeActivitySnapshot | null;
@@ -57,6 +73,7 @@ export function ProgramCard({
   format: ReturnType<typeof resolveUcapsaFormat>;
   onPress: () => void;
   onPractice: () => void;
+  onAchievements: () => void;
 }) {
   const premium = format.key === 'member';
   const nextClass = snapshot.whatIsNext.nextClass ?? null;
@@ -82,23 +99,35 @@ export function ProgramCard({
 
   return (
     <View style={[styles.programCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
-      <Pressable accessibilityRole="button" onPress={onPress} style={styles.programMain}>
+      <View style={styles.programMain}>
         <View style={styles.programTop}>
-          <View style={[styles.programIcon, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft }]}>
-            <MaterialIcons
-              name={program ? 'school' : membership?.isValidToday ? 'workspace-premium' : 'pets'}
-              size={23}
-              color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark}
-            />
-          </View>
-          <View style={styles.programCopy}>
-            <Text style={[styles.programEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>
-              {program ? 'TU PROGRAMA' : membership?.isValidToday ? 'TU ACCESO' : 'TU RECORRIDO'}
-            </Text>
-            <Text numberOfLines={2} style={[styles.programTitle, { color: format.cardText }]}>{title}</Text>
-            <Text style={[styles.programMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{meta}</Text>
-          </View>
-          <MaterialIcons name="chevron-right" size={23} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+          <Pressable accessibilityRole="button" onPress={onPress} style={styles.programTopPressable}>
+            <View style={[styles.programIcon, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : ucapsaBrand.colors.goldPale }]}>
+              <MaterialIcons
+                name={program ? 'school' : membership?.isValidToday ? 'workspace-premium' : 'pets'}
+                size={23}
+                color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.goldDark}
+              />
+            </View>
+            <View style={styles.programCopy}>
+              <Text style={[styles.programEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>
+                {program ? 'TU PROGRAMA' : membership?.isValidToday ? 'TU ACCESO' : 'TU RECORRIDO'}
+              </Text>
+              <Text numberOfLines={2} style={[styles.programTitle, { color: format.cardText }]}>{title}</Text>
+              <Text style={[styles.programMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{meta}</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={23} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+          </Pressable>
+          {program ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Ver logros de ${program.dogName}`}
+              onPress={onAchievements}
+              style={[styles.programAchievementButton, { backgroundColor: ucapsaBrand.colors.purpleSoft }]}
+            >
+              <MaterialIcons name="military-tech" size={20} color={ucapsaBrand.colors.purpleDark} />
+            </Pressable>
+          ) : null}
         </View>
 
         {program && unlimited ? (
@@ -135,7 +164,7 @@ export function ProgramCard({
             </Text>
           </View>
         ) : null}
-      </Pressable>
+      </View>
 
       {program ? (
         <Pressable accessibilityRole="button" onPress={onPractice} style={[styles.practiceSummary, { borderTopColor: format.border }]}>

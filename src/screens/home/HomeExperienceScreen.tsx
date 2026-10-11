@@ -10,13 +10,7 @@ import { UcapsaDetailModal } from '../../components/ui/UcapsaDetailModal';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
-import { devWarn } from '../../lib/client-diagnostics';
 import { getHomeAnnouncements, rankHomeAnnouncements } from '../../services/announcements.service';
-import {
-  getCachedCompetitionHomeSummary,
-  refreshCompetitionHomeSummary,
-  type ClientCompetitionHomeSummary,
-} from '../../services/client-competition-home.service';
 import { readCustomerValueSnapshotCache, writeCustomerValueSnapshotCache } from '../../services/customer-value-cache.service';
 import { mergeCustomerValueSnapshotWithCache } from '../../services/customer-value-merge.service';
 import {
@@ -35,7 +29,7 @@ import {
 import { getCachedMyPracticeActivity, getMyPracticeActivity, type PracticeActivitySnapshot } from '../../services/practice.service';
 import type { Announcement } from '../../types/app.types';
 import { DEFAULT_READ_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
-import { ActivityCard, CompetitionHomeCard, ContextNotice, ContextStrip, NextActionCard, ProgramCard } from './HomeCards';
+import { ActivityCard, ContextNotice, ContextStrip, NextActionCard, ProgramCard } from './HomeCards';
 import {
   firstName,
   formatDate,
@@ -56,7 +50,6 @@ export default function HomeExperienceScreen() {
   const [practice, setPractice] = useState<PracticeActivitySnapshot | null>(null);
   const [targetDays, setTargetDays] = useState<PracticeTargetDay[]>(DEFAULT_PRACTICE_TARGET_DAYS);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [competitionSummary, setCompetitionSummary] = useState<ClientCompetitionHomeSummary | null>(null);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -82,7 +75,6 @@ export default function HomeExperienceScreen() {
       setPractice(null);
       setTargetDays(DEFAULT_PRACTICE_TARGET_DAYS);
       setAnnouncements([]);
-      setCompetitionSummary(null);
       setSelectedAnnouncement(null);
     }
 
@@ -94,11 +86,10 @@ export default function HomeExperienceScreen() {
 
     let cachedSnapshot: Awaited<ReturnType<typeof readCustomerValueSnapshotCache>> = null;
     if (user) {
-      const [savedSnapshot, savedPractice, savedTargetDays, savedCompetition] = await Promise.all([
+      const [savedSnapshot, savedPractice, savedTargetDays] = await Promise.all([
         readCustomerValueSnapshotCache(user.id),
         getCachedMyPracticeActivity(user.id),
         getPracticeTargetDays(user.id),
-        getCachedCompetitionHomeSummary(user.id),
       ]);
       if (!isCurrentRun()) return;
 
@@ -111,24 +102,9 @@ export default function HomeExperienceScreen() {
         setLoading(false);
       }
       if (savedPractice) setPractice(savedPractice);
-      if (savedCompetition) setCompetitionSummary(savedCompetition);
       setTargetDays(savedTargetDays);
     } else if (cachedAnnouncements.length > 0) {
       setLoading(false);
-    }
-
-    if (user) {
-      void withOperationTimeout(
-        refreshCompetitionHomeSummary(user.id),
-        DEFAULT_READ_TIMEOUT_MS,
-        'home-competition',
-      )
-        .then((nextCompetition) => {
-          if (isCurrentRun()) setCompetitionSummary(nextCompetition);
-        })
-        .catch((cause) => {
-          devWarn('Could not refresh competition context on Home.', cause);
-        });
     }
 
     const [announcementResult, snapshotResult, practiceResult, targetDaysResult] = await Promise.allSettled([
@@ -202,7 +178,6 @@ export default function HomeExperienceScreen() {
   );
   const premium = format.key === 'member';
   const displayName = profile?.full_name || snapshot?.identity.displayName || profile?.email || user?.email || 'Visitante';
-  const dogName = mainProgram?.dogName || profile?.dog_name || null;
   const identityDetail = user
     ? 'Tu próxima clase · clases tomadas · logros · siguiente paso'
     : 'Todo el recorrido de tu perro en un solo lugar';
@@ -270,20 +245,40 @@ export default function HomeExperienceScreen() {
             </Text>
           </View>
         </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={user ? 'Abrir ajustes de cuenta' : 'Iniciar sesión'}
-          onPress={() => router.push((user ? '/account-settings' : '/auth/login') as never)}
-          style={[
-            styles.accountButton,
-            {
-              borderColor: premium ? ucapsaBrand.colors.premiumBorderStrong : format.border,
-              backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft,
-            },
-          ]}
-        >
-          <MaterialIcons name={user ? 'person' : 'login'} size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-        </Pressable>
+        <View style={styles.headerActions}>
+          {user ? (
+            <>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Abrir ranking"
+                onPress={() => router.push('/client/competition' as never)}
+                style={[
+                  styles.headerQuickAction,
+                  {
+                    borderColor: premium ? ucapsaBrand.colors.premiumBorderStrong : ucapsaBrand.colors.purple,
+                    backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : ucapsaBrand.colors.purpleSoft,
+                  },
+                ]}
+              >
+                <MaterialIcons name="leaderboard" size={18} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.purpleDark} />
+              </Pressable>
+            </>
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={user ? 'Abrir ajustes de cuenta' : 'Iniciar sesión'}
+            onPress={() => router.push((user ? '/account-settings' : '/auth/login') as never)}
+            style={[
+              styles.accountButton,
+              {
+                borderColor: premium ? ucapsaBrand.colors.premiumBorderStrong : format.border,
+                backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft,
+              },
+            ]}
+          >
+            <MaterialIcons name={user ? 'person' : 'login'} size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+          </Pressable>
+        </View>
       </View>
 
       {!user ? (
@@ -317,30 +312,25 @@ export default function HomeExperienceScreen() {
         </View>
       ) : null}
 
-      {!loading && user && snapshotState === 'error' ? (
-        <View style={[styles.stateStrip, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
+      {!loading && user && (snapshotState === 'error' || snapshotState === 'cached' || snapshotState === 'partial') ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Sin conexión. Reintentar sincronización."
+          onPress={() => void refresh()}
+          style={[styles.offlineOnly, { borderColor: format.cardBorder, backgroundColor: format.surfaceAlt }]}
+        >
           <MaterialIcons name="cloud-off" size={20} color={format.accentDark} />
-          <View style={styles.stateCopy}>
-            <Text style={[styles.stateTitle, { color: format.cardText }]}>No pudimos cargar tu resumen</Text>
-            <Text style={[styles.stateText, { color: format.muted }]}>Revisa tu conexión e intenta actualizar.</Text>
-          </View>
-          <Pressable onPress={() => void refresh()} style={[styles.iconButton, { backgroundColor: format.accentSoft }]}>
-            <MaterialIcons name="refresh" size={18} color={format.accentDark} />
-          </Pressable>
-        </View>
-      ) : null}
-
-      {!loading && user && (snapshotState === 'cached' || snapshotState === 'partial') ? (
-        <View style={[styles.syncStrip, { borderColor: format.cardBorder, backgroundColor: format.surfaceAlt }]}>
-          <MaterialIcons name={snapshotState === 'cached' ? 'offline-pin' : 'info-outline'} size={17} color={format.accentDark} />
-          <Text style={[styles.syncText, { color: format.muted }]}>
-            {snapshotState === 'cached' ? 'Mostrando la última información guardada.' : 'Algunos datos no pudieron actualizarse.'}
-          </Text>
-        </View>
+        </Pressable>
       ) : null}
 
       {!loading && user && snapshot && nextAction ? (
-        <NextActionCard snapshot={snapshot} action={nextAction} format={format} onPress={() => openNext(nextAction)} />
+        <NextActionCard
+          snapshot={snapshot}
+          action={nextAction}
+          format={format}
+          onPress={() => openNext(nextAction)}
+          onAttendance={() => router.push('/attendance' as never)}
+        />
       ) : null}
 
       {!loading && user && snapshot ? (
@@ -351,15 +341,15 @@ export default function HomeExperienceScreen() {
           format={format}
           onPress={() => router.push((mainProgram ? '/classes' : '/client/membership') as never)}
           onPractice={() => router.push('/client/practice-activity' as never)}
+          onAchievements={() => router.push((mainProgram?.dogId ? `/client/dog-achievements?dogId=${encodeURIComponent(mainProgram.dogId)}` : '/achievements') as never)}
         />
       ) : null}
 
       {!loading && user ? (
-        <CompetitionHomeCard
-          summary={competitionSummary}
-          format={format}
-          onPress={() => router.push('/client/competition' as never)}
-        />
+        <Pressable style={styles.noticeLinkOnly} onPress={() => router.push('/announcements' as never)}>
+          <MaterialIcons name="campaign" size={17} color={format.accentDark} />
+          <Text style={[styles.noticeLinkOnlyText, { color: format.accentDark }]}>Ver avisos UCAPSA</Text>
+        </Pressable>
       ) : null}
 
       {!loading && user && snapshot ? (
@@ -404,13 +394,6 @@ export default function HomeExperienceScreen() {
           onPress={() => router.push((recentAchievement.dogId ? `/client/dog-achievements?dogId=${encodeURIComponent(recentAchievement.dogId)}` : '/achievements') as never)}
           accent="gold"
         />
-      ) : null}
-
-      {!loading && announcements.length === 0 ? (
-        <Pressable style={styles.noticeLinkOnly} onPress={() => router.push('/announcements' as never)}>
-          <MaterialIcons name="campaign" size={17} color={format.accentDark} />
-          <Text style={[styles.noticeLinkOnlyText, { color: format.accentDark }]}>Ver avisos UCAPSA</Text>
-        </Pressable>
       ) : null}
 
       <UcapsaDetailModal

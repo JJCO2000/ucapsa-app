@@ -1,4 +1,4 @@
-import { ucapsaBrand, withAlpha } from '../../constants/brand';
+import { ucapsaBrand, ucapsaColorKeyPalette, withAlpha } from '../../constants/brand';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -114,34 +114,17 @@ function expandClassOccurrences(schedules: ProgramSchedule[], programs: UcapsaPr
 }
 
 
-function getClassTheme(programCode: string | null | undefined) {
-  if (programCode === 'puppy') {
-    return {
-      background: ucapsaBrand.colors.goldPale,
-      border: ucapsaBrand.colors.gold,
-      iconBackground: ucapsaBrand.colors.goldSoft,
-      accent: ucapsaBrand.colors.goldDark,
-      title: ucapsaBrand.colors.text,
-      text: ucapsaBrand.colors.muted,
-    };
-  }
+function getColorTone(colorKey: UcapsaProgram['color_key'] | Announcement['color_key'] | UcapsaEvent['color_key'] | null | undefined) {
+  return ucapsaColorKeyPalette[colorKey ?? 'red'] ?? ucapsaColorKeyPalette.red;
+}
 
-  if (programCode === 'comandos') {
-    return {
-      background: ucapsaBrand.colors.redSoftMuted,
-      border: ucapsaBrand.colors.redBorder,
-      iconBackground: ucapsaBrand.colors.redSoft,
-      accent: ucapsaBrand.colors.red,
-      title: ucapsaBrand.colors.text,
-      text: ucapsaBrand.colors.muted,
-    };
-  }
-
+function getClassTheme(program: UcapsaProgram | null | undefined) {
+  const tone = getColorTone(program?.color_key);
   return {
-    background: ucapsaBrand.colors.surface,
-    border: ucapsaBrand.colors.dangerBorder,
-    iconBackground: ucapsaBrand.colors.redSoftMuted,
-    accent: ucapsaBrand.colors.red,
+    background: tone.soft,
+    border: tone.accent,
+    iconBackground: tone.soft,
+    accent: tone.text,
     title: ucapsaBrand.colors.text,
     text: ucapsaBrand.colors.muted,
   };
@@ -173,7 +156,7 @@ export default function CalendarScreen() {
   const [practiceActivity, setPracticeActivity] = useState<PracticeActivityEntry[]>([]);
   const [practiceLoadWarning, setPracticeLoadWarning] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(todayKey());
-  const [monthExpanded, setMonthExpanded] = useState(isAdmin);
+  const [monthExpanded, setMonthExpanded] = useState(true);
   const [openRoster, setOpenRoster] = useState<{ occurrenceId: string; level: AdminRosterLevel } | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -418,6 +401,7 @@ export default function CalendarScreen() {
     title: string;
     detail: string;
     cancelled?: boolean;
+    colorKey?: UcapsaProgram['color_key'] | Announcement['color_key'] | UcapsaEvent['color_key'] | null;
     source: ClassOccurrence | EventOccurrence | Announcement | PracticeActivityEntry;
   };
 
@@ -432,6 +416,7 @@ export default function CalendarScreen() {
         sortMinutes: -20,
         title: announcement.title,
         detail: announcement.content,
+        colorKey: announcement.color_key,
         source: announcement,
       });
     }
@@ -446,6 +431,7 @@ export default function CalendarScreen() {
         sortMinutes: hasTime ? date.getHours() * 60 + date.getMinutes() : -10,
         title: occurrence.event.title,
         detail: occurrence.event.location || occurrence.event.description || 'Evento UCAPSA',
+        colorKey: occurrence.event.color_key,
         source: occurrence,
       });
     }
@@ -462,6 +448,7 @@ export default function CalendarScreen() {
           ? `Cancelada${occurrence.cancellation.reason ? ` · ${occurrence.cancellation.reason}` : ''}`
           : formatProgramScheduleDetailLabel(occurrence.schedule),
         cancelled: Boolean(occurrence.cancellation),
+        colorKey: occurrence.program?.color_key,
         source: occurrence,
       });
     }
@@ -487,6 +474,7 @@ export default function CalendarScreen() {
   const cancelledClassesCount = selectedClasses.filter((occurrence) => Boolean(occurrence.cancellation)).length;
   const activeClassesCount = selectedClasses.length - cancelledClassesCount;
   const dayCount = dayAgendaItems.length;
+  const hasClientSyncWarning = usingSavedData || Boolean(partialLoadWarning || classLoadWarning || practiceLoadWarning);
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: format.background }]} edges={['top']}>
@@ -525,7 +513,7 @@ export default function CalendarScreen() {
           </View>
         ) : null}
 
-        {usingSavedData ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void onRefresh()} premium={isPremium} /> : null}
+        {!isAdmin && hasClientSyncWarning ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void onRefresh()} premium={isPremium} /> : null}
 
         {loading && dayCount === 0 ? (
           <View style={styles.centerBox}>
@@ -544,31 +532,10 @@ export default function CalendarScreen() {
           </View>
         ) : null}
 
-        {partialLoadWarning ? (
-          <View style={styles.warningBox}>
-            <Text style={styles.warningTitle}>Actualizacion parcial</Text>
-            <Text style={styles.warningText}>{partialLoadWarning}</Text>
-          </View>
-        ) : null}
-
-        {classLoadWarning ? (
-          <View style={styles.warningBox}>
-            <Text style={styles.warningTitle}>Clases no disponibles</Text>
-            <Text style={styles.warningText}>{classLoadWarning}</Text>
-          </View>
-        ) : null}
-
-        {adminRosterWarning ? (
+        {isAdmin && adminRosterWarning ? (
           <View style={styles.warningBox}>
             <Text style={styles.warningTitle}>Inscritos no disponibles</Text>
             <Text style={styles.warningText}>{adminRosterWarning}</Text>
-          </View>
-        ) : null}
-
-        {practiceLoadWarning ? (
-          <View style={styles.warningBox}>
-            <Text style={styles.warningTitle}>Actividad sin actualizar</Text>
-            <Text style={styles.warningText}>{practiceLoadWarning}</Text>
           </View>
         ) : null}
 
@@ -596,7 +563,7 @@ export default function CalendarScreen() {
                   current={selectedDate}
                   onDayPress={(day: DateData) => {
                     setSelectedDate(day.dateString);
-                    if (!isAdmin) setMonthExpanded(false);
+                    if (!isAdmin) setMonthExpanded(true);
                   }}
                   markedDates={markedDates}
                   firstDay={1}
@@ -650,8 +617,7 @@ export default function CalendarScreen() {
                 </>
               )}
 
-              {!monthExpanded ? (
-                <View style={[styles.daySchedule, { borderTopColor: format.cardBorder }]}>
+              <View style={[styles.daySchedule, { borderTopColor: format.cardBorder }]}>
                   {dayAgendaItems.length === 0 ? (
                     <View style={styles.dayEmpty}>
                       <MaterialIcons name="event-available" size={24} color={format.muted} />
@@ -659,15 +625,12 @@ export default function CalendarScreen() {
                       <Text style={[styles.dayEmptyText, { color: format.muted }]}>No hay actividad registrada para este día.</Text>
                     </View>
                   ) : dayAgendaItems.map((item) => {
+                    const configuredTone = getColorTone(item.colorKey);
                     const accent = item.cancelled
                       ? ucapsaBrand.colors.red
-                      : item.kind === 'class'
-                        ? ucapsaBrand.colors.blue
-                        : item.kind === 'event'
-                          ? ucapsaBrand.colors.red
-                          : item.kind === 'announcement'
-                            ? ucapsaBrand.colors.gold
-                            : ucapsaBrand.colors.green;
+                      : item.kind === 'practice'
+                        ? ucapsaBrand.colors.green
+                        : configuredTone.accent;
                     const icon = item.kind === 'class'
                       ? 'school'
                       : item.kind === 'event'
@@ -711,7 +674,6 @@ export default function CalendarScreen() {
                     );
                   })}
                 </View>
-              ) : null}
             </View>
 
             {isAdmin && selectedClasses.length > 0 ? (
@@ -732,7 +694,7 @@ export default function CalendarScreen() {
                 </View>
 
                 {selectedClasses.map((occurrence) => {
-                  const theme = getClassTheme(occurrence.program?.code);
+                  const theme = getClassTheme(occurrence.program);
                   const isCancelled = Boolean(occurrence.cancellation);
                   const title = formatProgramScheduleName(occurrence.schedule, occurrence.program);
                   const detail = formatProgramScheduleDetailLabel(occurrence.schedule);
