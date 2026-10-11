@@ -131,7 +131,7 @@ export default function StaffExamAttemptScreen() {
     );
   }
 
-  if (!isStaff) return <Redirect href="/home" />;
+  if (!capabilities.canUseTrainingWorkspace) return <Redirect href={isAdmin ? '/admin-home' : '/home'} />;
 
   return (
     <KeyboardAwareScreen>
