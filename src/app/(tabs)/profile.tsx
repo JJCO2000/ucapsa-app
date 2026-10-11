@@ -64,7 +64,7 @@ export default function ProfileScreen() {
           subtitle="Perfil, entrenamiento, nivel e historial de cada perro."
           premium={premium}
           format={format}
-          onPress={() => router.push('/dog' as never)}
+          onPress={() => router.push('/dog?from=profile' as never)}
         />
 
         <Text style={[styles.sectionTitle, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Mi progreso</Text>
