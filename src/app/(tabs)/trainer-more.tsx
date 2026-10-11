@@ -7,8 +7,8 @@ import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 
 export default function TrainerMoreTab() {
-  const { isTrainer } = useSession();
-  if (!isTrainer) return <Redirect href="/home" />;
+  const { isAdmin, capabilities } = useSession();
+  if (!capabilities.canUseTrainingWorkspace) return <Redirect href={isAdmin ? '/admin-home' : '/home'} />;
 
   return (
     <KeyboardAwareScreen>
