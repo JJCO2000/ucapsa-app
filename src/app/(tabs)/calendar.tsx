@@ -174,7 +174,6 @@ export default function CalendarScreen() {
   const [practiceLoadWarning, setPracticeLoadWarning] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(todayKey());
   const [monthExpanded, setMonthExpanded] = useState(isAdmin);
-  const [classesExpanded, setClassesExpanded] = useState(false);
   const [openRoster, setOpenRoster] = useState<{ occurrenceId: string; level: AdminRosterLevel } | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -351,7 +350,6 @@ export default function CalendarScreen() {
   }
 
   useEffect(() => {
-    setClassesExpanded(false);
     setOpenRoster(null);
   }, [selectedDate]);
 
@@ -729,6 +727,119 @@ export default function CalendarScreen() {
                 </View>
               ) : null}
             </View>
+
+            {isAdmin && selectedClasses.length > 0 ? (
+              <View style={[styles.adminClassesCard, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
+                <View style={styles.adminClassesHeader}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={[styles.adminClassesKicker, { color: format.accentDark }]}>CLASES DEL DÍA</Text>
+                    <Text style={[styles.adminClassesTitle, { color: format.cardText }]}>{selectedClasses.length} clase{selectedClasses.length === 1 ? '' : 's'} · {formatDateKey(selectedDate)}</Text>
+                  </View>
+                  <Pressable
+                    accessibilityRole="button"
+                    style={[styles.manageDateButton, { borderColor: format.cardBorder }]}
+                    onPress={() => router.push(`/admin/class-cancellations?date=${selectedDate}` as never)}
+                  >
+                    <MaterialIcons name="event-note" size={16} color={ucapsaBrand.colors.redDark} />
+                    <Text style={styles.manageDateText}>Administrar fecha</Text>
+                  </Pressable>
+                </View>
+
+                {selectedClasses.map((occurrence) => {
+                  const theme = getClassTheme(occurrence.program?.code);
+                  const isCancelled = Boolean(occurrence.cancellation);
+                  const title = formatProgramScheduleName(occurrence.schedule, occurrence.program);
+                  const detail = formatProgramScheduleDetailLabel(occurrence.schedule);
+                  const rosterRows = getAdminClassRosterRows(adminProgramRows, occurrence.schedule.id, occurrence.dateKey);
+                  const commandCounts = getAdminCommandLevelCounts(rosterRows);
+                  const rosterState = openRoster?.occurrenceId === occurrence.id ? openRoster : null;
+                  const visibleRoster = rosterState ? filterAdminClassRoster(rosterRows, rosterState.level) : [];
+
+                  return (
+                    <View key={`admin-class-${occurrence.id}`} style={styles.adminClassItem}>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityState={{ expanded: Boolean(rosterState) }}
+                        style={[
+                          styles.classChildCard,
+                          { backgroundColor: isCancelled ? ucapsaBrand.colors.graySoft : theme.background, borderColor: isCancelled ? ucapsaBrand.colors.redBorder : theme.border },
+                        ]}
+                        onPress={() => setOpenRoster((current) =>
+                          current?.occurrenceId === occurrence.id
+                            ? null
+                            : { occurrenceId: occurrence.id, level: 'all' },
+                        )}
+                      >
+                        <View style={[styles.classIconSmall, { backgroundColor: isCancelled ? ucapsaBrand.colors.premiumMuted : theme.iconBackground }]}>
+                          <MaterialIcons name={isCancelled ? 'event-busy' : 'school'} size={18} color={isCancelled ? ucapsaBrand.colors.red : theme.accent} />
+                        </View>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text style={[styles.classTitle, { color: isCancelled ? ucapsaBrand.colors.mutedNeutral : theme.title, textDecorationLine: isCancelled ? 'line-through' : 'none' }]}>{title}</Text>
+                          <Text style={[styles.classText, { color: isCancelled ? ucapsaBrand.colors.mutedNeutral : theme.text }]}>{detail}</Text>
+                          {isCancelled ? <Text style={styles.cancelledText}>Clase cancelada{occurrence.cancellation?.reason ? ` · ${occurrence.cancellation.reason}` : ''}</Text> : null}
+                          <Text style={styles.rosterCount}>{rosterRows.length} inscrito{rosterRows.length === 1 ? '' : 's'} para esta clase</Text>
+                          <Text style={[styles.classHint, { color: isCancelled ? ucapsaBrand.colors.red : theme.accent }]}>{rosterState ? 'Ocultar inscritos' : 'Ver inscritos'}</Text>
+                        </View>
+                        <MaterialIcons name={rosterState ? 'expand-less' : 'expand-more'} size={22} color={isCancelled ? ucapsaBrand.colors.red : theme.accent} />
+                      </Pressable>
+
+                      {occurrence.program?.code === 'comandos' ? (
+                        <View style={styles.levelSummary}>
+                          {(['all', 'basic', 'intermediate', 'advanced'] as AdminRosterLevel[]).map((level) => {
+                            const count = commandCounts[level];
+                            const active = rosterState?.level === level;
+                            return (
+                              <Pressable
+                                key={level}
+                                style={[styles.levelChip, active && styles.levelChipActive]}
+                                onPress={() => setOpenRoster({ occurrenceId: occurrence.id, level })}
+                              >
+                                <Text style={[styles.levelChipText, active && styles.levelChipTextActive]}>
+                                  {adminRosterLevelLabel(level)} {count}
+                                </Text>
+                              </Pressable>
+                            );
+                          })}
+                        </View>
+                      ) : null}
+
+                      {rosterState ? (
+                        <View style={styles.rosterPanel}>
+                          <Text style={styles.rosterHeading}>
+                            {occurrence.program?.code === 'comandos'
+                              ? `${adminRosterLevelLabel(rosterState.level)} · ${visibleRoster.length}`
+                              : `Inscritos · ${visibleRoster.length}`}
+                          </Text>
+                          {visibleRoster.length === 0 ? (
+                            <Text style={styles.rosterEmpty}>No hay perros en este grupo para la fecha seleccionada.</Text>
+                          ) : visibleRoster.map((row) => (
+                            <Pressable
+                              key={row.enrollmentId}
+                              style={styles.rosterRow}
+                              onPress={() => router.push(`/admin/customer?userId=${encodeURIComponent(row.userId)}` as never)}
+                            >
+                              <View style={styles.rosterAvatar}>
+                                <MaterialIcons name="pets" size={17} color={ucapsaBrand.colors.redDark} />
+                              </View>
+                              <View style={{ flex: 1, minWidth: 0 }}>
+                                <Text style={styles.rosterName}>{row.clientName}</Text>
+                                <Text style={styles.rosterDog}>{row.dogName}</Text>
+                                <Text style={styles.rosterMeta}>
+                                  Última asistencia: {row.lastAttendanceDate ? formatDateKey(row.lastAttendanceDate) : 'sin asistencia'}
+                                  {` · ${row.attendanceCount} registrada${row.attendanceCount === 1 ? '' : 's'}`}
+                                </Text>
+                                {row.phone || row.email ? <Text style={styles.rosterContact} numberOfLines={1}>{row.phone || row.email}</Text> : null}
+                              </View>
+                              <MaterialIcons name="chevron-right" size={20} color={ucapsaBrand.colors.redDark} />
+                            </Pressable>
+                          ))}
+                        </View>
+                      ) : null}
+                    </View>
+                  );
+                })}
+              </View>
+            ) : null}
           </>
         ) : null}
       </ScrollView>
@@ -754,7 +865,12 @@ const styles = StyleSheet.create({
   adminButtonText: { color: ucapsaBrand.colors.surface, fontSize: 14, fontWeight: '900' },
   adminButtonAlt: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 15, borderRadius: 18, backgroundColor: ucapsaBrand.colors.redSoft, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder },
   adminButtonAltText: { color: ucapsaBrand.colors.redDark, fontSize: 14, fontWeight: '900' },
-  agendaTopBar: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 12 },
+  adminClassesCard: { gap: 10, borderWidth: 1, borderRadius: 20, padding: 13 },
+  adminClassesHeader: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  adminClassesKicker: { fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 0.8 },
+  adminClassesTitle: { marginTop: 2, fontSize: 15, lineHeight: 20, fontWeight: '900' },
+  adminClassItem: { gap: 7 },
+    agendaTopBar: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 12 },
   agendaDateEyebrow: { fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 0.9 },
   agendaDateTitle: { marginTop: 2, fontSize: 16, lineHeight: 21, fontWeight: '900' },
   compactAction: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 13, paddingHorizontal: 10 },
