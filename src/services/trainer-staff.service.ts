@@ -77,6 +77,8 @@ export type StaffTrainingReportRow = {
   programLevel: string;
   startTime: string;
   enrollmentId: string;
+  userId: string;
+  dogId: string | null;
   clientName: string;
   dogName: string;
   rsvpResponse: 'yes' | 'no' | null;
@@ -371,6 +373,8 @@ export async function getStaffTrainingReport(startDate: string, endDate: string)
     programLevel: row.program_level,
     startTime: String(row.start_time ?? '').slice(0, 5),
     enrollmentId: row.enrollment_id,
+    userId: row.user_id,
+    dogId: row.dog_id ?? null,
     clientName: row.client_name,
     dogName: row.dog_name,
     rsvpResponse: row.rsvp_response === 'yes' || row.rsvp_response === 'no' ? row.rsvp_response : null,
