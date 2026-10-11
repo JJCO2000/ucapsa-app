@@ -3,11 +3,13 @@ import fs from 'node:fs';
 const sql = fs.readFileSync('supabase/sql/ucapsa-internal-lock-table-privileges.sql', 'utf8');
 const reminders = fs.readFileSync('supabase/functions/send-class-reminders/index.ts', 'utf8');
 const cancellations = fs.readFileSync('supabase/functions/send-class-cancellation/index.ts', 'utf8');
+const trainerSummary = fs.readFileSync('supabase/functions/send-trainer-class-summary/index.ts', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
 
 for (const table of [
   'notification_class_reminder_locks',
   'notification_class_cancellation_locks',
+  'notification_trainer_summary_locks',
 ]) {
   const revoke = new RegExp(
     'revoke\\s+all\\s+on\\s+table\\s+public\\.' + table + '\\s+from\\s+public\\s*,\\s*anon\\s*,\\s*authenticated',
@@ -34,6 +36,10 @@ if (!/serviceClient\s*\n?\s*\.from\(['"]notification_class_reminder_locks['"]\)/
 if (!/serviceClient\s*\n?\s*\.from\(['"]notification_class_cancellation_locks['"]\)/.test(cancellations)
     && !/serviceClient\.from\(['"]notification_class_cancellation_locks['"]\)/.test(cancellations)) {
   throw new Error('Cancellation lock table is no longer accessed through serviceClient.');
+}
+
+if (!/service\s*\.from\(['"]notification_trainer_summary_locks['"]\)/.test(trainerSummary)) {
+  throw new Error('Trainer summary lock table is no longer accessed through service-role client.');
 }
 
 if (/userClient\.from\(['"]notification_class_(reminder|cancellation)_locks['"]\)/.test(reminders + cancellations)) {
