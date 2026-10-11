@@ -45,11 +45,14 @@ for (const token of [
 }
 
 for (const token of [
-  'Perfil de {selectedDog.name}',
+  'Editar perfil de ${selectedDog.name}',
   '/client/dog-profile?dogId=',
   'ENTRENAMIENTO ACTUAL',
+  'Logros {selectedDog.name}',
   '/client/dog-achievements?dogId=',
   '/client/dog-history?dogId=',
+  'accessibilityLabel="Abrir ranking"',
+  'accessibilityLabel="Agregar otro perro"',
 ]) {
   if (!dog.includes(token)) throw new Error('Dog clarity missing: ' + token);
 }
@@ -65,7 +68,7 @@ for (const token of [
   "'Todo el día'",
   'dayAgendaItems.map',
   'timelineRow',
-  "setMonthExpanded(false)",
+  "const [monthExpanded, setMonthExpanded] = useState(true)",
   "activityDateKeys.has(dateKey)",
   'Día libre',
   "'Mes'",
@@ -144,8 +147,14 @@ for (const token of ['getPrivateDogPhotoUrls', 'RankingDogAvatar', 'photoUrl={mi
 if (!activityAchievements.includes("code: 'attendance_100'")) {
   throw new Error('Profile activity achievements lost the 100-class milestone.');
 }
-if (!home.includes('!loading && user ? (') || !home.includes('summary={competitionSummary}')) {
-  throw new Error('Inicio must keep Ranking discoverable even before the user has a position.');
+if (!home.includes('accessibilityLabel="Abrir ranking"') || !home.includes("router.push('/client/competition'")) {
+  throw new Error('Inicio must keep the compact Ranking shortcut discoverable even before the user has a position.');
+}
+if (!home.includes("onAttendance={() => router.push('/attendance'")) {
+  throw new Error('Inicio perdió la cámara contextual de asistencia en Próxima clase.');
+}
+if (!home.includes('rsvpResponse={classRsvp}') || !home.includes('onRsvp={nextAction.kind')) {
+  throw new Error('Inicio perdió la confirmación RSVP de la próxima clase.');
 }
 
 console.log('UCAPSA client UX clarity: PASS');
