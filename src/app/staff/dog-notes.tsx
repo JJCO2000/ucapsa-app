@@ -42,7 +42,7 @@ export default function StaffDogNotesScreen() {
   const params = useLocalSearchParams<{ dogId?: string; dogName?: string }>();
   const dogId = typeof params.dogId === 'string' ? params.dogId : '';
   const dogName = typeof params.dogName === 'string' ? params.dogName : 'Perro';
-  const { isStaff, isAdmin } = useSession();
+  const { isAdmin, capabilities } = useSession();
   const [rows, setRows] = useState<StaffDogNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -54,7 +54,7 @@ export default function StaffDogNotesScreen() {
   const [happenedOn, setHappenedOn] = useState(todayKey());
 
   const load = useCallback(async () => {
-    if (!isStaff || !dogId) return;
+    if (!capabilities.canUseTrainingWorkspace || !dogId) return;
     try {
       setRows(await getStaffDogNotes(dogId));
     } catch (cause) {
@@ -62,7 +62,7 @@ export default function StaffDogNotesScreen() {
     } finally {
       setLoading(false);
     }
-  }, [dogId, isStaff]);
+  }, [capabilities.canUseTrainingWorkspace, dogId]);
 
   useFocusEffect(useCallback(() => {
     setLoading(true);
@@ -134,7 +134,7 @@ export default function StaffDogNotesScreen() {
     }
   }
 
-  if (!isStaff) return <Redirect href="/home" />;
+  if (!capabilities.canUseTrainingWorkspace) return <Redirect href={isAdmin ? '/admin-home' : '/home'} />;
 
   return (
     <KeyboardAwareScreen>
