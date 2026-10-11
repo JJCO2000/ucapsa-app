@@ -6,8 +6,6 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, T
 import { Calendar, type DateData } from 'react-native-calendars';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AnnouncementCard } from '../../components/domain/AnnouncementCard';
-import { EventCard } from '../../components/domain/EventCard';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
@@ -25,10 +23,8 @@ import {
   type AdminRosterLevel,
 } from '../../services/admin-class-roster.service';
 import type { Announcement, EventOccurrence, EventOccurrenceCancellation, ProgramClassCancellation, ProgramEnrollmentWithDetails, ProgramSchedule, UcapsaEvent, UcapsaProgram } from '../../types/app.types';
-import { expandEventOccurrences, formatDateKey, getUpcomingOccurrences, toDateKey, todayKey } from '../../utils/events.utils';
+import { expandEventOccurrences, formatDateKey , toDateKey, todayKey } from '../../utils/events.utils';
 import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
-
-type AgendaFilter = 'all' | 'classes' | 'events' | 'announcements' | 'practice';
 
 type ClassOccurrence = {
   id: string;
@@ -177,7 +173,6 @@ export default function CalendarScreen() {
   const [practiceActivity, setPracticeActivity] = useState<PracticeActivityEntry[]>([]);
   const [practiceLoadWarning, setPracticeLoadWarning] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(todayKey());
-  const [agendaFilter, setAgendaFilter] = useState<AgendaFilter>('all');
   const [monthExpanded, setMonthExpanded] = useState(isAdmin);
   const [classesExpanded, setClassesExpanded] = useState(false);
   const [openRoster, setOpenRoster] = useState<{ occurrenceId: string; level: AdminRosterLevel } | null>(null);
@@ -197,10 +192,6 @@ export default function CalendarScreen() {
       setSelectedDate(requestedDate);
     }
   }, [requestedDate]);
-
-    useEffect(() => {
-    if ((!user || isAdmin) && agendaFilter === 'practice') setAgendaFilter('all');
-  }, [agendaFilter, isAdmin, user]);
 
   useEffect(() => {
     if (isAdmin) setMonthExpanded(true);
@@ -390,57 +381,28 @@ export default function CalendarScreen() {
     [practiceActivity, selectedDate],
   );
 
-  const showClasses = agendaFilter === 'all' || agendaFilter === 'classes';
-  const showEvents = agendaFilter === 'all' || agendaFilter === 'events';
-  const showAnnouncements = agendaFilter === 'all' || agendaFilter === 'announcements';
-  const showPractice = agendaFilter === 'all' || agendaFilter === 'practice';
   const weekDateKeys = useMemo(() => getWeekDateKeys(selectedDate), [selectedDate]);
+
+  const activityDateKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const occurrence of occurrences) {
+      const key = toDateKey(occurrence.start_date);
+      if (key) keys.add(key);
+    }
+    for (const occurrence of classOccurrences) keys.add(occurrence.dateKey);
+    for (const announcement of announcements) {
+      const key = announcementDateKey(announcement);
+      if (key) keys.add(key);
+    }
+    if (user && !isAdmin) {
+      for (const practice of practiceActivity) keys.add(toLocalDateKey(new Date(practice.completedAt)));
+    }
+    return keys;
+  }, [announcements, classOccurrences, isAdmin, occurrences, practiceActivity, user]);
 
   const markedDates = useMemo(() => {
     const marks: Record<string, any> = {};
-
-    if (showEvents) {
-      for (const occurrence of occurrences) {
-        const key = toDateKey(occurrence.start_date);
-        if (!key) continue;
-        const existingDots = marks[key]?.dots ?? [];
-        if (!existingDots.some((dot: { key: string }) => dot.key === 'events')) {
-          marks[key] = { ...marks[key], dots: [...existingDots, { key: 'events', color: ucapsaBrand.colors.red }] };
-        }
-      }
-    }
-
-    if (showClasses) {
-      for (const occurrence of classOccurrences) {
-        const existingDots = marks[occurrence.dateKey]?.dots ?? [];
-        if (!existingDots.some((dot: { key: string }) => dot.key === 'classes')) {
-          marks[occurrence.dateKey] = { ...marks[occurrence.dateKey], dots: [...existingDots, { key: 'classes', color: ucapsaBrand.colors.blue }] };
-        }
-      }
-    }
-
-    if (showAnnouncements) {
-      for (const announcement of announcements) {
-        const key = announcementDateKey(announcement);
-        if (!key) continue;
-        const existingDots = marks[key]?.dots ?? [];
-        if (!existingDots.some((dot: { key: string }) => dot.key === 'announcements')) {
-          marks[key] = { ...marks[key], dots: [...existingDots, { key: 'announcements', color: ucapsaBrand.colors.gold }] };
-        }
-      }
-    }
-
-    if (showPractice) {
-      for (const practice of practiceActivity) {
-        const key = toLocalDateKey(new Date(practice.completedAt));
-        if (!key) continue;
-        const existingDots = marks[key]?.dots ?? [];
-        if (!existingDots.some((dot: { key: string }) => dot.key === 'practice')) {
-          marks[key] = { ...marks[key], dots: [...existingDots, { key: 'practice', color: ucapsaBrand.colors.green }] };
-        }
-      }
-    }
-
+    for (const key of activityDateKeys) marks[key] = { marked: true, dotColor: ucapsaBrand.colors.red };
     marks[selectedDate] = {
       ...(marks[selectedDate] ?? {}),
       selected: true,
@@ -448,20 +410,85 @@ export default function CalendarScreen() {
       selectedTextColor: ucapsaBrand.colors.surface,
     };
     return marks;
-  }, [announcements, classOccurrences, occurrences, practiceActivity, selectedDate, showAnnouncements, showClasses, showEvents, showPractice]);
+  }, [activityDateKeys, selectedDate]);
 
-  const upcomingEvents: EventOccurrence[] = useMemo(
-    () => getUpcomingOccurrences(events, 3, eventCancellations),
-    [eventCancellations, events],
-  );
+  type DayAgendaItem = {
+    id: string;
+    kind: 'class' | 'event' | 'announcement' | 'practice';
+    timeLabel: string;
+    sortMinutes: number;
+    title: string;
+    detail: string;
+    cancelled?: boolean;
+    source: ClassOccurrence | EventOccurrence | Announcement | PracticeActivityEntry;
+  };
+
+  const dayAgendaItems = useMemo<DayAgendaItem[]>(() => {
+    const items: DayAgendaItem[] = [];
+
+    for (const announcement of selectedAnnouncements) {
+      items.push({
+        id: `announcement-${announcement.id}`,
+        kind: 'announcement',
+        timeLabel: 'Todo el día',
+        sortMinutes: -20,
+        title: announcement.title,
+        detail: announcement.content,
+        source: announcement,
+      });
+    }
+
+    for (const occurrence of selectedEvents) {
+      const date = new Date(occurrence.start_date);
+      const hasTime = occurrence.event.has_time !== false && !Number.isNaN(date.getTime());
+      items.push({
+        id: `event-${occurrence.id}`,
+        kind: 'event',
+        timeLabel: hasTime ? date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : 'Todo el día',
+        sortMinutes: hasTime ? date.getHours() * 60 + date.getMinutes() : -10,
+        title: occurrence.event.title,
+        detail: occurrence.event.location || occurrence.event.description || 'Evento UCAPSA',
+        source: occurrence,
+      });
+    }
+
+    for (const occurrence of selectedClasses) {
+      const [hour, minute] = String(occurrence.schedule.start_time || '00:00').split(':').map(Number);
+      items.push({
+        id: `class-${occurrence.id}`,
+        kind: 'class',
+        timeLabel: String(occurrence.schedule.start_time || '').slice(0, 5) || 'Clase',
+        sortMinutes: (Number.isFinite(hour) ? hour : 0) * 60 + (Number.isFinite(minute) ? minute : 0),
+        title: formatProgramScheduleName(occurrence.schedule, occurrence.program),
+        detail: occurrence.cancellation
+          ? `Cancelada${occurrence.cancellation.reason ? ` · ${occurrence.cancellation.reason}` : ''}`
+          : formatProgramScheduleDetailLabel(occurrence.schedule),
+        cancelled: Boolean(occurrence.cancellation),
+        source: occurrence,
+      });
+    }
+
+    if (user && !isAdmin) {
+      for (const practice of selectedPractices) {
+        const date = new Date(practice.completedAt);
+        items.push({
+          id: `practice-${practice.id}`,
+          kind: 'practice',
+          timeLabel: practiceTimeLabel(practice.completedAt) || 'Práctica',
+          sortMinutes: Number.isNaN(date.getTime()) ? 24 * 60 : date.getHours() * 60 + date.getMinutes(),
+          title: `Práctica con ${practice.dogName || 'tu perro'}`,
+          detail: `${practiceDifficultyLabel(practice.difficulty)}${practice.note ? ` · ${practice.note}` : ''}`,
+          source: practice,
+        });
+      }
+    }
+
+    return items.sort((left, right) => left.sortMinutes - right.sortMinutes || left.title.localeCompare(right.title, 'es-MX'));
+  }, [isAdmin, selectedAnnouncements, selectedClasses, selectedEvents, selectedPractices, user]);
   const allSelectedClassesCancelled = selectedClasses.length > 0 && selectedClasses.every((occurrence) => Boolean(occurrence.cancellation));
   const cancelledClassesCount = selectedClasses.filter((occurrence) => Boolean(occurrence.cancellation)).length;
   const activeClassesCount = selectedClasses.length - cancelledClassesCount;
-  const dayCount =
-    (showEvents ? selectedEvents.length : 0)
-    + (showClasses ? selectedClasses.length : 0)
-    + (showAnnouncements ? selectedAnnouncements.length : 0)
-    + (showPractice ? selectedPractices.length : 0);
+  const dayCount = dayAgendaItems.length;
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: format.background }]} edges={['top']}>
@@ -477,7 +504,7 @@ export default function CalendarScreen() {
           <View style={styles.heroText}>
             <Text style={[styles.kicker, { color: format.heroMuted }]}>Agenda UCAPSA</Text>
             <Text style={[styles.title, { color: format.heroText }]}>Lo que pasa y lo que te toca</Text>
-            <Text style={[styles.subtitle, { color: format.heroMuted }]}>Semana primero; abre el mes cuando necesites contexto.</Text>
+            <Text style={[styles.subtitle, { color: format.heroMuted }]}>Selecciona un día y revisa su horario.</Text>
           </View>
         </View>
 
@@ -563,93 +590,30 @@ export default function CalendarScreen() {
 
         {!error ? (
           <>
-            <View style={[styles.calendarCard, { borderColor: isPremium ? ucapsaBrand.colors.premiumBorderStrong : format.accent }]}>
-              <View style={[styles.calendarLead, { backgroundColor: isPremium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft }]}>
-                <View style={[styles.calendarLeadIcon, { backgroundColor: format.cardBackground }]}>
-                  <MaterialIcons name="calendar-month" size={23} color={isPremium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.calendarLeadKicker, { color: isPremium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>AGENDA UCAPSA</Text>
-                  <Text style={[styles.calendarLeadTitle, { color: format.cardText }]}>Tu calendario</Text>
-                  <Text style={[styles.calendarLeadText, { color: isPremium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Eventos, clases, avisos y tu actividad en un solo lugar.</Text>
+            <View style={[styles.calendarCard, { borderColor: isPremium ? ucapsaBrand.colors.premiumBorderStrong : format.cardBorder }]}>
+              <View style={styles.agendaTopBar}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={[styles.agendaDateEyebrow, { color: isPremium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>AGENDA</Text>
+                  <Text style={[styles.agendaDateTitle, { color: format.cardText }]}>{formatDateKey(selectedDate)}</Text>
                 </View>
                 {selectedDate !== todayKey() ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Volver a hoy"
-                    style={[styles.calendarToday, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}
-                    onPress={() => setSelectedDate(todayKey())}
-                  >
-                    <Text style={[styles.calendarTodayText, { color: format.accentDark }]}>Hoy</Text>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Volver a hoy" style={[styles.compactAction, { borderColor: format.cardBorder }]} onPress={() => setSelectedDate(todayKey())}>
+                    <Text style={[styles.compactActionText, { color: format.accentDark }]}>Hoy</Text>
                   </Pressable>
                 ) : null}
-              </View>
-              <View style={styles.agendaFilters}>
-                {([
-                  ['all', 'Todo', 'view-agenda'],
-                  ['classes', 'Clases', 'school'],
-                  ['events', 'Eventos', 'event'],
-                  ['announcements', 'Avisos', 'campaign'],
-                  ...(user && !isAdmin ? [['practice', 'Práctica', 'local-fire-department']] : []),
-                ] as Array<[AgendaFilter, string, keyof typeof MaterialIcons.glyphMap]>).map(([value, label, iconName]) => {
-                  const active = agendaFilter === value;
-                  return (
-                    <Pressable
-                      key={value}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: active }}
-                      style={[styles.filterChip, { borderColor: active ? format.accent : format.cardBorder, backgroundColor: active ? format.accentSoft : format.cardBackground }]}
-                      onPress={() => setAgendaFilter(value)}
-                    >
-                      <MaterialIcons name={iconName} size={15} color={active ? format.accentDark : format.muted} />
-                      <Text style={[styles.filterChipText, { color: active ? format.accentDark : format.muted }]}>{label}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-
-              <View style={styles.weekToolbar}>
-                <Pressable accessibilityRole="button" accessibilityLabel="Semana anterior" style={[styles.weekArrow, { borderColor: format.cardBorder }]} onPress={() => setSelectedDate(toLocalDateKey(addDays(parseLocalDate(selectedDate), -7)))}>
-                  <MaterialIcons name="chevron-left" size={21} color={format.accentDark} />
-                </Pressable>
-                <Text style={[styles.weekLabel, { color: format.cardText }]}>{formatDateKey(weekDateKeys[0])} – {formatDateKey(weekDateKeys[6])}</Text>
-                <Pressable accessibilityRole="button" accessibilityLabel="Semana siguiente" style={[styles.weekArrow, { borderColor: format.cardBorder }]} onPress={() => setSelectedDate(toLocalDateKey(addDays(parseLocalDate(selectedDate), 7)))}>
-                  <MaterialIcons name="chevron-right" size={21} color={format.accentDark} />
-                </Pressable>
-                <Pressable accessibilityRole="button" style={[styles.monthToggle, { backgroundColor: format.accentSoft }]} onPress={() => setMonthExpanded((value) => !value)}>
-                  <Text style={[styles.monthToggleText, { color: format.accentDark }]}>{monthExpanded ? 'Ver semana' : 'Ver mes'}</Text>
+                <Pressable accessibilityRole="button" accessibilityLabel={monthExpanded ? 'Ver semana' : 'Ver mes'} style={[styles.compactAction, { borderColor: format.cardBorder }]} onPress={() => setMonthExpanded((value) => !value)}>
+                  <MaterialIcons name={monthExpanded ? 'view-week' : 'calendar-month'} size={17} color={format.accentDark} />
+                  <Text style={[styles.compactActionText, { color: format.accentDark }]}>{monthExpanded ? 'Semana' : 'Mes'}</Text>
                 </Pressable>
               </View>
 
-              {!monthExpanded ? (
-                <View style={styles.weekStrip}>
-                  {weekDateKeys.map((dateKey) => {
-                    const selected = dateKey === selectedDate;
-                    const isToday = dateKey === todayKey();
-                    const dots = markedDates[dateKey]?.dots ?? [];
-                    return (
-                      <Pressable
-                        key={dateKey}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected }}
-                        accessibilityLabel={formatDateKey(dateKey)}
-                        style={[styles.weekDay, selected && styles.weekDaySelected, { borderColor: selected ? format.accent : format.cardBorder, backgroundColor: selected ? format.primaryButton : format.cardBackground }]}
-                        onPress={() => setSelectedDate(dateKey)}
-                      >
-                        <Text style={[styles.weekDayName, { color: selected ? format.primaryButtonText : format.muted }]}>{shortWeekday(dateKey)}</Text>
-                        <Text style={[styles.weekDayNumber, { color: selected ? format.primaryButtonText : isToday ? format.accentDark : format.cardText }]}>{dayNumber(dateKey)}</Text>
-                        <View style={styles.weekDots}>
-                          {dots.slice(0, 3).map((dot: { key: string; color: string }) => <View key={dot.key} style={[styles.weekDot, { backgroundColor: dot.color }]} />)}
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              ) : (
+              {monthExpanded ? (
                 <Calendar
                   current={selectedDate}
-                  onDayPress={(day: DateData) => setSelectedDate(day.dateString)}
-                  markingType="multi-dot"
+                  onDayPress={(day: DateData) => {
+                    setSelectedDate(day.dateString);
+                    if (!isAdmin) setMonthExpanded(false);
+                  }}
                   markedDates={markedDates}
                   firstDay={1}
                   enableSwipeMonths
@@ -667,253 +631,104 @@ export default function CalendarScreen() {
                     textDayHeaderFontWeight: '800',
                   }}
                 />
-              )}
-              <View style={styles.legendRow}>
-                {showClasses ? <Legend label="Clases" style={styles.classDot} /> : null}
-                {showEvents ? <Legend label="Eventos" style={styles.eventDot} /> : null}
-                {showAnnouncements ? <Legend label="Avisos" style={styles.announcementDot} /> : null}
-                {showPractice && user && !isAdmin ? <Legend label="Práctica" style={styles.practiceDot} /> : null}
-              </View>
-            </View>
-
-            <View style={styles.sectionHeader}>
-              <View>
-                <Text style={[styles.sectionTitle, { color: isPremium ? ucapsaBrand.colors.surface : ucapsaBrand.colors.cameraDark }]}>Agenda del dia</Text>
-                <Text style={[styles.sectionSubtitle, { color: isPremium ? ucapsaBrand.colors.premiumMuted : ucapsaBrand.colors.mutedNeutral }]}>{formatDateKey(selectedDate)}</Text>
-              </View>
-              <View style={styles.sectionHeaderActions}>
-                {selectedDate !== todayKey() ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Ir a hoy"
-                    style={styles.todayButton}
-                    onPress={() => setSelectedDate(todayKey())}
-                  >
-                    <MaterialIcons name="today" size={16} color={ucapsaBrand.colors.redDark} />
-                    <Text style={styles.todayButtonText}>Hoy</Text>
-                  </Pressable>
-                ) : null}
-                <Text style={styles.sectionCount}>{dayCount}</Text>
-              </View>
-            </View>
-
-            {dayCount === 0 ? (
-              <View style={[styles.emptyBox, { backgroundColor: isPremium ? withAlpha(ucapsaBrand.colors.surface, 0.08) : ucapsaBrand.colors.surface, borderColor: isPremium ? withAlpha(ucapsaBrand.colors.gold, 0.24) : ucapsaBrand.colors.borderNeutral }]}>
-                <Text style={[styles.emptyTitle, { color: isPremium ? ucapsaBrand.colors.surface : ucapsaBrand.colors.cameraDark }]}>Sin actividad este dia</Text>
-                <Text style={[styles.muted, { color: isPremium ? ucapsaBrand.colors.premiumMuted : ucapsaBrand.colors.mutedNeutral }]}>Selecciona otro dia marcado en el calendario.</Text>
-              </View>
-            ) : null}
-
-            {showPractice && selectedPractices.length > 0 && user && !isAdmin ? (
-              <View style={[styles.practiceDayCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
-                <View style={styles.practiceDayHeader}>
-                  <View style={[styles.practiceDayIcon, { backgroundColor: format.accentSoft }]}>
-                    <MaterialIcons name="local-fire-department" size={21} color={format.accentDark} />
+              ) : (
+                <>
+                  <View style={styles.weekNav}>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Semana anterior" style={styles.weekNavArrow} onPress={() => setSelectedDate(toLocalDateKey(addDays(parseLocalDate(selectedDate), -7)))}>
+                      <MaterialIcons name="chevron-left" size={21} color={format.accentDark} />
+                    </Pressable>
+                    <Text style={[styles.weekNavLabel, { color: format.muted }]}>{formatDateKey(weekDateKeys[0])} – {formatDateKey(weekDateKeys[6])}</Text>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Semana siguiente" style={styles.weekNavArrow} onPress={() => setSelectedDate(toLocalDateKey(addDays(parseLocalDate(selectedDate), 7)))}>
+                      <MaterialIcons name="chevron-right" size={21} color={format.accentDark} />
+                    </Pressable>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.practiceDayKicker, { color: format.accentDark }]}>Tu entrenamiento</Text>
-                    <Text style={[styles.practiceDayTitle, { color: format.cardText }]}>{selectedPractices.length} práctica{selectedPractices.length === 1 ? '' : 's'} completada{selectedPractices.length === 1 ? '' : 's'}</Text>
-                  </View>
-                </View>
-                <View style={styles.practiceDayList}>
-                  {selectedPractices.map((practice) => (
-                    <View key={practice.id} style={[styles.practiceDayRow, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.practiceDayDog, { color: format.cardText }]}>Práctica con {practice.dogName || 'tu perro'}</Text>
-                        <Text style={[styles.practiceDayMeta, { color: format.muted }]}>{practiceDifficultyLabel(practice.difficulty)}{practiceTimeLabel(practice.completedAt) ? ` · ${practiceTimeLabel(practice.completedAt)}` : ''}</Text>
-                        {practice.note ? <Text style={[styles.practiceDayNote, { color: format.muted }]} numberOfLines={2}>{practice.note}</Text> : null}
-                      </View>
-                      {practice.syncStatus === 'pending' ? <Text style={[styles.practicePending, { color: format.accentDark, backgroundColor: format.accentSoft }]}>Pendiente</Text> : <MaterialIcons name="check-circle" size={20} color={format.accentDark} />}
-                    </View>
-                  ))}
-                </View>
-              </View>
-            ) : null}
-
-            {showClasses && selectedClasses.length > 0 ? (
-              <View style={[styles.classGroupCard, allSelectedClassesCancelled && styles.classGroupCardCancelled]}>
-                <Pressable style={styles.classGroupHeader} onPress={() => setClassesExpanded((value) => !value)}>
-                  <View style={[styles.classGroupIcon, allSelectedClassesCancelled && styles.classGroupIconCancelled]}>
-                    <MaterialIcons name={allSelectedClassesCancelled ? 'event-busy' : 'school'} size={22} color={allSelectedClassesCancelled ? ucapsaBrand.colors.red : ucapsaBrand.colors.blueDark} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.classKicker, allSelectedClassesCancelled && styles.classKickerCancelled]}>Clases</Text>
-                    <Text style={[styles.classGroupTitle, allSelectedClassesCancelled && styles.classGroupTitleCancelled]}>Clases</Text>
-                    <Text style={[styles.classGroupText, allSelectedClassesCancelled && styles.classGroupTextCancelled]}>
-                      {allSelectedClassesCancelled
-                        ? `Dia cancelado - ${selectedClasses.length} clase${selectedClasses.length === 1 ? '' : 's'} cancelada${selectedClasses.length === 1 ? '' : 's'}.`
-                        : `${activeClassesCount} activa${activeClassesCount === 1 ? '' : 's'}${cancelledClassesCount > 0 ? `, ${cancelledClassesCount} cancelada${cancelledClassesCount === 1 ? '' : 's'}` : ''}.`}
-                    </Text>
-                    {allSelectedClassesCancelled ? <Text style={styles.dayCancelledText}>Dia cancelado</Text> : null}
-                  </View>
-                  <View style={[styles.classGroupPill, allSelectedClassesCancelled && styles.classGroupPillCancelled]}>
-                    <Text style={styles.classGroupPillText}>{selectedClasses.length}</Text>
-                  </View>
-                  <MaterialIcons name={classesExpanded ? 'expand-less' : 'expand-more'} size={24} color={allSelectedClassesCancelled ? ucapsaBrand.colors.red : ucapsaBrand.colors.blueDark} />
-                </Pressable>
-
-                {classesExpanded ? (
-                  <View style={styles.classList}>
-                    {selectedClasses.map((occurrence) => {
-                      const theme = getClassTheme(occurrence.program?.code);
-                      const isCancelled = Boolean(occurrence.cancellation);
-                      const title = formatProgramScheduleName(occurrence.schedule, occurrence.program);
-                      const detail = formatProgramScheduleDetailLabel(occurrence.schedule);
-                      const rosterRows = isAdmin
-                        ? getAdminClassRosterRows(adminProgramRows, occurrence.schedule.id, occurrence.dateKey)
-                        : [];
-                      const commandCounts = getAdminCommandLevelCounts(rosterRows);
-                      const rosterState = openRoster?.occurrenceId === occurrence.id ? openRoster : null;
-                      const visibleRoster = rosterState
-                        ? filterAdminClassRoster(rosterRows, rosterState.level)
-                        : [];
-
+                  <View style={styles.weekStrip}>
+                    {weekDateKeys.map((dateKey) => {
+                      const selected = dateKey === selectedDate;
+                      const isToday = dateKey === todayKey();
+                      const hasActivity = activityDateKeys.has(dateKey);
                       return (
-                        <View key={`class-${occurrence.id}`}>
-                          <Pressable
-                          disabled={!isAdmin}
-                          style={[
-                            styles.classChildCard,
-                            { backgroundColor: isCancelled ? ucapsaBrand.colors.graySoft : theme.background, borderColor: isCancelled ? ucapsaBrand.colors.redBorder : theme.border },
-                          ]}
-                          onPress={isAdmin
-                            ? () => setOpenRoster((current) =>
-                                current?.occurrenceId === occurrence.id
-                                  ? null
-                                  : { occurrenceId: occurrence.id, level: 'all' },
-                              )
-                            : undefined}
+                        <Pressable
+                          key={dateKey}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected }}
+                          accessibilityLabel={formatDateKey(dateKey)}
+                          style={[styles.weekDayCompact, { backgroundColor: selected ? format.primaryButton : 'transparent' }]}
+                          onPress={() => setSelectedDate(dateKey)}
                         >
-                          <View style={[styles.classIconSmall, { backgroundColor: isCancelled ? ucapsaBrand.colors.premiumMuted : theme.iconBackground }]}>
-                            <MaterialIcons name={isCancelled ? 'event-busy' : 'event-note'} size={18} color={isCancelled ? ucapsaBrand.colors.red : theme.accent} />
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Text style={[styles.classTitle, { color: isCancelled ? ucapsaBrand.colors.mutedNeutral : theme.title, textDecorationLine: isCancelled ? 'line-through' : 'none' }]}>{title}</Text>
-                            <Text style={[styles.classText, { color: isCancelled ? ucapsaBrand.colors.mutedNeutral : theme.text }]}>{occurrence.program?.name ?? 'Clase'} - {detail}</Text>
-                            {isCancelled ? <Text style={styles.cancelledText}>Clase cancelada{occurrence.cancellation?.reason ? ` - ${occurrence.cancellation.reason}` : ''}</Text> : null}
-                            {isAdmin ? <Text style={styles.rosterCount}>{rosterRows.length} inscrito{rosterRows.length === 1 ? '' : 's'} para esta clase</Text> : null}
-                            {isAdmin ? <Text style={[styles.classHint, { color: isCancelled ? ucapsaBrand.colors.red : theme.accent }]}>{rosterState ? 'Ocultar inscritos' : 'Ver inscritos'}</Text> : null}
-                          </View>
-                          {isAdmin ? <MaterialIcons name="chevron-right" size={22} color={isCancelled ? ucapsaBrand.colors.red : theme.accent} /> : null}
-                          </Pressable>
-
-                          {isAdmin && occurrence.program?.code === 'comandos' ? (
-                            <View style={styles.levelSummary}>
-                              {(['all', 'basic', 'intermediate', 'advanced'] as AdminRosterLevel[]).map((level) => {
-                                const count = commandCounts[level];
-                                const active = rosterState?.level === level;
-                                return (
-                                  <Pressable
-                                    key={level}
-                                    style={[styles.levelChip, active && styles.levelChipActive]}
-                                    onPress={() => setOpenRoster({ occurrenceId: occurrence.id, level })}
-                                  >
-                                    <Text style={[styles.levelChipText, active && styles.levelChipTextActive]}>
-                                      {adminRosterLevelLabel(level)} {count}
-                                    </Text>
-                                  </Pressable>
-                                );
-                              })}
-                            </View>
-                          ) : null}
-
-                          {isAdmin && rosterState ? (
-                            <View style={styles.rosterPanel}>
-                              <View style={styles.rosterPanelHeader}>
-                                <Text style={styles.rosterHeading}>
-                                  {occurrence.program?.code === 'comandos'
-                                    ? `${adminRosterLevelLabel(rosterState.level)} · ${visibleRoster.length}`
-                                    : `Inscritos · ${visibleRoster.length}`}
-                                </Text>
-                                <Pressable
-                                  style={styles.manageDateButton}
-                                  onPress={() => router.push(`/admin/class-cancellations?date=${occurrence.dateKey}` as never)}
-                                >
-                                  <MaterialIcons name="event-note" size={16} color={ucapsaBrand.colors.redDark} />
-                                  <Text style={styles.manageDateText}>Administrar fecha</Text>
-                                </Pressable>
-                              </View>
-
-                              {visibleRoster.length === 0 ? (
-                                <Text style={styles.rosterEmpty}>No hay perros en este grupo para la fecha seleccionada.</Text>
-                              ) : visibleRoster.map((row) => (
-                                <Pressable
-                                  key={row.enrollmentId}
-                                  style={styles.rosterRow}
-                                  onPress={() => router.push(`/admin/customer?userId=${encodeURIComponent(row.userId)}` as never)}
-                                >
-                                  <View style={styles.rosterAvatar}>
-                                    <MaterialIcons name="pets" size={17} color={ucapsaBrand.colors.redDark} />
-                                  </View>
-                                  <View style={{ flex: 1, minWidth: 0 }}>
-                                    <Text style={styles.rosterName}>{row.clientName}</Text>
-                                    <Text style={styles.rosterDog}>{row.dogName}</Text>
-                                    <Text style={styles.rosterMeta}>
-                                      Última asistencia: {row.lastAttendanceDate ? formatDateKey(row.lastAttendanceDate) : 'sin asistencia'}
-                                      {` · ${row.attendanceCount} registrada${row.attendanceCount === 1 ? '' : 's'}`}
-                                    </Text>
-                                    {row.phone || row.email ? <Text style={styles.rosterContact} numberOfLines={1}>{row.phone || row.email}</Text> : null}
-                                  </View>
-                                  <MaterialIcons name="chevron-right" size={20} color={ucapsaBrand.colors.redDark} />
-                                </Pressable>
-                              ))}
-                            </View>
-                          ) : null}
-                        </View>
+                          <Text style={[styles.weekDayName, { color: selected ? format.primaryButtonText : format.muted }]}>{shortWeekday(dateKey)}</Text>
+                          <Text style={[styles.weekDayNumber, { color: selected ? format.primaryButtonText : isToday ? format.accentDark : format.cardText }]}>{dayNumber(dateKey)}</Text>
+                          <View style={[styles.activityDot, { opacity: hasActivity ? 1 : 0, backgroundColor: selected ? format.primaryButtonText : format.accent }]} />
+                        </Pressable>
                       );
                     })}
                   </View>
-                ) : null}
-              </View>
-            ) : null}
+                </>
+              )}
 
-            {showEvents ? selectedEvents.map((occurrence) => (
-              <EventCard
-                key={`event-${occurrence.id}`}
-                event={occurrence.event}
-                startDateOverride={occurrence.start_date}
-                occurrenceIndex={occurrence.is_recurring ? occurrence.occurrence_index : undefined}
-                onPress={isAdmin
-                  ? () => router.push(
-                      `/admin/events?eventId=${occurrence.event.id}${occurrence.is_recurring ? `&occurrenceStart=${encodeURIComponent(occurrence.start_date)}` : ''}` as never,
-                    )
-                  : undefined}
-              />
-            )) : null}
+              {!monthExpanded ? (
+                <View style={[styles.daySchedule, { borderTopColor: format.cardBorder }]}>
+                  {dayAgendaItems.length === 0 ? (
+                    <View style={styles.dayEmpty}>
+                      <MaterialIcons name="event-available" size={24} color={format.muted} />
+                      <Text style={[styles.dayEmptyTitle, { color: format.cardText }]}>Día libre</Text>
+                      <Text style={[styles.dayEmptyText, { color: format.muted }]}>No hay actividad registrada para este día.</Text>
+                    </View>
+                  ) : dayAgendaItems.map((item) => {
+                    const accent = item.cancelled
+                      ? ucapsaBrand.colors.red
+                      : item.kind === 'class'
+                        ? ucapsaBrand.colors.blue
+                        : item.kind === 'event'
+                          ? ucapsaBrand.colors.red
+                          : item.kind === 'announcement'
+                            ? ucapsaBrand.colors.gold
+                            : ucapsaBrand.colors.green;
+                    const icon = item.kind === 'class'
+                      ? 'school'
+                      : item.kind === 'event'
+                        ? 'event'
+                        : item.kind === 'announcement'
+                          ? 'campaign'
+                          : 'local-fire-department';
+                    const pressable = item.kind === 'announcement' || (isAdmin && (item.kind === 'class' || item.kind === 'event'));
 
-            {showAnnouncements ? selectedAnnouncements.map((announcement) => (
-              <AnnouncementCard
-                key={`announcement-${announcement.id}`}
-                announcement={announcement}
-                compact={!isAdmin}
-                onPress={isAdmin ? () => router.push(`/admin/announcements?announcementId=${announcement.id}` as never) : () => router.push('/announcements' as never)}
-                onOpenEvent={announcement.event?.start_date ? () => setSelectedDate(toDateKey(announcement.event?.start_date) ?? selectedDate) : undefined}
-              />
-            )) : null}
+                    const onItemPress = () => {
+                      if (item.kind === 'announcement') {
+                        const announcement = item.source as Announcement;
+                        router.push(isAdmin ? `/admin/announcements?announcementId=${announcement.id}` as never : '/announcements' as never);
+                      } else if (item.kind === 'event' && isAdmin) {
+                        const occurrence = item.source as EventOccurrence;
+                        router.push(`/admin/events?eventId=${occurrence.event.id}` as never);
+                      } else if (item.kind === 'class' && isAdmin) {
+                        router.push(`/admin/class-cancellations?date=${selectedDate}` as never);
+                      }
+                    };
 
-            {showEvents && upcomingEvents.length > 0 ? (
-              <>
-                <View style={styles.sectionHeader}>
-                  <View>
-                    <Text style={[styles.sectionTitle, { color: isPremium ? ucapsaBrand.colors.surface : ucapsaBrand.colors.cameraDark }]}>Proximos eventos</Text>
-                    <Text style={[styles.sectionSubtitle, { color: isPremium ? ucapsaBrand.colors.premiumMuted : ucapsaBrand.colors.mutedNeutral }]}>Maximo 3 visibles aqui</Text>
-                  </View>
+                    return (
+                      <Pressable
+                        key={item.id}
+                        disabled={!pressable}
+                        accessibilityRole={pressable ? 'button' : undefined}
+                        style={styles.timelineRow}
+                        onPress={pressable ? onItemPress : undefined}
+                      >
+                        <Text style={[styles.timelineTime, { color: format.muted }]}>{item.timeLabel}</Text>
+                        <View style={[styles.timelineRail, { backgroundColor: accent }]} />
+                        <View style={[styles.timelineBlock, { backgroundColor: withAlpha(accent, 0.08), borderColor: withAlpha(accent, 0.28) }]}>
+                          <View style={styles.timelineTitleRow}>
+                            <MaterialIcons name={icon} size={17} color={accent} />
+                            <Text numberOfLines={1} style={[styles.timelineTitle, { color: item.cancelled ? ucapsaBrand.colors.red : format.cardText, textDecorationLine: item.cancelled ? 'line-through' : 'none' }]}>{item.title}</Text>
+                            {pressable ? <MaterialIcons name="chevron-right" size={18} color={accent} /> : null}
+                          </View>
+                          <Text numberOfLines={2} style={[styles.timelineDetail, { color: format.muted }]}>{item.detail}</Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
                 </View>
-                {upcomingEvents.map((occurrence) => (
-                  <EventCard
-                    key={`upcoming-${occurrence.id}`}
-                    event={occurrence.event}
-                    startDateOverride={occurrence.start_date}
-                    occurrenceIndex={occurrence.is_recurring ? occurrence.occurrence_index : undefined}
-                    onPress={isAdmin
-                      ? () => router.push(
-                          `/admin/events?eventId=${occurrence.event.id}${occurrence.is_recurring ? `&occurrenceStart=${encodeURIComponent(occurrence.start_date)}` : ''}` as never,
-                        )
-                      : () => setSelectedDate(toDateKey(occurrence.start_date) ?? selectedDate)}
-                  />
-                ))}
-              </>
-            ) : null}
+              ) : null}
+            </View>
           </>
         ) : null}
       </ScrollView>
@@ -921,25 +736,16 @@ export default function CalendarScreen() {
   );
 }
 
-function Legend({ label, style }: { label: string; style: object }) {
-  return (
-    <View style={styles.legendItem}>
-      <View style={[styles.legendDot, style]} />
-      <Text style={styles.legendText}>{label}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: ucapsaBrand.colors.redPale },
   container: { flex: 1, backgroundColor: ucapsaBrand.colors.redPale },
   content: { gap: 16, padding: 20, paddingBottom: 110 },
-  hero: { flexDirection: 'row', gap: 14, padding: 18, borderRadius: 24, backgroundColor: ucapsaBrand.colors.redDeep },
-  heroIcon: { width: 54, height: 54, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
+  hero: { flexDirection: 'row', gap: 12, padding: 14, borderRadius: 20, backgroundColor: ucapsaBrand.colors.redDeep },
+  heroIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
   heroText: { flex: 1, gap: 6 },
   kicker: { color: ucapsaBrand.colors.redSoftStrong, fontSize: 12, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
-  title: { color: ucapsaBrand.colors.surface, fontSize: 22, fontWeight: '900' },
-  subtitle: { color: ucapsaBrand.colors.textLight, fontSize: 14, lineHeight: 20 },
+  title: { color: ucapsaBrand.colors.surface, fontSize: 19, fontWeight: '900' },
+  subtitle: { color: ucapsaBrand.colors.textLight, fontSize: 11, lineHeight: 16 },
   sectionSwitch: { flexDirection: 'row', gap: 6, borderWidth: 1, borderRadius: 18, padding: 5 },
   switchButton: { flex: 1, minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 14 },
   switchText: { fontSize: 13, fontWeight: '900' },
@@ -948,7 +754,28 @@ const styles = StyleSheet.create({
   adminButtonText: { color: ucapsaBrand.colors.surface, fontSize: 14, fontWeight: '900' },
   adminButtonAlt: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 15, borderRadius: 18, backgroundColor: ucapsaBrand.colors.redSoft, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder },
   adminButtonAltText: { color: ucapsaBrand.colors.redDark, fontSize: 14, fontWeight: '900' },
-  calendarCard: { overflow: 'hidden', borderRadius: 24, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 2, borderColor: ucapsaBrand.colors.red },
+  agendaTopBar: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 12 },
+  agendaDateEyebrow: { fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 0.9 },
+  agendaDateTitle: { marginTop: 2, fontSize: 16, lineHeight: 21, fontWeight: '900' },
+  compactAction: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 13, paddingHorizontal: 10 },
+  compactActionText: { fontSize: 11, fontWeight: '900' },
+  weekNav: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingBottom: 5 },
+  weekNavArrow: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
+  weekNavLabel: { flex: 1, textAlign: 'center', fontSize: 10, lineHeight: 14, fontWeight: '800' },
+  weekDayCompact: { flex: 1, minHeight: 64, alignItems: 'center', justifyContent: 'center', gap: 2, borderRadius: 16, paddingVertical: 7 },
+  activityDot: { width: 5, height: 5, borderRadius: 999, marginTop: 2 },
+  daySchedule: { borderTopWidth: 1, paddingHorizontal: 12, paddingVertical: 10, gap: 4 },
+  dayEmpty: { alignItems: 'center', gap: 5, paddingVertical: 24, paddingHorizontal: 18 },
+  dayEmptyTitle: { fontSize: 15, lineHeight: 20, fontWeight: '900' },
+  dayEmptyText: { maxWidth: 280, textAlign: 'center', fontSize: 11, lineHeight: 16, fontWeight: '700' },
+  timelineRow: { minHeight: 58, flexDirection: 'row', alignItems: 'stretch', gap: 8, paddingVertical: 4 },
+  timelineTime: { width: 58, paddingTop: 10, textAlign: 'right', fontSize: 10, lineHeight: 14, fontWeight: '800' },
+  timelineRail: { width: 3, borderRadius: 999 },
+  timelineBlock: { flex: 1, minWidth: 0, borderWidth: 1, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 9 },
+  timelineTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  timelineTitle: { flex: 1, fontSize: 12, lineHeight: 16, fontWeight: '900' },
+  timelineDetail: { marginTop: 2, fontSize: 10, lineHeight: 14, fontWeight: '700' },
+    calendarCard: { overflow: 'hidden', borderRadius: 24, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 2, borderColor: ucapsaBrand.colors.red },
   calendarLead: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.border },
   calendarLeadIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   calendarLeadKicker: { fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
