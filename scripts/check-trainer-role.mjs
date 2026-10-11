@@ -27,6 +27,7 @@ const staffSwitcher = read('src/components/domain/StaffWorkspaceSwitcher.tsx');
 const examXlsx = read('src/services/ucapsa-exam-xlsx.ts');
 const users = read('src/app/admin/users.tsx');
 const adminHome = read('src/app/(tabs)/admin-home.tsx');
+const adminCalendar = read('src/app/(tabs)/calendar.tsx');
 const notificationCard = read('src/components/domain/NotificationSettingsCard.tsx');
 const notificationNav = read('src/hooks/useNotificationNavigation.ts');
 const trainerSummary = read('supabase/functions/send-trainer-class-summary/index.ts');
@@ -218,8 +219,31 @@ for (const token of [
   'groupTomorrowClasses',
   "item.programCode === 'comandos'",
   'tomorrowLevels',
+  "const key = `${row.scheduleId}:${row.programCode}:${row.startTime}`",
 ]) {
   if (!adminHome.includes(token)) throw new Error('Admin tomorrow summary must treat Comandos as one schedule: ' + token);
+}
+if (adminHome.includes(":${row.programLevel}")) {
+  throw new Error('Inicio Admin no puede convertir los niveles de Comandos en horarios separados.');
+}
+
+for (const token of [
+  "occurrence.program?.code === 'comandos'",
+  'getAdminCommandLevelCounts(rosterRows)',
+  "(['all', 'basic', 'intermediate', 'advanced'] as AdminRosterLevel[])",
+]) {
+  if (!adminCalendar.includes(token)) throw new Error('Calendario Admin perdió el desglose de Comandos dentro de la misma ocurrencia: ' + token);
+}
+
+for (const token of [
+  "const key = `${schedule.id}:${code}:${String(schedule.start_time).slice(0, 5)}`",
+  "if (code === 'comandos')",
+  'current.levels.set(label, level)',
+]) {
+  if (!trainerSummary.includes(token)) throw new Error('Resumen push debe agrupar Comandos por horario y desglosar por nivel: ' + token);
+}
+if (trainerSummary.includes(":${enrollment.program_level}")) {
+  throw new Error('Resumen push no puede crear una clase distinta por nivel de Comandos.');
 }
 
 for (const token of [
