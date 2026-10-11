@@ -26,6 +26,8 @@ export type StaffClassRosterRow = {
   startTime: string;
   rsvpResponse: 'yes' | 'no' | null;
   membershipStatus: string;
+  attendanceId: string | null;
+  attended: boolean;
 };
 
 export type StaffClassReportRow = {
@@ -171,7 +173,25 @@ export async function getStaffClassRoster(classDate = tomorrowDateKey()): Promis
     startTime: String(row.start_time ?? '').slice(0, 5),
     rsvpResponse: row.rsvp_response === 'yes' || row.rsvp_response === 'no' ? row.rsvp_response : null,
     membershipStatus: row.membership_status,
+    attendanceId: row.attendance_id ?? null,
+    attended: Boolean(row.attended),
   }));
+}
+
+export async function registerStaffClassAttendance(input: {
+  enrollmentId: string;
+  classDate: string;
+  scheduleId: string;
+  notes?: string | null;
+}) {
+  const { data, error } = await supabase.rpc('trainer_register_program_attendance', {
+    p_enrollment_id: input.enrollmentId,
+    p_attendance_date: input.classDate,
+    p_schedule_id: input.scheduleId,
+    p_notes: input.notes?.trim() || undefined,
+  });
+  if (error) throw error;
+  return data;
 }
 
 export async function getStaffClassReport(fromDate: string, toDate: string): Promise<StaffClassReportRow[]> {
