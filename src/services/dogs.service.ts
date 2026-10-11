@@ -1,15 +1,24 @@
+import {
+  DEFAULT_DOG_AVATAR_COLOR,
+  DEFAULT_DOG_AVATAR_KEY,
+  normalizeDogAvatarColor,
+  normalizeDogAvatarKey,
+  type DogAvatarColor,
+  type DogAvatarKey,
+} from '../constants/dogAvatar';
 import { supabase } from '../lib/supabase';
 
 export type BasicDog = {
   id: string;
   name: string;
+  avatar_key: DogAvatarKey;
+  avatar_color: DogAvatarColor;
   is_active: boolean;
   created_at: string;
   updated_at: string;
 };
 
 export type DogProfile = BasicDog & {
-  photo_path: string | null;
   breed: string | null;
   birth_date: string | null;
   sex: 'female' | 'male' | 'unknown' | null;
@@ -31,10 +40,9 @@ export type DogProfileInput = {
   birth_date?: string | null;
   sex?: DogProfile['sex'];
   weight_kg?: number | null;
+  avatar_key?: DogAvatarKey | null;
+  avatar_color?: DogAvatarColor | null;
 };
-
-const DOG_PHOTO_BUCKET = 'dog-profile-photos' as const;
-const DOG_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
 
 function normalizeRows(data: unknown): BasicDog[] {
   if (!Array.isArray(data)) return [];
@@ -44,6 +52,8 @@ function normalizeRows(data: unknown): BasicDog[] {
     .map((item) => ({
       id: String(item.id),
       name: String(item.name),
+      avatar_key: normalizeDogAvatarKey(item.avatar_key ?? DEFAULT_DOG_AVATAR_KEY),
+      avatar_color: normalizeDogAvatarColor(item.avatar_color ?? DEFAULT_DOG_AVATAR_COLOR),
       is_active: item.is_active !== false,
       created_at: String(item.created_at ?? ''),
       updated_at: String(item.updated_at ?? ''),
@@ -66,7 +76,8 @@ function normalizeDogProfile(data: unknown): DogProfile {
   return {
     id: String(item.id),
     name: String(item.name),
-    photo_path: normalizeNullableText(item.photo_path),
+    avatar_key: normalizeDogAvatarKey(item.avatar_key ?? DEFAULT_DOG_AVATAR_KEY),
+    avatar_color: normalizeDogAvatarColor(item.avatar_color ?? DEFAULT_DOG_AVATAR_COLOR),
     breed: normalizeNullableText(item.breed),
     birth_date: normalizeNullableText(item.birth_date),
     sex,
@@ -147,98 +158,12 @@ export async function updateMyDogProfile(dogId: string, input: DogProfileInput):
     p_birth_date: normalizeNullableText(input.birth_date),
     p_sex: input.sex ?? null,
     p_weight_kg: weight,
+    p_avatar_key: input.avatar_key ?? null,
+    p_avatar_color: input.avatar_color ?? null,
   });
 
   if (error) throw error;
   if (!data?.[0]) throw new Error('No se pudo actualizar el perro.');
-  return normalizeDogProfile(data[0]);
-}
-
-function dogPhotoExtension(mimeType: string | null | undefined) {
-  const normalized = (mimeType ?? '').toLowerCase();
-  if (normalized === 'image/png') return 'png';
-  if (normalized === 'image/webp') return 'webp';
-  return 'jpg';
-}
-
-export async function getMyDogPhotoUrl(photoPath: string | null | undefined): Promise<string | null> {
-  const cleanPath = photoPath?.trim();
-  if (!cleanPath) return null;
-  const { data, error } = await supabase.storage
-    .from(DOG_PHOTO_BUCKET)
-    .createSignedUrl(cleanPath, 60 * 60);
-  if (error) throw error;
-  return data.signedUrl;
-}
-
-export async function uploadMyDogPhoto(
-  dogId: string,
-  uri: string,
-  mimeType?: string | null,
-): Promise<DogProfile> {
-  const cleanDogId = dogId.trim();
-  if (!cleanDogId || !uri.trim()) throw new Error('No se encontro la foto.');
-
-  const { data: authData, error: authError } = await supabase.auth.getUser();
-  if (authError) throw authError;
-  const userId = authData.user?.id;
-  if (!userId) throw new Error('No hay sesion activa.');
-
-  const previous = await getMyDogProfile(cleanDogId);
-  const response = await fetch(uri);
-  if (!response.ok) throw new Error('No se pudo leer la foto seleccionada.');
-  const bytes = await response.arrayBuffer();
-  if (bytes.byteLength > DOG_PHOTO_MAX_BYTES) {
-    throw new Error('La foto debe pesar menos de 5 MB.');
-  }
-
-  const contentType = mimeType === 'image/png' || mimeType === 'image/webp'
-    ? mimeType
-    : 'image/jpeg';
-  const path = `${userId}/${cleanDogId}/profile.${dogPhotoExtension(contentType)}`;
-
-  const { error: uploadError } = await supabase.storage
-    .from(DOG_PHOTO_BUCKET)
-    .upload(path, bytes, {
-      contentType,
-      upsert: true,
-      cacheControl: '3600',
-    });
-  if (uploadError) throw uploadError;
-
-  const { data, error } = await supabase.rpc('set_my_dog_photo_path', {
-    p_dog_id: cleanDogId,
-    p_photo_path: path,
-  });
-  if (error) {
-    await supabase.storage.from(DOG_PHOTO_BUCKET).remove([path]).catch(() => undefined);
-    throw error;
-  }
-
-  if (previous.photo_path && previous.photo_path !== path) {
-    void supabase.storage.from(DOG_PHOTO_BUCKET).remove([previous.photo_path]);
-  }
-
-  if (!data?.[0]) throw new Error('No se pudo guardar la foto.');
-  return normalizeDogProfile(data[0]);
-}
-
-export async function removeMyDogPhoto(dogId: string): Promise<DogProfile> {
-  const cleanDogId = dogId.trim();
-  if (!cleanDogId) throw new Error('No se encontro el perro.');
-
-  const previous = await getMyDogProfile(cleanDogId);
-  const { data, error } = await supabase.rpc('set_my_dog_photo_path', {
-    p_dog_id: cleanDogId,
-    p_photo_path: '',
-  });
-  if (error) throw error;
-
-  if (previous.photo_path) {
-    void supabase.storage.from(DOG_PHOTO_BUCKET).remove([previous.photo_path]);
-  }
-
-  if (!data?.[0]) throw new Error('No se pudo quitar la foto.');
   return normalizeDogProfile(data[0]);
 }
 
@@ -286,7 +211,7 @@ export async function getDogsForUser(userId: string): Promise<BasicDog[]> {
 
   const { data, error } = await supabase
     .from('dogs')
-    .select('id,name,is_active,created_at,updated_at')
+    .select('id,name,avatar_key,avatar_color,is_active,created_at,updated_at')
     .eq('user_id', cleanUserId)
     .eq('is_active', true)
     .order('created_at', { ascending: true });
