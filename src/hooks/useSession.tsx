@@ -31,6 +31,8 @@ type SessionContextValue = {
   lastProfileSyncAt: string | null;
   isOfflineFallback: boolean;
   isAdmin: boolean;
+  isTrainer: boolean;
+  isStaff: boolean;
   refreshProfile: () => Promise<void>;
   acceptProfile: (nextProfile: UserProfile) => Promise<void>;
   retryStartup: () => void;
@@ -62,6 +64,8 @@ export function SessionProvider({ children }: SessionProviderProps) {
   const user = session?.user ?? null;
   const role = profile?.role ?? null;
   const isAdmin = role === 'admin' || role === 'super_admin';
+  const isTrainer = role === 'trainer';
+  const isStaff = isAdmin || isTrainer;
 
   async function applyFreshProfile(userId: string, nextProfile: UserProfile | null) {
     if (nextProfile) {
@@ -315,6 +319,8 @@ export function SessionProvider({ children }: SessionProviderProps) {
       lastProfileSyncAt,
       isOfflineFallback,
       isAdmin,
+      isTrainer,
+      isStaff,
       refreshProfile,
       acceptProfile,
       retryStartup,
@@ -331,6 +337,8 @@ export function SessionProvider({ children }: SessionProviderProps) {
       lastProfileSyncAt,
       isOfflineFallback,
       isAdmin,
+      isTrainer,
+      isStaff,
     ],
   );
 
