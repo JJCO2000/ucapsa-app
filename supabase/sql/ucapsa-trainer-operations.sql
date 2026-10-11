@@ -436,7 +436,9 @@ returns table (
   schedule_name text,
   start_time time,
   rsvp_response text,
-  membership_status text
+  membership_status text,
+  attendance_id uuid,
+  attended boolean
 )
 language plpgsql
 security definer
@@ -460,7 +462,9 @@ begin
     effective.name::text,
     effective.start_time,
     r.response,
-    coalesce(m.status::text, 'none')
+    coalesce(m.status::text, 'none'),
+    a.id,
+    (a.id is not null)
   from public.program_enrollments e
   join public.programs p on p.id = e.program_id and p.is_active = true
   join lateral public.get_effective_program_schedule(e.schedule_id, p_class_date) effective on true
@@ -469,6 +473,9 @@ begin
   left join public.program_class_rsvps r
     on r.enrollment_id = e.id
    and r.class_date = p_class_date
+  left join public.program_attendances a
+    on a.enrollment_id = e.id
+   and a.attendance_date = p_class_date
   left join lateral (
     select ms.status
     from public.memberships ms
