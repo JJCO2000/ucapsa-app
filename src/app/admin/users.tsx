@@ -8,20 +8,23 @@ import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import { getAdminProfiles } from '../../services/profiles.service';
+import { setTrainerRole } from '../../services/staff-operations.service';
 import type { AppRole, Profile } from '../../types/app.types';
 
-type UserFilter = 'clients_and_members' | 'clients' | 'members' | 'admins';
+type UserFilter = 'clients_and_members' | 'clients' | 'members' | 'trainers' | 'admins';
 
 const filterOptions: Array<{ value: UserFilter; label: string; helper: string }> = [
   { value: 'clients_and_members', label: 'Todos', helper: 'Clientes y socios' },
   { value: 'clients', label: 'Clientes', helper: 'Sin rol de socio' },
   { value: 'members', label: 'Socios', helper: 'Con membresía' },
-  { value: 'admins', label: 'Admins', helper: 'Administración' },
+  { value: 'trainers', label: 'Entrenadores', helper: 'Operación de entrenamiento' },
+  { value: 'admins', label: 'Staff UCAPSA', helper: 'Administración interna' },
 ];
 
 function getRoleLabel(role: AppRole) {
-  if (role === 'super_admin') return 'Super admin';
-  if (role === 'admin') return 'Admin';
+  if (role === 'super_admin') return 'Superadmin';
+  if (role === 'admin') return 'Staff UCAPSA';
+  if (role === 'trainer') return 'Entrenador';
   if (role === 'member') return 'Socio';
   return 'Cliente';
 }
@@ -30,6 +33,7 @@ function matchesFilter(profile: Profile, filter: UserFilter) {
   if (filter === 'clients_and_members') return profile.role === 'client' || profile.role === 'member';
   if (filter === 'clients') return profile.role === 'client';
   if (filter === 'members') return profile.role === 'member';
+  if (filter === 'trainers') return profile.role === 'trainer';
   return profile.role === 'admin' || profile.role === 'super_admin';
 }
 
@@ -42,7 +46,7 @@ function isCustomer(profile: Profile) {
 }
 
 export default function AdminUsersScreen() {
-  const { user, role } = useSession();
+  const { user, role, refreshProfile } = useSession();
   const adminFormat = useMemo(
     () => resolveUcapsaFormat({ user, role, isAdmin: true }),
     [user, role],
@@ -119,6 +123,7 @@ export default function AdminUsersScreen() {
     clientsAndMembers: profiles.filter((profile) => isCustomer(profile)).length,
     clients: profiles.filter((profile) => profile.role === 'client').length,
     members: profiles.filter((profile) => profile.role === 'member').length,
+    trainers: profiles.filter((profile) => profile.role === 'trainer').length,
     admins: profiles.filter(
       (profile) => profile.role === 'admin' || profile.role === 'super_admin',
     ).length,
@@ -158,7 +163,8 @@ export default function AdminUsersScreen() {
             <Summary label="Todos" value={counts.clientsAndMembers} />
             <Summary label="Clientes" value={counts.clients} />
             <Summary label="Socios" value={counts.members} />
-            <Summary label="Admins" value={counts.admins} />
+            <Summary label="Entrenadores" value={counts.trainers} />
+            <Summary label="Staff" value={counts.admins} />
           </View>
 
           <View style={styles.filterGrid}>
@@ -221,6 +227,12 @@ export default function AdminUsersScreen() {
 
       <AdminAccountDetailModal
         profile={selectedAdmin}
+        canManageTrainer={role === 'super_admin'}
+        onTrainerRoleChanged={async () => {
+          const rows = await getAdminProfiles();
+          setProfiles(rows);
+          await refreshProfile().catch(() => undefined);
+        }}
         onClose={() => setSelectedAdmin(null)}
       />
     </KeyboardAwareScreen>
@@ -238,12 +250,39 @@ function Summary({ label, value }: { label: string; value: number }) {
 
 function AdminAccountDetailModal({
   profile,
+  canManageTrainer,
+  onTrainerRoleChanged,
   onClose,
 }: {
   profile: Profile | null;
+  canManageTrainer: boolean;
+  onTrainerRoleChanged: () => Promise<void>;
   onClose: () => void;
 }) {
+  const [savingRole, setSavingRole] = useState(false);
   if (!profile) return null;
+
+  const canToggleTrainer = canManageTrainer && (profile.role === 'client' || profile.role === 'trainer');
+
+  async function toggleTrainer() {
+    if (!canToggleTrainer || savingRole) return;
+    try {
+      setSavingRole(true);
+      await setTrainerRole(profile.user_id, profile.role !== 'trainer');
+      await onTrainerRoleChanged();
+      onClose();
+      Alert.alert(
+        profile.role === 'trainer' ? 'Rol retirado' : 'Entrenador asignado',
+        profile.role === 'trainer'
+          ? 'La cuenta volvió a Cliente.'
+          : 'La cuenta sólo tendrá herramientas operativas de entrenamiento.',
+      );
+    } catch (cause) {
+      Alert.alert('No se pudo cambiar el rol', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+    } finally {
+      setSavingRole(false);
+    }
+  }
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
@@ -259,6 +298,16 @@ function AdminAccountDetailModal({
             <Detail label="Teléfono" value={profile.phone} />
             <Detail label="Rol" value={getRoleLabel(profile.role)} />
           </View>
+
+          {canToggleTrainer ? (
+            <Pressable disabled={savingRole} style={[styles.trainerButton, savingRole && { opacity: 0.5 }]} onPress={() => void toggleTrainer()}>
+              <MaterialCommunityIcons name={profile.role === 'trainer' ? 'account-minus' : 'account-hard-hat'} size={20} color={ucapsaBrand.colors.greenDark} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.trainerButtonTitle}>{profile.role === 'trainer' ? 'Quitar rol Entrenador' : 'Convertir en Entrenador'}</Text>
+                <Text style={styles.trainerButtonMeta}>Sólo clases, perros, exámenes y reportes operativos.</Text>
+              </View>
+            </Pressable>
+          ) : null}
 
           <Pressable style={styles.closeButton} onPress={onClose}>
             <Text style={styles.closeButtonText}>Cerrar</Text>
@@ -315,6 +364,9 @@ const styles = StyleSheet.create({
   detailRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.redSoft },
   detailLabel: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
   detailValue: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '700', marginTop: 3 },
+  trainerButton: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.green, backgroundColor: ucapsaBrand.colors.greenSoft, padding: 11, marginTop: 12 },
+  trainerButtonTitle: { color: ucapsaBrand.colors.greenDark, fontSize: 12, fontWeight: '900' },
+  trainerButtonMeta: { color: ucapsaBrand.colors.greenDark, fontSize: 9, lineHeight: 13, fontWeight: '700', marginTop: 2 },
   closeButton: { backgroundColor: ucapsaBrand.colors.text, borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 12 },
   closeButtonText: { color: ucapsaBrand.colors.surface, fontSize: 14, fontWeight: '900' },
 });
