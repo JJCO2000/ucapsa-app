@@ -160,9 +160,14 @@ for (const token of [
 for (const token of [
   'getStaffTrainingReport',
   'exportTrainingReportXlsx',
-  'Exportar Excel',
+  'buildTrainingReportStats',
+  'Exportar estadísticas',
 ]) {
   if (!report.includes(token)) throw new Error('Trainer report export missing: ' + token);
+}
+const reportExport = read('src/services/training-report-export.service.ts');
+for (const token of ['Resumen', 'Por programa', 'Sin asistencia registrada', 'Tasa de asistencia', 'uniqueClients', 'uniqueDogs']) {
+  if (!reportExport.includes(token)) throw new Error('Trainer hard-statistics export missing: ' + token);
 }
 if (!trainerMore.includes('/staff/training-report')) {
   throw new Error('Trainer tools lost report entry point.');
