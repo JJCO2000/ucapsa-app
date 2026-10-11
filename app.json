@@ -76,14 +76,6 @@
         }
       ],
       "expo-sharing",
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "Permitir que UCAPSA acceda a tus fotos para elegir la imagen de tu perro.",
-          "cameraPermission": false,
-          "microphonePermission": false
-        }
-      ],
       "expo-image",
       "expo-web-browser"
     ],
