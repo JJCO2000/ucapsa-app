@@ -182,7 +182,7 @@ returns uuid
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 declare
   v_exam public.ucapsa_exams%rowtype;
 begin
@@ -235,7 +235,7 @@ begin
 
   return p_exam_id;
 end;
-$;
+$$;
 
 revoke all on function public.staff_publish_ucapsa_exam(uuid)
   from public, anon;
