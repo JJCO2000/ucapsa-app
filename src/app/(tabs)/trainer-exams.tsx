@@ -44,7 +44,7 @@ export default function TrainerExamsTab() {
     } finally {
       setLoading(false);
     }
-  }, [isTrainer]);
+  }, [capabilities.canUseTrainingWorkspace]);
 
   useFocusEffect(useCallback(() => {
     setLoading(true);
