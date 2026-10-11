@@ -96,6 +96,15 @@ export default function TrainerClassesTab() {
     try { await load(); } finally { setRefreshing(false); }
   }
 
+  function selectDate(nextDate: string) {
+    setLoading(true);
+    if (nextDate === dateKey) {
+      void load();
+      return;
+    }
+    setDateKey(nextDate);
+  }
+
   async function markAttendance(row: StaffRosterRow) {
     if (row.attended || busyId) return;
     Alert.alert(
@@ -195,10 +204,10 @@ export default function TrainerClassesTab() {
       </View>
 
       <View style={styles.dateSwitch}>
-        <Pressable style={[styles.dateButton, dateKey === today && styles.dateButtonActive]} onPress={() => { setDateKey(today); setLoading(true); }}>
+        <Pressable style={[styles.dateButton, dateKey === today && styles.dateButtonActive]} onPress={() => selectDate(today)}>
           <Text style={[styles.dateButtonText, dateKey === today && styles.dateButtonTextActive]}>Hoy</Text>
         </Pressable>
-        <Pressable style={[styles.dateButton, dateKey === tomorrow && styles.dateButtonActive]} onPress={() => { setDateKey(tomorrow); setLoading(true); }}>
+        <Pressable style={[styles.dateButton, dateKey === tomorrow && styles.dateButtonActive]} onPress={() => selectDate(tomorrow)}>
           <Text style={[styles.dateButtonText, dateKey === tomorrow && styles.dateButtonTextActive]}>Mañana</Text>
         </Pressable>
         <View style={styles.dateValue}><Text style={styles.dateValueText}>{dateKey}</Text></View>
