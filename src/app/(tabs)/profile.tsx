@@ -53,18 +53,36 @@ export default function ProfileScreen() {
         <HubRow
           icon="person"
           title="Mis datos"
-          subtitle="Nombre, teléfono, correo y avatar."
+          subtitle="Nombre, teléfono y correo."
           premium={premium}
           format={format}
-          onPress={() => router.push('/account-settings?section=profile' as never)}
+          onPress={() => router.push('/account-settings?section=profile&from=profile' as never)}
         />
         <HubRow
           icon="pets"
           title="Mis perros"
-          subtitle="Perfil, entrenamiento, nivel, historial y logros de cada perro."
+          subtitle="Perfil, entrenamiento, nivel e historial de cada perro."
           premium={premium}
           format={format}
-          onPress={() => router.push('/dog' as never)}
+          onPress={() => router.push('/dog?from=profile' as never)}
+        />
+
+        <Text style={[styles.sectionTitle, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Mi progreso</Text>
+        <HubRow
+          icon="emoji-events"
+          title="Mis logros"
+          subtitle="Medallas de programas e hitos de clases."
+          premium={premium}
+          format={format}
+          onPress={() => router.push('/achievements?from=profile' as never)}
+        />
+        <HubRow
+          icon="stars"
+          title="Insignias de actividad"
+          subtitle="Clases, prácticas, visitas y rachas."
+          premium={premium}
+          format={format}
+          onPress={() => router.push('/client/activity-achievements?from=profile' as never)}
         />
 
         <Text style={[styles.sectionTitle, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Cuenta y servicios</Text>
@@ -74,7 +92,7 @@ export default function ProfileScreen() {
           subtitle="Saldo, cargos y movimientos."
           premium={premium}
           format={format}
-          onPress={() => router.push('/payments' as never)}
+          onPress={() => router.push('/payments?from=profile' as never)}
         />
         <HubRow
           icon="workspace-premium"
@@ -82,7 +100,7 @@ export default function ProfileScreen() {
           subtitle="Estado, credencial y acceso de socio."
           premium={premium}
           format={format}
-          onPress={() => router.push('/client/membership' as never)}
+          onPress={() => router.push('/client/membership?from=profile' as never)}
         />
         <HubRow
           icon="notifications-none"
@@ -90,7 +108,7 @@ export default function ProfileScreen() {
           subtitle="Elige qué avisos oficiales quieres recibir."
           premium={premium}
           format={format}
-          onPress={() => router.push('/account-settings?section=notifications' as never)}
+          onPress={() => router.push('/account-settings?section=notifications&from=profile' as never)}
         />
         <HubRow
           icon="grid-view"
@@ -98,7 +116,7 @@ export default function ProfileScreen() {
           subtitle="Restaurante, consultas y otros accesos."
           premium={premium}
           format={format}
-          onPress={() => router.push('/services' as never)}
+          onPress={() => router.push('/services?from=profile' as never)}
         />
         <HubRow
           icon="settings"
@@ -106,7 +124,7 @@ export default function ProfileScreen() {
           subtitle="Privacidad, términos, eliminar cuenta y cerrar sesión."
           premium={premium}
           format={format}
-          onPress={() => router.push('/account-settings' as never)}
+          onPress={() => router.push('/account-settings?from=profile' as never)}
         />
       </KeyboardAwareScreen>
     );

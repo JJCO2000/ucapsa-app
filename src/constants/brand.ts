@@ -89,6 +89,17 @@ export const ucapsaBrand = {
     premiumActionText: '#6D0817',
     premiumBurgundySoft: '#F1E1E3',
     premiumPillBackground: '#EFE0C3',
+
+    // Avatares fallback de perros. La foto privada, cuando existe, tiene prioridad.
+    dogAvatarIvory: '#F2E3C6',
+    dogAvatarBurgundy: '#7A151E',
+    dogAvatarGold: '#D4A62A',
+    dogAvatarBlue: '#3C6FC9',
+    dogAvatarTeal: '#4D857A',
+    dogAvatarPurple: '#7A60A8',
+    dogAvatarOrange: '#D8814C',
+    dogAvatarRose: '#C86B7A',
+    dogAvatarDark: '#4B2C20',
   },
   socialLinks: [
     { key: 'whatsapp', label: 'WhatsApp', url: 'https://wa.me/525522410679', icon: 'whatsapp' },

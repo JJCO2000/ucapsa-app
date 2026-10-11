@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Redirect, useFocusEffect } from 'expo-router';
+import { Redirect, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -9,6 +9,7 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { activityAchievementDefinitions, activityAchievementValue, type ActivityAchievementMetric } from '../../constants/activityAchievements';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
+import { useReturnToProfile } from '../../hooks/useReturnToProfile';
 import { useSession } from '../../hooks/useSession';
 import {
   getCachedMyClientActivityFacts,
@@ -24,6 +25,9 @@ const categoryMeta: Record<ActivityAchievementMetric, { title: string; subtitle:
 };
 
 export default function ActivityAchievementsScreen() {
+  const { from } = useLocalSearchParams<{ from?: string | string[] }>();
+  const fromProfile = (Array.isArray(from) ? from[0] : from) === 'profile';
+  const backToProfile = useReturnToProfile(fromProfile);
   const { user, role, isAdmin } = useSession();
   const [facts, setFacts] = useState<ClientActivityFacts | null>(null);
   const [loading, setLoading] = useState(true);
@@ -93,6 +97,13 @@ export default function ActivityAchievementsScreen() {
     >
       <UcapsaAmbientBackground format={format} variant="home" />
 
+      {fromProfile ? (
+        <Pressable accessibilityRole="button" accessibilityLabel="Volver a Perfil" style={[styles.backButton, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]} onPress={backToProfile}>
+          <MaterialIcons name="arrow-back" size={21} color={format.accentDark} />
+          <Text style={[styles.backText, { color: format.accentDark }]}>Perfil</Text>
+        </Pressable>
+      ) : null}
+
       <Text style={[styles.intro, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Reconocen tu actividad real. Las 4 medallas de Puppy y Comandos se consultan en Mi perro.</Text>
 
       {usingSavedData ? (
@@ -153,6 +164,8 @@ function AchievementCategory({ metric, facts, format, premium }: { metric: Activ
 
 const styles = StyleSheet.create({
   premiumContent: { backgroundColor: ucapsaBrand.colors.premiumBackground },
+  backButton: { alignSelf: 'flex-start', minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 14, paddingHorizontal: 11, marginBottom: 12 },
+  backText: { fontSize: 13, fontWeight: '900' },
   intro: { fontSize: 13, lineHeight: 19, fontWeight: '700', marginBottom: 14 },
   loading: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 16 },
   muted: { fontSize: 13, lineHeight: 19, fontWeight: '700' },

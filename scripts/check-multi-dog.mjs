@@ -16,14 +16,14 @@ requirePattern(
   'Mi perro dejó de priorizar dog_id al separar programas por perro.',
 );
 requirePattern(
-  'src/app/(tabs)/dog.tsx',
-  /getCachedAchievementsForDog\(userId, dogId\)/,
-  'Mi perro dejó de leer la caché de logros por dogId.',
+  'src/app/client/dog-achievements.tsx',
+  /getCachedAchievementsForDog\(user\.id, dogId\)/,
+  'La ficha de logros dejó de leer la caché por dogId.',
 );
 requirePattern(
-  'src/app/(tabs)/dog.tsx',
+  'src/app/client/dog-achievements.tsx',
   /getMyDogAchievements\(dogId,/,
-  'Mi perro dejó de refrescar logros por dogId.',
+  'La ficha de logros dejó de refrescar por dogId.',
 );
 requirePattern(
   'src/app/(tabs)/dog.tsx',

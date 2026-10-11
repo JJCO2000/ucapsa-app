@@ -77,8 +77,7 @@ for (const token of [
   'calendarEventCancellations',
   'getVisibleEventOccurrenceCancellations',
   'expandEventOccurrences(events, eventCancellations)',
-  'getUpcomingOccurrences(events, 3, eventCancellations)',
-  'occurrenceStart=',
+  'dayAgendaItems',
 ]) {
   if (!calendar.includes(token)) {
     throw new Error('Calendar occurrence-cancellation integration missing: ' + token);

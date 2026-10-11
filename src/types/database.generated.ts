@@ -532,6 +532,8 @@ export type Database = {
       dogs: {
         Row: {
           allergies: string | null
+          avatar_color: string
+          avatar_key: string
           behavior_notes: string | null
           birth_date: string | null
           breed: string | null
@@ -554,6 +556,8 @@ export type Database = {
         }
         Insert: {
           allergies?: string | null
+          avatar_color?: string
+          avatar_key?: string
           behavior_notes?: string | null
           birth_date?: string | null
           breed?: string | null
@@ -576,6 +580,8 @@ export type Database = {
         }
         Update: {
           allergies?: string | null
+          avatar_color?: string
+          avatar_key?: string
           behavior_notes?: string | null
           birth_date?: string | null
           breed?: string | null
@@ -1014,11 +1020,53 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "membership_dog_access_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "membership_dog_access_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_leaderboard"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "membership_dog_access_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_ranges"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "membership_dog_access_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "membership_dog_access_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["dog_id"]
+          },
+          {
             foreignKeyName: "membership_dog_access_membership_id_fkey"
             columns: ["membership_id"]
             isOneToOne: false
             referencedRelation: "memberships"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "membership_dog_access_membership_id_fkey"
+            columns: ["membership_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_continuity_observations"
+            referencedColumns: ["membership_id"]
           },
         ]
       }
@@ -1934,9 +1982,9 @@ export type Database = {
       }
       program_enrollments: {
         Row: {
+          access_mode: string
           attendances_count: number
           cancelled_at: string | null
-          access_mode: string
           card_expires_on: string | null
           card_started_on: string | null
           completed_at: string | null
@@ -1960,9 +2008,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          access_mode?: string
           attendances_count?: number
           cancelled_at?: string | null
-          access_mode?: string
           card_expires_on?: string | null
           card_started_on?: string | null
           completed_at?: string | null
@@ -1986,9 +2034,9 @@ export type Database = {
           user_id: string
         }
         Update: {
+          access_mode?: string
           attendances_count?: number
           cancelled_at?: string | null
-          access_mode?: string
           card_expires_on?: string | null
           card_started_on?: string | null
           completed_at?: string | null
@@ -2012,13 +2060,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "program_enrollments_membership_id_fkey"
-            columns: ["membership_id"]
-            isOneToOne: false
-            referencedRelation: "memberships"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "program_enrollments_dog_id_fkey"
             columns: ["dog_id"]
@@ -2060,6 +2101,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ucapsa_exam_eligibility"
             referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "program_enrollments_membership_id_fkey"
+            columns: ["membership_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_enrollments_membership_id_fkey"
+            columns: ["membership_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_continuity_observations"
+            referencedColumns: ["membership_id"]
           },
           {
             foreignKeyName: "program_enrollments_program_id_fkey"
@@ -3913,6 +3968,8 @@ export type Database = {
           constancy_percentile: number | null
           constancy_points: number | null
           constancy_population_count: number | null
+          dog_avatar_color: string | null
+          dog_avatar_key: string | null
           dog_id: string | null
           dog_is_active: boolean | null
           dog_name: string | null
@@ -4825,73 +4882,9 @@ export type Database = {
         }
         Returns: string
       }
-      admin_set_member_dog_training_stage: {
-        Args: {
-          p_dog_id: string
-          p_membership_id: string
-          p_program_code: string
-          p_program_level: string
-          p_reason?: string
-        }
-        Returns: string
-      }
-      admin_set_membership_dog_coverage: {
-        Args: {
-          p_dog_id: string
-          p_is_covered: boolean
-          p_membership_id: string
-        }
-        Returns: undefined
-      }
       admin_grant_ucapsa_training_achievement: {
         Args: { p_achievement_code: string; p_dog_id: string }
         Returns: string
-      }
-      admin_resolve_training_card_decision: {
-        Args: {
-          p_decision: string
-          p_enrollment_id: string
-          p_new_card_number?: string
-        }
-        Returns: {
-          awarded_achievement_code: string | null
-          decision: string
-          next_enrollment_id: string | null
-        }[]
-      }
-      get_admin_client_followups: {
-        Args: never
-        Returns: {
-          customer_email: string
-          customer_name: string
-          customer_phone: string
-          dog_id: string
-          dog_name: string
-          inactive_30d: boolean
-          inactivity_days: number
-          last_attendance_date: string
-          puppy_completed_on: string
-          puppy_days_since_completion: number
-          puppy_no_continuity: boolean
-          user_id: string
-        }[]
-      }
-      get_admin_training_decision_history: {
-        Args: { p_limit?: number }
-        Returns: {
-          attendance_count: number
-          customer_name: string | null
-          decided_at: string
-          decision: string
-          dog_id: string | null
-          dog_name: string | null
-          enrollment_id: string
-          next_enrollment_id: string | null
-          physical_card_number: string | null
-          program_code: string | null
-          program_level: string | null
-          user_id: string | null
-        }[]
       }
       admin_prepare_notification_campaign: {
         Args: {
@@ -5020,6 +5013,18 @@ export type Database = {
           status: string
         }[]
       }
+      admin_resolve_training_card_decision: {
+        Args: {
+          p_decision: string
+          p_enrollment_id: string
+          p_new_card_number?: string
+        }
+        Returns: {
+          awarded_achievement_code: string
+          decision: string
+          next_enrollment_id: string
+        }[]
+      }
       admin_reverse_ucapsa_competition_adjustment: {
         Args: { p_adjustment_id: string; p_note?: string }
         Returns: string
@@ -5089,6 +5094,24 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      admin_set_member_dog_training_stage: {
+        Args: {
+          p_dog_id: string
+          p_membership_id: string
+          p_program_code: string
+          p_program_level: string
+          p_reason?: string
+        }
+        Returns: string
+      }
+      admin_set_membership_dog_coverage: {
+        Args: {
+          p_dog_id: string
+          p_is_covered: boolean
+          p_membership_id: string
+        }
+        Returns: undefined
       }
       admin_set_ucapsa_exam_official_attempt: {
         Args: { p_attempt_id: string }
@@ -5266,12 +5289,46 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_admin_client_followups: {
+        Args: never
+        Returns: {
+          customer_email: string
+          customer_name: string
+          customer_phone: string
+          dog_id: string
+          dog_name: string
+          inactive_30d: boolean
+          inactivity_days: number
+          last_attendance_date: string
+          puppy_completed_on: string
+          puppy_days_since_completion: number
+          puppy_no_continuity: boolean
+          user_id: string
+        }[]
+      }
       get_admin_member_visit_monthly_stats: {
         Args: { p_months?: number }
         Returns: {
           month_start: string
           total_visits: number
           unique_members: number
+        }[]
+      }
+      get_admin_training_decision_history: {
+        Args: { p_limit?: number }
+        Returns: {
+          attendance_count: number
+          customer_name: string
+          decided_at: string
+          decision: string
+          dog_id: string
+          dog_name: string
+          enrollment_id: string
+          next_enrollment_id: string
+          physical_card_number: string
+          program_code: string
+          program_level: string
+          user_id: string
         }[]
       }
       get_effective_program_schedule: {
@@ -5309,14 +5366,39 @@ export type Database = {
         }[]
       }
       get_internal_cron_secret: { Args: never; Returns: string }
+      get_my_basic_dog_profile: {
+        Args: { p_dog_id: string }
+        Returns: {
+          avatar_color: string
+          avatar_key: string
+          birth_date: string
+          breed: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          sex: string
+          updated_at: string
+          weight_kg: number
+        }[]
+      }
       get_my_basic_dogs: {
         Args: never
         Returns: {
+          avatar_color: string
+          avatar_key: string
           created_at: string
           id: string
           is_active: boolean
           name: string
           updated_at: string
+        }[]
+      }
+      get_my_dog_photo_paths: {
+        Args: never
+        Returns: {
+          dog_id: string
+          photo_path: string
         }[]
       }
       get_my_role: {
@@ -5333,6 +5415,8 @@ export type Database = {
           constancy_percentile: number | null
           constancy_points: number | null
           constancy_population_count: number | null
+          dog_avatar_color: string | null
+          dog_avatar_key: string | null
           dog_id: string | null
           dog_is_active: boolean | null
           dog_name: string | null
@@ -5602,6 +5686,10 @@ export type Database = {
         Args: { p_program_code: string }
         Returns: string
       }
+      set_my_dog_photo_path: {
+        Args: { p_dog_id: string; p_photo_path: string }
+        Returns: undefined
+      }
       ucapsa_achievement_code_for_enrollment: {
         Args: { p_enrollment_id: string }
         Returns: string
@@ -5622,6 +5710,10 @@ export type Database = {
         Args: { p_exam_id: string }
         Returns: undefined
       }
+      ucapsa_ensure_member_dog_training_access: {
+        Args: { p_dog_id: string; p_membership_id: string }
+        Returns: string
+      }
       ucapsa_exam_admin_audit: {
         Args: {
           p_action: string
@@ -5635,9 +5727,17 @@ export type Database = {
         Args: { p_exam_id: string }
         Returns: Json
       }
+      ucapsa_pick_active_program_schedule: {
+        Args: { p_program_id: string }
+        Returns: string
+      }
       ucapsa_program_completion_achievement_code: {
         Args: { p_program_id: string; p_program_level: string }
         Returns: string
+      }
+      ucapsa_sync_membership_dog_access: {
+        Args: { p_membership_id: string }
+        Returns: undefined
       }
       ucapsa_unlock_next_program_stage: {
         Args: { p_enrollment_id: string }
@@ -5646,6 +5746,31 @@ export type Database = {
       unlock_next_program_stage: {
         Args: { p_enrollment_id: string }
         Returns: string
+      }
+      update_my_basic_dog_profile: {
+        Args: {
+          p_avatar_color?: string
+          p_avatar_key?: string
+          p_birth_date?: string
+          p_breed?: string
+          p_dog_id: string
+          p_name: string
+          p_sex?: string
+          p_weight_kg?: number
+        }
+        Returns: {
+          avatar_color: string
+          avatar_key: string
+          birth_date: string
+          breed: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          sex: string
+          updated_at: string
+          weight_kg: number
+        }[]
       }
       upsert_notification_token: {
         Args: {

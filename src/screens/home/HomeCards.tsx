@@ -225,22 +225,22 @@ export function CompetitionHomeCard({
   format,
   onPress,
 }: {
-  summary: ClientCompetitionHomeSummary;
+  summary: ClientCompetitionHomeSummary | null;
   format: ReturnType<typeof resolveUcapsaFormat>;
   onPress: () => void;
 }) {
   const premium = format.key === 'member';
-  const ranked = summary.dogs.filter((dog) => dog.rankingPosition != null);
+  const ranked = summary?.dogs.filter((dog) => dog.rankingPosition != null) ?? [];
   const detail = ranked.length > 0
     ? ranked.map((dog) => dog.dogName + ' #' + dog.rankingPosition).join(' · ')
-    : summary.dogs.length > 0
+    : summary?.dogs.length
       ? 'Tus perros todavía no ocupan una posición oficial.'
-      : 'Revisa la temporada y el Ranking UCAPSA.';
+      : 'Consulta la clasificación y tu posición cuando haya una temporada activa.';
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={'Competencia UCAPSA. ' + summary.seasonName + '. ' + detail}
+      accessibilityLabel={'Ranking UCAPSA. ' + (summary?.seasonName || 'Clasificación') + '. ' + detail}
       onPress={onPress}
       style={[
         styles.competitionHomeCard,
@@ -254,8 +254,8 @@ export function CompetitionHomeCard({
         <MaterialIcons name="emoji-events" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
       </View>
       <View style={styles.competitionHomeCopy}>
-        <Text style={[styles.competitionHomeEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>COMPETENCIA UCAPSA</Text>
-        <Text numberOfLines={1} style={[styles.competitionHomeTitle, { color: premium ? ucapsaBrand.colors.premiumText : format.cardText }]}>{summary.seasonName}</Text>
+        <Text style={[styles.competitionHomeEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>RANKING UCAPSA</Text>
+        <Text numberOfLines={1} style={[styles.competitionHomeTitle, { color: premium ? ucapsaBrand.colors.premiumText : format.cardText }]}>{summary?.seasonName || 'Clasificación'}</Text>
         <Text numberOfLines={2} style={[styles.competitionHomeDetail, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{detail}</Text>
       </View>
       <MaterialIcons name="chevron-right" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />

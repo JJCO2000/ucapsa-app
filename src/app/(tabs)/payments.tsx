@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as Clipboard from 'expo-clipboard';
-import { Redirect, router, useFocusEffect } from 'expo-router';
+import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
@@ -9,6 +9,7 @@ import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
+import { useReturnToProfile } from '../../hooks/useReturnToProfile';
 import { useSession } from '../../hooks/useSession';
 import {
   clientReadKeys,
@@ -33,6 +34,9 @@ const emptyOverview: MyPaymentOverview = {
 };
 
 export default function PaymentsTab() {
+  const { from } = useLocalSearchParams<{ from?: string | string[] }>();
+  const fromProfile = (Array.isArray(from) ? from[0] : from) === 'profile';
+  const backToProfile = useReturnToProfile(fromProfile);
   const { user, role, isAdmin } = useSession();
   const [overview, setOverview] = useState<MyPaymentOverview>(emptyOverview);
   const [bankSettings, setBankSettings] = useState<PaymentSettings | null>(null);
@@ -168,6 +172,16 @@ export default function PaymentsTab() {
       <UcapsaAmbientBackground format={format} variant="payments" />
 
       <View style={styles.header}>
+        {fromProfile ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Volver a Perfil"
+            style={[styles.backButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}
+            onPress={backToProfile}
+          >
+            <MaterialIcons name="arrow-back" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+          </Pressable>
+        ) : null}
         <View style={[styles.headerIcon, premium && styles.headerIconPremium]}>
           <MaterialIcons name="account-balance-wallet" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
         </View>
@@ -371,6 +385,7 @@ const styles = StyleSheet.create({
   screenContent: { position: 'relative' },
   premiumContent: { backgroundColor: ucapsaBrand.colors.premiumBackground },
   header: { flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 14 },
+  backButton: { width: 44, height: 44, borderRadius: 15, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   headerIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.surfaceAlt },
   headerIconPremium: { backgroundColor: ucapsaBrand.colors.premiumSurfaceAlt },
   headerTitle: { color: ucapsaBrand.colors.text, fontSize: 24, lineHeight: 28, fontWeight: '900' },

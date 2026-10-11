@@ -354,6 +354,14 @@ export default function HomeExperienceScreen() {
         />
       ) : null}
 
+      {!loading && user ? (
+        <CompetitionHomeCard
+          summary={competitionSummary}
+          format={format}
+          onPress={() => router.push('/client/competition' as never)}
+        />
+      ) : null}
+
       {!loading && user && snapshot ? (
         <ActivityCard
           snapshot={snapshot}
@@ -363,14 +371,6 @@ export default function HomeExperienceScreen() {
           onVisits={premium ? () => router.push('/client/member-visits' as never) : undefined}
           onPractices={() => router.push('/client/practice-activity' as never)}
           onQr={() => router.push('/attendance' as never)}
-        />
-      ) : null}
-
-      {!loading && user && competitionSummary ? (
-        <CompetitionHomeCard
-          summary={competitionSummary}
-          format={format}
-          onPress={() => router.push('/client/competition' as never)}
         />
       ) : null}
 

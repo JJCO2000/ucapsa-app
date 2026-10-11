@@ -153,6 +153,8 @@
     "nanoid@>=4.0.0 <=5.1.10": "5.1.16",
     "browserslist": "4.28.7",
     "baseline-browser-mapping": "2.11.18",
-    "moment": "2.31.0"
+    "moment": "2.31.0",
+    "shell-quote": "1.11.0",
+    "source-map-js": "1.2.2"
   }
 }

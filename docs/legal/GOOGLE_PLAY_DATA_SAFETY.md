@@ -29,6 +29,7 @@ Este archivo documenta la declaración que debe capturarse en **Play Console →
 | Información financiera | Historial de compras | Sí | No | Según exista una obligación/pago | Funcionalidad de la app; Analíticas internas |
 | Actividad en aplicaciones | Interacciones con la aplicación | Sí | No | Se genera al usar superficies concretas de Competencia/Constancia | Analíticas |
 | Actividad en aplicaciones | Otro contenido generado por el usuario | Sí | No | Opcional | Funcionalidad de la app; datos básicos del perro vinculados a la cuenta |
+| Fotos y vídeos | Fotos | Sí | No | Opcional: sólo si la persona toma una foto del perro | Funcionalidad de la app |
 | Actividad en aplicaciones | Otras acciones | Sí | No | Según el uso | Funcionalidad de la app; Analíticas internas: clases, asistencias, prácticas, progreso, membresías, visitas y actividad operativa |
 | Información y rendimiento de aplicaciones | Registros de fallos | Sí | No | Automático cuando la infraestructura integrada los procesa | Funcionalidad de la app; Analíticas |
 
@@ -39,7 +40,6 @@ Este archivo documenta la declaración que debe capturarse en **Play Console →
 - Puntuación crediticia u otra información financiera ajena al historial administrativo de pagos de UCAPSA.
 - Contactos del dispositivo.
 - Mensajes SMS/MMS, correos del dispositivo o mensajes de chat.
-- Fotos o vídeos del usuario.
 - Archivos o documentos del usuario.
 - Audio o grabaciones de voz.
 - Datos de salud o fitness de una persona.
@@ -56,4 +56,4 @@ Este archivo documenta la declaración que debe capturarse en **Play Console →
 3. **Notificaciones son opcionales.** Expo push token, plataforma, nombre/identificador técnico del dispositivo y versión de la app se registran únicamente al activar notificaciones.
 4. **Crash Data.** UCAPSA integra `expo-updates`; la guía oficial de Expo para tiendas indica declarar Crash Data. Si en una versión futura se elimina `expo-updates` o cambia el proveedor, volver a revisar esta fila.
 5. **Proveedores.** El tratamiento por Supabase, Expo, APNs y FCM no se marca como “compartido” mientras actúen únicamente como proveedores/encargados bajo las instrucciones de UCAPSA.
-6. Si se añade un SDK de analítica, publicidad, ubicación, carga de fotos, pagos con tarjeta, Health Connect o cualquier nuevo tratamiento, actualizar este archivo, el Aviso de Privacidad y Play Console **antes** de distribuir esa versión.
+6. La foto opcional del perro se conserva en almacenamiento privado y no se comparte con otros usuarios. Si se añade un SDK de analítica, publicidad, ubicación, publicación de fotos, pagos con tarjeta, Health Connect o cualquier nuevo tratamiento, actualizar este archivo, el Aviso de Privacidad y Play Console **antes** de distribuir esa versión.

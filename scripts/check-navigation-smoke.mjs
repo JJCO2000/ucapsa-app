@@ -107,9 +107,17 @@ expectParam('Mi perro/logros', 'src/app/client/dog-achievements.tsx', 'dogId');
 expectLink(
   'Mi perro',
   'src/app/(tabs)/dog.tsx',
+  /\/client\/dog-history\?dogId=/,
+  'src/app/client/dog-history.tsx',
+  'Mi perro -> historial dedicado',
+);
+expectParam('Mi perro', 'src/app/client/dog-history.tsx', 'dogId');
+expectLink(
+  'Mi perro',
+  'src/app/client/dog-history.tsx',
   /\/client\/class-detail\?enrollmentId=/,
   'src/app/client/class-detail.tsx',
-  'historial del perro -> detalle de clase',
+  'historial dedicado -> detalle de clase',
 );
 
 // 5) Pagos -> cargos -> detalle -> transferencia; pagos -> historial -> detalle.

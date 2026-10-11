@@ -63,7 +63,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Permitir que UCAPSA use la camara para escanear codigos QR",
+          "cameraPermission": "Permitir que UCAPSA use la camara para escanear codigos QR y tomar la foto opcional de tu perro",
           "recordAudioAndroid": false,
           "barcodeScannerEnabled": true
         }

@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { getProgramSchedules } from './programs.service';
 import { getAdminMemberVisitsForUser } from './member-visits.service';
-import type { BasicDog } from './dogs.service';
+import { getDogsForUser, type BasicDog } from './dogs.service';
 import type {
   Membership,
   Payment,
@@ -60,7 +60,7 @@ export async function getAdminCustomerRecord(userId: string): Promise<AdminCusto
     supabase.from('payments').select('*').eq('user_id', normalizedUserId).order('created_at', { ascending: false }),
     supabase.from('program_enrollments').select('*').eq('user_id', normalizedUserId).order('created_at', { ascending: false }),
     supabase.from('payment_obligations').select('*').eq('user_id', normalizedUserId).order('due_date', { ascending: false }),
-    supabase.from('dogs').select('id,name,is_active,created_at,updated_at').eq('user_id', normalizedUserId).eq('is_active', true).order('created_at', { ascending: true }),
+    getDogsForUser(normalizedUserId),
     getAdminMemberVisitsForUser(normalizedUserId),
   ]);
 
@@ -70,20 +70,13 @@ export async function getAdminCustomerRecord(userId: string): Promise<AdminCusto
   if (paymentsResult.error) throw paymentsResult.error;
   if (enrollmentsResult.error) throw enrollmentsResult.error;
   if (obligationsResult.error) throw obligationsResult.error;
-  if (dogsResult.error) throw dogsResult.error;
 
   const profile = profileResult.data as Profile;
   const membership = (membershipResult.data ?? null) as Membership | null;
   const payments = (paymentsResult.data ?? []) as AdminCustomerPayment[];
   const obligations = (obligationsResult.data ?? []) as AdminCustomerPaymentObligation[];
   const enrollments = (enrollmentsResult.data ?? []) as ProgramEnrollment[];
-  const dogs = ((dogsResult.data ?? []) as Array<Partial<BasicDog>>).map((item) => ({
-    id: String(item.id ?? ''),
-    name: String(item.name ?? ''),
-    is_active: item.is_active !== false,
-    created_at: String(item.created_at ?? ''),
-    updated_at: String(item.updated_at ?? ''),
-  })).filter((item) => item.id && item.name);
+  const dogs: BasicDog[] = dogsResult;
 
   if (enrollments.length === 0) {
     return { profile, membership, payments, obligations, enrollments: [], dogs, memberVisits };

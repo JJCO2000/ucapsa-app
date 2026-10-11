@@ -24,14 +24,8 @@ const homeCards = read('src/screens/home/HomeCards.tsx');
 const warm = read('src/services/client-offline-sync.service.ts');
 const pkg = read('package.json');
 
-if (!/router\.push\('\/client\/competition'/.test(dog)) {
-  failures.push('Mi perro perdió la entrada account-level a Competencia.');
-}
-if (!/competition-dog\?dogId=/.test(dog)) {
-  failures.push('Mi perro perdió el detalle competitivo individual.');
-}
-if (/\/client\/competition\?dogId=/.test(dog)) {
-  failures.push('La entrada principal de Competencia volvió a depender de un dogId.');
+if (/Detalle competitivo|competition-dog\?dogId=|router\.push\('\/client\/competition'/.test(dog)) {
+  failures.push('Mis perros volvió a absorber Competencia; debe vivir en Inicio/Competencia.');
 }
 if (!/name=["']competition["']/.test(layout) || !/name=["']competition-dog["']/.test(layout)) {
   failures.push('Client layout no registra Competencia de cuenta y detalle por perro.');
@@ -101,8 +95,8 @@ if (/constancy_percentile/.test(dogDetail) || /Percentil desde la cima/.test(dog
 if (!/CompetitionHomeCard/.test(home) || !/router\.push\('\/client\/competition'/.test(home)) {
   failures.push('Inicio perdió el acceso contextual a Competencia de cuenta.');
 }
-if (!/COMPETENCIA UCAPSA/.test(homeCards) || !/rankingPosition/.test(homeCards)) {
-  failures.push('Tarjeta de Inicio perdió el resumen competitivo de los perros.');
+if (!/RANKING UCAPSA/.test(homeCards) || !/rankingPosition/.test(homeCards)) {
+  failures.push('Tarjeta de Inicio perdió el resumen/entrada de Ranking.');
 }
 
 for (const token of [

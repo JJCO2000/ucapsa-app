@@ -18,6 +18,7 @@ export const activityAchievementDefinitions: ActivityAchievementDefinition[] = [
   { code: 'attendance_10', metric: 'attendance', threshold: 10, title: 'Constancia en pista', description: 'Llega a 10 clases asistidas.', icon: 'emoji-events' },
   { code: 'attendance_25', metric: 'attendance', threshold: 25, title: 'Compromiso UCAPSA', description: 'Llega a 25 clases asistidas.', icon: 'military-tech' },
   { code: 'attendance_50', metric: 'attendance', threshold: 50, title: 'Veterano de clase', description: 'Llega a 50 clases asistidas.', icon: 'workspace-premium' },
+  { code: 'attendance_100', metric: 'attendance', threshold: 100, title: '100 clases juntos', description: 'Llega a 100 clases registradas con tu perro.', icon: 'stars' },
 
   { code: 'practice_1', metric: 'practice', threshold: 1, title: 'Primera práctica', description: 'Registra tu primera práctica en casa.', icon: 'pets' },
   { code: 'practice_5', metric: 'practice', threshold: 5, title: 'Hábito en marcha', description: 'Completa 5 prácticas.', icon: 'pets' },

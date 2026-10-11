@@ -1,14 +1,18 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
+import { DogAvatar } from '../../components/domain/DogAvatar';
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { ucapsaBrand } from '../../constants/brand';
+import { DEFAULT_DOG_AVATAR_COLOR, DEFAULT_DOG_AVATAR_KEY } from '../../constants/dogAvatar';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
+import { devWarn } from '../../lib/client-diagnostics';
+import { getPrivateDogPhotoUrls } from '../../services/dog-photos.service';
 import { getMyDogs } from '../../services/dogs.service';
 import {
   getCachedCompetitionLeaderboard,
@@ -48,7 +52,7 @@ export default function ClientCompetitionRankingScreen() {
   const premium = format.key === 'member';
 
   const [rows, setRows] = useState<ClientCompetitionLeaderboardRow[]>([]);
-  const [myDogs, setMyDogs] = useState<Array<{ id: string; name: string }>>([]);
+  const [myDogs, setMyDogs] = useState<Array<{ id: string; name: string; avatarKey: string; avatarColor: string; photoUrl: string | null }>>([]);
   const [localReady, setLocalReady] = useState(false);
   const [usingSavedData, setUsingSavedData] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
@@ -74,7 +78,13 @@ export default function ClientCompetitionRankingScreen() {
       setLocalReady(true);
     }
     if (cachedAccount) {
-      setMyDogs(cachedAccount.data.dogs.map((dog) => ({ id: dog.dog_id, name: dog.dog_name })));
+      setMyDogs(cachedAccount.data.dogs.map((dog) => ({
+        id: dog.dog_id,
+        name: dog.dog_name,
+        avatarKey: DEFAULT_DOG_AVATAR_KEY,
+        avatarColor: DEFAULT_DOG_AVATAR_COLOR,
+        photoUrl: null,
+      })));
     }
 
     const [rankingResult, dogsResult] = await Promise.allSettled([
@@ -83,7 +93,19 @@ export default function ClientCompetitionRankingScreen() {
     ]);
 
     if (dogsResult.status === 'fulfilled') {
-      setMyDogs(dogsResult.value.map((dog) => ({ id: dog.id, name: dog.name })));
+      const photoUrls = await getPrivateDogPhotoUrls(
+        Object.fromEntries(dogsResult.value.map((dog) => [dog.id, dog.photo_path])),
+      ).catch((cause) => {
+        devWarn('competition-ranking: could not resolve private dog photo URLs; falling back to preset avatars.', cause);
+        return {} as Record<string, string | null>;
+      });
+      setMyDogs(dogsResult.value.map((dog) => ({
+        id: dog.id,
+        name: dog.name,
+        avatarKey: dog.avatar_key,
+        avatarColor: dog.avatar_color,
+        photoUrl: photoUrls[dog.id] ?? null,
+      })));
     }
 
     if (rankingResult.status === 'fulfilled') {
@@ -176,11 +198,17 @@ export default function ClientCompetitionRankingScreen() {
                 <Text style={[styles.sectionTitle, { color: format.cardText }]}>Tus perros</Text>
                 {myRows.map(({ dog, row }) => (
                   <View key={dog.id} style={[styles.myCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
-                    <View style={[styles.positionCircle, { backgroundColor: format.pillBackground }]}>
-                      <Text style={[styles.positionText, { color: format.pillText }]}>{row ? '#' + Number(row.ranking_position ?? 0) : '—'}</Text>
-                    </View>
+                    <RankingDogAvatar
+                      name={dog.name}
+                      photoUrl={dog.photoUrl}
+                      avatarKey={dog.avatarKey}
+                      avatarColor={dog.avatarColor}
+                      size={52}
+                    />
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.myLabel, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>TU PERRO</Text>
+                      <Text style={[styles.myLabel, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>
+                        {row ? `TU PERRO · #${Number(row.ranking_position ?? 0)}` : 'TU PERRO'}
+                      </Text>
                       <Text style={[styles.cardTitle, { color: format.cardText }]}>
                         {row ? dog.name + ' · ' + numberLabel(row.competitive_score) + ' pts' : dog.name + ' · sin posición oficial'}
                       </Text>
@@ -216,6 +244,13 @@ export default function ClientCompetitionRankingScreen() {
                     ]}
                   >
                     <Text style={styles.medal}>{medal(position)}</Text>
+                    <RankingDogAvatar
+                      name={row.dog_name ?? 'perro'}
+                      photoUrl={mine && row.dog_id ? myDogs.find((dog) => dog.id === row.dog_id)?.photoUrl ?? null : null}
+                      avatarKey={row.dog_avatar_key}
+                      avatarColor={row.dog_avatar_color}
+                      size={38}
+                    />
                     <Text style={[styles.podiumPosition, { color: tone.text }]}>#{position}</Text>
                     <Text numberOfLines={1} style={[styles.podiumName, { color: format.cardText }]}>{row.dog_name || 'Perro'}</Text>
                     <Text style={[styles.podiumScore, { color: tone.text }]}>{numberLabel(row.competitive_score)} pts</Text>
@@ -251,6 +286,13 @@ export default function ClientCompetitionRankingScreen() {
                         {position <= 3 ? medal(position) : position}
                       </Text>
                     </View>
+                    <RankingDogAvatar
+                      name={row.dog_name ?? 'perro'}
+                      photoUrl={mine && row.dog_id ? myDogs.find((dog) => dog.id === row.dog_id)?.photoUrl ?? null : null}
+                      avatarKey={row.dog_avatar_key}
+                      avatarColor={row.dog_avatar_color}
+                      size={38}
+                    />
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <View style={styles.titleLine}>
                         <Text numberOfLines={1} style={[styles.dogName, { color: format.cardText }]}>{row.dog_name || 'Perro'}</Text>
@@ -279,6 +321,39 @@ export default function ClientCompetitionRankingScreen() {
   );
 }
 
+function RankingDogAvatar({
+  name,
+  photoUrl,
+  avatarKey,
+  avatarColor,
+  size,
+}: {
+  name: string;
+  photoUrl: string | null;
+  avatarKey: string | null | undefined;
+  avatarColor: string | null | undefined;
+  size: number;
+}) {
+  if (photoUrl) {
+    return (
+      <Image
+        source={{ uri: photoUrl }}
+        style={{ width: size, height: size, borderRadius: Math.round(size * 0.34) }}
+        resizeMode="cover"
+        accessibilityLabel={`Foto de ${name}`}
+      />
+    );
+  }
+  return (
+    <DogAvatar
+      avatarKey={avatarKey}
+      avatarColor={avatarColor}
+      size={size}
+      accessibilityLabel={`Avatar de ${name}`}
+    />
+  );
+}
+
 const styles = StyleSheet.create({
   header: { gap: 3, marginBottom: 14 },
   eyebrow: { fontSize: 11, lineHeight: 15, fontWeight: '900', letterSpacing: 0.8 },
@@ -290,8 +365,6 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 15, lineHeight: 20, fontWeight: '900' },
   myDogsBlock: { gap: 8, marginBottom: 13 },
   myCard: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, borderWidth: 1, padding: 12 },
-  positionCircle: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  positionText: { fontSize: 14, fontWeight: '900' },
   myLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 0.7 },
   sectionTitle: { fontSize: 18, lineHeight: 23, fontWeight: '900', marginBottom: 8 },
   podiumRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },

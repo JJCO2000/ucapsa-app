@@ -12,6 +12,7 @@ const deleteFunction = fs.readFileSync('supabase/functions/delete-account/index.
 const privacyFunction = fs.readFileSync('supabase/functions/privacy-policy/index.ts', 'utf8');
 const privacyDoc = fs.readFileSync('docs/legal/AVISO_PRIVACIDAD_UCAPSA_APP.md', 'utf8');
 const privacyMigration = fs.readFileSync('supabase/sql/ucapsa-app-store-privacy-readiness.sql', 'utf8');
+const dogPhotos = fs.readFileSync('supabase/sql/ucapsa-private-dog-photos.sql', 'utf8');
 
 for (const token of [
   'adultConfirmed',
@@ -56,9 +57,17 @@ for (const token of [
   'Universidad de Crianza y Adiestramiento S.A. de C.V.',
   'Administración de UCAPSA',
   'ucapsa84@gmail.com',
-  'Versión 1.2 App Stores',
+  'Versión 1.3 App Stores',
 ]) {
   if (!privacyDoc.includes(token)) throw new Error('Rendered privacy document missing: ' + token);
+}
+
+for (const token of [
+  "bucket_id = 'dog-photos'",
+  'get_my_dog_photo_paths',
+  'set_my_dog_photo_path',
+]) {
+  if (!dogPhotos.includes(token)) throw new Error('Private dog photo contract missing: ' + token);
 }
 
 for (const token of [

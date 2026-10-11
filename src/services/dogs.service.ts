@@ -1,15 +1,26 @@
+import {
+  DEFAULT_DOG_AVATAR_COLOR,
+  DEFAULT_DOG_AVATAR_KEY,
+  normalizeDogAvatarColor,
+  normalizeDogAvatarKey,
+  type DogAvatarColor,
+  type DogAvatarKey,
+} from '../constants/dogAvatar';
 import { supabase } from '../lib/supabase';
+import { getMyDogPhotoPaths } from './dog-photos.service';
 
 export type BasicDog = {
   id: string;
   name: string;
+  avatar_key: DogAvatarKey;
+  avatar_color: DogAvatarColor;
+  photo_path: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
 };
 
 export type DogProfile = BasicDog & {
-  photo_path: string | null;
   breed: string | null;
   birth_date: string | null;
   sex: 'female' | 'male' | 'unknown' | null;
@@ -31,9 +42,9 @@ export type DogProfileInput = {
   birth_date?: string | null;
   sex?: DogProfile['sex'];
   weight_kg?: number | null;
+  avatar_key?: DogAvatarKey | null;
+  avatar_color?: DogAvatarColor | null;
 };
-
-const DOG_PROFILE_COLUMNS = 'id,name,photo_path,breed,birth_date,sex,weight_kg,allergies,medications,feeding_notes,behavior_notes,veterinarian_name,veterinarian_phone,emergency_contact_name,emergency_contact_phone,notes,is_active,created_at,updated_at' as const;
 
 function normalizeRows(data: unknown): BasicDog[] {
   if (!Array.isArray(data)) return [];
@@ -43,6 +54,9 @@ function normalizeRows(data: unknown): BasicDog[] {
     .map((item) => ({
       id: String(item.id),
       name: String(item.name),
+      avatar_key: normalizeDogAvatarKey(item.avatar_key ?? DEFAULT_DOG_AVATAR_KEY),
+      avatar_color: normalizeDogAvatarColor(item.avatar_color ?? DEFAULT_DOG_AVATAR_COLOR),
+      photo_path: item.photo_path ? String(item.photo_path) : null,
       is_active: item.is_active !== false,
       created_at: String(item.created_at ?? ''),
       updated_at: String(item.updated_at ?? ''),
@@ -65,7 +79,9 @@ function normalizeDogProfile(data: unknown): DogProfile {
   return {
     id: String(item.id),
     name: String(item.name),
-    photo_path: normalizeNullableText(item.photo_path),
+    avatar_key: normalizeDogAvatarKey(item.avatar_key ?? DEFAULT_DOG_AVATAR_KEY),
+    avatar_color: normalizeDogAvatarColor(item.avatar_color ?? DEFAULT_DOG_AVATAR_COLOR),
+    photo_path: item.photo_path ? String(item.photo_path) : null,
     breed: normalizeNullableText(item.breed),
     birth_date: normalizeNullableText(item.birth_date),
     sex,
@@ -86,24 +102,26 @@ function normalizeDogProfile(data: unknown): DogProfile {
 }
 
 export async function getMyDogs(): Promise<BasicDog[]> {
-  const { data, error } = await supabase.rpc('get_my_basic_dogs');
+  const [{ data, error }, photoPaths] = await Promise.all([
+    supabase.rpc('get_my_basic_dogs'),
+    getMyDogPhotoPaths(),
+  ]);
   if (error) throw error;
-  return normalizeRows(data);
+  return normalizeRows(data).map((dog) => ({ ...dog, photo_path: photoPaths[dog.id] ?? null }));
 }
 
 export async function getMyDogProfile(dogId: string): Promise<DogProfile> {
   const cleanDogId = dogId.trim();
   if (!cleanDogId) throw new Error('No se encontro el perro.');
 
-  const { data, error } = await supabase
-    .from('dogs')
-    .select(DOG_PROFILE_COLUMNS)
-    .eq('id', cleanDogId)
-    .eq('is_active', true)
-    .single();
-
+  const { data, error } = await supabase.rpc('get_my_basic_dog_profile', {
+    p_dog_id: cleanDogId,
+  });
   if (error) throw error;
-  return normalizeDogProfile(data);
+  if (!data?.[0]) throw new Error('No se encontro el perro.');
+  const profile = normalizeDogProfile(data[0]);
+  const photoPaths = await getMyDogPhotoPaths();
+  return { ...profile, photo_path: photoPaths[profile.id] ?? null };
 }
 
 export async function createMyDog(name: string): Promise<BasicDog> {
@@ -142,23 +160,22 @@ export async function updateMyDogProfile(dogId: string, input: DogProfileInput):
     throw new Error('El peso debe ser un numero igual o mayor a cero.');
   }
 
-  const payload = {
-    name: cleanName,
-    breed: normalizeNullableText(input.breed),
-    birth_date: normalizeNullableText(input.birth_date),
-    sex: input.sex ?? null,
-    weight_kg: weight,
-  };
-
-  const { data, error } = await supabase
-    .from('dogs')
-    .update(payload)
-    .eq('id', cleanDogId)
-    .select(DOG_PROFILE_COLUMNS)
-    .single();
+  const { data, error } = await supabase.rpc('update_my_basic_dog_profile', {
+    p_dog_id: cleanDogId,
+    p_name: cleanName,
+    p_breed: normalizeNullableText(input.breed) ?? undefined,
+    p_birth_date: normalizeNullableText(input.birth_date) ?? undefined,
+    p_sex: input.sex ?? undefined,
+    p_weight_kg: weight ?? undefined,
+    p_avatar_key: input.avatar_key ?? undefined,
+    p_avatar_color: input.avatar_color ?? undefined,
+  });
 
   if (error) throw error;
-  return normalizeDogProfile(data);
+  if (!data?.[0]) throw new Error('No se pudo actualizar el perro.');
+  const profile = normalizeDogProfile(data[0]);
+  const photoPaths = await getMyDogPhotoPaths();
+  return { ...profile, photo_path: photoPaths[profile.id] ?? null };
 }
 
 export async function createDogForUserAdmin(userId: string, name: string): Promise<BasicDog> {
@@ -205,7 +222,7 @@ export async function getDogsForUser(userId: string): Promise<BasicDog[]> {
 
   const { data, error } = await supabase
     .from('dogs')
-    .select('id,name,is_active,created_at,updated_at')
+    .select('id,name,avatar_key,avatar_color,photo_path,is_active,created_at,updated_at')
     .eq('user_id', cleanUserId)
     .eq('is_active', true)
     .order('created_at', { ascending: true });
