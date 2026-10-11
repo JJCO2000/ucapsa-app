@@ -105,7 +105,7 @@ begin
 
   return v_role;
 end;
-$;
+$$;
 
 revoke all on function public.superadmin_set_profile_role(uuid,text) from public, anon;
 grant execute on function public.superadmin_set_profile_role(uuid,text) to authenticated, service_role;
@@ -954,7 +954,7 @@ begin
   where i.exam_id = p_exam_id
   order by i.sort_order, i.item_number;
 end;
-$;
+$$;
 
 -- Importación operativa en bloque. El entrenador puede cargar calificaciones,
 -- pero el resultado queda REVIEWED: publicación y oficialidad siguen siendo Admin.
@@ -1240,7 +1240,7 @@ begin
     'status', 'reviewed_pending_admin_publish'
   );
 end;
-$;
+$$;
 
 create or replace function public.get_trainer_exam_dogs()
 returns table (
