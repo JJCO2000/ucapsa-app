@@ -9,6 +9,7 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
+import { devWarn } from '../../lib/client-diagnostics';
 import { clientReadKeys, readClientResource, sanitizeProgramRowsForCache, writeClientResource } from '../../services/client-read-cache.service';
 import { getMyProgramEnrollments, getProgramCodeLabel, getProgramEnrollmentDogName, getProgramLevelDisplayLabel } from '../../services/programs.service';
 import type { ProgramEnrollmentWithDetails } from '../../types/app.types';
@@ -44,7 +45,8 @@ export default function DogHistoryScreen() {
       const stored = await writeClientResource(user.id, clientReadKeys.programs, sanitizeProgramRowsForCache(fresh));
       setSavedAt(stored.saved_at);
       setUsingSavedData(false);
-    } catch {
+    } catch (cause) {
+      devWarn('dog-history: remote refresh failed; using cached history when available.', cause);
       setUsingSavedData(Boolean(cached));
     } finally {
       setLoading(false);
