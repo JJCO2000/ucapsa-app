@@ -5469,6 +5469,19 @@ export type Database = {
           severity: string
         }[]
       }
+      get_staff_exam_drafts: {
+        Args: never
+        Returns: {
+          created_at: string
+          created_by: string | null
+          created_by_name: string
+          exam_code: string
+          exam_date: string | null
+          exam_id: string
+          exam_title: string
+          items_count: number
+        }[]
+      }
       get_staff_exam_attempt_detail: {
         Args: { p_attempt_id: string }
         Returns: {
