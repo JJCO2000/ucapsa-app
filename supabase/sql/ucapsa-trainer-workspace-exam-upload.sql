@@ -236,3 +236,53 @@ comment on function public.trainer_create_ucapsa_exam_draft(text,text,date,jsonb
   'Carga un examen como borrador. Administración conserva publicación, oficialidad y configuración competitiva.';
 comment on function public.get_staff_dog_operational_profile(uuid) is
   'Devuelve únicamente datos del perro útiles para entrenamiento, seguridad y emergencia.';
+
+
+create or replace function public.get_staff_exam_drafts()
+returns table (
+  exam_id uuid,
+  exam_code text,
+  exam_title text,
+  exam_date date,
+  season_name text,
+  item_count integer,
+  max_points numeric,
+  created_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_ucapsa_staff() then
+    raise exception 'Solo staff UCAPSA puede consultar borradores de examen.'
+      using errcode = '42501';
+  end if;
+
+  return query
+  select
+    e.id,
+    e.code::text,
+    e.title::text,
+    e.exam_date,
+    s.name::text,
+    count(i.id)::integer,
+    coalesce(sum(i.max_points), 0)::numeric,
+    e.created_at
+  from public.ucapsa_exams e
+  join public.ucapsa_competition_seasons s on s.id = e.season_id
+  left join public.ucapsa_exam_items i on i.exam_id = e.id
+  where e.status = 'draft'
+    and s.status in ('active', 'reopened')
+  group by e.id, e.code, e.title, e.exam_date, s.name, e.created_at
+  order by e.created_at desc;
+end;
+$$;
+
+revoke all on function public.get_staff_exam_drafts()
+  from public, anon;
+grant execute on function public.get_staff_exam_drafts()
+  to authenticated, service_role;
+
+comment on function public.get_staff_exam_drafts() is
+  'Borradores de examen visibles al staff de entrenamiento; la publicación permanece en Administración.';
