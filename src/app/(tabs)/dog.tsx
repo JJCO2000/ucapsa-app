@@ -31,7 +31,6 @@ export default function DogTab() {
   const [rows, setRows] = useState<ProgramEnrollmentWithDetails[]>([]);
   const [selectedDogId, setSelectedDogId] = useState<string | null>(null);
   const [editorMode, setEditorMode] = useState<EditorMode>(null);
-  const [historyExpanded, setHistoryExpanded] = useState(false);
   const [draftName, setDraftName] = useState('');
   const [saving, setSaving] = useState(false);
   const [localReady, setLocalReady] = useState(false);
@@ -171,7 +170,6 @@ export default function DogTab() {
     });
   }, [rows, selectedDog]);
   const selectedActive = useMemo(() => selectedEnrollments.filter((item) => item.enrollment.status === 'active'), [selectedEnrollments]);
-  const selectedHistory = useMemo(() => selectedEnrollments.filter((item) => item.enrollment.status !== 'active'), [selectedEnrollments]);
 
   async function refresh() {
     setRefreshing(true);
@@ -182,9 +180,6 @@ export default function DogTab() {
     }
   }
 
-  useEffect(() => {
-    setHistoryExpanded(false);
-  }, [selectedDogId]);
 
   function openCreate() {
     setDraftName('');
@@ -356,7 +351,7 @@ export default function DogTab() {
                       </View>
                     ) : null}
                   </View>
-                  <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{programWarning ? 'Entrenamiento sin verificar' : `${selectedActive.length} clase${selectedActive.length === 1 ? '' : 's'} activa${selectedActive.length === 1 ? '' : 's'}`}</Text>
+                  <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{programWarning ? 'Entrenamiento sin verificar' : selectedActive[0] ? 'Perfil y entrenamiento actual' : 'Perfil del perro'}</Text>
                 </View>
                 <View style={styles.dogHeaderActions}>
                   {dogs.length === 1 ? (
@@ -369,9 +364,6 @@ export default function DogTab() {
                       <MaterialIcons name="add" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
                     </Pressable>
                   ) : null}
-                  <Pressable accessibilityRole="button" accessibilityLabel={`Editar datos de ${selectedDog.name}`} style={[styles.pencilButton, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]} onPress={openEditProfile}>
-                    <MaterialIcons name="edit" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-                  </Pressable>
                 </View>
               </View>
 
@@ -425,63 +417,35 @@ export default function DogTab() {
                 );
               })() : null}
 
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Abrir detalle competitivo de ${selectedDog.name}`}
-                style={[styles.classRow, premium && styles.rowPremium]}
-                onPress={() => router.push(`/client/competition-dog?dogId=${encodeURIComponent(selectedDog.id)}` as never)}
-              >
-                <View style={[styles.classIcon, { backgroundColor: format.pillBackground }]}>
-                  <MaterialIcons name="emoji-events" size={19} color={format.pillText} />
-                </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={[styles.classTitle, { color: format.cardText }]}>Detalle competitivo</Text>
-                  <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Constancia, exámenes e historial de {selectedDog.name}</Text>
-                </View>
-                <MaterialIcons name="chevron-right" size={21} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-              </Pressable>
+              <View style={styles.dogSecondaryActions}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Ver logros de ${selectedDog.name}`}
+                  style={[styles.dogSecondaryAction, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}
+                  onPress={() => router.push(`/client/dog-achievements?dogId=${encodeURIComponent(selectedDog.id)}` as never)}
+                >
+                  <MaterialIcons name="emoji-events" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={[styles.dogSecondaryTitle, { color: format.cardText }]}>Logros</Text>
+                    <Text style={[styles.dogSecondaryMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Medallas de {selectedDog.name}</Text>
+                  </View>
+                  <MaterialIcons name="chevron-right" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                </Pressable>
 
-              {!programWarning && selectedHistory.length > 0 ? (
-                <>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ expanded: historyExpanded }}
-                    style={[styles.classRow, premium && styles.rowPremium]}
-                    onPress={() => setHistoryExpanded((value) => !value)}
-                  >
-                    <View style={[styles.classIcon, { backgroundColor: format.pillBackground }]}>
-                      <MaterialIcons name="history" size={19} color={format.pillText} />
-                    </View>
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={[styles.classTitle, { color: format.cardText }]}>Historial</Text>
-                      <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
-                        {selectedHistory.length} etapa{selectedHistory.length === 1 ? '' : 's'} anterior{selectedHistory.length === 1 ? '' : 'es'}
-                      </Text>
-                    </View>
-                    <MaterialIcons name={historyExpanded ? 'expand-less' : 'expand-more'} size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-                  </Pressable>
-
-                  {historyExpanded ? selectedHistory.map((item) => {
-                    const levelLabel = getProgramLevelDisplayLabel(item.program.code, item.enrollment.program_level);
-                    const historyLabel = `${getProgramCodeLabel(item.program.code)}${levelLabel ? ` ${levelLabel}` : ''}`;
-                    return (
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`Abrir ${historyLabel} de ${selectedDog.name}`}
-                        key={item.enrollment.id}
-                        style={[styles.historyChild, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}
-                        onPress={() => router.push(`/client/class-detail?enrollmentId=${encodeURIComponent(item.enrollment.id)}` as never)}
-                      >
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.classTitle, { color: format.cardText }]}>{historyLabel}</Text>
-                          <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{item.attendances.length} clases registradas</Text>
-                        </View>
-                        <MaterialIcons name="chevron-right" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-                      </Pressable>
-                    );
-                  }) : null}
-                </>
-              ) : null}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Ver historial de ${selectedDog.name}`}
+                  style={[styles.dogSecondaryAction, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}
+                  onPress={() => router.push(`/client/dog-history?dogId=${encodeURIComponent(selectedDog.id)}` as never)}
+                >
+                  <MaterialIcons name="history" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={[styles.dogSecondaryTitle, { color: format.cardText }]}>Historial</Text>
+                    <Text style={[styles.dogSecondaryMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Programas y clases anteriores</Text>
+                  </View>
+                  <MaterialIcons name="chevron-right" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                </Pressable>
+              </View>
             </View>
           ) : null}
         </>
@@ -574,6 +538,10 @@ const styles = StyleSheet.create({
   card: { gap: 12, borderRadius: 22, borderWidth: 1, padding: 16, marginBottom: 14 },
   achievementAllButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, borderRadius: 14, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9 },
   achievementAllText: { fontSize: 12, lineHeight: 16, fontWeight: '900' },
+    dogSecondaryActions: { flexDirection: 'row', gap: 8 },
+  dogSecondaryAction: { flex: 1, minWidth: 0, minHeight: 74, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 17, padding: 10 },
+  dogSecondaryTitle: { fontSize: 13, lineHeight: 17, fontWeight: '900' },
+  dogSecondaryMeta: { marginTop: 2, fontSize: 9, lineHeight: 13, fontWeight: '700' },
     dogProfileShortcut: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, borderWidth: 1, padding: 11 },
   dogProfileIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   dogProfileTitle: { fontSize: 14, lineHeight: 19, fontWeight: '900' },
