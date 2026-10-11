@@ -118,6 +118,43 @@ export default function TrainerDogDetailScreen() {
             </View>
           </View>
 
+          <View style={styles.operationalCard}>
+            <View style={styles.operationalHeader}>
+              <MaterialIcons name="health-and-safety" size={19} color={ucapsaBrand.colors.blueDark} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.operationalTitle}>Datos operativos</Text>
+                <Text style={styles.operationalMeta}>Sólo información útil para entrenamiento y seguridad.</Text>
+              </View>
+            </View>
+            <View style={styles.factGrid}>
+              <OperationalField label="Raza" value={dog.breed} />
+              <OperationalField label="Sexo" value={dog.sex} />
+              <OperationalField label="Peso" value={dog.weightKg === null ? null : `${dog.weightKg} kg`} />
+              <OperationalField label="Nacimiento" value={dog.birthDate} />
+            </View>
+            {dog.allergies || dog.medications ? (
+              <View style={styles.safetyAlert}>
+                <MaterialIcons name="medical-information" size={18} color={ucapsaBrand.colors.danger} />
+                <View style={{ flex: 1 }}>
+                  {dog.allergies ? <Text style={styles.safetyText}><Text style={styles.safetyLabel}>Alergias: </Text>{dog.allergies}</Text> : null}
+                  {dog.medications ? <Text style={styles.safetyText}><Text style={styles.safetyLabel}>Medicamentos: </Text>{dog.medications}</Text> : null}
+                </View>
+              </View>
+            ) : null}
+            {dog.emergencyContactName || dog.emergencyContactPhone || dog.veterinarianName || dog.veterinarianPhone ? (
+              <View style={styles.contactGrid}>
+                <OperationalField
+                  label="Emergencia"
+                  value={[dog.emergencyContactName, dog.emergencyContactPhone].filter(Boolean).join(' · ') || null}
+                />
+                <OperationalField
+                  label="Veterinario"
+                  value={[dog.veterinarianName, dog.veterinarianPhone].filter(Boolean).join(' · ') || null}
+                />
+              </View>
+            ) : null}
+          </View>
+
           {dog.behaviorNotes ? (
             <View style={styles.legacyNote}>
               <MaterialIcons name="psychology" size={19} color={ucapsaBrand.colors.goldDark} />
@@ -196,6 +233,16 @@ export default function TrainerDogDetailScreen() {
   );
 }
 
+function OperationalField({ label, value }: { label: string; value?: string | null }) {
+  if (!value) return null;
+  return (
+    <View style={styles.operationalField}>
+      <Text style={styles.operationalLabel}>{label}</Text>
+      <Text style={styles.operationalValue}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   loading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 18 },
   muted: { color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 16, fontWeight: '700' },
@@ -204,6 +251,18 @@ const styles = StyleSheet.create({
   title: { color: ucapsaBrand.colors.text, fontSize: 22, fontWeight: '900' },
   owner: { color: ucapsaBrand.colors.muted, fontSize: 10, lineHeight: 14, fontWeight: '800', marginTop: 2 },
   member: { alignSelf: 'flex-start', color: ucapsaBrand.colors.purpleDark, backgroundColor: ucapsaBrand.colors.purpleSoft, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2, fontSize: 8, fontWeight: '900', marginTop: 5 },
+  operationalCard: { borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.blue, backgroundColor: ucapsaBrand.colors.surface, padding: 11, marginBottom: 10 },
+  operationalHeader: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 8 },
+  operationalTitle: { color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '900' },
+  operationalMeta: { color: ucapsaBrand.colors.muted, fontSize: 8, lineHeight: 11, fontWeight: '700', marginTop: 1 },
+  factGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  contactGrid: { gap: 7, marginTop: 8 },
+  operationalField: { minWidth: '46%', flexGrow: 1, borderRadius: 11, backgroundColor: ucapsaBrand.colors.blueSoft, paddingHorizontal: 8, paddingVertical: 7 },
+  operationalLabel: { color: ucapsaBrand.colors.blueDark, fontSize: 7, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.4 },
+  operationalValue: { color: ucapsaBrand.colors.text, fontSize: 9, lineHeight: 13, fontWeight: '800', marginTop: 2 },
+  safetyAlert: { flexDirection: 'row', alignItems: 'flex-start', gap: 7, borderRadius: 11, backgroundColor: ucapsaBrand.colors.dangerSoft, padding: 8, marginTop: 8 },
+  safetyText: { color: ucapsaBrand.colors.danger, fontSize: 9, lineHeight: 13, fontWeight: '700' },
+  safetyLabel: { fontWeight: '900' },
   legacyNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 16, backgroundColor: ucapsaBrand.colors.goldPale, padding: 11, marginBottom: 12 },
   legacyTitle: { color: ucapsaBrand.colors.goldDark, fontSize: 10, fontWeight: '900' },
   legacyText: { color: ucapsaBrand.colors.goldDark, fontSize: 10, lineHeight: 15, fontWeight: '700', marginTop: 2 },
