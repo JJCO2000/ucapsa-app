@@ -50,7 +50,17 @@ export type StaffDogRow = {
   programCode: string | null;
   programLevel: string | null;
   membershipStatus: string;
+  breed: string | null;
+  sex: string | null;
+  birthDate: string | null;
+  weightKg: number | null;
+  allergies: string | null;
+  medications: string | null;
   behaviorNotes: string | null;
+  veterinarianName: string | null;
+  veterinarianPhone: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
   latestStaffNote: string | null;
   latestNoteType: string | null;
   latestNoteSeverity: string | null;
@@ -224,7 +234,17 @@ export async function getStaffDogs(query = ''): Promise<StaffDogRow[]> {
     programCode: row.program_code ?? null,
     programLevel: row.program_level ?? null,
     membershipStatus: row.membership_status,
+    breed: row.breed ?? null,
+    sex: row.sex ?? null,
+    birthDate: row.birth_date ?? null,
+    weightKg: row.weight_kg === null ? null : Number(row.weight_kg),
+    allergies: row.allergies ?? null,
+    medications: row.medications ?? null,
     behaviorNotes: row.behavior_notes ?? null,
+    veterinarianName: row.veterinarian_name ?? null,
+    veterinarianPhone: row.veterinarian_phone ?? null,
+    emergencyContactName: row.emergency_contact_name ?? null,
+    emergencyContactPhone: row.emergency_contact_phone ?? null,
     latestStaffNote: row.latest_staff_note ?? null,
     latestNoteType: row.latest_note_type ?? null,
     latestNoteSeverity: row.latest_note_severity ?? null,
