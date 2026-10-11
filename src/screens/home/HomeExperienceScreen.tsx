@@ -51,7 +51,7 @@ const mark = require('../../../assets/images/brand/ucapsa-mark.png');
 type SnapshotState = 'idle' | 'hydrated' | 'fresh' | 'cached' | 'partial' | 'error';
 
 export default function HomeExperienceScreen() {
-  const { user, profile, role, isAdmin } = useSession();
+  const { user, profile, role, isAdmin, isTrainer } = useSession();
   const [snapshot, setSnapshot] = useState<CustomerValueSnapshot | null>(null);
   const [snapshotState, setSnapshotState] = useState<SnapshotState>('idle');
   const [practice, setPractice] = useState<PracticeActivitySnapshot | null>(null);
@@ -280,6 +280,7 @@ export default function HomeExperienceScreen() {
   }
 
   if (isAdmin) return <Redirect href="/admin-home" />;
+  if (isTrainer) return <Redirect href="/trainer-home" />;
 
   return (
     <KeyboardAwareScreen
