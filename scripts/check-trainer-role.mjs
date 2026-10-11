@@ -342,4 +342,23 @@ if (/NEW\.role IN \('admin', 'super_admin'\)/.test(staffRoleHardening)) {
   throw new Error('Trainer must not be omitted from privileged profile transitions.');
 }
 
+// Regression: staff report must expose user/dog identifiers from the CTE
+// that supplies x.user_id and x.dog_id. SQL syntax checks alone missed this.
+for (const path of [
+  'supabase/sql/ucapsa-staff-explicit-absences.sql',
+  'supabase/sql/ucapsa-staff-report-projection-hotfix.sql',
+]) {
+  const source = read(path);
+  const report = source.split('create or replace function public.get_staff_training_report(')[1];
+  const eligible = report?.split('eligible as (')[1]?.split('from dates dte')[0] ?? '';
+  for (const field of ['e.id as enrollment_id', 'e.schedule_id', 'e.user_id', 'e.dog_id']) {
+    if (!eligible.includes(field)) {
+      throw new Error('Staff report eligible CTE omits ' + field + ' in ' + path);
+    }
+  }
+  for (const field of ['x.user_id', 'x.dog_id']) {
+    if (!report.includes(field)) throw new Error('Staff report result omits ' + field);
+  }
+}
+
 console.log('UCAPSA trainer role, least privilege, exams, staff notes, reporting and next-day summary: PASS');
