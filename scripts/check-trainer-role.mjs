@@ -21,6 +21,7 @@ const trainerSql = read('supabase/sql/ucapsa-trainer-workspace.sql');
 const trainerModeSql = read('supabase/sql/ucapsa-trainer-workspace-exam-upload.sql');
 const trainerSqlAll = trainerSql + '\n' + trainerModeSql;
 const staffWorkspace = read('src/hooks/useStaffWorkspace.tsx');
+const staffWorkspaceService = read('src/services/staff-workspace.service.ts');
 const staffSwitcher = read('src/components/domain/StaffWorkspaceSwitcher.tsx');
 const examXlsx = read('src/services/ucapsa-exam-xlsx.ts');
 const users = read('src/app/admin/users.tsx');
@@ -252,9 +253,17 @@ for (const token of [
 for (const token of [
   "export type StaffWorkspaceMode = 'admin' | 'trainer'",
   'canSwitchStaffWorkspace',
-  "value === 'trainer' ? 'trainer' : 'admin'",
+  'readStaffWorkspaceMode',
+  'writeStaffWorkspaceMode',
 ]) {
   if (!staffWorkspace.includes(token)) throw new Error('Staff workspace mode missing: ' + token);
+}
+for (const token of [
+  "value === 'trainer' ? 'trainer' : 'admin'",
+  'AsyncStorage.getItem',
+  'AsyncStorage.setItem',
+]) {
+  if (!staffWorkspaceService.includes(token)) throw new Error('Staff workspace persistence missing: ' + token);
 }
 for (const token of ['Administración', 'Entrenamiento', '/trainer-home', '/admin-home']) {
   if (!staffSwitcher.includes(token)) throw new Error('Staff workspace switcher missing: ' + token);
