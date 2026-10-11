@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { MemberClubCrest } from '../domain/MemberClubCrest';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
@@ -13,6 +13,8 @@ export function ClientPageHeader({
   subtitle,
   icon,
   right,
+  onBack,
+  backLabel = 'Volver',
 }: {
   format: UcapsaFormat;
   eyebrow: string;
@@ -20,6 +22,8 @@ export function ClientPageHeader({
   subtitle?: string;
   icon: keyof typeof MaterialIcons.glyphMap;
   right?: ReactNode;
+  onBack?: () => void;
+  backLabel?: string;
 }) {
   const club = format.key === 'member';
   const accent = club ? ucapsaBrand.colors.redDeep : format.accentDark;
@@ -27,7 +31,16 @@ export function ClientPageHeader({
   return (
     <View style={[styles.header, club && styles.clubHeader]}>
       <View style={styles.topRow}>
-        {club ? (
+        {onBack ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={backLabel}
+            onPress={onBack}
+            style={[styles.backButton, { borderColor: format.border, backgroundColor: format.surface }]}
+          >
+            <MaterialIcons name="arrow-back" size={22} color={accent} />
+          </Pressable>
+        ) : club ? (
           <MemberClubCrest compact />
         ) : (
           <View style={[styles.iconBox, { backgroundColor: format.accentSoft, borderColor: format.border }]}>
@@ -70,6 +83,7 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  backButton: { width: 46, height: 46, borderRadius: 15, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   iconBox: { width: 48, height: 48, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   copy: { flex: 1, minWidth: 0 },
   eyebrow: { fontSize: 11, lineHeight: 15, fontWeight: '900', letterSpacing: 1.0, textTransform: 'uppercase' },
