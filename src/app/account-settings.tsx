@@ -22,7 +22,8 @@ const avatarColors: string[] = [ucapsaBrand.colors.red, ucapsaBrand.colors.redDa
 
 export default function AccountSettingsScreen() {
   const { loading, user, profile, role, isAdmin, signOut, refreshProfile, acceptProfile, isOfflineFallback, lastProfileSyncAt } = useSession();
-  const params = useLocalSearchParams<{ section?: string }>();
+  const params = useLocalSearchParams<{ section?: string; from?: string }>();
+  const fromProfile = params.from === 'profile';
   const section = normalizeSection(params.section, isAdmin);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -184,10 +185,14 @@ export default function AccountSettingsScreen() {
   }
 
   function openSection(next: SettingsSection) {
-    router.push(`/account-settings?section=${next}` as never);
+    router.push(`/account-settings?section=${next}${fromProfile ? '&from=profile' : ''}` as never);
   }
 
   function back() {
+    if (fromProfile) {
+      router.replace('/profile' as never);
+      return;
+    }
     if (section) router.replace('/account-settings' as never);
     else router.back();
   }
