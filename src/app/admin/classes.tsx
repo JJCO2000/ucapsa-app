@@ -3,6 +3,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { AdminStatusPill } from '../../components/admin/AdminStatusPill';
 import { AdminDogPicker, type AdminDogMode } from '../../components/domain/AdminDogPicker';
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -49,6 +50,7 @@ type EnrollmentFormState = {
 
 type ProgramFilter = 'all' | ProgramCode;
 type StatusFilter = 'active' | 'completed' | 'cancelled' | 'all';
+type LevelFilter = 'all' | 'principiante' | 'medio' | 'avanzado';
 
 const statusOptions: Array<{ value: StatusFilter; label: string }> = [
   { value: 'active', label: 'Activas' },
@@ -104,6 +106,7 @@ export default function AdminClassesScreen() {
       : 'active',
   );
   const [scheduleFilter, setScheduleFilter] = useState('all');
+  const [levelFilter, setLevelFilter] = useState<LevelFilter>('all');
   const [filtersOpen, setFiltersOpen] = useState(Boolean(params.program || params.status));
   const [createOpen, setCreateOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -164,6 +167,7 @@ export default function AdminClassesScreen() {
       if (programFilter !== 'all' && row.program.code !== programFilter) return false;
       if (statusFilter !== 'all' && row.enrollment.status !== statusFilter) return false;
       if (scheduleFilter !== 'all' && row.schedule.id !== scheduleFilter) return false;
+      if (programFilter === 'comandos' && levelFilter !== 'all' && row.enrollment.program_level !== levelFilter) return false;
       if (!term) return true;
       const haystack = [
         profileLabel(row.profile),
@@ -186,11 +190,23 @@ export default function AdminClassesScreen() {
       if (scheduleDiff !== 0) return scheduleDiff;
       return profileLabel(a.profile).localeCompare(profileLabel(b.profile), 'es-MX', { sensitivity: 'base', numeric: true });
     });
-  }, [programFilter, routeUserId, rowSearch, rows, scheduleFilter, statusFilter]);
+  }, [levelFilter, programFilter, routeUserId, rowSearch, rows, scheduleFilter, statusFilter]);
 
   const selectedProgram = programs.find((program) => program.id === form.programId) ?? null;
   const selectedProfile = profiles.find((profile) => profile.user_id === form.userId) ?? null;
   const schedulesForSelectedProgram = selectedProgram ? getSchedulesForProgram(schedules, selectedProgram.id) : [];
+
+  const classStats = useMemo(() => {
+    const scoped = rows.filter((row) => !routeUserId || row.enrollment.user_id === routeUserId);
+    const active = scoped.filter((row) => row.enrollment.status === 'active');
+    return {
+      puppyActive: active.filter((row) => row.program.code === 'puppy').length,
+      comandosActive: active.filter((row) => row.program.code === 'comandos').length,
+      basico: active.filter((row) => row.program.code === 'comandos' && row.enrollment.program_level === 'principiante').length,
+      intermedio: active.filter((row) => row.program.code === 'comandos' && row.enrollment.program_level === 'medio').length,
+      avanzado: active.filter((row) => row.program.code === 'comandos' && row.enrollment.program_level === 'avanzado').length,
+    };
+  }, [routeUserId, rows]);
 
   const filteredProfiles = useMemo(() => {
     const term = normalizeTerm(clientSearch);
@@ -317,6 +333,57 @@ export default function AdminClassesScreen() {
         </Pressable>
       </View>
 
+      <View style={styles.programOverview}>
+        <Pressable
+          style={[styles.programCard, programFilter === 'puppy' && styles.programCardActivePuppy]}
+          onPress={() => { setProgramFilter('puppy'); setLevelFilter('all'); setScheduleFilter('all'); }}
+        >
+          <View style={[styles.programCardIcon, { backgroundColor: ucapsaBrand.colors.goldPale }]}>
+            <MaterialIcons name="pets" size={23} color={ucapsaBrand.colors.goldDark} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.programCardLabel}>Puppy</Text>
+            <Text style={styles.programCardValue}>{classStats.puppyActive}</Text>
+            <Text style={styles.programCardMeta}>inscripciones activas</Text>
+          </View>
+        </Pressable>
+
+        <Pressable
+          style={[styles.programCard, programFilter === 'comandos' && styles.programCardActiveCommands]}
+          onPress={() => { setProgramFilter('comandos'); setScheduleFilter('all'); }}
+        >
+          <View style={[styles.programCardIcon, { backgroundColor: ucapsaBrand.colors.purpleSoft }]}>
+            <MaterialIcons name="school" size={23} color={ucapsaBrand.colors.purpleDark} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.programCardLabel}>Comandos</Text>
+            <Text style={styles.programCardValue}>{classStats.comandosActive}</Text>
+            <Text style={styles.programCardMeta}>inscripciones activas</Text>
+          </View>
+        </Pressable>
+      </View>
+
+      {programFilter === 'comandos' ? (
+        <View style={styles.levelStrip}>
+          <LevelChip label="Todos" value={classStats.comandosActive} active={levelFilter === 'all'} onPress={() => setLevelFilter('all')} />
+          <LevelChip label="Básico" value={classStats.basico} active={levelFilter === 'principiante'} onPress={() => setLevelFilter('principiante')} />
+          <LevelChip label="Intermedio" value={classStats.intermedio} active={levelFilter === 'medio'} onPress={() => setLevelFilter('medio')} />
+          <LevelChip label="Avanzado" value={classStats.avanzado} active={levelFilter === 'avanzado'} onPress={() => setLevelFilter('avanzado')} />
+        </View>
+      ) : null}
+
+      <View style={styles.quickFilters}>
+        {statusOptions.slice(0, 3).map((option) => (
+          <Pressable
+            key={option.value}
+            style={[styles.quickFilter, statusFilter === option.value && styles.quickFilterActive]}
+            onPress={() => setStatusFilter(option.value)}
+          >
+            <Text style={[styles.quickFilterText, statusFilter === option.value && styles.quickFilterTextActive]}>{option.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+
       <View style={styles.searchCard}>
         <View style={styles.searchRow}>
           <MaterialIcons name="search" size={20} color={ucapsaBrand.colors.muted} />
@@ -333,15 +400,16 @@ export default function AdminClassesScreen() {
 
         {filtersOpen ? (
           <View style={styles.filterPanel}>
-            <Text style={styles.label}>Programa</Text>
+            <Text style={styles.label}>Ver</Text>
             <SelectList
               selectedValue={programFilter}
               options={[
-                { value: 'all', label: 'Todos' },
+                { value: 'all', label: 'Todos los programas' },
                 ...programs.map((program) => ({ value: program.code, label: program.name })),
               ]}
               onSelect={(value) => {
                 setProgramFilter(value as ProgramFilter);
+                setLevelFilter('all');
                 setScheduleFilter('all');
               }}
             />
@@ -407,7 +475,10 @@ export default function AdminClassesScreen() {
             <View style={{ flex: 1 }}>
               <View style={styles.rowTitleLine}>
                 <Text numberOfLines={1} style={styles.rowTitle}>{profileLabel(row.profile)}</Text>
-                <Text style={[styles.statusPill, row.enrollment.status !== 'active' && styles.statusPillMuted]}>{getProgramStatusLabel(row.enrollment.status)}</Text>
+                <AdminStatusPill
+                  label={getProgramStatusLabel(row.enrollment.status)}
+                  tone={row.enrollment.status === 'active' ? 'success' : row.enrollment.status === 'completed' ? 'info' : 'neutral'}
+                />
               </View>
               <Text style={styles.rowMeta}>{getProgramEnrollmentDogName(row)} · {row.program.name}{row.program.code === 'comandos' ? ` · ${getProgramLevelLabel(row.enrollment.program_level)}` : ''}</Text>
               <Text style={styles.rowMeta}>{formatProgramScheduleName(row.schedule, row.program)} · {formatProgramScheduleDetailLabel(row.schedule)}</Text>
@@ -554,6 +625,15 @@ function CreateEnrollmentModal({
   );
 }
 
+function LevelChip({ label, value, active, onPress }: { label: string; value: number; active: boolean; onPress: () => void }) {
+  return (
+    <Pressable style={[styles.levelChip, active && styles.levelChipActive]} onPress={onPress}>
+      <Text style={[styles.levelChipValue, active && styles.levelChipValueActive]}>{value}</Text>
+      <Text style={[styles.levelChipLabel, active && styles.levelChipLabelActive]}>{label}</Text>
+    </Pressable>
+  );
+}
+
 function ChipRow<T extends string>({
   options,
   value,
@@ -618,6 +698,26 @@ function SelectList({
 
 const styles = StyleSheet.create({
   hero: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
+  programOverview: { flexDirection: 'row', gap: 9, marginBottom: 10 },
+  programCard: { flex: 1, minHeight: 98, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 19, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 12 },
+  programCardActivePuppy: { borderColor: ucapsaBrand.colors.gold, backgroundColor: ucapsaBrand.colors.goldPale },
+  programCardActiveCommands: { borderColor: ucapsaBrand.colors.purple, backgroundColor: ucapsaBrand.colors.purpleSoft },
+  programCardIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  programCardLabel: { color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '900' },
+  programCardValue: { color: ucapsaBrand.colors.text, fontSize: 23, lineHeight: 27, fontWeight: '900' },
+  programCardMeta: { color: ucapsaBrand.colors.muted, fontSize: 9, lineHeight: 12, fontWeight: '800' },
+  levelStrip: { flexDirection: 'row', gap: 7, marginBottom: 10 },
+  levelChip: { flex: 1, alignItems: 'center', borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingVertical: 8, paddingHorizontal: 6 },
+  levelChipActive: { backgroundColor: ucapsaBrand.colors.purple, borderColor: ucapsaBrand.colors.purple },
+  levelChipValue: { color: ucapsaBrand.colors.text, fontSize: 15, lineHeight: 18, fontWeight: '900' },
+  levelChipValueActive: { color: ucapsaBrand.colors.surface },
+  levelChipLabel: { color: ucapsaBrand.colors.muted, fontSize: 9, lineHeight: 12, fontWeight: '900', marginTop: 1 },
+  levelChipLabelActive: { color: ucapsaBrand.colors.surface },
+  quickFilters: { flexDirection: 'row', gap: 7, marginBottom: 10 },
+  quickFilter: { flex: 1, minHeight: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 13, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface },
+  quickFilterActive: { backgroundColor: ucapsaBrand.colors.red, borderColor: ucapsaBrand.colors.red },
+  quickFilterText: { color: ucapsaBrand.colors.text, fontSize: 10, fontWeight: '900' },
+  quickFilterTextActive: { color: ucapsaBrand.colors.surface },
   kicker: { color: ucapsaBrand.colors.redDark, fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.7 },
   title: { color: ucapsaBrand.colors.text, fontSize: 29, fontWeight: '900' },
   subtitle: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 3 },

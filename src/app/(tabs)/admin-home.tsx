@@ -314,6 +314,7 @@ export default function AdminHomeTab() {
               title="Listos para evaluar"
               detail="Tarjetas completas esperando tu decisión de nivel."
               value={stats.trainingDecisions}
+              tone="success"
               onPress={() => router.push('/admin/training-decisions' as never)}
             />
           ) : null}
@@ -323,6 +324,7 @@ export default function AdminHomeTab() {
               title="Pagos por revisar"
               detail="Clientes con saldo, pago pendiente o seguimiento necesario."
               value={stats.paymentAttention}
+              tone="warning"
               onPress={() => router.push('/admin-payments' as never)}
             />
           ) : null}
@@ -332,6 +334,7 @@ export default function AdminHomeTab() {
               title="Solicitudes de socio"
               detail="Membresías pendientes de una resolución administrativa."
               value={stats.pendingRequests}
+              tone="purple"
               onPress={() => router.push('/admin/members?filter=pending_requests' as never)}
             />
           ) : null}
@@ -373,36 +376,38 @@ function DecisionCard({
   detail: string;
   value: number;
   onPress: () => void;
-  tone?: 'default' | 'danger';
+  tone?: 'default' | 'danger' | 'warning' | 'success' | 'purple';
 }) {
+  const palette = tone === 'danger'
+    ? { bg: ucapsaBrand.colors.dangerSoft, border: ucapsaBrand.colors.dangerBorder, iconBg: ucapsaBrand.colors.danger, icon: ucapsaBrand.colors.surface, countBg: ucapsaBrand.colors.danger, count: ucapsaBrand.colors.surface }
+    : tone === 'warning'
+      ? { bg: ucapsaBrand.colors.goldPale, border: ucapsaBrand.colors.gold, iconBg: ucapsaBrand.colors.gold, icon: ucapsaBrand.colors.goldDark, countBg: ucapsaBrand.colors.gold, count: ucapsaBrand.colors.goldDark }
+      : tone === 'success'
+        ? { bg: ucapsaBrand.colors.successSoft, border: ucapsaBrand.colors.successBorder, iconBg: ucapsaBrand.colors.success, icon: ucapsaBrand.colors.surface, countBg: ucapsaBrand.colors.success, count: ucapsaBrand.colors.surface }
+        : tone === 'purple'
+          ? { bg: ucapsaBrand.colors.purpleSoft, border: ucapsaBrand.colors.purple, iconBg: ucapsaBrand.colors.purple, icon: ucapsaBrand.colors.surface, countBg: ucapsaBrand.colors.purple, count: ucapsaBrand.colors.surface }
+          : { bg: ucapsaBrand.colors.surface, border: ucapsaBrand.colors.border, iconBg: ucapsaBrand.colors.redSoft, icon: ucapsaBrand.colors.redDark, countBg: ucapsaBrand.colors.goldPale, count: ucapsaBrand.colors.goldDark };
+
   return (
     <Pressable
       style={({ pressed }) => [
         styles.decisionCard,
-        tone === 'danger' && styles.decisionCardDanger,
+        { backgroundColor: palette.bg, borderColor: palette.border },
         pressed && styles.pressed,
       ]}
       onPress={onPress}
     >
-      <View style={[styles.decisionIcon, tone === 'danger' && styles.decisionIconDanger]}>
-        <MaterialIcons
-          name={icon}
-          size={22}
-          color={tone === 'danger' ? ucapsaBrand.colors.surface : ucapsaBrand.colors.redDark}
-        />
+      <View style={[styles.decisionIcon, { backgroundColor: palette.iconBg }]}>
+        <MaterialIcons name={icon} size={22} color={palette.icon} />
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={styles.decisionTitle}>{title}</Text>
         <Text style={styles.decisionDetail}>{detail}</Text>
       </View>
-      <View style={[styles.decisionCount, tone === 'danger' && styles.decisionCountDanger]}>
-        <Text style={[styles.decisionCountText, tone === 'danger' && styles.decisionCountTextDanger]}>{value}</Text>
+      <View style={[styles.decisionCount, { backgroundColor: palette.countBg }]}>
+        <Text style={[styles.decisionCountText, { color: palette.count }]}>{value}</Text>
       </View>
-      <MaterialIcons
-        name="chevron-right"
-        size={22}
-        color={tone === 'danger' ? ucapsaBrand.colors.danger : ucapsaBrand.colors.redDark}
-      />
+      <MaterialIcons name="chevron-right" size={22} color={palette.icon} />
     </Pressable>
   );
 }
