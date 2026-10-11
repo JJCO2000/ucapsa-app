@@ -89,7 +89,7 @@ export default function TrainerHomeTab() {
 
   const dateKey = tomorrowKey();
   const grouped = useMemo(() => groupClasses(rows), [rows]);
-  const firstName = (profile?.full_name || 'Entrenador').trim().split(/s+/)[0] || 'Entrenador';
+  const firstName = (profile?.full_name || 'Entrenador').trim().split(/\s+/)[0] || 'Entrenador';
 
   const load = useCallback(async () => {
     if (!capabilities.canUseTrainingWorkspace) return;
