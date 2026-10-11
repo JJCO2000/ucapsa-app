@@ -66,7 +66,7 @@ for (const token of [
 for (const token of [
   'Voy a asistir',
   'No podré ir',
-  'Asistencia confirmada',
+  'Confirmé que iré',
 ]) {
   if (!cards.includes(token)) throw new Error('Client RSVP action missing: ' + token);
 }
