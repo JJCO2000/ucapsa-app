@@ -1,22 +1,16 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { DogAvatar } from '../../components/domain/DogAvatar';
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
-import {
-  DEFAULT_DOG_AVATAR_COLOR,
-  DEFAULT_DOG_AVATAR_KEY,
-  DOG_AVATAR_COLORS,
-  DOG_AVATAR_OPTIONS,
-  type DogAvatarColor,
-  type DogAvatarKey,
-} from '../../constants/dogAvatar';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
+import { getPrivateDogPhotoUrl, removeMyDogPhoto, uploadMyDogPhoto } from '../../services/dog-photos.service';
 import { getMyDogProfile, updateMyDogProfile, type DogProfile } from '../../services/dogs.service';
 import { DEFAULT_READ_TIMEOUT_MS, DEFAULT_WRITE_TIMEOUT_MS, friendlyWriteError, withOperationTimeout } from '../../utils/async.utils';
 
@@ -28,8 +22,6 @@ type ProfileDraft = {
   birthDate: string;
   sex: DogSex;
   weight: string;
-  avatarKey: DogAvatarKey;
-  avatarColor: DogAvatarColor;
 };
 
 const EMPTY_DRAFT: ProfileDraft = {
@@ -38,8 +30,6 @@ const EMPTY_DRAFT: ProfileDraft = {
   birthDate: '',
   sex: null,
   weight: '',
-  avatarKey: DEFAULT_DOG_AVATAR_KEY,
-  avatarColor: DEFAULT_DOG_AVATAR_COLOR,
 };
 
 function getParam(value: string | string[] | undefined) {
@@ -53,8 +43,6 @@ function draftFromProfile(profile: DogProfile): ProfileDraft {
     birthDate: profile.birth_date ?? '',
     sex: profile.sex,
     weight: profile.weight_kg == null ? '' : String(profile.weight_kg),
-    avatarKey: profile.avatar_key,
-    avatarColor: profile.avatar_color,
   };
 }
 
@@ -80,6 +68,11 @@ export default function DogProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [photoSaving, setPhotoSaving] = useState(false);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const cameraRef = useRef<CameraView>(null);
 
   const load = useCallback(async () => {
     if (!user || isAdmin || !dogId) return;
@@ -89,6 +82,7 @@ export default function DogProfileScreen() {
       const nextProfile = await withOperationTimeout(getMyDogProfile(dogId), DEFAULT_READ_TIMEOUT_MS, 'dog-profile');
       setProfile(nextProfile);
       setDraft(draftFromProfile(nextProfile));
+      setPhotoUrl(await getPrivateDogPhotoUrl(nextProfile.photo_path));
     } catch {
       setLoadError(true);
     } finally {
@@ -102,6 +96,48 @@ export default function DogProfileScreen() {
 
   function setField<K extends keyof ProfileDraft>(key: K, value: ProfileDraft[K]) {
     setDraft((current) => ({ ...current, [key]: value }));
+  }
+
+  async function openCamera() {
+    if (!cameraPermission?.granted) {
+      const nextPermission = await requestCameraPermission();
+      if (!nextPermission.granted) {
+        Alert.alert('Cámara no disponible', 'Necesitamos permiso de cámara para tomar la foto de tu perro.');
+        return;
+      }
+    }
+    setCameraOpen(true);
+  }
+
+  async function takeDogPhoto() {
+    if (!cameraRef.current || photoSaving) return;
+    setPhotoSaving(true);
+    try {
+      const picture = await cameraRef.current.takePictureAsync({ quality: 0.45, skipProcessing: false });
+      if (!picture?.uri) throw new Error('No se pudo guardar la foto.');
+      const uploaded = await uploadMyDogPhoto(dogId, picture.uri);
+      setPhotoUrl(uploaded.signedUrl);
+      setProfile((current) => current ? { ...current, photo_path: uploaded.photoPath } : current);
+      setCameraOpen(false);
+    } catch (cause) {
+      Alert.alert('No se pudo guardar la foto', friendlyWriteError(cause, 'Intenta nuevamente con buena conexión.'));
+    } finally {
+      setPhotoSaving(false);
+    }
+  }
+
+  async function deleteDogPhoto() {
+    if (!dogId || photoSaving) return;
+    setPhotoSaving(true);
+    try {
+      await removeMyDogPhoto(dogId);
+      setPhotoUrl(null);
+      setProfile((current) => current ? { ...current, photo_path: null } : current);
+    } catch (cause) {
+      Alert.alert('No se pudo quitar la foto', friendlyWriteError(cause));
+    } finally {
+      setPhotoSaving(false);
+    }
   }
 
   async function save() {
@@ -134,8 +170,6 @@ export default function DogProfileScreen() {
           birth_date: birthDate,
           sex: draft.sex,
           weight_kg: weight,
-          avatar_key: draft.avatarKey,
-          avatar_color: draft.avatarColor,
         }),
         DEFAULT_WRITE_TIMEOUT_MS,
         'dog-profile-save',
@@ -206,63 +240,46 @@ export default function DogProfileScreen() {
         </View>
       ) : (
         <>
-          <View style={[styles.avatarCard, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
-            <View style={styles.avatarHeader}>
-              <DogAvatar
-                avatarKey={draft.avatarKey}
-                avatarColor={draft.avatarColor}
-                size={82}
-                accessibilityLabel={`Avatar de ${draft.name || 'tu perro'}`}
-              />
-              <View style={styles.avatarCopy}>
-                <Text style={[styles.sectionTitle, { color: format.cardText }]}>Avatar de {draft.name || 'tu perro'}</Text>
+          <View style={[styles.photoCard, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
+            <View style={styles.photoRow}>
+              {photoUrl ? (
+                <Image source={{ uri: photoUrl }} style={styles.dogPhoto} resizeMode="cover" accessibilityLabel={`Foto de ${draft.name || 'tu perro'}`} />
+              ) : (
+                <DogAvatar
+                  avatarKey={profile?.avatar_key}
+                  avatarColor={profile?.avatar_color}
+                  size={86}
+                  accessibilityLabel={`Avatar de ${draft.name || 'tu perro'}`}
+                />
+              )}
+              <View style={styles.photoCopy}>
+                <Text style={[styles.sectionTitle, { color: format.cardText }]}>Foto de {draft.name || 'tu perro'}</Text>
                 <Text style={[styles.avatarHint, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
-                  Elige un emoji o caricatura y un color. No pide acceso a tus fotos.
+                  Opcional. La foto es privada y sólo se usa en tu cuenta y en tu propia posición del Ranking.
                 </Text>
               </View>
             </View>
-
-            <Text style={[styles.avatarLabel, { color: format.cardText }]}>Estilo</Text>
-            <View style={styles.avatarOptions}>
-              {DOG_AVATAR_OPTIONS.map((option) => {
-                const selected = draft.avatarKey === option.key;
-                return (
-                  <Pressable
-                    key={option.key}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Avatar ${option.label}`}
-                    accessibilityState={{ selected }}
-                    style={[
-                      styles.avatarOption,
-                      { borderColor: selected ? format.accent : format.cardBorder },
-                      selected && { backgroundColor: format.accentSoft },
-                    ]}
-                    onPress={() => setField('avatarKey', option.key)}
-                  >
-                    <DogAvatar avatarKey={option.key} avatarColor={draft.avatarColor} size={46} />
-                    <Text numberOfLines={1} style={[styles.avatarOptionText, { color: selected ? format.accentDark : format.muted }]}>{option.label}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            <Text style={[styles.avatarLabel, { color: format.cardText }]}>Color</Text>
-            <View style={styles.colorOptions}>
-              {DOG_AVATAR_COLORS.map((color) => {
-                const selected = draft.avatarColor === color;
-                return (
-                  <Pressable
-                    key={color}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Color ${color}`}
-                    accessibilityState={{ selected }}
-                    style={[styles.colorOption, selected && { borderColor: format.accent, borderWidth: 3 }]}
-                    onPress={() => setField('avatarColor', color)}
-                  >
-                    <View style={[styles.colorSwatch, { backgroundColor: color }]} />
-                  </Pressable>
-                );
-              })}
+            <View style={styles.photoActions}>
+              <Pressable
+                accessibilityRole="button"
+                style={[styles.photoButton, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}
+                onPress={() => void openCamera()}
+                disabled={photoSaving}
+              >
+                <MaterialIcons name="photo-camera" size={18} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                <Text style={[styles.photoButtonText, { color: format.secondaryButtonText }]}>{photoUrl ? 'Cambiar foto' : 'Tomar foto'}</Text>
+              </Pressable>
+              {photoUrl ? (
+                <Pressable
+                  accessibilityRole="button"
+                  style={[styles.photoButton, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}
+                  onPress={() => void deleteDogPhoto()}
+                  disabled={photoSaving}
+                >
+                  <MaterialIcons name="delete-outline" size={18} color={ucapsaBrand.colors.red} />
+                  <Text style={[styles.photoButtonText, { color: ucapsaBrand.colors.redDark }]}>Quitar</Text>
+                </Pressable>
+              ) : null}
             </View>
           </View>
 
@@ -305,6 +322,29 @@ export default function DogProfileScreen() {
           </View>
         </>
       )}
+      <KeyboardAwareModal
+        visible={cameraOpen}
+        onClose={() => !photoSaving && setCameraOpen(false)}
+        contentContainerStyle={styles.cameraModalContent}
+      >
+        <View style={styles.cameraModalHeader}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.sectionTitle, premium && styles.textPremium]}>Foto de {draft.name || 'tu perro'}</Text>
+            <Text style={[styles.avatarHint, premium && styles.textPremium]}>Centra la cara de tu perro y toma una foto clara.</Text>
+          </View>
+          <Pressable accessibilityRole="button" accessibilityLabel="Cerrar cámara" onPress={() => setCameraOpen(false)} disabled={photoSaving}>
+            <MaterialIcons name="close" size={25} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.text} />
+          </Pressable>
+        </View>
+        <View style={styles.cameraFrame}>
+          <CameraView ref={cameraRef} style={styles.camera} facing="back" />
+        </View>
+        <Pressable accessibilityRole="button" style={[styles.captureButton, { backgroundColor: format.primaryButton }]} onPress={() => void takeDogPhoto()} disabled={photoSaving}>
+          <MaterialIcons name="photo-camera" size={20} color={format.primaryButtonText} />
+          <Text style={[styles.primaryButtonText, { color: format.primaryButtonText }]}>{photoSaving ? 'Guardando…' : 'Tomar foto'}</Text>
+        </Pressable>
+      </KeyboardAwareModal>
+
     </KeyboardAwareScreen>
   );
 }
@@ -375,17 +415,19 @@ const styles = StyleSheet.create({
   title: { marginTop: 2, fontSize: 28, lineHeight: 34, fontWeight: '900' },
   subtitle: { marginTop: 4, fontSize: 14, lineHeight: 20, fontWeight: '700' },
   card: { gap: 12, borderRadius: 22, borderWidth: 1, padding: 16, marginBottom: 14 },
-  avatarCard: { gap: 12, borderRadius: 22, borderWidth: 1, padding: 14, marginBottom: 14 },
-  avatarHeader: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  avatarCopy: { flex: 1, minWidth: 0, gap: 4 },
+  photoCard: { gap: 12, borderRadius: 22, borderWidth: 1, padding: 14, marginBottom: 14 },
+  photoRow: { flexDirection: 'row', alignItems: 'center', gap: 13 },
+  dogPhoto: { width: 86, height: 86, borderRadius: 28, backgroundColor: ucapsaBrand.colors.graySoft },
+  photoCopy: { flex: 1, minWidth: 0, gap: 3 },
   avatarHint: { fontSize: 11, lineHeight: 16, fontWeight: '700' },
-  avatarLabel: { marginTop: 2, fontSize: 12, lineHeight: 16, fontWeight: '900' },
-  avatarOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  avatarOption: { width: '30%', minWidth: 86, alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 16, paddingHorizontal: 6, paddingVertical: 9 },
-  avatarOptionText: { width: '100%', textAlign: 'center', fontSize: 9, lineHeight: 12, fontWeight: '800' },
-  colorOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  colorOption: { width: 38, height: 38, borderRadius: 19, borderWidth: 1, borderColor: ucapsaBrand.colors.border, alignItems: 'center', justifyContent: 'center' },
-  colorSwatch: { width: 28, height: 28, borderRadius: 14 },
+  photoActions: { flexDirection: 'row', gap: 8 },
+  photoButton: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderRadius: 14, paddingHorizontal: 12 },
+  photoButtonText: { fontSize: 11, lineHeight: 15, fontWeight: '900' },
+  cameraModalContent: { gap: 12 },
+  cameraModalHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  cameraFrame: { overflow: 'hidden', height: 360, borderRadius: 22, backgroundColor: ucapsaBrand.colors.cameraDark },
+  camera: { flex: 1 },
+  captureButton: { minHeight: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 16, paddingHorizontal: 14 },
   sectionTitle: { fontSize: 18, lineHeight: 23, fontWeight: '900' },
   helper: { fontSize: 14, lineHeight: 20, fontWeight: '700' },
   fieldGroup: { gap: 6 },
