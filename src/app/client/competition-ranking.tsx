@@ -1,5 +1,4 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Image } from 'expo-image';
 import { Redirect, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, RefreshControl, StyleSheet, Text, View } from 'react-native';
@@ -10,7 +9,7 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
-import { getMyDogPhotoUrl, getMyDogProfile, getMyDogs } from '../../services/dogs.service';
+import { getMyDogs } from '../../services/dogs.service';
 import {
   getCachedCompetitionLeaderboard,
   getCachedMyCompetitionAccount,
@@ -49,7 +48,7 @@ export default function ClientCompetitionRankingScreen() {
   const premium = format.key === 'member';
 
   const [rows, setRows] = useState<ClientCompetitionLeaderboardRow[]>([]);
-  const [myDogs, setMyDogs] = useState<Array<{ id: string; name: string; photoUrl: string | null }>>([]);
+  const [myDogs, setMyDogs] = useState<Array<{ id: string; name: string; avatarKey: string; avatarColor: string }>>([]);
   const [localReady, setLocalReady] = useState(false);
   const [usingSavedData, setUsingSavedData] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
@@ -75,7 +74,12 @@ export default function ClientCompetitionRankingScreen() {
       setLocalReady(true);
     }
     if (cachedAccount) {
-      setMyDogs(cachedAccount.data.dogs.map((dog) => ({ id: dog.dog_id, name: dog.dog_name, photoUrl: null })));
+      setMyDogs(cachedAccount.data.dogs.map((dog) => ({
+        id: dog.dog_id,
+        name: dog.dog_name,
+        avatarKey: 'dog_face',
+        avatarColor: '#F2E3C6',
+      })));
     }
 
     const [rankingResult, dogsResult] = await Promise.allSettled([
@@ -84,16 +88,12 @@ export default function ClientCompetitionRankingScreen() {
     ]);
 
     if (dogsResult.status === 'fulfilled') {
-      const dogsWithPhotos = await Promise.all(dogsResult.value.map(async (dog) => {
-        try {
-          const profile = await getMyDogProfile(dog.id);
-          const photoUrl = await getMyDogPhotoUrl(profile.photo_path).catch(() => null);
-          return { id: dog.id, name: dog.name, photoUrl };
-        } catch {
-          return { id: dog.id, name: dog.name, photoUrl: null };
-        }
-      }));
-      setMyDogs(dogsWithPhotos);
+      setMyDogs(dogsResult.value.map((dog) => ({
+        id: dog.id,
+        name: dog.name,
+        avatarKey: dog.avatar_key,
+        avatarColor: dog.avatar_color,
+      })));
     }
 
     if (rankingResult.status === 'fulfilled') {
@@ -186,13 +186,12 @@ export default function ClientCompetitionRankingScreen() {
                 <Text style={[styles.sectionTitle, { color: format.cardText }]}>Tus perros</Text>
                 {myRows.map(({ dog, row }) => (
                   <View key={dog.id} style={[styles.myCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
-                    {dog.photoUrl ? (
-                      <Image source={{ uri: dog.photoUrl }} style={styles.myDogPhoto} contentFit="cover" />
-                    ) : (
-                      <View style={[styles.myDogPhotoPlaceholder, { backgroundColor: format.pillBackground }]}>
-                        <MaterialIcons name="pets" size={22} color={format.pillText} />
-                      </View>
-                    )}
+                    <DogAvatar
+                      avatarKey={dog.avatarKey}
+                      avatarColor={dog.avatarColor}
+                      size={52}
+                      accessibilityLabel={`Avatar de ${dog.name}`}
+                    />
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.myLabel, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>
                         {row ? `TU PERRO · #${Number(row.ranking_position ?? 0)}` : 'TU PERRO'}
@@ -220,7 +219,6 @@ export default function ClientCompetitionRankingScreen() {
                 const position = Number(row.ranking_position ?? 0);
                 const tone = podiumTone(position);
                 const mine = Boolean(row.dog_id && myDogIds.has(row.dog_id));
-                const mineDog = row.dog_id ? myDogs.find((dog) => dog.id === row.dog_id) ?? null : null;
                 return (
                   <View
                     key={row.dog_id ?? String(row.ranking_position)}
@@ -233,7 +231,12 @@ export default function ClientCompetitionRankingScreen() {
                     ]}
                   >
                     <Text style={styles.medal}>{medal(position)}</Text>
-                    {mineDog?.photoUrl ? <Image source={{ uri: mineDog.photoUrl }} style={styles.podiumPhoto} contentFit="cover" /> : null}
+                    <DogAvatar
+                      avatarKey={row.dog_avatar_key}
+                      avatarColor={row.dog_avatar_color}
+                      size={38}
+                      accessibilityLabel={`Avatar de ${row.dog_name ?? 'perro'}`}
+                    />
                     <Text style={[styles.podiumPosition, { color: tone.text }]}>#{position}</Text>
                     <Text numberOfLines={1} style={[styles.podiumName, { color: format.cardText }]}>{row.dog_name || 'Perro'}</Text>
                     <Text style={[styles.podiumScore, { color: tone.text }]}>{numberLabel(row.competitive_score)} pts</Text>
@@ -247,7 +250,6 @@ export default function ClientCompetitionRankingScreen() {
             <View style={styles.list}>
               {rows.map((row) => {
                 const mine = Boolean(row.dog_id && myDogIds.has(row.dog_id));
-                const myDog = row.dog_id ? myDogs.find((dog) => dog.id === row.dog_id) ?? null : null;
                 const position = Number(row.ranking_position ?? 0);
                 return (
                   <View
@@ -270,7 +272,12 @@ export default function ClientCompetitionRankingScreen() {
                         {position <= 3 ? medal(position) : position}
                       </Text>
                     </View>
-                    {myDog?.photoUrl ? <Image source={{ uri: myDog.photoUrl }} style={styles.rankPhoto} contentFit="cover" /> : null}
+                    <DogAvatar
+                      avatarKey={row.dog_avatar_key}
+                      avatarColor={row.dog_avatar_color}
+                      size={38}
+                      accessibilityLabel={`Avatar de ${row.dog_name ?? 'perro'}`}
+                    />
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <View style={styles.titleLine}>
                         <Text numberOfLines={1} style={[styles.dogName, { color: format.cardText }]}>{row.dog_name || 'Perro'}</Text>
@@ -310,8 +317,6 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 15, lineHeight: 20, fontWeight: '900' },
   myDogsBlock: { gap: 8, marginBottom: 13 },
   myCard: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, borderWidth: 1, padding: 12 },
-  myDogPhoto: { width: 52, height: 52, borderRadius: 17 },
-  myDogPhotoPlaceholder: { width: 52, height: 52, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   myLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 0.7 },
   sectionTitle: { fontSize: 18, lineHeight: 23, fontWeight: '900', marginBottom: 8 },
   podiumRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
@@ -321,11 +326,9 @@ const styles = StyleSheet.create({
   podiumName: { width: '100%', textAlign: 'center', fontSize: 10, fontWeight: '900' },
   podiumScore: { fontSize: 11, fontWeight: '900', marginTop: 4 },
   podiumMine: { marginTop: 5, fontSize: 8, fontWeight: '900', letterSpacing: 0.7 },
-  podiumPhoto: { width: 38, height: 38, borderRadius: 13, marginBottom: 4 },
   list: { gap: 8 },
   rankRow: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 17, borderWidth: 1, padding: 10 },
   rankBox: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  rankPhoto: { width: 38, height: 38, borderRadius: 13 },
   rankText: { fontSize: 13, fontWeight: '900' },
   titleLine: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   dogName: { flexShrink: 1, fontSize: 12, fontWeight: '900' },
