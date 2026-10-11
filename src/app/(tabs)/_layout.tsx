@@ -38,42 +38,42 @@ function TabIcon({
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
-  const { user, role, isAdmin } = useSession();
+  const { user, role, isAdmin, isTrainer } = useSession();
   const format = resolveUcapsaFormat({ user, role, isAdmin });
   const systemBottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 20 : 10);
   const navigationBreathingRoom = Platform.OS === 'android' ? 8 : 4;
   const tabBottomInset = systemBottomInset + navigationBreathingRoom;
   const isPremium = format.key === 'member';
-  const tabBackground = isAdmin
+  const tabBackground = isAdmin || isTrainer
     ? ucapsaBrand.colors.surface
     : isPremium
       ? ucapsaBrand.colors.premiumSurface
       : ucapsaBrand.colors.surface;
-  const tabBorder = isAdmin
+  const tabBorder = isAdmin || isTrainer
     ? ucapsaBrand.colors.border
     : isPremium
       ? ucapsaBrand.colors.premiumBorder
       : ucapsaBrand.colors.border;
-  const inactiveTint = isAdmin
+  const inactiveTint = isAdmin || isTrainer
     ? ucapsaBrand.colors.mutedNeutral
     : isPremium
       ? ucapsaBrand.colors.premiumMuted
       : ucapsaBrand.colors.muted;
-  const activeTint = isAdmin ? ucapsaBrand.colors.red : isPremium ? ucapsaBrand.colors.premiumActionText : format.accent;
-  const activeSurface = isAdmin
+  const activeTint = isAdmin || isTrainer ? ucapsaBrand.colors.red : isPremium ? ucapsaBrand.colors.premiumActionText : format.accent;
+  const activeSurface = isAdmin || isTrainer
     ? ucapsaBrand.colors.redSoft
     : isPremium
       ? ucapsaBrand.colors.premiumSurfaceAlt
       : ucapsaBrand.colors.redSoft;
-  const isClient = Boolean(user) && !isAdmin;
-  const isGuest = !user && !isAdmin;
+  const isClient = Boolean(user) && !isAdmin && !isTrainer;
+  const isGuest = !user && !isAdmin && !isTrainer;
   const icon = (name: keyof typeof MaterialIcons.glyphMap) => ({ color, size, focused }: { color: ColorValue; size: number; focused: boolean }) => (
     <TabIcon name={name} color={color} size={size} focused={focused} activeSurface={activeSurface} />
   );
 
   return (
     <Tabs
-      initialRouteName={isAdmin ? 'admin-home' : 'home'}
+      initialRouteName={isAdmin ? 'admin-home' : isTrainer ? 'staff-home' : 'home'}
       screenOptions={{
         headerShown: false,
         tabBarHideOnKeyboard: true,
@@ -96,14 +96,14 @@ export default function TabsLayout() {
           shadowOffset: { width: 0, height: -4 },
           elevation: 14,
         },
-        sceneStyle: { backgroundColor: isAdmin ? ucapsaBrand.colors.background : format.background },
+        sceneStyle: { backgroundColor: isAdmin || isTrainer ? ucapsaBrand.colors.background : format.background },
       }}
     >
-      <Tabs.Screen name="home" options={{ href: isAdmin ? null : '/home', title: 'Inicio', tabBarIcon: icon('home') }} />
+      <Tabs.Screen name="home" options={{ href: isAdmin || isTrainer ? null : '/home', title: 'Inicio', tabBarIcon: icon('home') }} />
       <Tabs.Screen name="classes" options={{ href: isClient ? '/classes' : null, title: 'Clases', tabBarIcon: icon('school') }} />
-      <Tabs.Screen name="calendar" options={{ href: isAdmin ? null : '/calendar', title: isClient ? 'Agenda' : 'Calendario', tabBarIcon: icon('calendar-month') }} />
+      <Tabs.Screen name="calendar" options={{ href: isAdmin || isTrainer ? null : '/calendar', title: isClient ? 'Agenda' : 'Calendario', tabBarIcon: icon('calendar-month') }} />
       <Tabs.Screen name="dog" options={{ href: isClient ? '/dog' : null, title: 'Mis perros', tabBarIcon: icon('pets') }} />
-      <Tabs.Screen name="profile" options={{ href: isAdmin ? null : '/profile', title: 'Perfil', tabBarIcon: icon('person') }} />
+      <Tabs.Screen name="profile" options={{ href: isAdmin || isTrainer ? null : '/profile', title: 'Perfil', tabBarIcon: icon('person') }} />
 
       <Tabs.Screen name="services" options={{ href: isGuest ? '/services' : null, title: 'Servicios', tabBarIcon: icon('grid-view') }} />
       <Tabs.Screen name="payments" options={{ href: null, title: 'Pagos', tabBarIcon: icon('account-balance-wallet') }} />
@@ -116,6 +116,12 @@ export default function TabsLayout() {
       <Tabs.Screen name="admin-payments" options={{ href: isAdmin ? '/admin-payments' : null, title: 'Pagos', tabBarIcon: icon('payments') }} />
       <Tabs.Screen name="admin-communication" options={{ href: isAdmin ? '/admin-communication' : null, title: 'Comunic.', tabBarIcon: icon('campaign') }} />
       <Tabs.Screen name="admin-more" options={{ href: null, title: 'Herramientas', tabBarIcon: icon('settings') }} />
+
+      <Tabs.Screen name="staff-home" options={{ href: isTrainer ? '/staff-home' : null, title: 'Inicio', tabBarIcon: icon('home') }} />
+      <Tabs.Screen name="staff-classes" options={{ href: isTrainer ? '/staff-classes' : null, title: 'Clases', tabBarIcon: icon('school') }} />
+      <Tabs.Screen name="staff-dogs" options={{ href: isTrainer ? '/staff-dogs' : null, title: 'Perros', tabBarIcon: icon('pets') }} />
+      <Tabs.Screen name="staff-exams" options={{ href: isTrainer ? '/staff-exams' : null, title: 'Exámenes', tabBarIcon: icon('fact-check') }} />
+      <Tabs.Screen name="staff-profile" options={{ href: isTrainer ? '/staff-profile' : null, title: 'Perfil', tabBarIcon: icon('person') }} />
     </Tabs>
   );
 }
