@@ -7,6 +7,7 @@ import { StaffWorkspaceSwitcher } from '../../components/domain/StaffWorkspaceSw
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
+import { useStaffWorkspace } from '../../hooks/useStaffWorkspace';
 import {
   getStaffClassSummary,
   tomorrowKey,
@@ -82,6 +83,7 @@ function groupClasses(rows: StaffClassSummaryRow[]): GroupedClass[] {
 
 export default function TrainerHomeTab() {
   const { profile, isAdmin, capabilities } = useSession();
+  const { mode: staffWorkspaceMode, loading: workspaceLoading } = useStaffWorkspace();
   const [rows, setRows] = useState<StaffClassSummaryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -115,6 +117,7 @@ export default function TrainerHomeTab() {
   }
 
   if (!capabilities.canUseTrainingWorkspace) return <Redirect href={isAdmin ? '/admin-home' : '/home'} />;
+  if (isAdmin && !workspaceLoading && staffWorkspaceMode === 'admin') return <Redirect href="/admin-home" />;
 
   return (
     <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={ucapsaBrand.colors.red} />}>
