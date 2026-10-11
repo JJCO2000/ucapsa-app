@@ -150,7 +150,7 @@ begin
     clock_timestamp(),
     clock_timestamp()
   )
-  on conflict (enrollment_id, class_date) do update
+  on conflict on constraint program_class_rsvps_enrollment_date_unique do update
   set
     user_id = excluded.user_id,
     response = excluded.response,
