@@ -19,6 +19,7 @@ const report = read('src/app/staff/training-report.tsx');
 const trainerService = read('src/services/trainer-staff.service.ts');
 const trainerSql = read('supabase/sql/ucapsa-trainer-workspace.sql');
 const trainerModeSql = read('supabase/sql/ucapsa-trainer-workspace-exam-upload.sql');
+const comandosScheduleSql = read('supabase/sql/ucapsa-comandos-single-schedule.sql');
 const trainerSqlAll = trainerSql + '\n' + trainerModeSql;
 const staffWorkspace = read('src/hooks/useStaffWorkspace.tsx');
 const staffWorkspaceService = read('src/services/staff-workspace-storage.service.ts');
@@ -101,6 +102,15 @@ if (trainerHome.includes("row.programLevel}:") || trainerHome.includes(":${row.p
 }
 if (!trainerClasses.includes("const key = `${row.scheduleId}:${row.programCode}:${row.startTime}`")) {
   throw new Error('El roster de Comandos debe partir del horario compartido y conservar el nivel en cada inscripción.');
+}
+
+for (const token of [
+  'enforce_single_commands_schedule',
+  "v_program_code = 'comandos'",
+  'ps.id <> new.id',
+  'Comandos usa un solo horario lógico',
+]) {
+  if (!comandosScheduleSql.includes(token)) throw new Error('DB invariant for one Comandos schedule missing: ' + token);
 }
 
 for (const token of ['levelLabel(row.programLevel)', 'levelPill', 'Básico', 'Intermedio', 'Avanzado']) {
