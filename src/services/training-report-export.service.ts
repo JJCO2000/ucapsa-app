@@ -22,6 +22,7 @@ export type TrainingReportStats = {
   missingAttendance: number;
   markedOutcomes: number;
   confirmedAttended: number;
+  confirmedMarked: number;
   attendanceRate: number | null;
   markCoverageRate: number | null;
   confirmedAttendanceRate: number | null;
@@ -93,6 +94,7 @@ export function buildTrainingReportStats(rows: StaffTrainingReportRow[]): Traini
   const markedOutcomes = attended + absent;
   const unmarked = Math.max(0, rows.length - markedOutcomes);
   const confirmedAttended = rows.filter((row) => row.rsvpResponse === 'yes' && row.attended).length;
+  const confirmedMarked = rows.filter((row) => row.rsvpResponse === 'yes' && (row.attended || row.absent)).length;
 
   return {
     uniqueClients,
@@ -108,9 +110,10 @@ export function buildTrainingReportStats(rows: StaffTrainingReportRow[]): Traini
     missingAttendance: unmarked,
     markedOutcomes,
     confirmedAttended,
+    confirmedMarked,
     attendanceRate: markedOutcomes > 0 ? attended / markedOutcomes : null,
     markCoverageRate: rows.length > 0 ? markedOutcomes / rows.length : null,
-    confirmedAttendanceRate: confirmed > 0 ? confirmedAttended / confirmed : null,
+    confirmedAttendanceRate: confirmedMarked > 0 ? confirmedAttended / confirmedMarked : null,
   };
 }
 
@@ -220,7 +223,8 @@ function workbookBytes(rows: StaffTrainingReportRow[], startDate: string, endDat
     ['Tasa de asistencia sobre resultados marcados', formatTrainingPercentage(stats.attendanceRate)],
     ['Cobertura del registro de asistencia', formatTrainingPercentage(stats.markCoverageRate)],
     ['Confirmados que asistieron', stats.confirmedAttended],
-    ['Tasa confirmados → asistencia', formatTrainingPercentage(stats.confirmedAttendanceRate)],
+    ['Confirmados con asistencia registrada', stats.confirmedMarked],
+    ['Tasa confirmados → asistencia (marcados)', formatTrainingPercentage(stats.confirmedAttendanceRate)],
   ];
 
   const programRows: CellValue[][] = [
