@@ -11,9 +11,12 @@ import {
   createTrainerExamAttempt,
   getTrainerExamCatalog,
   getTrainerExamDogs,
+  getTrainerExamItems,
+  uploadTrainerExamResults,
   type TrainerExamCatalogRow,
   type TrainerExamDog,
 } from '../../services/trainer-staff.service';
+import { pickAndParseUcapsaExamXlsx } from '../../services/ucapsa-exam-xlsx';
 
 export default function TrainerExamsTab() {
   const { isTrainer } = useSession();
@@ -77,6 +80,32 @@ export default function TrainerExamsTab() {
     }
   }
 
+  async function uploadExamScores(exam: TrainerExamCatalogRow) {
+    if (saving) return;
+    try {
+      setSaving(true);
+      const items = await getTrainerExamItems(exam.examId);
+      const picked = await pickAndParseUcapsaExamXlsx(items);
+      if (!picked) return;
+
+      const result = await uploadTrainerExamResults({
+        examId: exam.examId,
+        fileName: picked.fileName,
+        rows: picked.rows,
+      });
+
+      Alert.alert(
+        'Calificaciones subidas',
+        `${result.rowsImported} resultado${result.rowsImported === 1 ? '' : 's'} quedaron revisados y listos para que Administración publique/oficialice.`,
+      );
+      await load();
+    } catch (cause) {
+      Alert.alert('No se pudo subir el Excel', cause instanceof Error ? cause.message : 'Revisa el archivo e intenta de nuevo.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   if (!isTrainer) return <Redirect href="/home" />;
 
   return (
@@ -84,7 +113,7 @@ export default function TrainerExamsTab() {
       <View style={styles.header}>
         <Text style={styles.kicker}>Entrenador · Evaluación</Text>
         <Text style={styles.title}>Exámenes</Text>
-        <Text style={styles.subtitle}>Captura resultados. La configuración, publicación y elección del intento oficial siguen en Administración.</Text>
+        <Text style={styles.subtitle}>Captura un examen perro por perro o sube calificaciones por Excel. Administración conserva la estructura, publicación y el intento oficial.</Text>
       </View>
 
       {loading ? (
@@ -104,15 +133,32 @@ export default function TrainerExamsTab() {
 
       <View style={styles.list}>
         {exams.map((exam) => (
-          <Pressable key={exam.examId} style={styles.examCard} onPress={() => { setSelectedExam(exam); setDogQuery(''); }}>
+          <View key={exam.examId} style={styles.examCard}>
             <View style={styles.examIcon}><MaterialIcons name="assignment" size={21} color={ucapsaBrand.colors.purpleDark} /></View>
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={styles.examCode}>{exam.examCode}</Text>
               <Text style={styles.examTitle}>{exam.examTitle}</Text>
               <Text style={styles.examMeta}>{exam.seasonName} · {exam.itemCount} ejercicios · {exam.maxPoints} pts</Text>
+              <View style={styles.examActions}>
+                <Pressable
+                  disabled={saving}
+                  style={styles.captureButton}
+                  onPress={() => { setSelectedExam(exam); setDogQuery(''); }}
+                >
+                  <MaterialIcons name="edit-note" size={17} color={ucapsaBrand.colors.redDark} />
+                  <Text style={styles.captureText}>Capturar</Text>
+                </Pressable>
+                <Pressable
+                  disabled={saving}
+                  style={styles.uploadButton}
+                  onPress={() => void uploadExamScores(exam)}
+                >
+                  <MaterialIcons name="upload-file" size={17} color={ucapsaBrand.colors.greenDark} />
+                  <Text style={styles.uploadText}>Subir Excel</Text>
+                </Pressable>
+              </View>
             </View>
-            <MaterialIcons name="play-arrow" size={23} color={ucapsaBrand.colors.redDark} />
-          </Pressable>
+          </View>
         ))}
       </View>
 
@@ -166,6 +212,11 @@ const styles = StyleSheet.create({
   examCode: { color: ucapsaBrand.colors.purpleDark, fontSize: 9, fontWeight: '900', letterSpacing: 0.6 },
   examTitle: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900', marginTop: 1 },
   examMeta: { color: ucapsaBrand.colors.muted, fontSize: 10, lineHeight: 14, fontWeight: '700', marginTop: 3 },
+  examActions: { flexDirection: 'row', gap: 7, marginTop: 8 },
+  captureButton: { minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 11, backgroundColor: ucapsaBrand.colors.redSoft, paddingHorizontal: 9 },
+  captureText: { color: ucapsaBrand.colors.redDark, fontSize: 9, fontWeight: '900' },
+  uploadButton: { minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 11, backgroundColor: ucapsaBrand.colors.greenSoft, paddingHorizontal: 9 },
+  uploadText: { color: ucapsaBrand.colors.greenDark, fontSize: 9, fontWeight: '900' },
   modalKicker: { color: ucapsaBrand.colors.redDark, fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
   modalTitle: { color: ucapsaBrand.colors.text, fontSize: 24, fontWeight: '900' },
   modalSubtitle: { color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 16, fontWeight: '700', marginTop: 3, marginBottom: 10 },
