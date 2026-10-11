@@ -112,6 +112,8 @@ for (const token of ['levelLabel(row.programLevel)', 'levelPill', 'Básico', 'In
 for (const token of [
   'getStaffClassRoster',
   'registerStaffAttendance',
+  'markStaffAbsence',
+  'No asistió',
   'requestMembershipReviewFromStaff',
   '/staff/dog-notes?dogId=',
   'row.safetyNote',
@@ -160,10 +162,25 @@ for (const token of [
 for (const token of [
   'getStaffTrainingReport',
   'exportTrainingReportXlsx',
-  'Exportar Excel',
+  'buildTrainingReportStats',
+  'Exportar estadísticas',
 ]) {
   if (!report.includes(token)) throw new Error('Trainer report export missing: ' + token);
 }
+const reportExport = read('src/services/training-report-export.service.ts');
+for (const token of ['Resumen', 'Por programa', 'No asistieron', 'Sin resultado registrado', 'Tasa de asistencia', 'markCoverageRate', 'uniqueClients', 'uniqueDogs']) {
+  if (!reportExport.includes(token)) throw new Error('Trainer hard-statistics export missing: ' + token);
+}
+const absenceSql = read('supabase/sql/ucapsa-staff-explicit-absences.sql');
+for (const token of [
+  'program_attendance_absences',
+  'staff_mark_program_absence',
+  'clear_staff_absence_on_attendance',
+  'absent boolean',
+]) {
+  if (!absenceSql.includes(token)) throw new Error('Explicit attendance outcome SQL missing: ' + token);
+}
+
 if (!trainerMore.includes('/staff/training-report')) {
   throw new Error('Trainer tools lost report entry point.');
 }
@@ -253,6 +270,7 @@ for (const token of [
 for (const token of [
   "supabase.rpc('get_staff_class_roster'",
   "supabase.rpc('staff_register_program_attendance'",
+  "supabase.rpc('staff_mark_program_absence'",
   "supabase.rpc('trainer_import_ucapsa_exam_results'",
   "supabase.rpc('trainer_create_ucapsa_exam_draft'",
   "supabase.rpc('get_staff_dog_operational_profile'",

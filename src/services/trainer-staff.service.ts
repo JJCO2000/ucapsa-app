@@ -27,6 +27,7 @@ export type StaffRosterRow = {
   dogName: string;
   rsvpResponse: 'yes' | 'no' | null;
   attended: boolean;
+  absent: boolean;
   safetySeverity: 'high' | 'caution' | null;
   safetyNote: string | null;
 };
@@ -77,10 +78,13 @@ export type StaffTrainingReportRow = {
   programLevel: string;
   startTime: string;
   enrollmentId: string;
+  userId: string;
+  dogId: string | null;
   clientName: string;
   dogName: string;
   rsvpResponse: 'yes' | 'no' | null;
   attended: boolean;
+  absent: boolean;
 };
 
 export type TrainerExamCatalogRow = {
@@ -213,6 +217,7 @@ export async function getStaffClassRoster(dateKey: string): Promise<StaffRosterR
     dogName: row.dog_name,
     rsvpResponse: row.rsvp_response === 'yes' || row.rsvp_response === 'no' ? row.rsvp_response : null,
     attended: Boolean(row.attended),
+    absent: Boolean(row.absent),
     safetySeverity: row.safety_severity === 'high' || row.safety_severity === 'caution' ? row.safety_severity : null,
     safetyNote: row.safety_note ?? null,
   }));
@@ -225,6 +230,22 @@ export async function registerStaffAttendance(input: {
   notes?: string | null;
 }) {
   const { data, error } = await supabase.rpc('staff_register_program_attendance', {
+    p_enrollment_id: input.enrollmentId,
+    p_attendance_date: input.attendanceDate,
+    p_schedule_id: input.scheduleId,
+    p_notes: input.notes?.trim() || undefined,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function markStaffAbsence(input: {
+  enrollmentId: string;
+  attendanceDate: string;
+  scheduleId: string;
+  notes?: string | null;
+}) {
+  const { data, error } = await supabase.rpc('staff_mark_program_absence', {
     p_enrollment_id: input.enrollmentId,
     p_attendance_date: input.attendanceDate,
     p_schedule_id: input.scheduleId,
@@ -371,10 +392,13 @@ export async function getStaffTrainingReport(startDate: string, endDate: string)
     programLevel: row.program_level,
     startTime: String(row.start_time ?? '').slice(0, 5),
     enrollmentId: row.enrollment_id,
+    userId: row.user_id,
+    dogId: row.dog_id ?? null,
     clientName: row.client_name,
     dogName: row.dog_name,
     rsvpResponse: row.rsvp_response === 'yes' || row.rsvp_response === 'no' ? row.rsvp_response : null,
     attended: Boolean(row.attended),
+    absent: Boolean(row.absent),
   }));
 }
 

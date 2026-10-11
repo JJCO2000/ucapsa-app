@@ -5,6 +5,27 @@ import { strToU8, zipSync } from 'fflate';
 import type { StaffTrainingReportRow } from './trainer-staff.service';
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const XML_SELF_CLOSE = '/' + '>';
+type CellValue = string | number | boolean;
+
+export type TrainingReportStats = {
+  uniqueClients: number;
+  uniqueDogs: number;
+  classOccurrences: number;
+  eligibleRows: number;
+  confirmed: number;
+  declined: number;
+  noResponse: number;
+  attended: number;
+  absent: number;
+  unmarked: number;
+  missingAttendance: number;
+  markedOutcomes: number;
+  confirmedAttended: number;
+  attendanceRate: number;
+  markCoverageRate: number;
+  confirmedAttendanceRate: number;
+};
 
 function xmlEscape(value: string) {
   return value
@@ -30,9 +51,9 @@ function packagePartName(value: string) {
   return `/${value.replace(/^\/+/, '')}`;
 }
 
-function inlineCell(reference: string, value: string | number | boolean, style = 0) {
+function inlineCell(reference: string, value: CellValue, style = 0) {
   if (typeof value === 'number') {
-    return `<c r="${reference}" s="${style}"><v>${value}</v></c>`;
+    return `<c r="${reference}" s="${style}"><v>${Number.isFinite(value) ? value : 0}</v></c>`;
   }
   if (typeof value === 'boolean') {
     return `<c r="${reference}" s="${style}" t="b"><v>${value ? 1 : 0}</v></c>`;
@@ -54,41 +75,185 @@ function rsvpLabel(value: StaffTrainingReportRow['rsvpResponse']) {
   return 'Sin respuesta';
 }
 
-function worksheetXml(rows: StaffTrainingReportRow[]) {
-  const headers = ['Fecha', 'Hora', 'Programa', 'Nivel', 'Cliente', 'Perro', 'Confirmación', 'Asistió'];
-  const data = rows.map((row) => [
-    row.classDate,
-    row.startTime,
-    row.programName,
-    levelLabel(row.programCode, row.programLevel),
-    row.clientName,
-    row.dogName,
-    rsvpLabel(row.rsvpResponse),
-    row.attended ? 'Sí' : 'No',
-  ]);
+function percentage(value: number) {
+  return `${(value * 100).toFixed(1)}%`;
+}
 
-  const sheetRows = [headers, ...data].map((row, rowIndex) => {
+export function buildTrainingReportStats(rows: StaffTrainingReportRow[]): TrainingReportStats {
+  const uniqueClients = new Set(rows.map((row) => row.userId)).size;
+  const uniqueDogs = new Set(rows.map((row) => row.dogId ?? row.enrollmentId)).size;
+  const classOccurrences = new Set(
+    rows.map((row) => `${row.classDate}:${row.scheduleId}:${row.startTime}`),
+  ).size;
+  const confirmed = rows.filter((row) => row.rsvpResponse === 'yes').length;
+  const declined = rows.filter((row) => row.rsvpResponse === 'no').length;
+  const noResponse = rows.length - confirmed - declined;
+  const attended = rows.filter((row) => row.attended).length;
+  const absent = rows.filter((row) => row.absent).length;
+  const markedOutcomes = attended + absent;
+  const unmarked = Math.max(0, rows.length - markedOutcomes);
+  const confirmedAttended = rows.filter((row) => row.rsvpResponse === 'yes' && row.attended).length;
+
+  return {
+    uniqueClients,
+    uniqueDogs,
+    classOccurrences,
+    eligibleRows: rows.length,
+    confirmed,
+    declined,
+    noResponse,
+    attended,
+    absent,
+    unmarked,
+    missingAttendance: unmarked,
+    markedOutcomes,
+    confirmedAttended,
+    attendanceRate: markedOutcomes > 0 ? attended / markedOutcomes : 0,
+    markCoverageRate: rows.length > 0 ? markedOutcomes / rows.length : 0,
+    confirmedAttendanceRate: confirmed > 0 ? confirmedAttended / confirmed : 0,
+  };
+}
+
+type ProgramStats = {
+  program: string;
+  level: string;
+  eligible: number;
+  attended: number;
+  absent: number;
+  unmarked: number;
+  missingAttendance: number;
+  confirmed: number;
+  declined: number;
+  noResponse: number;
+  attendanceRate: number;
+  markCoverageRate: number;
+};
+
+function buildProgramStats(rows: StaffTrainingReportRow[]): ProgramStats[] {
+  const groups = new Map<string, {
+    program: string;
+    level: string;
+    eligible: number;
+    attended: number;
+    absent: number;
+    confirmed: number;
+    declined: number;
+    noResponse: number;
+  }>();
+
+  for (const row of rows) {
+    const level = levelLabel(row.programCode, row.programLevel);
+    const key = `${row.programCode}:${level}`;
+    const current = groups.get(key) ?? {
+      program: row.programName,
+      level,
+      eligible: 0,
+      attended: 0,
+      absent: 0,
+      confirmed: 0,
+      declined: 0,
+      noResponse: 0,
+    };
+    current.eligible += 1;
+    if (row.attended) current.attended += 1;
+    if (row.absent) current.absent += 1;
+    if (row.rsvpResponse === 'yes') current.confirmed += 1;
+    else if (row.rsvpResponse === 'no') current.declined += 1;
+    else current.noResponse += 1;
+    groups.set(key, current);
+  }
+
+  return [...groups.values()]
+    .map((item) => ({
+      ...item,
+      unmarked: Math.max(0, item.eligible - item.attended - item.absent),
+      missingAttendance: Math.max(0, item.eligible - item.attended - item.absent),
+      attendanceRate: (item.attended + item.absent) > 0 ? item.attended / (item.attended + item.absent) : 0,
+      markCoverageRate: item.eligible > 0 ? (item.attended + item.absent) / item.eligible : 0,
+    }))
+    .sort((left, right) =>
+      left.program.localeCompare(right.program, 'es-MX') || left.level.localeCompare(right.level, 'es-MX'),
+    );
+}
+
+function worksheetXml(rows: CellValue[][], widths: number[], withFilter = true) {
+  const sheetRows = rows.map((row, rowIndex) => {
     const cells = row.map((value, columnIndex) =>
-      inlineCell(`${columnName(columnIndex)}${rowIndex + 1}`, String(value), rowIndex === 0 ? 1 : 0),
+      inlineCell(`${columnName(columnIndex)}${rowIndex + 1}`, value, rowIndex === 0 ? 1 : 0),
     ).join('');
     return `<row r="${rowIndex + 1}">${cells}</row>`;
   }).join('');
 
+  const columns = widths.map((width, index) =>
+    `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"${XML_SELF_CLOSE}`,
+  ).join('');
+
+  const maxColumn = columnName(Math.max(0, (rows[0]?.length ?? 1) - 1));
+  const filter = withFilter && rows.length > 0
+    ? `<autoFilter ref="A1:${maxColumn}${Math.max(1, rows.length)}"${XML_SELF_CLOSE}`
+    : '';
+
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <cols>
-    <col min="1" max="1" width="13" customWidth="1"/>
-    <col min="2" max="2" width="10" customWidth="1"/>
-    <col min="3" max="4" width="18" customWidth="1"/>
-    <col min="5" max="6" width="24" customWidth="1"/>
-    <col min="7" max="8" width="18" customWidth="1"/>
-  </cols>
+  <cols>${columns}</cols>
   <sheetData>${sheetRows}</sheetData>
-  <autoFilter ref="A1:H${Math.max(1, data.length + 1)}"/>
+  ${filter}
 </worksheet>`;
 }
 
-function workbookBytes(rows: StaffTrainingReportRow[]) {
+function workbookBytes(rows: StaffTrainingReportRow[], startDate: string, endDate: string) {
+  const stats = buildTrainingReportStats(rows);
+  const summaryRows: CellValue[][] = [
+    ['Métrica', 'Valor'],
+    ['Desde', startDate],
+    ['Hasta', endDate],
+    ['Clientes únicos', stats.uniqueClients],
+    ['Perros únicos', stats.uniqueDogs],
+    ['Clases con inscritos', stats.classOccurrences],
+    ['Participaciones elegibles', stats.eligibleRows],
+    ['Confirmaron asistencia', stats.confirmed],
+    ['Indicaron que no asistirían', stats.declined],
+    ['Sin respuesta RSVP', stats.noResponse],
+    ['Asistieron', stats.attended],
+    ['No asistieron', stats.absent],
+    ['Sin resultado registrado', stats.unmarked],
+    ['Tasa de asistencia sobre resultados marcados', percentage(stats.attendanceRate)],
+    ['Cobertura del registro de asistencia', percentage(stats.markCoverageRate)],
+    ['Confirmados que asistieron', stats.confirmedAttended],
+    ['Tasa confirmados → asistencia', percentage(stats.confirmedAttendanceRate)],
+  ];
+
+  const programRows: CellValue[][] = [
+    ['Programa', 'Nivel', 'Elegibles', 'Asistieron', 'No asistieron', 'Sin registrar', 'Confirmaron', 'No asistirán (RSVP)', 'Sin respuesta', 'Tasa asistencia', 'Cobertura registro'],
+    ...buildProgramStats(rows).map((item) => [
+      item.program,
+      item.level,
+      item.eligible,
+      item.attended,
+      item.absent,
+      item.unmarked,
+      item.confirmed,
+      item.declined,
+      item.noResponse,
+      percentage(item.attendanceRate),
+      percentage(item.markCoverageRate),
+    ]),
+  ];
+
+  const detailRows: CellValue[][] = [
+    ['Fecha', 'Hora', 'Programa', 'Nivel', 'Cliente', 'Perro', 'Confirmación', 'Asistencia'],
+    ...rows.map((row) => [
+      row.classDate,
+      row.startTime,
+      row.programName,
+      levelLabel(row.programCode, row.programLevel),
+      row.clientName,
+      row.dogName,
+      rsvpLabel(row.rsvpResponse),
+      row.attended ? 'Asistió' : row.absent ? 'No asistió' : 'Sin registrar',
+    ]),
+  ];
+
   const files: Record<string, Uint8Array> = {
     '[Content_Types].xml': strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
@@ -96,6 +261,8 @@ function workbookBytes(rows: StaffTrainingReportRow[]) {
   <Default Extension="xml" ContentType="application/xml"/>
   <Override PartName="${packagePartName('xl/workbook.xml')}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
   <Override PartName="${packagePartName('xl/worksheets/sheet1.xml')}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="${packagePartName('xl/worksheets/sheet2.xml')}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="${packagePartName('xl/worksheets/sheet3.xml')}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
   <Override PartName="${packagePartName('xl/styles.xml')}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
 </Types>`),
     '_rels/.rels': strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -104,12 +271,18 @@ function workbookBytes(rows: StaffTrainingReportRow[]) {
 </Relationships>`),
     'xl/workbook.xml': strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-  <sheets><sheet name="Clases" sheetId="1" r:id="rId1"/></sheets>
+  <sheets>
+    <sheet name="Resumen" sheetId="1" r:id="rId1"/>
+    <sheet name="Por programa" sheetId="2" r:id="rId2"/>
+    <sheet name="Detalle" sheetId="3" r:id="rId3"/>
+  </sheets>
 </workbook>`),
     'xl/_rels/workbook.xml.rels': strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
-  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet3.xml"/>
+  <Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
 </Relationships>`),
     'xl/styles.xml': strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
@@ -125,7 +298,9 @@ function workbookBytes(rows: StaffTrainingReportRow[]) {
     <xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>
   </cellXfs>
 </styleSheet>`),
-    'xl/worksheets/sheet1.xml': strToU8(worksheetXml(rows)),
+    'xl/worksheets/sheet1.xml': strToU8(worksheetXml(summaryRows, [34, 22], false)),
+    'xl/worksheets/sheet2.xml': strToU8(worksheetXml(programRows, [22, 18, 12, 12, 14, 14, 12, 18, 12, 16, 16])),
+    'xl/worksheets/sheet3.xml': strToU8(worksheetXml(detailRows, [13, 10, 20, 18, 24, 24, 18, 24])),
   };
 
   return zipSync(files, { level: 6 });
@@ -138,14 +313,14 @@ export async function exportTrainingReportXlsx(
 ) {
   const safeStart = startDate.replaceAll('-', '');
   const safeEnd = endDate.replaceAll('-', '');
-  const file = new File(Paths.cache, `UCAPSA_clases_${safeStart}_${safeEnd}.xlsx`);
+  const file = new File(Paths.cache, `UCAPSA_estadisticas_clases_${safeStart}_${safeEnd}.xlsx`);
   if (file.exists) file.delete();
   file.create();
-  await file.write(workbookBytes(rows));
+  await file.write(workbookBytes(rows, startDate, endDate));
 
   if (await Sharing.isAvailableAsync()) {
     await Sharing.shareAsync(file.uri, {
-      dialogTitle: 'Exportar reporte UCAPSA',
+      dialogTitle: 'Exportar estadísticas UCAPSA',
       mimeType: XLSX_MIME,
       UTI: 'org.openxmlformats.spreadsheetml.sheet',
     });
