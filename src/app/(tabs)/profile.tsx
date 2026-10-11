@@ -61,7 +61,7 @@ export default function ProfileScreen() {
         <HubRow
           icon="pets"
           title="Mis perros"
-          subtitle="Perfil, entrenamiento, nivel, historial y logros de cada perro."
+          subtitle="Perfil, entrenamiento, nivel e historial de cada perro."
           premium={premium}
           format={format}
           onPress={() => router.push('/dog' as never)}
