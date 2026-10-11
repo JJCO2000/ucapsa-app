@@ -661,8 +661,8 @@ Deno.serve(async (req) => {
         ? `Recordatorio ${firstProgramLabel}`
         : 'Recordatorio de clases';
       const body = reminders.length === 1
-        ? `Tu clase${firstDogPart} (${firstScheduleLabel}) es el ${classDateKey} a las ${firstTimeLabel}.`
-        : `Tienes ${reminders.length} clases el ${classDateKey}. La primera es ${firstProgramLabel} (${firstScheduleLabel}) a las ${firstTimeLabel}.`;
+        ? `Tu clase${firstDogPart} (${firstScheduleLabel}) es el ${classDateKey} a las ${firstTimeLabel}. Abre UCAPSA y confirma si vas a asistir.`
+        : `Tienes ${reminders.length} clases el ${classDateKey}. La primera es ${firstProgramLabel} (${firstScheduleLabel}) a las ${firstTimeLabel}. Abre UCAPSA y confirma tu asistencia.`;
 
       return {
         to: token.expo_push_token,
