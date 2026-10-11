@@ -7,7 +7,7 @@ import { Calendar } from 'react-native-calendars';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
-import { exportTrainingReportXlsx } from '../../services/training-report-export.service';
+import { buildTrainingReportStats, exportTrainingReportXlsx } from '../../services/training-report-export.service';
 import {
   currentMonthRange,
   getStaffTrainingReport,
@@ -84,8 +84,7 @@ export default function StaffTrainingReportScreen() {
     setPreviewed(false);
   }
 
-  const attended = rows.filter((row) => row.attended).length;
-  const confirmed = rows.filter((row) => row.rsvpResponse === 'yes').length;
+  const stats = useMemo(() => buildTrainingReportStats(rows), [rows]);
 
   return (
     <KeyboardAwareScreen>
@@ -96,7 +95,7 @@ export default function StaffTrainingReportScreen() {
         <View style={{ flex: 1 }}>
           <Text style={styles.kicker}>UCAPSA Staff</Text>
           <Text style={styles.title}>Reporte de clases</Text>
-          <Text style={styles.subtitle}>Exporta asistencia y confirmaciones por mes o por el rango que elijas.</Text>
+          <Text style={styles.subtitle}>Exporta datos duros: asistencia, RSVP, clientes, perros y desglose por programa.</Text>
         </View>
       </View>
 
@@ -156,15 +155,18 @@ export default function StaffTrainingReportScreen() {
         </Pressable>
         <Pressable disabled={generating} style={[styles.exportButton, generating && styles.disabled]} onPress={() => void exportExcel()}>
           <MaterialIcons name="table-view" size={19} color={ucapsaBrand.colors.surface} />
-          <Text style={styles.exportText}>Exportar Excel</Text>
+          <Text style={styles.exportText}>Exportar estadísticas</Text>
         </Pressable>
       </View>
 
       {previewed ? (
         <View style={styles.summaryGrid}>
-          <Summary value={rows.length} label="Registros de clase" />
-          <Summary value={confirmed} label="Confirmaciones" />
-          <Summary value={attended} label="Asistencias reales" />
+          <Summary value={stats.uniqueClients} label="Clientes únicos" />
+          <Summary value={stats.uniqueDogs} label="Perros únicos" />
+          <Summary value={stats.classOccurrences} label="Clases con inscritos" />
+          <Summary value={stats.attended} label="Asistencias" />
+          <Summary value={stats.missingAttendance} label="Sin asistencia registrada" />
+          <Summary value={`${(stats.attendanceRate * 100).toFixed(1)}%`} label="Tasa de asistencia" />
         </View>
       ) : null}
 
@@ -186,7 +188,7 @@ export default function StaffTrainingReportScreen() {
   );
 }
 
-function Summary({ value, label }: { value: number; label: string }) {
+function Summary({ value, label }: { value: number | string; label: string }) {
   return (
     <View style={styles.summaryCard}>
       <Text style={styles.summaryValue}>{value}</Text>
@@ -214,8 +216,8 @@ const styles = StyleSheet.create({
   previewText: { color: ucapsaBrand.colors.redDark, fontSize: 11, fontWeight: '900' },
   exportButton: { flex: 1, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 14, backgroundColor: ucapsaBrand.colors.red },
   exportText: { color: ucapsaBrand.colors.surface, fontSize: 11, fontWeight: '900' },
-  summaryGrid: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  summaryCard: { flex: 1, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 11 },
+  summaryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  summaryCard: { width: '31%', flexGrow: 1, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 11 },
   summaryValue: { color: ucapsaBrand.colors.text, fontSize: 20, fontWeight: '900' },
   summaryLabel: { color: ucapsaBrand.colors.muted, fontSize: 8, lineHeight: 11, fontWeight: '800', marginTop: 2 },
   previewList: { borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, overflow: 'hidden' },
