@@ -7,7 +7,6 @@
 --
 -- Esta migración es aditiva. No reemplaza admin/super_admin.
 
-alter type public.app_role add value if not exists 'trainer';
 
 create or replace function public.is_ucapsa_trainer()
 returns boolean
