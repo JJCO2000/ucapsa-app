@@ -94,7 +94,7 @@ const sqlFiles = fs.readdirSync('supabase/sql')
   .filter((name) => name.endsWith('.sql'))
   .sort();
 
-const adminRoleGuard = /\b(?:public\.)?(?:is_ucapsa_admin|is_admin|is_super_admin)\s*\(/i;
+const adminRoleGuard = /\b(?:public\.)?(?:is_ucapsa_admin|is_ucapsa_trainer|is_ucapsa_training_staff|is_admin|is_super_admin)\s*\(/i;
 let adminFunctionDefinitions = 0;
 
 for (const file of sqlFiles) {
@@ -160,7 +160,7 @@ const readHelperAllowlist = new Set([
   'program_schedule_occurs_on_date',
 ]);
 
-const clientAdminName = /^(?:admin_|correct_|delete_|get_admin_|register_.*_admin$|rotate_attendance_qr_code$)/i;
+const clientAdminName = /^(?:admin_|superadmin_|trainer_|staff_|correct_|delete_|get_admin_|get_staff_|register_.*_admin$|rotate_attendance_qr_code$)/i;
 const selfScopeGuard = /\bauth\.uid\s*\(/i;
 let exposedDefinerDefinitions = 0;
 
