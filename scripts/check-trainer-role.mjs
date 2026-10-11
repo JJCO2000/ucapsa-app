@@ -12,6 +12,7 @@ const privilegedSql = [roleSql, attendanceSql, examUploadSql].join('\n');
 const appTypes = read('src/types/app.types.ts');
 const dbTypes = read('src/types/database.generated.ts');
 const session = read('src/hooks/useSession.tsx');
+const capabilities = read('src/constants/roleCapabilities.ts');
 const tabs = read('src/app/(tabs)/_layout.tsx');
 const trainerHome = read('src/app/(tabs)/trainer-home.tsx');
 const trainerDogs = read('src/app/(tabs)/trainer-dogs.tsx');
@@ -34,7 +35,7 @@ for (const [source, token] of [
   [appTypes, "'trainer'"],
   [dbTypes, '"trainer"'],
   [session, "const isTrainer = role === 'trainer'"],
-  [session, 'const isStaff = isAdmin || isTrainer'],
+  [session, 'const isStaff = capabilities.isStaff'],
   [tabs, "initialRouteName={trainerWorkspace ? 'trainer-home' : adminWorkspace ? 'admin-home' : 'home'}"],
   [tabs, 'name="trainer-home"'],
   [tabs, 'name="trainer-dogs"'],
@@ -42,6 +43,27 @@ for (const [source, token] of [
   [tabs, 'name="trainer-reports"'],
 ]) {
   if (!source.includes(token)) throw new Error('Trainer role surface missing: ' + token);
+}
+
+for (const token of [
+  'canUseTrainingWorkspace: true',
+  'canRecordAttendance: true',
+  'canViewOperationalDogData: true',
+  'canWriteInternalDogHistory: true',
+  'canUploadExamDefinition: true',
+  'canCaptureExamResults: true',
+  'canUploadExamResults: true',
+  'canExportOperationalReports: true',
+  'canManagePayments: false',
+  'canManageMemberships: false',
+  'canManageCommunications: false',
+  'canPublishExamResults: false',
+]) {
+  if (!capabilities.includes(token)) throw new Error('Trainer capability matrix missing: ' + token);
+}
+
+if (!session.includes('capabilities: UcapsaCapabilities')) {
+  throw new Error('Session must expose centralized role capabilities.');
 }
 
 if (!enumSql.includes("alter type public.app_role add value if not exists 'trainer'")) {
