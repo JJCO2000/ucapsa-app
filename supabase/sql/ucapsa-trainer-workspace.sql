@@ -7,8 +7,6 @@
 -- - las notas internas de perros son historial de staff, nunca datos visibles al cliente;
 -- - una confirmación RSVP nunca sustituye la asistencia real.
 
-alter type public.app_role add value if not exists 'trainer';
-
 begin;
 
 create or replace function public.is_ucapsa_trainer()
