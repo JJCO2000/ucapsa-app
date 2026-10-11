@@ -12,6 +12,7 @@ import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { useReturnToProfile } from '../../hooks/useReturnToProfile';
 import { useSession } from '../../hooks/useSession';
+import { devWarn } from '../../lib/client-diagnostics';
 import { getPrivateDogPhotoUrls } from '../../services/dog-photos.service';
 import { createMyDog, getMyDogs, type BasicDog } from '../../services/dogs.service';
 import { clientReadKeys, readClientResource, sanitizeProgramRowsForCache, writeClientResource } from '../../services/client-read-cache.service';
@@ -160,7 +161,8 @@ export default function DogTab() {
       .then((urls) => {
         if (active) setPhotoUrls(urls);
       })
-      .catch(() => {
+      .catch((cause) => {
+        devWarn('dog-tab: could not resolve private dog photo URLs; falling back to dog avatars.', cause);
         if (active) setPhotoUrls({});
       });
     return () => { active = false; };
