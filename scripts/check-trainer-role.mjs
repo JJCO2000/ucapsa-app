@@ -361,4 +361,27 @@ for (const path of [
   }
 }
 
+// Statistics integrity: a zero denominator is undefined, not 0% attendance.
+// An empty range can have 0% capture coverage only when eligible > 0.
+for (const token of [
+  "value === null ? 'Sin datos'",
+  'attendanceRate: markedOutcomes > 0 ? attended / markedOutcomes : null',
+  'markCoverageRate: rows.length > 0 ? markedOutcomes / rows.length : null',
+  'confirmedAttendanceRate: confirmedMarked > 0 ? confirmedAttended / confirmedMarked : null',
+  'Confirmados con asistencia registrada',
+  'item.attended / (item.attended + item.absent) : null',
+  'formatTrainingPercentage(item.attendanceRate)',
+]) {
+  if (!reportExport.includes(token)) throw new Error('Undefined attendance KPI still treated as 0%: ' + token);
+}
+for (const token of [
+  'formatTrainingPercentage(stats.attendanceRate)',
+  'formatTrainingPercentage(stats.markCoverageRate)',
+]) {
+  if (!report.includes(token)) throw new Error('Trainer report UI misrepresents unknown attendance: ' + token);
+}
+if (report.includes('(stats.attendanceRate * 100).toFixed(1)')) {
+  throw new Error('Trainer attendance preview must not show false 0.0% for missing marks.');
+}
+
 console.log('UCAPSA trainer role, least privilege, exams, staff notes, reporting and next-day summary: PASS');

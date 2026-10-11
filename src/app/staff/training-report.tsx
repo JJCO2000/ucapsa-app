@@ -7,7 +7,7 @@ import { Calendar } from 'react-native-calendars';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
-import { buildTrainingReportStats, exportTrainingReportXlsx } from '../../services/training-report-export.service';
+import { buildTrainingReportStats, exportTrainingReportXlsx, formatTrainingPercentage } from '../../services/training-report-export.service';
 import {
   currentMonthRange,
   getStaffTrainingReport,
@@ -167,8 +167,8 @@ export default function StaffTrainingReportScreen() {
           <Summary value={stats.attended} label="Asistieron" />
           <Summary value={stats.absent} label="No asistieron" />
           <Summary value={stats.unmarked} label="Sin registrar" />
-          <Summary value={`${(stats.attendanceRate * 100).toFixed(1)}%`} label="Tasa de asistencia" />
-          <Summary value={`${(stats.markCoverageRate * 100).toFixed(1)}%`} label="Cobertura del registro" />
+          <Summary value={formatTrainingPercentage(stats.attendanceRate)} label="Tasa de asistencia (marcados)" />
+          <Summary value={formatTrainingPercentage(stats.markCoverageRate)} label="Cobertura del registro" />
         </View>
       ) : null}
 

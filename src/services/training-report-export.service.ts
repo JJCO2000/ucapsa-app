@@ -22,9 +22,10 @@ export type TrainingReportStats = {
   missingAttendance: number;
   markedOutcomes: number;
   confirmedAttended: number;
-  attendanceRate: number;
-  markCoverageRate: number;
-  confirmedAttendanceRate: number;
+  confirmedMarked: number;
+  attendanceRate: number | null;
+  markCoverageRate: number | null;
+  confirmedAttendanceRate: number | null;
 };
 
 function xmlEscape(value: string) {
@@ -75,8 +76,8 @@ function rsvpLabel(value: StaffTrainingReportRow['rsvpResponse']) {
   return 'Sin respuesta';
 }
 
-function percentage(value: number) {
-  return `${(value * 100).toFixed(1)}%`;
+export function formatTrainingPercentage(value: number | null) {
+  return value === null ? 'Sin datos' : `${(value * 100).toFixed(1)}%`;
 }
 
 export function buildTrainingReportStats(rows: StaffTrainingReportRow[]): TrainingReportStats {
@@ -93,6 +94,7 @@ export function buildTrainingReportStats(rows: StaffTrainingReportRow[]): Traini
   const markedOutcomes = attended + absent;
   const unmarked = Math.max(0, rows.length - markedOutcomes);
   const confirmedAttended = rows.filter((row) => row.rsvpResponse === 'yes' && row.attended).length;
+  const confirmedMarked = rows.filter((row) => row.rsvpResponse === 'yes' && (row.attended || row.absent)).length;
 
   return {
     uniqueClients,
@@ -108,9 +110,10 @@ export function buildTrainingReportStats(rows: StaffTrainingReportRow[]): Traini
     missingAttendance: unmarked,
     markedOutcomes,
     confirmedAttended,
-    attendanceRate: markedOutcomes > 0 ? attended / markedOutcomes : 0,
-    markCoverageRate: rows.length > 0 ? markedOutcomes / rows.length : 0,
-    confirmedAttendanceRate: confirmed > 0 ? confirmedAttended / confirmed : 0,
+    confirmedMarked,
+    attendanceRate: markedOutcomes > 0 ? attended / markedOutcomes : null,
+    markCoverageRate: rows.length > 0 ? markedOutcomes / rows.length : null,
+    confirmedAttendanceRate: confirmedMarked > 0 ? confirmedAttended / confirmedMarked : null,
   };
 }
 
@@ -125,8 +128,8 @@ type ProgramStats = {
   confirmed: number;
   declined: number;
   noResponse: number;
-  attendanceRate: number;
-  markCoverageRate: number;
+  attendanceRate: number | null;
+  markCoverageRate: number | null;
 };
 
 function buildProgramStats(rows: StaffTrainingReportRow[]): ProgramStats[] {
@@ -168,8 +171,8 @@ function buildProgramStats(rows: StaffTrainingReportRow[]): ProgramStats[] {
       ...item,
       unmarked: Math.max(0, item.eligible - item.attended - item.absent),
       missingAttendance: Math.max(0, item.eligible - item.attended - item.absent),
-      attendanceRate: (item.attended + item.absent) > 0 ? item.attended / (item.attended + item.absent) : 0,
-      markCoverageRate: item.eligible > 0 ? (item.attended + item.absent) / item.eligible : 0,
+      attendanceRate: (item.attended + item.absent) > 0 ? item.attended / (item.attended + item.absent) : null,
+      markCoverageRate: item.eligible > 0 ? (item.attended + item.absent) / item.eligible : null,
     }))
     .sort((left, right) =>
       left.program.localeCompare(right.program, 'es-MX') || left.level.localeCompare(right.level, 'es-MX'),
@@ -217,10 +220,11 @@ function workbookBytes(rows: StaffTrainingReportRow[], startDate: string, endDat
     ['Asistieron', stats.attended],
     ['No asistieron', stats.absent],
     ['Sin resultado registrado', stats.unmarked],
-    ['Tasa de asistencia sobre resultados marcados', percentage(stats.attendanceRate)],
-    ['Cobertura del registro de asistencia', percentage(stats.markCoverageRate)],
+    ['Tasa de asistencia sobre resultados marcados', formatTrainingPercentage(stats.attendanceRate)],
+    ['Cobertura del registro de asistencia', formatTrainingPercentage(stats.markCoverageRate)],
     ['Confirmados que asistieron', stats.confirmedAttended],
-    ['Tasa confirmados → asistencia', percentage(stats.confirmedAttendanceRate)],
+    ['Confirmados con asistencia registrada', stats.confirmedMarked],
+    ['Tasa confirmados → asistencia (marcados)', formatTrainingPercentage(stats.confirmedAttendanceRate)],
   ];
 
   const programRows: CellValue[][] = [
@@ -235,8 +239,8 @@ function workbookBytes(rows: StaffTrainingReportRow[], startDate: string, endDat
       item.confirmed,
       item.declined,
       item.noResponse,
-      percentage(item.attendanceRate),
-      percentage(item.markCoverageRate),
+      formatTrainingPercentage(item.attendanceRate),
+      formatTrainingPercentage(item.markCoverageRate),
     ]),
   ];
 
