@@ -8,6 +8,7 @@ import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBa
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { ucapsaBrand } from '../../constants/brand';
+import { DEFAULT_DOG_AVATAR_COLOR, DEFAULT_DOG_AVATAR_KEY } from '../../constants/dogAvatar';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import { getPrivateDogPhotoUrls } from '../../services/dog-photos.service';
@@ -79,8 +80,8 @@ export default function ClientCompetitionRankingScreen() {
       setMyDogs(cachedAccount.data.dogs.map((dog) => ({
         id: dog.dog_id,
         name: dog.dog_name,
-        avatarKey: 'dog_face',
-        avatarColor: '#F2E3C6',
+        avatarKey: DEFAULT_DOG_AVATAR_KEY,
+        avatarColor: DEFAULT_DOG_AVATAR_COLOR,
         photoUrl: null,
       })));
     }
