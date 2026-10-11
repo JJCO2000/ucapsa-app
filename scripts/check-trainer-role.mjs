@@ -14,7 +14,6 @@ const trainerClasses = read('src/app/(tabs)/trainer-classes.tsx');
 const trainerExams = read('src/app/(tabs)/trainer-exams.tsx');
 const trainerMore = read('src/app/(tabs)/trainer-more.tsx');
 const dogNotes = read('src/app/staff/dog-notes.tsx');
-const examUpload = read('src/app/staff/exam-upload.tsx');
 const examAttempt = read('src/app/staff/exam-attempt.tsx');
 const report = read('src/app/staff/training-report.tsx');
 const trainerService = read('src/services/trainer-staff.service.ts');
@@ -114,23 +113,18 @@ for (const token of [
 
 for (const token of [
   'createTrainerExamAttempt',
+  'createTrainerExamDraft',
   'getTrainerExamItems',
   'uploadTrainerExamResults',
   'pickAndParseUcapsaExamXlsx',
-  '/staff/exam-upload',
+  'pickAndParseUcapsaExamDefinitionXlsx',
+  'Subir examen',
+  'Guardar borrador',
   'Subir Excel',
   'Capturar',
-]) {
-  if (!trainerExams.includes(token)) throw new Error('Trainer exam operations missing: ' + token);
-}
-
-for (const token of [
-  'createTrainerExamDraft',
-  'pickAndParseUcapsaExamDefinitionXlsx',
-  'Guardar como borrador',
   'Administración conserva',
 ]) {
-  if (!examUpload.includes(token)) throw new Error('Trainer exam definition upload missing: ' + token);
+  if (!trainerExams.includes(token)) throw new Error('Trainer exam operations missing: ' + token);
 }
 
 for (const token of [
