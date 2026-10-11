@@ -11,7 +11,6 @@ import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import {
-  countUnlockedAchievements,
   getCachedAchievementsForDog,
   getMyDogAchievements,
   type AchievementWithState,
@@ -34,7 +33,6 @@ export default function DogAchievementsScreen() {
 
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
   const premium = format.key === 'member';
-  const unlockedCount = useMemo(() => countUnlockedAchievements(items), [items]);
 
   const load = useCallback(async () => {
     const runId = loadRunRef.current + 1;
@@ -109,20 +107,10 @@ export default function DogAchievementsScreen() {
       <UcapsaAmbientBackground format={format} variant="dog" />
 
       <View style={styles.header}>
-        <View style={[styles.headerIcon, { backgroundColor: format.pillBackground }]}>
-          <MaterialIcons name="emoji-events" size={23} color={format.pillText} />
+        <View style={[styles.headerIcon, { backgroundColor: ucapsaBrand.colors.goldPale }]}>
+          <MaterialIcons name="emoji-events" size={23} color={ucapsaBrand.colors.goldDark} />
         </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={[styles.title, { color: format.cardText }]}>Logros UCAPSA</Text>
-          <Text style={[styles.subtitle, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
-            {dogName ? `Progresión de ${dogName}` : 'Puppy → Básico → Intermedio → Avanzado'}
-          </Text>
-        </View>
-        {items.length > 0 ? (
-          <View style={[styles.countPill, { backgroundColor: format.pillBackground }]}>
-            <Text style={[styles.countText, { color: format.pillText }]}>{unlockedCount}/{items.length}</Text>
-          </View>
-        ) : null}
+        <Text style={[styles.title, { color: format.cardText }]}>Logros{dogName ? ` ${dogName}` : ''}</Text>
       </View>
 
       {usingSavedData ? (
@@ -167,9 +155,6 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 14 },
   headerIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 24, lineHeight: 28, fontWeight: '900' },
-  subtitle: { marginTop: 2, fontSize: 12, lineHeight: 17, fontWeight: '700' },
-  countPill: { minWidth: 48, alignItems: 'center', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
-  countText: { fontSize: 12, fontWeight: '900' },
   stateCard: { gap: 9, borderWidth: 1, borderRadius: 20, padding: 16 },
   stateTitle: { fontSize: 16, lineHeight: 22, fontWeight: '900' },
   retryButton: { alignSelf: 'flex-start', borderWidth: 1, borderRadius: 13, paddingHorizontal: 13, paddingVertical: 9 },
