@@ -29,7 +29,7 @@ function validDate(value: string) {
 }
 
 export default function TrainerReportsTab() {
-  const { isTrainer, isAdmin } = useSession();
+  const { isTrainer, isStaff, isAdmin } = useSession();
   const month = useMemo(currentMonthRange, []);
   const [fromDate, setFromDate] = useState(month.from);
   const [toDate, setToDate] = useState(month.to);
@@ -55,7 +55,7 @@ export default function TrainerReportsTab() {
   }, [fromDate, toDate]);
 
   useFocusEffect(useCallback(() => {
-    if (!isTrainer) return undefined;
+    if (!isStaff) return undefined;
     void load(month.from, month.to);
     return undefined;
   }, [isTrainer, load, month.from, month.to]));
@@ -84,7 +84,7 @@ export default function TrainerReportsTab() {
     }
   }
 
-  if (!isTrainer) return <Redirect href={isAdmin ? '/admin-home' : '/home'} />;
+  if (!isStaff) return <Redirect href={isAdmin ? '/admin-home' : '/home'} />;
 
   return (
     <KeyboardAwareScreen>
