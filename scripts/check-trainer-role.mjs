@@ -176,12 +176,13 @@ for (const token of [
   'superadmin_set_profile_role',
   'trainer_create_ucapsa_exam_draft',
   'get_staff_dog_operational_profile',
+  'get_staff_exam_drafts',
   'draft_pending_admin_publish',
 ]) {
   if (!trainerSqlAll.includes(token)) throw new Error('Trainer SQL boundary missing: ' + token);
 }
 
-if (/trainer_import_ucapsa_exam_results[sS]*admin_publish_ucapsa_exam_attempt/.test(trainerSqlAll)) {
+if (/trainer_import_ucapsa_exam_results[\s\S]*admin_publish_ucapsa_exam_attempt/.test(trainerSqlAll)) {
   throw new Error('Trainer bulk upload must not publish or officialize exam attempts.');
 }
 
@@ -246,6 +247,7 @@ for (const token of [
   "supabase.rpc('trainer_import_ucapsa_exam_results'",
   "supabase.rpc('trainer_create_ucapsa_exam_draft'",
   "supabase.rpc('get_staff_dog_operational_profile'",
+  "supabase.rpc('get_staff_exam_drafts'",
 ]) {
   if (!trainerService.includes(token)) throw new Error('Trainer app service boundary missing: ' + token);
 }
