@@ -11,9 +11,9 @@ const allowedAdvisories = new Set([
 const baselineMaximums = {
   critical: 0,
   high: 21,
-  moderate: 12,
+  moderate: 0,
   low: 0,
-  total: 33,
+  total: 21,
 };
 
 const result = spawnSync('npm', ['audit', '--omit=dev', '--json'], {
