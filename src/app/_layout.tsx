@@ -13,10 +13,10 @@ import { flushPendingPracticeSessions } from '../services/practice.service';
 import { flushPendingValueExposures } from '../services/value-exposure-outbox.service';
 
 function RootNavigator() {
-  const { loading, startupError, retryStartup, user, isStaff } = useSession();
+  const { loading, startupError, retryStartup, user, isStaff, isTrainer } = useSession();
   const warmedUserRef = useRef<string | null>(null);
   const appStateRef = useRef(AppState.currentState);
-  useNotificationNavigation(!loading && !startupError && Boolean(user) && !isStaff);
+  useNotificationNavigation(!loading && !startupError && Boolean(user) && (!isStaff || isTrainer));
 
   useEffect(() => {
     if (loading || startupError || !user || isStaff || warmedUserRef.current === user.id) return;
