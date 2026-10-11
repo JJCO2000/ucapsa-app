@@ -5510,6 +5510,7 @@ export type Database = {
           attended: boolean
           class_date: string
           client_name: string
+          dog_id: string
           dog_name: string
           enrollment_id: string
           program_code: string
@@ -5518,6 +5519,7 @@ export type Database = {
           rsvp_response: string
           schedule_id: string
           start_time: string
+          user_id: string
         }[]
       }
       get_trainer_exam_attempt: {
