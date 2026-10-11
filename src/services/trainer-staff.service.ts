@@ -45,6 +45,30 @@ export type StaffDogNote = {
   updatedAt: string;
 };
 
+export type StaffDogOperationalProfile = {
+  dogId: string;
+  dogName: string;
+  ownerName: string;
+  breed: string | null;
+  sex: string | null;
+  birthDate: string | null;
+  weightKg: number | null;
+  allergies: string | null;
+  medications: string | null;
+  feedingNotes: string | null;
+  behaviorNotes: string | null;
+  veterinarianName: string | null;
+  veterinarianPhone: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
+};
+
+export type TrainerExamDraftItem = {
+  title: string;
+  description: string | null;
+  max_points: number;
+};
+
 export type StaffTrainingReportRow = {
   classDate: string;
   scheduleId: string;
@@ -266,6 +290,49 @@ export async function resolveStaffDogNote(noteId: string, resolved = true) {
   const { data, error } = await supabase.rpc('staff_resolve_dog_note', {
     p_note_id: noteId,
     p_resolved: resolved,
+  });
+  if (error) throw error;
+  return data;
+}
+
+
+export async function getStaffDogOperationalProfile(dogId: string): Promise<StaffDogOperationalProfile | null> {
+  const { data, error } = await supabase.rpc('get_staff_dog_operational_profile', {
+    p_dog_id: dogId,
+  });
+  if (error) throw error;
+  const row = data?.[0];
+  if (!row) return null;
+  return {
+    dogId: row.dog_id,
+    dogName: row.dog_name,
+    ownerName: row.owner_name,
+    breed: row.breed ?? null,
+    sex: row.sex ?? null,
+    birthDate: row.birth_date ?? null,
+    weightKg: row.weight_kg === null || row.weight_kg === undefined ? null : Number(row.weight_kg),
+    allergies: row.allergies ?? null,
+    medications: row.medications ?? null,
+    feedingNotes: row.feeding_notes ?? null,
+    behaviorNotes: row.behavior_notes ?? null,
+    veterinarianName: row.veterinarian_name ?? null,
+    veterinarianPhone: row.veterinarian_phone ?? null,
+    emergencyContactName: row.emergency_contact_name ?? null,
+    emergencyContactPhone: row.emergency_contact_phone ?? null,
+  };
+}
+
+export async function createTrainerExamDraft(input: {
+  code: string;
+  title: string;
+  examDate?: string | null;
+  items: TrainerExamDraftItem[];
+}) {
+  const { data, error } = await supabase.rpc('trainer_create_ucapsa_exam_draft', {
+    p_code: input.code.trim(),
+    p_title: input.title.trim(),
+    p_exam_date: input.examDate || null,
+    p_items: input.items,
   });
   if (error) throw error;
   return data;
