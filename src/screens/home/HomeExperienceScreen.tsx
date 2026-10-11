@@ -178,7 +178,6 @@ export default function HomeExperienceScreen() {
   );
   const premium = format.key === 'member';
   const displayName = profile?.full_name || snapshot?.identity.displayName || profile?.email || user?.email || 'Visitante';
-  const dogName = mainProgram?.dogName || profile?.dog_name || null;
   const identityDetail = user
     ? 'Tu próxima clase · clases tomadas · logros · siguiente paso'
     : 'Todo el recorrido de tu perro en un solo lugar';
