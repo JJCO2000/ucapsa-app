@@ -10,7 +10,6 @@ import { UcapsaDetailModal } from '../../components/ui/UcapsaDetailModal';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
-import { devWarn } from '../../lib/client-diagnostics';
 import { getHomeAnnouncements, rankHomeAnnouncements } from '../../services/announcements.service';
 import { readCustomerValueSnapshotCache, writeCustomerValueSnapshotCache } from '../../services/customer-value-cache.service';
 import { mergeCustomerValueSnapshotWithCache } from '../../services/customer-value-merge.service';
