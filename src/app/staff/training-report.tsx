@@ -33,7 +33,7 @@ export default function StaffTrainingReportScreen() {
   const [generating, setGenerating] = useState(false);
   const [previewed, setPreviewed] = useState(false);
 
-  if (!isStaff) return <Redirect href="/home" />;
+  if (!capabilities.canUseTrainingWorkspace) return <Redirect href={isAdmin ? '/admin-home' : '/home'} />;
 
   async function loadRows() {
     if (endDate < startDate) {
