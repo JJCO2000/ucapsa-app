@@ -323,4 +323,23 @@ if (!pkg.includes('"check:trainer-role"')) {
   throw new Error('npm verify does not include trainer role guard.');
 }
 
+// Regression: a normal Admin must not be able to grant/revoke Trainer with
+// a direct profiles UPDATE. Superadmin retains authority; Admin can still
+// handle ordinary client/member transitions.
+const staffRoleHardening = read('supabase/sql/ucapsa-trainer-role-escalation-hardening.sql');
+for (const token of [
+  'CREATE OR REPLACE FUNCTION public.prevent_unauthorized_profile_changes()',
+  "OLD.role IN ('trainer', 'admin', 'super_admin')",
+  "NEW.role IN ('trainer', 'admin', 'super_admin')",
+  'AND NOT public.is_super_admin()',
+  "RAISE EXCEPTION 'Solo super_admin puede modificar roles de personal.'",
+]) {
+  if (!staffRoleHardening.includes(token)) {
+    throw new Error('Profile trigger allows staff-role escalation: ' + token);
+  }
+}
+if (/NEW\.role IN \('admin', 'super_admin'\)/.test(staffRoleHardening)) {
+  throw new Error('Trainer must not be omitted from privileged profile transitions.');
+}
+
 console.log('UCAPSA trainer role, least privilege, exams, staff notes, reporting and next-day summary: PASS');
