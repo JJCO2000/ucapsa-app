@@ -5444,17 +5444,27 @@ export type Database = {
       get_staff_dog_directory: {
         Args: { p_query?: string }
         Returns: {
+          allergies: string | null
           behavior_notes: string | null
+          birth_date: string | null
+          breed: string | null
           dog_id: string
           dog_name: string
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
           latest_note_at: string | null
           latest_note_severity: string | null
           latest_note_type: string | null
           latest_staff_note: string | null
+          medications: string | null
           membership_status: string
           owner_name: string
           program_code: string | null
           program_level: string | null
+          sex: string | null
+          veterinarian_name: string | null
+          veterinarian_phone: string | null
+          weight_kg: number | null
         }[]
       }
       get_staff_dog_notes: {
