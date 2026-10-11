@@ -10,6 +10,7 @@ import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
+import { useReturnToProfile } from '../../hooks/useReturnToProfile';
 import { useSession } from '../../hooks/useSession';
 import { getPrivateDogPhotoUrls } from '../../services/dog-photos.service';
 import { createMyDog, getMyDogs, type BasicDog } from '../../services/dogs.service';
