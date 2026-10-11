@@ -1,10 +1,11 @@
 -- UCAPSA — extensión del modo Entrenamiento
 --
--- Añade dos capacidades operativas sin convertir Entrenador en Admin:
+-- Añade capacidades operativas sin convertir Entrenador en Admin:
 -- 1) cargar la definición de un examen como BORRADOR;
--- 2) consultar únicamente datos del perro útiles para entrenamiento/seguridad.
+-- 2) publicar ese examen cuando esté listo;
+-- 3) consultar únicamente datos del perro útiles para entrenamiento/seguridad.
 --
--- Publicación/oficialidad de exámenes, pagos, membresías y configuración global
+-- La oficialidad de intentos/resultados, pagos, membresías y configuración global
 -- siguen fuera de esta superficie.
 
 create or replace function public.trainer_create_ucapsa_exam_draft(
@@ -159,7 +160,7 @@ begin
       'title', v_title,
       'exam_date', p_exam_date,
       'items_count', jsonb_array_length(p_items),
-      'result', 'draft_pending_admin_publish'
+      'result', 'draft_ready_for_staff_publish'
     )
   );
 
@@ -170,6 +171,75 @@ $$;
 revoke all on function public.trainer_create_ucapsa_exam_draft(text,text,date,jsonb)
   from public, anon;
 grant execute on function public.trainer_create_ucapsa_exam_draft(text,text,date,jsonb)
+  to authenticated, service_role;
+
+
+
+create or replace function public.staff_publish_ucapsa_exam(
+  p_exam_id uuid
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $
+declare
+  v_exam public.ucapsa_exams%rowtype;
+begin
+  if not public.is_ucapsa_staff() then
+    raise exception 'Solo staff UCAPSA puede publicar exámenes.'
+      using errcode = '42501';
+  end if;
+
+  select *
+    into v_exam
+  from public.ucapsa_exams
+  where id = p_exam_id
+  for update;
+
+  if not found then
+    raise exception 'Examen UCAPSA no encontrado.'
+      using errcode = '22023';
+  end if;
+
+  if v_exam.status <> 'draft' then
+    raise exception 'Solo un examen en borrador puede publicarse.'
+      using errcode = '22023';
+  end if;
+
+  -- El trigger canónico de exámenes valida temporada activa/reabierta y que
+  -- exista al menos un ejercicio antes de permitir draft -> published.
+  update public.ucapsa_exams
+  set
+    status = 'published',
+    published_at = now(),
+    published_by = auth.uid()
+  where id = p_exam_id;
+
+  insert into public.admin_audit_logs (
+    admin_user_id,
+    action,
+    entity_type,
+    entity_id,
+    details
+  ) values (
+    auth.uid(),
+    'ucapsa_exam.staff_publish',
+    'ucapsa_exam',
+    p_exam_id,
+    jsonb_build_object(
+      'previous_status', v_exam.status,
+      'new_status', 'published'
+    )
+  );
+
+  return p_exam_id;
+end;
+$;
+
+revoke all on function public.staff_publish_ucapsa_exam(uuid)
+  from public, anon;
+grant execute on function public.staff_publish_ucapsa_exam(uuid)
   to authenticated, service_role;
 
 create or replace function public.get_staff_dog_operational_profile(
@@ -233,7 +303,9 @@ grant execute on function public.get_staff_dog_operational_profile(uuid)
   to authenticated, service_role;
 
 comment on function public.trainer_create_ucapsa_exam_draft(text,text,date,jsonb) is
-  'Carga un examen como borrador. Administración conserva publicación, oficialidad y configuración competitiva.';
+  'Carga un examen como borrador para que staff de Entrenamiento pueda revisarlo y publicarlo.';
+comment on function public.staff_publish_ucapsa_exam(uuid) is
+  'Permite a staff de Entrenamiento publicar la definición del examen; no oficializa intentos ni cambia niveles.';
 comment on function public.get_staff_dog_operational_profile(uuid) is
   'Devuelve únicamente datos del perro útiles para entrenamiento, seguridad y emergencia.';
 
@@ -285,4 +357,4 @@ grant execute on function public.get_staff_exam_drafts()
   to authenticated, service_role;
 
 comment on function public.get_staff_exam_drafts() is
-  'Borradores de examen visibles al staff de entrenamiento; la publicación permanece en Administración.';
+  'Borradores de examen visibles al staff de entrenamiento y listos para publicación por ese mismo staff.';
