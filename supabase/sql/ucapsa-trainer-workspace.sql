@@ -46,6 +46,72 @@ revoke all on function public.is_ucapsa_staff() from public, anon;
 grant execute on function public.is_ucapsa_trainer() to authenticated, service_role;
 grant execute on function public.is_ucapsa_staff() to authenticated, service_role;
 
+-- Superadmin puede asignar/quitar el rol operativo. No se permite editar
+-- cuentas superadmin desde esta superficie.
+create or replace function public.superadmin_set_profile_role(
+  p_user_id uuid,
+  p_role text
+)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $
+declare
+  v_actor_role text;
+  v_before_role text;
+  v_role text := lower(btrim(coalesce(p_role, '')));
+begin
+  select p.role::text into v_actor_role
+  from public.profiles p
+  where p.user_id = auth.uid();
+
+  if v_actor_role <> 'super_admin' then
+    raise exception 'Solo Superadmin puede cambiar roles de staff.'
+      using errcode = '42501';
+  end if;
+
+  if v_role not in ('client', 'trainer', 'admin') then
+    raise exception 'Rol no permitido desde esta herramienta.'
+      using errcode = '22023';
+  end if;
+
+  select p.role::text into v_before_role
+  from public.profiles p
+  where p.user_id = p_user_id
+  for update;
+
+  if v_before_role is null then
+    raise exception 'Perfil no encontrado.' using errcode = '22023';
+  end if;
+
+  if v_before_role = 'super_admin' then
+    raise exception 'Una cuenta Superadmin no se modifica desde esta herramienta.'
+      using errcode = '42501';
+  end if;
+
+  update public.profiles
+  set role = v_role::public.app_role,
+      updated_at = clock_timestamp()
+  where user_id = p_user_id;
+
+  insert into public.admin_audit_logs (
+    admin_user_id, action, entity_type, entity_id, details
+  ) values (
+    auth.uid(),
+    'profile.staff_role_change',
+    'profile',
+    p_user_id,
+    jsonb_build_object('before_role', v_before_role, 'after_role', v_role)
+  );
+
+  return v_role;
+end;
+$;
+
+revoke all on function public.superadmin_set_profile_role(uuid,text) from public, anon;
+grant execute on function public.superadmin_set_profile_role(uuid,text) to authenticated, service_role;
+
 -- ---------------------------------------------------------------------------
 -- Historial interno de perros para continuidad y seguridad operativa.
 -- ---------------------------------------------------------------------------
