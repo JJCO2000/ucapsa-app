@@ -1,3 +1,5 @@
+import { ucapsaBrand } from './brand';
+
 export const DOG_AVATAR_KEYS = [
   'dog_face',
   'dog_side',
@@ -14,20 +16,20 @@ export const DOG_AVATAR_KEYS = [
 export type DogAvatarKey = (typeof DOG_AVATAR_KEYS)[number];
 
 export const DOG_AVATAR_COLORS = [
-  '#F2E3C6',
-  '#7A151E',
-  '#D4A62A',
-  '#3C6FC9',
-  '#4D857A',
-  '#7A60A8',
-  '#D8814C',
-  '#C86B7A',
+  ucapsaBrand.colors.dogAvatarIvory,
+  ucapsaBrand.colors.dogAvatarBurgundy,
+  ucapsaBrand.colors.dogAvatarGold,
+  ucapsaBrand.colors.dogAvatarBlue,
+  ucapsaBrand.colors.dogAvatarTeal,
+  ucapsaBrand.colors.dogAvatarPurple,
+  ucapsaBrand.colors.dogAvatarOrange,
+  ucapsaBrand.colors.dogAvatarRose,
 ] as const;
 
 export type DogAvatarColor = (typeof DOG_AVATAR_COLORS)[number];
 
 export const DEFAULT_DOG_AVATAR_KEY: DogAvatarKey = 'dog_face';
-export const DEFAULT_DOG_AVATAR_COLOR: DogAvatarColor = '#F2E3C6';
+export const DEFAULT_DOG_AVATAR_COLOR: DogAvatarColor = ucapsaBrand.colors.dogAvatarIvory;
 
 export const DOG_AVATAR_OPTIONS: Array<{
   key: DogAvatarKey;
@@ -60,7 +62,7 @@ export function normalizeDogAvatarColor(value: unknown): DogAvatarColor {
 }
 
 export function dogAvatarForeground(background: string) {
-  return background === '#F2E3C6' || background === '#D4A62A'
-    ? '#4B2C20'
-    : '#FFFFFF';
+  return background === ucapsaBrand.colors.dogAvatarIvory || background === ucapsaBrand.colors.dogAvatarGold
+    ? ucapsaBrand.colors.dogAvatarDark
+    : ucapsaBrand.colors.surface;
 }
