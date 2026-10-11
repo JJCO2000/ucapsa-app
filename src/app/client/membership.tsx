@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Redirect, router, useFocusEffect } from 'expo-router';
+import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
@@ -10,6 +10,7 @@ import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
+import { useReturnToProfile } from '../../hooks/useReturnToProfile';
 import { useSession } from '../../hooks/useSession';
 import { devWarn } from '../../lib/client-diagnostics';
 import { getMembershipEffectiveStatus, getMembershipStatusLabel, getMyMembership, getMyMembershipEligibility, requestMembership, type MembershipEligibility } from '../../services/memberships.service';
@@ -202,6 +203,8 @@ export default function ClientMembershipScreen() {
         title="Membresía"
         subtitle={premium ? 'Tu credencial y acceso como socio.' : 'Estado y credencial.'}
         icon="workspace-premium"
+        onBack={fromProfile ? backToProfile : undefined}
+        backLabel="Volver a Perfil"
       />
 
       {usingSavedData ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} /> : null}
