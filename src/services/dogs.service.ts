@@ -163,12 +163,12 @@ export async function updateMyDogProfile(dogId: string, input: DogProfileInput):
   const { data, error } = await supabase.rpc('update_my_basic_dog_profile', {
     p_dog_id: cleanDogId,
     p_name: cleanName,
-    p_breed: normalizeNullableText(input.breed),
-    p_birth_date: normalizeNullableText(input.birth_date),
-    p_sex: input.sex ?? null,
-    p_weight_kg: weight,
-    p_avatar_key: input.avatar_key ?? null,
-    p_avatar_color: input.avatar_color ?? null,
+    p_breed: normalizeNullableText(input.breed) ?? undefined,
+    p_birth_date: normalizeNullableText(input.birth_date) ?? undefined,
+    p_sex: input.sex ?? undefined,
+    p_weight_kg: weight ?? undefined,
+    p_avatar_key: input.avatar_key ?? undefined,
+    p_avatar_color: input.avatar_color ?? undefined,
   });
 
   if (error) throw error;
