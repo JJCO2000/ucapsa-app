@@ -5933,6 +5933,10 @@ export type Database = {
         }
         Returns: string
       }
+      superadmin_set_profile_role: {
+        Args: { p_role: string; p_user_id: string }
+        Returns: string
+      }
       trainer_create_ucapsa_exam_attempt: {
         Args: {
           p_dog_id: string
