@@ -317,26 +317,15 @@ export default function HomeExperienceScreen() {
         </View>
       ) : null}
 
-      {!loading && user && snapshotState === 'error' ? (
-        <View style={[styles.stateStrip, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
+      {!loading && user && (snapshotState === 'error' || snapshotState === 'cached' || snapshotState === 'partial') ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Sin conexión. Reintentar sincronización."
+          onPress={() => void refresh()}
+          style={[styles.offlineOnly, { borderColor: format.cardBorder, backgroundColor: format.surfaceAlt }]}
+        >
           <MaterialIcons name="cloud-off" size={20} color={format.accentDark} />
-          <View style={styles.stateCopy}>
-            <Text style={[styles.stateTitle, { color: format.cardText }]}>No pudimos cargar tu resumen</Text>
-            <Text style={[styles.stateText, { color: format.muted }]}>Revisa tu conexión e intenta actualizar.</Text>
-          </View>
-          <Pressable onPress={() => void refresh()} style={[styles.iconButton, { backgroundColor: format.accentSoft }]}>
-            <MaterialIcons name="refresh" size={18} color={format.accentDark} />
-          </Pressable>
-        </View>
-      ) : null}
-
-      {!loading && user && (snapshotState === 'cached' || snapshotState === 'partial') ? (
-        <View style={[styles.syncStrip, { borderColor: format.cardBorder, backgroundColor: format.surfaceAlt }]}>
-          <MaterialIcons name={snapshotState === 'cached' ? 'offline-pin' : 'info-outline'} size={17} color={format.accentDark} />
-          <Text style={[styles.syncText, { color: format.muted }]}>
-            {snapshotState === 'cached' ? 'Mostrando la última información guardada.' : 'Algunos datos no pudieron actualizarse.'}
-          </Text>
-        </View>
+        </Pressable>
       ) : null}
 
       {!loading && user && snapshot && nextAction ? (
@@ -355,11 +344,10 @@ export default function HomeExperienceScreen() {
       ) : null}
 
       {!loading && user ? (
-        <CompetitionHomeCard
-          summary={competitionSummary}
-          format={format}
-          onPress={() => router.push('/client/competition' as never)}
-        />
+        <Pressable style={styles.noticeLinkOnly} onPress={() => router.push('/announcements' as never)}>
+          <MaterialIcons name="campaign" size={17} color={format.accentDark} />
+          <Text style={[styles.noticeLinkOnlyText, { color: format.accentDark }]}>Ver avisos UCAPSA</Text>
+        </Pressable>
       ) : null}
 
       {!loading && user && snapshot ? (
@@ -406,11 +394,12 @@ export default function HomeExperienceScreen() {
         />
       ) : null}
 
-      {!loading && announcements.length === 0 ? (
-        <Pressable style={styles.noticeLinkOnly} onPress={() => router.push('/announcements' as never)}>
-          <MaterialIcons name="campaign" size={17} color={format.accentDark} />
-          <Text style={[styles.noticeLinkOnlyText, { color: format.accentDark }]}>Ver avisos UCAPSA</Text>
-        </Pressable>
+      {!loading && user ? (
+        <CompetitionHomeCard
+          summary={competitionSummary}
+          format={format}
+          onPress={() => router.push('/client/competition' as never)}
+        />
       ) : null}
 
       <UcapsaDetailModal
