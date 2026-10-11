@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 
 import { devWarn } from '../lib/client-diagnostics';
+import { readStaffWorkspaceMode, writeStaffWorkspaceMode } from '../services/staff-workspace-storage.service';
 import { readStaffWorkspaceMode, writeStaffWorkspaceMode } from '../services/staff-workspace.service';
 import { useSession } from './useSession';
 
