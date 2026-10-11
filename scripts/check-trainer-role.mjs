@@ -48,6 +48,7 @@ for (const token of [
   'canManageClassRoster: true',
   'canRecordAttendance: true',
   'canUploadExamDefinition: true',
+  'canPublishExamDefinition: true',
   'canCaptureExamResults: true',
   'canUploadExamResults: true',
   'canViewOperationalDogData: true',
@@ -93,13 +94,19 @@ for (const token of [
 }
 
 if (!trainerHome.includes("const key = `${row.scheduleId}:${row.startTime}:${row.programCode}`")) {
-  throw new Error('Comandos debe ser una sola clase por horario; el nivel no puede formar parte de la clave de agrupación.');
+  throw new Error('Comandos debe conservar un solo horario compartido; el nivel no puede crear otro horario.');
 }
 if (trainerHome.includes("row.programLevel}:") || trainerHome.includes(":${row.programLevel}")) {
-  throw new Error('Comandos no puede dividirse en clases separadas por nivel.');
+  throw new Error('Básico, Intermedio y Avanzado comparten horario; el nivel no puede convertirse en otro schedule.');
 }
 if (!trainerClasses.includes("const key = `${row.scheduleId}:${row.programCode}:${row.startTime}`")) {
-  throw new Error('El roster debe agrupar Comandos por horario, no por nivel.');
+  throw new Error('El roster de Comandos debe partir del horario compartido y conservar el nivel en cada inscripción.');
+}
+
+for (const token of ['levelLabel(row.programLevel)', 'levelPill', 'Básico', 'Intermedio', 'Avanzado']) {
+  if (!trainerClasses.includes(token) && !trainerHome.includes(token)) {
+    throw new Error('Comandos perdió la clasificación visible por nivel: ' + token);
+  }
 }
 
 for (const token of [
@@ -123,7 +130,8 @@ for (const token of [
   'Guardar borrador',
   'Subir Excel',
   'Capturar',
-  'Administración conserva',
+  'publishTrainerExam',
+  'Publicar',
 ]) {
   if (!trainerExams.includes(token)) throw new Error('Trainer exam operations missing: ' + token);
 }
@@ -177,7 +185,8 @@ for (const token of [
   'trainer_create_ucapsa_exam_draft',
   'get_staff_dog_operational_profile',
   'get_staff_exam_drafts',
-  'draft_pending_admin_publish',
+  'staff_publish_ucapsa_exam',
+  'draft_ready_for_staff_publish',
 ]) {
   if (!trainerSqlAll.includes(token)) throw new Error('Trainer SQL boundary missing: ' + token);
 }
@@ -248,6 +257,7 @@ for (const token of [
   "supabase.rpc('trainer_create_ucapsa_exam_draft'",
   "supabase.rpc('get_staff_dog_operational_profile'",
   "supabase.rpc('get_staff_exam_drafts'",
+  "supabase.rpc('staff_publish_ucapsa_exam'",
 ]) {
   if (!trainerService.includes(token)) throw new Error('Trainer app service boundary missing: ' + token);
 }
