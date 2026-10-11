@@ -1,6 +1,6 @@
 import { ucapsaBrand, withAlpha } from '../constants/brand';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
@@ -8,6 +8,7 @@ import { AchievementBadgeGrid, AchievementDetailModal, AchievementSummary } from
 import { ClientPageHeader } from '../components/layout/ClientPageHeader';
 import { KeyboardAwareScreen } from '../components/ui/KeyboardAwareScreen';
 import { resolveUcapsaFormat } from '../constants/ucapsaFormats';
+import { useReturnToProfile } from '../hooks/useReturnToProfile';
 import { useSession } from '../hooks/useSession';
 import {
   getCachedAchievementsForUser,
@@ -16,6 +17,9 @@ import {
 } from '../services/achievements.service';
 
 export default function AchievementsScreen() {
+  const { from } = useLocalSearchParams<{ from?: string | string[] }>();
+  const fromProfile = (Array.isArray(from) ? from[0] : from) === 'profile';
+  const backToProfile = useReturnToProfile(fromProfile);
   const { loading: sessionLoading, user, role, isAdmin } = useSession();
   const [achievements, setAchievements] = useState<AchievementWithState[]>([]);
   const [selectedAchievement, setSelectedAchievement] = useState<AchievementWithState | null>(null);
@@ -118,6 +122,8 @@ export default function AchievementsScreen() {
         title="Logros"
         subtitle="Hitos reales que ya alcanzaste con tu perro en UCAPSA."
         icon="emoji-events"
+        onBack={fromProfile ? backToProfile : undefined}
+        backLabel="Volver a Perfil"
       />
 
       {hasAchievements ? <AchievementSummary items={achievements} premium={premium} /> : null}
