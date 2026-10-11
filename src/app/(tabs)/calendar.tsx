@@ -1,4 +1,4 @@
-import { ucapsaBrand, withAlpha } from '../../constants/brand';
+import { ucapsaBrand, ucapsaColorKeyPalette, withAlpha } from '../../constants/brand';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -114,34 +114,17 @@ function expandClassOccurrences(schedules: ProgramSchedule[], programs: UcapsaPr
 }
 
 
-function getClassTheme(programCode: string | null | undefined) {
-  if (programCode === 'puppy') {
-    return {
-      background: ucapsaBrand.colors.goldPale,
-      border: ucapsaBrand.colors.gold,
-      iconBackground: ucapsaBrand.colors.goldSoft,
-      accent: ucapsaBrand.colors.goldDark,
-      title: ucapsaBrand.colors.text,
-      text: ucapsaBrand.colors.muted,
-    };
-  }
+function getColorTone(colorKey: UcapsaProgram['color_key'] | Announcement['color_key'] | UcapsaEvent['color_key'] | null | undefined) {
+  return ucapsaColorKeyPalette[colorKey ?? 'red'] ?? ucapsaColorKeyPalette.red;
+}
 
-  if (programCode === 'comandos') {
-    return {
-      background: ucapsaBrand.colors.redSoftMuted,
-      border: ucapsaBrand.colors.redBorder,
-      iconBackground: ucapsaBrand.colors.redSoft,
-      accent: ucapsaBrand.colors.red,
-      title: ucapsaBrand.colors.text,
-      text: ucapsaBrand.colors.muted,
-    };
-  }
-
+function getClassTheme(program: UcapsaProgram | null | undefined) {
+  const tone = getColorTone(program?.color_key);
   return {
-    background: ucapsaBrand.colors.surface,
-    border: ucapsaBrand.colors.dangerBorder,
-    iconBackground: ucapsaBrand.colors.redSoftMuted,
-    accent: ucapsaBrand.colors.red,
+    background: tone.soft,
+    border: tone.accent,
+    iconBackground: tone.soft,
+    accent: tone.text,
     title: ucapsaBrand.colors.text,
     text: ucapsaBrand.colors.muted,
   };
@@ -418,6 +401,7 @@ export default function CalendarScreen() {
     title: string;
     detail: string;
     cancelled?: boolean;
+    colorKey?: UcapsaProgram['color_key'] | Announcement['color_key'] | UcapsaEvent['color_key'] | null;
     source: ClassOccurrence | EventOccurrence | Announcement | PracticeActivityEntry;
   };
 
@@ -432,6 +416,7 @@ export default function CalendarScreen() {
         sortMinutes: -20,
         title: announcement.title,
         detail: announcement.content,
+        colorKey: announcement.color_key,
         source: announcement,
       });
     }
@@ -446,6 +431,7 @@ export default function CalendarScreen() {
         sortMinutes: hasTime ? date.getHours() * 60 + date.getMinutes() : -10,
         title: occurrence.event.title,
         detail: occurrence.event.location || occurrence.event.description || 'Evento UCAPSA',
+        colorKey: occurrence.event.color_key,
         source: occurrence,
       });
     }
@@ -462,6 +448,7 @@ export default function CalendarScreen() {
           ? `Cancelada${occurrence.cancellation.reason ? ` · ${occurrence.cancellation.reason}` : ''}`
           : formatProgramScheduleDetailLabel(occurrence.schedule),
         cancelled: Boolean(occurrence.cancellation),
+        colorKey: occurrence.program?.color_key,
         source: occurrence,
       });
     }
@@ -638,15 +625,12 @@ export default function CalendarScreen() {
                       <Text style={[styles.dayEmptyText, { color: format.muted }]}>No hay actividad registrada para este día.</Text>
                     </View>
                   ) : dayAgendaItems.map((item) => {
+                    const configuredTone = getColorTone(item.colorKey);
                     const accent = item.cancelled
                       ? ucapsaBrand.colors.red
-                      : item.kind === 'class'
-                        ? ucapsaBrand.colors.blue
-                        : item.kind === 'event'
-                          ? ucapsaBrand.colors.red
-                          : item.kind === 'announcement'
-                            ? ucapsaBrand.colors.gold
-                            : ucapsaBrand.colors.green;
+                      : item.kind === 'practice'
+                        ? ucapsaBrand.colors.green
+                        : configuredTone.accent;
                     const icon = item.kind === 'class'
                       ? 'school'
                       : item.kind === 'event'
@@ -710,7 +694,7 @@ export default function CalendarScreen() {
                 </View>
 
                 {selectedClasses.map((occurrence) => {
-                  const theme = getClassTheme(occurrence.program?.code);
+                  const theme = getClassTheme(occurrence.program);
                   const isCancelled = Boolean(occurrence.cancellation);
                   const title = formatProgramScheduleName(occurrence.schedule, occurrence.program);
                   const detail = formatProgramScheduleDetailLabel(occurrence.schedule);
