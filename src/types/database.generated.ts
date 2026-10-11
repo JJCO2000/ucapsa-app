@@ -532,6 +532,8 @@ export type Database = {
       dogs: {
         Row: {
           allergies: string | null
+          avatar_color: string
+          avatar_key: string
           behavior_notes: string | null
           birth_date: string | null
           breed: string | null
@@ -554,6 +556,8 @@ export type Database = {
         }
         Insert: {
           allergies?: string | null
+          avatar_color?: string
+          avatar_key?: string
           behavior_notes?: string | null
           birth_date?: string | null
           breed?: string | null
@@ -576,6 +580,8 @@ export type Database = {
         }
         Update: {
           allergies?: string | null
+          avatar_color?: string
+          avatar_key?: string
           behavior_notes?: string | null
           birth_date?: string | null
           breed?: string | null
@@ -3962,6 +3968,8 @@ export type Database = {
           constancy_percentile: number | null
           constancy_points: number | null
           constancy_population_count: number | null
+          dog_avatar_color: string | null
+          dog_avatar_key: string | null
           dog_id: string | null
           dog_is_active: boolean | null
           dog_name: string | null
@@ -5332,13 +5340,14 @@ export type Database = {
       get_my_basic_dog_profile: {
         Args: { p_dog_id: string }
         Returns: {
+          avatar_color: string
+          avatar_key: string
           birth_date: string
           breed: string
           created_at: string
           id: string
           is_active: boolean
           name: string
-          photo_path: string
           sex: string
           updated_at: string
           weight_kg: number
@@ -5347,6 +5356,8 @@ export type Database = {
       get_my_basic_dogs: {
         Args: never
         Returns: {
+          avatar_color: string
+          avatar_key: string
           created_at: string
           id: string
           is_active: boolean
@@ -5368,6 +5379,8 @@ export type Database = {
           constancy_percentile: number | null
           constancy_points: number | null
           constancy_population_count: number | null
+          dog_avatar_color: string | null
+          dog_avatar_key: string | null
           dog_id: string | null
           dog_is_active: boolean | null
           dog_name: string | null
@@ -5637,21 +5650,6 @@ export type Database = {
         Args: { p_program_code: string }
         Returns: string
       }
-      set_my_dog_photo_path: {
-        Args: { p_dog_id: string; p_photo_path: string }
-        Returns: {
-          birth_date: string
-          breed: string
-          created_at: string
-          id: string
-          is_active: boolean
-          name: string
-          photo_path: string
-          sex: string
-          updated_at: string
-          weight_kg: number
-        }[]
-      }
       ucapsa_achievement_code_for_enrollment: {
         Args: { p_enrollment_id: string }
         Returns: string
@@ -5711,6 +5709,8 @@ export type Database = {
       }
       update_my_basic_dog_profile: {
         Args: {
+          p_avatar_color?: string
+          p_avatar_key?: string
           p_birth_date?: string
           p_breed?: string
           p_dog_id: string
@@ -5719,13 +5719,14 @@ export type Database = {
           p_weight_kg?: number
         }
         Returns: {
+          avatar_color: string
+          avatar_key: string
           birth_date: string
           breed: string
           created_at: string
           id: string
           is_active: boolean
           name: string
-          photo_path: string
           sex: string
           updated_at: string
           weight_kg: number
