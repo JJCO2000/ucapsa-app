@@ -375,3 +375,154 @@ export async function pickAndParseUcapsaExamXlsx(
     fileName,
   };
 }
+
+
+export type ExamDefinitionUploadItem = {
+  title: string;
+  description: string | null;
+  max_points: number;
+};
+
+export type ParsedExamDefinitionWorkbook = {
+  items: ExamDefinitionUploadItem[];
+  sourceRows: number[];
+  headerLabels: string[];
+};
+
+const EXERCISE_HEADERS = new Set([
+  'ejercicio',
+  'ejercicio nombre',
+  'titulo',
+  'title',
+  'item',
+  'actividad',
+]);
+
+const MAX_POINTS_HEADERS = new Set([
+  'puntos maximos',
+  'puntos max',
+  'max points',
+  'maximo',
+  'puntaje maximo',
+  'valor',
+]);
+
+const DESCRIPTION_HEADERS = new Set([
+  'descripcion',
+  'description',
+  'criterio',
+  'observaciones',
+]);
+
+export function parseUcapsaExamDefinitionXlsx(bytes: Uint8Array): ParsedExamDefinitionWorkbook {
+  if (bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4b) {
+    throw new Error('El archivo seleccionado no es un .xlsx válido.');
+  }
+
+  let files: Record<string, Uint8Array>;
+  try {
+    files = unzipSync(bytes);
+  } catch {
+    throw new Error('No se pudo abrir el archivo .xlsx.');
+  }
+
+  const grid = readFirstSheet(files);
+  if (grid.length === 0 || grid[0].every((value) => !nonEmpty(value))) {
+    throw new Error('La fila 1 debe contener los encabezados del examen.');
+  }
+
+  const headers = grid[0];
+  const headerLabels = headers.map((value) => String(value ?? '').trim());
+  let exerciseColumn: number | null = null;
+  let maxPointsColumn: number | null = null;
+  let descriptionColumn: number | null = null;
+  const unknownHeaders: string[] = [];
+
+  for (let column = 0; column < headers.length; column += 1) {
+    if (!nonEmpty(headers[column])) continue;
+    const normalized = normalizeHeader(headers[column]);
+
+    if (EXERCISE_HEADERS.has(normalized)) {
+      if (exerciseColumn !== null) throw new Error('El Excel tiene más de una columna Ejercicio.');
+      exerciseColumn = column;
+      continue;
+    }
+    if (MAX_POINTS_HEADERS.has(normalized)) {
+      if (maxPointsColumn !== null) throw new Error('El Excel tiene más de una columna Puntos máximos.');
+      maxPointsColumn = column;
+      continue;
+    }
+    if (DESCRIPTION_HEADERS.has(normalized)) {
+      if (descriptionColumn !== null) throw new Error('El Excel tiene más de una columna Descripción.');
+      descriptionColumn = column;
+      continue;
+    }
+
+    unknownHeaders.push(headerLabels[column] || `columna ${column + 1}`);
+  }
+
+  if (exerciseColumn === null) throw new Error('Falta la columna Ejercicio.');
+  if (maxPointsColumn === null) throw new Error('Falta la columna Puntos máximos.');
+  if (unknownHeaders.length > 0) {
+    throw new Error(`Columnas no reconocidas: ${unknownHeaders.join(', ')}.`);
+  }
+
+  const items: ExamDefinitionUploadItem[] = [];
+  const sourceRows: number[] = [];
+
+  for (let rowIndex = 1; rowIndex < grid.length; rowIndex += 1) {
+    const row = grid[rowIndex] ?? [];
+    if (row.every((value) => !nonEmpty(value))) continue;
+
+    const title = String(row[exerciseColumn] ?? '').trim();
+    const rawMax = row[maxPointsColumn];
+    const maxPoints = typeof rawMax === 'number' ? rawMax : Number(String(rawMax ?? '').trim());
+    const description = descriptionColumn === null
+      ? null
+      : String(row[descriptionColumn] ?? '').trim() || null;
+
+    if (!title) throw new Error(`La fila ${rowIndex + 1} no tiene nombre de ejercicio.`);
+    if (!Number.isFinite(maxPoints) || maxPoints <= 0) {
+      throw new Error(`La fila ${rowIndex + 1} necesita Puntos máximos mayores que cero.`);
+    }
+
+    items.push({
+      title,
+      description,
+      max_points: maxPoints,
+    });
+    sourceRows.push(rowIndex + 1);
+  }
+
+  if (items.length === 0) throw new Error('El Excel no contiene ejercicios.');
+
+  return { items, sourceRows, headerLabels };
+}
+
+export async function pickAndParseUcapsaExamDefinitionXlsx(): Promise<
+  (ParsedExamDefinitionWorkbook & { fileName: string }) | null
+> {
+  const picked = await File.pickFileAsync({
+    multipleFiles: false,
+    mimeTypes: [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/octet-stream',
+      'application/zip',
+    ],
+  });
+
+  if (picked.canceled) return null;
+
+  const file = picked.result;
+  const fileName = file.name?.trim() || 'examen.xlsx';
+  if (!fileName.toLocaleLowerCase('es-MX').endsWith('.xlsx')) {
+    throw new Error('Selecciona un archivo con extensión .xlsx.');
+  }
+
+  const bytes = await file.bytes();
+  const parsed = parseUcapsaExamDefinitionXlsx(bytes);
+  return {
+    ...parsed,
+    fileName,
+  };
+}
