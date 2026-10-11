@@ -7,6 +7,7 @@ import type { NotificationCategoryKey } from '../../types/app.types';
 
 type NotificationSettingsCardProps = {
   premium?: boolean;
+  mode?: 'client' | 'trainer';
 };
 
 type CategoryItem = {
@@ -43,7 +44,7 @@ const categories: CategoryItem[] = [
   },
 ];
 
-export function NotificationSettingsCard({ premium = false }: NotificationSettingsCardProps) {
+export function NotificationSettingsCard({ premium = false, mode = 'client' }: NotificationSettingsCardProps) {
   const {
     preferences,
     permissionStatus,
@@ -58,6 +59,9 @@ export function NotificationSettingsCard({ premium = false }: NotificationSettin
   } = useNotifications();
 
   const enabled = Boolean(preferences?.enabled);
+  const visibleCategories = mode === 'trainer'
+    ? categories.filter((item) => item.key === 'classes')
+    : categories;
   const busy = loading || saving || registering;
   const hasToken = Boolean(expoPushToken);
   const permissionBlocked = permissionStatus === 'denied';
@@ -96,15 +100,21 @@ export function NotificationSettingsCard({ premium = false }: NotificationSettin
           <MaterialCommunityIcons name="bell-ring-outline" size={22} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.red} />
         </View>
         <View style={styles.headerTextWrap}>
-          <Text style={[styles.title, premium && styles.titlePremium]}>Notificaciones UCAPSA</Text>
-          <Text style={[styles.description, premium && styles.descriptionPremium]}>Avisos directos y oficiales para ti. No incluyen mensajes de otros clientes ni conversaciones de grupo.</Text>
+          <Text style={[styles.title, premium && styles.titlePremium]}>{mode === 'trainer' ? 'Alertas de entrenador' : 'Notificaciones UCAPSA'}</Text>
+          <Text style={[styles.description, premium && styles.descriptionPremium]}>
+            {mode === 'trainer'
+              ? 'Recibe el resumen operativo de las clases del día siguiente y sus cambios.'
+              : 'Avisos directos y oficiales para ti. No incluyen mensajes de otros clientes ni conversaciones de grupo.'}
+          </Text>
         </View>
       </View>
 
       <View style={[styles.directNotice, premium && styles.directNoticePremium]}>
         <MaterialCommunityIcons name="shield-check-outline" size={18} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.redDark} />
         <Text style={[styles.directNoticeText, premium && styles.descriptionPremium]}>
-          Tú decides las categorías. UCAPSA no usa estas alertas como un chat de clientes.
+          {mode === 'trainer'
+            ? 'El resumen usa confirmaciones reales del día siguiente y no incluye pagos ni estadísticas administrativas.'
+            : 'Tú decides las categorías. UCAPSA no usa estas alertas como un chat de clientes.'}
         </Text>
       </View>
 
@@ -140,7 +150,7 @@ export function NotificationSettingsCard({ premium = false }: NotificationSettin
       </Pressable>
 
       <View style={styles.categoriesWrap}>
-        {categories.map((item) => {
+        {visibleCategories.map((item) => {
           const itemEnabled = Boolean(preferences?.[item.key]);
           const rowDisabled = !enabled || busy;
           return (
@@ -150,7 +160,11 @@ export function NotificationSettingsCard({ premium = false }: NotificationSettin
               </View>
               <View style={styles.categoryTextWrap}>
                 <Text style={[styles.categoryTitle, premium && styles.categoryTitlePremium]}>{item.label}</Text>
-                <Text style={[styles.categoryDescription, premium && styles.categoryDescriptionPremium]}>{item.description}</Text>
+                <Text style={[styles.categoryDescription, premium && styles.categoryDescriptionPremium]}>
+                  {mode === 'trainer' && item.key === 'classes'
+                    ? 'Aforo esperado, cambios y recordatorio operativo del día siguiente.'
+                    : item.description}
+                </Text>
               </View>
               <Pressable
                 disabled={rowDisabled}
