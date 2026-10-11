@@ -604,6 +604,50 @@ export type Database = {
         }
         Relationships: []
       }
+      dog_staff_notes: {
+        Row: {
+          archived_at: string | null
+          archived_by: string | null
+          category: string
+          created_at: string
+          created_by: string
+          dog_id: string
+          id: string
+          note: string
+          severity: string
+        }
+        Insert: {
+          archived_at?: string | null
+          archived_by?: string | null
+          category?: string
+          created_at?: string
+          created_by: string
+          dog_id: string
+          id?: string
+          note: string
+          severity?: string
+        }
+        Update: {
+          archived_at?: string | null
+          archived_by?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string
+          dog_id?: string
+          id?: string
+          note?: string
+          severity?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dog_staff_notes_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_occurrence_cancellations: {
         Row: {
           cancelled_at: string
@@ -5352,6 +5396,122 @@ export type Database = {
           unique_members: number
         }[]
       }
+      add_staff_dog_note: {
+        Args: {
+          p_category: string
+          p_dog_id: string
+          p_note: string
+          p_severity: string
+        }
+        Returns: string
+      }
+      archive_staff_dog_note: {
+        Args: { p_note_id: string }
+        Returns: string
+      }
+      get_admin_period_report: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
+      }
+      get_staff_class_roster: {
+        Args: { p_class_date: string }
+        Returns: {
+          class_date: string
+          customer_name: string
+          dog_id: string | null
+          dog_name: string
+          enrollment_id: string
+          program_code: string
+          program_level: string
+          program_name: string
+          rsvp_response: string | null
+          schedule_id: string
+          start_time: string
+        }[]
+      }
+      get_staff_dog_directory: {
+        Args: { p_query?: string }
+        Returns: {
+          dog_id: string
+          dog_name: string
+          important_notes: number
+          is_member: boolean
+          owner_name: string
+          program_code: string | null
+          program_level: string | null
+          watch_notes: number
+        }[]
+      }
+      get_staff_dog_notes: {
+        Args: { p_dog_id: string }
+        Returns: {
+          archived_at: string | null
+          author_name: string
+          category: string
+          created_at: string
+          created_by: string
+          dog_id: string
+          id: string
+          note: string
+          severity: string
+        }[]
+      }
+      get_staff_dog_profile: {
+        Args: { p_dog_id: string }
+        Returns: Json
+      }
+      get_staff_exam_attempt_detail: {
+        Args: { p_attempt_id: string }
+        Returns: Json
+      }
+      get_staff_exam_catalog: {
+        Args: never
+        Returns: {
+          exam_code: string
+          exam_date: string | null
+          exam_id: string
+          exam_title: string
+          season_id: string
+          season_name: string
+        }[]
+      }
+      get_staff_exam_workspace: {
+        Args: { p_exam_id: string }
+        Returns: Json
+      }
+      is_ucapsa_staff: {
+        Args: never
+        Returns: boolean
+      }
+      is_ucapsa_trainer: {
+        Args: never
+        Returns: boolean
+      }
+      staff_create_ucapsa_exam_attempt: {
+        Args: {
+          p_dog_id: string
+          p_exam_id: string
+          p_presented_at?: string
+        }
+        Returns: string
+      }
+      staff_review_ucapsa_exam_attempt: {
+        Args: { p_attempt_id: string }
+        Returns: string
+      }
+      staff_upsert_ucapsa_exam_item_result: {
+        Args: {
+          p_attempt_id: string
+          p_evaluator_note?: string
+          p_exam_item_id: string
+          p_points_awarded: number
+        }
+        Returns: string
+      }
+      super_admin_set_trainer_role: {
+        Args: { p_enabled: boolean; p_user_id: string }
+        Returns: string
+      }
       get_admin_class_rsvp_summary: {
         Args: { p_class_date: string }
         Returns: {
@@ -6019,7 +6179,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["client", "member", "admin", "super_admin"],
+      app_role: ["client", "member", "trainer", "admin", "super_admin"],
       audience_type: ["public", "clients", "members", "admins"],
       membership_status: [
         "none",
