@@ -95,6 +95,17 @@ export type TrainerExamCatalogRow = {
   maxPoints: number;
 };
 
+export type TrainerExamDraftRow = {
+  examId: string;
+  examCode: string;
+  examTitle: string;
+  examDate: string | null;
+  seasonName: string;
+  itemCount: number;
+  maxPoints: number;
+  createdAt: string;
+};
+
 export type TrainerExamDog = {
   dogId: string;
   dogName: string;
@@ -356,6 +367,21 @@ export async function getStaffTrainingReport(startDate: string, endDate: string)
     dogName: row.dog_name,
     rsvpResponse: row.rsvp_response === 'yes' || row.rsvp_response === 'no' ? row.rsvp_response : null,
     attended: Boolean(row.attended),
+  }));
+}
+
+export async function getStaffExamDrafts(): Promise<TrainerExamDraftRow[]> {
+  const { data, error } = await supabase.rpc('get_staff_exam_drafts');
+  if (error) throw error;
+  return (data ?? []).map((row) => ({
+    examId: row.exam_id,
+    examCode: row.exam_code,
+    examTitle: row.exam_title,
+    examDate: row.exam_date ?? null,
+    seasonName: row.season_name,
+    itemCount: Number(row.item_count ?? 0),
+    maxPoints: Number(row.max_points ?? 0),
+    createdAt: row.created_at,
   }));
 }
 
