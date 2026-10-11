@@ -4,6 +4,7 @@ function read(path) {
   return fs.readFileSync(path, 'utf8');
 }
 
+const enumSql = read('supabase/sql/ucapsa-trainer-00-role.sql');
 const roleSql = read('supabase/sql/ucapsa-trainer-operations.sql');
 const appTypes = read('src/types/app.types.ts');
 const dbTypes = read('src/types/database.generated.ts');
@@ -34,8 +35,11 @@ for (const [source, token] of [
   if (!source.includes(token)) throw new Error('Trainer role surface missing: ' + token);
 }
 
+if (!enumSql.includes("alter type public.app_role add value if not exists 'trainer'")) {
+  throw new Error('Trainer enum migration missing.');
+}
+
 for (const token of [
-  "alter type public.app_role add value if not exists 'trainer'",
   'is_ucapsa_trainer()',
   'is_ucapsa_training_staff()',
   'dog_staff_notes',
