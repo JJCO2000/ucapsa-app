@@ -17,6 +17,10 @@ const payments = read('src/app/(tabs)/payments.tsx');
 const services = read('src/app/(tabs)/services.tsx');
 const membership = read('src/app/client/membership.tsx');
 const accountSettings = read('src/app/account-settings.tsx');
+const dogHistory = read('src/app/client/dog-history.tsx');
+const ranking = read('src/app/client/competition-ranking.tsx');
+const dogPhotoService = read('src/services/dog-photos.service.ts');
+const activityAchievements = read('src/constants/activityAchievements.ts');
 
 for (const token of [
   "title: isClient ? 'Agenda' : 'Calendario'",
@@ -43,15 +47,17 @@ for (const token of [
 for (const token of [
   'Perfil de {selectedDog.name}',
   '/client/dog-profile?dogId=',
-  'Detalle competitivo',
-  'Historial',
-  'clases tomadas',
-  '<DogAvatar',
+  'ENTRENAMIENTO ACTUAL',
+  '/client/dog-achievements?dogId=',
+  '/client/dog-history?dogId=',
 ]) {
   if (!dog.includes(token)) throw new Error('Dog clarity missing: ' + token);
 }
-for (const token of ['LOGROS UCAPSA', 'AchievementBadgeGrid', 'Tus perros y Ranking']) {
+for (const token of ['LOGROS UCAPSA', 'AchievementBadgeGrid', 'Tus perros y Ranking', 'Detalle competitivo', 'historyExpanded']) {
   if (dog.includes(token)) throw new Error('Mi perro volvió a mezclar un dominio secundario: ' + token);
+}
+for (const token of ['Programas y clases registradas.', '/client/class-detail?enrollmentId=']) {
+  if (!dogHistory.includes(token)) throw new Error('Dog history detail missing: ' + token);
 }
 
 for (const token of [
@@ -61,6 +67,9 @@ for (const token of [
   'timelineRow',
   "setMonthExpanded(false)",
   "activityDateKeys.has(dateKey)",
+  "'Día libre'",
+  "'Mes'",
+  "'Semana'",
   'useLocalSearchParams',
   'if (announcement.announcement_date) return toDateKey(announcement.announcement_date);',
 ]) {
@@ -115,11 +124,28 @@ for (const source of [payments, services, membership, accountSettings]) {
   if (!source.includes('profile')) throw new Error('Un acceso desde Perfil perdió su retorno contextual.');
 }
 
-for (const token of ['DOG_AVATAR_OPTIONS', 'DOG_AVATAR_COLORS', 'No pide acceso a tus fotos']) {
-  if (!dogProfile.includes(token)) throw new Error('Avatar local del perro incompleto: ' + token);
+for (const token of [
+  'CameraView',
+  'uploadMyDogPhoto',
+  'removeMyDogPhoto',
+  'La foto es privada',
+]) {
+  if (!dogProfile.includes(token)) throw new Error('Private dog photo UI missing: ' + token);
 }
-if (/expo-image-picker|requestMediaLibraryPermissionsAsync|launchImageLibraryAsync/.test(dogProfile)) {
-  throw new Error('El avatar del perro no debe pedir permisos de fototeca.');
+for (const token of ['DOG_AVATAR_OPTIONS', 'DOG_AVATAR_COLORS', 'No pide acceso a tus fotos']) {
+  if (dogProfile.includes(token)) throw new Error('El perfil del perro volvió al selector de avatar/color: ' + token);
+}
+for (const token of ['dog-photos', 'createSignedUrl', 'set_my_dog_photo_path']) {
+  if (!dogPhotoService.includes(token)) throw new Error('Private dog photo service missing: ' + token);
+}
+for (const token of ['getPrivateDogPhotoUrls', 'RankingDogAvatar', 'photoUrl={mine && row.dog_id']) {
+  if (!ranking.includes(token)) throw new Error('Own dog photo is not preserved in Ranking: ' + token);
+}
+if (!activityAchievements.includes("code: 'attendance_100'")) {
+  throw new Error('Profile activity achievements lost the 100-class milestone.');
+}
+if (!home.includes('!loading && user ? (') || !home.includes('summary={competitionSummary}')) {
+  throw new Error('Inicio must keep Ranking discoverable even before the user has a position.');
 }
 
 console.log('UCAPSA client UX clarity: PASS');
