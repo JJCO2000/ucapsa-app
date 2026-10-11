@@ -287,7 +287,7 @@ export default function DogTab() {
                     {offlineEmpty ? 'No hay una copia local todavía.' : dogs.length > 1 ? 'Selecciona un perro.' : 'Agrega tu primer perro.'}
                   </Text>
                 </View>
-                {!offlineEmpty && dogs.length > 1 ? (
+                {!offlineEmpty && dogs.length > 0 ? (
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel="Agregar perro"
@@ -361,7 +361,17 @@ export default function DogTab() {
           {selectedDog ? (
             <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
               <View style={styles.sectionHeader}>
-                <DogTabPortrait dog={selectedDog} photoUrl={photoUrls[selectedDog.id] ?? null} size={52} />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Editar perfil de ${selectedDog.name}`}
+                  style={styles.dogPortraitButton}
+                  onPress={openEditProfile}
+                >
+                  <DogTabPortrait dog={selectedDog} photoUrl={photoUrls[selectedDog.id] ?? null} size={52} />
+                  <View style={[styles.dogPortraitEditBadge, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
+                    <MaterialIcons name="edit" size={12} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                  </View>
+                </Pressable>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <View style={styles.dogNameRow}>
                     <Text style={[styles.sectionTitle, { color: format.cardText }]}>{selectedDog.name}</Text>
@@ -372,37 +382,21 @@ export default function DogTab() {
                       </View>
                     ) : null}
                   </View>
-                  <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{programWarning ? 'Entrenamiento sin verificar' : selectedActive[0] ? 'Perfil y entrenamiento actual' : 'Perfil del perro'}</Text>
+                  <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+                    {programWarning ? 'Entrenamiento sin verificar' : 'Entrenamiento, avances y logros'}
+                  </Text>
                 </View>
                 <View style={styles.dogHeaderActions}>
-                  {dogs.length === 1 ? (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel="Agregar otro perro"
-                      style={[styles.pencilButton, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}
-                      onPress={openCreate}
-                    >
-                      <MaterialIcons name="add" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-                    </Pressable>
-                  ) : null}
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Ver logros de ${selectedDog.name}`}
+                    style={[styles.pencilButton, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}
+                    onPress={() => router.push(`/client/dog-achievements?dogId=${encodeURIComponent(selectedDog.id)}` as never)}
+                  >
+                    <MaterialIcons name="emoji-events" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                  </Pressable>
                 </View>
               </View>
-
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Abrir perfil de ${selectedDog.name}`}
-                style={[styles.dogProfileShortcut, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}
-                onPress={openEditProfile}
-              >
-                <View style={[styles.dogProfileIcon, { backgroundColor: format.accentSoft }]}>
-                  <MaterialIcons name="account-circle" size={21} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-                </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={[styles.dogProfileTitle, { color: format.cardText }]}>Perfil de {selectedDog.name}</Text>
-                  <Text style={[styles.dogProfileMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Datos del perro y edición de su perfil.</Text>
-                </View>
-                <MaterialIcons name="chevron-right" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-              </Pressable>
 
               {!programWarning && selectedEnrollments.length === 0 ? (
                 <View style={styles.dogEmptyProgram}>
@@ -609,7 +603,9 @@ const styles = StyleSheet.create({
   memberCrown: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, backgroundColor: ucapsaBrand.colors.goldPale, paddingHorizontal: 8, paddingVertical: 4 },
   memberCrownText: { color: ucapsaBrand.colors.goldDark, fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
   dogHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  pencilButton: { width: 48, height: 48, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  dogPortraitButton: { position: 'relative' },
+  dogPortraitEditBadge: { position: 'absolute', right: -4, bottom: -3, width: 22, height: 22, borderRadius: 11, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  pencilButton: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   classRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: ucapsaBrand.colors.border, paddingTop: 11, paddingBottom: 2 },
   historyChild: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 9 },
   rowPremium: { borderTopColor: withAlpha(ucapsaBrand.colors.gold, 0.16) },
