@@ -5,6 +5,7 @@ import { strToU8, zipSync } from 'fflate';
 import type { StaffTrainingReportRow } from './trainer-staff.service';
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const XML_SELF_CLOSE = '/' + '>';
 type CellValue = string | number | boolean;
 
 export type TrainingReportStats = {
@@ -165,12 +166,12 @@ function worksheetXml(rows: CellValue[][], widths: number[], withFilter = true) 
   }).join('');
 
   const columns = widths.map((width, index) =>
-    `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`,
+    `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"${XML_SELF_CLOSE}`,
   ).join('');
 
   const maxColumn = columnName(Math.max(0, (rows[0]?.length ?? 1) - 1));
   const filter = withFilter && rows.length > 0
-    ? `<autoFilter ref="A1:${maxColumn}${Math.max(1, rows.length)}"/>`
+    ? `<autoFilter ref="A1:${maxColumn}${Math.max(1, rows.length)}"${XML_SELF_CLOSE}`
     : '';
 
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
