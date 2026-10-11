@@ -14,6 +14,8 @@ export const styles = StyleSheet.create({
   headerEyebrow: { fontSize: 9, lineHeight: 11, fontWeight: '900', letterSpacing: 1.05 },
   headerTitle: { marginTop: 1, fontSize: 22, lineHeight: 25, fontWeight: '900', letterSpacing: -0.35 },
   headerDetail: { marginTop: 2, fontSize: 11, lineHeight: 15, fontWeight: '800' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  headerQuickAction: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   accountButton: { width: 42, height: 42, borderRadius: 15, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   guestCard: { flexDirection: 'row', gap: 12, borderRadius: 22, borderWidth: 1, padding: 15, marginBottom: 16 },
   guestIcon: { width: 48, height: 48, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
