@@ -5475,6 +5475,19 @@ export type Database = {
           weight_kg: number | null
         }[]
       }
+      get_staff_exam_drafts: {
+        Args: never
+        Returns: {
+          created_at: string
+          exam_code: string
+          exam_date: string | null
+          exam_id: string
+          exam_title: string
+          item_count: number
+          max_points: number
+          season_name: string
+        }[]
+      }
       get_staff_dog_notes: {
         Args: { p_dog_id: string }
         Returns: {
