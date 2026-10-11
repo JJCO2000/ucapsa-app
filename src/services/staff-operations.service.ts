@@ -102,6 +102,14 @@ export type StaffExamImportResult = {
   errors: StaffExamImportErrorRow[];
 };
 
+export type StaffExamItem = {
+  examItemId: string;
+  itemNumber: number;
+  title: string;
+  description: string | null;
+  maxPoints: number;
+};
+
 export type StaffExamAttempt = {
   attemptId: string;
   examId: string;
@@ -325,6 +333,18 @@ export async function getStaffPublishedExams(): Promise<StaffExam[]> {
     examTitle: row.exam_title,
     examDate: row.exam_date ?? null,
     seasonName: row.season_name,
+  }));
+}
+
+export async function getStaffExamItems(examId: string): Promise<StaffExamItem[]> {
+  const { data, error } = await supabase.rpc('get_staff_exam_items', { p_exam_id: examId.trim() });
+  if (error) throw error;
+  return (data ?? []).map((row) => ({
+    examItemId: row.exam_item_id,
+    itemNumber: row.item_number,
+    title: row.title,
+    description: row.description ?? null,
+    maxPoints: Number(row.max_points ?? 0),
   }));
 }
 
