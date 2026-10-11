@@ -16,7 +16,7 @@ function noteTone(severity: string | null) {
 }
 
 export default function TrainerDogsTab() {
-  const { isTrainer, isAdmin } = useSession();
+  const { isTrainer, isStaff, isAdmin } = useSession();
   const [rows, setRows] = useState<StaffDogRow[]>([]);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -35,11 +35,11 @@ export default function TrainerDogsTab() {
   }, []);
 
   useFocusEffect(useCallback(() => {
-    if (!isTrainer) return undefined;
+    if (!isStaff) return undefined;
     setLoading(true);
     void load();
     return undefined;
-  }, [isTrainer, load]));
+  }, [isStaff, load]));
 
   const visible = useMemo(() => {
     const term = query.trim().toLocaleLowerCase('es-MX');
@@ -55,7 +55,7 @@ export default function TrainerDogsTab() {
     try { await load(); } finally { setRefreshing(false); }
   }
 
-  if (!isTrainer) return <Redirect href={isAdmin ? '/admin-home' : '/home'} />;
+  if (!isStaff) return <Redirect href={isAdmin ? '/admin-home' : '/home'} />;
 
   return (
     <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={ucapsaBrand.colors.green} />}>
