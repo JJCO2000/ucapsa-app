@@ -10,10 +10,12 @@ import {
   createStaffExamAttempt,
   getStaffDogs,
   getStaffExamAttempts,
+  getStaffExamDrafts,
   getStaffPublishedExams,
   type StaffDogRow,
   type StaffExam,
   type StaffExamAttempt,
+  type StaffExamDraft,
 } from '../../services/staff-operations.service';
 
 function statusLabel(value: string) {
@@ -26,6 +28,7 @@ export default function TrainerExamsTab() {
   const { isStaff, isAdmin } = useSession();
   const [exams, setExams] = useState<StaffExam[]>([]);
   const [attempts, setAttempts] = useState<StaffExamAttempt[]>([]);
+  const [drafts, setDrafts] = useState<StaffExamDraft[]>([]);
   const [dogs, setDogs] = useState<StaffDogRow[]>([]);
   const [selectedExamId, setSelectedExamId] = useState('');
   const [query, setQuery] = useState('');
@@ -37,13 +40,15 @@ export default function TrainerExamsTab() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [examRows, attemptRows, dogRows] = await Promise.all([
+      const [examRows, attemptRows, draftRows, dogRows] = await Promise.all([
         getStaffPublishedExams(),
         getStaffExamAttempts(),
+        getStaffExamDrafts(),
         getStaffDogs(),
       ]);
       setExams(examRows);
       setAttempts(attemptRows);
+      setDrafts(draftRows);
       setDogs(dogRows);
       setSelectedExamId((current) => current && examRows.some((item) => item.examId === current) ? current : examRows[0]?.examId ?? '');
     } catch (cause) {
@@ -95,6 +100,32 @@ export default function TrainerExamsTab() {
         <Text style={styles.subtitle}>Captura resultados. Publicar el resultado oficial sigue siendo una decisión administrativa.</Text>
       </View>
 
+      <View style={styles.actionRow}>
+        <Pressable style={[styles.actionCard, styles.actionUpload]} onPress={() => router.push('/trainer/exam-upload' as never)}>
+          <View style={[styles.actionIcon, { backgroundColor: ucapsaBrand.colors.greenSoft }]}>
+            <MaterialIcons name="upload-file" size={22} color={ucapsaBrand.colors.greenDark} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.actionTitle}>Subir examen</Text>
+            <Text style={styles.actionMeta}>Excel → borrador</Text>
+          </View>
+        </Pressable>
+
+        <Pressable
+          disabled={!selectedExamId}
+          style={[styles.actionCard, !selectedExamId && styles.disabled]}
+          onPress={() => selectedExamId && router.push(`/trainer/exam-results-import?examId=${encodeURIComponent(selectedExamId)}` as never)}
+        >
+          <View style={[styles.actionIcon, { backgroundColor: ucapsaBrand.colors.purpleSoft }]}>
+            <MaterialIcons name="grading" size={22} color={ucapsaBrand.colors.purpleDark} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.actionTitle}>Subir calificaciones</Text>
+            <Text style={styles.actionMeta}>{selectedExamId ? 'Excel del examen elegido' : 'Elige un examen publicado'}</Text>
+          </View>
+        </Pressable>
+      </View>
+
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.green} /><Text style={styles.muted}>Cargando exámenes…</Text></View> : null}
       {error ? <View style={styles.error}><Text style={styles.errorText}>{error}</Text></View> : null}
 
@@ -112,6 +143,28 @@ export default function TrainerExamsTab() {
               );
             })}
           </View>
+
+          {drafts.length > 0 ? (
+            <View style={styles.draftsCard}>
+              <View style={styles.draftsHeader}>
+                <View>
+                  <Text style={styles.draftsEyebrow}>BORRADORES</Text>
+                  <Text style={styles.draftsTitle}>Esperando publicación</Text>
+                </View>
+                <Text style={styles.draftCount}>{drafts.length}</Text>
+              </View>
+              {drafts.slice(0, 5).map((draft) => (
+                <View key={draft.examId} style={styles.draftRow}>
+                  <MaterialIcons name="description" size={18} color={ucapsaBrand.colors.goldDark} />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text numberOfLines={1} style={styles.draftName}>{draft.examCode} · {draft.examTitle}</Text>
+                    <Text style={styles.draftMeta}>{draft.itemsCount} ejercicios · cargado por {draft.createdByName}</Text>
+                  </View>
+                  <Text style={styles.draftStatus}>Borrador</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
 
           {exams.length === 0 ? (
             <View style={styles.empty}>
@@ -173,6 +226,21 @@ const styles = StyleSheet.create({
   kicker: { color: ucapsaBrand.colors.greenDark, fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
   title: { color: ucapsaBrand.colors.text, fontSize: 28, fontWeight: '900', marginTop: 2 },
   subtitle: { color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 16, fontWeight: '700', marginTop: 3 },
+  actionRow: { flexDirection: 'row', gap: 8, marginBottom: 11 },
+  actionCard: { flex: 1, minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 17, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 10 },
+  actionUpload: { borderColor: ucapsaBrand.colors.green },
+  actionIcon: { width: 39, height: 39, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  actionTitle: { color: ucapsaBrand.colors.text, fontSize: 10, lineHeight: 13, fontWeight: '900' },
+  actionMeta: { color: ucapsaBrand.colors.muted, fontSize: 8, lineHeight: 11, fontWeight: '700', marginTop: 2 },
+  draftsCard: { borderRadius: 17, borderWidth: 1, borderColor: ucapsaBrand.colors.gold, backgroundColor: ucapsaBrand.colors.goldPale, padding: 10, marginTop: 10 },
+  draftsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  draftsEyebrow: { color: ucapsaBrand.colors.goldDark, fontSize: 8, fontWeight: '900', letterSpacing: 0.6 },
+  draftsTitle: { color: ucapsaBrand.colors.text, fontSize: 11, fontWeight: '900', marginTop: 1 },
+  draftCount: { color: ucapsaBrand.colors.goldDark, fontSize: 12, fontWeight: '900' },
+  draftRow: { minHeight: 43, flexDirection: 'row', alignItems: 'center', gap: 7, borderTopWidth: 1, borderTopColor: ucapsaBrand.colors.gold, paddingVertical: 6 },
+  draftName: { color: ucapsaBrand.colors.text, fontSize: 9, fontWeight: '900' },
+  draftMeta: { color: ucapsaBrand.colors.goldDark, fontSize: 8, lineHeight: 11, fontWeight: '700', marginTop: 1 },
+  draftStatus: { color: ucapsaBrand.colors.goldDark, fontSize: 8, fontWeight: '900' },
   loading: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, padding: 18 },
   muted: { color: ucapsaBrand.colors.muted, fontSize: 10, lineHeight: 15, fontWeight: '700' },
   error: { borderRadius: 16, backgroundColor: ucapsaBrand.colors.dangerSoft, padding: 12 },
@@ -199,4 +267,5 @@ const styles = StyleSheet.create({
   attemptStatus: { color: ucapsaBrand.colors.greenDark, fontSize: 8, fontWeight: '900', marginTop: 3 },
   empty: { alignItems: 'center', gap: 6, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 18 },
   emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
+  disabled: { opacity: 0.45 },
 });
