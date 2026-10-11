@@ -16,30 +16,45 @@ export function NextActionCard({
   action,
   format,
   onPress,
+  onAttendance,
 }: {
   snapshot: CustomerValueSnapshot;
   action: Exclude<CustomerValuePrimaryNextAction, null>;
   format: ReturnType<typeof resolveUcapsaFormat>;
   onPress: () => void;
+  onAttendance?: () => void;
 }) {
   const presentation = nextPresentation(snapshot, action);
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${presentation.eyebrow}. ${presentation.title}. ${presentation.detail}`}
-      onPress={onPress}
-      style={[styles.nextCard, { backgroundColor: format.primaryButton }]}
-    >
-      <View style={[styles.nextIcon, { backgroundColor: withAlpha(format.primaryButtonText, 0.14) }]}>
-        <MaterialIcons name={presentation.icon} size={24} color={format.primaryButtonText} />
-      </View>
-      <View style={styles.nextCopy}>
-        <Text style={[styles.nextEyebrow, { color: format.primaryButtonText }]}>{presentation.eyebrow}</Text>
-        <Text numberOfLines={2} style={[styles.nextTitle, { color: format.primaryButtonText }]}>{presentation.title}</Text>
-        <Text numberOfLines={2} style={[styles.nextDetail, { color: format.primaryButtonText }]}>{presentation.detail}</Text>
-      </View>
-      <MaterialIcons name="arrow-forward" size={23} color={format.primaryButtonText} />
-    </Pressable>
+    <View style={[styles.nextCard, { backgroundColor: format.primaryButton }]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${presentation.eyebrow}. ${presentation.title}. ${presentation.detail}`}
+        onPress={onPress}
+        style={styles.nextCardMain}
+      >
+        <View style={[styles.nextIcon, { backgroundColor: withAlpha(format.primaryButtonText, 0.14) }]}>
+          <MaterialIcons name={presentation.icon} size={24} color={format.primaryButtonText} />
+        </View>
+        <View style={styles.nextCopy}>
+          <Text style={[styles.nextEyebrow, { color: format.primaryButtonText }]}>{presentation.eyebrow}</Text>
+          <Text numberOfLines={2} style={[styles.nextTitle, { color: format.primaryButtonText }]}>{presentation.title}</Text>
+          <Text numberOfLines={2} style={[styles.nextDetail, { color: format.primaryButtonText }]}>{presentation.detail}</Text>
+        </View>
+        <MaterialIcons name="arrow-forward" size={23} color={format.primaryButtonText} />
+      </Pressable>
+      {action.kind === 'class' && onAttendance ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Registrar asistencia"
+          onPress={onAttendance}
+          hitSlop={5}
+          style={[styles.nextAttendanceButton, { backgroundColor: withAlpha(format.primaryButtonText, 0.14) }]}
+        >
+          <MaterialIcons name="photo-camera" size={20} color={format.primaryButtonText} />
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
 
