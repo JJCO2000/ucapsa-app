@@ -595,7 +595,7 @@ export default function CalendarScreen() {
                   <Text style={[styles.agendaDateTitle, { color: format.cardText }]}>{formatDateKey(selectedDate)}</Text>
                 </View>
                 {selectedDate !== todayKey() ? (
-                  <Pressable accessibilityRole="button" accessibilityLabel="Volver a hoy" style={[styles.compactAction, { borderColor: format.cardBorder }]} onPress={() => setSelectedDate(todayKey())}>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Ir a hoy" style={[styles.compactAction, { borderColor: format.cardBorder }]} onPress={() => setSelectedDate(todayKey())}>
                     <Text style={[styles.compactActionText, { color: format.accentDark }]}>Hoy</Text>
                   </Pressable>
                 ) : null}
