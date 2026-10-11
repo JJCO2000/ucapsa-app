@@ -389,11 +389,19 @@ export default function DogTab() {
                 <View style={styles.dogHeaderActions}>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={`Ver logros de ${selectedDog.name}`}
+                    accessibilityLabel="Abrir ranking"
                     style={[styles.pencilButton, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}
-                    onPress={() => router.push(`/client/dog-achievements?dogId=${encodeURIComponent(selectedDog.id)}` as never)}
+                    onPress={() => router.push('/client/competition' as never)}
                   >
-                    <MaterialIcons name="emoji-events" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                    <MaterialIcons name="leaderboard" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Agregar otro perro"
+                    style={[styles.pencilButton, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}
+                    onPress={openCreate}
+                  >
+                    <MaterialIcons name="add" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
                   </Pressable>
                 </View>
               </View>
