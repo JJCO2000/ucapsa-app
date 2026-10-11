@@ -16,7 +16,7 @@ function noteTone(severity: string | null) {
 }
 
 export default function TrainerDogsTab() {
-  const { isTrainer, isStaff, isAdmin } = useSession();
+  const { isStaff, isAdmin } = useSession();
   const [rows, setRows] = useState<StaffDogRow[]>([]);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
