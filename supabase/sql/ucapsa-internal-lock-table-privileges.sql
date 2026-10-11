@@ -9,9 +9,15 @@ revoke all on table public.notification_class_reminder_locks
 revoke all on table public.notification_class_cancellation_locks
   from public, anon, authenticated;
 
+revoke all on table public.notification_trainer_summary_locks
+  from public, anon, authenticated;
+
 -- Preserve the only privileges used by the Edge Functions explicitly.
 grant select, insert, update on table public.notification_class_reminder_locks
   to service_role;
 
 grant select, insert, update on table public.notification_class_cancellation_locks
+  to service_role;
+
+grant select, insert, update on table public.notification_trainer_summary_locks
   to service_role;
