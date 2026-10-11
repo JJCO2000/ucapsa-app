@@ -35,7 +35,7 @@ import {
 import { getCachedMyPracticeActivity, getMyPracticeActivity, type PracticeActivitySnapshot } from '../../services/practice.service';
 import type { Announcement } from '../../types/app.types';
 import { DEFAULT_READ_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
-import { ActivityCard, CompetitionHomeCard, ContextNotice, ContextStrip, NextActionCard, ProgramCard } from './HomeCards';
+import { ActivityCard, ContextNotice, ContextStrip, NextActionCard, ProgramCard } from './HomeCards';
 import {
   firstName,
   formatDate,
@@ -366,6 +366,7 @@ export default function HomeExperienceScreen() {
           format={format}
           onPress={() => router.push((mainProgram ? '/classes' : '/client/membership') as never)}
           onPractice={() => router.push('/client/practice-activity' as never)}
+          onAchievements={() => router.push((mainProgram?.dogId ? `/client/dog-achievements?dogId=${encodeURIComponent(mainProgram.dogId)}` : '/achievements') as never)}
         />
       ) : null}
 
@@ -417,14 +418,6 @@ export default function HomeExperienceScreen() {
           detail={[recentAchievement.dogName, formatDate(recentAchievement.awardedAt)].filter(Boolean).join(' · ')}
           onPress={() => router.push((recentAchievement.dogId ? `/client/dog-achievements?dogId=${encodeURIComponent(recentAchievement.dogId)}` : '/achievements') as never)}
           accent="gold"
-        />
-      ) : null}
-
-      {!loading && user ? (
-        <CompetitionHomeCard
-          summary={competitionSummary}
-          format={format}
-          onPress={() => router.push('/client/competition' as never)}
         />
       ) : null}
 
