@@ -255,12 +255,12 @@ export default function HomeExperienceScreen() {
                 style={[
                   styles.headerQuickAction,
                   {
-                    borderColor: premium ? ucapsaBrand.colors.premiumBorderStrong : format.border,
-                    backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft,
+                    borderColor: premium ? ucapsaBrand.colors.premiumBorderStrong : ucapsaBrand.colors.purple,
+                    backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : ucapsaBrand.colors.purpleSoft,
                   },
                 ]}
               >
-                <MaterialIcons name="emoji-events" size={18} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                <MaterialIcons name="leaderboard" size={18} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.purpleDark} />
               </Pressable>
             </>
           ) : null}
