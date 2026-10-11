@@ -54,7 +54,7 @@ returns text
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 declare
   v_actor_role text;
   v_before_role text;
@@ -929,7 +929,7 @@ returns table (
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 begin
   if not public.is_ucapsa_staff() then
     raise exception 'Solo staff UCAPSA puede consultar la estructura operativa del examen.'
@@ -967,7 +967,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 declare
   v_exam public.ucapsa_exams%rowtype;
   v_batch_id uuid;
