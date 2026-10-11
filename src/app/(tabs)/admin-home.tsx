@@ -11,7 +11,6 @@ import { getAdminMembershipRows } from '../../services/memberships.service';
 import { getAdminClientFollowupRows } from '../../services/admin-client-followups.service';
 import { getAdminTrainingDecisionRows } from '../../services/admin-training-decisions.service';
 import { getAdminPaymentAttentionRows } from '../../services/payments.service';
-import { getProgramLevelLabel } from '../../services/programs.service';
 import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
 
 type DashboardStats = {
@@ -20,6 +19,72 @@ type DashboardStats = {
   trainingDecisions: number;
   clientFollowups: number;
 };
+
+type TomorrowClassGroup = {
+  scheduleId: string;
+  programCode: string;
+  programName: string;
+  scheduleName: string;
+  startTime: string;
+  eligibleCount: number;
+  confirmedCount: number;
+  declinedCount: number;
+  noResponseCount: number;
+  levels: Array<{ label: string; eligibleCount: number; confirmedCount: number }>;
+};
+
+function commandsLevelLabel(level: string) {
+  if (level === 'medio') return 'Intermedio';
+  if (level === 'avanzado') return 'Avanzado';
+  return 'Básico';
+}
+
+function groupTomorrowClasses(rows: AdminClassRsvpSummary[]): TomorrowClassGroup[] {
+  const groups = new Map<string, TomorrowClassGroup>();
+  for (const row of rows) {
+    const key = `${row.scheduleId}:${row.programCode}:${row.startTime}`;
+    const existing = groups.get(key);
+    const levelLabel = commandsLevelLabel(row.programLevel);
+    if (existing) {
+      existing.eligibleCount += row.eligibleCount;
+      existing.confirmedCount += row.confirmedCount;
+      existing.declinedCount += row.declinedCount;
+      existing.noResponseCount += row.noResponseCount;
+      if (row.programCode === 'comandos') {
+        const level = existing.levels.find((item) => item.label === levelLabel);
+        if (level) {
+          level.eligibleCount += row.eligibleCount;
+          level.confirmedCount += row.confirmedCount;
+        } else {
+          existing.levels.push({ label: levelLabel, eligibleCount: row.eligibleCount, confirmedCount: row.confirmedCount });
+        }
+      }
+      continue;
+    }
+    groups.set(key, {
+      scheduleId: row.scheduleId,
+      programCode: row.programCode,
+      programName: row.programName,
+      scheduleName: row.scheduleName,
+      startTime: row.startTime,
+      eligibleCount: row.eligibleCount,
+      confirmedCount: row.confirmedCount,
+      declinedCount: row.declinedCount,
+      noResponseCount: row.noResponseCount,
+      levels: row.programCode === 'comandos'
+        ? [{ label: levelLabel, eligibleCount: row.eligibleCount, confirmedCount: row.confirmedCount }]
+        : [],
+    });
+  }
+
+  const levelOrder = new Map([['Básico', 0], ['Intermedio', 1], ['Avanzado', 2]]);
+  return [...groups.values()]
+    .map((group) => ({
+      ...group,
+      levels: [...group.levels].sort((a, b) => (levelOrder.get(a.label) ?? 99) - (levelOrder.get(b.label) ?? 99)),
+    }))
+    .sort((a, b) => a.startTime.localeCompare(b.startTime) || a.programCode.localeCompare(b.programCode));
+}
 
 const emptyStats: DashboardStats = {
   pendingRequests: 0,
@@ -44,6 +109,7 @@ export default function AdminHomeTab() {
   );
   const roleLabel = role === 'super_admin' ? 'Superadmin' : 'Admin';
   const pendingTotal = stats.trainingDecisions + stats.pendingRequests + stats.paymentAttention + stats.clientFollowups;
+  const groupedTomorrowClasses = useMemo(() => groupTomorrowClasses(tomorrowClasses), [tomorrowClasses]);
 
   const load = useCallback(async () => {
     if (!isAdmin) return;
@@ -161,15 +227,13 @@ export default function AdminHomeTab() {
           </View>
         </View>
 
-        {tomorrowClasses.length > 0 ? (
+        {groupedTomorrowClasses.length > 0 ? (
           <View style={styles.tomorrowList}>
-            {tomorrowClasses.map((item) => {
-              const programLabel = item.programCode === 'puppy'
-                ? 'Puppy'
-                : `Comandos · ${getProgramLevelLabel(item.programLevel as never)}`;
+            {groupedTomorrowClasses.map((item) => {
+              const commands = item.programCode === 'comandos';
               return (
                 <Pressable
-                  key={`${item.scheduleId}:${item.programLevel}`}
+                  key={`${item.scheduleId}:${item.programCode}:${item.startTime}`}
                   style={styles.tomorrowRow}
                   onPress={() => router.push(`/admin/classes?program=${encodeURIComponent(item.programCode)}&status=active` as never)}
                 >
@@ -184,10 +248,15 @@ export default function AdminHomeTab() {
                     />
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.tomorrowProgram}>{programLabel}</Text>
+                    <Text style={styles.tomorrowProgram}>{item.programCode === 'puppy' ? 'Puppy' : 'Comandos'}</Text>
                     <Text style={styles.tomorrowConfirmed}>
                       {item.confirmedCount} / {item.eligibleCount} a las {item.startTime} confirmados
                     </Text>
+                    {commands && item.levels.length > 0 ? (
+                      <Text style={styles.tomorrowLevels}>
+                        {item.levels.map((level) => `${level.label} ${level.confirmedCount}/${level.eligibleCount}`).join(' · ')}
+                      </Text>
+                    ) : null}
                     <Text style={styles.tomorrowMeta}>
                       {item.declinedCount} no irá · {item.noResponseCount} sin responder
                     </Text>
@@ -386,6 +455,7 @@ const styles = StyleSheet.create({
   tomorrowIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   tomorrowProgram: { color: ucapsaBrand.colors.text, fontSize: 13, lineHeight: 17, fontWeight: '900' },
   tomorrowConfirmed: { color: ucapsaBrand.colors.text, fontSize: 15, lineHeight: 19, fontWeight: '900', marginTop: 2 },
+  tomorrowLevels: { color: ucapsaBrand.colors.purpleDark, fontSize: 10, lineHeight: 14, fontWeight: '900', marginTop: 3 },
   tomorrowMeta: { color: ucapsaBrand.colors.muted, fontSize: 10, lineHeight: 14, fontWeight: '800', marginTop: 2 },
   tomorrowEmpty: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 17, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 12 },
   tomorrowEmptyText: { flex: 1, color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 16, fontWeight: '800' },
