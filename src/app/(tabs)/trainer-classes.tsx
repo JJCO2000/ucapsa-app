@@ -57,7 +57,7 @@ function groupRoster(rows: StaffRosterRow[]) {
 
 export default function TrainerClassesTab() {
   const { date, scheduleId } = useLocalSearchParams<{ date?: string; scheduleId?: string }>();
-  const { isTrainer } = useSession();
+  const { isAdmin, capabilities } = useSession();
   const initialDate = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : localDateKey();
   const routeScheduleId = typeof scheduleId === 'string' ? scheduleId : '';
   const [dateKey, setDateKey] = useState(initialDate);
@@ -73,7 +73,7 @@ export default function TrainerClassesTab() {
   }, [routeScheduleId, rows]);
 
   const load = useCallback(async () => {
-    if (!isTrainer) return;
+    if (!capabilities.canUseTrainingWorkspace) return;
     setError(null);
     try {
       setRows(await getStaffClassRoster(dateKey));
@@ -82,7 +82,7 @@ export default function TrainerClassesTab() {
     } finally {
       setLoading(false);
     }
-  }, [dateKey, isTrainer]);
+  }, [capabilities.canUseTrainingWorkspace, dateKey]);
 
   useFocusEffect(useCallback(() => {
     setLoading(true);
@@ -149,7 +149,7 @@ export default function TrainerClassesTab() {
     );
   }
 
-  if (!isTrainer) return <Redirect href="/home" />;
+  if (!capabilities.canUseTrainingWorkspace) return <Redirect href={isAdmin ? '/admin-home' : '/home'} />;
 
   const today = localDateKey();
   const tomorrow = tomorrowKey();
