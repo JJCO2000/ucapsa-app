@@ -10,9 +10,11 @@ import { useSession } from '../../hooks/useSession';
 import {
   addStaffDogNote,
   getStaffDogNotes,
+  getStaffDogOperationalProfile,
   resolveStaffDogNote,
   updateStaffDogNote,
   type StaffDogNote,
+  type StaffDogOperationalProfile,
 } from '../../services/trainer-staff.service';
 
 const noteTypes: Array<{ value: StaffDogNote['noteType']; label: string; icon: keyof typeof MaterialIcons.glyphMap }> = [
@@ -44,6 +46,7 @@ export default function StaffDogNotesScreen() {
   const dogName = typeof params.dogName === 'string' ? params.dogName : 'Perro';
   const { isAdmin, capabilities } = useSession();
   const [rows, setRows] = useState<StaffDogNote[]>([]);
+  const [profile, setProfile] = useState<StaffDogOperationalProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<StaffDogNote | null>(null);
@@ -56,7 +59,12 @@ export default function StaffDogNotesScreen() {
   const load = useCallback(async () => {
     if (!capabilities.canUseTrainingWorkspace || !dogId) return;
     try {
-      setRows(await getStaffDogNotes(dogId));
+      const [notes, operationalProfile] = await Promise.all([
+        getStaffDogNotes(dogId),
+        getStaffDogOperationalProfile(dogId),
+      ]);
+      setRows(notes);
+      setProfile(operationalProfile);
     } catch (cause) {
       Alert.alert('No se pudo cargar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     } finally {
@@ -151,6 +159,49 @@ export default function StaffDogNotesScreen() {
           <MaterialIcons name="add" size={22} color={ucapsaBrand.colors.surface} />
         </Pressable>
       </View>
+
+      {profile ? (
+        <View style={styles.operationalCard}>
+          <View style={styles.operationalHeader}>
+            <View style={styles.operationalIcon}>
+              <MaterialIcons name="health-and-safety" size={20} color={ucapsaBrand.colors.greenDark} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.operationalTitle}>Datos para entrenamiento</Text>
+              <Text style={styles.operationalOwner}>{profile.ownerName}</Text>
+            </View>
+          </View>
+
+          <View style={styles.operationalGrid}>
+            {profile.breed ? <OperationalFact label="Raza" value={profile.breed} /> : null}
+            {profile.sex ? <OperationalFact label="Sexo" value={profile.sex} /> : null}
+            {profile.birthDate ? <OperationalFact label="Nacimiento" value={profile.birthDate} /> : null}
+            {profile.weightKg !== null ? <OperationalFact label="Peso" value={`${profile.weightKg} kg`} /> : null}
+          </View>
+
+          {profile.allergies ? <OperationalAlert icon="warning-amber" label="Alergias" value={profile.allergies} tone="danger" /> : null}
+          {profile.medications ? <OperationalAlert icon="medication" label="Medicamentos" value={profile.medications} tone="purple" /> : null}
+          {profile.behaviorNotes ? <OperationalAlert icon="psychology" label="Conducta" value={profile.behaviorNotes} tone="gold" /> : null}
+          {profile.feedingNotes ? <OperationalAlert icon="restaurant" label="Alimentación" value={profile.feedingNotes} tone="blue" /> : null}
+
+          {(profile.emergencyContactName || profile.emergencyContactPhone) ? (
+            <OperationalAlert
+              icon="emergency"
+              label="Emergencia"
+              value={[profile.emergencyContactName, profile.emergencyContactPhone].filter(Boolean).join(' · ')}
+              tone="danger"
+            />
+          ) : null}
+          {(profile.veterinarianName || profile.veterinarianPhone) ? (
+            <OperationalAlert
+              icon="local-hospital"
+              label="Veterinario"
+              value={[profile.veterinarianName, profile.veterinarianPhone].filter(Boolean).join(' · ')}
+              tone="green"
+            />
+          ) : null}
+        </View>
+      ) : null}
 
       <View style={styles.notice}>
         <MaterialIcons name="lock" size={18} color={ucapsaBrand.colors.blueDark} />
@@ -252,6 +303,45 @@ export default function StaffDogNotesScreen() {
   );
 }
 
+function OperationalFact({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.fact}>
+      <Text style={styles.factLabel}>{label}</Text>
+      <Text style={styles.factValue}>{value}</Text>
+    </View>
+  );
+}
+
+function OperationalAlert({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: keyof typeof MaterialIcons.glyphMap;
+  label: string;
+  value: string;
+  tone: 'danger' | 'purple' | 'gold' | 'blue' | 'green';
+}) {
+  const palette = {
+    danger: { bg: ucapsaBrand.colors.dangerSoft, fg: ucapsaBrand.colors.danger },
+    purple: { bg: ucapsaBrand.colors.purpleSoft, fg: ucapsaBrand.colors.purpleDark },
+    gold: { bg: ucapsaBrand.colors.goldPale, fg: ucapsaBrand.colors.goldDark },
+    blue: { bg: ucapsaBrand.colors.blueSoft, fg: ucapsaBrand.colors.blueDark },
+    green: { bg: ucapsaBrand.colors.greenSoft, fg: ucapsaBrand.colors.greenDark },
+  }[tone];
+
+  return (
+    <View style={[styles.operationalAlert, { backgroundColor: palette.bg }]}>
+      <MaterialIcons name={icon} size={17} color={palette.fg} />
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.operationalAlertLabel, { color: palette.fg }]}>{label}</Text>
+        <Text style={styles.operationalAlertValue}>{value}</Text>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
   backButton: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
@@ -259,6 +349,18 @@ const styles = StyleSheet.create({
   title: { color: ucapsaBrand.colors.text, fontSize: 25, fontWeight: '900' },
   subtitle: { color: ucapsaBrand.colors.muted, fontSize: 10, lineHeight: 15, fontWeight: '700', marginTop: 2 },
   addButton: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.red },
+  operationalCard: { borderRadius: 19, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 12, gap: 8, marginBottom: 12 },
+  operationalHeader: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  operationalIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.greenSoft },
+  operationalTitle: { color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '900' },
+  operationalOwner: { color: ucapsaBrand.colors.muted, fontSize: 9, fontWeight: '700', marginTop: 2 },
+  operationalGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  fact: { minWidth: '47%', flexGrow: 1, borderRadius: 11, backgroundColor: ucapsaBrand.colors.background, paddingHorizontal: 9, paddingVertical: 7 },
+  factLabel: { color: ucapsaBrand.colors.muted, fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
+  factValue: { color: ucapsaBrand.colors.text, fontSize: 10, fontWeight: '900', marginTop: 2 },
+  operationalAlert: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 12, padding: 9 },
+  operationalAlertLabel: { fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
+  operationalAlertValue: { color: ucapsaBrand.colors.text, fontSize: 10, lineHeight: 14, fontWeight: '700', marginTop: 1 },
   notice: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 15, backgroundColor: ucapsaBrand.colors.blueSoft, padding: 11, marginBottom: 12 },
   noticeText: { flex: 1, color: ucapsaBrand.colors.blueDark, fontSize: 10, lineHeight: 15, fontWeight: '800' },
   loading: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12 },
