@@ -352,6 +352,9 @@ export default function TrainerExamsTab() {
 
 const styles = StyleSheet.create({
   header: { marginBottom: 14 },
+  headerTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  newExamButton: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 12, backgroundColor: ucapsaBrand.colors.greenDark, paddingHorizontal: 10 },
+  newExamButtonText: { color: ucapsaBrand.colors.surface, fontSize: 10, fontWeight: '900' },
   kicker: { color: ucapsaBrand.colors.redDark, fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.7 },
   title: { color: ucapsaBrand.colors.text, fontSize: 28, fontWeight: '900' },
   subtitle: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 3 },
