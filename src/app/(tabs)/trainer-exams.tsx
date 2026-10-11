@@ -23,7 +23,7 @@ function statusLabel(value: string) {
 }
 
 export default function TrainerExamsTab() {
-  const { isTrainer, isAdmin } = useSession();
+  const { isTrainer, isStaff, isAdmin } = useSession();
   const [exams, setExams] = useState<StaffExam[]>([]);
   const [attempts, setAttempts] = useState<StaffExamAttempt[]>([]);
   const [dogs, setDogs] = useState<StaffDogRow[]>([]);
@@ -54,11 +54,11 @@ export default function TrainerExamsTab() {
   }, []);
 
   useFocusEffect(useCallback(() => {
-    if (!isTrainer) return undefined;
+    if (!isStaff) return undefined;
     setLoading(true);
     void load();
     return undefined;
-  }, [isTrainer, load]));
+  }, [isStaff, load]));
 
   const visibleDogs = useMemo(() => {
     const term = query.trim().toLocaleLowerCase('es-MX');
@@ -85,7 +85,7 @@ export default function TrainerExamsTab() {
     }
   }
 
-  if (!isTrainer) return <Redirect href={isAdmin ? '/admin-home' : '/home'} />;
+  if (!isStaff) return <Redirect href={isAdmin ? '/admin-home' : '/home'} />;
 
   return (
     <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={ucapsaBrand.colors.green} />}>
