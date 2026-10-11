@@ -22,20 +22,35 @@ type GroupedClass = {
   confirmedCount: number;
   declinedCount: number;
   noResponseCount: number;
-  levels: StaffClassSummaryRow[];
+  levels: Array<{ label: string; eligibleCount: number; confirmedCount: number }>;
 };
+
+function normalizedLevelLabel(level: string) {
+  if (level === 'medio') return 'Intermedio';
+  if (level === 'avanzado') return 'Avanzado';
+  return 'Básico';
+}
 
 function groupClasses(rows: StaffClassSummaryRow[]): GroupedClass[] {
   const grouped = new Map<string, GroupedClass>();
   for (const row of rows) {
     const key = `${row.scheduleId}:${row.startTime}:${row.programCode}`;
+    const levelLabel = normalizedLevelLabel(row.programLevel);
     const existing = grouped.get(key);
     if (existing) {
       existing.eligibleCount += row.eligibleCount;
       existing.confirmedCount += row.confirmedCount;
       existing.declinedCount += row.declinedCount;
       existing.noResponseCount += row.noResponseCount;
-      existing.levels.push(row);
+      if (row.programCode === 'comandos') {
+        const level = existing.levels.find((item) => item.label === levelLabel);
+        if (level) {
+          level.eligibleCount += row.eligibleCount;
+          level.confirmedCount += row.confirmedCount;
+        } else {
+          existing.levels.push({ label: levelLabel, eligibleCount: row.eligibleCount, confirmedCount: row.confirmedCount });
+        }
+      }
       continue;
     }
     grouped.set(key, {
@@ -48,17 +63,21 @@ function groupClasses(rows: StaffClassSummaryRow[]): GroupedClass[] {
       confirmedCount: row.confirmedCount,
       declinedCount: row.declinedCount,
       noResponseCount: row.noResponseCount,
-      levels: [row],
+      levels: row.programCode === 'comandos'
+        ? [{ label: levelLabel, eligibleCount: row.eligibleCount, confirmedCount: row.confirmedCount }]
+        : [],
     });
   }
-  return [...grouped.values()].sort((a, b) => a.startTime.localeCompare(b.startTime) || a.programCode.localeCompare(b.programCode));
+
+  const levelOrder = new Map([['Básico', 0], ['Intermedio', 1], ['Avanzado', 2]]);
+  return [...grouped.values()]
+    .map((item) => ({
+      ...item,
+      levels: [...item.levels].sort((a, b) => (levelOrder.get(a.label) ?? 99) - (levelOrder.get(b.label) ?? 99)),
+    }))
+    .sort((a, b) => a.startTime.localeCompare(b.startTime) || a.programCode.localeCompare(b.programCode));
 }
 
-function levelLabel(value: string) {
-  if (value === 'medio') return 'Intermedio';
-  if (value === 'avanzado') return 'Avanzado';
-  return 'Básico';
-}
 
 export default function TrainerHomeTab() {
   const { profile, isTrainer } = useSession();
@@ -162,10 +181,7 @@ export default function TrainerHomeTab() {
                 <Text style={styles.confirmedText}>{item.confirmedCount} / {item.eligibleCount} confirmados</Text>
                 {commands ? (
                   <Text style={styles.levelsText}>
-                    {[...item.levels]
-                      .sort((a, b) => ['principiante', 'base', 'medio', 'avanzado'].indexOf(a.programLevel) - ['principiante', 'base', 'medio', 'avanzado'].indexOf(b.programLevel))
-                      .map((level) => `${levelLabel(level.programLevel)} ${level.confirmedCount}/${level.eligibleCount}`)
-                      .join(' · ')}
+                    {item.levels.map((level) => `${level.label} ${level.confirmedCount}/${level.eligibleCount}`).join(' · ')}
                   </Text>
                 ) : null}
                 <Text style={styles.metaText}>{item.declinedCount} no irá · {item.noResponseCount} sin responder</Text>
