@@ -34,6 +34,7 @@ export const styles = StyleSheet.create({
   iconButton: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   syncStrip: { flexDirection: 'row', alignItems: 'center', gap: 7, borderWidth: 1, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 10 },
   syncText: { flex: 1, fontSize: 10, lineHeight: 14, fontWeight: '800' },
+  offlineOnly: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: 14, marginBottom: 10 },
   nextCard: { minHeight: 102, borderRadius: 24, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 12 },
   nextIcon: { width: 50, height: 50, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   nextCopy: { flex: 1, minWidth: 0, gap: 2 },
