@@ -71,7 +71,7 @@ if (!continuity.includes('recordValueExposure')) {
 for (const token of [
   'Analítica interna de continuidad',
   'ELIMINAR_CUENTA_UCAPSA_APP.md',
-  'Versión 1.2 App Stores',
+  'Versión 1.3 App Stores',
 ]) {
   if (!notice.includes(token)) throw new Error('Privacy notice v1.1 missing: ' + token);
 }
@@ -84,7 +84,7 @@ for (const token of [
   if (!migration.includes(token)) throw new Error('Cross-store privacy migration missing: ' + token);
 }
 
-for (const token of ['Product Interaction', 'Analytics', 'Crash Data']) {
+for (const token of ['Product Interaction', 'Analytics', 'Crash Data', 'Photos or Videos']) {
   if (!apple.includes(token)) throw new Error('Apple privacy declaration missing: ' + token);
 }
 
@@ -94,6 +94,7 @@ for (const token of [
   'Registros de fallos',
   'Historial de compras',
   'IDs de dispositivo o de otro tipo',
+  'Fotos y vídeos',
 ]) {
   if (!google.includes(token)) throw new Error('Google Data Safety declaration missing: ' + token);
 }
