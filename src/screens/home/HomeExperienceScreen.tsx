@@ -230,7 +230,7 @@ export default function HomeExperienceScreen() {
 
   useEffect(() => {
     let active = true;
-    if (!user || !nextClassEnrollmentId || !nextClassDate) {
+    if (!user || !classIsTomorrow || !nextClassEnrollmentId || !nextClassDate) {
       setClassRsvp(null);
       return () => { active = false; };
     }
@@ -245,10 +245,10 @@ export default function HomeExperienceScreen() {
       });
 
     return () => { active = false; };
-  }, [nextClassDate, nextClassEnrollmentId, user]);
+  }, [classIsTomorrow, nextClassDate, nextClassEnrollmentId, user]);
 
   async function handleClassRsvp(response: ClassRsvpResponse) {
-    if (!nextClassEnrollmentId || !nextClassDate || classRsvpSaving) return;
+    if (!classIsTomorrow || !nextClassEnrollmentId || !nextClassDate || classRsvpSaving) return;
     try {
       setClassRsvpSaving(true);
       const saved = await setMyClassRsvp(nextClassEnrollmentId, nextClassDate, response);
