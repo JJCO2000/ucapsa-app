@@ -6092,7 +6092,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "client" | "member" | "admin" | "super_admin"
+      app_role: "client" | "member" | "trainer" | "admin" | "super_admin"
       audience_type: "public" | "clients" | "members" | "admins"
       membership_status:
         | "none"
