@@ -28,6 +28,9 @@ function offlineDateLabel(value: string | null | undefined) {
 }
 
 export default function ClientMembershipScreen() {
+  const { from } = useLocalSearchParams<{ from?: string | string[] }>();
+  const fromProfile = (Array.isArray(from) ? from[0] : from) === 'profile';
+  const backToProfile = useReturnToProfile(fromProfile);
   const { user, profile, role, isAdmin, refreshProfile } = useSession();
   const [membership, setMembership] = useState<Membership | null>(null);
   const [programs, setPrograms] = useState<ProgramEnrollmentWithDetails[]>([]);
