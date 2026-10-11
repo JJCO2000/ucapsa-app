@@ -45,6 +45,8 @@ export default function TabsLayout() {
   const systemBottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 20 : 10);
   const navigationBreathingRoom = Platform.OS === 'android' ? 8 : 4;
   const tabBottomInset = systemBottomInset + navigationBreathingRoom;
+  const trainerWorkspace = isTrainer || (isAdmin && staffWorkspaceMode === 'trainer');
+  const adminWorkspace = isAdmin && !trainerWorkspace;
   const isPremium = format.key === 'member';
   const tabBackground = isAdmin
     ? ucapsaBrand.colors.surface
@@ -61,14 +63,20 @@ export default function TabsLayout() {
     : isPremium
       ? ucapsaBrand.colors.premiumMuted
       : ucapsaBrand.colors.muted;
-  const activeTint = isAdmin ? ucapsaBrand.colors.red : isPremium ? ucapsaBrand.colors.premiumActionText : format.accent;
-  const activeSurface = isAdmin
-    ? ucapsaBrand.colors.redSoft
-    : isPremium
-      ? ucapsaBrand.colors.premiumSurfaceAlt
-      : ucapsaBrand.colors.redSoft;
-  const trainerWorkspace = isTrainer || (isAdmin && staffWorkspaceMode === 'trainer');
-  const adminWorkspace = isAdmin && !trainerWorkspace;
+  const activeTint = trainerWorkspace
+    ? ucapsaBrand.colors.greenDark
+    : isAdmin
+      ? ucapsaBrand.colors.red
+      : isPremium
+        ? ucapsaBrand.colors.premiumActionText
+        : format.accent;
+  const activeSurface = trainerWorkspace
+    ? ucapsaBrand.colors.greenSoft
+    : isAdmin
+      ? ucapsaBrand.colors.redSoft
+      : isPremium
+        ? ucapsaBrand.colors.premiumSurfaceAlt
+        : ucapsaBrand.colors.redSoft;
   const isClient = Boolean(user) && !isStaff;
   const isGuest = !user && !isStaff;
   const icon = (name: keyof typeof MaterialIcons.glyphMap) => ({ color, size, focused }: { color: ColorValue; size: number; focused: boolean }) => (
