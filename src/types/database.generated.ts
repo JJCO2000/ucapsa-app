@@ -1926,6 +1926,44 @@ export type Database = {
           },
         ]
       }
+      program_class_rsvps: {
+        Row: {
+          class_date: string
+          enrollment_id: string
+          id: string
+          responded_at: string
+          response: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          class_date: string
+          enrollment_id: string
+          id?: string
+          responded_at?: string
+          response: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          class_date?: string
+          enrollment_id?: string
+          id?: string
+          responded_at?: string
+          response?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_class_rsvps_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "program_enrollments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       program_class_cancellations: {
         Row: {
           announcement_id: string | null
@@ -5314,6 +5352,21 @@ export type Database = {
           unique_members: number
         }[]
       }
+      get_admin_class_rsvp_summary: {
+        Args: { p_class_date: string }
+        Returns: {
+          confirmed_count: number
+          declined_count: number
+          eligible_count: number
+          no_response_count: number
+          program_code: string
+          program_level: string
+          program_name: string
+          schedule_id: string
+          schedule_name: string
+          start_time: string
+        }[]
+      }
       get_admin_training_decision_history: {
         Args: { p_limit?: number }
         Returns: {
@@ -5366,6 +5419,15 @@ export type Database = {
         }[]
       }
       get_internal_cron_secret: { Args: never; Returns: string }
+      get_my_class_rsvp: {
+        Args: { p_class_date: string; p_enrollment_id: string }
+        Returns: {
+          class_date: string
+          enrollment_id: string
+          responded_at: string
+          response: string
+        }[]
+      }
       get_my_basic_dog_profile: {
         Args: { p_dog_id: string }
         Returns: {
@@ -5685,6 +5747,19 @@ export type Database = {
       rotate_attendance_qr_code: {
         Args: { p_program_code: string }
         Returns: string
+      }
+      set_my_class_rsvp: {
+        Args: {
+          p_class_date: string
+          p_enrollment_id: string
+          p_response: string
+        }
+        Returns: {
+          class_date: string
+          enrollment_id: string
+          responded_at: string
+          response: string
+        }[]
       }
       set_my_dog_photo_path: {
         Args: { p_dog_id: string; p_photo_path: string }
