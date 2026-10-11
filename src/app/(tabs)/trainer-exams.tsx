@@ -9,6 +9,7 @@ import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import {
   createTrainerExamAttempt,
+  createTrainerExamDraft,
   getTrainerExamCatalog,
   getTrainerExamDogs,
   getTrainerExamItems,
@@ -16,7 +17,11 @@ import {
   type TrainerExamCatalogRow,
   type TrainerExamDog,
 } from '../../services/trainer-staff.service';
-import { pickAndParseUcapsaExamXlsx } from '../../services/ucapsa-exam-xlsx';
+import {
+  pickAndParseUcapsaExamDefinitionXlsx,
+  pickAndParseUcapsaExamXlsx,
+  type ExamDefinitionUploadItem,
+} from '../../services/ucapsa-exam-xlsx';
 
 export default function TrainerExamsTab() {
   const { isAdmin, capabilities } = useSession();
@@ -24,6 +29,12 @@ export default function TrainerExamsTab() {
   const [dogs, setDogs] = useState<TrainerExamDog[]>([]);
   const [selectedExam, setSelectedExam] = useState<TrainerExamCatalogRow | null>(null);
   const [dogQuery, setDogQuery] = useState('');
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [draftCode, setDraftCode] = useState('');
+  const [draftTitle, setDraftTitle] = useState('');
+  const [draftDate, setDraftDate] = useState('');
+  const [draftFileName, setDraftFileName] = useState('');
+  const [draftItems, setDraftItems] = useState<ExamDefinitionUploadItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -106,6 +117,69 @@ export default function TrainerExamsTab() {
     }
   }
 
+  function resetDraftUpload() {
+    setDraftCode('');
+    setDraftTitle('');
+    setDraftDate('');
+    setDraftFileName('');
+    setDraftItems([]);
+  }
+
+  async function chooseExamDefinition() {
+    if (saving) return;
+    try {
+      setSaving(true);
+      const picked = await pickAndParseUcapsaExamDefinitionXlsx();
+      if (!picked) return;
+      setDraftFileName(picked.fileName);
+      setDraftItems(picked.items);
+    } catch (cause) {
+      Alert.alert('No se pudo leer el examen', cause instanceof Error ? cause.message : 'Revisa el Excel e intenta de nuevo.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveExamDraft() {
+    if (saving) return;
+    const code = draftCode.trim();
+    const title = draftTitle.trim();
+    const date = draftDate.trim();
+
+    if (!code || !title) {
+      Alert.alert('Faltan datos', 'Escribe el código y nombre del examen.');
+      return;
+    }
+    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      Alert.alert('Fecha inválida', 'Usa el formato AAAA-MM-DD.');
+      return;
+    }
+    if (draftItems.length === 0) {
+      Alert.alert('Falta el Excel', 'Selecciona el archivo con los ejercicios del examen.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await createTrainerExamDraft({
+        code,
+        title,
+        examDate: date || null,
+        items: draftItems,
+      });
+      setUploadOpen(false);
+      resetDraftUpload();
+      Alert.alert(
+        'Examen cargado',
+        'Quedó guardado como borrador. Administración conserva la publicación y la oficialidad.',
+      );
+    } catch (cause) {
+      Alert.alert('No se pudo cargar el examen', cause instanceof Error ? cause.message : 'Revisa los datos e intenta de nuevo.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   if (!capabilities.canUseTrainingWorkspace) return <Redirect href={isAdmin ? '/admin-home' : '/home'} />;
 
   return (
@@ -113,7 +187,15 @@ export default function TrainerExamsTab() {
       <View style={styles.header}>
         <Text style={styles.kicker}>Entrenador · Evaluación</Text>
         <Text style={styles.title}>Exámenes</Text>
-        <Text style={styles.subtitle}>Captura un examen perro por perro o sube calificaciones por Excel. Administración conserva la estructura, publicación y el intento oficial.</Text>
+        <Text style={styles.subtitle}>Carga exámenes, captura resultados o sube calificaciones por Excel. Administración conserva publicación y oficialidad.</Text>
+        <Pressable
+          disabled={saving}
+          style={styles.newExamButton}
+          onPress={() => { resetDraftUpload(); setUploadOpen(true); }}
+        >
+          <MaterialIcons name="note-add" size={18} color={ucapsaBrand.colors.surface} />
+          <Text style={styles.newExamButtonText}>Subir examen</Text>
+        </Pressable>
       </View>
 
       {loading ? (
@@ -162,6 +244,79 @@ export default function TrainerExamsTab() {
         ))}
       </View>
 
+      <KeyboardAwareModal
+        visible={uploadOpen}
+        onClose={() => { setUploadOpen(false); resetDraftUpload(); }}
+      >
+        <Text style={styles.modalKicker}>Nuevo examen</Text>
+        <Text style={styles.modalTitle}>Subir examen</Text>
+        <Text style={styles.modalSubtitle}>
+          El Excel define los ejercicios. Se guarda como borrador; Administración decide cuándo publicarlo.
+        </Text>
+
+        <Text style={styles.fieldLabel}>Código</Text>
+        <TextInput
+          value={draftCode}
+          onChangeText={setDraftCode}
+          placeholder="Ej. EXAM-01"
+          autoCapitalize="characters"
+          placeholderTextColor={ucapsaBrand.colors.muted}
+          style={styles.fieldInput}
+        />
+
+        <Text style={styles.fieldLabel}>Nombre</Text>
+        <TextInput
+          value={draftTitle}
+          onChangeText={setDraftTitle}
+          placeholder="Nombre del examen"
+          placeholderTextColor={ucapsaBrand.colors.muted}
+          style={styles.fieldInput}
+        />
+
+        <Text style={styles.fieldLabel}>Fecha del examen · opcional</Text>
+        <TextInput
+          value={draftDate}
+          onChangeText={setDraftDate}
+          placeholder="AAAA-MM-DD"
+          keyboardType="numbers-and-punctuation"
+          placeholderTextColor={ucapsaBrand.colors.muted}
+          style={styles.fieldInput}
+        />
+
+        <Pressable disabled={saving} style={styles.definitionButton} onPress={() => void chooseExamDefinition()}>
+          <MaterialIcons name="upload-file" size={19} color={ucapsaBrand.colors.purpleDark} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.definitionTitle}>{draftFileName || 'Seleccionar Excel del examen'}</Text>
+            <Text style={styles.definitionHint}>
+              Columnas: Ejercicio · Puntos máximos · Descripción opcional
+            </Text>
+          </View>
+        </Pressable>
+
+        {draftItems.length > 0 ? (
+          <View style={styles.definitionPreview}>
+            <Text style={styles.previewTitle}>{draftItems.length} ejercicio{draftItems.length === 1 ? '' : 's'} detectado{draftItems.length === 1 ? '' : 's'}</Text>
+            {draftItems.slice(0, 4).map((item, index) => (
+              <View key={`${index}:${item.title}`} style={styles.previewRow}>
+                <Text style={styles.previewNumber}>{index + 1}</Text>
+                <Text numberOfLines={1} style={styles.previewName}>{item.title}</Text>
+                <Text style={styles.previewPoints}>{item.max_points} pts</Text>
+              </View>
+            ))}
+            {draftItems.length > 4 ? <Text style={styles.previewMore}>+ {draftItems.length - 4} más</Text> : null}
+          </View>
+        ) : null}
+
+        <Pressable
+          disabled={saving || !draftCode.trim() || !draftTitle.trim() || draftItems.length === 0}
+          style={[styles.saveDraftButton, (saving || !draftCode.trim() || !draftTitle.trim() || draftItems.length === 0) && styles.disabled]}
+          onPress={() => void saveExamDraft()}
+        >
+          <MaterialIcons name="save" size={18} color={ucapsaBrand.colors.surface} />
+          <Text style={styles.saveDraftText}>{saving ? 'Guardando…' : 'Guardar borrador'}</Text>
+        </Pressable>
+      </KeyboardAwareModal>
+
       <KeyboardAwareModal visible={Boolean(selectedExam)} onClose={() => setSelectedExam(null)}>
         <Text style={styles.modalKicker}>Nuevo intento</Text>
         <Text style={styles.modalTitle}>{selectedExam?.examTitle ?? 'Examen'}</Text>
@@ -200,6 +355,8 @@ const styles = StyleSheet.create({
   kicker: { color: ucapsaBrand.colors.redDark, fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.7 },
   title: { color: ucapsaBrand.colors.text, fontSize: 28, fontWeight: '900' },
   subtitle: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 3 },
+  newExamButton: { alignSelf: 'flex-start', minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, backgroundColor: ucapsaBrand.colors.greenDark, paddingHorizontal: 11, marginTop: 10 },
+  newExamButtonText: { color: ucapsaBrand.colors.surface, fontSize: 10, fontWeight: '900' },
   loading: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12 },
   muted: { color: ucapsaBrand.colors.muted, fontSize: 11, fontWeight: '700' },
   errorCard: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 16, backgroundColor: ucapsaBrand.colors.dangerSoft, borderWidth: 1, borderColor: ucapsaBrand.colors.dangerBorder, padding: 12 },
@@ -220,6 +377,21 @@ const styles = StyleSheet.create({
   modalKicker: { color: ucapsaBrand.colors.redDark, fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
   modalTitle: { color: ucapsaBrand.colors.text, fontSize: 24, fontWeight: '900' },
   modalSubtitle: { color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 16, fontWeight: '700', marginTop: 3, marginBottom: 10 },
+  fieldLabel: { color: ucapsaBrand.colors.text, fontSize: 10, fontWeight: '900', marginTop: 8, marginBottom: 5 },
+  fieldInput: { minHeight: 44, color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '800', borderRadius: 13, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 11 },
+  definitionButton: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 14, backgroundColor: ucapsaBrand.colors.purpleSoft, padding: 11, marginTop: 12 },
+  definitionTitle: { color: ucapsaBrand.colors.purpleDark, fontSize: 11, fontWeight: '900' },
+  definitionHint: { color: ucapsaBrand.colors.muted, fontSize: 9, lineHeight: 13, fontWeight: '700', marginTop: 2 },
+  definitionPreview: { gap: 5, marginTop: 10 },
+  previewTitle: { color: ucapsaBrand.colors.text, fontSize: 10, fontWeight: '900', marginBottom: 2 },
+  previewRow: { minHeight: 31, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 10, backgroundColor: ucapsaBrand.colors.background, paddingHorizontal: 8 },
+  previewNumber: { width: 20, color: ucapsaBrand.colors.purpleDark, fontSize: 9, fontWeight: '900' },
+  previewName: { flex: 1, color: ucapsaBrand.colors.text, fontSize: 9, fontWeight: '800' },
+  previewPoints: { color: ucapsaBrand.colors.muted, fontSize: 8, fontWeight: '900' },
+  previewMore: { color: ucapsaBrand.colors.muted, fontSize: 8, fontWeight: '800' },
+  saveDraftButton: { minHeight: 47, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 14, backgroundColor: ucapsaBrand.colors.greenDark, marginTop: 13 },
+  saveDraftText: { color: ucapsaBrand.colors.surface, fontSize: 11, fontWeight: '900' },
+  disabled: { opacity: 0.45 },
   searchBox: { minHeight: 45, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 11 },
   searchInput: { flex: 1, color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '700', paddingVertical: 9 },
   dogList: { gap: 7, marginTop: 10 },
