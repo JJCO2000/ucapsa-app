@@ -270,20 +270,54 @@ export default function HomeExperienceScreen() {
             </Text>
           </View>
         </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={user ? 'Abrir ajustes de cuenta' : 'Iniciar sesión'}
-          onPress={() => router.push((user ? '/account-settings' : '/auth/login') as never)}
-          style={[
-            styles.accountButton,
-            {
-              borderColor: premium ? ucapsaBrand.colors.premiumBorderStrong : format.border,
-              backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft,
-            },
-          ]}
-        >
-          <MaterialIcons name={user ? 'person' : 'login'} size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-        </Pressable>
+        <View style={styles.headerActions}>
+          {user ? (
+            <>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Abrir ranking"
+                onPress={() => router.push('/client/competition' as never)}
+                style={[
+                  styles.headerQuickAction,
+                  {
+                    borderColor: premium ? ucapsaBrand.colors.premiumBorderStrong : format.border,
+                    backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft,
+                  },
+                ]}
+              >
+                <MaterialIcons name="emoji-events" size={18} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Registrar asistencia"
+                onPress={() => router.push('/attendance' as never)}
+                style={[
+                  styles.headerQuickAction,
+                  {
+                    borderColor: premium ? ucapsaBrand.colors.premiumBorderStrong : format.border,
+                    backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft,
+                  },
+                ]}
+              >
+                <MaterialIcons name="photo-camera" size={18} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+              </Pressable>
+            </>
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={user ? 'Abrir ajustes de cuenta' : 'Iniciar sesión'}
+            onPress={() => router.push((user ? '/account-settings' : '/auth/login') as never)}
+            style={[
+              styles.accountButton,
+              {
+                borderColor: premium ? ucapsaBrand.colors.premiumBorderStrong : format.border,
+                backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft,
+              },
+            ]}
+          >
+            <MaterialIcons name={user ? 'person' : 'login'} size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+          </Pressable>
+        </View>
       </View>
 
       {!user ? (
