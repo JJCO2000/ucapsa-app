@@ -19,7 +19,8 @@ const report = read('src/app/staff/training-report.tsx');
 const trainerService = read('src/services/trainer-staff.service.ts');
 const trainerSql = read('supabase/sql/ucapsa-trainer-workspace.sql');
 const trainerModeSql = read('supabase/sql/ucapsa-trainer-workspace-exam-upload.sql');
-const trainerSqlAll = trainerSql + '\n' + trainerModeSql;
+const trainerDogScopeSql = read('supabase/sql/ucapsa-trainer-dog-access-scope.sql');
+const trainerSqlAll = trainerSql + '\n' + trainerModeSql + '\n' + trainerDogScopeSql;
 const staffWorkspace = read('src/hooks/useStaffWorkspace.tsx');
 const staffWorkspaceService = read('src/services/staff-workspace-storage.service.ts');
 const staffSwitcher = read('src/components/domain/StaffWorkspaceSwitcher.tsx');
@@ -210,6 +211,37 @@ for (const token of [
 
 if (/trainer_import_ucapsa_exam_results[\s\S]*admin_publish_ucapsa_exam_attempt/.test(trainerSqlAll)) {
   throw new Error('Trainer bulk upload must not publish or officialize exam attempts.');
+}
+
+for (const token of [
+  'create or replace function public.can_ucapsa_staff_access_dog(p_dog_id uuid)',
+  'when public.is_ucapsa_admin() then true',
+  "p.role::text = 'trainer'",
+  "e.status in ('active', 'completed')",
+  'not public.can_ucapsa_staff_access_dog(p_dog_id)',
+  'and public.can_ucapsa_staff_access_dog(d.id)',
+  'and public.can_ucapsa_staff_access_dog(a.dog_id)',
+  'not public.can_ucapsa_staff_access_dog(v_attempt.dog_id)',
+]) {
+  if (!trainerDogScopeSql.includes(token)) {
+    throw new Error('Trainer dog least-privilege scope missing: ' + token);
+  }
+}
+for (const fn of [
+  'get_staff_dog_notes',
+  'staff_add_dog_note',
+  'staff_update_dog_note',
+  'staff_resolve_dog_note',
+  'get_staff_dog_operational_profile',
+  'get_trainer_exam_dogs',
+  'trainer_create_ucapsa_exam_attempt',
+  'get_trainer_exam_attempt',
+  'trainer_upsert_ucapsa_exam_item_result',
+  'trainer_review_ucapsa_exam_attempt',
+]) {
+  if (!trainerDogScopeSql.includes('create or replace function public.' + fn)) {
+    throw new Error('Trainer dog scope no longer covers RPC: ' + fn);
+  }
 }
 
 for (const token of [
