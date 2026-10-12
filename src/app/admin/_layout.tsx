@@ -54,6 +54,8 @@ export default function AdminLayout() {
       <Stack.Screen name="competition-awards" options={{ title: 'Premios' }} />
       <Stack.Screen name="competition-award-form" options={{ title: 'Otorgar premio' }} />
       <Stack.Screen name="competition-exams" options={{ title: 'Exámenes' }} />
+      <Stack.Screen name="competition-quick-grade" options={{ title: 'Calificar examen' }} />
+      <Stack.Screen name="competition-quick-create" options={{ title: 'Examen rápido' }} />
       <Stack.Screen name="competition-exam-detail" options={{ title: 'Examen' }} />
       <Stack.Screen name="competition-exam-form" options={{ title: 'Configurar examen' }} />
       <Stack.Screen name="competition-exam-item-form" options={{ title: 'Ejercicio' }} />

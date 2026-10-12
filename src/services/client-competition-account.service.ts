@@ -1,6 +1,10 @@
 import { supabase } from '../lib/supabase';
 import { getMyDogs } from './dogs.service';
 import {
+  getPublishedCompetitionSeasons,
+  type ClientAccountCompetitionSeason,
+} from './client-competition-season.service';
+import {
   readClientResource,
   writeClientResource,
   type CachedResource,
@@ -19,6 +23,8 @@ export type ClientAccountCompetitionDog = {
 
 export type ClientAccountCompetitionSnapshot = {
   dogs: ClientAccountCompetitionDog[];
+  // Consulta independiente del perro: la temporada puede existir sin registros competitivos.
+  seasons?: ClientAccountCompetitionSeason[];
 };
 
 const RESOURCE_KEY = 'competition-account';
@@ -51,8 +57,8 @@ async function fetchMyCompetitionAccount(
   const cleanUserId = userId.trim();
   if (!cleanUserId) throw new Error('Falta el usuario.');
 
-  const dogs = await getMyDogs();
-  if (dogs.length === 0) return { dogs: [] };
+  const [dogs, seasons] = await Promise.all([getMyDogs(), getPublishedCompetitionSeasons()]);
+  if (dogs.length === 0) return { dogs: [], seasons };
 
   const dogIds = dogs.map((dog) => dog.id);
   const [rangesResult, examsResult] = await Promise.all([
@@ -76,6 +82,7 @@ async function fetchMyCompetitionAccount(
   const exams = (examsResult.data ?? []) as ClientOfficialExamResult[];
 
   return {
+    seasons,
     dogs: dogs.map((dog) => ({
       dog_id: dog.id,
       dog_name: dog.name,

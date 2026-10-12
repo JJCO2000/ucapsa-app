@@ -22,6 +22,7 @@ const dogService = read('src/services/client-competition-summary.service.ts');
 const home = read('src/screens/home/HomeExperienceScreen.tsx');
 const homeCards = read('src/screens/home/HomeCards.tsx');
 const warm = read('src/services/client-offline-sync.service.ts');
+const seasonCatalog = read('src/services/client-competition-season.service.ts');
 const pkg = read('package.json');
 
 if (/Detalle competitivo|competition-dog\?dogId=/.test(dog)) {
@@ -32,6 +33,20 @@ if (!/accessibilityLabel=["'`]Abrir ranking["'`]/.test(dog) || !/router\.push\('
 }
 if (!/name=["']competition["']/.test(layout) || !/name=["']competition-dog["']/.test(layout)) {
   failures.push('Client layout no registra Competencia de cuenta y detalle por perro.');
+}
+
+for (const token of [
+  ".from('ucapsa_competition_seasons')",
+  ".neq('status', 'draft')",
+  "season_id: season.id",
+]) {
+  if (!seasonCatalog.includes(token)) failures.push('Temporadas deben leerse sin depender de actividad por perro: ' + token);
+}
+if (!accountService.includes('getPublishedCompetitionSeasons')) {
+  failures.push('Cliente perdió el catálogo independiente de temporadas.');
+}
+if (!accountScreen.includes('next.seasons ?? getAccountCompetitionSeasons(next)')) {
+  failures.push('Pantalla volvió a confundir temporada con resultados de perro.');
 }
 
 for (const token of [
