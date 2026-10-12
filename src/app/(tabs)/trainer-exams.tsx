@@ -152,7 +152,8 @@ export default function TrainerExamsTab() {
       setNewItemPoints('');
       setEditingItemIndex(null);
     }
-    if (draftItems.length === 0) {
+    const hasUnsavedManualInput = Boolean(newItemTitle.trim() || newItemDescription.trim() || newItemPoints.trim());
+    if (draftItems.length === 0 && !hasUnsavedManualInput) {
       applyMode();
       return;
     }
@@ -248,6 +249,10 @@ export default function TrainerExamsTab() {
     }
     if (draftItems.length === 0) {
       Alert.alert('Faltan ejercicios', 'Agrega ejercicios manualmente o carga un Excel con la definición.');
+      return;
+    }
+    if (draftInputMode === 'manual' && (newItemTitle.trim() || newItemDescription.trim() || newItemPoints.trim())) {
+      Alert.alert('Ejercicio sin agregar', 'Agrega el ejercicio en edición antes de guardar el examen.');
       return;
     }
 
