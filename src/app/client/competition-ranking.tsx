@@ -17,7 +17,9 @@ import { getMyDogs } from '../../services/dogs.service';
 import {
   getCachedCompetitionLeaderboard,
   getCachedMyCompetitionAccount,
+  refreshMyCompetitionAccount,
   refreshCompetitionLeaderboard,
+  type ClientAccountCompetitionSnapshot,
   type ClientCompetitionLeaderboardRow,
 } from '../../services/client-competition.service';
 
@@ -52,6 +54,8 @@ export default function ClientCompetitionRankingScreen() {
   const premium = format.key === 'member';
 
   const [rows, setRows] = useState<ClientCompetitionLeaderboardRow[]>([]);
+  const [myCompetition, setMyCompetition] = useState<ClientAccountCompetitionSnapshot | null>(null);
+  const [scoreUnavailable, setScoreUnavailable] = useState(false);
   const [myDogs, setMyDogs] = useState<Array<{ id: string; name: string; avatarKey: string; avatarColor: string; photoUrl: string | null }>>([]);
   const [localReady, setLocalReady] = useState(false);
   const [usingSavedData, setUsingSavedData] = useState(false);
@@ -67,6 +71,7 @@ export default function ClientCompetitionRankingScreen() {
 
     setError(null);
     setUsingSavedData(false);
+    setScoreUnavailable(false);
 
     const [cachedRanking, cachedAccount] = await Promise.all([
       getCachedCompetitionLeaderboard(user.id, seasonId),
@@ -78,6 +83,7 @@ export default function ClientCompetitionRankingScreen() {
       setLocalReady(true);
     }
     if (cachedAccount) {
+      setMyCompetition(cachedAccount.data);
       setMyDogs(cachedAccount.data.dogs.map((dog) => ({
         id: dog.dog_id,
         name: dog.dog_name,
@@ -87,10 +93,17 @@ export default function ClientCompetitionRankingScreen() {
       })));
     }
 
-    const [rankingResult, dogsResult] = await Promise.allSettled([
+    const [rankingResult, dogsResult, accountResult] = await Promise.allSettled([
       refreshCompetitionLeaderboard(user.id, seasonId),
       getMyDogs(),
+      refreshMyCompetitionAccount(user.id),
     ]);
+
+    if (accountResult.status === 'fulfilled') {
+      setMyCompetition(accountResult.value.data);
+    } else if (!cachedAccount) {
+      setScoreUnavailable(true);
+    }
 
     if (dogsResult.status === 'fulfilled') {
       const photoUrls = await getPrivateDogPhotoUrls(
@@ -111,7 +124,7 @@ export default function ClientCompetitionRankingScreen() {
     if (rankingResult.status === 'fulfilled') {
       setRows(rankingResult.value.data);
       setSavedAt(rankingResult.value.saved_at);
-      setUsingSavedData(false);
+      setUsingSavedData(accountResult.status === 'rejected' && Boolean(cachedAccount));
       setLocalReady(true);
       return;
     }
@@ -149,8 +162,10 @@ export default function ClientCompetitionRankingScreen() {
   const myRows = myDogs.map((dog) => ({
     dog,
     row: rows.find((row) => row.dog_id === dog.id) ?? null,
+    season: myCompetition?.dogs.find((entry) => entry.dog_id === dog.id)
+      ?.seasons.find((entry) => entry.season_id === seasonId) ?? null,
   }));
-  const seasonName = rows[0]?.season_name || 'Temporada UCAPSA';
+  const seasonName = rows[0]?.season_name || myRows.find(({ season }) => season)?.season?.season_name || 'Temporada UCAPSA';
 
   return (
     <KeyboardAwareScreen
@@ -171,7 +186,7 @@ export default function ClientCompetitionRankingScreen() {
           savedAt={savedAt}
           onRetry={() => void refresh()}
           premium={premium}
-          label="Mostrando Ranking guardado"
+          label="Mostrando datos competitivos guardados"
         />
       ) : null}
 
@@ -190,18 +205,50 @@ export default function ClientCompetitionRankingScreen() {
         </View>
       ) : null}
 
+      {localReady && !error && scoreUnavailable ? (
+        <View style={[styles.noteCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
+          <MaterialIcons name="info-outline" size={19} color={format.accentDark} />
+          <Text style={[styles.noteText, { color: format.muted }]}>No fue posible consultar tus puntos acumulados. Actualiza con conexión.</Text>
+        </View>
+      ) : null}
+
       {localReady && !error ? (
         rows.length === 0 ? (
-          <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
-            <Text style={[styles.cardTitle, { color: format.cardText }]}>Todavía no hay perros elegibles</Text>
-            <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>El Ranking aparecerá cuando haya perros con todos los exámenes obligatorios oficiales.</Text>
-          </View>
+          <>
+            <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
+              <Text style={[styles.cardTitle, { color: format.cardText }]}>Ranking oficial pendiente</Text>
+              <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Los puntos ya se acumulan, pero todavía no hay perros elegibles para ocupar una posición oficial. UCAPSA debe publicar los exámenes obligatorios y registrar sus resultados.</Text>
+            </View>
+            {myRows.length > 0 ? (
+              <View style={styles.myDogsBlock}>
+                <Text style={[styles.sectionTitle, { color: format.cardText }]}>Puntos acumulados de tus perros</Text>
+                {myRows.map(({ dog, season }) => (
+                  <View key={dog.id} style={[styles.myCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
+                    <RankingDogAvatar name={dog.name} photoUrl={dog.photoUrl} avatarKey={dog.avatarKey} avatarColor={dog.avatarColor} size={52} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.myLabel, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>SIN POSICIÓN OFICIAL</Text>
+                      <Text style={[styles.cardTitle, { color: format.cardText }]}>
+                        {dog.name} · {season ? numberLabel(season.competitive_score) + ' pts' : 'puntaje no disponible'}
+                      </Text>
+                      <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+                        {season
+                          ? Number(season.required_exams_count ?? 0) === 0
+                            ? 'Esperando que UCAPSA publique exámenes obligatorios.'
+                            : 'Faltan ' + Number(season.missing_required_exams_count ?? 0) + ' exámenes obligatorios.'
+                          : 'Actualiza para consultar el puntaje de esta temporada.'}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </>
         ) : (
           <>
             {myRows.length > 0 ? (
               <View style={styles.myDogsBlock}>
                 <Text style={[styles.sectionTitle, { color: format.cardText }]}>Tus perros</Text>
-                {myRows.map(({ dog, row }) => (
+                {myRows.map(({ dog, row, season }) => (
                   <View key={dog.id} style={[styles.myCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
                     <RankingDogAvatar
                       name={dog.name}
@@ -215,10 +262,10 @@ export default function ClientCompetitionRankingScreen() {
                         {row ? `TU PERRO · #${Number(row.ranking_position ?? 0)}` : 'TU PERRO'}
                       </Text>
                       <Text style={[styles.cardTitle, { color: format.cardText }]}>
-                        {row ? dog.name + ' · ' + numberLabel(row.competitive_score) + ' pts' : dog.name + ' · sin posición oficial'}
+                        {dog.name + ' · ' + (row ? numberLabel(row.competitive_score) + ' pts' : season ? numberLabel(season.competitive_score) + ' pts acumulados' : 'puntaje no disponible')}
                       </Text>
                       <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
-                        {row ? (row.range_name || 'Cobre') + ' · ' + Number(row.command_attendances_count ?? 0) + ' Comandos' : 'Aparecerá cuando cumpla los requisitos del Ranking.'}
+                        {row ? (row.range_name || 'Cobre') + ' · ' + Number(row.command_attendances_count ?? 0) + ' Comandos' : 'Sin posición oficial hasta completar los exámenes obligatorios.'}
                       </Text>
                     </View>
                   </View>
