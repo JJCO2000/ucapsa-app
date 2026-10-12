@@ -13,22 +13,22 @@ import { flushPendingPracticeSessions } from '../services/practice.service';
 import { flushPendingValueExposures } from '../services/value-exposure-outbox.service';
 
 function RootNavigator() {
-  const { loading, startupError, retryStartup, user, isStaff, isTrainer } = useSession();
+  const { loading, startupError, retryStartup, user, isStaff, isTrainer, isOfflineFallback } = useSession();
   const warmedUserRef = useRef<string | null>(null);
   const appStateRef = useRef(AppState.currentState);
-  useNotificationNavigation(!loading && !startupError && Boolean(user) && (!isStaff || isTrainer));
+  useNotificationNavigation(!loading && !startupError && !isOfflineFallback && Boolean(user) && (!isStaff || isTrainer));
 
   useEffect(() => {
-    if (loading || startupError || !user || isStaff || warmedUserRef.current === user.id) return;
+    if (loading || startupError || isOfflineFallback || !user || isStaff || warmedUserRef.current === user.id) return;
     warmedUserRef.current = user.id;
 
     void warmClientOfflineData(user.id).catch((error) => {
       devWarn('Could not warm UCAPSA offline data.', error);
     });
-  }, [isStaff, loading, startupError, user]);
+  }, [isOfflineFallback, isStaff, loading, startupError, user]);
 
   useEffect(() => {
-    if (loading || startupError || !user || isStaff) return;
+    if (loading || startupError || isOfflineFallback || !user || isStaff) return;
 
     const subscription = AppState.addEventListener('change', (nextState) => {
       const previousState = appStateRef.current;
