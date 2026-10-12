@@ -11,8 +11,10 @@ import { buildTrainingReportStats, exportTrainingReportXlsx, formatTrainingPerce
 import {
   currentMonthRange,
   getStaffTrainingReport,
+  getStaffRecordedAttendance,
   localDateKey,
   type StaffTrainingReportRow,
+  type StaffRecordedAttendanceRow,
 } from '../../services/trainer-staff.service';
 
 type DateTarget = 'start' | 'end';
@@ -32,6 +34,10 @@ export default function StaffTrainingReportScreen() {
   const [rows, setRows] = useState<StaffTrainingReportRow[]>([]);
   const [generating, setGenerating] = useState(false);
   const [previewed, setPreviewed] = useState(false);
+  const [historyRows, setHistoryRows] = useState<StaffRecordedAttendanceRow[]>([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [historyVisible, setHistoryVisible] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   if (!capabilities.canUseTrainingWorkspace) return <Redirect href={isAdmin ? '/admin-home' : '/home'} />;
 
@@ -67,12 +73,39 @@ export default function StaffTrainingReportScreen() {
     }
   }
 
+  async function openRecordedHistory() {
+    if (historyVisible) { setHistoryVisible(false); return; }
+    if (endDate < startDate) {
+      Alert.alert('Rango inválido', 'La fecha final debe ser igual o posterior a la inicial.');
+      return;
+    }
+    if (historyLoaded) { setHistoryVisible(true); return; }
+    try {
+      setHistoryLoading(true);
+      const records = await getStaffRecordedAttendance(startDate, endDate);
+      setHistoryRows(records);
+      setHistoryLoaded(true);
+      setHistoryVisible(true);
+    } catch (cause) {
+      Alert.alert('No se pudo consultar el historial', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
+  function resetRecordedHistory() {
+    setHistoryRows([]);
+    setHistoryLoaded(false);
+    setHistoryVisible(false);
+  }
+
   function setCurrentMonth() {
     const next = currentMonthRange();
     setStartDate(next.startDate);
     setEndDate(next.endDate);
     setRows([]);
     setPreviewed(false);
+    resetRecordedHistory();
   }
 
   function setLast30Days() {
@@ -82,6 +115,7 @@ export default function StaffTrainingReportScreen() {
     setEndDate(localDateKey(today));
     setRows([]);
     setPreviewed(false);
+    resetRecordedHistory();
   }
 
   const stats = useMemo(() => buildTrainingReportStats(rows), [rows]);
@@ -142,6 +176,7 @@ export default function StaffTrainingReportScreen() {
               setCalendarTarget(null);
               setRows([]);
               setPreviewed(false);
+              resetRecordedHistory();
             }}
             theme={{ todayTextColor: ucapsaBrand.colors.red, arrowColor: ucapsaBrand.colors.red }}
           />
@@ -158,6 +193,56 @@ export default function StaffTrainingReportScreen() {
           <Text style={styles.exportText}>Exportar estadísticas</Text>
         </Pressable>
       </View>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Ver asistencias registradas, incluidas las de inscripciones cerradas"
+        accessibilityState={{ expanded: historyVisible }}
+        disabled={historyLoading || generating}
+        style={styles.historyToggle}
+        onPress={() => void openRecordedHistory()}
+      >
+        <MaterialIcons name="history" size={23} color={ucapsaBrand.colors.blueDark} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.historyToggleTitle}>Asistencias registradas</Text>
+          <Text style={styles.historyToggleHint}>Historial real, también de inscripciones terminadas</Text>
+        </View>
+        {historyLoading
+          ? <ActivityIndicator color={ucapsaBrand.colors.blueDark} />
+          : <MaterialIcons name={historyVisible ? 'expand-less' : 'expand-more'} size={24} color={ucapsaBrand.colors.blueDark} />}
+      </Pressable>
+
+      {historyVisible ? (
+        <View style={styles.historyPanel}>
+          <View style={styles.historySummary}>
+            <Summary value={historyRows.length} label="Registros reales" />
+            <Summary value={historyRows.filter((row) => row.scheduleMatchStatus === 'matches_schedule').length} label="Coinciden con horario" />
+            <Summary value={historyRows.filter((row) => row.scheduleMatchStatus !== 'matches_schedule').length} label="Sin coincidencia" />
+          </View>
+          <Text style={styles.historyNote}>Aquí se muestran registros guardados, no asistencias supuestas. Si una fecha no coincide con el horario, el registro original se conserva.</Text>
+          {historyRows.length === 0
+            ? <Text style={styles.historyEmpty}>No hay asistencias registradas en este rango.</Text>
+            : historyRows.slice(0, 20).map((row) => (
+              <View key={row.attendanceId} style={styles.historyRow}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.previewTitle}>{row.dogName} · {row.programName}</Text>
+                  <Text style={styles.previewMeta}>{row.classDate} · {row.clientName}</Text>
+                  <Text style={styles.historyMeta}>{row.enrollmentStatus === 'active' ? 'Inscripción activa' : 'Inscripción cerrada'}</Text>
+                </View>
+                <Text style={[styles.historyStatus, row.scheduleMatchStatus !== 'matches_schedule' && styles.historyStatusAttention]}>
+                  {row.scheduleMatchStatus === 'matches_schedule' ? 'En horario'
+                    : row.scheduleMatchStatus === 'before_enrollment' ? 'Antes del inicio'
+                    : row.scheduleMatchStatus === 'cancelled_class' ? 'Clase cancelada'
+                    : row.scheduleMatchStatus === 'outside_day' ? 'Otro día'
+                    : row.scheduleMatchStatus === 'outside_cycle' ? 'Otro ciclo'
+                    : row.scheduleMatchStatus === 'inactive_schedule' ? 'Inactivo'
+                    : 'Sin horario'}
+                </Text>
+              </View>
+            ))}
+          {historyRows.length > 20 ? <Text style={styles.moreText}>+ {historyRows.length - 20} registros fuera de esta vista previa</Text> : null}
+        </View>
+      ) : null}
 
       {previewed ? (
         <View style={styles.summaryGrid}>
@@ -204,6 +289,17 @@ function Summary({ value, label }: { value: number | string; label: string }) {
 }
 
 const styles = StyleSheet.create({
+  historyToggle: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.borderNeutral, backgroundColor: ucapsaBrand.colors.blueSoft, minHeight: 75, padding: 12, marginBottom: 12 },
+  historyToggleTitle: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
+  historyToggleHint: { color: ucapsaBrand.colors.muted, fontSize: 10, fontWeight: '700', marginTop: 3 },
+  historyPanel: { borderRadius: 17, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 10, marginBottom: 15 },
+  historySummary: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  historyNote: { color: ucapsaBrand.colors.muted, fontSize: 10, lineHeight: 15, marginVertical: 12, fontWeight: '700' },
+  historyEmpty: { color: ucapsaBrand.colors.muted, fontSize: 12, padding: 12 },
+  historyRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 65, borderTopWidth: 1, borderTopColor: ucapsaBrand.colors.borderNeutral, paddingVertical: 9 },
+  historyMeta: { color: ucapsaBrand.colors.gray, fontSize: 9, fontWeight: '700', marginTop: 4 },
+  historyStatus: { fontSize: 9, fontWeight: '900', color: ucapsaBrand.colors.greenDark, textAlign: 'right', maxWidth: 95 },
+  historyStatusAttention: { color: ucapsaBrand.colors.warningDark },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
   backButton: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
   kicker: { color: ucapsaBrand.colors.redDark, fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.7 },
