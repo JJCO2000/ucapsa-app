@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { devWarn } from '../lib/client-diagnostics';
 import type { User } from '@supabase/supabase-js';
 
 // This is a read-only identity hint, NOT an access token and NOT proof of a valid JWT.
@@ -39,7 +40,8 @@ export async function readVerifiedLocalUser(): Promise<User | null> {
       user_metadata: {},
       created_at: record.verified_at,
     };
-  } catch {
+  } catch (error) {
+    devWarn('Cannot read offline verified identity; no local fallback.', error);
     return null;
   }
 }
