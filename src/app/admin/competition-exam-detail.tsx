@@ -167,6 +167,12 @@ export default function AdminCompetitionExamDetailScreen() {
           ) : null}
 
           <View style={styles.actionRow}>
+            {detail.exam.status === 'published' ? (
+              <Pressable style={styles.publishButton} onPress={() => router.push(`/admin/competition-quick-grade?examId=${encodeURIComponent(detail.exam.id)}` as never)}>
+                <MaterialIcons name="fact-check" size={18} color={ucapsaBrand.colors.surface} />
+                <Text style={styles.publishButtonText}>Calificar rápido</Text>
+              </Pressable>
+            ) : null}
             <Pressable
               style={styles.secondaryButton}
               onPress={() => router.push(`/admin/competition-exam-attempts?examId=${encodeURIComponent(detail.exam.id)}` as never)}
