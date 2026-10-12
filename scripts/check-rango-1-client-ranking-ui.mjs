@@ -72,6 +72,20 @@ for (const token of [
   if (!ranking.includes(token)) failures.push('Ranking cliente perdió dato/identidad canónica: ' + token);
 }
 
+// La distribución visual 2-1-3 nunca reordena ni recalcula la clasificación
+// original; fotos privadas siguen resolviéndose únicamente para perros propios.
+for (const token of [
+  'const podiumDisplay = [podium[1], podium[0], podium[2]]',
+  'podiumDisplay.map((row)',
+  'position === 1 && styles.podiumChampion',
+  'position === 1 ? 52 : 42',
+  'podiumPedestalChampion',
+  'mine && row.dog_id ? myDogs.find',
+  'const podium = rows.slice(0, 3)',
+]) {
+  if (!ranking.includes(token)) failures.push('Podio visual perdió regla de datos o privacidad: ' + token);
+}
+
 if (/row\.dog_id === dogId/.test(ranking)) {
   failures.push('Ranking volvió a reconocer sólo un perro como propio.');
 }
