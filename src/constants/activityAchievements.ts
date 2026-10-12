@@ -61,3 +61,57 @@ export function activityAchievementValue(metric: ActivityAchievementMetric, fact
   if (metric === 'practice') return facts.practiceTotal;
   return facts.longestPracticeStreak;
 }
+
+
+/**
+ * Progresión de insignias por categoría, fuente única para la vitrina y
+ * para el resumen del perro. Cada nivel es un umbral, NO otra insignia.
+ *
+ * Añadir un nivel al catálogo no obliga a modificar pantallas: las vistas
+ * construyen las colecciones a partir de activityAchievementDefinitions.
+ */
+export type ActivityAchievementCollection = {
+  metric: ActivityAchievementMetric;
+  title: string;
+  icon: ComponentProps<typeof MaterialIcons>['name'];
+  tone: (typeof activityAchievementCategoryMeta)[ActivityAchievementMetric]['tone'];
+  levels: ActivityAchievementDefinition[];
+  currentLevel: number;
+  totalLevels: number;
+  earnedDefinition: ActivityAchievementDefinition | null;
+  nextDefinition: ActivityAchievementDefinition | null;
+  value: number;
+};
+
+export function buildActivityAchievementCollections(
+  facts: Parameters<typeof activityAchievementValue>[1],
+  options: { includeMemberVisits: boolean },
+): ActivityAchievementCollection[] {
+  const groups = new Map<ActivityAchievementMetric, ActivityAchievementDefinition[]>();
+  for (const definition of activityAchievementDefinitions) {
+    // Las visitas corresponden a la cuenta de socio, nunca al perro.
+    if (definition.metric === 'visits' && !options.includeMemberVisits) continue;
+    const group = groups.get(definition.metric) ?? [];
+    group.push(definition);
+    groups.set(definition.metric, group);
+  }
+
+  return [...groups.entries()].map(([metric, definitions]) => {
+    const levels = [...definitions].sort((a, b) => a.threshold - b.threshold);
+    const value = Math.max(0, activityAchievementValue(metric, facts));
+    const currentLevel = levels.filter((level) => value >= level.threshold).length;
+    const category = activityAchievementCategoryMeta[metric];
+    return {
+      metric,
+      title: category.title,
+      icon: levels[Math.max(0, currentLevel - 1)]?.icon ?? category.icon,
+      tone: category.tone,
+      levels,
+      currentLevel,
+      totalLevels: levels.length,
+      earnedDefinition: currentLevel ? levels[currentLevel - 1] : null,
+      nextDefinition: levels[currentLevel] ?? null,
+      value,
+    };
+  });
+}

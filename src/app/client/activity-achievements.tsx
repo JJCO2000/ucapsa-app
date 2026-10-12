@@ -1,13 +1,13 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
-import { activityAchievementCategoryMeta, activityAchievementDefinitions, activityAchievementValue, type ActivityAchievementDefinition, type ActivityAchievementMetric } from '../../constants/activityAchievements';
+import { activityAchievementDefinitions, buildActivityAchievementCollections, type ActivityAchievementCollection, type ActivityAchievementMetric } from '../../constants/activityAchievements';
 import { ucapsaBrand, ucapsaColorKeyPalette } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useReturnToProfile } from '../../hooks/useReturnToProfile';
@@ -29,7 +29,9 @@ export default function ActivityAchievementsScreen() {
   const backToProfile = useReturnToProfile(fromProfile);
   const { user, role, isAdmin } = useSession();
   const [facts, setFacts] = useState<ClientActivityFacts | null>(null);
-  const [selectedCode, setSelectedCode] = useState<string | null>(deepLinkedCode);
+  const [selectedMetric, setSelectedMetric] = useState<ActivityAchievementMetric | null>(
+    activityAchievementDefinitions.find((item) => item.code === deepLinkedCode)?.metric ?? null,
+  );
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,11 +40,10 @@ export default function ActivityAchievementsScreen() {
   const loadRunRef = useRef(0);
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
   const premium = format.key === 'member';
-  useEffect(() => { setSelectedCode(deepLinkedCode); }, [deepLinkedCode]);
-  const selectedDefinition = activityAchievementDefinitions.find((item) =>
-    item.code === selectedCode && (!scopedDogId || item.metric !== 'visits')
-  ) ?? null;
-  const selectedProgress = selectedDefinition && facts ? activityAchievementValue(selectedDefinition.metric, facts) : null;
+  // El deep link antiguo (?code=attendance_5) abre la categoría de ese nivel.
+  useEffect(() => {
+    setSelectedMetric(activityAchievementDefinitions.find((item) => item.code === deepLinkedCode)?.metric ?? null);
+  }, [deepLinkedCode]);
 
   const load = useCallback(async () => {
     const runId = loadRunRef.current + 1;
@@ -95,23 +96,11 @@ export default function ActivityAchievementsScreen() {
     try { await load(); } finally { setRefreshing(false); }
   }
 
-  const visibleMetrics: ActivityAchievementMetric[] = premium && !scopedDogId
-    ? ['attendance', 'practice', 'visits', 'streak']
-    : ['attendance', 'practice', 'streak'];
-  const visibleDefinitions = activityAchievementDefinitions.filter((item) => visibleMetrics.includes(item.metric));
-  const earnedCount = facts
-    ? visibleDefinitions.filter((item) => activityAchievementValue(item.metric, facts) >= item.threshold).length
-    : 0;
-  const completion = visibleDefinitions.length ? (earnedCount / visibleDefinitions.length) * 100 : 0;
-  const nextAchievement = facts
-    ? visibleDefinitions
-      .filter((item) => activityAchievementValue(item.metric, facts) < item.threshold)
-      .sort((left, right) =>
-        activityAchievementValue(right.metric, facts) / right.threshold
-        - activityAchievementValue(left.metric, facts) / left.threshold
-        || left.threshold - right.threshold,
-      )[0] ?? null
-    : null;
+  const collections = useMemo(
+    () => facts ? buildActivityAchievementCollections(facts, { includeMemberVisits: premium && !scopedDogId }) : [],
+    [facts, premium, scopedDogId],
+  );
+  const selectedCollection = collections.find((item) => item.metric === selectedMetric) ?? null;
 
   if (!user) return <Redirect href="/auth/login" />;
   if (isAdmin) return <Redirect href="/admin-home" />;
@@ -139,178 +128,126 @@ export default function ActivityAchievementsScreen() {
       {error && !facts ? <View style={[styles.stateCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}><Text style={[styles.stateTitle, { color: format.cardText }]}>{error}</Text></View> : null}
 
 
+
       {facts ? (
-        <View style={[styles.collectionCard, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
-          <View style={styles.collectionHeader}>
-            <View style={styles.collectionLabelBlock}>
+        <>
+          <View style={[styles.collectionCard, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
+            <View style={{ flex: 1 }}>
               <Text style={[styles.collectionEyebrow, { color: format.accentDark }]}>COLECCIÓN UCAPSA</Text>
               <Text style={[styles.collectionTitle, { color: format.cardText }]}>Tus insignias</Text>
-              <Text style={[styles.collectionSubtitle, { color: format.muted }]}>Cada logro cuenta una historia.</Text>
             </View>
             <View style={[styles.collectionCount, { backgroundColor: format.secondaryButton }]}>
-              <MaterialIcons name="emoji-events" size={21} color={format.accentDark} />
-              <Text style={[styles.collectionNumber, { color: format.cardText }]}>{earnedCount}</Text>
-              <Text style={[styles.collectionTotal, { color: format.muted }]}>de {visibleDefinitions.length}</Text>
+              <MaterialIcons name="military-tech" size={22} color={format.accentDark} />
+              <Text style={[styles.collectionTotal, { color: format.cardText }]}>{collections.length}</Text>
             </View>
           </View>
-          <View style={[styles.collectionTrack, { backgroundColor: format.border }]}>
-            <View style={[styles.collectionFill, { width: `${completion}%` as const, backgroundColor: format.accent }]} />
+
+          <View style={styles.badgeGrid}>
+            {collections.map((collection) => {
+              const tone = ucapsaColorKeyPalette[collection.tone];
+              return (
+                <Pressable
+                  key={collection.metric}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${collection.title}, nivel ${collection.currentLevel} de ${collection.totalLevels}. Ver detalle`}
+                  style={[styles.badgeCell, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}
+                  onPress={() => setSelectedMetric(collection.metric)}
+                >
+                  <View style={[styles.badgeShield, { backgroundColor: collection.currentLevel ? tone.soft : format.surfaceAlt, borderColor: collection.currentLevel ? tone.accent : format.cardBorder }]}>
+                    <MaterialIcons
+                      name={collection.icon}
+                      size={39}
+                      color={collection.currentLevel ? tone.text : format.muted}
+                    />
+                    {collection.currentLevel > 0 ? (
+                      <View style={[styles.badgeLevelDot, { backgroundColor: tone.accent }]}>
+                        <Text style={styles.badgeLevelDotText}>{collection.currentLevel}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <Text numberOfLines={2} style={[styles.badgeName, { color: format.cardText }]}>{collection.title}</Text>
+                  <Text style={[styles.badgeLevel, { color: collection.currentLevel ? tone.text : format.muted }]}>
+                    Nivel {collection.currentLevel} de {collection.totalLevels}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
-          {nextAchievement ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={'Siguiente insignia: ' + nextAchievement.title}
-              onPress={() => setSelectedCode(nextAchievement.code)}
-              style={[styles.nextCard, { backgroundColor: format.secondaryButton }]}
-            >
-              <MaterialIcons name={nextAchievement.icon} size={22} color={ucapsaColorKeyPalette[activityAchievementCategoryMeta[nextAchievement.metric].tone].text} />
-              <View style={styles.nextCopy}>
-                <Text style={[styles.nextKicker, { color: format.accentDark }]}>TU SIGUIENTE LOGRO</Text>
-                <Text numberOfLines={1} style={[styles.nextTitle, { color: format.cardText }]}>{nextAchievement.title}</Text>
-              </View>
-              <Text style={[styles.nextProgress, { color: format.cardText }]}>
-                {activityAchievementValue(nextAchievement.metric, facts)}/{nextAchievement.threshold}
-              </Text>
-              <MaterialIcons name="chevron-right" size={19} color={format.muted} />
-            </Pressable>
-          ) : (
-            <View style={styles.completeRow}>
-              <MaterialIcons name="verified" size={20} color={ucapsaBrand.colors.success} />
-              <Text style={[styles.completeText, { color: format.cardText }]}>¡Colección completada!</Text>
-            </View>
-          )}
-        </View>
+        </>
       ) : null}
 
-      {facts ? visibleMetrics.map((metric) => (
-        <AchievementCategory key={metric} metric={metric} facts={facts} format={format} onSelect={(item) => setSelectedCode(item.code)} />
-      )) : null}
-
-      <Modal visible={Boolean(selectedDefinition)} animationType="slide" onRequestClose={() => setSelectedCode(null)}>
+      <Modal visible={Boolean(selectedCollection)} animationType="slide" onRequestClose={() => setSelectedMetric(null)}>
         <SafeAreaView style={styles.detailPage}>
           <View style={styles.detailHeader}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Cerrar detalle de insignia"
-              onPress={() => setSelectedCode(null)}
-              style={styles.detailBack}
-            >
-              <MaterialIcons name="close" size={29} color={ucapsaBrand.colors.surface} />
+            <Pressable accessibilityRole="button" accessibilityLabel="Cerrar detalle de insignia" onPress={() => setSelectedMetric(null)} style={styles.detailBack}>
+              <MaterialIcons name="close" size={28} color={ucapsaBrand.colors.surface} />
             </Pressable>
-            <Text style={styles.detailHeaderTitle}>Insignia UCAPSA</Text>
+            <Text style={styles.detailHeaderTitle}>Colección UCAPSA</Text>
             <View style={styles.detailBack} />
           </View>
-          {selectedDefinition ? (() => {
-            const meta = activityAchievementCategoryMeta[selectedDefinition.metric];
-            const tone = ucapsaColorKeyPalette[meta.tone];
-            const earned = selectedProgress !== null && selectedProgress >= selectedDefinition.threshold;
-            return (
-              <>
-                <View style={styles.detailCenter}>
-                  <View style={[styles.detailGlow, { backgroundColor: tone.soft }]}>
-                    <View style={[styles.detailMedal, { backgroundColor: earned ? tone.accent : ucapsaBrand.colors.gray, borderColor: tone.text }]}>
-                      <MaterialIcons
-                        name={selectedDefinition.icon}
-                        size={94}
-                        color={ucapsaBrand.colors.surface}
-                      />
-                      <View style={styles.detailMedalNumber}>
-                        <Text style={[styles.detailMedalNumberText, { color: earned ? tone.text : ucapsaBrand.colors.grayDark }]}>
-                          {selectedDefinition.threshold}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                  <Text style={styles.detailState}>{earned ? 'CONSEGUIDA' : 'POR DESBLOQUEAR'}</Text>
-                  <Text style={styles.detailTitle}>{selectedDefinition.title}</Text>
-                  <Text style={styles.detailDescription}>{selectedDefinition.description}</Text>
-                  {selectedProgress !== null ? (
-                    <View style={styles.detailProgressBox}>
-                      <Text style={styles.detailProgressText}>
-                        {earned ? '¡Lo lograste!' : 'Tu progreso'} · {Math.min(selectedProgress, selectedDefinition.threshold)} de {selectedDefinition.threshold}
-                      </Text>
-                      <View style={styles.detailProgressTrack}>
-                        <View style={[styles.detailProgressFill, {
-                          width: `${Math.min(100, 100 * selectedProgress / selectedDefinition.threshold)}%` as const,
-                          backgroundColor: tone.accent,
-                        }]} />
-                      </View>
-                    </View>
-                  ) : null}
-                </View>
-                <Pressable accessibilityRole="button" style={styles.detailCloseButton} onPress={() => setSelectedCode(null)}>
-                  <Text style={styles.detailCloseText}>VER MIS INSIGNIAS</Text>
-                </Pressable>
-              </>
-            );
-          })() : null}
+          {selectedCollection ? (
+            <ScrollView contentContainerStyle={styles.detailScroll}>
+              <AchievementCollectionDetail collection={selectedCollection} />
+              <Pressable accessibilityRole="button" style={styles.detailCloseButton} onPress={() => setSelectedMetric(null)}>
+                <Text style={styles.detailCloseText}>VER MIS INSIGNIAS</Text>
+              </Pressable>
+            </ScrollView>
+          ) : null}
         </SafeAreaView>
       </Modal>
     </KeyboardAwareScreen>
   );
 }
 
-function AchievementCategory({ metric, facts, format, onSelect }: {
-  metric: ActivityAchievementMetric;
-  facts: ClientActivityFacts;
-  format: ReturnType<typeof resolveUcapsaFormat>;
-  onSelect: (item: ActivityAchievementDefinition) => void;
-}) {
-  const meta = activityAchievementCategoryMeta[metric];
-  const tone = ucapsaColorKeyPalette[meta.tone];
-  const value = activityAchievementValue(metric, facts);
-  const definitions = activityAchievementDefinitions.filter((item) => item.metric === metric);
-  const unlocked = definitions.filter((item) => value >= item.threshold).length;
+function AchievementCollectionDetail({ collection }: { collection: ActivityAchievementCollection }) {
+  const tone = ucapsaColorKeyPalette[collection.tone];
+  const next = collection.nextDefinition;
+  const reachedMax = collection.currentLevel === collection.totalLevels;
+  const progress = next ? Math.min(100, Math.round(collection.value / next.threshold * 100)) : 100;
   return (
-    <View style={styles.categorySection}>
-      <View style={styles.categoryTop}>
-        <View style={[styles.categoryIcon, { backgroundColor: tone.soft }]}>
-          <MaterialIcons name={meta.icon} size={21} color={tone.text} />
-        </View>
-        <View style={styles.categoryNameBlock}>
-          <Text style={[styles.categoryTitle, { color: format.cardText }]}>{meta.title}</Text>
-          <Text style={[styles.categorySub, { color: format.muted }]}>{unlocked} de {definitions.length} conseguidas</Text>
+    <View style={styles.detailContent}>
+      <View style={[styles.detailGlow, { backgroundColor: tone.soft }]}>
+        <View style={[styles.detailMedal, { backgroundColor: collection.currentLevel ? tone.accent : ucapsaBrand.colors.gray, borderColor: tone.text }]}>
+          <MaterialIcons name={collection.icon} size={86} color={ucapsaBrand.colors.surface} />
         </View>
       </View>
-      <View style={styles.badgeGrid}>
-        {definitions.map((definition) => {
-          const earned = value >= definition.threshold;
-          const next = !earned && !definitions.some((other) => other.threshold < definition.threshold && value < other.threshold);
-          return (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={definition.title + '. ' + (earned ? 'Conseguida' : 'Progreso ' + value + ' de ' + definition.threshold)}
-              onPress={() => onSelect(definition)}
-              key={definition.code}
-              style={styles.badgeCell}
-            >
-              <View style={[styles.badgeShield, {
-                backgroundColor: earned ? tone.soft : format.surfaceAlt,
-                borderColor: earned ? tone.accent : format.cardBorder,
-              }]}>
-                <MaterialIcons
-                  name={definition.icon}
-                  size={38}
-                  color={earned ? tone.text : format.muted}
-                  style={!earned ? styles.lockedIcon : undefined}
-                />
-                <View style={[styles.badgeNumber, { backgroundColor: earned ? tone.accent : format.border }]}>
-                  <Text style={[styles.badgeNumberText, { color: earned ? ucapsaBrand.colors.surface : format.muted }]}>{definition.threshold}</Text>
-                </View>
-                {earned ? (
-                  <View style={[styles.badgeCheck, { backgroundColor: tone.accent }]}>
-                    <MaterialIcons name="check" size={12} color={ucapsaBrand.colors.surface} />
-                  </View>
-                ) : null}
-              </View>
-              <Text numberOfLines={2} style={[styles.badgeName, { color: earned || next ? format.cardText : format.muted }]}>{definition.title}</Text>
-              <Text style={[styles.badgeProgress, { color: earned ? tone.text : format.muted }]}>
-                {earned ? 'Conseguida' : Math.min(value, definition.threshold) + ' de ' + definition.threshold}
-              </Text>
-            </Pressable>
-          );
-        })}
+      <Text style={styles.detailTitle}>{collection.title}</Text>
+      <Text style={styles.detailLevel}>Nivel {collection.currentLevel} de {collection.totalLevels}</Text>
+      <Text style={styles.detailDescription}>
+        {collection.earnedDefinition?.description ?? 'Consigue tu primer nivel para desbloquear esta insignia.'}
+      </Text>
+      <View style={styles.detailStats}>
+        <View style={styles.detailStat}>
+          <Text style={styles.detailStatValue}>{collection.value}</Text>
+          <Text style={styles.detailStatLabel}>Acumulado</Text>
+        </View>
+        <View style={styles.detailStat}>
+          <Text style={styles.detailStatValue}>{next ? next.threshold : '✓'}</Text>
+          <Text style={styles.detailStatLabel}>{next ? 'Próxima meta' : 'Completada'}</Text>
+        </View>
       </View>
+      <View style={styles.detailProgressTrack}>
+        <View style={[styles.detailProgressFill, { width: `${progress}%` as const, backgroundColor: tone.accent }]} />
+      </View>
+      <Text style={styles.detailHint}>
+        {reachedMax ? '¡Alcanzaste el nivel máximo!' : `Faltan ${Math.max(0, next!.threshold - collection.value)} para el nivel ${collection.currentLevel + 1}.`}
+      </Text>
+      <Text style={styles.detailSectionTitle}>Todos los niveles</Text>
+      {collection.levels.map((level, index) => {
+        const unlocked = index < collection.currentLevel;
+        return (
+          <View key={level.code} style={styles.detailMilestone}>
+            <View style={[styles.detailMilestoneIcon, { backgroundColor: unlocked ? tone.soft : ucapsaBrand.colors.graySoft }]}>
+              <MaterialIcons name={unlocked ? 'check-circle' : 'lock-outline'} size={19} color={unlocked ? tone.text : ucapsaBrand.colors.gray} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.detailMilestoneTitle}>Nivel {index + 1} · {level.title}</Text>
+              <Text style={styles.detailMilestoneDescription}>{level.description}</Text>
+            </View>
+            <Text style={styles.detailMilestoneThreshold}>{level.threshold}</Text>
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -323,58 +260,42 @@ const styles = StyleSheet.create({
   muted: { fontSize: 13, lineHeight: 19, fontWeight: '700' },
   stateCard: { borderWidth: 1, borderRadius: 22, padding: 18 },
   stateTitle: { fontSize: 17, fontWeight: '900' },
-
-  collectionCard: { borderWidth: 1, borderRadius: 21, padding: 17, marginBottom: 23 },
-  collectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  collectionLabelBlock: { flex: 1 },
-  collectionEyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
-  collectionTitle: { fontSize: 24, lineHeight: 30, fontWeight: '900', marginTop: 3 },
-  collectionSubtitle: { fontSize: 11, lineHeight: 16, fontWeight: '700', marginTop: 4 },
-  collectionCount: { minWidth: 70, minHeight: 73, alignItems: 'center', justifyContent: 'center', borderRadius: 16, padding: 7 },
-  collectionNumber: { fontSize: 21, fontWeight: '900', marginTop: 1 },
-  collectionTotal: { fontSize: 10, fontWeight: '700' },
-  collectionTrack: { height: 9, borderRadius: 999, overflow: 'hidden', marginTop: 15, marginBottom: 3 },
-  collectionFill: { height: '100%', borderRadius: 999 },
-  nextCard: { marginTop: 13, borderRadius: 14, minHeight: 60, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 10 },
-  nextCopy: { flex: 1, minWidth: 0 },
-  nextKicker: { fontSize: 9, fontWeight: '900', letterSpacing: 0.5 },
-  nextTitle: { fontSize: 12, fontWeight: '900', marginTop: 1 },
-  nextProgress: { fontSize: 12, fontWeight: '900' },
-  completeRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 13 },
-  completeText: { fontSize: 13, fontWeight: '900' },
-
-  categorySection: { marginBottom: 28 },
-  categoryTop: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
-  categoryIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  categoryNameBlock: { flex: 1 },
-  categoryTitle: { fontSize: 20, lineHeight: 24, fontWeight: '900' },
-  categorySub: { fontSize: 11, fontWeight: '700', marginTop: 2 },
-  badgeGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 18 },
-  badgeCell: { width: '31.5%', minHeight: 151, alignItems: 'center', justifyContent: 'flex-start' },
-  badgeShield: { width: 82, height: 85, borderRadius: 27, borderWidth: 3, alignItems: 'center', justifyContent: 'center' },
-  lockedIcon: { opacity: 0.45 },
-  badgeNumber: { position: 'absolute', bottom: -11, minWidth: 37, height: 27, borderRadius: 13, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 7 },
-  badgeNumberText: { fontSize: 13, fontWeight: '900' },
-  badgeCheck: { position: 'absolute', right: -6, top: -5, height: 22, width: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  badgeName: { marginTop: 20, textAlign: 'center', fontSize: 12, lineHeight: 16, fontWeight: '900', minHeight: 31 },
-  badgeProgress: { marginTop: 4, textAlign: 'center', fontSize: 10, fontWeight: '800' },
-
-  detailPage: { flex: 1, backgroundColor: ucapsaBrand.colors.redDeeper, paddingHorizontal: 24 },
-  detailHeader: { minHeight: 64, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  detailBack: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center' },
+  collectionCard: { borderWidth: 1, borderRadius: 20, padding: 17, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  collectionEyebrow: { fontSize: 11, fontWeight: '900', letterSpacing: 0.7 },
+  collectionTitle: { fontSize: 25, fontWeight: '900', marginTop: 4 },
+  collectionCount: { minWidth: 63, minHeight: 55, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
+  collectionTotal: { fontSize: 16, fontWeight: '900' },
+  badgeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginBottom: 24 },
+  badgeCell: { width: '31%', minWidth: 0, alignItems: 'center', borderRadius: 17, borderWidth: 1, paddingVertical: 14, paddingHorizontal: 2, minHeight: 166 },
+  badgeShield: { width: 77, height: 78, borderRadius: 27, borderWidth: 3, alignItems: 'center', justifyContent: 'center' },
+  badgeLevelDot: { position: 'absolute', right: -6, top: -7, width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  badgeLevelDotText: { color: ucapsaBrand.colors.surface, fontSize: 12, fontWeight: '900' },
+  badgeName: { fontSize: 12, fontWeight: '900', textAlign: 'center', marginTop: 13, minHeight: 32, lineHeight: 16 },
+  badgeLevel: { fontSize: 10, fontWeight: '900', marginTop: 6, textAlign: 'center' },
+  detailPage: { flex: 1, backgroundColor: ucapsaBrand.colors.redDeeper, paddingHorizontal: 20 },
+  detailHeader: { minHeight: 62, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  detailBack: { width: 45, height: 45, alignItems: 'center', justifyContent: 'center' },
   detailHeaderTitle: { fontSize: 14, fontWeight: '900', color: ucapsaBrand.colors.surface },
-  detailCenter: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 17 },
-  detailGlow: { width: 210, height: 222, borderRadius: 74, justifyContent: 'center', alignItems: 'center' },
-  detailMedal: { width: 176, height: 184, borderRadius: 60, borderWidth: 6, alignItems: 'center', justifyContent: 'center' },
-  detailMedalNumber: { position: 'absolute', bottom: -23, paddingHorizontal: 18, minWidth: 75, height: 49, borderRadius: 24, justifyContent: 'center', alignItems: 'center', backgroundColor: ucapsaBrand.colors.surface },
-  detailMedalNumberText: { fontSize: 28, fontWeight: '900' },
-  detailState: { fontSize: 11, fontWeight: '900', letterSpacing: 1.2, color: ucapsaBrand.colors.goldSoft, marginTop: 13 },
-  detailTitle: { fontSize: 28, lineHeight: 35, textAlign: 'center', color: ucapsaBrand.colors.surface, fontWeight: '900' },
-  detailDescription: { fontSize: 16, lineHeight: 23, color: ucapsaBrand.colors.redSoft, textAlign: 'center', fontWeight: '700' },
-  detailProgressBox: { width: '100%', gap: 10, marginTop: 12 },
-  detailProgressText: { textAlign: 'center', color: ucapsaBrand.colors.surface, fontWeight: '900', fontSize: 14 },
-  detailProgressTrack: { width: '100%', height: 13, borderRadius: 999, overflow: 'hidden', backgroundColor: ucapsaBrand.colors.redDark },
-  detailProgressFill: { height: '100%', borderRadius: 999 },
-  detailCloseButton: { alignItems: 'center', justifyContent: 'center', minHeight: 54, borderRadius: 16, marginBottom: 20, backgroundColor: ucapsaBrand.colors.surface },
-  detailCloseText: { fontSize: 14, fontWeight: '900', color: ucapsaBrand.colors.redDeep, letterSpacing: 0.4 },
+  detailScroll: { flexGrow: 1, paddingBottom: 26 },
+  detailContent: { alignItems: 'center', gap: 12 },
+  detailGlow: { width: 166, height: 166, borderRadius: 62, alignItems: 'center', justifyContent: 'center', marginTop: 9 },
+  detailMedal: { width: 140, height: 140, borderRadius: 49, borderWidth: 5, alignItems: 'center', justifyContent: 'center' },
+  detailTitle: { color: ucapsaBrand.colors.surface, fontSize: 27, lineHeight: 33, fontWeight: '900', textAlign: 'center', marginTop: 4 },
+  detailLevel: { color: ucapsaBrand.colors.goldSoft, fontSize: 16, fontWeight: '900' },
+  detailDescription: { color: ucapsaBrand.colors.redSoft, fontSize: 13, lineHeight: 19, textAlign: 'center', fontWeight: '700' },
+  detailStats: { flexDirection: 'row', alignSelf: 'stretch', gap: 10, marginTop: 9 },
+  detailStat: { flex: 1, minHeight: 65, backgroundColor: ucapsaBrand.colors.redDark, borderRadius: 14, alignItems: 'center', justifyContent: 'center', padding: 8 },
+  detailStatValue: { fontSize: 21, fontWeight: '900', color: ucapsaBrand.colors.surface },
+  detailStatLabel: { fontSize: 10, color: ucapsaBrand.colors.redSoft, fontWeight: '700' },
+  detailProgressTrack: { height: 12, alignSelf: 'stretch', borderRadius: 8, overflow: 'hidden', backgroundColor: ucapsaBrand.colors.redDark, marginTop: 5 },
+  detailProgressFill: { height: '100%', borderRadius: 8 },
+  detailHint: { fontSize: 12, fontWeight: '800', color: ucapsaBrand.colors.surface },
+  detailSectionTitle: { color: ucapsaBrand.colors.surface, fontSize: 17, fontWeight: '900', marginTop: 16, alignSelf: 'flex-start', marginBottom: 2 },
+  detailMilestone: { width: '100%', flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderColor: ucapsaBrand.colors.redDark, paddingVertical: 10, gap: 9 },
+  detailMilestoneIcon: { width: 37, height: 37, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  detailMilestoneTitle: { fontSize: 12, fontWeight: '900', color: ucapsaBrand.colors.surface },
+  detailMilestoneDescription: { fontSize: 10, lineHeight: 14, fontWeight: '700', color: ucapsaBrand.colors.redSoft, marginTop: 3 },
+  detailMilestoneThreshold: { color: ucapsaBrand.colors.surface, fontWeight: '900', fontSize: 13 },
+  detailCloseButton: { minHeight: 53, borderRadius: 14, justifyContent: 'center', alignItems: 'center', backgroundColor: ucapsaBrand.colors.surface, marginTop: 24 },
+  detailCloseText: { color: ucapsaBrand.colors.redDeep, fontSize: 13, fontWeight: '900' },
 });
