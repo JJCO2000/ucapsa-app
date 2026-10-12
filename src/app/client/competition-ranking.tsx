@@ -15,6 +15,11 @@ import { devWarn } from '../../lib/client-diagnostics';
 import { getPrivateDogPhotoUrls } from '../../services/dog-photos.service';
 import { getMyDogs } from '../../services/dogs.service';
 import {
+  getCachedRequiredCompetitionExams,
+  refreshRequiredCompetitionExams,
+  type RequiredCompetitionExam,
+} from '../../services/client-competition-required-exams.service';
+import {
   getCachedCompetitionLeaderboard,
   getCachedMyCompetitionAccount,
   refreshMyCompetitionAccount,
@@ -56,6 +61,7 @@ export default function ClientCompetitionRankingScreen() {
   const [rows, setRows] = useState<ClientCompetitionLeaderboardRow[]>([]);
   const [myCompetition, setMyCompetition] = useState<ClientAccountCompetitionSnapshot | null>(null);
   const [scoreUnavailable, setScoreUnavailable] = useState(false);
+  const [requiredExams, setRequiredExams] = useState<RequiredCompetitionExam[] | null>(null);
   const [myDogs, setMyDogs] = useState<Array<{ id: string; name: string; avatarKey: string; avatarColor: string; photoUrl: string | null }>>([]);
   const [localReady, setLocalReady] = useState(false);
   const [usingSavedData, setUsingSavedData] = useState(false);
@@ -73,10 +79,12 @@ export default function ClientCompetitionRankingScreen() {
     setUsingSavedData(false);
     setScoreUnavailable(false);
 
-    const [cachedRanking, cachedAccount] = await Promise.all([
+    const [cachedRanking, cachedAccount, cachedRequired] = await Promise.all([
       getCachedCompetitionLeaderboard(user.id, seasonId),
       getCachedMyCompetitionAccount(user.id),
+      getCachedRequiredCompetitionExams(user.id, seasonId),
     ]);
+    setRequiredExams(cachedRequired?.data ?? null);
     if (cachedRanking) {
       setRows(cachedRanking.data);
       setSavedAt(cachedRanking.saved_at);
@@ -93,11 +101,13 @@ export default function ClientCompetitionRankingScreen() {
       })));
     }
 
-    const [rankingResult, dogsResult, accountResult] = await Promise.allSettled([
+    const [rankingResult, dogsResult, accountResult, requiredResult] = await Promise.allSettled([
       refreshCompetitionLeaderboard(user.id, seasonId),
       getMyDogs(),
       refreshMyCompetitionAccount(user.id),
+      refreshRequiredCompetitionExams(user.id, seasonId),
     ]);
+    if (requiredResult.status === 'fulfilled') setRequiredExams(requiredResult.value.data);
 
     if (accountResult.status === 'fulfilled') {
       setMyCompetition(accountResult.value.data);
@@ -165,9 +175,29 @@ export default function ClientCompetitionRankingScreen() {
     season: myCompetition?.dogs.find((entry) => entry.dog_id === dog.id)
       ?.seasons.find((entry) => entry.season_id === seasonId) ?? null,
   }));
-  const seasonName = rows[0]?.season_name || myRows.find(({ season }) => season)?.season?.season_name || 'Temporada UCAPSA';
+  const seasonName = rows[0]?.season_name
+    || myCompetition?.seasons?.find((season) => season.season_id === seasonId)?.season_name
+    || myRows.find(({ season }) => season)?.season?.season_name || 'Temporada UCAPSA';
+  function missingExamExplanation(dogId: string, season: (typeof myRows)[number]['season']) {
+    if (!season) return 'Puntaje no disponible en este dispositivo.';
+    const requiredCount = Number(season.required_exams_count ?? 0);
+    const missingCount = Number(season.missing_required_exams_count ?? 0);
+    if (requiredCount === 0) return 'Sin exámenes obligatorios publicados: ningún examen bloquea el ranking.';
+    if (missingCount === 0) return 'Exámenes completos. Actualiza para conocer tu posición.';
+    const completedIds = new Set(
+      myCompetition?.dogs.find((dog) => dog.dog_id === dogId)
+        ?.official_exams.filter((exam) => exam.season_id === seasonId)
+        .map((exam) => exam.exam_id) ?? [],
+    );
+    const missingTitles = requiredExams?.filter((exam) => !completedIds.has(exam.id)).map((exam) => exam.title) ?? [];
+    return missingTitles.length
+      ? 'Examen obligatorio pendiente: ' + missingTitles.join(', ') + '.'
+      : 'Faltan ' + missingCount + ' de ' + requiredCount + ' exámenes obligatorios.';
+  }
+  const footerDogs = myRows.filter(({ row }) => !row || Number(row.ranking_position ?? 0) > 3);
 
   return (
+    <View style={{ flex: 1, backgroundColor: format.background }}>
     <KeyboardAwareScreen
       backgroundColor={format.background}
       style={{ backgroundColor: format.background }}
@@ -217,8 +247,25 @@ export default function ClientCompetitionRankingScreen() {
           <>
             <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
               <Text style={[styles.cardTitle, { color: format.cardText }]}>Ranking oficial pendiente</Text>
-              <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Los puntos ya se acumulan, pero todavía no hay perros elegibles para ocupar una posición oficial. UCAPSA debe publicar los exámenes obligatorios y registrar sus resultados.</Text>
+              <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{'No hay posiciones oficiales todavía. El Ranking permanece visible: ' + (requiredExams === null ? 'verifica tus datos al reconectar.' : requiredExams.length > 0 ? 'faltan resultados de exámenes obligatorios.' : 'aún no hay participantes clasificados.')}</Text>
             </View>
+            <Text style={[styles.sectionTitle, { color: format.cardText }]}>Podio</Text>
+            <View style={styles.podiumRow}>
+              {[2, 1, 3].map((position) => (
+                <View key={position} style={[styles.podiumCard, position === 1 && styles.podiumChampion, {
+                  backgroundColor: format.secondaryButton, borderColor: format.cardBorder,
+                }]}>
+                  <Text style={styles.medal}>{medal(position)}</Text>
+                  <Text style={[styles.podiumName, { color: format.cardText }]}>Por definir</Text>
+                  <Text style={[styles.podiumScore, { color: format.muted }]}>Sin clasificados</Text>
+                  <View style={[styles.podiumPedestal, { backgroundColor: format.cardBorder }]}>
+                    <Text style={styles.podiumPedestalNumber}>{position}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+            <Text style={[styles.sectionTitle, { color: format.cardText }]}>Clasificación</Text>
+            <Text style={[styles.muted, { color: format.muted }]}>Sin posiciones oficiales todavía.</Text>
             {myRows.length > 0 ? (
               <View style={styles.myDogsBlock}>
                 <Text style={[styles.sectionTitle, { color: format.cardText }]}>Puntos acumulados de tus perros</Text>
@@ -233,8 +280,8 @@ export default function ClientCompetitionRankingScreen() {
                       <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
                         {season
                           ? Number(season.required_exams_count ?? 0) === 0
-                            ? 'Esperando que UCAPSA publique exámenes obligatorios.'
-                            : 'Faltan ' + Number(season.missing_required_exams_count ?? 0) + ' exámenes obligatorios.'
+                            ? 'Sin exámenes obligatorios publicados; ninguno bloquea el ranking.'
+                            : missingExamExplanation(dog.id, season)
                           : 'Actualiza para consultar el puntaje de esta temporada.'}
                       </Text>
                     </View>
@@ -245,39 +292,6 @@ export default function ClientCompetitionRankingScreen() {
           </>
         ) : (
           <>
-            {myRows.length > 0 ? (
-              <View style={styles.myDogsBlock}>
-                <Text style={[styles.sectionTitle, { color: format.cardText }]}>Tus perros</Text>
-                {myRows.map(({ dog, row, season }) => (
-                  <View key={dog.id} style={[styles.myCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
-                    <RankingDogAvatar
-                      name={dog.name}
-                      photoUrl={dog.photoUrl}
-                      avatarKey={dog.avatarKey}
-                      avatarColor={dog.avatarColor}
-                      size={52}
-                    />
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.myLabel, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>
-                        {row ? `TU PERRO · #${Number(row.ranking_position ?? 0)}` : 'TU PERRO'}
-                      </Text>
-                      <Text style={[styles.cardTitle, { color: format.cardText }]}>
-                        {dog.name + ' · ' + (row ? numberLabel(row.competitive_score) + ' pts' : season ? numberLabel(season.competitive_score) + ' pts acumulados' : 'puntaje no disponible')}
-                      </Text>
-                      <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
-                        {row ? (row.range_name || 'Cobre') + ' · ' + Number(row.command_attendances_count ?? 0) + ' Comandos' : 'Sin posición oficial hasta completar los exámenes obligatorios.'}
-                      </Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <View style={[styles.noteCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
-                <MaterialIcons name="info-outline" size={19} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-                <Text style={[styles.noteText, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>No pudimos identificar tus perros en esta vista. Actualiza cuando tengas conexión.</Text>
-              </View>
-            )}
-
             <View style={styles.podiumIntro}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.sectionTitle, { color: format.cardText }]}>Podio</Text>
@@ -375,6 +389,39 @@ export default function ClientCompetitionRankingScreen() {
               })}
             </View>
 
+            {myRows.length > 0 ? (
+              <View style={styles.myDogsBlock}>
+                <Text style={[styles.sectionTitle, { color: format.cardText }]}>Tus perros</Text>
+                {myRows.map(({ dog, row, season }) => (
+                  <View key={dog.id} style={[styles.myCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
+                    <RankingDogAvatar
+                      name={dog.name}
+                      photoUrl={dog.photoUrl}
+                      avatarKey={dog.avatarKey}
+                      avatarColor={dog.avatarColor}
+                      size={52}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.myLabel, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>
+                        {row ? `TU PERRO · #${Number(row.ranking_position ?? 0)}` : 'TU PERRO'}
+                      </Text>
+                      <Text style={[styles.cardTitle, { color: format.cardText }]}>
+                        {dog.name + ' · ' + (row ? numberLabel(row.competitive_score) + ' pts' : season ? numberLabel(season.competitive_score) + ' pts acumulados' : 'puntaje no disponible')}
+                      </Text>
+                      <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+                        {row ? (row.range_name || 'Cobre') + ' · ' + Number(row.command_attendances_count ?? 0) + ' Comandos' : missingExamExplanation(dog.id, season)}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={[styles.noteCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
+                <MaterialIcons name="info-outline" size={19} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                <Text style={[styles.noteText, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>No pudimos identificar tus perros en esta vista. Actualiza cuando tengas conexión.</Text>
+              </View>
+            )}
+
             <View style={[styles.noteCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
               <MaterialIcons name="rule" size={19} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
               <Text style={[styles.noteText, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Desempate: puntaje total → Comandos → puntos de Exámenes → dog_id técnico.</Text>
@@ -383,6 +430,31 @@ export default function ClientCompetitionRankingScreen() {
         )
       ) : null}
     </KeyboardAwareScreen>
+    {localReady && footerDogs.length > 0 ? (
+      <View style={[styles.pinnedFooter, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
+        <Text style={[styles.myLabel, { color: format.accentDark }]}>TU POSICIÓN</Text>
+        {footerDogs.slice(0, 2).map(({ dog, row, season }) => (
+          <View key={dog.id} style={styles.footerRow}>
+            <RankingDogAvatar name={dog.name} photoUrl={dog.photoUrl} avatarKey={dog.avatarKey} avatarColor={dog.avatarColor} size={30} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text numberOfLines={1} style={[styles.dogName, { color: format.cardText }]}>
+                {dog.name} · {row ? '#' + Number(row.ranking_position) : 'SIN POSICIÓN OFICIAL'}
+              </Text>
+              <Text numberOfLines={2} style={[styles.footerReason, { color: format.muted }]}>
+                {row ? 'Ya cumplió los requisitos de exámenes' : missingExamExplanation(dog.id, season)}
+              </Text>
+            </View>
+            <Text style={[styles.footerPoints, { color: format.accentDark }]}>
+              {numberLabel(row?.competitive_score ?? season?.competitive_score)} pts
+            </Text>
+          </View>
+        ))}
+        {footerDogs.length > 2 ? <Text style={[styles.footerReason, { color: format.muted }]}>
+          Y {footerDogs.length - 2} perros más en la lista.
+        </Text> : null}
+      </View>
+    ) : null}
+    </View>
   );
 }
 
@@ -462,4 +534,8 @@ const styles = StyleSheet.create({
   scoreLabel: { marginTop: 1, fontSize: 8, lineHeight: 10, fontWeight: '900', letterSpacing: 0.8 },
   noteCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 15, borderWidth: 1, padding: 11, marginTop: 12, marginBottom: 12 },
   noteText: { flex: 1, fontSize: 10, lineHeight: 15, fontWeight: '800' },
+  pinnedFooter: { paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: 1, gap: 6, elevation: 12 },
+  footerRow: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 3 },
+  footerReason: { fontSize: 10, lineHeight: 14, fontWeight: '700' },
+  footerPoints: { fontSize: 15, fontWeight: '900' },
 });

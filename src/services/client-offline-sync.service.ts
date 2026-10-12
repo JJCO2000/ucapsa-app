@@ -119,6 +119,10 @@ async function cacheCompetition(userId: string, dogs: BasicDog[]): Promise<void>
 
   const seasonIds = new Set<string>();
   if (accountResult.status === 'fulfilled') {
+    // A season remains visible in the ranking even before any dog has activity.
+    for (const season of accountResult.value.data.seasons ?? []) {
+      if (season.season_id) seasonIds.add(season.season_id);
+    }
     for (const dog of accountResult.value.data.dogs) {
       for (const season of dog.seasons) {
         if (season.season_id) seasonIds.add(season.season_id);

@@ -227,7 +227,14 @@ export default function ClientCompetitionScreen() {
           <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
             <MaterialIcons name="pets" size={24} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
             <Text style={[styles.cardTitle, { color: format.cardText }]}>Primero registra un perro</Text>
-            <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Cuando tengas perros activos, aquí aparecerá su competencia.</Text>
+            <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Puedes consultar el Ranking aunque todavía no tengas perros registrados.</Text>
+            <Pressable
+              style={[styles.rankingCard, { backgroundColor: format.accent, borderColor: format.accent }]}
+              onPress={() => router.push(('/client/competition-ranking' + (selectedSeason?.season_id
+                ? '?seasonId=' + encodeURIComponent(selectedSeason.season_id) : '')) as never)}
+            >
+              <Text style={[styles.rankingTitle, { color: format.primaryButtonText }]}>Ver Ranking de la temporada</Text>
+            </Pressable>
           </View>
         ) : (
           <>

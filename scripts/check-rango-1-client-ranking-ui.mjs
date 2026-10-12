@@ -40,6 +40,26 @@ for (const token of [
   if (!service.includes(token)) failures.push('Servicio cliente Ranking perdió contrato: ' + token);
 }
 
+for (const token of [
+  'getCachedRequiredCompetitionExams',
+  'refreshRequiredCompetitionExams',
+  'missingExamExplanation',
+  'requiredExams',
+  'pinnedFooter',
+  'footerDogs',
+  'Sin clasificados',
+  'Examen obligatorio pendiente:',
+]) {
+  if (!ranking.includes(token)) failures.push('Ranking debe mostrar elegibilidad y pie con posición: ' + token);
+}
+const requiredService = read('src/services/client-competition-required-exams.service.ts');
+for (const token of [".eq('status', 'published')", ".eq('is_required_for_ranking', true)", 'readClientResource', 'writeClientResource']) {
+  if (!requiredService.includes(token)) failures.push('Checklist de exámenes requeridos perdió seguridad/cache: ' + token);
+}
+if (!summary.includes('Puedes consultar el Ranking aunque todavía no tengas perros registrados.')) {
+  failures.push('Ranking debe estar disponible incluso sin perros propios.');
+}
+
 const cacheIndex = ranking.indexOf('getCachedCompetitionLeaderboard');
 const refreshIndex = ranking.indexOf('refreshCompetitionLeaderboard');
 if (cacheIndex < 0 || refreshIndex < 0 || cacheIndex > refreshIndex) {

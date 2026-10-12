@@ -429,7 +429,7 @@ comment on view public.ucapsa_exam_official_results is
 -- Elegibilidad dog-specific por temporada.
 -- Solo exámenes obligatorios YA PUBLICADOS forman parte del requisito activo.
 -- Un draft todavía no altera la elegibilidad pública.
--- Cero exámenes obligatorios publicados => todavía no elegible.
+-- Cero exámenes obligatorios publicados => no hay requisito pendiente; elegible.
 -- -----------------------------------------------------------------------------
 
 create or replace view public.ucapsa_exam_eligibility
@@ -458,8 +458,7 @@ select
     0
   )::bigint as missing_required_exams_count,
   (
-    coalesce(req.required_exams_count, 0) > 0
-    and coalesce(done.completed_required_exams_count, 0) = req.required_exams_count
+    coalesce(done.completed_required_exams_count, 0) = coalesce(req.required_exams_count, 0)
   ) as is_ranking_eligible
 from public.ucapsa_competition_seasons s
 cross join public.dogs d
