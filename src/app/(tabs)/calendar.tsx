@@ -48,12 +48,6 @@ function parseLocalDate(dateKey: string) {
   return new Date(year, month - 1, day, 12, 0, 0, 0);
 }
 
-function addDays(date: Date, days: number) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
-}
-
 function toLocalDateKey(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -63,14 +57,6 @@ function toLocalDateKey(date: Date) {
 
 function getCancellationKey(scheduleId: string, dateKey: string) {
   return `${scheduleId}:${dateKey}`;
-}
-
-function getActiveCancellationKeys(cancellations: ProgramClassCancellation[]) {
-  return new Set(
-    cancellations
-      .filter((item) => !item.restored_at)
-      .map((item) => getCancellationKey(item.schedule_id, item.cancellation_date)),
-  );
 }
 
 function expandClassOccurrences(
@@ -548,7 +534,13 @@ export default function CalendarScreen() {
 
               <Calendar
                 current={selectedDate}
-                onMonthChange={(month: DateData) => setVisibleMonth(month.dateString.slice(0, 7))}
+                onMonthChange={(month: DateData) => {
+                  const nextMonth = month.dateString.slice(0, 7);
+                  setVisibleMonth(nextMonth);
+                  setSelectedDate((current) =>
+                    current.slice(0, 7) === nextMonth ? current : month.dateString,
+                  );
+                }}
                 onDayPress={(day: DateData) => {
                   setSelectedDate(day.dateString);
                   setVisibleMonth(day.dateString.slice(0, 7));
