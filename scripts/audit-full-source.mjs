@@ -4,14 +4,20 @@ import path from 'node:path';
 const root = process.cwd();
 const scanRoots = [
   'src',
-  'supabase/functions',
-  'supabase/sql',
+  'supabase',
   'scripts',
   'packages',
-  '.github/workflows',
+  '.github',
 ];
-const rootFiles = ['app.json', 'package.json', 'tsconfig.json', 'eas.json'];
-const extensions = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.sql', '.yml', '.yaml', '.json']);
+const rootFiles = [
+  'app.json',
+  'package.json',
+  'tsconfig.json',
+  'eas.json',
+  'google-services.json',
+  '.env.example',
+];
+const extensions = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.sql', '.yml', '.yaml', '.json', '.toml']);
 const self = 'scripts/audit-full-source.mjs';
 const clientDiagnostics = 'src/lib/client-diagnostics.ts';
 
@@ -30,7 +36,7 @@ const files = [
   ...scanRoots.flatMap(walk),
   ...rootFiles.filter((file) => fs.existsSync(path.join(root, file))),
 ]
-  .filter((file) => extensions.has(path.extname(file)))
+  .filter((file) => extensions.has(path.extname(file)) || file === '.env.example')
   .filter((file, index, all) => all.indexOf(file) === index)
   .sort();
 
@@ -382,9 +388,11 @@ const categoryCounts = files.reduce((acc, file) => {
     file.startsWith('src/') ? 'src' :
     file.startsWith('supabase/functions/') ? 'edge-functions' :
     file.startsWith('supabase/sql/') ? 'sql' :
+    file.startsWith('supabase/') ? 'supabase-config' :
     file.startsWith('scripts/') ? 'scripts' :
     file.startsWith('packages/') ? 'packages' :
     file.startsWith('.github/workflows/') ? 'workflows' :
+    file.startsWith('.github/') ? 'github-config' :
     'root-config';
   acc[category] = (acc[category] ?? 0) + 1;
   return acc;
