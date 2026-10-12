@@ -4,7 +4,6 @@ export type UcapsaCapabilities = {
   isCustomer: boolean;
   isStaff: boolean;
   canUseTrainingWorkspace: boolean;
-  canSwitchStaffWorkspace: boolean;
   canManageClassRoster: boolean;
   canRecordAttendance: boolean;
   canUploadExamDefinition: boolean;
@@ -31,7 +30,6 @@ const CUSTOMER: UcapsaCapabilities = {
   isCustomer: true,
   isStaff: false,
   canUseTrainingWorkspace: false,
-  canSwitchStaffWorkspace: false,
   canManageClassRoster: false,
   canRecordAttendance: false,
   canUploadExamDefinition: false,
@@ -74,7 +72,6 @@ const TRAINER: UcapsaCapabilities = {
 
 const ADMIN: UcapsaCapabilities = {
   ...TRAINER,
-  canSwitchStaffWorkspace: true,
   canManageCustomers: true,
   canManageMemberships: true,
   canManagePayments: true,
