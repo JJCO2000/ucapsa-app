@@ -258,8 +258,12 @@ export default function ClientCompetitionScreen() {
 
             {!selectedSeason ? (
               <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
-                <Text style={[styles.cardTitle, { color: format.cardText }]}>No hay temporadas publicadas</Text>
-                <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>No hay ninguna temporada disponible para consultar. Actualiza si Administración acaba de activarla.</Text>
+                <Text style={[styles.cardTitle, { color: format.cardText }]}>{usingSavedData ? 'Temporadas sin sincronizar' : 'No hay temporadas publicadas'}</Text>
+                <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+                  {usingSavedData
+                    ? 'Los datos guardados no confirman el estado actual de las temporadas. Conéctate y actualiza.'
+                    : 'No hay ninguna temporada disponible para consultar. Actualiza si Administración acaba de activarla.'}
+                </Text>
               </View>
             ) : (
               <>
