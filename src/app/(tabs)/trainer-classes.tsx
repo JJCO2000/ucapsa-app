@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
   kicker: { color: ucapsaBrand.colors.redDark, fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.7 },
   title: { color: ucapsaBrand.colors.text, fontSize: 28, lineHeight: 33, fontWeight: '900' },
   subtitle: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 3 },
-  dateSwitch: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 12 },
+  dateSwitch: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 7, marginBottom: 12 },
   dateButton: { minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 13, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 14 },
   dateButtonActive: { backgroundColor: ucapsaBrand.colors.red, borderColor: ucapsaBrand.colors.red },
   dateButtonText: { color: ucapsaBrand.colors.text, fontSize: 11, fontWeight: '900' },
