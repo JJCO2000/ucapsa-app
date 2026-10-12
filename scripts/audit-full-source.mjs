@@ -13,6 +13,7 @@ const rootFiles = ['app.json', 'package.json', 'tsconfig.json', 'eas.json'];
 const extensions = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.sql', '.yml', '.yaml', '.json']);
 const self = 'scripts/audit-full-source.mjs';
 const clientDiagnostics = 'src/lib/client-diagnostics.ts';
+const edgeDiagnostics = 'supabase/functions/_shared/diagnostics.ts';
 
 function walk(rel) {
   const absolute = path.join(root, rel);
@@ -41,6 +42,9 @@ const critical = [];
 const review = [];
 let totalLines = 0;
 let totalBytes = 0;
+let totalClientDeletes = 0;
+let contractedClientDeletes = 0;
+let uncontractedClientDeletes = 0;
 
 function addCritical(file, label) {
   critical.push({ file, label });
@@ -246,6 +250,24 @@ for (const file of files) {
     }
   }
 
+  if (file === edgeDiagnostics) {
+    const edgeConsoleCalls = countMatches(text, /\bconsole\.(?:warn|error)\s*\(/g);
+    if (edgeConsoleCalls !== 2) {
+      addCritical(file, `Diagnóstico Edge esperaba 2 salidas canónicas y encontró ${edgeConsoleCalls}.`);
+    }
+    for (const pattern of [
+      /sanitizeEdgeDiagnostic\s*\(/,
+      /SAFE_KEYS/,
+      /console\.warn\(trim\(event\), sanitizeEdgeDiagnostic\(details\)\)/,
+      /console\.error\(trim\(event\), sanitizeEdgeDiagnostic\(details\)\)/,
+    ]) {
+      if (!pattern.test(text)) addCritical(file, 'Diagnóstico Edge perdió su contrato de sanitización.');
+    }
+    if (/expo_push_token|authorization|service_role|access_token/i.test(text)) {
+      addCritical(file, 'Diagnóstico Edge empezó a aceptar campos sensibles.');
+    }
+  }
+
   if (file === self) continue;
 
   const runtimeCode = file.startsWith('src/') || file.startsWith('supabase/functions/');
@@ -253,15 +275,19 @@ for (const file of files) {
   const anyCasts = runtimeCode ? countMatches(text, /\bas\s+any\b|:\s*any\b/g) : 0;
   if (anyCasts) addReview(file, 'Uso de any', anyCasts);
 
-  const consoles = (file.startsWith('supabase/functions/') || (file.startsWith('src/') && file !== clientDiagnostics))
+  const consoles = ((file.startsWith('supabase/functions/') && file !== edgeDiagnostics) || (file.startsWith('src/') && file !== clientDiagnostics))
     ? countMatches(text, /\bconsole\.(?:log|warn|error|debug)\s*\(/g)
     : 0;
   if (consoles) addReview(file, 'Console call', consoles);
 
   const clientDeletes = file.startsWith('src/') ? countMatches(text, /\.delete\s*\(\s*\)/g) : 0;
   const safeClientDeletes = safeClientDeleteCounts.get(file) ?? 0;
+  totalClientDeletes += clientDeletes;
+  contractedClientDeletes += Math.min(clientDeletes, safeClientDeletes);
   if (clientDeletes > safeClientDeletes) {
-    addReview(file, 'DELETE desde código cliente/servicio', clientDeletes - safeClientDeletes);
+    const unexpected = clientDeletes - safeClientDeletes;
+    uncontractedClientDeletes += unexpected;
+    addReview(file, 'DELETE desde código cliente/servicio', unexpected);
   }
 
   const rawDeletes = file.endsWith('.sql') ? countMatches(text, /\bdelete\s+from\s+public\./gi) : 0;
@@ -354,7 +380,16 @@ console.log(JSON.stringify({
   categories: categoryCounts,
   reviewFindings: review.length,
   orphanCandidates: orphanCandidates.length,
+  clientDeletes: {
+    total: totalClientDeletes,
+    contractedTemporaryCacheDeletes: contractedClientDeletes,
+    uncontracted: uncontractedClientDeletes,
+  },
 }, null, 2));
+
+if (contractedClientDeletes !== 1) {
+  addCritical('src/services/training-report-export.service.ts', 'El contrato de limpieza temporal Excel dejó de representar exactamente un delete() en Paths.cache.');
+}
 
 if (review.length) {
   console.log('FULL SOURCE AUDIT REVIEW FINDINGS');
