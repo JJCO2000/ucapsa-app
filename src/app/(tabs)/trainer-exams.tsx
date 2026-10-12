@@ -42,6 +42,7 @@ export default function TrainerExamsTab() {
   const [newItemTitle, setNewItemTitle] = useState('');
   const [newItemDescription, setNewItemDescription] = useState('');
   const [newItemPoints, setNewItemPoints] = useState('');
+  const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
   const [draftItems, setDraftItems] = useState<ExamDefinitionUploadItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -135,6 +136,7 @@ export default function TrainerExamsTab() {
     setNewItemTitle('');
     setNewItemDescription('');
     setNewItemPoints('');
+    setEditingItemIndex(null);
     setDraftFileName('');
     setDraftItems([]);
   }
@@ -148,6 +150,7 @@ export default function TrainerExamsTab() {
       setNewItemTitle('');
       setNewItemDescription('');
       setNewItemPoints('');
+      setEditingItemIndex(null);
     }
     if (draftItems.length === 0) {
       applyMode();
@@ -176,18 +179,42 @@ export default function TrainerExamsTab() {
       Alert.alert('Puntos inválidos', 'Escribe un máximo mayor que cero y hasta 1000, con máximo 2 decimales.');
       return;
     }
-    if (draftItems.length >= 100) {
+    if (editingItemIndex === null && draftItems.length >= 100) {
       Alert.alert('Límite de ejercicios', 'Puedes añadir hasta 100 ejercicios por examen.');
       return;
     }
-    setDraftItems((items) => [...items, {
-      title,
-      description: newItemDescription.trim() || null,
-      max_points: maxPoints,
-    }]);
+    setDraftItems((items) => {
+      const draft = { title, description: newItemDescription.trim() || null, max_points: maxPoints };
+      if (editingItemIndex === null) return [...items, draft];
+      return items.map((item, index) => index === editingItemIndex ? draft : item);
+    });
+    setEditingItemIndex(null);
     setNewItemTitle('');
     setNewItemDescription('');
     setNewItemPoints('');
+  }
+
+  function editManualExamItem(index: number) {
+    if (saving || draftInputMode !== 'manual') return;
+    const item = draftItems[index];
+    if (!item) return;
+    setEditingItemIndex(index);
+    setNewItemTitle(item.title);
+    setNewItemDescription(item.description ?? '');
+    setNewItemPoints(String(item.max_points));
+  }
+
+  function removeManualExamItem(index: number) {
+    if (saving || draftInputMode !== 'manual') return;
+    setDraftItems((items) => items.filter((_, itemIndex) => itemIndex !== index));
+    if (editingItemIndex === index) {
+      setEditingItemIndex(null);
+      setNewItemTitle('');
+      setNewItemDescription('');
+      setNewItemPoints('');
+    } else if (editingItemIndex !== null && index < editingItemIndex) {
+      setEditingItemIndex(editingItemIndex - 1);
+    }
   }
 
   async function chooseExamDefinition() {
@@ -447,23 +474,28 @@ export default function TrainerExamsTab() {
             <TextInput value={newItemPoints} onChangeText={setNewItemPoints} keyboardType="decimal-pad" placeholder="Ej. 10" placeholderTextColor={ucapsaBrand.colors.muted} style={styles.fieldInput} />
             <Pressable accessibilityRole="button" disabled={saving} style={styles.addItemButton} onPress={addManualExamItem}>
               <MaterialIcons name="add-circle-outline" size={18} color={ucapsaBrand.colors.blueDark} />
-              <Text style={styles.addItemText}>Agregar ejercicio</Text>
+              <Text style={styles.addItemText}>{editingItemIndex === null ? 'Agregar ejercicio' : 'Guardar ejercicio'}</Text>
             </Pressable>
           </View>
         )}
 
         {draftItems.length > 0 ? (
           <View style={styles.definitionPreview}>
-            <Text style={styles.previewTitle}>{draftItems.length} ejercicio{draftItems.length === 1 ? '' : 's'} detectado{draftItems.length === 1 ? '' : 's'}</Text>
+            <Text style={styles.previewTitle}>{draftItems.length} ejercicio{draftItems.length === 1 ? '' : 's'} en el borrador</Text>
             {draftItems.map((item, index) => (
               <View key={`${index}:${item.title}`} style={styles.previewRow}>
                 <Text style={styles.previewNumber}>{index + 1}</Text>
                 <Text numberOfLines={1} style={styles.previewName}>{item.title}</Text>
                 <Text style={styles.previewPoints}>{item.max_points} pts</Text>
                 {draftInputMode === 'manual' ? (
-                  <Pressable accessibilityRole="button" accessibilityLabel={`Quitar ejercicio ${index + 1}: ${item.title}`} disabled={saving} onPress={() => setDraftItems((items) => items.filter((_, itemIndex) => itemIndex !== index))}>
-                    <MaterialIcons name="delete-outline" size={20} color={ucapsaBrand.colors.danger} />
-                  </Pressable>
+                  <>
+                    <Pressable accessibilityRole="button" accessibilityLabel={`Editar ejercicio ${index + 1}: ${item.title}`} disabled={saving} onPress={() => editManualExamItem(index)}>
+                      <MaterialIcons name="edit" size={19} color={ucapsaBrand.colors.blueDark} />
+                    </Pressable>
+                    <Pressable accessibilityRole="button" accessibilityLabel={`Quitar ejercicio ${index + 1}: ${item.title}`} disabled={saving} onPress={() => removeManualExamItem(index)}>
+                      <MaterialIcons name="delete-outline" size={20} color={ucapsaBrand.colors.danger} />
+                    </Pressable>
+                  </>
                 ) : null}
               </View>
             ))}
