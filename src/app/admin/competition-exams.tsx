@@ -74,9 +74,16 @@ export default function AdminCompetitionExamsScreen() {
         <Text style={styles.subtitle}>Define cada examen y su estructura de ejercicios. Los puntajes máximos viven aquí; los resultados pertenecen a los intentos.</Text>
       </View>
 
-      <Pressable style={styles.primaryButton} onPress={() => router.push('/admin/competition-exam-form' as never)}>
+      <Pressable style={styles.primaryButton} onPress={() => router.push('/admin/competition-quick-create' as never)}>
         <MaterialIcons name="add" size={20} color={ucapsaBrand.colors.surface} />
-        <Text style={styles.primaryButtonText}>Nuevo examen</Text>
+        <Text style={styles.primaryButtonText}>Nuevo examen rápido</Text>
+      </Pressable>
+      <Pressable style={styles.primaryButton} onPress={() => router.push('/admin/competition-quick-grade' as never)}>
+        <MaterialIcons name="fact-check" size={20} color={ucapsaBrand.colors.surface} />
+        <Text style={styles.primaryButtonText}>Calificar examen</Text>
+      </Pressable>
+      <Pressable onPress={() => router.push('/admin/competition-exam-form' as never)} style={{ paddingVertical: 12, alignSelf: 'center' }}>
+        <Text style={{ color: ucapsaBrand.colors.redDark, fontWeight: '900' }}>Crear examen detallado por ejercicios</Text>
       </Pressable>
 
       {loading ? <View style={styles.loadingRow}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando exámenes…</Text></View> : null}
@@ -118,7 +125,11 @@ export default function AdminCompetitionExamsScreen() {
                 <Pressable
                   key={exam.id}
                   style={styles.examRow}
-                  onPress={() => router.push(`/admin/competition-exam-detail?examId=${encodeURIComponent(exam.id)}` as never)}
+                  onPress={() => router.push(
+                    exam.status === 'published'
+                      ? `/admin/competition-quick-grade?examId=${encodeURIComponent(exam.id)}` as never
+                      : `/admin/competition-exam-detail?examId=${encodeURIComponent(exam.id)}` as never,
+                  )}
                 >
                   <View style={styles.examIcon}><MaterialIcons name="assignment" size={21} color={ucapsaBrand.colors.redDark} /></View>
                   <View style={{ flex: 1, minWidth: 0 }}>
