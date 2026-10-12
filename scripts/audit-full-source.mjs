@@ -55,6 +55,39 @@ function countMatches(text, regex) {
 }
 
 const safeRawDeleteCounts = new Map();
+const safeClientDeleteCounts = new Map();
+
+function registerSafeClientDeleteContract(file, expectedCount, checks) {
+  const absolute = path.join(root, file);
+  if (!fs.existsSync(absolute)) {
+    addCritical(file, 'Contrato de borrado local seguro perdió su archivo canónico.');
+    return;
+  }
+
+  const text = fs.readFileSync(absolute, 'utf8');
+  const deleteCount = countMatches(text, /\.delete\s*\(\s*\)/g);
+  if (deleteCount !== expectedCount) {
+    addCritical(file, `Contrato de borrado local esperaba ${expectedCount} delete() y encontró ${deleteCount}.`);
+    return;
+  }
+
+  for (const check of checks) {
+    if (!check.pattern.test(text)) addCritical(file, check.label);
+  }
+
+  safeClientDeleteCounts.set(file, expectedCount);
+}
+
+registerSafeClientDeleteContract(
+  'src/services/training-report-export.service.ts',
+  1,
+  [
+    {
+      pattern: /new File\(Paths\.cache,[\s\S]{0,180}if \(file\.exists\) file\.delete\(\);/,
+      label: 'El borrado del reporte dejó de estar limitado al archivo temporal de Paths.cache.',
+    },
+  ],
+);
 
 function registerSafeRawDeleteContract(file, expectedCount, checks) {
   const absolute = path.join(root, file);
@@ -226,7 +259,10 @@ for (const file of files) {
   if (consoles) addReview(file, 'Console call', consoles);
 
   const clientDeletes = file.startsWith('src/') ? countMatches(text, /\.delete\s*\(\s*\)/g) : 0;
-  if (clientDeletes) addReview(file, 'DELETE desde código cliente/servicio', clientDeletes);
+  const safeClientDeletes = safeClientDeleteCounts.get(file) ?? 0;
+  if (clientDeletes > safeClientDeletes) {
+    addReview(file, 'DELETE desde código cliente/servicio', clientDeletes - safeClientDeletes);
+  }
 
   const rawDeletes = file.endsWith('.sql') ? countMatches(text, /\bdelete\s+from\s+public\./gi) : 0;
   const safeRawDeletes = safeRawDeleteCounts.get(file) ?? 0;
