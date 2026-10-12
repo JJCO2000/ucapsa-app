@@ -197,6 +197,33 @@ if (!trainerMore.includes('/staff/training-report')) {
   throw new Error('Trainer tools lost report entry point.');
 }
 
+// Critical button wiring: UI action -> handler/route/service.
+// This keeps the training workspace operational, not merely renderable.
+const criticalTrainerActions = [
+  [trainerHome, "router.push('/trainer-more'", 'Perfil / herramientas'],
+  [trainerHome, "router.push('/trainer-classes'", 'Clases'],
+  [trainerHome, "router.push('/trainer-exams'", 'Exámenes'],
+  [trainerHome, "router.push('/staff/training-report'", 'Reporte desde Inicio'],
+  [trainerHome, "router.push(`/trainer-classes?date=", 'Abrir clase de mañana'],
+  [trainerClasses, 'onPress={() => selectDate(today)}', 'Hoy'],
+  [trainerClasses, 'onPress={() => selectDate(tomorrow)}', 'Mañana'],
+  [trainerClasses, "router.push(`/staff/dog-notes?dogId=", 'Ficha / notas del perro'],
+  [trainerClasses, 'requestMembership(row)', 'Solicitar revisión de socio'],
+  [trainerClasses, 'markAttendance(row)', 'Registrar asistencia'],
+  [trainerClasses, 'markAbsent(row)', 'Registrar no asistencia'],
+  [trainerExams, 'setUploadOpen(true)', 'Subir examen'],
+  [trainerExams, 'confirmPublishDraft(draft)', 'Publicar examen'],
+  [trainerExams, 'setSelectedExam(exam)', 'Capturar examen'],
+  [trainerExams, 'uploadExamScores(exam)', 'Subir calificaciones Excel'],
+  [trainerMore, "router.push('/staff/training-report'", 'Reporte desde Más'],
+  [trainerMore, "router.push('/account-settings'", 'Cuenta'],
+  [staffSwitcher, 'await setMode(nextMode)', 'Cambiar modo'],
+  [staffSwitcher, "router.replace(nextMode === 'trainer' ? '/trainer-home'", 'Navegar al modo elegido'],
+];
+for (const [source, token, label] of criticalTrainerActions) {
+  if (!source.includes(token)) throw new Error('Trainer critical action lost wiring: ' + label);
+}
+
 for (const token of [
   'create or replace function public.is_ucapsa_trainer()',
   'create or replace function public.is_ucapsa_staff()',
