@@ -19,6 +19,7 @@ const report = read('src/app/staff/training-report.tsx');
 const trainerService = read('src/services/trainer-staff.service.ts');
 const trainerSql = read('supabase/sql/ucapsa-trainer-workspace.sql');
 const trainerModeSql = read('supabase/sql/ucapsa-trainer-workspace-exam-upload.sql');
+const comandosScheduleSql = read('supabase/sql/ucapsa-comandos-single-schedule.sql');
 const trainerSqlAll = trainerSql + '\n' + trainerModeSql;
 const staffWorkspace = read('src/hooks/useStaffWorkspace.tsx');
 const staffWorkspaceService = read('src/services/staff-workspace-storage.service.ts');
@@ -101,6 +102,17 @@ if (trainerHome.includes("row.programLevel}:") || trainerHome.includes(":${row.p
 }
 if (!trainerClasses.includes("const key = `${row.scheduleId}:${row.programCode}:${row.startTime}`")) {
   throw new Error('El roster de Comandos debe partir del horario compartido y conservar el nivel en cada inscripción.');
+}
+
+for (const token of [
+  'enforce_single_commands_schedule',
+  "v_program_code = 'comandos'",
+  'ps.id <> new.id',
+  'Comandos usa un solo horario compartido',
+]) {
+  if (!comandosScheduleSql.includes(token)) {
+    throw new Error('DB invariant for shared Comandos schedule missing: ' + token);
+  }
 }
 
 for (const token of ['levelLabel(row.programLevel)', 'levelPill', 'Básico', 'Intermedio', 'Avanzado']) {
@@ -225,8 +237,12 @@ for (const token of [
   'groupTomorrowClasses',
   "item.programCode === 'comandos'",
   'tomorrowLevels',
+  "const key = `${row.scheduleId}:${row.programCode}:${row.startTime}`",
 ]) {
-  if (!adminHome.includes(token)) throw new Error('Admin tomorrow summary must treat Comandos as one schedule: ' + token);
+  if (!adminHome.includes(token)) throw new Error('Admin tomorrow summary must preserve one shared Comandos schedule with level breakdown: ' + token);
+}
+if (adminHome.includes(":${row.programLevel}")) {
+  throw new Error('Inicio Admin no puede convertir los niveles de Comandos en horarios separados.');
 }
 
 for (const token of [
@@ -247,8 +263,14 @@ for (const token of [
   'notification_trainer_summary_locks',
   "source: 'trainer_class_summary'",
   'Aforo de mañana',
+  "const key = `${schedule.id}:${code}:${String(schedule.start_time).slice(0, 5)}`",
+  "if (code === 'comandos')",
+  'current.levels.set(label, level)',
 ]) {
   if (!trainerSummary.includes(token)) throw new Error('Trainer summary notification missing: ' + token);
+}
+if (trainerSummary.includes(":${enrollment.program_level}")) {
+  throw new Error('El resumen push no puede separar Comandos en horarios por nivel.');
 }
 
 for (const token of [
