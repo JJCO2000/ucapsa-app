@@ -58,7 +58,10 @@ export default function StaffExamAttemptScreen() {
   const complete = useMemo(() => {
     if (!detail || detail.items.length === 0) return false;
     return detail.items.every((item) => {
-      const value = Number((drafts[item.id]?.points ?? '').replace(',', '.'));
+      const raw = (drafts[item.id]?.points ?? '').trim();
+      // A blank grade is not zero: Number('') would accept an incomplete exam.
+      if (!raw) return false;
+      const value = Number(raw.replace(',', '.'));
       return Number.isFinite(value) && value >= 0 && value <= Number(item.max_points);
     });
   }, [detail, drafts]);
@@ -66,7 +69,9 @@ export default function StaffExamAttemptScreen() {
   const total = useMemo(() => {
     if (!detail) return 0;
     return detail.items.reduce((sum, item) => {
-      const value = Number((drafts[item.id]?.points ?? '').replace(',', '.'));
+      const raw = (drafts[item.id]?.points ?? '').trim();
+      if (!raw) return sum;
+      const value = Number(raw.replace(',', '.'));
       return sum + (Number.isFinite(value) ? value : 0);
     }, 0);
   }, [detail, drafts]);
@@ -202,6 +207,10 @@ export default function StaffExamAttemptScreen() {
               );
             })}
           </View>
+
+          {detail.attempt.status === 'draft' && !complete ? (
+            <Text style={styles.invalidText}>Califica todos los ejercicios. Si corresponde cero puntos, escribe 0 explícitamente.</Text>
+          ) : null}
 
           {detail.attempt.status === 'draft' ? (
             <View style={styles.footerActions}>
