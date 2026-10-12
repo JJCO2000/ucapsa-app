@@ -342,8 +342,11 @@ for (const token of ['const trainerWorkspace = isTrainer;', 'const adminWorkspac
 for (const target of ['/trainer-classes', '/trainer-exams', '/staff/training-report']) {
   if (!adminMore.includes(target)) throw new Error('Admin perdió una herramienta operativa: ' + target);
 }
-if (!adminHome.includes('/admin/restaurant')) {
-  throw new Error('El acceso rápido a Restaurante desapareció de Admin Inicio.');
+if (!adminMore.includes('/admin/restaurant')) {
+  throw new Error('El acceso a Restaurante desapareció de Herramientas de Admin.');
+}
+if (adminHome.includes('/admin/restaurant')) {
+  throw new Error('Inicio Admin es una bandeja de decisiones, no un menú de herramientas.');
 }
 if (!trainerHome.includes('if (isAdmin) return <Redirect href="/admin-home" />')) {
   throw new Error('Admin debe mantener su propio Inicio.');
