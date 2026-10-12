@@ -4,13 +4,20 @@ import path from 'node:path';
 const root = process.cwd();
 const scanRoots = [
   'src',
-  'supabase/functions',
-  'supabase/sql',
+  'supabase',
   'scripts',
-  '.github/workflows',
+  'packages',
+  '.github',
 ];
-const rootFiles = ['app.json', 'package.json', 'tsconfig.json', 'eas.json'];
-const extensions = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.sql', '.yml', '.yaml', '.json']);
+const rootFiles = [
+  'app.json',
+  'package.json',
+  'tsconfig.json',
+  'eas.json',
+  'google-services.json',
+  '.env.example',
+];
+const extensions = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.sql', '.yml', '.yaml', '.json', '.toml']);
 const self = 'scripts/audit-full-source.mjs';
 const clientDiagnostics = 'src/lib/client-diagnostics.ts';
 
@@ -29,7 +36,7 @@ const files = [
   ...scanRoots.flatMap(walk),
   ...rootFiles.filter((file) => fs.existsSync(path.join(root, file))),
 ]
-  .filter((file) => extensions.has(path.extname(file)))
+  .filter((file) => extensions.has(path.extname(file)) || file === '.env.example')
   .filter((file, index, all) => all.indexOf(file) === index)
   .sort();
 
@@ -56,6 +63,7 @@ function countMatches(text, regex) {
 
 const safeRawDeleteCounts = new Map();
 const safeClientDeleteCounts = new Map();
+const safeEdgeConsoleCounts = new Map();
 
 function registerSafeClientDeleteContract(file, expectedCount, checks) {
   const absolute = path.join(root, file);
@@ -85,6 +93,46 @@ registerSafeClientDeleteContract(
     {
       pattern: /new File\(Paths\.cache,[\s\S]{0,180}if \(file\.exists\) file\.delete\(\);/,
       label: 'El borrado del reporte dejó de estar limitado al archivo temporal de Paths.cache.',
+    },
+  ],
+);
+
+function registerSafeEdgeConsoleContract(file, expectedCount, checks) {
+  const absolute = path.join(root, file);
+  if (!fs.existsSync(absolute)) {
+    addCritical(file, 'Contrato de diagnóstico Edge perdió su archivo canónico.');
+    return;
+  }
+
+  const text = fs.readFileSync(absolute, 'utf8');
+  const consoleCount = countMatches(text, /\bconsole\.(?:log|warn|error|debug)\s*\(/g);
+  if (consoleCount !== expectedCount) {
+    addCritical(file, `Contrato de diagnóstico Edge esperaba ${expectedCount} console call(s) y encontró ${consoleCount}.`);
+    return;
+  }
+
+  for (const check of checks) {
+    if (!check.pattern.test(text)) addCritical(file, check.label);
+  }
+
+  safeEdgeConsoleCounts.set(file, expectedCount);
+}
+
+registerSafeEdgeConsoleContract(
+  'supabase/functions/_shared/diagnostics.ts',
+  4,
+  [
+    {
+      pattern: /function sanitizeDiagnostic\(detail: unknown\)/,
+      label: 'Diagnóstico Edge perdió sanitización centralizada.',
+    },
+    {
+      pattern: /Object\.keys\(safe\)\.length > 0 \? safe : \{ type: 'opaque_error' \}/,
+      label: 'Diagnóstico Edge volvió a serializar objetos de error arbitrarios.',
+    },
+    {
+      pattern: /value\.length > 320 \? value\.slice\(0, 317\) \+ '\.\.\.' : value/,
+      label: 'Diagnóstico Edge perdió límite de tamaño.',
     },
   ],
 );
@@ -231,7 +279,7 @@ for (const file of files) {
     addCritical(file, 'Pantalla salta la frontera de servicios y toca Supabase directamente.');
   }
 
-  if (file.startsWith('src/') && file !== clientDiagnostics &&
+  if ((file.startsWith('src/') && file !== clientDiagnostics || file.startsWith('packages/')) &&
       /\bconsole\.(?:log|warn|error|debug)\s*\(/.test(text)) {
     addCritical(file, 'Console runtime fuera del diagnóstico cliente centralizado.');
   }
@@ -248,15 +296,16 @@ for (const file of files) {
 
   if (file === self) continue;
 
-  const runtimeCode = file.startsWith('src/') || file.startsWith('supabase/functions/');
+  const runtimeCode = file.startsWith('src/') || file.startsWith('supabase/functions/') || file.startsWith('packages/');
 
   const anyCasts = runtimeCode ? countMatches(text, /\bas\s+any\b|:\s*any\b/g) : 0;
   if (anyCasts) addReview(file, 'Uso de any', anyCasts);
 
-  const consoles = (file.startsWith('supabase/functions/') || (file.startsWith('src/') && file !== clientDiagnostics))
+  const rawConsoles = (file.startsWith('supabase/functions/') || (file.startsWith('src/') && file !== clientDiagnostics))
     ? countMatches(text, /\bconsole\.(?:log|warn|error|debug)\s*\(/g)
     : 0;
-  if (consoles) addReview(file, 'Console call', consoles);
+  const safeConsoles = safeEdgeConsoleCounts.get(file) ?? 0;
+  if (rawConsoles > safeConsoles) addReview(file, 'Console call', rawConsoles - safeConsoles);
 
   const clientDeletes = file.startsWith('src/') ? countMatches(text, /\.delete\s*\(\s*\)/g) : 0;
   const safeClientDeletes = safeClientDeleteCounts.get(file) ?? 0;
@@ -339,8 +388,11 @@ const categoryCounts = files.reduce((acc, file) => {
     file.startsWith('src/') ? 'src' :
     file.startsWith('supabase/functions/') ? 'edge-functions' :
     file.startsWith('supabase/sql/') ? 'sql' :
+    file.startsWith('supabase/') ? 'supabase-config' :
     file.startsWith('scripts/') ? 'scripts' :
+    file.startsWith('packages/') ? 'packages' :
     file.startsWith('.github/workflows/') ? 'workflows' :
+    file.startsWith('.github/') ? 'github-config' :
     'root-config';
   acc[category] = (acc[category] ?? 0) + 1;
   return acc;

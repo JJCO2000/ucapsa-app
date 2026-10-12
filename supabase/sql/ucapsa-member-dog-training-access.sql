@@ -67,7 +67,10 @@ create policy "membership_dog_access_owner_select"
 on public.membership_dog_access
 for select
 to authenticated
-using (user_id = auth.uid() or public.is_ucapsa_admin());
+using (
+  user_id = (select auth.uid())
+  or (select public.is_ucapsa_admin())
+);
 
 revoke insert, update, delete on table public.membership_dog_access from authenticated;
 grant select on table public.membership_dog_access to authenticated, service_role;

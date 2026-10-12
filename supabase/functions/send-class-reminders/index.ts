@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.108.2';
+import { edgeWarn } from '../_shared/diagnostics.ts';
 
 type ReminderRequest = {
   target_date?: string;
@@ -738,7 +739,7 @@ Deno.serve(async (req) => {
           .eq('expo_push_token', token.expo_push_token)
           .eq('is_active', true);
         if (disableTokenError) {
-          console.warn('Could not disable DeviceNotRegistered class reminder token.', token.id, disableTokenError.message);
+          edgeWarn('class-reminder.disable-unregistered-token-failed', disableTokenError);
         }
       }
 

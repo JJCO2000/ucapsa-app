@@ -4,6 +4,7 @@ const sql = fs.readFileSync('supabase/sql/ucapsa-notification-security-history-h
 const service = fs.readFileSync('src/services/admin-notifications.service.ts', 'utf8');
 const screen = fs.readFileSync('src/app/admin/notifications.tsx', 'utf8');
 const edge = fs.readFileSync('supabase/functions/send-notification/index.ts', 'utf8');
+const edgeDiagnostics = fs.readFileSync('supabase/functions/_shared/diagnostics.ts', 'utf8');
 const notificationService = fs.readFileSync('src/services/notifications.service.ts', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
 
@@ -65,10 +66,20 @@ for (const token of [
   'disabled_at: disabledAt',
   ".eq('id', recipient.id)",
   ".eq('is_active', true)",
-  'console.warn(',
+  "edgeWarn('notification.disable-unregistered-token-failed'",
 ]) {
   if (!edge.includes(token)) {
     throw new Error('Expo invalid-token lifecycle contract missing: ' + token);
+  }
+}
+
+for (const token of [
+  'sanitizeDiagnostic',
+  'console.warn(safeEvent',
+  'console.error(safeEvent',
+]) {
+  if (!edgeDiagnostics.includes(token)) {
+    throw new Error('Sanitized Edge diagnostics contract missing: ' + token);
   }
 }
 
