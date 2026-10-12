@@ -26,6 +26,7 @@ import {
 import type { Announcement, EventOccurrence, EventOccurrenceCancellation, ProgramClassCancellation, ProgramEnrollmentWithDetails, ProgramSchedule, UcapsaEvent, UcapsaProgram } from '../../types/app.types';
 import { expandEventOccurrences, formatDateKey, toDateKey, todayKey } from '../../utils/events.utils';
 import { buildCalendarServiceKinds } from '../../utils/calendar-service-rings.utils';
+import { calendarMonthDateKeys } from '../../utils/calendar-date-window.utils';
 import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
 
 type ClassOccurrence = {
@@ -72,33 +73,33 @@ function getActiveCancellationKeys(cancellations: ProgramClassCancellation[]) {
   );
 }
 
-function expandClassOccurrences(schedules: ProgramSchedule[], programs: UcapsaProgram[], daysAhead = 365, cancellations: ProgramClassCancellation[] = [], daysBehind = 365): ClassOccurrence[] {
+function expandClassOccurrences(
+  schedules: ProgramSchedule[],
+  programs: UcapsaProgram[],
+  dateKeys: readonly string[],
+  cancellations: ProgramClassCancellation[] = [],
+): ClassOccurrence[] {
   const programById = new Map(programs.map((program) => [program.id, program]));
-  const activeCancellations = cancellations.filter((item) => !item.restored_at);
-  const cancellationByKey = new Map(activeCancellations.map((item) => [getCancellationKey(item.schedule_id, item.cancellation_date), item]));
-  const start = addDays(parseLocalDate(todayKey()), -daysBehind);
+  const cancellationByKey = new Map(
+    cancellations.filter((item) => !item.restored_at)
+      .map((item) => [getCancellationKey(item.schedule_id, item.cancellation_date), item]),
+  );
   const items: ClassOccurrence[] = [];
-
-  for (let offset = 0; offset <= daysAhead + daysBehind; offset += 1) {
-    const current = addDays(start, offset);
-    const dateKey = toLocalDateKey(current);
-
+  for (const dateKey of dateKeys) {
     for (const schedule of schedules) {
+      // Canonical business rule from programs.domain, also used by Admin.
       if (!isProgramScheduleActiveOnDate(schedule, dateKey)) continue;
-      const cancellation = cancellationByKey.get(getCancellationKey(schedule.id, dateKey)) ?? null;
       items.push({
         id: `${schedule.id}-${dateKey}`,
         schedule,
         program: programById.get(schedule.program_id) ?? null,
         dateKey,
-        cancellation,
+        cancellation: cancellationByKey.get(getCancellationKey(schedule.id, dateKey)) ?? null,
       });
     }
   }
-
   return items;
 }
-
 
 function getColorTone(colorKey: UcapsaProgram['color_key'] | Announcement['color_key'] | UcapsaEvent['color_key'] | null | undefined) {
   return ucapsaColorKeyPalette[colorKey ?? 'red'] ?? ucapsaColorKeyPalette.red;
@@ -142,6 +143,14 @@ export default function CalendarScreen() {
   const [practiceActivity, setPracticeActivity] = useState<PracticeActivityEntry[]>([]);
   const [practiceLoadWarning, setPracticeLoadWarning] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(todayKey());
+  const [visibleMonth, setVisibleMonth] = useState(() => todayKey().slice(0, 7));
+  // These flags track whether an absence of offerings is actually verifiable.
+  // If a source has not loaded, "grey = no service" would be an incorrect claim.
+  const [calendarSources, setCalendarSources] = useState({
+    classes: false,
+    events: false,
+    eventCancellations: false,
+  });
   const [openRoster, setOpenRoster] = useState<{ occurrenceId: string; level: AdminRosterLevel } | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -157,6 +166,7 @@ export default function CalendarScreen() {
   useEffect(() => {
     if (requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)) {
       setSelectedDate(requestedDate);
+      setVisibleMonth(requestedDate.slice(0, 7));
     }
   }, [requestedDate]);
 
@@ -178,6 +188,11 @@ export default function CalendarScreen() {
       user && !isAdmin ? getCachedMyPracticeActivity(user.id) : Promise.resolve(null),
     ]);
 
+    setCalendarSources({
+      events: Boolean(eventCache),
+      eventCancellations: Boolean(eventCancellationCache),
+      classes: Boolean(classCache),
+    });
     if (eventCache) setEvents(eventCache.data);
     if (eventCancellationCache) setEventCancellations(eventCancellationCache.data);
     if (announcementCache) setAnnouncements(announcementCache.data);
@@ -214,11 +229,13 @@ export default function CalendarScreen() {
     ]);
 
     if (eventResult.status === 'fulfilled') {
+      setCalendarSources((current) => ({ ...current, events: true }));
       setEvents(eventResult.value);
       const stored = await writeClientResource(cacheScope, clientReadKeys.calendarEvents, eventResult.value);
       setSavedAt(stored.saved_at);
     }
     if (eventCancellationResult.status === 'fulfilled') {
+      setCalendarSources((current) => ({ ...current, eventCancellations: true }));
       setEventCancellations(eventCancellationResult.value);
       await writeClientResource(
         cacheScope,
@@ -231,6 +248,7 @@ export default function CalendarScreen() {
       await writeClientResource(cacheScope, clientReadKeys.announcements, announcementResult.value);
     }
     if (classResult.status === 'fulfilled') {
+      setCalendarSources((current) => ({ ...current, classes: true }));
       const snapshot: CalendarClassesOfflineSnapshot = {
         programs: classResult.value[0],
         schedules: classResult.value[1],
@@ -321,7 +339,14 @@ export default function CalendarScreen() {
     () => expandEventOccurrences(events, eventCancellations),
     [eventCancellations, events],
   );
-  const classOccurrences = useMemo(() => expandClassOccurrences(programSchedules, programs, 365, classCancellations), [classCancellations, programSchedules, programs]);
+  const visibleDateKeys = useMemo(
+    () => calendarMonthDateKeys(visibleMonth, selectedDate),
+    [visibleMonth, selectedDate],
+  );
+  const classOccurrences = useMemo(
+    () => expandClassOccurrences(programSchedules, programs, visibleDateKeys, classCancellations),
+    [classCancellations, programSchedules, programs, visibleDateKeys],
+  );
 
   const selectedEvents = useMemo(
     () => occurrences.filter((occurrence) => toDateKey(occurrence.start_date) === selectedDate),
@@ -345,6 +370,7 @@ export default function CalendarScreen() {
 
   // Only actual non-cancelled classes and events mark an offered service.
   // Announcements and private practice entries never imply a class is available.
+  const calendarDataIncomplete = !calendarSources.classes || !calendarSources.events || !calendarSources.eventCancellations;
   const servicesByDate = useMemo(() => buildCalendarServiceKinds(
     classOccurrences.map((occurrence) => ({
       dateKey: occurrence.dateKey,
@@ -511,7 +537,10 @@ export default function CalendarScreen() {
                   <Text style={[styles.agendaDateTitle, { color: format.cardText }]}>{formatDateKey(selectedDate)}</Text>
                 </View>
                 {selectedDate !== todayKey() ? (
-                  <Pressable accessibilityRole="button" accessibilityLabel="Ir a hoy" style={[styles.compactAction, { borderColor: format.cardBorder }]} onPress={() => setSelectedDate(todayKey())}>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Ir a hoy" style={[styles.compactAction, { borderColor: format.cardBorder }]} onPress={() => {
+                      setSelectedDate(todayKey());
+                      setVisibleMonth(todayKey().slice(0, 7));
+                    }}>
                     <Text style={[styles.compactActionText, { color: format.accentDark }]}>Hoy</Text>
                   </Pressable>
                 ) : null}
@@ -519,7 +548,11 @@ export default function CalendarScreen() {
 
               <Calendar
                 current={selectedDate}
-                onDayPress={(day: DateData) => setSelectedDate(day.dateString)}
+                onMonthChange={(month: DateData) => setVisibleMonth(month.dateString.slice(0, 7))}
+                onDayPress={(day: DateData) => {
+                  setSelectedDate(day.dateString);
+                  setVisibleMonth(day.dateString.slice(0, 7));
+                }}
                 dayComponent={({ date, state }) => {
                   if (!date?.dateString) return null;
                   const dateKey = date.dateString;
@@ -531,7 +564,11 @@ export default function CalendarScreen() {
                       selected={selectedDate === dateKey}
                       today={todayKey() === dateKey}
                       outsideMonth={state === 'disabled'}
-                      onPress={() => setSelectedDate(dateKey)}
+                      dataIncomplete={calendarDataIncomplete}
+                      onPress={() => {
+                        setSelectedDate(dateKey);
+                        setVisibleMonth(dateKey.slice(0, 7));
+                      }}
                     />
                   );
                 }}
@@ -561,8 +598,16 @@ export default function CalendarScreen() {
                 ))}
               </View>
               <Text style={[styles.calendarHint, { color: format.muted }]}>
-                Los colores se combinan en el anillo cuando coinciden servicios. Toca un día para ver su agenda.
+                Los colores se combinan cuando coinciden servicios. Toca un día para ver su agenda.
               </Text>
+              {calendarDataIncomplete ? (
+                <View style={styles.calendarDataWarning}>
+                  <MaterialIcons name="cloud-off" size={16} color={ucapsaBrand.colors.warning} />
+                  <Text style={[styles.calendarDataWarningText, { color: ucapsaBrand.colors.warning }]}>
+                    Disponibilidad sin verificar: faltan datos de clases, eventos o cancelaciones. Los anillos punteados no significan día libre.
+                  </Text>
+                </View>
+              ) : null}
 
               <View style={[styles.daySchedule, { borderTopColor: format.cardBorder }]}>
                   {dayAgendaItems.length === 0 ? (
@@ -778,6 +823,8 @@ const styles = StyleSheet.create({
   ringLegendCircle: { width: 15, height: 15, borderRadius: 999, borderWidth: 3 },
   ringLegendText: { fontSize: 10, fontWeight: '800' },
   calendarHint: { fontSize: 11, lineHeight: 16, paddingHorizontal: 14, paddingBottom: 12 },
+  calendarDataWarning: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginHorizontal: 14, marginBottom: 12, padding: 9, backgroundColor: ucapsaBrand.colors.warningSoft, borderRadius: 12 },
+  calendarDataWarningText: { flex: 1, fontSize: 11, lineHeight: 16, fontWeight: '800' },
   agendaDateTitle: { marginTop: 2, fontSize: 16, lineHeight: 21, fontWeight: '900' },
   compactAction: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 13, paddingHorizontal: 10 },
   compactActionText: { fontSize: 11, fontWeight: '900' },
