@@ -26,6 +26,11 @@ const screens = [
   ...standalone.map(name => 'src/app/'+name+'.tsx'),
 ].filter((file,index,all) => all.indexOf(file)===index);
 let buttonCount=0, routesChecked=0;
+let trainerStaffButtons=0;
+const trainerStaffScreens = new Set([
+  ...collect('src/app/staff'),
+  ...trainerTabs.map(name => 'src/app/(tabs)/'+name+'.tsx'),
+]);
 function jsxOpeningTag(source, offset) {
   let depth=0,quote='',escaped=false;
   for (let i=offset;i<source.length;i+=1) {
@@ -57,7 +62,18 @@ for(const screen of screens) {
     const opening=jsxOpeningTag(source,match.index);
     const line=source.slice(0,match.index).split('\n').length;
     buttonCount+=1;
-    if(!/\bonPress\s*=/.test(opening)) errors.push(screen+':'+line+' has no onPress');
+    if (trainerStaffScreens.has(screen)) trainerStaffButtons+=1;
+    if(!/\bonPress\s*=/.test(opening)) {
+      errors.push(screen+':'+line+' has no onPress');
+      continue;
+    }
+
+    if (/\bonPress\s*=\s*\{\s*undefined\s*\}/.test(opening)
+      || /\bonPress\s*=\s*\{\s*null\s*\}/.test(opening)
+      || /\bonPress\s*=\s*\{\s*\(\s*\)\s*=>\s*(?:undefined|null)\s*\}/.test(opening)
+      || /\bonPress\s*=\s*\{\s*\(\s*\)\s*=>\s*\{\s*\}\s*\}/.test(opening)) {
+      errors.push(screen+':'+line+' has a no-op onPress');
+    }
   }
   for(const match of source.matchAll(/\brouter\.(?:push|replace|navigate)\s*\(\s*(['"\x60])(\/[^'"\x60]*?)\1/g)) {
     const route=match[2];routesChecked+=1;
@@ -65,5 +81,15 @@ for(const screen of screens) {
   }
 }
 if(screens.length<105 || buttonCount<400) errors.push('Scope shrank: '+screens.length+' screens/'+buttonCount+' buttons');
+if(trainerStaffScreens.size<7 || trainerStaffButtons<30) {
+  errors.push('Trainer/Staff scope shrank: '+trainerStaffScreens.size+' screens/'+trainerStaffButtons+' buttons');
+}
 if(errors.length){console.error('CLIENT BUTTONS FAIL');errors.forEach(e=>console.error(e));process.exit(1);}
-console.log('CLIENT / ADMIN / TRAINER BUTTONS PASS '+screens.length+' screens/'+buttonCount+' press handlers/'+routesChecked+' literal routes');
+console.log(
+  'CLIENT / ADMIN / TRAINER BUTTONS PASS '
+  +screens.length+' screens/'
+  +buttonCount+' press handlers/'
+  +routesChecked+' literal routes; TRAINER/STAFF '
+  +trainerStaffScreens.size+' screens/'
+  +trainerStaffButtons+' press handlers',
+);
