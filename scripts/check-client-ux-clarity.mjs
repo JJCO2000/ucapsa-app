@@ -63,22 +63,27 @@ for (const token of ['Programas y clases registradas.', '/client/class-detail?en
   if (!dogHistory.includes(token)) throw new Error('Dog history detail missing: ' + token);
 }
 
+// La entrevista de Miguel cambió la UX: mes completo y anillos de oferta real,
+// no selector semanal ni puntos rojos para anuncios/prácticas privadas.
 for (const token of [
-  'getWeekDateKeys',
   "'Todo el día'",
   'dayAgendaItems.map',
   'timelineRow',
-  "const [monthExpanded, setMonthExpanded] = useState(true)",
-  "activityDateKeys.has(dateKey)",
+  'CalendarActivityRing',
+  'buildCalendarServiceKinds',
+  'dayComponent',
+  'ringLegend',
+  "'Sin actividad'",
+  "'Puppy'",
+  "'Comandos'",
+  "'Otras actividades'",
   'Día libre',
-  "'Mes'",
-  "'Semana'",
   'useLocalSearchParams',
   'if (announcement.announcement_date) return toDateKey(announcement.announcement_date);',
 ]) {
   if (!calendar.includes(token)) throw new Error('Agenda UX missing: ' + token);
 }
-for (const token of ['AgendaFilter', 'agendaFilters', '<Legend', 'legendRow']) {
+for (const token of ['AgendaFilter', 'agendaFilters', '<Legend', 'legendRow', 'monthExpanded ?']) {
   if (calendar.includes(token)) throw new Error('Agenda volvió a saturarse con controles redundantes: ' + token);
 }
 
