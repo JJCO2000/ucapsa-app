@@ -2,6 +2,7 @@ import fs from 'node:fs';
 
 const sql = fs.readFileSync('supabase/sql/ucapsa-db-performance-hardening.sql', 'utf8');
 const rlsSql = fs.readFileSync('supabase/sql/ucapsa-rls-select-overlap-cleanup.sql', 'utf8');
+const memberDogRlsSql = fs.readFileSync('supabase/sql/ucapsa-membership-dog-access-rls-performance.sql', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
 
 const required = [
@@ -60,6 +61,16 @@ for (const canonicalReadPolicy of [
   const dropPattern = new RegExp('drop\\s+policy[^;]*"' + canonicalReadPolicy + '"', 'i');
   if (dropPattern.test(rlsSql)) {
     throw new Error('RLS cleanup is trying to drop canonical read policy: ' + canonicalReadPolicy);
+  }
+}
+
+for (const token of [
+  'drop policy if exists "membership_dog_access_owner_select"',
+  'user_id = (select auth.uid())',
+  'or (select public.is_ucapsa_admin())',
+]) {
+  if (!memberDogRlsSql.includes(token)) {
+    throw new Error('membership_dog_access RLS performance fix missing: ' + token);
   }
 }
 
