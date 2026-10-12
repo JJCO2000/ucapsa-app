@@ -20,6 +20,29 @@ export default function AdminMoreTab() {
         <Text style={styles.subtitle}>Opciones poco frecuentes que no necesitan ocupar una pestaña principal.</Text>
       </View>
 
+      <Text style={styles.sectionTitle}>Entrenamiento · herramientas operativas</Text>
+      <View style={styles.card}>
+        <MenuRow
+          icon="school"
+          title="Roster y asistencia"
+          subtitle="Consultar cualquier fecha y registrar clases de hoy"
+          onPress={() => router.push('/trainer-classes' as never)}
+        />
+        <MenuRow
+          icon="assignment"
+          title="Exámenes y Excel"
+          subtitle="Crear, cargar, publicar y revisar definiciones"
+          onPress={() => router.push('/trainer-exams' as never)}
+        />
+        <MenuRow
+          icon="table-view"
+          title="Reporte de asistencia"
+          subtitle="Excel de clases y ausencias por rango"
+          onPress={() => router.push('/staff/training-report' as never)}
+          last
+        />
+      </View>
+
       <Text style={styles.sectionTitle}>Operación especial</Text>
       <View style={styles.card}>
         <MenuRow
