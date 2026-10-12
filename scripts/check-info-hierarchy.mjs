@@ -55,16 +55,24 @@ mustNot('src/app/admin/users.tsx', /awardAchievementToUser|forceMembershipForPro
 must('src/app/admin/customer.tsx', /\/admin\/customer-achievements\?userId=/, 'Cliente perdió la ficha particular de Logros.');
 must('src/app/admin/customer-achievements.tsx', /awardAchievementToUser/, 'La ficha de Logros perdió la acción administrativa canónica.');
 
-// Admin principal = Inicio como bandeja de decisiones + cuatro dominios estables.
-// Herramientas/configuración siguen accesibles, pero fuera de la barra principal.
+// Admin principal = Inicio como bandeja de decisiones + cuatro dominios operativos.
+// Gestión sustituye la antigua pestaña Comunicación y deja herramientas secundarias
+// dentro de una subpantalla, sin convertir Inicio en menú.
 must('src/app/(tabs)/_layout.tsx', /name="admin-home"[\s\S]*title: 'Inicio'/, 'Admin perdió Inicio como pestaña principal.');
 must('src/app/(tabs)/_layout.tsx', /name="admin-clients"[\s\S]*title: 'Clientes'/, 'Admin perdió Clientes como dominio principal.');
 must('src/app/(tabs)/_layout.tsx', /name="admin-classes"[\s\S]*title: 'Clases'/, 'Admin perdió Clases como dominio principal.');
 must('src/app/(tabs)/_layout.tsx', /name="admin-payments"[\s\S]*title: 'Pagos'/, 'Admin perdió Pagos como dominio principal.');
-must('src/app/(tabs)/_layout.tsx', /name="admin-communication"[\s\S]*title: 'Comunic\.'/,
-  'Admin perdió Comunicación como dominio principal.');
-must('src/app/(tabs)/_layout.tsx', /name="admin-more"[\s\S]*href: null/,
-  'Herramientas volvió a ocupar una pestaña principal.');
+must('src/app/(tabs)/_layout.tsx', /name="admin-communication"[^\n]*href: null/,
+  'Comunicación debe conservar su ruta, fuera de las pestañas principales.');
+must('src/app/(tabs)/_layout.tsx', /name="admin-more"[^\n]*href: adminWorkspace[^\n]*title: 'Gestión'/,
+  'Gestión debe dar acceso directo a exámenes, restaurante y comunicación.');
+must('src/app/(tabs)/admin-more.tsx', /Calificar examen[\s\S]*\/admin\/competition-quick-grade/,
+  'Gestión perdió evaluación rápida.');
+must('src/app/(tabs)/admin-more.tsx', /Restaurante \/ comida[\s\S]*\/admin\/restaurant/,
+  'Gestión perdió restaurante.');
+must('src/app/(tabs)/admin-more.tsx', /Avisos y comunicación[\s\S]*\/admin-communication/,
+  'Gestión perdió comunicación.');
+
 
 must('src/app/(tabs)/admin-home.tsx', /Requiere tu intervención/, 'Inicio Admin dejó de priorizar decisiones pendientes.');
 must('src/app/(tabs)/admin-home.tsx', /Todo al día/, 'Inicio Admin perdió el estado vacío de decisiones.');
