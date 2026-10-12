@@ -7,10 +7,11 @@ const scanRoots = [
   'supabase/functions',
   'supabase/sql',
   'scripts',
+  'packages',
   '.github/workflows',
 ];
 const rootFiles = ['app.json', 'package.json', 'tsconfig.json', 'eas.json'];
-const extensions = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.sql', '.yml', '.yaml', '.json']);
+const extensions = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.sql', '.yml', '.yaml', '.json']);
 const self = 'scripts/audit-full-source.mjs';
 const clientDiagnostics = 'src/lib/client-diagnostics.ts';
 
@@ -272,7 +273,7 @@ for (const file of files) {
     addCritical(file, 'Pantalla salta la frontera de servicios y toca Supabase directamente.');
   }
 
-  if (file.startsWith('src/') && file !== clientDiagnostics &&
+  if ((file.startsWith('src/') && file !== clientDiagnostics || file.startsWith('packages/')) &&
       /\bconsole\.(?:log|warn|error|debug)\s*\(/.test(text)) {
     addCritical(file, 'Console runtime fuera del diagnóstico cliente centralizado.');
   }
@@ -289,7 +290,7 @@ for (const file of files) {
 
   if (file === self) continue;
 
-  const runtimeCode = file.startsWith('src/') || file.startsWith('supabase/functions/');
+  const runtimeCode = file.startsWith('src/') || file.startsWith('supabase/functions/') || file.startsWith('packages/');
 
   const anyCasts = runtimeCode ? countMatches(text, /\bas\s+any\b|:\s*any\b/g) : 0;
   if (anyCasts) addReview(file, 'Uso de any', anyCasts);
@@ -382,6 +383,7 @@ const categoryCounts = files.reduce((acc, file) => {
     file.startsWith('supabase/functions/') ? 'edge-functions' :
     file.startsWith('supabase/sql/') ? 'sql' :
     file.startsWith('scripts/') ? 'scripts' :
+    file.startsWith('packages/') ? 'packages' :
     file.startsWith('.github/workflows/') ? 'workflows' :
     'root-config';
   acc[category] = (acc[category] ?? 0) + 1;
