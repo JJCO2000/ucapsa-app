@@ -13,6 +13,13 @@ if (!supabaseUrl || !supabaseAnonKey) {
   devWarn('Missing Supabase env variables. Check EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in .env.');
 }
 
+// Double fail-closed guard: a reviewer AAB cannot silently connect to UCAPSA
+// production if EAS preview variables are accidentally configured incorrectly.
+if (process.env.EXPO_PUBLIC_UCAPSA_REVIEW_BUILD === 'true' &&
+    (!supabaseUrl || new URL(supabaseUrl).hostname === 'hrfecmviyiluubymsoeq.supabase.co')) {
+  throw new Error('Build de revision sin entorno de demostracion aislado.');
+}
+
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: AsyncStorage,
