@@ -66,6 +66,43 @@ requirePattern(
   'El snapshot de Inicio dejó de conservar la identidad del perro en logros.',
 );
 
+// Las insignias de actividad deben conservar el perro y no mezclar cuentas.
+requirePattern(
+  'src/app/(tabs)/dog.tsx',
+  /\/client\/activity-achievements\?dogId=\$\{encodeURIComponent\(selectedDog\.id\)\}/,
+  'El icono de actividad no abre insignias del perro seleccionado.',
+);
+requirePattern(
+  'src/app/(tabs)/dog.tsx',
+  /ucapsaColorKeyPalette\[advancedProgramAchievement\.definition\.color_key\]/,
+  'El símbolo de logro no usa el color de su definición canónica.',
+);
+requirePattern(
+  'src/app/client/activity-achievements.tsx',
+  /getCachedDogActivityFacts\(user\.id, scopedDogId\)/,
+  'La pantalla de insignias no hidrata datos por perro.',
+);
+requirePattern(
+  'src/app/client/activity-achievements.tsx',
+  /getMyDogActivityFacts\(user\.id, scopedDogId\)/,
+  'La pantalla de insignias mezcla la actividad de toda la cuenta.',
+);
+requirePattern(
+  'src/app/client/activity-achievements.tsx',
+  /onPress=\{\(\) => onSelect\(definition\)\}/,
+  'Las insignias individuales dejaron de abrir detalle.',
+);
+requirePattern(
+  'src/services/client-activity.service.ts',
+  /export function buildDogActivityFacts\(/,
+  'El resumen de actividad no tiene proyección específica para el perro.',
+);
+requirePattern(
+  'src/constants/activityAchievements.ts',
+  /export const activityAchievementCategoryMeta =/,
+  'Colores y símbolos de actividad perdieron su fuente compartida.',
+);
+
 // Fixture sintético: dos perros con programas distintos y una fila histórica sin dog_id.
 const dogs = [
   { id: 'dog-tuka', name: 'Tuka' },
