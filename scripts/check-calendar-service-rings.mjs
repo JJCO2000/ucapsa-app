@@ -42,7 +42,7 @@ const ring = fs.readFileSync('src/components/calendar/CalendarActivityRing.tsx',
 for (const token of [
   'dayComponent', 'CalendarActivityRing', 'buildCalendarServiceKinds',
   'occurrence.program?.code', 'Boolean(occurrence.cancellation)',
-  'ucapsaBrand.colors.borderNeutral',
+  'ucapsaBrand.colors.adminBorder',
   'Otras actividades', 'Sin actividad', 'Puppy', 'Comandos',
 ]) {
   if (!calendar.includes(token)) throw new Error('Month calendar lost ring contract: ' + token);
