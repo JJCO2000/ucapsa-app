@@ -190,6 +190,15 @@ export default function AdminHomeTab() {
           </View>
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel="Abrir Restaurante y gestión de comida"
+            style={styles.restaurantShortcut}
+            onPress={() => router.push('/admin/restaurant' as never)}
+          >
+            <MaterialIcons name="restaurant-menu" size={22} color={ucapsaBrand.colors.surface} />
+            <Text style={styles.restaurantShortcutLabel}>Comida</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
             accessibilityLabel="Abrir herramientas y configuración"
             style={styles.toolsButton}
             onPress={() => router.push('/admin-more' as never)}
@@ -425,6 +434,16 @@ const styles = StyleSheet.create({
   },
   title: { color: ucapsaBrand.colors.surface, fontSize: 28, fontWeight: '900' },
   subtitle: { color: ucapsaBrand.colors.redSoft, fontSize: 14, lineHeight: 20, fontWeight: '700' },
+  restaurantShortcut: {
+    minWidth: 66,
+    height: 49,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: ucapsaBrand.colors.redDark,
+  },
+  restaurantShortcutLabel: { color: ucapsaBrand.colors.surface, fontSize: 9, fontWeight: '900' },
   toolsButton: {
     width: 42,
     height: 42,

@@ -103,6 +103,27 @@ requirePattern(
   'Colores y símbolos de actividad perdieron su fuente compartida.',
 );
 
+// Presentación compacta: los badges de actividad siguen siendo específicos
+// por perro, sin mezclar visitas de socio y sin la nota técnica en la interfaz.
+requirePattern(
+  'src/app/client/activity-achievements.tsx',
+  /styles\.badgeGrid[\s\S]*definitions\.map\(\(definition\)/,
+  'Actividad perdió la colección de insignias en cuadrícula.',
+);
+requirePattern(
+  'src/app/client/activity-achievements.tsx',
+  /accessibilityLabel=\{definition\.title[\s\S]*onSelect\(definition\)/,
+  'Las insignias individuales perdieron su detalle navegable.',
+);
+requirePattern(
+  'src/app/client/activity-achievements.tsx',
+  /Modal visible=\{Boolean\(selectedDefinition\)\}/,
+  'El detalle de insignia dejó de abrirse como pantalla inmersiva.',
+);
+if (read('src/app/client/activity-achievements.tsx').includes('las visitas de socio son métricas de la cuenta')) {
+  failures.push('Se reintrodujo la explicación técnica rechazada en Insignias de actividad.');
+}
+
 // Fixture sintético: dos perros con programas distintos y una fila histórica sin dog_id.
 const dogs = [
   { id: 'dog-tuka', name: 'Tuka' },
