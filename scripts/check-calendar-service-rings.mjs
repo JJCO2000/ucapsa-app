@@ -77,7 +77,7 @@ if (!calendar.includes("{ label: 'Sin actividad', color: ucapsaBrand.colors.admi
 }
 const brand = fs.readFileSync('src/constants/brand.ts', 'utf8');
 function token(key) {
-  const match = brand.match(new RegExp('\\\\b' + key + ": '([#][0-9a-fA-F]{6})'"));
+  const match = brand.match(new RegExp(key + ": '([#][0-9a-fA-F]{6})'"));
   if (!match) throw new Error('Missing color token ' + key);
   return match[1];
 }
