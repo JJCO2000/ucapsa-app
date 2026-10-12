@@ -87,6 +87,23 @@ export type StaffTrainingReportRow = {
   absent: boolean;
 };
 
+export type StaffRecordedAttendanceRow = {
+  attendanceId: string;
+  classDate: string;
+  programCode: string;
+  programName: string;
+  programLevel: string;
+  enrollmentStatus: string;
+  scheduleId: string;
+  scheduleTime: string | null;
+  enrollmentId: string;
+  clientName: string;
+  dogName: string;
+  attendanceSource: string | null;
+  outsideWindow: boolean;
+  scheduleMatchStatus: string;
+};
+
 export type TrainerExamCatalogRow = {
   examId: string;
   examCode: string;
@@ -399,6 +416,34 @@ export async function getStaffTrainingReport(startDate: string, endDate: string)
     rsvpResponse: row.rsvp_response === 'yes' || row.rsvp_response === 'no' ? row.rsvp_response : null,
     attended: Boolean(row.attended),
     absent: Boolean(row.absent),
+  }));
+}
+
+/** Registros reales, separados de las sesiones esperadas por programación. */
+export async function getStaffRecordedAttendance(
+  startDate: string,
+  endDate: string,
+): Promise<StaffRecordedAttendanceRow[]> {
+  const { data, error } = await supabase.rpc('get_staff_recorded_attendance', {
+    p_start_date: startDate,
+    p_end_date: endDate,
+  });
+  if (error) throw error;
+  return (data ?? []).map((row) => ({
+    attendanceId: row.attendance_id,
+    classDate: row.class_date,
+    programCode: row.program_code,
+    programName: row.program_name,
+    programLevel: row.program_level,
+    enrollmentStatus: row.enrollment_status,
+    scheduleId: row.schedule_id,
+    scheduleTime: row.schedule_time ? String(row.schedule_time).slice(0, 5) : null,
+    enrollmentId: row.enrollment_id,
+    clientName: row.client_name,
+    dogName: row.dog_name,
+    attendanceSource: row.attendance_source ?? null,
+    outsideWindow: Boolean(row.outside_window),
+    scheduleMatchStatus: row.schedule_match_status,
   }));
 }
 
