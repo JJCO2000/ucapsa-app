@@ -1458,6 +1458,50 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_trainer_summary_locks: {
+        Row: {
+          campaign_id: string | null
+          class_date: string
+          created_at: string
+          id: string
+          sent_at: string | null
+          status: string
+          summary_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          class_date: string
+          created_at?: string
+          id?: string
+          sent_at?: string | null
+          status?: string
+          summary_type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          campaign_id?: string | null
+          class_date?: string
+          created_at?: string
+          id?: string
+          sent_at?: string | null
+          status?: string
+          summary_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_trainer_summary_locks_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "notification_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_obligations: {
         Row: {
           amount: number
@@ -1866,6 +1910,60 @@ export type Database = {
         }
         Relationships: []
       }
+      program_attendance_absences: {
+        Row: {
+          attendance_date: string
+          cleared_at: string | null
+          cleared_by: string | null
+          created_at: string
+          enrollment_id: string
+          id: string
+          marked_by: string | null
+          notes: string | null
+          schedule_id: string
+          updated_at: string
+        }
+        Insert: {
+          attendance_date: string
+          cleared_at?: string | null
+          cleared_by?: string | null
+          created_at?: string
+          enrollment_id: string
+          id?: string
+          marked_by?: string | null
+          notes?: string | null
+          schedule_id: string
+          updated_at?: string
+        }
+        Update: {
+          attendance_date?: string
+          cleared_at?: string | null
+          cleared_by?: string | null
+          created_at?: string
+          enrollment_id?: string
+          id?: string
+          marked_by?: string | null
+          notes?: string | null
+          schedule_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_attendance_absences_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "program_enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_attendance_absences_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "program_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       program_attendances: {
         Row: {
           attendance_date: string
@@ -1926,44 +2024,6 @@ export type Database = {
           },
         ]
       }
-      program_class_rsvps: {
-        Row: {
-          class_date: string
-          enrollment_id: string
-          id: string
-          responded_at: string
-          response: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          class_date: string
-          enrollment_id: string
-          id?: string
-          responded_at?: string
-          response: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          class_date?: string
-          enrollment_id?: string
-          id?: string
-          responded_at?: string
-          response?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "program_class_rsvps_enrollment_id_fkey"
-            columns: ["enrollment_id"]
-            isOneToOne: false
-            referencedRelation: "program_enrollments"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       program_class_cancellations: {
         Row: {
           announcement_id: string | null
@@ -2014,6 +2074,44 @@ export type Database = {
             columns: ["schedule_id"]
             isOneToOne: false
             referencedRelation: "program_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_class_rsvps: {
+        Row: {
+          class_date: string
+          enrollment_id: string
+          id: string
+          responded_at: string
+          response: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          class_date: string
+          enrollment_id: string
+          id?: string
+          responded_at?: string
+          response: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          class_date?: string
+          enrollment_id?: string
+          id?: string
+          responded_at?: string
+          response?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_class_rsvps_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "program_enrollments"
             referencedColumns: ["id"]
           },
         ]
@@ -2740,59 +2838,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
-      }
-      ucapsa_staff_dog_notes: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          dog_id: string
-          happened_on: string
-          id: string
-          note: string
-          note_type: string
-          resolved_at: string | null
-          resolved_by: string | null
-          severity: string
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          dog_id: string
-          happened_on?: string
-          id?: string
-          note: string
-          note_type?: string
-          resolved_at?: string | null
-          resolved_by?: string | null
-          severity?: string
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          dog_id?: string
-          happened_on?: string
-          id?: string
-          note?: string
-          note_type?: string
-          resolved_at?: string | null
-          resolved_by?: string | null
-          severity?: string
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ucapsa_staff_dog_notes_dog_id_fkey"
-            columns: ["dog_id"]
-            isOneToOne: false
-            referencedRelation: "dogs"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       ucapsa_exam_attempts: {
         Row: {
@@ -3693,6 +3738,94 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ucapsa_points_seasons"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      ucapsa_staff_dog_notes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          dog_id: string
+          happened_on: string
+          id: string
+          note: string
+          note_type: string
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          dog_id: string
+          happened_on?: string
+          id?: string
+          note: string
+          note_type?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          dog_id?: string
+          happened_on?: string
+          id?: string
+          note?: string
+          note_type?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ucapsa_staff_dog_notes_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ucapsa_staff_dog_notes_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_staff_dog_notes_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_leaderboard"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_staff_dog_notes_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_ranges"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_staff_dog_notes_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "ucapsa_staff_dog_notes_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["dog_id"]
           },
         ]
       }
@@ -5384,6 +5517,21 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_admin_class_rsvp_summary: {
+        Args: { p_class_date: string }
+        Returns: {
+          confirmed_count: number
+          declined_count: number
+          eligible_count: number
+          no_response_count: number
+          program_code: string
+          program_level: string
+          program_name: string
+          schedule_id: string
+          schedule_name: string
+          start_time: string
+        }[]
+      }
       get_admin_client_followups: {
         Args: never
         Returns: {
@@ -5409,20 +5557,105 @@ export type Database = {
           unique_members: number
         }[]
       }
-      get_admin_class_rsvp_summary: {
-        Args: { p_class_date: string }
+      get_admin_training_decision_history: {
+        Args: { p_limit?: number }
         Returns: {
-          confirmed_count: number
-          declined_count: number
-          eligible_count: number
-          no_response_count: number
+          attendance_count: number
+          customer_name: string
+          decided_at: string
+          decision: string
+          dog_id: string
+          dog_name: string
+          enrollment_id: string
+          next_enrollment_id: string
+          physical_card_number: string
           program_code: string
           program_level: string
-          program_name: string
-          schedule_id: string
-          schedule_name: string
-          start_time: string
+          user_id: string
         }[]
+      }
+      get_effective_program_schedule: {
+        Args: { p_date: string; p_schedule_id: string }
+        Returns: {
+          cycle_start_date: string
+          day_of_week: number
+          effective_from: string
+          effective_to: string
+          is_active: boolean
+          name: string
+          program_id: string
+          repeat_type: string
+          schedule_id: string
+          sequence_order: number
+          start_time: string
+          version_id: string
+        }[]
+      }
+      get_effective_program_schedules: {
+        Args: { p_date: string }
+        Returns: {
+          cycle_start_date: string
+          day_of_week: number
+          effective_from: string
+          effective_to: string
+          id: string
+          is_active: boolean
+          name: string
+          program_id: string
+          repeat_type: string
+          sequence_order: number
+          start_time: string
+          version_id: string
+        }[]
+      }
+      get_internal_cron_secret: { Args: never; Returns: string }
+      get_my_basic_dog_profile: {
+        Args: { p_dog_id: string }
+        Returns: {
+          avatar_color: string
+          avatar_key: string
+          birth_date: string
+          breed: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          sex: string
+          updated_at: string
+          weight_kg: number
+        }[]
+      }
+      get_my_basic_dogs: {
+        Args: never
+        Returns: {
+          avatar_color: string
+          avatar_key: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }[]
+      }
+      get_my_class_rsvp: {
+        Args: { p_class_date: string; p_enrollment_id: string }
+        Returns: {
+          class_date: string
+          enrollment_id: string
+          responded_at: string
+          response: string
+        }[]
+      }
+      get_my_dog_photo_paths: {
+        Args: never
+        Returns: {
+          dog_id: string
+          photo_path: string
+        }[]
+      }
+      get_my_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["app_role"]
       }
       get_staff_class_roster: {
         Args: { p_class_date: string }
@@ -5460,39 +5693,6 @@ export type Database = {
           start_time: string
         }[]
       }
-      get_staff_dog_operational_profile: {
-        Args: { p_dog_id: string }
-        Returns: {
-          allergies: string | null
-          behavior_notes: string | null
-          birth_date: string | null
-          breed: string | null
-          dog_id: string
-          dog_name: string
-          emergency_contact_name: string | null
-          emergency_contact_phone: string | null
-          feeding_notes: string | null
-          medications: string | null
-          owner_name: string
-          sex: string | null
-          veterinarian_name: string | null
-          veterinarian_phone: string | null
-          weight_kg: number | null
-        }[]
-      }
-      get_staff_exam_drafts: {
-        Args: never
-        Returns: {
-          created_at: string
-          exam_code: string
-          exam_date: string | null
-          exam_id: string
-          exam_title: string
-          item_count: number
-          max_points: number
-          season_name: string
-        }[]
-      }
       get_staff_dog_notes: {
         Args: { p_dog_id: string }
         Returns: {
@@ -5507,6 +5707,58 @@ export type Database = {
           severity: string
           updated_at: string
           updated_by: string
+        }[]
+      }
+      get_staff_dog_operational_profile: {
+        Args: { p_dog_id: string }
+        Returns: {
+          allergies: string
+          behavior_notes: string
+          birth_date: string
+          breed: string
+          dog_id: string
+          dog_name: string
+          emergency_contact_name: string
+          emergency_contact_phone: string
+          feeding_notes: string
+          medications: string
+          owner_name: string
+          sex: string
+          veterinarian_name: string
+          veterinarian_phone: string
+          weight_kg: number
+        }[]
+      }
+      get_staff_exam_drafts: {
+        Args: never
+        Returns: {
+          created_at: string
+          exam_code: string
+          exam_date: string
+          exam_id: string
+          exam_title: string
+          item_count: number
+          max_points: number
+          season_name: string
+        }[]
+      }
+      get_staff_recorded_attendance: {
+        Args: { p_end_date: string; p_start_date: string }
+        Returns: {
+          attendance_id: string
+          attendance_source: string
+          class_date: string
+          client_name: string
+          dog_name: string
+          enrollment_id: string
+          enrollment_status: string
+          outside_window: boolean
+          program_code: string
+          program_level: string
+          program_name: string
+          schedule_id: string
+          schedule_match_status: string
+          schedule_time: string
         }[]
       }
       get_staff_training_report: {
@@ -5564,108 +5816,6 @@ export type Database = {
           sort_order: number
           title: string
         }[]
-      }
-      is_ucapsa_staff: { Args: never; Returns: boolean }
-      is_ucapsa_trainer: { Args: never; Returns: boolean }
-      get_admin_training_decision_history: {
-        Args: { p_limit?: number }
-        Returns: {
-          attendance_count: number
-          customer_name: string
-          decided_at: string
-          decision: string
-          dog_id: string
-          dog_name: string
-          enrollment_id: string
-          next_enrollment_id: string
-          physical_card_number: string
-          program_code: string
-          program_level: string
-          user_id: string
-        }[]
-      }
-      get_effective_program_schedule: {
-        Args: { p_date: string; p_schedule_id: string }
-        Returns: {
-          cycle_start_date: string
-          day_of_week: number
-          effective_from: string
-          effective_to: string
-          is_active: boolean
-          name: string
-          program_id: string
-          repeat_type: string
-          schedule_id: string
-          sequence_order: number
-          start_time: string
-          version_id: string
-        }[]
-      }
-      get_effective_program_schedules: {
-        Args: { p_date: string }
-        Returns: {
-          cycle_start_date: string
-          day_of_week: number
-          effective_from: string
-          effective_to: string
-          id: string
-          is_active: boolean
-          name: string
-          program_id: string
-          repeat_type: string
-          sequence_order: number
-          start_time: string
-          version_id: string
-        }[]
-      }
-      get_internal_cron_secret: { Args: never; Returns: string }
-      get_my_class_rsvp: {
-        Args: { p_class_date: string; p_enrollment_id: string }
-        Returns: {
-          class_date: string
-          enrollment_id: string
-          responded_at: string
-          response: string
-        }[]
-      }
-      get_my_basic_dog_profile: {
-        Args: { p_dog_id: string }
-        Returns: {
-          avatar_color: string
-          avatar_key: string
-          birth_date: string
-          breed: string
-          created_at: string
-          id: string
-          is_active: boolean
-          name: string
-          sex: string
-          updated_at: string
-          weight_kg: number
-        }[]
-      }
-      get_my_basic_dogs: {
-        Args: never
-        Returns: {
-          avatar_color: string
-          avatar_key: string
-          created_at: string
-          id: string
-          is_active: boolean
-          name: string
-          updated_at: string
-        }[]
-      }
-      get_my_dog_photo_paths: {
-        Args: never
-        Returns: {
-          dog_id: string
-          photo_path: string
-        }[]
-      }
-      get_my_role: {
-        Args: never
-        Returns: Database["public"]["Enums"]["app_role"]
       }
       get_ucapsa_competition_leaderboard: {
         Args: { p_season_id: string }
@@ -5793,6 +5943,8 @@ export type Database = {
       is_feature_enabled: { Args: { p_code: string }; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
       is_ucapsa_admin: { Args: never; Returns: boolean }
+      is_ucapsa_staff: { Args: never; Returns: boolean }
+      is_ucapsa_trainer: { Args: never; Returns: boolean }
       program_schedule_occurs_on_date: {
         Args: { p_date: string; p_schedule_id: string }
         Returns: boolean
@@ -5948,6 +6100,23 @@ export type Database = {
         Args: { p_program_code: string }
         Returns: string
       }
+      set_my_class_rsvp: {
+        Args: {
+          p_class_date: string
+          p_enrollment_id: string
+          p_response: string
+        }
+        Returns: {
+          class_date: string
+          enrollment_id: string
+          responded_at: string
+          response: string
+        }[]
+      }
+      set_my_dog_photo_path: {
+        Args: { p_dog_id: string; p_photo_path: string }
+        Returns: undefined
+      }
       staff_add_dog_note: {
         Args: {
           p_dog_id: string
@@ -5956,6 +6125,19 @@ export type Database = {
           p_note_type: string
           p_severity: string
         }
+        Returns: string
+      }
+      staff_mark_program_absence: {
+        Args: {
+          p_attendance_date: string
+          p_enrollment_id: string
+          p_notes?: string
+          p_schedule_id: string
+        }
+        Returns: string
+      }
+      staff_publish_ucapsa_exam: {
+        Args: { p_exam_id: string }
         Returns: string
       }
       staff_register_program_attendance: {
@@ -5989,33 +6171,16 @@ export type Database = {
         Args: { p_role: string; p_user_id: string }
         Returns: string
       }
-      staff_mark_program_absence: {
-        Args: {
-          p_attendance_date: string
-          p_enrollment_id: string
-          p_notes?: string
-          p_schedule_id: string
-        }
-        Returns: string
-      }
-      staff_publish_ucapsa_exam: {
-        Args: { p_exam_id: string }
+      trainer_create_ucapsa_exam_attempt: {
+        Args: { p_dog_id: string; p_exam_id: string; p_presented_at?: string }
         Returns: string
       }
       trainer_create_ucapsa_exam_draft: {
         Args: {
           p_code: string
-          p_exam_date: string | null
+          p_exam_date: string
           p_items: Json
           p_title: string
-        }
-        Returns: string
-      }
-      trainer_create_ucapsa_exam_attempt: {
-        Args: {
-          p_dog_id: string
-          p_exam_id: string
-          p_presented_at?: string
         }
         Returns: string
       }
@@ -6035,23 +6200,6 @@ export type Database = {
           p_points_awarded: number
         }
         Returns: string
-      }
-      set_my_class_rsvp: {
-        Args: {
-          p_class_date: string
-          p_enrollment_id: string
-          p_response: string
-        }
-        Returns: {
-          class_date: string
-          enrollment_id: string
-          responded_at: string
-          response: string
-        }[]
-      }
-      set_my_dog_photo_path: {
-        Args: { p_dog_id: string; p_photo_path: string }
-        Returns: undefined
       }
       ucapsa_achievement_code_for_enrollment: {
         Args: { p_enrollment_id: string }
@@ -6170,7 +6318,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "client" | "member" | "trainer" | "admin" | "super_admin"
+      app_role: "client" | "member" | "admin" | "super_admin" | "trainer"
       audience_type: "public" | "clients" | "members" | "admins"
       membership_status:
         | "none"
@@ -6307,7 +6455,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["client", "member", "trainer", "admin", "super_admin"],
+      app_role: ["client", "member", "admin", "super_admin", "trainer"],
       audience_type: ["public", "clients", "members", "admins"],
       membership_status: [
         "none",

@@ -17,6 +17,9 @@ const dogNotes = read('src/app/staff/dog-notes.tsx');
 const examAttempt = read('src/app/staff/exam-attempt.tsx');
 const report = read('src/app/staff/training-report.tsx');
 const trainerService = read('src/services/trainer-staff.service.ts');
+const recordedReportUi = read('src/app/staff/training-report.tsx');
+const recordedReportExport = read('src/services/training-report-export.service.ts');
+const databaseTypes = read('src/types/database.generated.ts');
 const trainerSql = read('supabase/sql/ucapsa-trainer-workspace.sql');
 const trainerModeSql = read('supabase/sql/ucapsa-trainer-workspace-exam-upload.sql');
 const trainerDogScopeSql = read('supabase/sql/ucapsa-trainer-dog-access-scope.sql');
@@ -40,8 +43,11 @@ for (const token of [
 ]) {
   if (!appTypes.includes(token)) throw new Error('App role contract missing trainer: ' + token);
 }
-if (!dbTypes.includes('app_role: "client" | "member" | "trainer" | "admin" | "super_admin"')) {
-  throw new Error('Generated DB enum union is missing trainer.');
+const generatedAppRole = dbTypes.match(/app_role:\s*([^\n]+)/)?.[1] ?? '';
+for (const role of ['client', 'member', 'trainer', 'admin', 'super_admin']) {
+  if (!generatedAppRole.includes('"' + role + '"')) {
+    throw new Error('Generated DB enum union is missing role ' + role);
+  }
 }
 
 for (const token of [
@@ -341,6 +347,7 @@ for (const token of [
 
 for (const token of [
   "supabase.rpc('get_staff_class_roster'",
+  "supabase.rpc('get_staff_recorded_attendance'",
   "supabase.rpc('staff_register_program_attendance'",
   "supabase.rpc('staff_mark_program_absence'",
   "supabase.rpc('trainer_import_ucapsa_exam_results'",
@@ -368,6 +375,21 @@ for (const part of [
 }
 if (/\b(insert|update|delete|truncate)\s+(into|public|from)/i.test(recordedHistorySql)) {
   throw new Error('La consulta histórica nunca debe mutar asistencias.');
+}
+
+for (const token of ['get_staff_recorded_attendance', 'p_start_date', 'p_end_date']) {
+  if (!databaseTypes.includes(token)) throw new Error('Tipos de Supabase no fueron regenerados para historial staff: ' + token);
+}
+for (const token of ['getStaffRecordedAttendance(startDate, endDate)', 'historyRows', 'Asistencias registradas', 'getStaffRecordedAttendance(startDate, endDate, recorded)']) {
+  // La llamada de exportación es a exportTrainingReportXlsx; se valida por separado.
+  if (token === 'getStaffRecordedAttendance(startDate, endDate, recorded)') continue;
+  if (!recordedReportUi.includes(token)) throw new Error('Reporte perdió consulta histórica: ' + token);
+}
+for (const token of ['Asistencias registradas', 'sheet4.xml', 'recordedDetailRows', 'recordedRows.filter']) {
+  if (!recordedReportExport.includes(token)) throw new Error('Excel histórico perdió hoja/fuente real: ' + token);
+}
+if (!recordedReportUi.includes('exportTrainingReportXlsx(next, startDate, endDate, recorded)')) {
+  throw new Error('Excel debe recibir filas reales y programadas de la misma ventana.');
 }
 
 // El rol del servidor gobierna la navegación; no hay un modo persistido ni

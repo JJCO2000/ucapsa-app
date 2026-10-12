@@ -2,7 +2,7 @@ import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { strToU8, zipSync } from 'fflate';
 
-import type { StaffTrainingReportRow } from './trainer-staff.service';
+import type { StaffTrainingReportRow, StaffRecordedAttendanceRow } from './trainer-staff.service';
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const XML_SELF_CLOSE = '/' + '>';
@@ -204,12 +204,20 @@ function worksheetXml(rows: CellValue[][], widths: number[], withFilter = true) 
 </worksheet>`;
 }
 
-function workbookBytes(rows: StaffTrainingReportRow[], startDate: string, endDate: string) {
+function workbookBytes(
+  rows: StaffTrainingReportRow[],
+  startDate: string,
+  endDate: string,
+  recordedRows: StaffRecordedAttendanceRow[],
+) {
   const stats = buildTrainingReportStats(rows);
   const summaryRows: CellValue[][] = [
     ['Métrica', 'Valor'],
     ['Desde', startDate],
     ['Hasta', endDate],
+    ['Asistencias realmente registradas', recordedRows.length],
+    ['Registros con horario coincidente', recordedRows.filter((row) => row.scheduleMatchStatus === 'matches_schedule').length],
+    ['Registros sin coincidencia en programación', recordedRows.filter((row) => row.scheduleMatchStatus !== 'matches_schedule').length],
     ['Clientes únicos', stats.uniqueClients],
     ['Perros únicos', stats.uniqueDogs],
     ['Clases con inscritos', stats.classOccurrences],
@@ -258,6 +266,28 @@ function workbookBytes(rows: StaffTrainingReportRow[], startDate: string, endDat
     ]),
   ];
 
+  const recordedDetailRows: CellValue[][] = [
+    ['Fecha', 'Hora base', 'Programa', 'Nivel', 'Cliente', 'Perro', 'Estado inscripción', 'Origen', 'Relación con horario', 'Fuera de ventana'],
+    ...recordedRows.map((row) => [
+      row.classDate,
+      row.scheduleTime ?? 'No disponible',
+      row.programName,
+      levelLabel(row.programCode, row.programLevel),
+      row.clientName,
+      row.dogName,
+      row.enrollmentStatus,
+      row.attendanceSource ?? 'No especificado',
+      row.scheduleMatchStatus === 'matches_schedule' ? 'Coincide'
+        : row.scheduleMatchStatus === 'before_enrollment' ? 'Antes del inicio'
+        : row.scheduleMatchStatus === 'cancelled_class' ? 'Clase cancelada'
+        : row.scheduleMatchStatus === 'outside_day' ? 'Otro día'
+        : row.scheduleMatchStatus === 'outside_cycle' ? 'Otro ciclo'
+        : row.scheduleMatchStatus === 'inactive_schedule' ? 'Horario inactivo'
+        : 'Sin horario',
+      row.outsideWindow ? 'Sí' : 'No',
+    ]),
+  ];
+
   const files: Record<string, Uint8Array> = {
     '[Content_Types].xml': strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
@@ -267,6 +297,7 @@ function workbookBytes(rows: StaffTrainingReportRow[], startDate: string, endDat
   <Override PartName="${packagePartName('xl/worksheets/sheet1.xml')}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
   <Override PartName="${packagePartName('xl/worksheets/sheet2.xml')}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
   <Override PartName="${packagePartName('xl/worksheets/sheet3.xml')}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="${packagePartName('xl/worksheets/sheet4.xml')}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
   <Override PartName="${packagePartName('xl/styles.xml')}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
 </Types>`),
     '_rels/.rels': strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -279,6 +310,7 @@ function workbookBytes(rows: StaffTrainingReportRow[], startDate: string, endDat
     <sheet name="Resumen" sheetId="1" r:id="rId1"/>
     <sheet name="Por programa" sheetId="2" r:id="rId2"/>
     <sheet name="Detalle" sheetId="3" r:id="rId3"/>
+    <sheet name="Asistencias registradas" sheetId="4" r:id="rId4"/>
   </sheets>
 </workbook>`),
     'xl/_rels/workbook.xml.rels': strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -286,7 +318,8 @@ function workbookBytes(rows: StaffTrainingReportRow[], startDate: string, endDat
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
   <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>
   <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet3.xml"/>
-  <Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+  <Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet4.xml"/>
+  <Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
 </Relationships>`),
     'xl/styles.xml': strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
@@ -305,6 +338,7 @@ function workbookBytes(rows: StaffTrainingReportRow[], startDate: string, endDat
     'xl/worksheets/sheet1.xml': strToU8(worksheetXml(summaryRows, [34, 22], false)),
     'xl/worksheets/sheet2.xml': strToU8(worksheetXml(programRows, [22, 18, 12, 12, 14, 14, 12, 18, 12, 16, 16])),
     'xl/worksheets/sheet3.xml': strToU8(worksheetXml(detailRows, [13, 10, 20, 18, 24, 24, 18, 24])),
+    'xl/worksheets/sheet4.xml': strToU8(worksheetXml(recordedDetailRows, [13, 12, 20, 18, 24, 24, 20, 18, 23, 18])),
   };
 
   return zipSync(files, { level: 6 });
@@ -314,13 +348,14 @@ export async function exportTrainingReportXlsx(
   rows: StaffTrainingReportRow[],
   startDate: string,
   endDate: string,
+  recordedRows: StaffRecordedAttendanceRow[],
 ) {
   const safeStart = startDate.replaceAll('-', '');
   const safeEnd = endDate.replaceAll('-', '');
   const file = new File(Paths.cache, `UCAPSA_estadisticas_clases_${safeStart}_${safeEnd}.xlsx`);
   if (file.exists) file.delete();
   file.create();
-  await file.write(workbookBytes(rows, startDate, endDate));
+  await file.write(workbookBytes(rows, startDate, endDate, recordedRows));
 
   if (await Sharing.isAvailableAsync()) {
     await Sharing.shareAsync(file.uri, {
