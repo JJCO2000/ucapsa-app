@@ -12,6 +12,18 @@ export type ActivityAchievementDefinition = {
   icon: ComponentProps<typeof MaterialIcons>['name'];
 };
 
+/** Metadatos visuales canónicos: el preview y el catálogo deben coincidir. */
+export const activityAchievementCategoryMeta = {
+  attendance: { title: 'Asistencias', icon: 'school', tone: 'yellow' },
+  practice: { title: 'Práctica', icon: 'pets', tone: 'green' },
+  visits: { title: 'Visitas de socio', icon: 'badge', tone: 'blue' },
+  streak: { title: 'Rachas', icon: 'local-fire-department', tone: 'purple' },
+} as const satisfies Record<ActivityAchievementMetric, {
+  title: string;
+  icon: ComponentProps<typeof MaterialIcons>['name'];
+  tone: 'yellow' | 'green' | 'blue' | 'purple';
+}>;
+
 export const activityAchievementDefinitions: ActivityAchievementDefinition[] = [
   { code: 'attendance_1', metric: 'attendance', threshold: 1, title: 'Primera clase', description: 'Registra tu primera asistencia a clase.', icon: 'school' },
   { code: 'attendance_5', metric: 'attendance', threshold: 5, title: 'En ritmo', description: 'Llega a 5 clases asistidas.', icon: 'school' },
