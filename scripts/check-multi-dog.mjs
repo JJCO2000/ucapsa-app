@@ -89,8 +89,8 @@ requirePattern(
 );
 requirePattern(
   'src/app/client/activity-achievements.tsx',
-  /onPress=\{\(\) => onSelect\(definition\)\}/,
-  'Las insignias individuales dejaron de abrir detalle.',
+  /collections\.map\(\(collection\) =>[\s\S]*setSelectedMetric\(collection\.metric\)/,
+  'Cada categoría debe abrir su propio detalle sin mostrar niveles duplicados.',
 );
 requirePattern(
   'src/services/client-activity.service.ts',
@@ -103,24 +103,43 @@ requirePattern(
   'Colores y símbolos de actividad perdieron su fuente compartida.',
 );
 
-// Presentación compacta: los badges de actividad siguen siendo específicos
-// por perro, sin mezclar visitas de socio y sin la nota técnica en la interfaz.
+// Duolingo-like: la vitrina muestra UNA insignia por categoría.
+// Los umbrales son niveles dentro del detalle, nunca nuevas tarjetas.
 requirePattern(
   'src/app/client/activity-achievements.tsx',
-  /styles\.badgeGrid[\s\S]*definitions\.map\(\(definition\)/,
-  'Actividad perdió la colección de insignias en cuadrícula.',
+  /buildActivityAchievementCollections\(facts,[\s\S]*includeMemberVisits: premium && !scopedDogId/,
+  'La colección dejó de basarse en el catálogo y su alcance real.',
 );
 requirePattern(
   'src/app/client/activity-achievements.tsx',
-  /accessibilityLabel=\{definition\.title[\s\S]*onSelect\(definition\)/,
-  'Las insignias individuales perdieron su detalle navegable.',
+  /collections\.map\(\(collection\)/,
+  'Las tarjetas ya no se generan dinámicamente desde el catálogo.',
 );
 requirePattern(
   'src/app/client/activity-achievements.tsx',
-  /Modal visible=\{Boolean\(selectedDefinition\)\}/,
-  'El detalle de insignia dejó de abrirse como pantalla inmersiva.',
+  /Nivel \$\{collection\.currentLevel\} de \$\{collection\.totalLevels\}/,
+  'Se perdió el nivel conseguido de niveles totales.',
 );
-if (read('src/app/client/activity-achievements.tsx').includes('las visitas de socio son métricas de la cuenta')) {
+requirePattern(
+  'src/app/client/activity-achievements.tsx',
+  /collection\.levels\.map\(\(level, index\)/,
+  'El detalle dejó de mostrar los niveles pasados y siguientes.',
+);
+requirePattern(
+  'src/app/client/activity-achievements.tsx',
+  /Modal visible=\{Boolean\(selectedCollection\)\}/,
+  'El detalle de insignia dejó de abrirse a pantalla completa.',
+);
+requirePattern(
+  'src/app/(tabs)/dog.tsx',
+  /buildActivityAchievementCollections\(/,
+  'El resumen del perro ya no reutiliza la fuente de niveles.',
+);
+const achievementScreen = read('src/app/client/activity-achievements.tsx');
+if (/TU SIGUIENTE LOGRO|nextAchievement|styles\.nextCard|definitions\.map\(\(definition\)/.test(achievementScreen)) {
+  failures.push('Vitrina reintrodujo objetivos extra o insignias duplicadas por nivel.');
+}
+if (achievementScreen.includes('las visitas de socio son métricas de la cuenta')) {
   failures.push('Se reintrodujo la explicación técnica rechazada en Insignias de actividad.');
 }
 
