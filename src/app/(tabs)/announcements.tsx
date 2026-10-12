@@ -120,14 +120,14 @@ export default function AnnouncementsScreen() {
         </View>
 
         <View style={[styles.sectionSwitch, { borderColor: format.border, backgroundColor: format.surface }]}>
-          <Pressable
+          <View
             accessibilityRole="tab"
             accessibilityState={{ selected: true }}
             style={[styles.switchButton, styles.switchButtonActive, { backgroundColor: format.primaryButton }]}
           >
             <MaterialIcons name="campaign" size={18} color={format.primaryButtonText} />
             <Text style={[styles.switchText, { color: format.primaryButtonText }]}>Avisos</Text>
-          </Pressable>
+          </View>
           <Pressable
             accessibilityRole="tab"
             accessibilityState={{ selected: false }}
