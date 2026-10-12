@@ -20,6 +20,17 @@ export default function AdminMoreTab() {
         <Text style={styles.subtitle}>Opciones poco frecuentes que no necesitan ocupar una pestaña principal.</Text>
       </View>
 
+      <Text style={styles.sectionTitle}>Operación especial</Text>
+      <View style={styles.card}>
+        <MenuRow
+          icon="restaurant-menu"
+          title="Restaurante"
+          subtitle="Editar menú, precios y disponibilidad"
+          onPress={() => router.push('/admin/restaurant' as never)}
+          last
+        />
+      </View>
+
       <Text style={styles.sectionTitle}>Entrenamiento · herramientas operativas</Text>
       <View style={styles.card}>
         <MenuRow
@@ -39,17 +50,6 @@ export default function AdminMoreTab() {
           title="Reporte de asistencia"
           subtitle="Excel de clases y ausencias por rango"
           onPress={() => router.push('/staff/training-report' as never)}
-          last
-        />
-      </View>
-
-      <Text style={styles.sectionTitle}>Operación especial</Text>
-      <View style={styles.card}>
-        <MenuRow
-          icon="restaurant-menu"
-          title="Restaurante"
-          subtitle="Editar menú, precios y disponibilidad"
-          onPress={() => router.push('/admin/restaurant' as never)}
           last
         />
       </View>
