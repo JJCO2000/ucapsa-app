@@ -45,8 +45,17 @@ if (!sql.includes("v_items_count = 0 or v_results_count <> v_items_count")) {
   throw new Error('Reviewed attempts must require a complete set of item results.');
 }
 
-if (!sql.includes("coalesce(req.required_exams_count, 0) > 0")) {
-  throw new Error('Eligibility must remain false until at least one required published exam exists.');
+if (!sql.includes('coalesce(done.completed_required_exams_count, 0) = coalesce(req.required_exams_count, 0)')) {
+  throw new Error('Eligibility must require all published mandatory exams; no mandatory exams means no exam gate.');
+}
+const migration = fs.readFileSync('supabase/migrations/20261012211000_exam_eligibility_zero_required_allowed.sql', 'utf8');
+for (const token of [
+  'with (security_invoker = true)',
+  'coalesce(done.completed_required_exams_count, 0) =',
+  'coalesce(req.required_exams_count, 0)',
+  'ucapsa_exam_eligibility',
+]) {
+  if (!migration.includes(token)) throw new Error('Exam eligibility migration lost rule: ' + token);
 }
 
 function extractFunction(text, name) {
