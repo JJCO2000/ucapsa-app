@@ -15,6 +15,43 @@ const migration = fs.readFileSync('supabase/sql/ucapsa-store-privacy-v1-1.sql', 
 const hostingFix = fs.readFileSync('supabase/sql/ucapsa-public-legal-url-fix.sql', 'utf8');
 const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 const app = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+// GitHub Pages publica HTML desde main/docs y reutiliza los textos legales
+// sin duplicarlos en archivos que puedan quedar desactualizados.
+const pagesConfig = fs.readFileSync('docs/_config.yml', 'utf8');
+const pagesLayout = fs.readFileSync('docs/_layouts/legal.html', 'utf8');
+const pagesIndex = fs.readFileSync('docs/index.html', 'utf8');
+const pagesPrivacy = fs.readFileSync('docs/legal/privacidad.html', 'utf8');
+const pagesDelete = fs.readFileSync('docs/legal/eliminar-cuenta.html', 'utf8');
+const pagesCss = fs.readFileSync('docs/assets/legal.css', 'utf8');
+const pagesHost = 'https://jjco2000.github.io/ucapsa-app';
+if (!pagesConfig.includes('baseurl: "/ucapsa-app"') || !pagesConfig.includes('url: "https://jjco2000.github.io"')) {
+  throw new Error('GitHub Pages perdido: host o baseurl');
+}
+for (const [page, source, expectedPath] of [
+  [pagesPrivacy, 'AVISO_PRIVACIDAD_UCAPSA_APP.md', '/privacidad/'],
+  [pagesDelete, 'ELIMINAR_CUENTA_UCAPSA_APP.md', '/eliminar-cuenta/'],
+]) {
+  if (!page.includes('{% include_relative ' + source + ' %}') ||
+      !page.includes('permalink: ' + expectedPath) ||
+      !page.includes('| markdownify')) {
+    throw new Error('Página legal debe renderizar el documento canónico como HTML: ' + expectedPath);
+  }
+}
+if (!pagesPrivacy.includes(pagesHost + '/eliminar-cuenta/') ||
+    !pagesDelete.includes(pagesHost + '/privacidad/')) {
+  throw new Error('La web legal debe enlazar correctamente ambas páginas públicas.');
+}
+for (const token of ['<html lang="es-MX">', '{{ content }}', 'privacy', 'eliminar-cuenta', 'viewport']) {
+  // "privacy" está en la meta descripción de la página principal, no en inglés.
+  if (token !== 'privacy' && !pagesLayout.includes(token)) {
+    throw new Error('Layout web legal incompleto: ' + token);
+  }
+}
+if (!pagesIndex.includes('/privacidad/') || !pagesIndex.includes('/eliminar-cuenta/') ||
+    !pagesCss.includes('@media(max-width:700px)')) {
+  throw new Error('Sitio legal carece de entrada pública, navegación o formato móvil.');
+}
+
 
 for (const token of [
   "UCAPSA_TERMS_VERSION = '1.2'",

@@ -1,0 +1,10 @@
+---
+layout: legal
+title: "Eliminar cuenta y datos"
+description: "Cómo solicitar la eliminación de cuenta y datos de UCAPSA App sin iniciar sesión"
+permalink: /eliminar-cuenta/
+---
+{% capture eliminacion_fuente %}{% include_relative ELIMINAR_CUENTA_UCAPSA_APP.md %}{% endcapture %}
+{{ eliminacion_fuente
+  | replace: "./AVISO_PRIVACIDAD_UCAPSA_APP.md", "https://jjco2000.github.io/ucapsa-app/privacidad/"
+  | markdownify }}

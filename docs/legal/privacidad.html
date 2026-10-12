@@ -1,0 +1,11 @@
+---
+layout: legal
+title: "Aviso de privacidad"
+description: "Aviso de privacidad integral de UCAPSA App, tratamiento de datos personales y derechos ARCO"
+permalink: /privacidad/
+---
+{% capture aviso_fuente %}{% include_relative AVISO_PRIVACIDAD_UCAPSA_APP.md %}{% endcapture %}
+{{ aviso_fuente
+  | replace: "https://github.com/JJCO2000/ucapsa-app/blob/main/docs/legal/AVISO_PRIVACIDAD_UCAPSA_APP.md", "https://jjco2000.github.io/ucapsa-app/privacidad/"
+  | replace: "https://github.com/JJCO2000/ucapsa-app/blob/main/docs/legal/ELIMINAR_CUENTA_UCAPSA_APP.md", "https://jjco2000.github.io/ucapsa-app/eliminar-cuenta/"
+  | markdownify }}

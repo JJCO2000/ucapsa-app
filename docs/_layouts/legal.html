@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es-MX">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <meta name="description" content="{{ page.description | default: site.description | escape }}">
+    <meta name="robots" content="index,follow">
+    <link rel="canonical" href="{{ page.url | absolute_url }}">
+    <link rel="stylesheet" href="{{ '/assets/legal.css' | relative_url }}">
+    <title>{{ page.title | escape }} · UCAPSA</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#contenido">Ir al contenido</a>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="{{ '/' | relative_url }}" aria-label="UCAPSA, inicio legal">UCAPSA <span>App</span></a>
+        <nav aria-label="Información legal">
+          <a href="{{ '/privacidad/' | relative_url }}"{% if page.url == '/privacidad/' %} aria-current="page"{% endif %}>Privacidad</a>
+          <a href="{{ '/eliminar-cuenta/' | relative_url }}"{% if page.url == '/eliminar-cuenta/' %} aria-current="page"{% endif %}>Eliminar cuenta</a>
+        </nav>
+      </div>
+    </header>
+    <main id="contenido" class="content" tabindex="-1">
+      {{ content }}
+    </main>
+    <footer class="site-footer">
+      <p>Universidad de Crianza y Adiestramiento S.A. de C.V. · UCAPSA App</p>
+      <p>Contacto de privacidad: <a href="mailto:ucapsa84@gmail.com">ucapsa84@gmail.com</a></p>
+      <p><a href="{{ '/privacidad/' | relative_url }}">Aviso de privacidad</a> · <a href="{{ '/eliminar-cuenta/' | relative_url }}">Eliminación de cuenta</a></p>
+    </footer>
+  </body>
+</html>
