@@ -1,0 +1,10 @@
+title: "UCAPSA | Información legal"
+description: "Aviso de privacidad y eliminación de cuenta de UCAPSA App"
+url: "https://jjco2000.github.io"
+baseurl: "/ucapsa-app"
+lang: "es-MX"
+markdown: kramdown
+kramdown:
+  input: GFM
+exclude:
+  - README.md
