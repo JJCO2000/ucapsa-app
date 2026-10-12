@@ -43,8 +43,11 @@ for (const token of [
 ]) {
   if (!appTypes.includes(token)) throw new Error('App role contract missing trainer: ' + token);
 }
-if (!dbTypes.includes('app_role: "client" | "member" | "trainer" | "admin" | "super_admin"')) {
-  throw new Error('Generated DB enum union is missing trainer.');
+const generatedAppRole = dbTypes.match(/app_role:\\s*([^\\n]+)/)?.[1] ?? '';
+for (const role of ['client', 'member', 'trainer', 'admin', 'super_admin']) {
+  if (!generatedAppRole.includes('"' + role + '"')) {
+    throw new Error('Generated DB enum union is missing role ' + role);
+  }
 }
 
 for (const token of [
