@@ -3,11 +3,9 @@ import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
-import { StaffWorkspaceSwitcher } from '../../components/domain/StaffWorkspaceSwitcher';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
-import { useStaffWorkspace } from '../../hooks/useStaffWorkspace';
 import { devWarn } from '../../lib/client-diagnostics';
 import { getAdminClassRsvpSummary, tomorrowDateKey, type AdminClassRsvpSummary } from '../../services/class-rsvp.service';
 import { getAdminMembershipRows } from '../../services/memberships.service';
@@ -98,7 +96,6 @@ const emptyStats: DashboardStats = {
 
 export default function AdminHomeTab() {
   const { user, profile, role, isAdmin } = useSession();
-  const { mode: staffWorkspaceMode, loading: workspaceLoading } = useStaffWorkspace();
   const [stats, setStats] = useState<DashboardStats>(emptyStats);
   const [tomorrowClasses, setTomorrowClasses] = useState<AdminClassRsvpSummary[]>([]);
   const [tomorrowSummaryFailed, setTomorrowSummaryFailed] = useState(false);
@@ -180,7 +177,6 @@ export default function AdminHomeTab() {
   }
 
   if (!isAdmin) return <Redirect href="/home" />;
-  if (!workspaceLoading && staffWorkspaceMode === 'trainer') return <Redirect href="/trainer-home" />;
 
   return (
     <KeyboardAwareScreen
@@ -202,7 +198,6 @@ export default function AdminHomeTab() {
           </Pressable>
         </View>
         <Text style={styles.subtitle}>Inicio sólo muestra lo que necesita una decisión tuya.</Text>
-        <View style={styles.modeSwitch}><StaffWorkspaceSwitcher /></View>
       </View>
 
       {loading ? (
@@ -429,7 +424,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   title: { color: ucapsaBrand.colors.surface, fontSize: 28, fontWeight: '900' },
-  modeSwitch: { marginTop: 12 },
   subtitle: { color: ucapsaBrand.colors.redSoft, fontSize: 14, lineHeight: 20, fontWeight: '700' },
   toolsButton: {
     width: 42,

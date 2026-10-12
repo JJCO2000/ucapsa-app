@@ -6,7 +6,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
-import { useStaffWorkspace } from '../../hooks/useStaffWorkspace';
 
 function TabIcon({
   name,
@@ -40,13 +39,13 @@ function TabIcon({
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const { user, role, isAdmin, isTrainer, isStaff } = useSession();
-  const { mode: staffWorkspaceMode } = useStaffWorkspace();
   const format = resolveUcapsaFormat({ user, role, isAdmin });
   const systemBottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 20 : 10);
   const navigationBreathingRoom = Platform.OS === 'android' ? 8 : 4;
   const tabBottomInset = systemBottomInset + navigationBreathingRoom;
-  const trainerWorkspace = isTrainer || (isAdmin && staffWorkspaceMode === 'trainer');
-  const adminWorkspace = isAdmin && !trainerWorkspace;
+  // El rol asignado por Superadmin es la única fuente de acceso.
+  const trainerWorkspace = isTrainer;
+  const adminWorkspace = isAdmin;
   const isPremium = format.key === 'member';
   const tabBackground = isStaff
     ? ucapsaBrand.colors.surface

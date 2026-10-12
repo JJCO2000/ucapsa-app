@@ -402,13 +402,6 @@ export default function HomeExperienceScreen() {
         />
       ) : null}
 
-      {!loading && user ? (
-        <Pressable style={styles.noticeLinkOnly} onPress={() => router.push('/announcements' as never)}>
-          <MaterialIcons name="campaign" size={17} color={format.accentDark} />
-          <Text style={[styles.noticeLinkOnlyText, { color: format.accentDark }]}>Ver avisos UCAPSA</Text>
-        </Pressable>
-      ) : null}
-
       {!loading && user && snapshot ? (
         <ActivityCard
           snapshot={snapshot}
@@ -419,6 +412,13 @@ export default function HomeExperienceScreen() {
           onPractices={() => router.push('/client/practice-activity' as never)}
           onQr={() => router.push('/attendance' as never)}
         />
+      ) : null}
+
+      {!loading && user ? (
+        <Pressable style={styles.noticeLinkOnly} onPress={() => router.push('/announcements' as never)}>
+          <MaterialIcons name="campaign" size={17} color={format.accentDark} />
+          <Text style={[styles.noticeLinkOnlyText, { color: format.accentDark }]}>Ver avisos UCAPSA</Text>
+        </Pressable>
       ) : null}
 
       {!loading && contextKind === 'notice' && homeNotice ? (

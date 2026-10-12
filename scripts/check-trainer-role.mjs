@@ -21,9 +21,8 @@ const trainerSql = read('supabase/sql/ucapsa-trainer-workspace.sql');
 const trainerModeSql = read('supabase/sql/ucapsa-trainer-workspace-exam-upload.sql');
 const trainerDogScopeSql = read('supabase/sql/ucapsa-trainer-dog-access-scope.sql');
 const trainerSqlAll = trainerSql + '\n' + trainerModeSql + '\n' + trainerDogScopeSql;
-const staffWorkspace = read('src/hooks/useStaffWorkspace.tsx');
-const staffWorkspaceService = read('src/services/staff-workspace-storage.service.ts');
-const staffSwitcher = read('src/components/domain/StaffWorkspaceSwitcher.tsx');
+const adminMore = read('src/app/(tabs)/admin-more.tsx');
+const rootLayout = read('src/app/_layout.tsx');
 const examXlsx = read('src/services/ucapsa-exam-xlsx.ts');
 const users = read('src/app/admin/users.tsx');
 const adminHome = read('src/app/(tabs)/admin-home.tsx');
@@ -46,7 +45,6 @@ if (!dbTypes.includes('app_role: "client" | "member" | "trainer" | "admin" | "su
 
 for (const token of [
   'canUseTrainingWorkspace: true',
-  'canSwitchStaffWorkspace: true',
   'canManageClassRoster: true',
   'canRecordAttendance: true',
   'canUploadExamDefinition: true',
@@ -328,24 +326,32 @@ for (const token of [
   if (!trainerService.includes(token)) throw new Error('Trainer app service boundary missing: ' + token);
 }
 
-for (const token of [
-  "export type StaffWorkspaceMode = 'admin' | 'trainer'",
-  'canSwitchStaffWorkspace',
-  'readStaffWorkspaceMode',
-  'writeStaffWorkspaceMode',
+// El rol del servidor gobierna la navegación; no hay un modo persistido ni
+// un selector con el que Admin/Superadmin puedan simular otro rol.
+for (const [name, source] of [
+  ['root', rootLayout], ['tabs', tabs], ['admin home', adminHome],
+  ['trainer home', trainerHome], ['trainer more', trainerMore],
 ]) {
-  if (!staffWorkspace.includes(token)) throw new Error('Staff workspace mode missing: ' + token);
+  if (/useStaffWorkspace|StaffWorkspaceSwitcher|StaffWorkspaceProvider|staffWorkspaceMode/.test(source)) {
+    throw new Error('Selector de modo de staff reintroducido en ' + name);
+  }
 }
-for (const token of [
-  "value === 'trainer' ? 'trainer' : 'admin'",
-  'AsyncStorage.getItem',
-  'AsyncStorage.setItem',
-]) {
-  if (!staffWorkspaceService.includes(token)) throw new Error('Staff workspace persistence missing: ' + token);
+for (const token of ['const trainerWorkspace = isTrainer;', 'const adminWorkspace = isAdmin;']) {
+  if (!tabs.includes(token)) throw new Error('La navegación debe basarse exclusivamente en el rol: ' + token);
 }
-for (const token of ['Administración', 'Entrenamiento', '/trainer-home', '/admin-home']) {
-  if (!staffSwitcher.includes(token)) throw new Error('Staff workspace switcher missing: ' + token);
+for (const target of ['/trainer-classes', '/trainer-exams', '/staff/training-report']) {
+  if (!adminMore.includes(target)) throw new Error('Admin perdió una herramienta operativa: ' + target);
 }
+if (!adminMore.includes('/admin/restaurant')) {
+  throw new Error('El acceso a Restaurante desapareció de Herramientas de Admin.');
+}
+if (adminHome.includes('/admin/restaurant')) {
+  throw new Error('Inicio Admin es una bandeja de decisiones, no un menú de herramientas.');
+}
+if (!trainerHome.includes('if (isAdmin) return <Redirect href="/admin-home" />')) {
+  throw new Error('Admin debe mantener su propio Inicio.');
+}
+
 for (const token of [
   'parseUcapsaExamDefinitionXlsx',
   'pickAndParseUcapsaExamDefinitionXlsx',
@@ -366,6 +372,20 @@ for (const token of [
 if (trainerClasses.includes('setDateKey(today); setLoading(true)') || trainerClasses.includes('setDateKey(tomorrow); setLoading(true)')) {
   throw new Error('Roster day reselection spinner regression detected.');
 }
+
+for (const token of [
+  "import { Calendar, type DateData } from 'react-native-calendars'",
+  'onDayPress={(day: DateData) => selectDate(day.dateString)}',
+  "setFocusedScheduleId('')",
+  'setExpandedScheduleId(null)',
+  'accessibilityState={{ expanded: expandedScheduleId === group.scheduleId }}',
+  'expandedScheduleId === group.scheduleId ? group.rows.map',
+  'const canMarkAttendance = dateKey === today',
+  'loadRunRef.current += 1',
+]) {
+  if (!trainerClasses.includes(token)) throw new Error('Calendario/roster colapsado perdió una protección: ' + token);
+}
+
 
 if (!pkg.includes('"check:trainer-role"')) {
   throw new Error('npm verify does not include trainer role guard.');
