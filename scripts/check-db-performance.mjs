@@ -2,6 +2,7 @@ import fs from 'node:fs';
 
 const sql = fs.readFileSync('supabase/sql/ucapsa-db-performance-hardening.sql', 'utf8');
 const rlsSql = fs.readFileSync('supabase/sql/ucapsa-rls-select-overlap-cleanup.sql', 'utf8');
+const membershipDogAccessRls = fs.readFileSync('supabase/sql/ucapsa-membership-dog-access-rls-performance.sql', 'utf8');
 const pkg = fs.readFileSync('package.json', 'utf8');
 
 const required = [
@@ -44,6 +45,16 @@ for (const token of rlsRequired) {
 
 if (!rlsSql.includes('do $ucapsa$') || !rlsSql.includes('$ucapsa$;')) {
   throw new Error('RLS cleanup must use the tagged $ucapsa$ DO delimiter.');
+}
+
+for (const token of [
+  'alter policy "membership_dog_access_owner_select"',
+  'user_id = (select auth.uid())',
+  'or (select public.is_ucapsa_admin())',
+]) {
+  if (!membershipDogAccessRls.includes(token)) {
+    throw new Error('membership_dog_access RLS performance contract missing: ' + token);
+  }
 }
 
 for (const canonicalReadPolicy of [
