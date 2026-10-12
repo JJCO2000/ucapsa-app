@@ -1211,6 +1211,19 @@ begin
     v_row_number := v_row_number + 1;
   end loop;
 
+  -- Keep the canonical audit lifecycle: draft -> validated -> committed.
+  -- All rows and scores have already passed validation before this point.
+  update public.ucapsa_import_batches
+  set
+    status = 'validated',
+    metadata = metadata || jsonb_build_object(
+      'exam_snapshot', public.ucapsa_exam_import_snapshot(p_exam_id),
+      'validated_rows', v_rows_total,
+      'validated_at', clock_timestamp()
+    ),
+    updated_at = clock_timestamp()
+  where id = v_batch_id;
+
   update public.ucapsa_import_batches
   set
     status = 'committed',
