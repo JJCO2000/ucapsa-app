@@ -7,6 +7,7 @@ import { Calendar, type DateData } from 'react-native-calendars';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
+import { CalendarActivityRing } from '../../components/calendar/CalendarActivityRing';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import { getVisibleAnnouncements } from '../../services/announcements.service';
@@ -23,7 +24,8 @@ import {
   type AdminRosterLevel,
 } from '../../services/admin-class-roster.service';
 import type { Announcement, EventOccurrence, EventOccurrenceCancellation, ProgramClassCancellation, ProgramEnrollmentWithDetails, ProgramSchedule, UcapsaEvent, UcapsaProgram } from '../../types/app.types';
-import { expandEventOccurrences, formatDateKey , toDateKey, todayKey } from '../../utils/events.utils';
+import { expandEventOccurrences, formatDateKey, toDateKey, todayKey } from '../../utils/events.utils';
+import { buildCalendarServiceKinds } from '../../utils/calendar-service-rings.utils';
 import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
 
 type ClassOccurrence = {
@@ -58,22 +60,6 @@ function toLocalDateKey(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function getWeekDateKeys(dateKey: string) {
-  const selected = parseLocalDate(dateKey);
-  const day = selected.getDay();
-  const mondayOffset = day === 0 ? -6 : 1 - day;
-  const monday = addDays(selected, mondayOffset);
-  return Array.from({ length: 7 }, (_, index) => toLocalDateKey(addDays(monday, index)));
-}
-
-function shortWeekday(dateKey: string) {
-  return parseLocalDate(dateKey).toLocaleDateString('es-MX', { weekday: 'short' }).replace('.', '');
-}
-
-function dayNumber(dateKey: string) {
-  return String(parseLocalDate(dateKey).getDate());
-}
-
 function getCancellationKey(scheduleId: string, dateKey: string) {
   return `${scheduleId}:${dateKey}`;
 }
@@ -86,14 +72,14 @@ function getActiveCancellationKeys(cancellations: ProgramClassCancellation[]) {
   );
 }
 
-function expandClassOccurrences(schedules: ProgramSchedule[], programs: UcapsaProgram[], daysAhead = 120, cancellations: ProgramClassCancellation[] = []): ClassOccurrence[] {
+function expandClassOccurrences(schedules: ProgramSchedule[], programs: UcapsaProgram[], daysAhead = 365, cancellations: ProgramClassCancellation[] = [], daysBehind = 365): ClassOccurrence[] {
   const programById = new Map(programs.map((program) => [program.id, program]));
   const activeCancellations = cancellations.filter((item) => !item.restored_at);
   const cancellationByKey = new Map(activeCancellations.map((item) => [getCancellationKey(item.schedule_id, item.cancellation_date), item]));
-  const start = parseLocalDate(todayKey());
+  const start = addDays(parseLocalDate(todayKey()), -daysBehind);
   const items: ClassOccurrence[] = [];
 
-  for (let offset = 0; offset <= daysAhead; offset += 1) {
+  for (let offset = 0; offset <= daysAhead + daysBehind; offset += 1) {
     const current = addDays(start, offset);
     const dateKey = toLocalDateKey(current);
 
@@ -156,7 +142,6 @@ export default function CalendarScreen() {
   const [practiceActivity, setPracticeActivity] = useState<PracticeActivityEntry[]>([]);
   const [practiceLoadWarning, setPracticeLoadWarning] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(todayKey());
-  const [monthExpanded, setMonthExpanded] = useState(true);
   const [openRoster, setOpenRoster] = useState<{ occurrenceId: string; level: AdminRosterLevel } | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -174,10 +159,6 @@ export default function CalendarScreen() {
       setSelectedDate(requestedDate);
     }
   }, [requestedDate]);
-
-  useEffect(() => {
-    if (isAdmin) setMonthExpanded(true);
-  }, [isAdmin]);
 
     const cacheScope = user?.id ?? 'public';
 
@@ -340,7 +321,7 @@ export default function CalendarScreen() {
     () => expandEventOccurrences(events, eventCancellations),
     [eventCancellations, events],
   );
-  const classOccurrences = useMemo(() => expandClassOccurrences(programSchedules, programs, 120, classCancellations), [classCancellations, programSchedules, programs]);
+  const classOccurrences = useMemo(() => expandClassOccurrences(programSchedules, programs, 365, classCancellations), [classCancellations, programSchedules, programs]);
 
   const selectedEvents = useMemo(
     () => occurrences.filter((occurrence) => toDateKey(occurrence.start_date) === selectedDate),
@@ -362,36 +343,18 @@ export default function CalendarScreen() {
     [practiceActivity, selectedDate],
   );
 
-  const weekDateKeys = useMemo(() => getWeekDateKeys(selectedDate), [selectedDate]);
-
-  const activityDateKeys = useMemo(() => {
-    const keys = new Set<string>();
-    for (const occurrence of occurrences) {
-      const key = toDateKey(occurrence.start_date);
-      if (key) keys.add(key);
-    }
-    for (const occurrence of classOccurrences) keys.add(occurrence.dateKey);
-    for (const announcement of announcements) {
-      const key = announcementDateKey(announcement);
-      if (key) keys.add(key);
-    }
-    if (user && !isAdmin) {
-      for (const practice of practiceActivity) keys.add(toLocalDateKey(new Date(practice.completedAt)));
-    }
-    return keys;
-  }, [announcements, classOccurrences, isAdmin, occurrences, practiceActivity, user]);
-
-  const markedDates = useMemo(() => {
-    const marks: Record<string, any> = {};
-    for (const key of activityDateKeys) marks[key] = { marked: true, dotColor: ucapsaBrand.colors.red };
-    marks[selectedDate] = {
-      ...(marks[selectedDate] ?? {}),
-      selected: true,
-      selectedColor: ucapsaBrand.colors.red,
-      selectedTextColor: ucapsaBrand.colors.surface,
-    };
-    return marks;
-  }, [activityDateKeys, selectedDate]);
+  // Only actual non-cancelled classes and events mark an offered service.
+  // Announcements and private practice entries never imply a class is available.
+  const servicesByDate = useMemo(() => buildCalendarServiceKinds(
+    classOccurrences.map((occurrence) => ({
+      dateKey: occurrence.dateKey,
+      programCode: occurrence.program?.code,
+      cancelled: Boolean(occurrence.cancellation),
+    })),
+    occurrences
+      .map((occurrence) => toDateKey(occurrence.start_date))
+      .filter((dateKey): dateKey is string => Boolean(dateKey)),
+  ), [classOccurrences, occurrences]);
 
   type DayAgendaItem = {
     id: string;
@@ -552,70 +515,54 @@ export default function CalendarScreen() {
                     <Text style={[styles.compactActionText, { color: format.accentDark }]}>Hoy</Text>
                   </Pressable>
                 ) : null}
-                <Pressable accessibilityRole="button" accessibilityLabel={monthExpanded ? 'Ver semana' : 'Ver mes'} style={[styles.compactAction, { borderColor: format.cardBorder }]} onPress={() => setMonthExpanded((value) => !value)}>
-                  <MaterialIcons name={monthExpanded ? 'view-week' : 'calendar-month'} size={17} color={format.accentDark} />
-                  <Text style={[styles.compactActionText, { color: format.accentDark }]}>{monthExpanded ? 'Semana' : 'Mes'}</Text>
-                </Pressable>
               </View>
 
-              {monthExpanded ? (
-                <Calendar
-                  current={selectedDate}
-                  onDayPress={(day: DateData) => {
-                    setSelectedDate(day.dateString);
-                    if (!isAdmin) setMonthExpanded(true);
-                  }}
-                  markedDates={markedDates}
-                  firstDay={1}
-                  enableSwipeMonths
-                  theme={{
-                    calendarBackground: ucapsaBrand.colors.surface,
-                    textSectionTitleColor: ucapsaBrand.colors.muted,
-                    selectedDayBackgroundColor: ucapsaBrand.colors.red,
-                    selectedDayTextColor: ucapsaBrand.colors.surface,
-                    todayTextColor: ucapsaBrand.colors.red,
-                    dayTextColor: ucapsaBrand.colors.text,
-                    monthTextColor: ucapsaBrand.colors.text,
-                    arrowColor: ucapsaBrand.colors.red,
-                    textDayFontWeight: '700',
-                    textMonthFontWeight: '900',
-                    textDayHeaderFontWeight: '800',
-                  }}
-                />
-              ) : (
-                <>
-                  <View style={styles.weekNav}>
-                    <Pressable accessibilityRole="button" accessibilityLabel="Semana anterior" style={styles.weekNavArrow} onPress={() => setSelectedDate(toLocalDateKey(addDays(parseLocalDate(selectedDate), -7)))}>
-                      <MaterialIcons name="chevron-left" size={21} color={format.accentDark} />
-                    </Pressable>
-                    <Text style={[styles.weekNavLabel, { color: format.muted }]}>{formatDateKey(weekDateKeys[0])} – {formatDateKey(weekDateKeys[6])}</Text>
-                    <Pressable accessibilityRole="button" accessibilityLabel="Semana siguiente" style={styles.weekNavArrow} onPress={() => setSelectedDate(toLocalDateKey(addDays(parseLocalDate(selectedDate), 7)))}>
-                      <MaterialIcons name="chevron-right" size={21} color={format.accentDark} />
-                    </Pressable>
+              <Calendar
+                current={selectedDate}
+                onDayPress={(day: DateData) => setSelectedDate(day.dateString)}
+                dayComponent={({ date, state }) => {
+                  if (!date?.dateString) return null;
+                  const dateKey = date.dateString;
+                  return (
+                    <CalendarActivityRing
+                      dateLabel={formatDateKey(dateKey)}
+                      dayNumber={date.day}
+                      kinds={servicesByDate[dateKey] ?? []}
+                      selected={selectedDate === dateKey}
+                      today={todayKey() === dateKey}
+                      outsideMonth={state === 'disabled'}
+                      onPress={() => setSelectedDate(dateKey)}
+                    />
+                  );
+                }}
+                firstDay={1}
+                enableSwipeMonths
+                theme={{
+                  calendarBackground: ucapsaBrand.colors.surface,
+                  textSectionTitleColor: ucapsaBrand.colors.muted,
+                  todayTextColor: ucapsaBrand.colors.redDark,
+                  monthTextColor: ucapsaBrand.colors.text,
+                  arrowColor: ucapsaBrand.colors.red,
+                  textMonthFontWeight: '900',
+                  textDayHeaderFontWeight: '800',
+                }}
+              />
+              <View style={styles.ringLegend}>
+                {([
+                  { label: 'Sin actividad', color: ucapsaBrand.colors.borderNeutral },
+                  { label: 'Puppy', color: ucapsaBrand.colors.gold },
+                  { label: 'Comandos', color: ucapsaBrand.colors.blue },
+                  { label: 'Otras actividades', color: ucapsaBrand.colors.red },
+                ]).map((item) => (
+                  <View key={item.label} style={styles.ringLegendItem}>
+                    <View style={[styles.ringLegendCircle, { borderColor: item.color }]} />
+                    <Text style={[styles.ringLegendText, { color: format.muted }]}>{item.label}</Text>
                   </View>
-                  <View style={styles.weekStrip}>
-                    {weekDateKeys.map((dateKey) => {
-                      const selected = dateKey === selectedDate;
-                      const isToday = dateKey === todayKey();
-                      const hasActivity = activityDateKeys.has(dateKey);
-                      return (
-                        <Pressable
-                          key={dateKey}
-                          accessibilityRole="button"
-                          accessibilityState={{ selected }}
-                          accessibilityLabel={formatDateKey(dateKey)}
-                          style={[styles.weekDayCompact, { backgroundColor: selected ? format.primaryButton : 'transparent' }]}
-                          onPress={() => setSelectedDate(dateKey)}
-                        >
-                          <Text style={[styles.weekDayName, { color: selected ? format.primaryButtonText : format.muted }]}>{shortWeekday(dateKey)}</Text>
-                          <Text style={[styles.weekDayNumber, { color: selected ? format.primaryButtonText : isToday ? format.accentDark : format.cardText }]}>{dayNumber(dateKey)}</Text>
-                          <View style={[styles.activityDot, { opacity: hasActivity ? 1 : 0, backgroundColor: selected ? format.primaryButtonText : format.accent }]} />
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                </>
-              )}
+                ))}
+              </View>
+              <Text style={[styles.calendarHint, { color: format.muted }]}>
+                Los colores se combinan en el anillo cuando coinciden servicios. Toca un día para ver su agenda.
+              </Text>
 
               <View style={[styles.daySchedule, { borderTopColor: format.cardBorder }]}>
                   {dayAgendaItems.length === 0 ? (
@@ -826,6 +773,11 @@ const styles = StyleSheet.create({
   adminClassItem: { gap: 7 },
     agendaTopBar: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 12 },
   agendaDateEyebrow: { fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 0.9 },
+  ringLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 14, paddingTop: 2, paddingBottom: 8 },
+  ringLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  ringLegendCircle: { width: 15, height: 15, borderRadius: 999, borderWidth: 3 },
+  ringLegendText: { fontSize: 10, fontWeight: '800' },
+  calendarHint: { fontSize: 11, lineHeight: 16, paddingHorizontal: 14, paddingBottom: 12 },
   agendaDateTitle: { marginTop: 2, fontSize: 16, lineHeight: 21, fontWeight: '900' },
   compactAction: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 13, paddingHorizontal: 10 },
   compactActionText: { fontSize: 11, fontWeight: '900' },
