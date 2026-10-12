@@ -48,6 +48,12 @@ export default function AdminMoreTab() {
           onPress={() => router.push('/admin/competition-exams' as never)}
         />
         <MenuRow
+          icon="edit-note"
+          title="Editor de exámenes para Entrenador"
+          subtitle="Herramienta avanzada compartida con el entrenador"
+          onPress={() => router.push('/trainer-exams' as never)}
+        />
+        <MenuRow
           icon="table-view"
           title="Reporte de asistencia"
           subtitle="Excel de clases y ausencias por rango"
