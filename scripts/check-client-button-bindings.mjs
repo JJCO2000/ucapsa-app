@@ -103,7 +103,9 @@ if(errors.length){console.error('CLIENT BUTTONS FAIL');errors.forEach(e=>console
 console.log(
   'CLIENT / ADMIN / TRAINER BUTTONS PASS '
   +screens.length+' screens/'
-  +buttonCount+' press handlers/'
+  +screenButtonCount+' screen press handlers; '
+  +auditedFiles.length+' TSX files/'
+  +buttonCount+' total press surfaces/'
   +routesChecked+' literal routes; TRAINER/STAFF '
   +trainerStaffScreens.size+' screens/'
   +trainerStaffButtons+' press handlers',
