@@ -176,15 +176,17 @@ export function SessionProvider({ children }: SessionProviderProps) {
       setIsOfflineFallback(false);
 
       async function restoreReadOnlyOfflineShell(): Promise<boolean> {
-        const reachable = await isBackendUnreachable().catch((error) => {
-              devWarn('Could not probe backend; offline identity fallback unavailable.', error);
-              return false;
-            });
-        if (!reachable) return false;
         const stored = await readVerifiedLocalUser();
         if (!stored) return false;
         const cached = await readCachedProfile(stored.id);
         if (!cached) return false;
+        // Do not delay first-time users with a network probe: only previously
+        // verified profiles may enter the offline shell.
+        const unreachable = await isBackendUnreachable().catch((error) => {
+          devWarn('Could not probe backend; offline identity fallback unavailable.', error);
+          return false;
+        });
+        if (!unreachable) return false;
         if (!isMounted || startupRunRef.current !== runId) return false;
         setSession(null);
         setOfflineUser(stored);
@@ -399,7 +401,28 @@ export function SessionProvider({ children }: SessionProviderProps) {
           devWarn('Could not restore a Supabase session on foreground.', error);
           return { data: { session: null }, error: new Error('Session still unavailable') };
         });
-        if (!active || error || !data.session?.user || data.session.user.id !== offlineUser.id) return;
+        if (!active || error) return;
+        if (!data.session?.user) {
+          // Backend is reachable but there is no valid remotely restorable
+          // session. Do not remain indefinitely authenticated via local cache.
+          await clearVerifiedLocalUser().catch((cause) => {
+            devWarn('Could not clear stale offline identity after reconnect.', cause);
+          });
+          if (!active) return;
+          setOfflineUser(null);
+          setProfile(null);
+          setLastProfileSyncAt(null);
+          setUsingCachedProfile(false);
+          setIsOfflineFallback(false);
+          return;
+        }
+        if (data.session.user.id !== offlineUser.id) {
+          // Never continue displaying a cached account after a different user
+          // authenticates on the device.
+          setProfile(null);
+          setUsingCachedProfile(false);
+          setLastProfileSyncAt(null);
+        }
         setOfflineUser(null);
         setSession(data.session);
         setIsOfflineFallback(false);
