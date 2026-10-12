@@ -143,7 +143,13 @@ for (const token of [
   'uploadTrainerExamResults',
   'pickAndParseUcapsaExamXlsx',
   'pickAndParseUcapsaExamDefinitionXlsx',
-  'Subir examen',
+  'Nuevo examen',
+  'Crear manual',
+  'Importar Excel',
+  'addManualExamItem',
+  'editManualExamItem',
+  'removeManualExamItem',
+  'chooseDraftInputMode',
   'Guardar borrador',
   'Subir Excel',
   'Capturar',
@@ -199,6 +205,26 @@ for (const token of [
 if (!trainerMore.includes('/staff/training-report')) {
   throw new Error('Trainer tools lost report entry point.');
 }
+
+// La definición de examen se crea desde una sola superficie de staff, con
+// edición manual o Excel; Admin hereda exactamente el mismo servicio.
+for (const token of [
+  "useState<'manual' | 'excel'>('manual')",
+  "setDraftItems((items) =>",
+  'createTrainerExamDraft({',
+  'items: draftItems,',
+  'maxPoints <= 0',
+  'maxPoints > 1000',
+  'setEditingItemIndex(null)',
+  'onPress={() => chooseDraftInputMode',
+]) {
+  if (!trainerExams.includes(token)) throw new Error('Editor manual/Excel de staff perdió una regla: ' + token);
+}
+const adminMore = read('src/app/(tabs)/admin-more.tsx');
+if (!adminMore.includes("router.push('/trainer-exams'")) {
+  throw new Error('Admin perdió la entrada al editor de exámenes compartido.');
+}
+
 
 for (const token of [
   'create or replace function public.is_ucapsa_trainer()',
