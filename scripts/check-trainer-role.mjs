@@ -384,4 +384,18 @@ if (report.includes('(stats.attendanceRate * 100).toFixed(1)')) {
   throw new Error('Trainer attendance preview must not show false 0.0% for missing marks.');
 }
 
+
+for (const token of [
+  "const raw = (drafts[item.id]?.points ?? '').trim();",
+  'if (!raw) return false;',
+  'Califica todos los ejercicios. Si corresponde cero puntos, escribe 0 explícitamente.',
+]) {
+  if (!examAttempt.includes(token)) {
+    throw new Error('Trainer exam permits a blank grade to be submitted as zero: ' + token);
+  }
+}
+if (examAttempt.includes("Number((drafts[item.id]?.points ?? '').replace(',', '.'))")) {
+  throw new Error('Empty score is silently converted into zero in trainer exam.');
+}
+
 console.log('UCAPSA trainer role, least privilege, exams, staff notes, reporting and next-day summary: PASS');
