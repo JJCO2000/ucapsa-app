@@ -20,6 +20,7 @@ const trainerService = read('src/services/trainer-staff.service.ts');
 const trainerSql = read('supabase/sql/ucapsa-trainer-workspace.sql');
 const trainerModeSql = read('supabase/sql/ucapsa-trainer-workspace-exam-upload.sql');
 const trainerDogScopeSql = read('supabase/sql/ucapsa-trainer-dog-access-scope.sql');
+const comandosScheduleSql = read('supabase/sql/ucapsa-comandos-single-schedule.sql');
 const trainerSqlAll = trainerSql + '\n' + trainerModeSql + '\n' + trainerDogScopeSql;
 const staffWorkspace = read('src/hooks/useStaffWorkspace.tsx');
 const staffWorkspaceService = read('src/services/staff-workspace-storage.service.ts');
@@ -104,6 +105,17 @@ if (!trainerClasses.includes("const key = `${row.scheduleId}:${row.programCode}:
   throw new Error('El roster de Comandos debe partir del horario compartido y conservar el nivel en cada inscripción.');
 }
 
+for (const token of [
+  'enforce_single_commands_schedule',
+  "v_program_code = 'comandos'",
+  'ps.id <> new.id',
+  'Comandos usa un solo horario compartido',
+]) {
+  if (!comandosScheduleSql.includes(token)) {
+    throw new Error('DB invariant for shared Comandos schedule missing: ' + token);
+  }
+}
+
 for (const token of ['levelLabel(row.programLevel)', 'levelPill', 'Básico', 'Intermedio', 'Avanzado']) {
   if (!trainerClasses.includes(token) && !trainerHome.includes(token)) {
     throw new Error('Comandos perdió la clasificación visible por nivel: ' + token);
@@ -186,6 +198,33 @@ if (!trainerMore.includes('/staff/training-report')) {
   throw new Error('Trainer tools lost report entry point.');
 }
 
+// Critical button wiring: UI action -> handler/route/service.
+// This keeps the training workspace operational, not merely renderable.
+const criticalTrainerActions = [
+  [trainerHome, "router.push('/trainer-more'", 'Perfil / herramientas'],
+  [trainerHome, "router.push('/trainer-classes'", 'Clases'],
+  [trainerHome, "router.push('/trainer-exams'", 'Exámenes'],
+  [trainerHome, "router.push('/staff/training-report'", 'Reporte desde Inicio'],
+  [trainerHome, "router.push(`/trainer-classes?date=", 'Abrir clase de mañana'],
+  [trainerClasses, 'onPress={() => selectDate(today)}', 'Hoy'],
+  [trainerClasses, 'onPress={() => selectDate(tomorrow)}', 'Mañana'],
+  [trainerClasses, "router.push(`/staff/dog-notes?dogId=", 'Ficha / notas del perro'],
+  [trainerClasses, 'requestMembership(row)', 'Solicitar revisión de socio'],
+  [trainerClasses, 'markAttendance(row)', 'Registrar asistencia'],
+  [trainerClasses, 'markAbsent(row)', 'Registrar no asistencia'],
+  [trainerExams, 'setUploadOpen(true)', 'Subir examen'],
+  [trainerExams, 'confirmPublishDraft(draft)', 'Publicar examen'],
+  [trainerExams, 'setSelectedExam(exam)', 'Capturar examen'],
+  [trainerExams, 'uploadExamScores(exam)', 'Subir calificaciones Excel'],
+  [trainerMore, "router.push('/staff/training-report'", 'Reporte desde Más'],
+  [trainerMore, "router.push('/account-settings'", 'Cuenta'],
+  [staffSwitcher, 'await setMode(nextMode)', 'Cambiar modo'],
+  [staffSwitcher, "router.replace(nextMode === 'trainer' ? '/trainer-home'", 'Navegar al modo elegido'],
+];
+for (const [source, token, label] of criticalTrainerActions) {
+  if (!source.includes(token)) throw new Error('Trainer critical action lost wiring: ' + label);
+}
+
 for (const token of [
   'create or replace function public.is_ucapsa_trainer()',
   'create or replace function public.is_ucapsa_staff()',
@@ -257,8 +296,12 @@ for (const token of [
   'groupTomorrowClasses',
   "item.programCode === 'comandos'",
   'tomorrowLevels',
+  "const key = `${row.scheduleId}:${row.programCode}:${row.startTime}`",
 ]) {
-  if (!adminHome.includes(token)) throw new Error('Admin tomorrow summary must treat Comandos as one schedule: ' + token);
+  if (!adminHome.includes(token)) throw new Error('Admin tomorrow summary must preserve one shared Comandos schedule with level breakdown: ' + token);
+}
+if (adminHome.includes(":${row.programLevel}")) {
+  throw new Error('Inicio Admin no puede convertir los niveles de Comandos en horarios separados.');
 }
 
 for (const token of [
@@ -279,8 +322,14 @@ for (const token of [
   'notification_trainer_summary_locks',
   "source: 'trainer_class_summary'",
   'Aforo de mañana',
+  "const key = `${schedule.id}:${code}:${String(schedule.start_time).slice(0, 5)}`",
+  "if (code === 'comandos')",
+  'current.levels.set(label, level)',
 ]) {
   if (!trainerSummary.includes(token)) throw new Error('Trainer summary notification missing: ' + token);
+}
+if (trainerSummary.includes(":${enrollment.program_level}")) {
+  throw new Error('El resumen push no puede separar Comandos en horarios por nivel.');
 }
 
 for (const token of [
