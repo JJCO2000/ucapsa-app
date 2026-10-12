@@ -22,6 +22,7 @@ export type CompetitionAdjustmentOverview = {
 export type CompetitionAdjustmentDetail = {
   season: CompetitionSeason;
   dog: CompetitionInput | null;
+  score: CompetitionRange | null;
   movements: CompetitionAdjustment[];
 };
 
@@ -79,10 +80,16 @@ export async function getAdminCompetitionAdjustmentDetail(
   const cleanDogId = dogId.trim();
   if (!cleanSeasonId || !cleanDogId) throw new Error('Falta la temporada o el perro.');
 
-  const [season, dogResult, movementsResult] = await Promise.all([
+  const [season, dogResult, scoreResult, movementsResult] = await Promise.all([
     getAdminCompetitionSeason(cleanSeasonId),
     supabase
       .from('ucapsa_competition_inputs')
+      .select('*')
+      .eq('season_id', cleanSeasonId)
+      .eq('dog_id', cleanDogId)
+      .maybeSingle(),
+    supabase
+      .from('ucapsa_competition_ranges')
       .select('*')
       .eq('season_id', cleanSeasonId)
       .eq('dog_id', cleanDogId)
@@ -97,11 +104,13 @@ export async function getAdminCompetitionAdjustmentDetail(
   ]);
 
   if (dogResult.error) throw dogResult.error;
+  if (scoreResult.error) throw scoreResult.error;
   if (movementsResult.error) throw movementsResult.error;
 
   return {
     season,
     dog: dogResult.data,
+    score: scoreResult.data,
     movements: movementsResult.data ?? [],
   };
 }
