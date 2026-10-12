@@ -1,13 +1,13 @@
 /**
  * One-time UCAPSA Play reviewer account provisioning.
  * Run LOCALLY, never through GitHub Actions or an Expo client.
- * Needs a Supabase secret/service-role key provided via local environment.
+ * Requires credentials for a data-less Supabase review branch only.
  *
  * Usage: node scripts/provision-google-play-review.mjs
- *        node scripts/provision-google-play-review.mjs --apply --acknowledge-staff-access
+ *        node scripts/provision-google-play-review.mjs --apply
  *
- * A reviewer granted Trainer/Admin sees live production data under existing
- * UCAPSA permissions. Do not apply until the data-exposure risk is approved.
+ * Production access is forbidden. These accounts belong to an isolated branch
+ * with zero copied production customer data.
  */
 import { randomBytes } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
@@ -19,7 +19,7 @@ const roles = [
   ['admin', 'Admin', 'Demo Administrador UCAPSA'],
 ];
 const mode = process.argv.includes('--apply') ? 'apply' : 'dry-run';
-const staffApproved = process.argv.includes('--acknowledge-staff-access');
+
 
 function controlledEmails(inbox) {
   if (typeof inbox !== 'string' || !/^[^\s@+]+@(?:gmail|googlemail)\.com$/i.test(inbox)) {
@@ -39,20 +39,20 @@ const users = controlledEmails(inbox);
 if (!url || !/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(url)) {
   throw Error('Configura SUPABASE_URL con la URL real del proyecto UCAPSA.');
 }
-if (!url.includes('hrfecmviyiluubymsoeq.supabase.co')) {
-  throw Error('Protección: este script solo opera sobre el proyecto UCAPSA verificado.');
+const branchRef = process.env.PLAY_REVIEW_PROJECT_REF?.trim();
+if (!branchRef || !/^[a-z0-9]{20}$/.test(branchRef) ||
+    branchRef === 'hrfecmviyiluubymsoeq' ||
+    new URL(url).hostname !== branchRef + '.supabase.co') {
+  throw Error('BLOQUEADO: define PLAY_REVIEW_PROJECT_REF para la rama aislada. Producción nunca es válida.');
 }
 
 console.log('UCAPSA Google Play review accounts, mode =', mode);
 console.table(users.map(({ role, email }) => ({ role, email })));
-console.log('ADVERTENCIA: Entrenador y Administrador podrán acceder a datos reales de producción.');
+console.log('Seguridad: las cuatro cuentas se crean SOLO en la rama aislada de revisión.');
 console.log('No se crean clases, pagos, membresías ni registros artificiales de asistencia.');
 if (mode !== 'apply') {
-  console.log('Simulación: ningún cambio. Para proceder, usa --apply --acknowledge-staff-access.');
+  console.log('Simulación: ningún cambio. Para proceder, usa --apply tras comprobar aislamiento.');
   process.exit(0);
-}
-if (!staffApproved) {
-  throw Error('Confirma el riesgo de acceso a datos reales con --acknowledge-staff-access.');
 }
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SECRET_KEY;
 if (!key) throw Error('Falta SUPABASE_SERVICE_ROLE_KEY; consérvala SOLO en la terminal local.');

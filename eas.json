@@ -21,6 +21,17 @@
       "autoIncrement": true,
       "environment": "production",
       "channel": "production"
+    },
+    "playReview": {
+      "extends": "production",
+      "environment": "preview",
+      "channel": "play-review",
+      "env": {
+        "EXPO_PUBLIC_UCAPSA_REVIEW_BUILD": "true"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
     }
   },
   "submit": {
