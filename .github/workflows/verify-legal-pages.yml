@@ -1,0 +1,47 @@
+name: Verify UCAPSA legal Pages
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'scripts/check-store-privacy.mjs'
+      - '.github/workflows/verify-legal-pages.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'scripts/check-store-privacy.mjs'
+      - '.github/workflows/verify-legal-pages.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-legal-pages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Compile GitHub Pages Jekyll site from docs
+        uses: actions/jekyll-build-pages@44a6e6beabd48582f863aeeb6cb2151cc1716697 # v1
+        with:
+          source: ./docs
+          destination: ./_site
+      - name: Verify public HTML content and links
+        shell: bash
+        run: |
+          test -s _site/index.html
+          test -s _site/privacidad/index.html
+          test -s _site/eliminar-cuenta/index.html
+          test -s _site/assets/legal.css
+          grep -q 'Aviso de Privacidad' _site/privacidad/index.html
+          grep -q 'Universidad de Crianza y Adiestramiento' _site/privacidad/index.html
+          grep -q 'Eliminar cuenta y datos' _site/eliminar-cuenta/index.html
+          grep -q 'mailto:ucapsa84@gmail.com' _site/eliminar-cuenta/index.html
+          grep -q '/ucapsa-app/eliminar-cuenta/' _site/privacidad/index.html
+          grep -q '/ucapsa-app/privacidad/' _site/eliminar-cuenta/index.html
+          if grep -R -E '\{%[[:space:]]*include_relative' _site/privacidad/index.html _site/eliminar-cuenta/index.html; then
+            echo "ERROR: Jekyll did not render the legal sources."
+            exit 1
+          fi
+          echo "UCAPSA legal Pages: HTML build PASS"
