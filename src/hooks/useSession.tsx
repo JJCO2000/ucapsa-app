@@ -176,7 +176,10 @@ export function SessionProvider({ children }: SessionProviderProps) {
       setIsOfflineFallback(false);
 
       async function restoreReadOnlyOfflineShell(): Promise<boolean> {
-        const reachable = await isBackendUnreachable().catch(() => false);
+        const reachable = await isBackendUnreachable().catch((error) => {
+              devWarn('Could not probe backend; offline identity fallback unavailable.', error);
+              return false;
+            });
         if (!reachable) return false;
         const stored = await readVerifiedLocalUser();
         if (!stored) return false;
@@ -301,9 +304,14 @@ export function SessionProvider({ children }: SessionProviderProps) {
           // A refresh that fails offline can emit SIGNED_OUT. Preserve only
           // locally verified, cached read-only state; never mint a JWT.
           void (async () => {
-            const unreachable = await isBackendUnreachable().catch(() => false);
+            const unreachable = await isBackendUnreachable().catch((error) => {
+              devWarn('Could not probe backend; offline identity fallback unavailable.', error);
+              return false;
+            });
             if (!unreachable) {
-              await clearVerifiedLocalUser().catch(() => undefined);
+              await clearVerifiedLocalUser().catch((error) => {
+                devWarn('Could not clear offline identity after server-side sign-out.', error);
+              });
               return;
             }
             const stored = await readVerifiedLocalUser();
@@ -381,16 +389,26 @@ export function SessionProvider({ children }: SessionProviderProps) {
     const subscription = AppState.addEventListener('change', (state) => {
       if (state !== 'active') return;
       void (async () => {
-        if (await isBackendUnreachable().catch(() => true)) return;
+        if (await isBackendUnreachable().catch((error) => {
+          devWarn('Backend reachability unknown; keep offline read-only state.', error);
+          return true;
+        })) return;
         const { data, error } = await withOperationTimeout(
           getCurrentSession(), SESSION_BOOT_TIMEOUT_MS, 'offline session recovery',
-        ).catch(() => ({ data: { session: null }, error: new Error('retry failed') }));
+        ).catch((error) => {
+          devWarn('Could not restore a Supabase session on foreground.', error);
+          return { data: { session: null }, error: new Error('Session still unavailable') };
+        });
         if (!active || error || !data.session?.user || data.session.user.id !== offlineUser.id) return;
         setOfflineUser(null);
         setSession(data.session);
         setIsOfflineFallback(false);
-        void rememberVerifiedLocalUser(data.session.user).catch(() => undefined);
-        void refreshProfile().catch(() => undefined);
+        void rememberVerifiedLocalUser(data.session.user).catch((error) => {
+          devWarn('Could not store identity after reconnection.', error);
+        });
+        void refreshProfile().catch((error) => {
+          devWarn('Could not refresh profile after reconnection; retaining cached data.', error);
+        });
       })();
     });
     return () => { active = false; subscription.remove(); };
