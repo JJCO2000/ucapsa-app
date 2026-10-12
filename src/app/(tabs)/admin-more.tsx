@@ -16,19 +16,21 @@ export default function AdminMoreTab() {
     <KeyboardAwareScreen>
       <View style={styles.header}>
         <Text style={styles.kicker}>{isSuperAdmin ? 'Superadmin' : 'Admin'}</Text>
-        <Text style={styles.title}>Herramientas y configuración</Text>
-        <Text style={styles.subtitle}>Opciones poco frecuentes que no necesitan ocupar una pestaña principal.</Text>
+        <Text style={styles.title}>Gestión UCAPSA</Text>
+        <Text style={styles.subtitle}>Las tareas del día primero; configuración y operaciones especiales después.</Text>
       </View>
 
-      <Text style={styles.sectionTitle}>Operación especial</Text>
+      <Text style={styles.sectionTitle}>Operación diaria</Text>
       <View style={styles.card}>
-        <MenuRow
-          icon="restaurant-menu"
-          title="Restaurante"
-          subtitle="Editar menú, precios y disponibilidad"
-          onPress={() => router.push('/admin/restaurant' as never)}
-          last
-        />
+        <MenuRow icon="fact-check" title="Calificar examen" subtitle="Elegir examen y perro; registrar y publicar un resultado" onPress={() => router.push('/admin/competition-quick-grade' as never)} />
+        <MenuRow icon="assignment" title="Exámenes" subtitle="Crear, publicar y revisar resultados" onPress={() => router.push('/admin/competition-exams' as never)} />
+        <MenuRow icon="restaurant-menu" title="Restaurante / comida" subtitle="Menú, precios y productos disponibles" onPress={() => router.push('/admin/restaurant' as never)} last />
+      </View>
+
+      <Text style={styles.sectionTitle}>Competencia y comunicación</Text>
+      <View style={styles.card}>
+        <MenuRow icon="leaderboard" title="Ranking y puntos" subtitle="Clasificación, ajustes, constancia y premios" onPress={() => router.push('/admin/competition' as never)} />
+        <MenuRow icon="campaign" title="Avisos y comunicación" subtitle="Avisos, eventos y notificaciones a clientes" onPress={() => router.push('/admin-communication' as never)} last />
       </View>
 
       <Text style={styles.sectionTitle}>Entrenamiento · herramientas operativas</Text>
@@ -40,10 +42,10 @@ export default function AdminMoreTab() {
           onPress={() => router.push('/trainer-classes' as never)}
         />
         <MenuRow
-          icon="assignment"
-          title="Exámenes y Excel"
-          subtitle="Crear, cargar, publicar y revisar definiciones"
-          onPress={() => router.push('/trainer-exams' as never)}
+          icon="table-view"
+          title="Importación de exámenes"
+          subtitle="Administrar definiciones detalladas e importaciones Excel"
+          onPress={() => router.push('/admin/competition-exams' as never)}
         />
         <MenuRow
           icon="table-view"
