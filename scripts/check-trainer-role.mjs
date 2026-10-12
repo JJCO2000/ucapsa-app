@@ -32,6 +32,7 @@ const notificationNav = read('src/hooks/useNotificationNavigation.ts');
 const trainerSummary = read('supabase/functions/send-trainer-class-summary/index.ts');
 const trainerCron = read('supabase/sql/ucapsa-trainer-class-summary-cron.sql');
 const trainerLocks = read('supabase/sql/ucapsa-trainer-class-summary-notifications.sql');
+const comandosScheduleSql = read('supabase/sql/ucapsa-comandos-single-schedule.sql');
 const pkg = read('package.json');
 
 for (const token of [
@@ -102,6 +103,20 @@ if (trainerHome.includes("row.programLevel}:") || trainerHome.includes(":${row.p
 }
 if (!trainerClasses.includes("const key = `${row.scheduleId}:${row.programCode}:${row.startTime}`")) {
   throw new Error('El roster de Comandos debe partir del horario compartido y conservar el nivel en cada inscripción.');
+}
+
+for (const token of [
+  "where p.code = 'comandos'",
+  'if v_count > 1 then',
+  'create or replace function public.enforce_single_commands_schedule()',
+  "v_program_code = 'comandos'",
+  'ps.id <> new.id',
+  'before insert or update of program_id',
+  'execute function public.enforce_single_commands_schedule()',
+]) {
+  if (!comandosScheduleSql.includes(token)) {
+    throw new Error('Comandos database invariant missing: ' + token);
+  }
 }
 
 for (const token of ['levelLabel(row.programLevel)', 'levelPill', 'Básico', 'Intermedio', 'Avanzado']) {
