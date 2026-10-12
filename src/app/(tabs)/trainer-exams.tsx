@@ -38,6 +38,11 @@ export default function TrainerExamsTab() {
   const [draftTitle, setDraftTitle] = useState('');
   const [draftDate, setDraftDate] = useState('');
   const [draftFileName, setDraftFileName] = useState('');
+  const [draftInputMode, setDraftInputMode] = useState<'manual' | 'excel'>('manual');
+  const [newItemTitle, setNewItemTitle] = useState('');
+  const [newItemDescription, setNewItemDescription] = useState('');
+  const [newItemPoints, setNewItemPoints] = useState('');
+  const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
   const [draftItems, setDraftItems] = useState<ExamDefinitionUploadItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -127,8 +132,90 @@ export default function TrainerExamsTab() {
     setDraftCode('');
     setDraftTitle('');
     setDraftDate('');
+    setDraftInputMode('manual');
+    setNewItemTitle('');
+    setNewItemDescription('');
+    setNewItemPoints('');
+    setEditingItemIndex(null);
     setDraftFileName('');
     setDraftItems([]);
+  }
+
+  function chooseDraftInputMode(nextMode: 'manual' | 'excel') {
+    if (draftInputMode === nextMode || saving) return;
+    function applyMode() {
+      setDraftInputMode(nextMode);
+      setDraftFileName('');
+      setDraftItems([]);
+      setNewItemTitle('');
+      setNewItemDescription('');
+      setNewItemPoints('');
+      setEditingItemIndex(null);
+    }
+    const hasUnsavedManualInput = Boolean(newItemTitle.trim() || newItemDescription.trim() || newItemPoints.trim());
+    if (draftItems.length === 0 && !hasUnsavedManualInput) {
+      applyMode();
+      return;
+    }
+    Alert.alert(
+      'Cambiar método',
+      'Los ejercicios todavía no guardados se reemplazarán al cambiar de método.',
+      [
+        { text: 'Conservar', style: 'cancel' },
+        { text: 'Cambiar', style: 'destructive', onPress: applyMode },
+      ],
+    );
+  }
+
+  function addManualExamItem() {
+    if (saving || draftInputMode !== 'manual') return;
+    const title = newItemTitle.trim();
+    const rawPoints = newItemPoints.trim().replace(',', '.');
+    const maxPoints = Number(rawPoints);
+    if (!title || title.length > 160) {
+      Alert.alert('Ejercicio inválido', 'Escribe un título de 1 a 160 caracteres.');
+      return;
+    }
+    if (!/^\d+(?:\.\d{1,2})?$/.test(rawPoints) || !Number.isFinite(maxPoints) || maxPoints <= 0 || maxPoints > 1000) {
+      Alert.alert('Puntos inválidos', 'Escribe un máximo mayor que cero y hasta 1000, con máximo 2 decimales.');
+      return;
+    }
+    if (editingItemIndex === null && draftItems.length >= 100) {
+      Alert.alert('Límite de ejercicios', 'Puedes añadir hasta 100 ejercicios por examen.');
+      return;
+    }
+    setDraftItems((items) => {
+      const draft = { title, description: newItemDescription.trim() || null, max_points: maxPoints };
+      if (editingItemIndex === null) return [...items, draft];
+      return items.map((item, index) => index === editingItemIndex ? draft : item);
+    });
+    setEditingItemIndex(null);
+    setNewItemTitle('');
+    setNewItemDescription('');
+    setNewItemPoints('');
+  }
+
+  function editManualExamItem(index: number) {
+    if (saving || draftInputMode !== 'manual') return;
+    const item = draftItems[index];
+    if (!item) return;
+    setEditingItemIndex(index);
+    setNewItemTitle(item.title);
+    setNewItemDescription(item.description ?? '');
+    setNewItemPoints(String(item.max_points));
+  }
+
+  function removeManualExamItem(index: number) {
+    if (saving || draftInputMode !== 'manual') return;
+    setDraftItems((items) => items.filter((_, itemIndex) => itemIndex !== index));
+    if (editingItemIndex === index) {
+      setEditingItemIndex(null);
+      setNewItemTitle('');
+      setNewItemDescription('');
+      setNewItemPoints('');
+    } else if (editingItemIndex !== null && index < editingItemIndex) {
+      setEditingItemIndex(editingItemIndex - 1);
+    }
   }
 
   async function chooseExamDefinition() {
@@ -161,7 +248,11 @@ export default function TrainerExamsTab() {
       return;
     }
     if (draftItems.length === 0) {
-      Alert.alert('Falta el Excel', 'Selecciona el archivo con los ejercicios del examen.');
+      Alert.alert('Faltan ejercicios', 'Agrega ejercicios manualmente o carga un Excel con la definición.');
+      return;
+    }
+    if (draftInputMode === 'manual' && (newItemTitle.trim() || newItemDescription.trim() || newItemPoints.trim())) {
+      Alert.alert('Ejercicio sin agregar', 'Agrega el ejercicio en edición antes de guardar el examen.');
       return;
     }
 
@@ -221,7 +312,7 @@ export default function TrainerExamsTab() {
   return (
     <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={ucapsaBrand.colors.red} />}>
       <View style={styles.header}>
-        <Text style={styles.kicker}>Entrenador · Evaluación</Text>
+        <Text style={styles.kicker}>{isAdmin ? 'Administración' : 'Entrenador'} · Evaluación</Text>
         <Text style={styles.title}>Exámenes</Text>
         <Text style={styles.subtitle}>Carga y publica exámenes, captura resultados o sube calificaciones por Excel. Administración conserva la oficialidad de resultados y los cambios de nivel.</Text>
         <Pressable
@@ -230,7 +321,7 @@ export default function TrainerExamsTab() {
           onPress={() => { resetDraftUpload(); setUploadOpen(true); }}
         >
           <MaterialIcons name="note-add" size={18} color={ucapsaBrand.colors.surface} />
-          <Text style={styles.newExamButtonText}>Subir examen</Text>
+          <Text style={styles.newExamButtonText}>Nuevo examen</Text>
         </Pressable>
       </View>
 
@@ -324,9 +415,9 @@ export default function TrainerExamsTab() {
         onClose={() => { setUploadOpen(false); resetDraftUpload(); }}
       >
         <Text style={styles.modalKicker}>Nuevo examen</Text>
-        <Text style={styles.modalTitle}>Subir examen</Text>
+        <Text style={styles.modalTitle}>Crear examen</Text>
         <Text style={styles.modalSubtitle}>
-          El Excel define los ejercicios. Puedes guardarlo como borrador y publicarlo desde Entrenamiento cuando esté listo.
+          Define la estructura manualmente o importa los ejercicios desde Excel. Ambos métodos guardan el mismo borrador canónico.
         </Text>
 
         <Text style={styles.fieldLabel}>Código</Text>
@@ -358,27 +449,61 @@ export default function TrainerExamsTab() {
           style={styles.fieldInput}
         />
 
-        <Pressable disabled={saving} style={styles.definitionButton} onPress={() => void chooseExamDefinition()}>
-          <MaterialIcons name="upload-file" size={19} color={ucapsaBrand.colors.purpleDark} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.definitionTitle}>{draftFileName || 'Seleccionar Excel del examen'}</Text>
-            <Text style={styles.definitionHint}>
-              Columnas: Ejercicio · Puntos máximos · Descripción opcional
-            </Text>
+        <Text style={styles.fieldLabel}>Cómo agregar ejercicios</Text>
+        <View style={styles.inputModeRow}>
+          <Pressable accessibilityRole="button" accessibilityState={{ selected: draftInputMode === 'manual' }} disabled={saving} style={[styles.inputModeButton, draftInputMode === 'manual' && styles.inputModeSelected]} onPress={() => chooseDraftInputMode('manual')}>
+            <MaterialIcons name="edit-note" size={18} color={draftInputMode === 'manual' ? ucapsaBrand.colors.surface : ucapsaBrand.colors.redDark} />
+            <Text style={[styles.inputModeText, draftInputMode === 'manual' && styles.inputModeTextSelected]}>Crear manual</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityState={{ selected: draftInputMode === 'excel' }} disabled={saving} style={[styles.inputModeButton, draftInputMode === 'excel' && styles.inputModeSelected]} onPress={() => chooseDraftInputMode('excel')}>
+            <MaterialIcons name="upload-file" size={18} color={draftInputMode === 'excel' ? ucapsaBrand.colors.surface : ucapsaBrand.colors.redDark} />
+            <Text style={[styles.inputModeText, draftInputMode === 'excel' && styles.inputModeTextSelected]}>Importar Excel</Text>
+          </Pressable>
+        </View>
+
+        {draftInputMode === 'excel' ? (
+          <Pressable disabled={saving} style={styles.definitionButton} onPress={() => void chooseExamDefinition()}>
+            <MaterialIcons name="upload-file" size={19} color={ucapsaBrand.colors.purpleDark} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.definitionTitle}>{draftFileName || 'Seleccionar Excel del examen'}</Text>
+              <Text style={styles.definitionHint}>Columnas: Ejercicio · Puntos máximos · Descripción opcional</Text>
+            </View>
+          </Pressable>
+        ) : (
+          <View style={styles.manualEditor}>
+            <Text style={styles.fieldLabel}>Ejercicio</Text>
+            <TextInput value={newItemTitle} onChangeText={setNewItemTitle} placeholder="Ej. Sentado" placeholderTextColor={ucapsaBrand.colors.muted} style={styles.fieldInput} />
+            <Text style={styles.fieldLabel}>Descripción · opcional</Text>
+            <TextInput value={newItemDescription} onChangeText={setNewItemDescription} placeholder="Qué se evaluará" multiline placeholderTextColor={ucapsaBrand.colors.muted} style={[styles.fieldInput, styles.multiInput]} />
+            <Text style={styles.fieldLabel}>Puntos máximos</Text>
+            <TextInput value={newItemPoints} onChangeText={setNewItemPoints} keyboardType="decimal-pad" placeholder="Ej. 10" placeholderTextColor={ucapsaBrand.colors.muted} style={styles.fieldInput} />
+            <Pressable accessibilityRole="button" disabled={saving} style={styles.addItemButton} onPress={addManualExamItem}>
+              <MaterialIcons name="add-circle-outline" size={18} color={ucapsaBrand.colors.blueDark} />
+              <Text style={styles.addItemText}>{editingItemIndex === null ? 'Agregar ejercicio' : 'Guardar ejercicio'}</Text>
+            </Pressable>
           </View>
-        </Pressable>
+        )}
 
         {draftItems.length > 0 ? (
           <View style={styles.definitionPreview}>
-            <Text style={styles.previewTitle}>{draftItems.length} ejercicio{draftItems.length === 1 ? '' : 's'} detectado{draftItems.length === 1 ? '' : 's'}</Text>
-            {draftItems.slice(0, 4).map((item, index) => (
+            <Text style={styles.previewTitle}>{draftItems.length} ejercicio{draftItems.length === 1 ? '' : 's'} en el borrador</Text>
+            {draftItems.map((item, index) => (
               <View key={`${index}:${item.title}`} style={styles.previewRow}>
                 <Text style={styles.previewNumber}>{index + 1}</Text>
                 <Text numberOfLines={1} style={styles.previewName}>{item.title}</Text>
                 <Text style={styles.previewPoints}>{item.max_points} pts</Text>
+                {draftInputMode === 'manual' ? (
+                  <>
+                    <Pressable accessibilityRole="button" accessibilityLabel={`Editar ejercicio ${index + 1}: ${item.title}`} disabled={saving} onPress={() => editManualExamItem(index)}>
+                      <MaterialIcons name="edit" size={19} color={ucapsaBrand.colors.blueDark} />
+                    </Pressable>
+                    <Pressable accessibilityRole="button" accessibilityLabel={`Quitar ejercicio ${index + 1}: ${item.title}`} disabled={saving} onPress={() => removeManualExamItem(index)}>
+                      <MaterialIcons name="delete-outline" size={20} color={ucapsaBrand.colors.danger} />
+                    </Pressable>
+                  </>
+                ) : null}
               </View>
             ))}
-            {draftItems.length > 4 ? <Text style={styles.previewMore}>+ {draftItems.length - 4} más</Text> : null}
           </View>
         ) : null}
 
@@ -468,6 +593,15 @@ const styles = StyleSheet.create({
   modalSubtitle: { color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 16, fontWeight: '700', marginTop: 3, marginBottom: 10 },
   fieldLabel: { color: ucapsaBrand.colors.text, fontSize: 10, fontWeight: '900', marginTop: 8, marginBottom: 5 },
   fieldInput: { minHeight: 44, color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '800', borderRadius: 13, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 11 },
+  inputModeRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  inputModeButton: { flex: 1, minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface },
+  inputModeSelected: { backgroundColor: ucapsaBrand.colors.redDark, borderColor: ucapsaBrand.colors.redDark },
+  inputModeText: { color: ucapsaBrand.colors.redDark, fontSize: 11, fontWeight: '900' },
+  inputModeTextSelected: { color: ucapsaBrand.colors.surface },
+  manualEditor: { marginTop: 8 },
+  multiInput: { minHeight: 66, textAlignVertical: 'top', paddingVertical: 9 },
+  addItemButton: { minHeight: 44, marginTop: 11, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: ucapsaBrand.colors.blueSoft },
+  addItemText: { color: ucapsaBrand.colors.blueDark, fontSize: 11, fontWeight: '900' },
   definitionButton: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 14, backgroundColor: ucapsaBrand.colors.purpleSoft, padding: 11, marginTop: 12 },
   definitionTitle: { color: ucapsaBrand.colors.purpleDark, fontSize: 11, fontWeight: '900' },
   definitionHint: { color: ucapsaBrand.colors.muted, fontSize: 9, lineHeight: 13, fontWeight: '700', marginTop: 2 },
