@@ -82,7 +82,11 @@ export default function AdminClassesTab() {
         <MenuRow icon="event-busy" title="Cancelaciones" subtitle="Cancelar o reactivar una clase por fecha" onPress={() => router.push('/admin/class-cancellations' as never)} last />
       </View>
 
-      <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>Competencia y progreso</Text>
+      <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>Exámenes y competencia</Text>
+      <View style={styles.card}>
+        <MenuRow icon="fact-check" title="Calificar examen" subtitle="Un solo formulario: puntos y publicación oficial" onPress={() => router.push('/admin/competition-quick-grade' as never)} />
+        <MenuRow icon="assignment" title="Exámenes" subtitle="Crear evaluación rápida o revisar exámenes detallados" onPress={() => router.push('/admin/competition-exams' as never)} last />
+      </View>
       <View style={styles.card}>
         <MenuRow
           icon="emoji-events"
