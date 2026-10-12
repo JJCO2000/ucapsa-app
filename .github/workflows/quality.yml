@@ -16,6 +16,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run verify:release
+      - run: npx expo-doctor
       - run: npm run audit:critical
       - run: npx expo config --type introspect --json > /tmp/ucapsa-expo-introspect.json
       - run: npx expo export --platform android --output-dir dist-ci-android --clear
