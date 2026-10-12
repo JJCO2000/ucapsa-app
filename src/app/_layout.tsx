@@ -7,7 +7,6 @@ import { LoadingScreen } from '../components/ui/LoadingScreen';
 import { devWarn } from '../lib/client-diagnostics';
 import { useNotificationNavigation } from '../hooks/useNotificationNavigation';
 import { SessionProvider, useSession } from '../hooks/useSession';
-import { StaffWorkspaceProvider } from '../hooks/useStaffWorkspace';
 import { flushPendingAttendanceOperations } from '../services/attendance-sync.service';
 import { warmClientOfflineData } from '../services/client-offline-sync.service';
 import { flushPendingPracticeSessions } from '../services/practice.service';
@@ -64,10 +63,8 @@ function RootNavigator() {
 export default function RootLayout() {
   return (
     <SessionProvider>
-      <StaffWorkspaceProvider>
-        <RootNavigator />
-        <StatusBar style="auto" />
-      </StaffWorkspaceProvider>
+      <RootNavigator />
+      <StatusBar style="auto" />
     </SessionProvider>
   );
 }
