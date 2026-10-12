@@ -301,7 +301,11 @@ export function SessionProvider({ children }: SessionProviderProps) {
           // A refresh that fails offline can emit SIGNED_OUT. Preserve only
           // locally verified, cached read-only state; never mint a JWT.
           void (async () => {
-            if (!await isBackendUnreachable().catch(() => false)) return;
+            const unreachable = await isBackendUnreachable().catch(() => false);
+            if (!unreachable) {
+              await clearVerifiedLocalUser().catch(() => undefined);
+              return;
+            }
             const stored = await readVerifiedLocalUser();
             const cached = stored ? await readCachedProfile(stored.id) : null;
             if (!isMounted || authEventAttemptRef.current !== eventAttempt || !stored || !cached) return;
