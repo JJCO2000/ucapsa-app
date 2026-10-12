@@ -29,7 +29,7 @@
     "expo-updates": "~57.0.26",
     "expo-web-browser": "~57.0.3",
     "fflate": "^0.8.3",
-    "react": "19.2.3",
+    "react": "19.3.0",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
     "react-native-calendars": "^1.1314.0",
@@ -44,7 +44,7 @@
     "react-native-worklets": "0.10.1"
   },
   "devDependencies": {
-    "@types/react": "~19.2.2",
+    "@types/react": "~19.3.0",
     "decode-uri-component": "file:packages/decode-uri-component-compat",
     "typescript": "~6.0.3"
   },
