@@ -71,5 +71,24 @@ jobs:
       - name: Critical vulnerability gate
         run: npm run audit:critical
 
+      # EAS autoIncrement alone can lag an already-used Google Play versionCode.
+      # Keep remote as SSOT, but align its minimum using GitHub run number first.
+      # No Play submission is performed by this workflow.
+      - name: Ensure unique Android versionCode in EAS
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: node scripts/ensure-production-aab-version.mjs
+
       - name: Build Android Production AAB
         run: eas build --platform android --profile production --non-interactive --wait
+
+      # A green EAS build does not by itself prove Play accepts its versionCode.
+      - name: Verify generated AAB versionCode and commit
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          export BUILD_SOURCE_SHA="$(git rev-parse HEAD)"
+          eas build:list --platform android --build-profile production --status finished --limit 10 --json --non-interactive > "$RUNNER_TEMP/ucapsa-eas-aab-builds.json"
+          node scripts/verify-production-aab-version.mjs "$RUNNER_TEMP/ucapsa-eas-aab-builds.json"
