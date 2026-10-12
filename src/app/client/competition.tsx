@@ -52,7 +52,7 @@ export default function ClientCompetitionScreen() {
 
   const applySnapshot = useCallback((next: ClientAccountCompetitionSnapshot) => {
     setSnapshot(next);
-    const seasons = getAccountCompetitionSeasons(next);
+    const seasons = next.seasons ?? getAccountCompetitionSeasons(next);
     setSelectedSeasonId((current) => {
       if (current && seasons.some((season) => season.season_id === current)) return current;
       return seasons.find((season) => season.season_status === 'active')?.season_id
@@ -145,7 +145,10 @@ export default function ClientCompetitionScreen() {
     }
   }
 
-  const seasons = useMemo(() => snapshot ? getAccountCompetitionSeasons(snapshot) : [], [snapshot]);
+  const seasons = useMemo(
+    () => snapshot ? (snapshot.seasons ?? getAccountCompetitionSeasons(snapshot)) : [],
+    [snapshot],
+  );
   const selectedSeason = seasons.find((season) => season.season_id === selectedSeasonId) ?? null;
   const myDogIds = useMemo(() => new Set((snapshot?.dogs ?? []).map((dog) => dog.dog_id)), [snapshot]);
   const myRankingRows = useMemo(
@@ -255,8 +258,8 @@ export default function ClientCompetitionScreen() {
 
             {!selectedSeason ? (
               <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
-                <Text style={[styles.cardTitle, { color: format.cardText }]}>Sin temporada competitiva</Text>
-                <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Cuando UCAPSA active una temporada aparecerá aquí.</Text>
+                <Text style={[styles.cardTitle, { color: format.cardText }]}>No hay temporadas publicadas</Text>
+                <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>No hay ninguna temporada disponible para consultar. Actualiza si Administración acaba de activarla.</Text>
               </View>
             ) : (
               <>
@@ -331,7 +334,7 @@ export default function ClientCompetitionScreen() {
                                 ? ('#' + Number(ranking.ranking_position ?? 0) + ' en Ranking · ' + (ranking.range_name || season?.range_name || 'Cobre'))
                                 : season
                                   ? ((season.range_name || 'Cobre') + ' · aún sin posición oficial')
-                                  : 'Sin actividad en esta temporada'}
+                                  : 'Sin puntos o actividades registradas todavía'}
                             </Text>
                           </View>
                           {ranking ? (
