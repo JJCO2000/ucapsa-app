@@ -370,8 +370,11 @@ for (const target of ['/trainer-classes', '/trainer-exams', '/staff/training-rep
 if (!adminMore.includes('/admin/restaurant')) {
   throw new Error('El acceso a Restaurante desapareció de Herramientas de Admin.');
 }
-if (adminHome.includes('/admin/restaurant')) {
-  throw new Error('Inicio Admin es una bandeja de decisiones, no un menú de herramientas.');
+if (!adminHome.includes("router.push('/admin/restaurant'") || !adminHome.includes('restaurantShortcut')) {
+  throw new Error('Restaurante debe abrirse desde un único atajo compacto del encabezado.');
+}
+if (adminHome.includes('quickAccessRow') || adminHome.includes('<MenuRow')) {
+  throw new Error('Inicio Admin no debe convertirse en menú de herramientas.');
 }
 if (!trainerHome.includes('if (isAdmin) return <Redirect href="/admin-home" />')) {
   throw new Error('Admin debe mantener su propio Inicio.');
