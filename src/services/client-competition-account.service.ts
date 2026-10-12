@@ -19,6 +19,7 @@ export type ClientAccountCompetitionDog = {
 
 export type ClientAccountCompetitionSeason = {
   season_id: string;
+  season_code: string;
   season_name: string;
   season_status: string;
   season_starts_at: string;
@@ -65,13 +66,14 @@ async function fetchMyCompetitionAccount(
     getMyDogs(),
     supabase
       .from('ucapsa_competition_seasons')
-      .select('id,name,status,starts_at,ends_at')
+      .select('id,code,name,status,starts_at,ends_at')
       .neq('status', 'draft')
       .order('starts_at', { ascending: false }),
   ]);
   if (publishedSeasonsResult.error) throw publishedSeasonsResult.error;
   const seasons: ClientAccountCompetitionSeason[] = (publishedSeasonsResult.data ?? []).map((season) => ({
     season_id: season.id,
+    season_code: season.code,
     season_name: season.name,
     season_status: season.status,
     season_starts_at: season.starts_at,
