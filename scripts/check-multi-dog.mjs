@@ -119,7 +119,7 @@ requirePattern(
 );
 requirePattern(
   'src/app/client/activity-achievements.tsx',
-  /Nivel \$\{collection\.currentLevel\} de \$\{collection\.totalLevels\}/,
+  /Nivel \{collection\.currentLevel\} de \{collection\.totalLevels\}/,
   'Se perdió el nivel conseguido de niveles totales.',
 );
 requirePattern(
