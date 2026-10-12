@@ -19,6 +19,7 @@ const report = read('src/app/staff/training-report.tsx');
 const trainerService = read('src/services/trainer-staff.service.ts');
 const trainerSql = read('supabase/sql/ucapsa-trainer-workspace.sql');
 const trainerModeSql = read('supabase/sql/ucapsa-trainer-workspace-exam-upload.sql');
+const comandosScheduleSql = read('supabase/sql/ucapsa-comandos-single-schedule.sql');
 const trainerDogScopeSql = read('supabase/sql/ucapsa-trainer-dog-access-scope.sql');
 const trainerSqlAll = trainerSql + '\n' + trainerModeSql + '\n' + trainerDogScopeSql;
 const staffWorkspace = read('src/hooks/useStaffWorkspace.tsx');
