@@ -83,7 +83,7 @@ export function NextActionCard({
           >
             <MaterialIcons name={rsvpResponse === 'yes' ? 'check-circle' : 'event-available'} size={18} color={format.primaryButtonText} />
             <Text style={[styles.rsvpPrimaryText, { color: format.primaryButtonText }]}>
-              {rsvpSaving ? 'Guardando...' : rsvpResponse === 'yes' ? 'Asistencia confirmada' : 'Voy a asistir'}
+              {rsvpSaving ? 'Guardando...' : rsvpResponse === 'yes' ? 'Confirmé que iré' : 'Voy a asistir'}
             </Text>
           </Pressable>
           <Pressable
@@ -153,7 +153,7 @@ export function ClassRsvpPrompt({
         >
           <MaterialIcons name={rsvpResponse === 'yes' ? 'check-circle' : 'event-available'} size={18} color={rsvpResponse === 'yes' ? ucapsaBrand.colors.surface : ucapsaBrand.colors.greenDark} />
           <Text style={[styles.rsvpPromptYesText, { color: rsvpResponse === 'yes' ? ucapsaBrand.colors.surface : ucapsaBrand.colors.greenDark }]}>
-            {rsvpSaving ? 'Guardando...' : rsvpResponse === 'yes' ? 'Asistencia confirmada' : 'Voy a asistir'}
+            {rsvpSaving ? 'Guardando...' : rsvpResponse === 'yes' ? 'Confirmé que iré' : 'Voy a asistir'}
           </Text>
         </Pressable>
         <Pressable
