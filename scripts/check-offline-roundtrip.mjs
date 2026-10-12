@@ -21,6 +21,29 @@ function mustNot(rel, pattern, message) {
   if (pattern.test(read(rel))) failures.push(message);
 }
 
+// Offline cold start: local identity may open cached views, never authorize server operations.
+for (const token of [
+  'rememberVerifiedLocalUser', 'readVerifiedLocalUser', 'clearVerifiedLocalUser',
+  'isBackendUnreachable', 'AsyncStorage', 'user_id',
+]) {
+  if (!read('src/services/offline-identity.service.ts').includes(token)) {
+    failures.push('No hay identidad local durable o falta control de seguridad: ' + token);
+  }
+}
+for (const token of [
+  'restoreReadOnlyOfflineShell', 'readCachedProfile(stored.id)',
+  'setOfflineUser(stored)', 'setIsOfflineFallback(true)', 'clearVerifiedLocalUser()',
+]) {
+  if (!read('src/hooks/useSession.tsx').includes(token)) {
+    failures.push('Arranque offline necesita caché validada y logout limpio: ' + token);
+  }
+}
+must('src/app/_layout.tsx', /isOfflineFallback \|\| !user/, 'Warm de datos no debe ejecutarse sin sesión remota válida.');
+must('src/app/_layout.tsx', /!isOfflineFallback && Boolean\(user\)/, 'Notificaciones no deben depender de identidad offline.');
+if (read('src/services/offline-identity.service.ts').includes('access_token')) {
+  failures.push('La identidad offline NO debe copiar tokens de acceso.');
+}
+
 // Security regression: a replayed QR event must first be scoped to the
 // authenticated enrollment owner. Otherwise a foreign client who knows both
 // the enrollment ID and client_event_id could retrieve attendance/session IDs
