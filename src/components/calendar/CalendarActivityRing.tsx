@@ -5,11 +5,11 @@ import Svg, { Circle } from 'react-native-svg';
 import { ucapsaBrand } from '../../constants/brand';
 import type { CalendarServiceKind } from '../../utils/calendar-service-rings.utils';
 
-const RING_SIZE = 38;
+const RING_SIZE = 40;
 const CENTER = RING_SIZE / 2;
-const RADIUS = 16;
+const RADIUS = 17;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
-const STROKE = 3.5;
+const STROKE = 4.5;
 
 const KIND_COLORS: Record<CalendarServiceKind, string> = {
   puppy: ucapsaBrand.colors.gold,
@@ -43,6 +43,7 @@ export const CalendarActivityRing = memo(function CalendarActivityRing({
   onPress,
 }: Props) {
   const count = kinds.length;
+  const hasScheduledService = count > 0;
   const arc = count > 0 ? CIRCUMFERENCE / count : CIRCUMFERENCE;
   // Small gaps delimit equal sectors without losing the three activity colors.
   const visibleArc = count > 1 ? arc - 2 : arc;
@@ -51,7 +52,7 @@ export const CalendarActivityRing = memo(function CalendarActivityRing({
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected }}
-      accessibilityLabel={dateLabel + ': ' + (count > 0
+      accessibilityLabel={dateLabel + (today ? ', hoy' : '') + ': ' + (count > 0
         ? kinds.map((kind) => KIND_LABELS[kind]).join(', ')
         : 'Sin clases ni actividades programadas')}
       onPress={onPress}
@@ -63,7 +64,7 @@ export const CalendarActivityRing = memo(function CalendarActivityRing({
             <Circle
               cx={CENTER} cy={CENTER} r={RADIUS}
               fill="none"
-              stroke={ucapsaBrand.colors.borderNeutral}
+              stroke={ucapsaBrand.colors.adminBorder}
               strokeWidth={STROKE}
             />
           ) : kinds.map((kind, index) => (
@@ -83,10 +84,17 @@ export const CalendarActivityRing = memo(function CalendarActivityRing({
             />
           ))}
         </Svg>
-        <View style={[styles.numberSurface, selected && styles.selectedSurface]}>
+        <View style={[
+          styles.numberSurface,
+          selected && (hasScheduledService ? styles.selectedServiceSurface : styles.selectedEmptySurface),
+        ]}>
           <Text style={[
             styles.dayNumber,
-            { color: selected || today ? ucapsaBrand.colors.redDark : ucapsaBrand.colors.text },
+            {
+              color: hasScheduledService
+                ? ucapsaBrand.colors.text
+                : ucapsaBrand.colors.mutedNeutral,
+            },
           ]}>{dayNumber}</Text>
         </View>
       </View>
@@ -95,14 +103,15 @@ export const CalendarActivityRing = memo(function CalendarActivityRing({
 });
 
 const styles = StyleSheet.create({
-  hitTarget: { minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingVertical: 3 },
+  hitTarget: { minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingVertical: 3 },
   outsideMonth: { opacity: 0.38 },
   ringArea: { width: RING_SIZE, height: RING_SIZE, alignItems: 'center', justifyContent: 'center' },
   absoluteRing: { position: 'absolute', top: 0, left: 0 },
   numberSurface: {
-    width: 29, height: 29, borderRadius: 999,
+    width: 28, height: 28, borderRadius: 999,
     alignItems: 'center', justifyContent: 'center',
   },
-  selectedSurface: { backgroundColor: ucapsaBrand.colors.redSoft },
-  dayNumber: { fontSize: 14, fontWeight: '800', includeFontPadding: false },
+  selectedServiceSurface: { backgroundColor: ucapsaBrand.colors.redSoft },
+  selectedEmptySurface: { backgroundColor: ucapsaBrand.colors.graySoft },
+  dayNumber: { fontSize: 16, lineHeight: 20, fontWeight: '900', includeFontPadding: false, textAlign: 'center' },
 });
