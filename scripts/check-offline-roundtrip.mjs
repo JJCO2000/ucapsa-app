@@ -21,6 +21,22 @@ function mustNot(rel, pattern, message) {
   if (pattern.test(read(rel))) failures.push(message);
 }
 
+// Security regression: a replayed QR event must first be scoped to the
+// authenticated enrollment owner. Otherwise a foreign client who knows both
+// the enrollment ID and client_event_id could retrieve attendance/session IDs
+// before the normal ownership or QR checks execute.
+for (const sqlPath of [
+  'supabase/sql/ucapsa-offline-attendance-outbox.sql',
+  'supabase/sql/ucapsa-unified-member-qr-attendance.sql',
+  'supabase/sql/ucapsa-qr-replay-ownership-hotfix.sql',
+]) {
+  must(
+    sqlPath,
+    /and a\.client_event_id = p_client_event_id\s+and exists \([\s\S]{0,200}owner_enrollment\.id = a\.enrollment_id\s+and owner_enrollment\.user_id = v_user_id/i,
+    'QR offline replay exposes a foreign attendance before checking its owner: ' + sqlPath,
+  );
+}
+
 // Arranque online: prepara lecturas críticas y reintenta escrituras pendientes sin bloquearse entre sí.
 must('src/services/client-offline-sync.service.ts', /Promise\.allSettled/, 'El warm offline dejó de aislar fallos por recurso.');
 for (const key of ['announcements', 'dogs', 'programs', 'membership', 'paymentSummary']) {
