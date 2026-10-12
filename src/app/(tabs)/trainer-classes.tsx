@@ -1,7 +1,8 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { Calendar, type DateData } from 'react-native-calendars';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
@@ -62,6 +63,10 @@ export default function TrainerClassesTab() {
   const initialDate = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : localDateKey();
   const routeScheduleId = typeof scheduleId === 'string' ? scheduleId : '';
   const [dateKey, setDateKey] = useState(initialDate);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [focusedScheduleId, setFocusedScheduleId] = useState(routeScheduleId);
+  const [expandedScheduleId, setExpandedScheduleId] = useState<string | null>(routeScheduleId || null);
+  const loadRunRef = useRef(0);
   const [rows, setRows] = useState<StaffRosterRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -70,25 +75,27 @@ export default function TrainerClassesTab() {
 
   const groups = useMemo(() => {
     const all = groupRoster(rows);
-    return routeScheduleId ? all.filter((item) => item.scheduleId === routeScheduleId) : all;
-  }, [routeScheduleId, rows]);
+    return focusedScheduleId ? all.filter((item) => item.scheduleId === focusedScheduleId) : all;
+  }, [focusedScheduleId, rows]);
 
   const load = useCallback(async () => {
     if (!capabilities.canUseTrainingWorkspace) return;
+    const runId = ++loadRunRef.current;
     setError(null);
     try {
-      setRows(await getStaffClassRoster(dateKey));
+      const result = await getStaffClassRoster(dateKey);
+      if (runId === loadRunRef.current) setRows(result);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'No se pudo cargar el roster.');
+      if (runId === loadRunRef.current) setError(cause instanceof Error ? cause.message : 'No se pudo cargar el roster.');
     } finally {
-      setLoading(false);
+      if (runId === loadRunRef.current) setLoading(false);
     }
   }, [capabilities.canUseTrainingWorkspace, dateKey]);
 
   useFocusEffect(useCallback(() => {
     setLoading(true);
     void load();
-    return undefined;
+    return () => { loadRunRef.current += 1; };
   }, [load]));
 
   async function refresh() {
@@ -97,11 +104,17 @@ export default function TrainerClassesTab() {
   }
 
   function selectDate(nextDate: string) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(nextDate)) return;
+    setCalendarOpen(false);
     setLoading(true);
     if (nextDate === dateKey) {
       void load();
       return;
     }
+    // Cambiar fecha no debe mantener un filtro de clase de la navegación anterior.
+    setFocusedScheduleId('');
+    setExpandedScheduleId(null);
+    setRows([]);
     setDateKey(nextDate);
   }
 
@@ -193,12 +206,13 @@ export default function TrainerClassesTab() {
 
   const today = localDateKey();
   const tomorrow = tomorrowKey();
-  const canMarkAttendance = dateKey <= today;
+  // Fechas históricas son de consulta; correcciones usan el flujo administrativo auditado.
+  const canMarkAttendance = dateKey === today;
 
   return (
     <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={ucapsaBrand.colors.red} />}>
       <View style={styles.header}>
-        <Text style={styles.kicker}>Entrenador · Clases</Text>
+        <Text style={styles.kicker}>{isAdmin ? 'Administración' : 'Entrenador'} · Clases</Text>
         <Text style={styles.title}>Roster</Text>
         <Text style={styles.subtitle}>Quién viene, alertas y resultado real: Asistió / No asistió / Sin registrar. Sin datos financieros.</Text>
       </View>
@@ -210,8 +224,26 @@ export default function TrainerClassesTab() {
         <Pressable style={[styles.dateButton, dateKey === tomorrow && styles.dateButtonActive]} onPress={() => selectDate(tomorrow)}>
           <Text style={[styles.dateButtonText, dateKey === tomorrow && styles.dateButtonTextActive]}>Mañana</Text>
         </Pressable>
-        <View style={styles.dateValue}><Text style={styles.dateValueText}>{dateKey}</Text></View>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Seleccionar fecha, actual ${dateKey}`} accessibilityState={{ expanded: calendarOpen }} style={styles.dateValue} onPress={() => setCalendarOpen((current) => !current)}>
+          <MaterialIcons name="calendar-month" size={17} color={ucapsaBrand.colors.redDark} />
+          <Text style={styles.dateValueText}>{dateKey}</Text>
+          <MaterialIcons name={calendarOpen ? 'expand-less' : 'expand-more'} size={15} color={ucapsaBrand.colors.redDark} />
+        </Pressable>
       </View>
+
+      {calendarOpen ? (
+        <View style={styles.calendarCard}>
+          <Calendar
+            current={dateKey}
+            onDayPress={(day: DateData) => selectDate(day.dateString)}
+            markedDates={{ [dateKey]: { selected: true, selectedColor: ucapsaBrand.colors.red } }}
+            theme={{ todayTextColor: ucapsaBrand.colors.redDark, arrowColor: ucapsaBrand.colors.redDark, selectedDayTextColor: ucapsaBrand.colors.surface }}
+            firstDay={1}
+            enableSwipeMonths
+          />
+        </View>
+      ) : null}
+      {!canMarkAttendance ? <Text style={styles.dateReadOnlyHint}>Fecha de consulta: solo se registra asistencia del día actual. Las correcciones históricas se realizan desde Administración.</Text> : null}
 
       {loading ? (
         <View style={styles.loadingRow}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando clase…</Text></View>
@@ -226,22 +258,29 @@ export default function TrainerClassesTab() {
       ) : null}
 
       <View style={styles.groups}>
-        {groups.map((group) => {
+        {!loading && !error ? groups.map((group) => {
           const puppy = group.programCode === 'puppy';
           const confirmed = group.rows.filter((row) => row.rsvpResponse === 'yes').length;
           return (
             <View key={`${group.scheduleId}:${group.startTime}`} style={styles.groupCard}>
-              <View style={styles.groupHeader}>
-                <View style={[styles.groupIcon, { backgroundColor: puppy ? ucapsaBrand.colors.goldPale : ucapsaBrand.colors.purpleSoft }]}>
-                  <MaterialIcons name={puppy ? 'pets' : 'school'} size={21} color={puppy ? ucapsaBrand.colors.goldDark : ucapsaBrand.colors.purpleDark} />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${puppy ? 'Puppy' : 'Comandos'} ${group.startTime}, ${group.rows.length} perros`}
+                accessibilityState={{ expanded: expandedScheduleId === group.scheduleId }}
+                onPress={() => setExpandedScheduleId((selected) => selected === group.scheduleId ? null : group.scheduleId)}
+                style={styles.groupHeader}
+              >
+                <View style={[styles.groupIcon, { backgroundColor: puppy ? ucapsaBrand.colors.goldPale : ucapsaBrand.colors.blueSoft }]}>
+                  <MaterialIcons name={puppy ? 'pets' : 'school'} size={21} color={puppy ? ucapsaBrand.colors.goldDark : ucapsaBrand.colors.blueDark} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.groupTitle}>{puppy ? 'Puppy' : 'Comandos'} · {group.startTime}</Text>
                   <Text style={styles.groupMeta}>{confirmed} / {group.rows.length} confirmados</Text>
                 </View>
-              </View>
+                <MaterialIcons name={expandedScheduleId === group.scheduleId ? 'expand-less' : 'expand-more'} size={24} color={ucapsaBrand.colors.muted} />
+              </Pressable>
 
-              {group.rows.map((row) => {
+              {expandedScheduleId === group.scheduleId ? group.rows.map((row) => {
                 const busy = busyId === row.enrollmentId || busyId === row.userId;
                 return (
                   <View key={row.enrollmentId} style={styles.personRow}>
@@ -311,10 +350,10 @@ export default function TrainerClassesTab() {
                     </View>
                   </View>
                 );
-              })}
+              }) : null}
             </View>
           );
-        })}
+        }) : null}
       </View>
     </KeyboardAwareScreen>
   );
@@ -330,7 +369,9 @@ const styles = StyleSheet.create({
   dateButtonActive: { backgroundColor: ucapsaBrand.colors.red, borderColor: ucapsaBrand.colors.red },
   dateButtonText: { color: ucapsaBrand.colors.text, fontSize: 11, fontWeight: '900' },
   dateButtonTextActive: { color: ucapsaBrand.colors.surface },
-  dateValue: { marginLeft: 'auto', borderRadius: 999, backgroundColor: ucapsaBrand.colors.redSoft, paddingHorizontal: 9, paddingVertical: 7 },
+  dateValue: { marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, backgroundColor: ucapsaBrand.colors.redSoft, paddingHorizontal: 9, paddingVertical: 7 },
+  calendarCard: { borderRadius: 17, overflow: 'hidden', borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, marginBottom: 12 },
+  dateReadOnlyHint: { fontSize: 11, color: ucapsaBrand.colors.muted, marginBottom: 10, lineHeight: 16 },
   dateValueText: { color: ucapsaBrand.colors.redDark, fontSize: 9, fontWeight: '900' },
   loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 12 },
   muted: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '700' },
@@ -348,8 +389,8 @@ const styles = StyleSheet.create({
   nameLine: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 5 },
   dogName: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
   clientName: { color: ucapsaBrand.colors.muted, fontSize: 10, lineHeight: 14, fontWeight: '700', marginTop: 2 },
-  levelPill: { borderRadius: 999, backgroundColor: ucapsaBrand.colors.purpleSoft, paddingHorizontal: 7, paddingVertical: 3 },
-  levelText: { color: ucapsaBrand.colors.purpleDark, fontSize: 8, fontWeight: '900' },
+  levelPill: { borderRadius: 999, backgroundColor: ucapsaBrand.colors.blueSoft, paddingHorizontal: 7, paddingVertical: 3 },
+  levelText: { color: ucapsaBrand.colors.blueDark, fontSize: 8, fontWeight: '900' },
   safetyPill: { flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 999, backgroundColor: ucapsaBrand.colors.goldPale, paddingHorizontal: 6, paddingVertical: 3 },
   safetyPillHigh: { backgroundColor: ucapsaBrand.colors.dangerSoft },
   safetyText: { color: ucapsaBrand.colors.goldDark, fontSize: 8, fontWeight: '900' },
