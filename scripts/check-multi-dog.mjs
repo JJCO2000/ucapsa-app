@@ -1,5 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import vm from 'node:vm';
+import ts from 'typescript';
 
 const root = process.cwd();
 const failures = [];
@@ -142,6 +144,54 @@ if (/TU SIGUIENTE LOGRO|nextAchievement|styles\.nextCard|definitions\.map\(\(def
 if (achievementScreen.includes('las visitas de socio son métricas de la cuenta')) {
   failures.push('Se reintrodujo la explicación técnica rechazada en Insignias de actividad.');
 }
+
+// Pruebas reales de la función de niveles compilada desde el archivo de la app;
+// no reimplementamos el algoritmo en el test.
+const moduleStub = { exports: {} };
+const compiledCatalog = ts.transpileModule(read('src/constants/activityAchievements.ts'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText;
+vm.runInNewContext(compiledCatalog, {
+  module: moduleStub,
+  exports: moduleStub.exports,
+  require: () => ({}),
+});
+const { activityAchievementDefinitions, buildActivityAchievementCollections } = moduleStub.exports;
+const factsFor = (attendanceTotal, practiceTotal = 7, longestPracticeStreak = 4, memberVisitsTotal = 8) => ({
+  attendanceTotal, practiceTotal, longestPracticeStreak, memberVisitsTotal,
+});
+const getAttendanceLevel = (attendanceTotal) =>
+  buildActivityAchievementCollections(factsFor(attendanceTotal), { includeMemberVisits: false })
+    .find((item) => item.metric === 'attendance');
+for (const [count, expectedLevel, nextThreshold] of [
+  [0, 0, 1], [1, 1, 5], [2, 1, 5], [5, 2, 10],
+  [7, 2, 10], [10, 3, 25], [12, 3, 25], [25, 4, 50],
+  [50, 5, 100], [100, 6, null], [101, 6, null],
+]) {
+  const badge = getAttendanceLevel(count);
+  if (badge.currentLevel !== expectedLevel || badge.totalLevels !== 6 || badge.nextDefinition?.threshold !== (nextThreshold ?? undefined)) {
+    failures.push(`Nivel de asistencia incorrecto para ${count} registros.`);
+  }
+}
+const scoped = buildActivityAchievementCollections(factsFor(7), { includeMemberVisits: false });
+const account = buildActivityAchievementCollections(factsFor(7), { includeMemberVisits: true });
+if (scoped.some((item) => item.metric === 'visits') || !account.some((item) => item.metric === 'visits')) {
+  failures.push('Visitas deben existir solo en la colección de la cuenta de socio.');
+}
+if (scoped.find((item) => item.metric === 'practice')?.currentLevel !== 2 ||
+    scoped.find((item) => item.metric === 'streak')?.currentLevel !== 1) {
+  failures.push('La progresión de prácticas y rachas no conserva los niveles originales.');
+}
+// Si se agrega un séptimo nivel a una categoría, la colección reacciona sin
+// editar la pantalla ni el resumen del perro.
+activityAchievementDefinitions.push({
+  code: 'test_attendance_200', metric: 'attendance', threshold: 200,
+  title: 'Nivel de prueba', description: 'Fixture', icon: 'school',
+});
+if (getAttendanceLevel(100)?.totalLevels !== 7 || getAttendanceLevel(100)?.nextDefinition?.threshold !== 200) {
+  failures.push('Agregar nivel nuevo no actualiza la colección automáticamente.');
+}
+activityAchievementDefinitions.pop();
 
 // Fixture sintético: dos perros con programas distintos y una fila histórica sin dog_id.
 const dogs = [
