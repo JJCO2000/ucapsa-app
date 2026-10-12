@@ -154,7 +154,7 @@ export default function ActivityAchievementsScreen() {
             </View>
           </View>
           <View style={[styles.collectionTrack, { backgroundColor: format.border }]}>
-            <View style={[styles.collectionFill, { width: String(completion) + '%', backgroundColor: format.accent }]} />
+            <View style={[styles.collectionFill, { width: `${completion}%` as const, backgroundColor: format.accent }]} />
           </View>
           {nextAchievement ? (
             <Pressable
@@ -231,7 +231,7 @@ export default function ActivityAchievementsScreen() {
                       </Text>
                       <View style={styles.detailProgressTrack}>
                         <View style={[styles.detailProgressFill, {
-                          width: String(Math.min(100, 100 * selectedProgress / selectedDefinition.threshold)) + '%',
+                          width: `${Math.min(100, 100 * selectedProgress / selectedDefinition.threshold)}%` as const,
                           backgroundColor: tone.accent,
                         }]} />
                       </View>
