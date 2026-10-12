@@ -46,7 +46,7 @@
   "devDependencies": {
     "@types/react": "~19.2.2",
     "decode-uri-component": "file:packages/decode-uri-component-compat",
-    "typescript": "~6.0.3"
+    "typescript": "~7.0.2"
   },
   "scripts": {
     "start": "expo start",
