@@ -47,7 +47,7 @@ function RootNavigator() {
     });
 
     return () => subscription.remove();
-  }, [isStaff, loading, startupError, user]);
+  }, [isOfflineFallback, isStaff, loading, startupError, user]);
 
   if (loading) {
     return <LoadingScreen message="Preparando UCAPSA..." />;
