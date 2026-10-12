@@ -123,8 +123,8 @@ export default function TabsLayout() {
       <Tabs.Screen name="admin-clients" options={{ href: adminWorkspace ? '/admin-clients' : null, title: 'Clientes', tabBarIcon: icon('people-alt') }} />
       <Tabs.Screen name="admin-classes" options={{ href: adminWorkspace ? '/admin-classes' : null, title: 'Clases', tabBarIcon: icon('school') }} />
       <Tabs.Screen name="admin-payments" options={{ href: adminWorkspace ? '/admin-payments' : null, title: 'Pagos', tabBarIcon: icon('payments') }} />
-      <Tabs.Screen name="admin-communication" options={{ href: adminWorkspace ? '/admin-communication' : null, title: 'Comunic.', tabBarIcon: icon('campaign') }} />
-      <Tabs.Screen name="admin-more" options={{ href: null, title: 'Herramientas', tabBarIcon: icon('settings') }} />
+      <Tabs.Screen name="admin-communication" options={{ href: null, title: 'Comunic.', tabBarIcon: icon('campaign') }} />
+      <Tabs.Screen name="admin-more" options={{ href: adminWorkspace ? '/admin-more' : null, title: 'Gestión', tabBarIcon: icon('grid-view') }} />
 
       <Tabs.Screen name="trainer-home" options={{ href: trainerWorkspace ? '/trainer-home' : null, title: 'Inicio', tabBarIcon: icon('home') }} />
       <Tabs.Screen name="trainer-classes" options={{ href: trainerWorkspace ? '/trainer-classes' : null, title: 'Clases', tabBarIcon: icon('school') }} />
