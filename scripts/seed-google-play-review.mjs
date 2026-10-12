@@ -6,7 +6,6 @@
  * Only --apply requires a locally-held SUPABASE_SERVICE_ROLE_KEY.
  */
 import { createClient } from '@supabase/supabase-js';
-import { randomUUID } from 'node:crypto';
 
 const PROD = 'hrfecmviyiluubymsoeq';
 const ref = String(process.env.PLAY_REVIEW_PROJECT_REF ?? '');
@@ -15,7 +14,7 @@ const inbox = String(process.env.PLAY_REVIEW_INBOX ?? '');
 if (!/^[a-z0-9]{20}$/.test(ref) || ref === PROD || url !== 'https://' + ref + '.supabase.co') {
   throw Error('BLOQUEADO: únicamente una rama Supabase aislada está autorizada.');
 }
-if (!/^[^\\s@+]+@(gmail|googlemail)\\.com$/i.test(inbox)) {
+if (!/^[^\s@+]+@(gmail|googlemail)\.com$/i.test(inbox)) {
   throw Error('Define PLAY_REVIEW_INBOX con la bandeja Gmail controlada por ti.');
 }
 const prefix = inbox.split('@')[0].toLowerCase();
