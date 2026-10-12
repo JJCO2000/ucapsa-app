@@ -1,0 +1,30 @@
+name: Expo patch alignment - one time
+on:
+  push:
+    branches: [fix/competition-scores-visible-20261012]
+    paths: [.github/workflows/expo-patches-once.yml]
+permissions:
+  contents: write
+jobs:
+  align-expo-patches:
+    if: github.actor == 'JJCO2000'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Align six Expo SDK 57 patch versions and lockfile
+        run: npm install --save --save-prefix=~ '@expo/ui@57.0.23' 'expo@57.0.28' 'expo-router@57.0.26' 'expo-sharing@57.0.23' 'expo-splash-screen@57.0.10' 'expo-updates@57.0.26'
+      - run: npx expo-doctor
+      - run: npm run verify:release
+      - name: Commit reproducible dependency alignment
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git diff --cached --exit-code || (git commit -m "chore(expo): align SDK 57 patch versions with expo-doctor" && git push)
