@@ -17,8 +17,18 @@ export type ClientAccountCompetitionDog = {
   official_exams: ClientOfficialExamResult[];
 };
 
+export type ClientAccountCompetitionSeason = {
+  season_id: string;
+  season_name: string;
+  season_status: string;
+  season_starts_at: string;
+  season_ends_at: string;
+};
+
 export type ClientAccountCompetitionSnapshot = {
   dogs: ClientAccountCompetitionDog[];
+  // Consulta independiente del perro: la temporada puede existir sin registros competitivos.
+  seasons?: ClientAccountCompetitionSeason[];
 };
 
 const RESOURCE_KEY = 'competition-account';
@@ -51,8 +61,23 @@ async function fetchMyCompetitionAccount(
   const cleanUserId = userId.trim();
   if (!cleanUserId) throw new Error('Falta el usuario.');
 
-  const dogs = await getMyDogs();
-  if (dogs.length === 0) return { dogs: [] };
+  const [dogs, publishedSeasonsResult] = await Promise.all([
+    getMyDogs(),
+    supabase
+      .from('ucapsa_competition_seasons')
+      .select('id,name,status,starts_at,ends_at')
+      .neq('status', 'draft')
+      .order('starts_at', { ascending: false }),
+  ]);
+  if (publishedSeasonsResult.error) throw publishedSeasonsResult.error;
+  const seasons: ClientAccountCompetitionSeason[] = (publishedSeasonsResult.data ?? []).map((season) => ({
+    season_id: season.id,
+    season_name: season.name,
+    season_status: season.status,
+    season_starts_at: season.starts_at,
+    season_ends_at: season.ends_at,
+  }));
+  if (dogs.length === 0) return { dogs: [], seasons };
 
   const dogIds = dogs.map((dog) => dog.id);
   const [rangesResult, examsResult] = await Promise.all([
@@ -76,6 +101,7 @@ async function fetchMyCompetitionAccount(
   const exams = (examsResult.data ?? []) as ClientOfficialExamResult[];
 
   return {
+    seasons,
     dogs: dogs.map((dog) => ({
       dog_id: dog.id,
       dog_name: dog.name,
