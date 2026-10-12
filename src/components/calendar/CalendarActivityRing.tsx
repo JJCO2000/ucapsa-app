@@ -30,6 +30,7 @@ type Props = {
   selected: boolean;
   today: boolean;
   outsideMonth: boolean;
+  dataIncomplete?: boolean;
   onPress: () => void;
 };
 
@@ -40,6 +41,7 @@ export const CalendarActivityRing = memo(function CalendarActivityRing({
   selected,
   today,
   outsideMonth,
+  dataIncomplete = false,
   onPress,
 }: Props) {
   const count = kinds.length;
@@ -54,7 +56,10 @@ export const CalendarActivityRing = memo(function CalendarActivityRing({
       accessibilityState={{ selected }}
       accessibilityLabel={dateLabel + (today ? ', hoy' : '') + ': ' + (count > 0
         ? kinds.map((kind) => KIND_LABELS[kind]).join(', ')
-        : 'Sin clases ni actividades programadas')}
+        : dataIncomplete
+          ? 'Información de actividades sin verificar'
+          : 'Sin clases ni actividades programadas')
+        + (dataIncomplete && count > 0 ? '. Pueden faltar otras actividades por sincronizar' : '')}
       onPress={onPress}
       style={[styles.hitTarget, outsideMonth && styles.outsideMonth]}
     >
@@ -66,6 +71,7 @@ export const CalendarActivityRing = memo(function CalendarActivityRing({
               fill="none"
               stroke={ucapsaBrand.colors.adminBorder}
               strokeWidth={STROKE}
+              strokeDasharray={dataIncomplete ? '3 4' : undefined}
             />
           ) : kinds.map((kind, index) => (
             <Circle

@@ -96,7 +96,47 @@ for (const type of ['mutedNeutral', 'text']) {
 if (calendar.includes('markedDates={markedDates}') || calendar.includes('monthExpanded ?')) {
   throw new Error('Month calendar reverted to red dots or a secondary weekly view.');
 }
-if (!calendar.includes('daysBehind = 365') || !calendar.includes('daysAhead + daysBehind')) {
-  throw new Error('Past months no longer show historical scheduled class rings.');
+// The month being viewed, not today's date, must drive canonical schedule expansion.
+const windowSource = fs.readFileSync('src/utils/calendar-date-window.utils.ts', 'utf8');
+const windowModule = ts.transpileModule(windowSource, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+});
+const windowExports = {};
+vm.runInNewContext(windowModule.outputText, { exports: windowExports });
+const { calendarMonthDateKeys } = windowExports;
+for (const [month, first, last] of [
+  ['2026-10', '2026-10-01', '2026-10-31'],
+  ['2028-02', '2028-02-01', '2028-02-29'],
+  ['2024-10', '2024-10-01', '2024-10-31'],
+  ['2030-08', '2030-08-01', '2030-08-31'],
+]) {
+  const keys = calendarMonthDateKeys(month, '2026-10-12');
+  if (!keys.includes(first) || !keys.includes(last) || !keys.includes('2026-10-12') || new Set(keys).size !== keys.length) {
+    throw new Error('Month window failed for historic/future calendar: ' + month);
+  }
+}
+if (!calendar.includes('calendarMonthDateKeys(visibleMonth, selectedDate)')
+  || !calendar.includes('onMonthChange=')
+  || !calendar.includes('getProgramScheduleTimeline')
+  || !calendar.includes('isProgramScheduleActiveOnDate')) {
+  throw new Error('Calendar no longer derives availability from canonical versioned schedules in visible month.');
+}
+for (const token of [
+  'calendarDataIncomplete',
+  'calendarSources',
+  'dataIncomplete={calendarDataIncomplete}',
+  'eventCancellations: Boolean(eventCancellationCache)',
+  'classes: Boolean(classCache)',
+  'events: Boolean(eventCache)',
+  'Disponibilidad sin verificar',
+]) {
+  if (!calendar.includes(token)) throw new Error('Missing partial-fetch detection in calendar: ' + token);
+}
+for (const token of [
+  'dataIncomplete?: boolean',
+  "strokeDasharray={dataIncomplete ? '3 4' : undefined}",
+  'Información de actividades sin verificar',
+]) {
+  if (!ring.includes(token)) throw new Error('Missing unknown-ring state: ' + token);
 }
 console.log('UCAPSA month-only segmented activity rings: PASS');
