@@ -5,7 +5,7 @@
   "dependencies": {
     "@expo/ui": "~57.0.23",
     "@expo/vector-icons": "^15.0.2",
-    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-async-storage/async-storage": "3.1.1",
     "@supabase/supabase-js": "^2.108.2",
     "@xmldom/xmldom": "^0.8.15",
     "expo": "~57.0.28",
