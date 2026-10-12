@@ -1,35 +1,35 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
+import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
-import { activityAchievementDefinitions, activityAchievementValue, type ActivityAchievementMetric } from '../../constants/activityAchievements';
+import { activityAchievementCategoryMeta, activityAchievementDefinitions, activityAchievementValue, type ActivityAchievementDefinition, type ActivityAchievementMetric } from '../../constants/activityAchievements';
 import { ucapsaBrand, ucapsaColorKeyPalette } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useReturnToProfile } from '../../hooks/useReturnToProfile';
 import { useSession } from '../../hooks/useSession';
 import {
   getCachedMyClientActivityFacts,
+  getCachedDogActivityFacts,
   getMyClientActivityFacts,
+  getMyDogActivityFacts,
   type ClientActivityFacts,
 } from '../../services/client-activity.service';
 
-const categoryMeta: Record<ActivityAchievementMetric, { title: string; icon: keyof typeof MaterialIcons.glyphMap; tone: keyof typeof ucapsaColorKeyPalette }> = {
-  attendance: { title: 'Asistencias', icon: 'school', tone: 'yellow' },
-  practice: { title: 'Práctica', icon: 'pets', tone: 'green' },
-  visits: { title: 'Visitas de socio', icon: 'badge', tone: 'blue' },
-  streak: { title: 'Rachas', icon: 'local-fire-department', tone: 'purple' },
-};
 
 export default function ActivityAchievementsScreen() {
-  const { from } = useLocalSearchParams<{ from?: string | string[] }>();
+  const { from, dogId, code } = useLocalSearchParams<{ from?: string | string[]; dogId?: string | string[]; code?: string | string[] }>();
+  const scopedDogId = typeof dogId === 'string' ? dogId : null;
+  const deepLinkedCode = typeof code === 'string' ? code : null;
   const fromProfile = (Array.isArray(from) ? from[0] : from) === 'profile';
   const backToProfile = useReturnToProfile(fromProfile);
   const { user, role, isAdmin } = useSession();
   const [facts, setFacts] = useState<ClientActivityFacts | null>(null);
+  const [selectedCode, setSelectedCode] = useState<string | null>(deepLinkedCode);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +38,11 @@ export default function ActivityAchievementsScreen() {
   const loadRunRef = useRef(0);
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
   const premium = format.key === 'member';
+  useEffect(() => { setSelectedCode(deepLinkedCode); }, [deepLinkedCode]);
+  const selectedDefinition = activityAchievementDefinitions.find((item) =>
+    item.code === selectedCode && (!scopedDogId || item.metric !== 'visits')
+  ) ?? null;
+  const selectedProgress = selectedDefinition && facts ? activityAchievementValue(selectedDefinition.metric, facts) : null;
 
   const load = useCallback(async () => {
     const runId = loadRunRef.current + 1;
@@ -48,7 +53,9 @@ export default function ActivityAchievementsScreen() {
     setError(null);
     setUsingSavedData(false);
 
-    const cached = await getCachedMyClientActivityFacts(user.id);
+    const cached = scopedDogId
+      ? await getCachedDogActivityFacts(user.id, scopedDogId)
+      : await getCachedMyClientActivityFacts(user.id);
     if (!isCurrentRun()) return;
     if (cached) {
       setFacts(cached.data);
@@ -57,7 +64,9 @@ export default function ActivityAchievementsScreen() {
     }
 
     try {
-      const fresh = await getMyClientActivityFacts(user.id);
+      const fresh = scopedDogId
+        ? await getMyDogActivityFacts(user.id, scopedDogId)
+        : await getMyClientActivityFacts(user.id);
       if (!isCurrentRun()) return;
       setFacts(fresh);
       setUsingSavedData(false);
@@ -74,7 +83,7 @@ export default function ActivityAchievementsScreen() {
     } finally {
       if (isCurrentRun()) setLoading(false);
     }
-  }, [isAdmin, user]);
+  }, [isAdmin, scopedDogId, user]);
 
   useFocusEffect(useCallback(() => {
     void load();
@@ -111,15 +120,45 @@ export default function ActivityAchievementsScreen() {
       {loading && !facts ? <View style={styles.loading}><ActivityIndicator color={format.accent} /><Text style={[styles.muted, { color: format.muted }]}>Calculando insignias...</Text></View> : null}
       {error && !facts ? <View style={[styles.stateCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}><Text style={[styles.stateTitle, { color: format.cardText }]}>{error}</Text></View> : null}
 
-      {facts ? ((premium ? ['attendance', 'practice', 'visits', 'streak'] : ['attendance', 'practice', 'streak']) as ActivityAchievementMetric[]).map((metric) => (
-        <AchievementCategory key={metric} metric={metric} facts={facts} format={format} premium={premium} />
+      {scopedDogId ? <Text style={[styles.scopeHint, { color: format.muted }]}>Insignias del perro seleccionado · las visitas de socio son métricas de la cuenta.</Text> : null}
+
+      {facts ? ((premium && !scopedDogId ? ['attendance', 'practice', 'visits', 'streak'] : ['attendance', 'practice', 'streak']) as ActivityAchievementMetric[]).map((metric) => (
+        <AchievementCategory key={metric} metric={metric} facts={facts} format={format} premium={premium} onSelect={(item) => setSelectedCode(item.code)} />
       )) : null}
+
+      <KeyboardAwareModal visible={Boolean(selectedDefinition)} onClose={() => setSelectedCode(null)}>
+        {selectedDefinition ? (() => {
+          const meta = activityAchievementCategoryMeta[selectedDefinition.metric];
+          const tone = ucapsaColorKeyPalette[meta.tone];
+          const earned = selectedProgress !== null && selectedProgress >= selectedDefinition.threshold;
+          return (
+            <View style={styles.badgeDetail}>
+              <View style={[styles.badgeDetailIcon, { backgroundColor: tone.soft }]}>
+                <MaterialIcons name={selectedDefinition.icon} size={38} color={tone.text} />
+              </View>
+              <Text style={[styles.badgeDetailCategory, { color: tone.text }]}>{meta.title}</Text>
+              <Text style={styles.badgeDetailTitle}>{selectedDefinition.title}</Text>
+              <Text style={styles.badgeDetailDescription}>{selectedDefinition.description}</Text>
+              <Text style={styles.badgeDetailProgress}>
+                {selectedProgress === null
+                  ? 'Cargando progreso…'
+                  : earned
+                    ? `Conseguida · ${selectedProgress} de ${selectedDefinition.threshold}`
+                    : `Progreso: ${selectedProgress} de ${selectedDefinition.threshold}`}
+              </Text>
+              <Pressable accessibilityRole="button" style={[styles.badgeDetailClose, { backgroundColor: tone.accent }]} onPress={() => setSelectedCode(null)}>
+                <Text style={styles.badgeDetailCloseText}>Ver todas las insignias</Text>
+              </Pressable>
+            </View>
+          );
+        })() : null}
+      </KeyboardAwareModal>
     </KeyboardAwareScreen>
   );
 }
 
-function AchievementCategory({ metric, facts, format, premium }: { metric: ActivityAchievementMetric; facts: ClientActivityFacts; format: ReturnType<typeof resolveUcapsaFormat>; premium: boolean }) {
-  const meta = categoryMeta[metric];
+function AchievementCategory({ metric, facts, format, premium, onSelect }: { metric: ActivityAchievementMetric; facts: ClientActivityFacts; format: ReturnType<typeof resolveUcapsaFormat>; premium: boolean; onSelect: (item: ActivityAchievementDefinition) => void }) {
+  const meta = activityAchievementCategoryMeta[metric];
   const tone = ucapsaColorKeyPalette[meta.tone];
   const value = activityAchievementValue(metric, facts);
   const definitions = activityAchievementDefinitions.filter((item) => item.metric === metric);
@@ -153,7 +192,9 @@ function AchievementCategory({ metric, facts, format, premium }: { metric: Activ
 
           return (
             <View key={definition.code} style={[styles.roadmapStep, alignStyle]}>
-              <View
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => onSelect(definition)}
                 accessibilityLabel={`${definition.title}. ${isUnlocked ? 'Conseguido' : isNext ? 'Siguiente objetivo' : 'Bloqueado'}. ${definition.threshold}`}
                 style={[
                   styles.roadmapNode,
@@ -175,7 +216,7 @@ function AchievementCategory({ metric, facts, format, premium }: { metric: Activ
                     <MaterialIcons name="check" size={12} color={tone.text} />
                   </View>
                 ) : null}
-              </View>
+              </Pressable>
               <Text
                 numberOfLines={2}
                 style={[
@@ -207,6 +248,15 @@ function AchievementCategory({ metric, facts, format, premium }: { metric: Activ
 }
 
 const styles = StyleSheet.create({
+  scopeHint: { fontSize: 11, fontWeight: '700', lineHeight: 16, marginBottom: 12 },
+  badgeDetail: { alignItems: 'center', paddingVertical: 9, gap: 9 },
+  badgeDetailIcon: { width: 92, height: 92, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
+  badgeDetailCategory: { fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
+  badgeDetailTitle: { color: ucapsaBrand.colors.text, fontSize: 23, fontWeight: '900', textAlign: 'center' },
+  badgeDetailDescription: { color: ucapsaBrand.colors.muted, fontSize: 14, lineHeight: 20, textAlign: 'center', fontWeight: '700' },
+  badgeDetailProgress: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900', marginTop: 10 },
+  badgeDetailClose: { minHeight: 47, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', borderRadius: 13, marginTop: 12 },
+  badgeDetailCloseText: { color: ucapsaBrand.colors.surface, fontSize: 13, fontWeight: '900' },
   premiumContent: { backgroundColor: ucapsaBrand.colors.premiumBackground },
   backButton: { alignSelf: 'flex-start', minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 14, paddingHorizontal: 11, marginBottom: 12 },
   backText: { fontSize: 13, fontWeight: '900' },
