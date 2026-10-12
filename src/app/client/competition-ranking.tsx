@@ -140,6 +140,11 @@ export default function ClientCompetitionRankingScreen() {
   if (isAdmin) return <Redirect href="/admin-home" />;
 
   const podium = rows.slice(0, 3);
+  // La API ya ordena la clasificación. Únicamente mostramos 2.º, 1.º, 3.º
+  // como podio visual, sin recalcular puestos, puntos ni desempates.
+  const podiumDisplay = [podium[1], podium[0], podium[2]].filter(
+    (row): row is ClientCompetitionLeaderboardRow => Boolean(row),
+  );
   const myDogIds = new Set(myDogs.map((dog) => dog.id));
   const myRows = myDogs.map((dog) => ({
     dog,
@@ -226,9 +231,15 @@ export default function ClientCompetitionRankingScreen() {
               </View>
             )}
 
-            <Text style={[styles.sectionTitle, { color: format.cardText }]}>Podio</Text>
+            <View style={styles.podiumIntro}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.sectionTitle, { color: format.cardText }]}>Podio</Text>
+                <Text style={[styles.podiumSubtitle, { color: format.muted }]}>Los tres mejores de la temporada</Text>
+              </View>
+              <MaterialIcons name="emoji-events" size={27} color={ucapsaBrand.colors.goldDark} />
+            </View>
             <View style={styles.podiumRow}>
-              {podium.map((row) => {
+              {podiumDisplay.map((row) => {
                 const position = Number(row.ranking_position ?? 0);
                 const tone = podiumTone(position);
                 const mine = Boolean(row.dog_id && myDogIds.has(row.dog_id));
@@ -237,24 +248,31 @@ export default function ClientCompetitionRankingScreen() {
                     key={row.dog_id ?? String(row.ranking_position)}
                     style={[
                       styles.podiumCard,
+                      position === 1 && styles.podiumChampion,
                       {
                         backgroundColor: tone.background,
                         borderColor: tone.border,
                       },
                     ]}
                   >
-                    <Text style={styles.medal}>{medal(position)}</Text>
+                    <Text style={[styles.podiumPlacement, { color: tone.text }]}>
+                      {position === 1 ? 'CAMPEÓN' : `PUESTO ${position}`}
+                    </Text>
+                    <Text style={[styles.medal, position === 1 && styles.medalChampion]}>{medal(position)}</Text>
                     <RankingDogAvatar
                       name={row.dog_name ?? 'perro'}
                       photoUrl={mine && row.dog_id ? myDogs.find((dog) => dog.id === row.dog_id)?.photoUrl ?? null : null}
                       avatarKey={row.dog_avatar_key}
                       avatarColor={row.dog_avatar_color}
-                      size={38}
+                      size={position === 1 ? 52 : 42}
                     />
                     <Text style={[styles.podiumPosition, { color: tone.text }]}>#{position}</Text>
                     <Text numberOfLines={1} style={[styles.podiumName, { color: format.cardText }]}>{row.dog_name || 'Perro'}</Text>
                     <Text style={[styles.podiumScore, { color: tone.text }]}>{numberLabel(row.competitive_score)} pts</Text>
                     {mine ? <Text style={[styles.podiumMine, { color: tone.text }]}>TUYO</Text> : null}
+                    <View style={[styles.podiumPedestal, position === 1 ? styles.podiumPedestalChampion : position === 2 ? styles.podiumPedestalSecond : styles.podiumPedestalThird, { backgroundColor: tone.border }]}>
+                      <Text style={styles.podiumPedestalNumber}>{position}</Text>
+                    </View>
                   </View>
                 );
               })}
@@ -367,13 +385,23 @@ const styles = StyleSheet.create({
   myCard: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, borderWidth: 1, padding: 12 },
   myLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 0.7 },
   sectionTitle: { fontSize: 18, lineHeight: 23, fontWeight: '900', marginBottom: 8 },
-  podiumRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  podiumCard: { flex: 1, minWidth: 0, minHeight: 142, alignItems: 'center', justifyContent: 'center', borderRadius: 20, borderWidth: 2, padding: 10 },
-  medal: { fontSize: 24, marginBottom: 3 },
-  podiumPosition: { fontSize: 10, fontWeight: '900', marginBottom: 2 },
-  podiumName: { width: '100%', textAlign: 'center', fontSize: 10, fontWeight: '900' },
-  podiumScore: { fontSize: 11, fontWeight: '900', marginTop: 4 },
-  podiumMine: { marginTop: 5, fontSize: 8, fontWeight: '900', letterSpacing: 0.7 },
+  podiumIntro: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 5 },
+  podiumSubtitle: { fontSize: 10, fontWeight: '700', marginTop: -3, marginBottom: 12 },
+  podiumRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 7, marginBottom: 17 },
+  podiumCard: { flex: 1, minWidth: 0, minHeight: 174, alignItems: 'center', justifyContent: 'flex-end', borderRadius: 18, borderWidth: 2, paddingTop: 9, paddingHorizontal: 5, paddingBottom: 0, overflow: 'hidden' },
+  podiumChampion: { minHeight: 217, borderWidth: 3, borderTopLeftRadius: 22, borderTopRightRadius: 22 },
+  podiumPlacement: { fontSize: 8, fontWeight: '900', letterSpacing: 0.5, textAlign: 'center', marginBottom: 4 },
+  medal: { fontSize: 22, marginBottom: 5 },
+  medalChampion: { fontSize: 31 },
+  podiumPosition: { fontSize: 11, fontWeight: '900', marginTop: 4 },
+  podiumName: { width: '100%', textAlign: 'center', fontSize: 11, fontWeight: '900', paddingHorizontal: 2, marginTop: 3 },
+  podiumScore: { fontSize: 11, fontWeight: '900', marginTop: 4, marginBottom: 7 },
+  podiumMine: { fontSize: 8, fontWeight: '900', letterSpacing: 0.7, marginBottom: 6 },
+  podiumPedestal: { alignSelf: 'stretch', justifyContent: 'center', alignItems: 'center', minHeight: 22, marginTop: 4 },
+  podiumPedestalChampion: { minHeight: 42 },
+  podiumPedestalSecond: { minHeight: 29 },
+  podiumPedestalThird: { minHeight: 22 },
+  podiumPedestalNumber: { fontSize: 17, color: ucapsaBrand.colors.surface, fontWeight: '900' },
   list: { gap: 8 },
   rankRow: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 17, borderWidth: 1, padding: 10 },
   rankBox: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
