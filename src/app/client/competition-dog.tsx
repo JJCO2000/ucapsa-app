@@ -235,6 +235,7 @@ export default function ClientDogCompetitionScreen() {
                 <View style={styles.cardTitleLine}>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.sectionEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>RANKING</Text>
+                    <Text style={[styles.cardTitle, { color: format.cardText }]}>{numberLabel(selectedSeason.competitive_score)} puntos acumulados</Text>
                     <Text style={[styles.cardTitle, { color: format.cardText }]}>
                       {selectedSeason.is_ranking_eligible ? 'Ver posición y Podio' : 'Ver clasificación de la temporada'}
                     </Text>
@@ -244,7 +245,7 @@ export default function ClientDogCompetitionScreen() {
                 <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
                   {selectedSeason.is_ranking_eligible
                     ? 'Tu perro participa en la clasificación oficial de esta temporada.'
-                    : 'Tu perro todavía no ocupa una posición oficial.'}
+                    : 'Sin posición oficial hasta completar los requisitos de exámenes.'}
                 </Text>
               </Pressable>
 

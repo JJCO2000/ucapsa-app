@@ -22,6 +22,11 @@ import {
 } from '../../services/client-competition.service';
 import { recordValueExposure } from '../../services/continuity-evidence.service';
 
+function numberLabel(value: number | null | undefined) {
+  const numeric = Number(value ?? 0);
+  return Number.isInteger(numeric) ? String(numeric) : numeric.toFixed(2);
+}
+
 function statusLabel(status: string | null | undefined) {
   if (status === 'active') return 'Activa';
   if (status === 'reopened') return 'Reabierta';
@@ -290,7 +295,18 @@ export default function ClientCompetitionScreen() {
                         </View>
                       ))
                     ) : (
-                      <Text style={[styles.rankingMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.primaryButtonText }]}>Tus perros aún no ocupan una posición oficial.</Text>
+                      <View style={{ gap: 5 }}>
+                        <Text style={[styles.rankingMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.primaryButtonText }]}>Sin posiciones oficiales todavía. Tus puntos ya se acumulan:</Text>
+                        {snapshot.dogs.map((dog) => {
+                          const season = dog.seasons.find((item) => item.season_id === selectedSeasonId);
+                          return season ? (
+                            <View key={dog.dog_id} style={[styles.positionPill, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.cardBackground }]}>
+                              <Text style={[styles.positionName, { color: premium ? ucapsaBrand.colors.premiumText : format.cardText }]}>{dog.dog_name}</Text>
+                              <Text style={[styles.positionValue, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>{numberLabel(season.competitive_score)} pts</Text>
+                            </View>
+                          ) : null;
+                        })}
+                      </View>
                     )}
                   </View>
                 </Pressable>
@@ -327,6 +343,7 @@ export default function ClientCompetitionScreen() {
 
                         {season ? (
                           <View style={styles.dogStats}>
+                            <Stat label="Puntos" value={numberLabel(season.competitive_score)} />
                             <Stat label="Actividades" value={String(Number(season.constancy_events_count ?? 0))} />
                             <Stat label="Exámenes" value={String(officialExams.length)} />
                             <Stat label="Pendientes" value={String(Number(season.missing_required_exams_count ?? 0))} />

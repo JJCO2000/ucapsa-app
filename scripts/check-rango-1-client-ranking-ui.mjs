@@ -46,12 +46,32 @@ if (cacheIndex < 0 || refreshIndex < 0 || cacheIndex > refreshIndex) {
   failures.push('Ranking cliente debe hidratar cache antes del refresh remoto.');
 }
 
+for (const token of [
+  'refreshMyCompetitionAccount',
+  'accountResult',
+  'season.competitive_score',
+  'Puntos acumulados de tus perros',
+  'SIN POSICIÓN OFICIAL',
+]) {
+  if (!ranking.includes(token)) failures.push('Ranking debe mostrar puntos antes de elegibilidad: ' + token);
+}
+for (const token of [
+  'numberLabel(season.competitive_score)',
+  'Sin posiciones oficiales todavía',
+]) {
+  if (!summary.includes(token)) failures.push('Resumen debe mostrar puntaje sin ranking: ' + token);
+}
+const dogDetail = read('src/app/client/competition-dog.tsx');
+if (!dogDetail.includes('puntos acumulados')) {
+  failures.push('Detalle del perro debe mostrar puntaje acumulado.');
+}
+
 const fallbackIndex = ranking.indexOf('setUsingSavedData(true)');
 if (fallbackIndex < 0) {
   failures.push('Ranking cliente perdió fallback de datos guardados.');
 }
 
-if (!/OfflineDataNotice/.test(ranking) || !/Mostrando Ranking guardado/.test(ranking)) {
+if (!/OfflineDataNotice/.test(ranking) || !/(?:Mostrando Ranking guardado|Mostrando datos competitivos guardados)/.test(ranking)) {
   failures.push('Ranking cliente perdió aviso offline.');
 }
 
