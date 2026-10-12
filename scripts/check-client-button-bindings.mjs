@@ -8,6 +8,7 @@ const errors = [];
 const tabNames = ['announcements','calendar','classes','dog','home','membership','payments','profile','services'];
 const standalone = ['account-settings','achievements','attendance','privacy','request-membership','restaurant','reviews','terms'];
 const adminTabs = ['admin-classes','admin-clients','admin-communication','admin-home','admin-more','admin-payments'];
+const trainerTabs = ['trainer-home','trainer-classes','trainer-exams','trainer-more'];
 function collect(dir) {
   const absolute = path.join(root, dir);
   if (!fs.existsSync(absolute)) return [];
@@ -18,8 +19,9 @@ function collect(dir) {
 }
 const screens = [
   ...collect('src/app/client'),...collect('src/app/auth'),...collect('src/screens/home'),
-  ...collect('src/app/admin'),
+  ...collect('src/app/admin'),...collect('src/app/staff'),
   ...adminTabs.map(name => 'src/app/(tabs)/'+name+'.tsx'),
+  ...trainerTabs.map(name => 'src/app/(tabs)/'+name+'.tsx'),
   ...tabNames.map(name => 'src/app/(tabs)/'+name+'.tsx'),
   ...standalone.map(name => 'src/app/'+name+'.tsx'),
 ].filter((file,index,all) => all.indexOf(file)===index);
@@ -62,6 +64,6 @@ for(const screen of screens) {
     if(!routeExists(route)) errors.push(screen+':'+source.slice(0,match.index).split('\n').length+' missing destination '+route);
   }
 }
-if(screens.length<100 || buttonCount<350) errors.push('Scope shrank: '+screens.length+' screens/'+buttonCount+' buttons');
+if(screens.length<105 || buttonCount<400) errors.push('Scope shrank: '+screens.length+' screens/'+buttonCount+' buttons');
 if(errors.length){console.error('CLIENT BUTTONS FAIL');errors.forEach(e=>console.error(e));process.exit(1);}
-console.log('CLIENT / ADMIN BUTTONS PASS '+screens.length+' screens/'+buttonCount+' press handlers/'+routesChecked+' literal routes');
+console.log('CLIENT / ADMIN / TRAINER BUTTONS PASS '+screens.length+' screens/'+buttonCount+' press handlers/'+routesChecked+' literal routes');
