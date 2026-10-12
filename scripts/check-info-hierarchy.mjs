@@ -71,8 +71,14 @@ must('src/app/(tabs)/admin-home.tsx', /Todo al día/, 'Inicio Admin perdió el e
 must('src/app/(tabs)/admin-home.tsx', /getAdminTrainingDecisionRows/, 'Inicio Admin dejó de incluir decisiones de entrenamiento.');
 must('src/app/(tabs)/admin-home.tsx', /getAdminPaymentAttentionRows/, 'Inicio Admin dejó de incluir pagos que requieren intervención.');
 must('src/app/(tabs)/admin-home.tsx', /getAdminMembershipRows/, 'Inicio Admin dejó de incluir solicitudes de membresía.');
-mustNot('src/app/(tabs)/admin-home.tsx', /Crear anuncio|Restaurante|Registrar asistencia|Registrar pago|Calendario|Competencia UCAPSA/,
+mustNot('src/app/(tabs)/admin-home.tsx', /Crear anuncio|Registrar asistencia|Registrar pago|Calendario|Competencia UCAPSA/,
   'Inicio Admin volvió a convertirse en un menú de herramientas.');
+// Un único acceso de alta frecuencia en el hero es compatible con Inicio como
+// bandeja de decisiones; no se permiten menús ni tarjetas de herramientas.
+must('src/app/(tabs)/admin-home.tsx', /accessibilityLabel="Abrir Restaurante y gestión de comida"[\s\S]{0,180}onPress=\{\(\) => router\.push\('\/admin\/restaurant'/,
+  'Restaurante perdió su acceso directo en el encabezado de Admin.');
+mustNot('src/app/(tabs)/admin-home.tsx', /quickAccessRow|quickAccessButton|Herramientas frecuentes|<MenuRow/,
+  'Inicio Admin volvió a incorporar un menú de herramientas.');
 
 must('src/app/(tabs)/admin-clients.tsx', /Membresías/, 'Clientes perdió la gestión temática de membresías.');
 must('src/app/(tabs)/admin-clients.tsx', /Visitas de socios/, 'Clientes perdió la gestión temática de visitas de socios.');
