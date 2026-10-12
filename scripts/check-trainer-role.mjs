@@ -20,6 +20,7 @@ const trainerService = read('src/services/trainer-staff.service.ts');
 const trainerSql = read('supabase/sql/ucapsa-trainer-workspace.sql');
 const trainerModeSql = read('supabase/sql/ucapsa-trainer-workspace-exam-upload.sql');
 const trainerDogScopeSql = read('supabase/sql/ucapsa-trainer-dog-access-scope.sql');
+const recordedHistorySql = read('supabase/sql/ucapsa-staff-recorded-attendance-history.sql');
 const trainerSqlAll = trainerSql + '\n' + trainerModeSql + '\n' + trainerDogScopeSql;
 const adminMore = read('src/app/(tabs)/admin-more.tsx');
 const rootLayout = read('src/app/_layout.tsx');
@@ -349,6 +350,24 @@ for (const token of [
   "supabase.rpc('staff_publish_ucapsa_exam'",
 ]) {
   if (!trainerService.includes(token)) throw new Error('Trainer app service boundary missing: ' + token);
+}
+
+// La asistencia registrada es una consulta separada del roster esperado:
+// nunca puede crear asistencias, cambiar estados o ampliar permisos a clientes.
+for (const part of [
+  'get_staff_recorded_attendance',
+  'security definer',
+  'if not public.is_ucapsa_staff() then',
+  'from public.program_attendances a',
+  'get_effective_program_schedule(',
+  'from public, anon',
+  'to authenticated, service_role',
+  'p_end_date - p_start_date',
+]) {
+  if (!recordedHistorySql.includes(part)) throw new Error('Historial staff perdió control: ' + part);
+}
+if (/\b(insert|update|delete|truncate)\s+(into|public|from)/i.test(recordedHistorySql)) {
+  throw new Error('La consulta histórica nunca debe mutar asistencias.');
 }
 
 // El rol del servidor gobierna la navegación; no hay un modo persistido ni
