@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.108.2';
+import { edgeWarn } from '../_shared/diagnostics.ts';
 
 type Audience = 'public' | 'clients' | 'members' | 'admins';
 type Category = 'announcements_events' | 'classes' | 'membership' | 'achievements';
@@ -477,11 +478,7 @@ Deno.serve(async (req) => {
           .eq('is_active', true);
 
         if (disableTokenError) {
-          console.warn(
-            'Could not disable DeviceNotRegistered Expo token.',
-            recipient.id,
-            disableTokenError.message,
-          );
+          edgeWarn('notification.disable-unregistered-token-failed', disableTokenError);
         }
       }
 
