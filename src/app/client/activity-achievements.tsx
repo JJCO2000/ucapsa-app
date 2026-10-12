@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
   collectionCount: { minWidth: 63, minHeight: 55, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
   collectionTotal: { fontSize: 16, fontWeight: '900' },
   badgeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginBottom: 24 },
-  badgeCell: { width: '31.5%', minWidth: 0, alignItems: 'center', borderRadius: 17, borderWidth: 1, paddingVertical: 14, paddingHorizontal: 2, minHeight: 166 },
+  badgeCell: { width: '31%', minWidth: 0, alignItems: 'center', borderRadius: 17, borderWidth: 1, paddingVertical: 14, paddingHorizontal: 2, minHeight: 166 },
   badgeShield: { width: 77, height: 78, borderRadius: 27, borderWidth: 3, alignItems: 'center', justifyContent: 'center' },
   badgeLevelDot: { position: 'absolute', right: -6, top: -7, width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   badgeLevelDotText: { color: ucapsaBrand.colors.surface, fontSize: 12, fontWeight: '900' },
