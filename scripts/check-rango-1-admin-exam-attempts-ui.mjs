@@ -20,6 +20,10 @@ const attemptForm = read('src/app/admin/competition-exam-attempt-form.tsx');
 const attemptDetail = read('src/app/admin/competition-exam-attempt-detail.tsx');
 const resultForm = read('src/app/admin/competition-exam-result-form.tsx');
 const service = read('src/services/admin-competition-exam-attempts.service.ts');
+const quickGrade = read('src/app/admin/competition-quick-grade.tsx');
+const quickCreate = read('src/app/admin/competition-quick-create.tsx');
+const adminMenu = read('src/app/(tabs)/admin-more.tsx');
+const tabLayout = read('src/app/(tabs)/_layout.tsx');
 const pkg = read('package.json');
 
 for (const route of [
@@ -29,6 +33,40 @@ for (const route of [
   'competition-exam-result-form',
 ]) {
   if (!new RegExp(`name=["']${route}["']`).test(layout)) failures.push(`Admin layout no registra ${route}.`);
+}
+
+for (const route of ['competition-quick-grade', 'competition-quick-create']) {
+  if (!layout.includes('name="' + route + '"')) failures.push('Falta ruta de flujo rápido: ' + route);
+}
+for (const token of [
+  'getAdminCompetitionExamAttemptDetail',
+  'saveCompetitionExamItemResult',
+  'reviewCompetitionExamAttempt',
+  'publishCompetitionExamAttempt',
+  'makeOfficial: true',
+  'allValid',
+  'previousOfficial',
+  'import_batch_id',
+  'status === \'draft\'',
+]) {
+  if (!quickGrade.includes(token)) failures.push('Evaluación rápida perdió seguridad/contrato: ' + token);
+}
+const reviewIndex = quickGrade.indexOf('await reviewCompetitionExamAttempt');
+const publishIndex = quickGrade.indexOf('await publishCompetitionExamAttempt');
+if (reviewIndex < 0 || publishIndex <= reviewIndex) {
+  failures.push('Evaluación rápida debe revisar antes de oficializar.');
+}
+for (const token of [
+  'createCompetitionExam(', 'addCompetitionExamItem(', 'publishCompetitionExam(',
+  'maxPoints: points', 'isRequiredForRanking: required',
+]) {
+  if (!quickCreate.includes(token)) failures.push('Examen rápido perdió fuente canónica: ' + token);
+}
+if (!adminMenu.includes('/admin/competition-quick-grade') || !adminMenu.includes('/admin/restaurant')) {
+  failures.push('Gestión perdió examen o restaurante prioritario.');
+}
+if (!/name="admin-more"[^\n]*title: 'Gestión'/.test(tabLayout)) {
+  failures.push('Navegación de Administración debe exponer Gestión.');
 }
 
 if (!/competition-exam-attempts\?examId=/.test(examDetail)) {
