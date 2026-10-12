@@ -18,7 +18,7 @@ export default function AdminQuickExamCreateScreen() {
   const [seasonId, setSeasonId] = useState('');
   const [title, setTitle] = useState('');
   const [maxText, setMaxText] = useState('100');
-  const [required, setRequired] = useState(true);
+  const [required, setRequired] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +40,18 @@ export default function AdminQuickExamCreateScreen() {
     void load();
     return undefined;
   }, [load]));
+
+  function confirmCreate() {
+    if (required) {
+      Alert.alert(
+        'Examen obligatorio para Ranking',
+        'Al publicar este examen, todos los perros sin resultado oficial dejarán de ocupar una posición hasta completarlo. ¿Quieres exigirlo a toda la temporada?',
+        [{ text: 'Cancelar', style: 'cancel' }, { text: 'Sí, exigir examen', onPress: () => void create() }],
+      );
+      return;
+    }
+    void create();
+  }
 
   async function create() {
     const points = Number(maxText.trim().replace(',', '.'));
@@ -102,7 +114,7 @@ export default function AdminQuickExamCreateScreen() {
             <View style={{ flex: 1 }}><Text style={styles.strong}>Obligatorio para Ranking</Text><Text style={styles.muted}>Todos los perros deberán presentarlo para entrar a la clasificación oficial.</Text></View>
             <Switch value={required} onValueChange={setRequired} trackColor={{ true: ucapsaBrand.colors.red }} />
           </View>
-          <Pressable disabled={saving || !seasonId} onPress={() => void create()} style={[styles.primary, (saving || !seasonId) && styles.disabled]}>
+          <Pressable disabled={saving || !seasonId} onPress={confirmCreate} style={[styles.primary, (saving || !seasonId) && styles.disabled]}>
             <MaterialIcons name="add-circle-outline" size={20} color={ucapsaBrand.colors.surface} />
             <Text style={styles.primaryText}>{saving ? 'Publicando…' : 'Crear y publicar examen'}</Text>
           </Pressable>
