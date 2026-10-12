@@ -200,6 +200,22 @@ export default function AdminHomeTab() {
         <Text style={styles.subtitle}>Inicio sólo muestra lo que necesita una decisión tuya.</Text>
       </View>
 
+      {/* Atajos de operación frecuentes: siempre accesibles, incluso con pendientes. */}
+      <View style={styles.quickAccessRow}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Abrir Restaurante" style={styles.quickAccessButton} onPress={() => router.push('/admin/restaurant' as never)}>
+          <MaterialIcons name="restaurant-menu" size={20} color={ucapsaBrand.colors.redDark} />
+          <Text style={styles.quickAccessText}>Restaurante</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Abrir roster de clases" style={styles.quickAccessButton} onPress={() => router.push('/trainer-classes' as never)}>
+          <MaterialIcons name="school" size={20} color={ucapsaBrand.colors.blueDark} />
+          <Text style={styles.quickAccessText}>Roster</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Abrir exámenes" style={styles.quickAccessButton} onPress={() => router.push('/trainer-exams' as never)}>
+          <MaterialIcons name="assignment" size={20} color={ucapsaBrand.colors.greenDark} />
+          <Text style={styles.quickAccessText}>Exámenes</Text>
+        </Pressable>
+      </View>
+
       {loading ? (
         <View style={styles.loading}>
           <ActivityIndicator color={ucapsaBrand.colors.red} />
@@ -408,6 +424,9 @@ function DecisionCard({
 }
 
 const styles = StyleSheet.create({
+  quickAccessRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  quickAccessButton: { flex: 1, minHeight: 54, borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, alignItems: 'center', justifyContent: 'center', gap: 3, paddingHorizontal: 3 },
+  quickAccessText: { color: ucapsaBrand.colors.text, fontSize: 10, fontWeight: '900' },
   hero: {
     backgroundColor: ucapsaBrand.colors.red,
     borderRadius: 26,
