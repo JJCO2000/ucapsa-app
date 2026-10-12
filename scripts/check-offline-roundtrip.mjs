@@ -168,7 +168,15 @@ must('src/services/client-activity.service.ts', /Promise\.all\(\[[\s\S]*clientRe
 must('src/services/client-activity.service.ts', /if \(!programCache \|\| !visitCache \|\| !practice \|\| !practice\.savedAt\) return null;/, 'Insignias offline volvió a inventar ceros cuando falta una fuente canónica.');
 
 for (const rel of ['src/app/client/member-visits.tsx', 'src/app/client/activity-achievements.tsx']) {
-  must(rel, /setUsingSavedData\(false\)[\s\S]*const cached = await getCached/, `${rel} dejó de hidratar caché en estado neutro.`);
+  if (rel.endsWith('/activity-achievements.tsx')) {
+    must(rel,
+      /setUsingSavedData\(false\)[\s\S]*const cached = scopedDogId[\s\S]*getCachedDogActivityFacts\(user\.id, scopedDogId\)[\s\S]*getCachedMyClientActivityFacts\(user\.id\)/,
+      'Insignias dejaron de elegir caché canónica por perro o de cuenta según su alcance.');
+    must(rel, /const fresh = scopedDogId[\s\S]*getMyDogActivityFacts\(user\.id, scopedDogId\)[\s\S]*getMyClientActivityFacts\(user\.id\)/,
+      'Insignias dejaron de refrescar en el mismo alcance que la caché.');
+  } else {
+    must(rel, /setUsingSavedData\(false\)[\s\S]*const cached = await getCached/, `${rel} dejó de hidratar caché en estado neutro.`);
+  }
   must(rel, /if \(cached\)[\s\S]*setLoading\(false\)/, `${rel} dejó de pintar la caché inmediatamente.`);
   must(rel, /catch[\s\S]*if \(cached\)[\s\S]*setUsingSavedData\(true\)/, `${rel} dejó de reservar el aviso offline para un fallo remoto real.`);
   must(rel, /OfflineDataNotice/, `${rel} perdió la comunicación explícita del fallback real.`);
