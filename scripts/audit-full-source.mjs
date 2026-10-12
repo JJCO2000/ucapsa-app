@@ -41,6 +41,9 @@ const critical = [];
 const review = [];
 let totalLines = 0;
 let totalBytes = 0;
+let totalClientDeletes = 0;
+let contractedClientDeletes = 0;
+let uncontractedClientDeletes = 0;
 
 function addCritical(file, label) {
   critical.push({ file, label });
@@ -260,8 +263,12 @@ for (const file of files) {
 
   const clientDeletes = file.startsWith('src/') ? countMatches(text, /\.delete\s*\(\s*\)/g) : 0;
   const safeClientDeletes = safeClientDeleteCounts.get(file) ?? 0;
+  totalClientDeletes += clientDeletes;
+  contractedClientDeletes += Math.min(clientDeletes, safeClientDeletes);
   if (clientDeletes > safeClientDeletes) {
-    addReview(file, 'DELETE desde código cliente/servicio', clientDeletes - safeClientDeletes);
+    const unexpected = clientDeletes - safeClientDeletes;
+    uncontractedClientDeletes += unexpected;
+    addReview(file, 'DELETE desde código cliente/servicio', unexpected);
   }
 
   const rawDeletes = file.endsWith('.sql') ? countMatches(text, /\bdelete\s+from\s+public\./gi) : 0;
@@ -354,7 +361,16 @@ console.log(JSON.stringify({
   categories: categoryCounts,
   reviewFindings: review.length,
   orphanCandidates: orphanCandidates.length,
+  clientDeletes: {
+    total: totalClientDeletes,
+    contractedTemporaryCacheDeletes: contractedClientDeletes,
+    uncontracted: uncontractedClientDeletes,
+  },
 }, null, 2));
+
+if (contractedClientDeletes !== 1) {
+  addCritical('src/services/training-report-export.service.ts', 'El contrato de limpieza temporal Excel dejó de representar exactamente un delete() en Paths.cache.');
+}
 
 if (review.length) {
   console.log('FULL SOURCE AUDIT REVIEW FINDINGS');
