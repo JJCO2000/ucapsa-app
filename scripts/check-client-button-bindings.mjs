@@ -26,6 +26,11 @@ const screens = [
   ...standalone.map(name => 'src/app/'+name+'.tsx'),
 ].filter((file,index,all) => all.indexOf(file)===index);
 let buttonCount=0, routesChecked=0;
+let trainerStaffScreens=0, trainerStaffButtons=0, trainerStaffRoutes=0;
+
+function isTrainerStaffScreen(screen) {
+  return screen.startsWith('src/app/staff/') || /src\/app\/\(tabs\)\/trainer-[^/]+\.tsx$/.test(screen);
+}
 function jsxOpeningTag(source, offset) {
   let depth=0,quote='',escaped=false;
   for (let i=offset;i<source.length;i+=1) {
@@ -50,6 +55,8 @@ function routeExists(route) {
     .some(p => fs.existsSync(path.join(root,p)));
 }
 for(const screen of screens) {
+  const trainerStaff = isTrainerStaffScreen(screen);
+  if (trainerStaff) trainerStaffScreens += 1;
   const full=path.join(root,screen);
   if(!fs.existsSync(full)) {errors.push('Missing client screen: '+screen);continue;}
   const source=fs.readFileSync(full,'utf8');
@@ -57,13 +64,19 @@ for(const screen of screens) {
     const opening=jsxOpeningTag(source,match.index);
     const line=source.slice(0,match.index).split('\n').length;
     buttonCount+=1;
+    if (trainerStaff) trainerStaffButtons+=1;
     if(!/\bonPress\s*=/.test(opening)) errors.push(screen+':'+line+' has no onPress');
   }
   for(const match of source.matchAll(/\brouter\.(?:push|replace|navigate)\s*\(\s*(['"\x60])(\/[^'"\x60]*?)\1/g)) {
     const route=match[2];routesChecked+=1;
+    if (trainerStaff) trainerStaffRoutes+=1;
     if(!routeExists(route)) errors.push(screen+':'+source.slice(0,match.index).split('\n').length+' missing destination '+route);
   }
 }
 if(screens.length<105 || buttonCount<400) errors.push('Scope shrank: '+screens.length+' screens/'+buttonCount+' buttons');
+if(trainerStaffScreens<7 || trainerStaffButtons<30 || trainerStaffRoutes<8) {
+  errors.push('Trainer/Staff scope shrank: '+trainerStaffScreens+' screens/'+trainerStaffButtons+' handlers/'+trainerStaffRoutes+' routes');
+}
 if(errors.length){console.error('CLIENT BUTTONS FAIL');errors.forEach(e=>console.error(e));process.exit(1);}
 console.log('CLIENT / ADMIN / TRAINER BUTTONS PASS '+screens.length+' screens/'+buttonCount+' press handlers/'+routesChecked+' literal routes');
+console.log('TRAINER / STAFF COVERAGE '+trainerStaffScreens+' screens/'+trainerStaffButtons+' press handlers/'+trainerStaffRoutes+' literal routes');

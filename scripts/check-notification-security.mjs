@@ -65,7 +65,7 @@ for (const token of [
   'disabled_at: disabledAt',
   ".eq('id', recipient.id)",
   ".eq('is_active', true)",
-  'console.warn(',
+  "edgeWarn('send-notification.disable-invalid-token-failed'",
 ]) {
   if (!edge.includes(token)) {
     throw new Error('Expo invalid-token lifecycle contract missing: ' + token);
