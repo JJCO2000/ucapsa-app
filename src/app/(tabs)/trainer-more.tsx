@@ -2,7 +2,6 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { StaffWorkspaceSwitcher } from '../../components/domain/StaffWorkspaceSwitcher';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
@@ -17,7 +16,6 @@ export default function TrainerMoreTab() {
         <Text style={styles.kicker}>Entrenador</Text>
         <Text style={styles.title}>Más</Text>
         <Text style={styles.subtitle}>Herramientas operativas. Pagos, estadísticas generales, comunicación y configuración administrativa no están disponibles aquí.</Text>
-        <View style={styles.modeSwitch}><StaffWorkspaceSwitcher /></View>
       </View>
 
       <View style={styles.card}>
@@ -78,7 +76,6 @@ const styles = StyleSheet.create({
   header: { marginBottom: 16 },
   kicker: { color: ucapsaBrand.colors.redDark, fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.7 },
   title: { color: ucapsaBrand.colors.text, fontSize: 28, fontWeight: '900' },
-  modeSwitch: { marginTop: 10 },
   subtitle: { color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 17, fontWeight: '700', marginTop: 3 },
   card: { borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, overflow: 'hidden' },
   row: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 11, padding: 13, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.borderNeutral },
