@@ -220,7 +220,6 @@ for (const token of [
 ]) {
   if (!trainerExams.includes(token)) throw new Error('Editor manual/Excel de staff perdió una regla: ' + token);
 }
-const adminMore = read('src/app/(tabs)/admin-more.tsx');
 if (!adminMore.includes("router.push('/trainer-exams'")) {
   throw new Error('Admin perdió la entrada al editor de exámenes compartido.');
 }
