@@ -1,5 +1,6 @@
 import type { Session, User } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import type { ReactNode } from 'react';
 
 import { getRoleCapabilities, type UcapsaCapabilities } from '../constants/roleCapabilities';
@@ -11,6 +12,12 @@ import { clearClientReadCache } from '../services/client-read-cache.service';
 import { clearPracticeActivityCache } from '../services/practice.service';
 import { disableStoredExpoPushToken } from '../services/notifications.service';
 import { getProfileByUserId } from '../services/profiles.service';
+import {
+  clearVerifiedLocalUser,
+  isBackendUnreachable,
+  readVerifiedLocalUser,
+  rememberVerifiedLocalUser,
+} from '../services/offline-identity.service';
 import { readCachedProfile, removeCachedProfile, writeCachedProfile } from '../services/profile-cache.service';
 import type { AppRole, UserProfile } from '../types/app.types';
 import { withOperationTimeout } from '../utils/async.utils';
@@ -53,6 +60,7 @@ function shouldReloadProfile(event: string) {
 
 export function SessionProvider({ children }: SessionProviderProps) {
   const [session, setSession] = useState<Session | null>(null);
+  const [offlineUser, setOfflineUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [startupError, setStartupError] = useState<string | null>(null);
@@ -63,7 +71,9 @@ export function SessionProvider({ children }: SessionProviderProps) {
   const startupRunRef = useRef(0);
   const authEventAttemptRef = useRef(0);
 
-  const user = session?.user ?? null;
+  // The local identity only enables cached read-only views; all server requests
+  // still rely on Supabase Auth's real session and RLS.
+  const user = session?.user ?? (isOfflineFallback ? offlineUser : null);
   const role = profile?.role ?? null;
   const isAdmin = role === 'admin' || role === 'super_admin';
   const isTrainer = role === 'trainer';
@@ -135,6 +145,8 @@ export function SessionProvider({ children }: SessionProviderProps) {
     const { error: signOutError } = await signOutLocal();
     if (signOutError) throw signOutError;
 
+    await clearVerifiedLocalUser();
+    setOfflineUser(null);
     if (currentUserId) {
       await Promise.all([
         removeCachedProfile(currentUserId),
@@ -163,6 +175,24 @@ export function SessionProvider({ children }: SessionProviderProps) {
       setStartupError(null);
       setIsOfflineFallback(false);
 
+      async function restoreReadOnlyOfflineShell(): Promise<boolean> {
+        const reachable = await isBackendUnreachable().catch(() => false);
+        if (!reachable) return false;
+        const stored = await readVerifiedLocalUser();
+        if (!stored) return false;
+        const cached = await readCachedProfile(stored.id);
+        if (!cached) return false;
+        if (!isMounted || startupRunRef.current !== runId) return false;
+        setSession(null);
+        setOfflineUser(stored);
+        setProfile(cached.profile);
+        setUsingCachedProfile(true);
+        setLastProfileSyncAt(cached.cachedAt);
+        setIsOfflineFallback(true);
+        setLoading(false);
+        return true;
+      }
+
       try {
         const { data, error } = await withOperationTimeout(
           getCurrentSession(),
@@ -174,9 +204,15 @@ export function SessionProvider({ children }: SessionProviderProps) {
         if (!isMounted || startupRunRef.current !== runId) return;
 
         const nextSession = data.session ?? null;
+        if (nextSession?.user) {
+          setOfflineUser(null);
+          void rememberVerifiedLocalUser(nextSession.user).catch((err) => devWarn('Could not persist verified offline identity.', err));
+        }
         setSession(nextSession);
 
         if (!nextSession?.user) {
+          if (await restoreReadOnlyOfflineShell()) return;
+          setOfflineUser(null);
           setProfile(null);
           setUsingCachedProfile(false);
           setLastProfileSyncAt(null);
@@ -238,6 +274,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
         // stored session requires a refresh. Do not pretend we can safely recover an
         // authenticated identity here when no valid session snapshot was returned.
         devWarn('UCAPSA could not recover the local session.', error);
+        if (await restoreReadOnlyOfflineShell()) return;
         setIsOfflineFallback(true);
         setStartupError(STARTUP_ERROR_MESSAGE);
         setLoading(false);
@@ -258,17 +295,38 @@ export function SessionProvider({ children }: SessionProviderProps) {
       if (!isMounted || event === 'INITIAL_SESSION') return;
 
       if (!nextSession?.user) {
-        authEventAttemptRef.current += 1;
+        const eventAttempt = authEventAttemptRef.current + 1;
+        authEventAttemptRef.current = eventAttempt;
+        if (event === 'SIGNED_OUT') {
+          // A refresh that fails offline can emit SIGNED_OUT. Preserve only
+          // locally verified, cached read-only state; never mint a JWT.
+          void (async () => {
+            if (!await isBackendUnreachable().catch(() => false)) return;
+            const stored = await readVerifiedLocalUser();
+            const cached = stored ? await readCachedProfile(stored.id) : null;
+            if (!isMounted || authEventAttemptRef.current !== eventAttempt || !stored || !cached) return;
+            setOfflineUser(stored);
+            setProfile(cached.profile);
+            setUsingCachedProfile(true);
+            setLastProfileSyncAt(cached.cachedAt);
+            setIsOfflineFallback(true);
+            setStartupError(null);
+            setLoading(false);
+          })();
+        }
         setSession(null);
         setProfile(null);
         setStartupError(null);
         setUsingCachedProfile(false);
         setLastProfileSyncAt(null);
         setIsOfflineFallback(false);
+        setOfflineUser(null);
         setLoading(false);
         return;
       }
 
+      setOfflineUser(null);
+      void rememberVerifiedLocalUser(nextSession.user).catch((err) => devWarn('Could not persist verified offline identity.', err));
       setSession(nextSession);
       setStartupError(null);
 
@@ -309,6 +367,30 @@ export function SessionProvider({ children }: SessionProviderProps) {
       listener.subscription.unsubscribe();
     };
   }, []);
+
+  // On returning to the foreground, try to replace read-only identity with a
+  // genuine Supabase session. No login re-prompt is necessary after a transient
+  // network outage if the persisted refresh token is still accepted.
+  useEffect(() => {
+    if (!isOfflineFallback || !offlineUser || session) return;
+    let active = true;
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return;
+      void (async () => {
+        if (await isBackendUnreachable().catch(() => true)) return;
+        const { data, error } = await withOperationTimeout(
+          getCurrentSession(), SESSION_BOOT_TIMEOUT_MS, 'offline session recovery',
+        ).catch(() => ({ data: { session: null }, error: new Error('retry failed') }));
+        if (!active || error || !data.session?.user || data.session.user.id !== offlineUser.id) return;
+        setOfflineUser(null);
+        setSession(data.session);
+        setIsOfflineFallback(false);
+        void rememberVerifiedLocalUser(data.session.user).catch(() => undefined);
+        void refreshProfile().catch(() => undefined);
+      })();
+    });
+    return () => { active = false; subscription.remove(); };
+  }, [isOfflineFallback, offlineUser, session]);
 
   const value = useMemo<SessionContextValue>(
     () => ({
