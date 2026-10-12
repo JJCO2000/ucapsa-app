@@ -9,13 +9,13 @@ import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBa
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
-import { activityAchievementDefinitions, activityAchievementValue, type ActivityAchievementMetric } from '../../constants/activityAchievements';
+import { activityAchievementCategoryMeta, activityAchievementDefinitions, activityAchievementValue, type ActivityAchievementMetric } from '../../constants/activityAchievements';
 import {
   PROGRAM_COMPLETION_ACHIEVEMENT_CODES,
   isProgramCompletionAchievementCode,
 } from '../../constants/programCompletion';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
-import { ucapsaBrand, withAlpha } from '../../constants/brand';
+import { ucapsaBrand, ucapsaColorKeyPalette, withAlpha } from '../../constants/brand';
 import { useReturnToProfile } from '../../hooks/useReturnToProfile';
 import { useSession } from '../../hooks/useSession';
 import { devWarn } from '../../lib/client-diagnostics';
@@ -310,6 +310,12 @@ export default function DogTab() {
     }),
     [selectedEnrollments, selectedPracticeEntries.length, selectedPracticeStats.longestStreak],
   );
+  const programAchievementTone = advancedProgramAchievement
+    ? ucapsaColorKeyPalette[advancedProgramAchievement.definition.color_key]
+    : ucapsaColorKeyPalette.gray;
+  const activityAchievementTone = advancedActivityBadge
+    ? ucapsaColorKeyPalette[activityAchievementCategoryMeta[advancedActivityBadge.metric].tone]
+    : ucapsaColorKeyPalette.gray;
 
   async function refresh() {
     setRefreshing(true);
@@ -572,25 +578,30 @@ export default function DogTab() {
                     <Text style={[styles.dogSecondaryTitle, { color: format.cardText }]}>Logros {selectedDog.name}</Text>
                     <View style={styles.dogAchievementPreview}>
                       <View
-                        style={[styles.previewSeal, { backgroundColor: advancedProgramAchievement ? ucapsaBrand.colors.purpleSoft : ucapsaBrand.colors.graySoft }]}
+                        style={[styles.previewSeal, { backgroundColor: advancedProgramAchievement ? programAchievementTone.soft : ucapsaBrand.colors.graySoft }]}
                         accessibilityLabel={advancedProgramAchievement ? `Logro más avanzado: ${advancedProgramAchievement.definition.title}` : 'Sin logro de programa desbloqueado'}
                       >
                         <MaterialCommunityIcons
                           name={(advancedProgramAchievement?.definition.icon || 'medal-outline') as keyof typeof MaterialCommunityIcons.glyphMap}
                           size={18}
-                          color={advancedProgramAchievement ? ucapsaBrand.colors.purpleDark : ucapsaBrand.colors.gray}
+                          color={advancedProgramAchievement ? programAchievementTone.text : ucapsaBrand.colors.gray}
                         />
                       </View>
-                      <View
-                        style={[styles.previewSeal, { backgroundColor: advancedActivityBadge ? ucapsaBrand.colors.greenSoft : ucapsaBrand.colors.graySoft }]}
-                        accessibilityLabel={advancedActivityBadge ? `Insignia de actividad más avanzada: ${advancedActivityBadge.title}` : 'Sin insignia de actividad desbloqueada'}
+                      <Pressable
+                        accessibilityRole="button"
+                        style={[styles.previewSeal, { backgroundColor: advancedActivityBadge ? activityAchievementTone.soft : ucapsaBrand.colors.graySoft }]}
+                        accessibilityLabel={advancedActivityBadge ? `Abrir insignia de actividad: ${advancedActivityBadge.title}` : 'Ver insignias de actividad'}
+                        onPress={(event) => {
+                          event.stopPropagation();
+                          router.push(`/client/activity-achievements?dogId=${encodeURIComponent(selectedDog.id)}${advancedActivityBadge ? `&code=${encodeURIComponent(advancedActivityBadge.code)}` : ''}` as never);
+                        }}
                       >
                         <MaterialIcons
                           name={advancedActivityBadge?.icon ?? 'star-outline'}
                           size={18}
-                          color={advancedActivityBadge ? ucapsaBrand.colors.greenDark : ucapsaBrand.colors.gray}
+                          color={advancedActivityBadge ? activityAchievementTone.text : ucapsaBrand.colors.gray}
                         />
-                      </View>
+                      </Pressable>
                     </View>
                   </View>
                   <MaterialIcons name="chevron-right" size={20} color={ucapsaBrand.colors.goldDark} />
