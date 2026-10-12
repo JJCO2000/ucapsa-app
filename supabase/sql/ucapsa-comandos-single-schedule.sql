@@ -34,15 +34,21 @@ begin
   from public.programs p
   where p.id = new.program_id;
 
-  if v_program_code = 'comandos'
-     and exists (
-       select 1
-       from public.program_schedules ps
-       where ps.program_id = new.program_id
-         and ps.id <> new.id
-     ) then
-    raise exception 'Comandos usa un solo horario lógico. Modifica/versiona el horario existente.'
-      using errcode = '23505';
+  if v_program_code = 'comandos' then
+    -- Serializa inserciones concurrentes: el SELECT/EXISTS solo no protege
+    -- frente a dos transacciones que creen el primer o segundo horario a la vez.
+    -- Es un lock transaccional, liberado automáticamente al hacer commit/rollback.
+    perform pg_advisory_xact_lock(20261012, 318);
+
+    if exists (
+      select 1
+      from public.program_schedules ps
+      where ps.program_id = new.program_id
+        and ps.id <> new.id
+    ) then
+      raise exception 'Comandos usa un solo horario lógico. Modifica/versiona el horario existente.'
+        using errcode = '23505';
+    end if;
   end if;
 
   return new;
