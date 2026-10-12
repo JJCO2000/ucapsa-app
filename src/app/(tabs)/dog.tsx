@@ -10,7 +10,10 @@ import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { activityAchievementDefinitions, activityAchievementValue, type ActivityAchievementMetric } from '../../constants/activityAchievements';
-import { PROGRAM_COMPLETION_ACHIEVEMENT_CODES } from '../../constants/programCompletion';
+import {
+  PROGRAM_COMPLETION_ACHIEVEMENT_CODES,
+  isProgramCompletionAchievementCode,
+} from '../../constants/programCompletion';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { useReturnToProfile } from '../../hooks/useReturnToProfile';
@@ -35,12 +38,22 @@ function sameDogName(left: string | null | undefined, right: string | null | und
 const programAchievementRank = new Map(PROGRAM_COMPLETION_ACHIEVEMENT_CODES.map((code, index) => [code, index]));
 
 function mostAdvancedProgramAchievement(items: AchievementWithState[]) {
-  return items
-    .filter((item) => item.unlocked && programAchievementRank.has(item.definition.code as any))
+  const unlockedProgramAchievements = items.filter(
+    (item) => item.unlocked && isProgramCompletionAchievementCode(item.definition.code),
+  );
+
+  return unlockedProgramAchievements
     .sort(
-      (left, right) =>
-        (programAchievementRank.get(right.definition.code as any) ?? -1)
-        - (programAchievementRank.get(left.definition.code as any) ?? -1),
+      (left, right) => {
+        const rightCode = isProgramCompletionAchievementCode(right.definition.code)
+          ? right.definition.code
+          : null;
+        const leftCode = isProgramCompletionAchievementCode(left.definition.code)
+          ? left.definition.code
+          : null;
+        return (rightCode ? programAchievementRank.get(rightCode) ?? -1 : -1)
+          - (leftCode ? programAchievementRank.get(leftCode) ?? -1 : -1);
+      },
     )[0] ?? null;
 }
 
