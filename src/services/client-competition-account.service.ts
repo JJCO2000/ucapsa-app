@@ -1,6 +1,10 @@
 import { supabase } from '../lib/supabase';
 import { getMyDogs } from './dogs.service';
 import {
+  getPublishedCompetitionSeasons,
+  type ClientAccountCompetitionSeason,
+} from './client-competition-season.service';
+import {
   readClientResource,
   writeClientResource,
   type CachedResource,
@@ -15,15 +19,6 @@ export type ClientAccountCompetitionDog = {
   dog_name: string;
   seasons: ClientCompetitionInput[];
   official_exams: ClientOfficialExamResult[];
-};
-
-export type ClientAccountCompetitionSeason = {
-  season_id: string;
-  season_code: string;
-  season_name: string;
-  season_status: string;
-  season_starts_at: string;
-  season_ends_at: string;
 };
 
 export type ClientAccountCompetitionSnapshot = {
@@ -62,23 +57,7 @@ async function fetchMyCompetitionAccount(
   const cleanUserId = userId.trim();
   if (!cleanUserId) throw new Error('Falta el usuario.');
 
-  const [dogs, publishedSeasonsResult] = await Promise.all([
-    getMyDogs(),
-    supabase
-      .from('ucapsa_competition_seasons')
-      .select('id,code,name,status,starts_at,ends_at')
-      .neq('status', 'draft')
-      .order('starts_at', { ascending: false }),
-  ]);
-  if (publishedSeasonsResult.error) throw publishedSeasonsResult.error;
-  const seasons: ClientAccountCompetitionSeason[] = (publishedSeasonsResult.data ?? []).map((season) => ({
-    season_id: season.id,
-    season_code: season.code,
-    season_name: season.name,
-    season_status: season.status,
-    season_starts_at: season.starts_at,
-    season_ends_at: season.ends_at,
-  }));
+  const [dogs, seasons] = await Promise.all([getMyDogs(), getPublishedCompetitionSeasons()]);
   if (dogs.length === 0) return { dogs: [], seasons };
 
   const dogIds = dogs.map((dog) => dog.id);
