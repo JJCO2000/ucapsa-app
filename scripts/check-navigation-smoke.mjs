@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import './check-client-button-bindings.mjs';
 import path from 'node:path';
 
 const root = process.cwd();
