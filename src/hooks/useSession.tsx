@@ -429,8 +429,14 @@ export function SessionProvider({ children }: SessionProviderProps) {
         void rememberVerifiedLocalUser(data.session.user).catch((error) => {
           devWarn('Could not store identity after reconnection.', error);
         });
-        void refreshProfile().catch((error) => {
-          devWarn('Could not refresh profile after reconnection; retaining cached data.', error);
+        const recoveredUserId = data.session.user.id;
+        const recoveryAttempt = authEventAttemptRef.current + 1;
+        authEventAttemptRef.current = recoveryAttempt;
+        void getProfileByUserId(recoveredUserId).then(async (nextProfile) => {
+          if (authEventAttemptRef.current !== recoveryAttempt) return;
+          await applyFreshProfile(recoveredUserId, nextProfile);
+        }).catch((error) => {
+          devWarn('Could not refresh the revalidated user profile; retaining only safe cache.', error);
         });
       })();
     });
