@@ -8,6 +8,8 @@ import {
   type MemberVisitOfflineSummary,
 } from './client-read-cache.service';
 import { getMyProgramEnrollments } from './programs.service';
+import { getMyDogs, type BasicDog } from './dogs.service';
+import { buildPracticeEngagementStats } from './practice.domain';
 import {
   getCachedMyPracticeActivity,
   getMyPracticeActivity,
@@ -86,4 +88,56 @@ export async function getMyClientActivityFacts(userId: string): Promise<ClientAc
 
   await writeClientResource(userId, clientReadKeys.programs, sanitizeProgramRowsForCache(programs));
   return buildClientActivityFacts(programs, visits, practice);
+}
+
+
+/** El detalle de insignias del perro no debe mezclar actividad de toda la cuenta. */
+export function buildDogActivityFacts(
+  dogId: string,
+  dogName: string,
+  programs: ProgramEnrollmentWithDetails[],
+  practice: PracticeActivitySnapshot,
+): ClientActivityFacts {
+  const sameName = (name: string | null | undefined) =>
+    (name ?? '').trim().toLocaleLowerCase('es-MX') === dogName.trim().toLocaleLowerCase('es-MX');
+  const dogPrograms = programs.filter((item) =>
+    item.enrollment.dog_id ? item.enrollment.dog_id === dogId : sameName(item.enrollment.dog_name)
+  );
+  const dogPractices = practice.entries.filter((item) =>
+    item.dogId ? item.dogId === dogId : sameName(item.dogName)
+  );
+  const stats = buildPracticeEngagementStats(dogPractices);
+  return {
+    attendanceTotal: dogPrograms.reduce((sum, item) => sum + item.attendances.length, 0),
+    memberVisitsTotal: 0, // Las visitas se atribuyen al socio, no a un perro específico.
+    practiceTotal: dogPractices.length,
+    currentPracticeStreak: stats.currentStreak,
+    longestPracticeStreak: stats.longestStreak,
+  };
+}
+
+export async function getCachedDogActivityFacts(userId: string, dogId: string): Promise<CachedClientActivityFacts | null> {
+  const [programCache, dogCache, practice] = await Promise.all([
+    readClientResource<ProgramEnrollmentWithDetails[]>(userId, clientReadKeys.programs),
+    readClientResource<BasicDog[]>(userId, clientReadKeys.dogs),
+    getCachedMyPracticeActivity(userId),
+  ]);
+  const dog = dogCache?.data.find((item) => item.id === dogId);
+  if (!programCache || !dogCache || !dog || !practice?.savedAt) return null;
+  return {
+    data: buildDogActivityFacts(dogId, dog.name, programCache.data, practice),
+    saved_at: [programCache.saved_at, dogCache.saved_at, practice.savedAt].sort()[0],
+  };
+}
+
+export async function getMyDogActivityFacts(userId: string, dogId: string): Promise<ClientActivityFacts> {
+  const [programs, practice, dogs] = await Promise.all([
+    getMyProgramEnrollments(),
+    getMyPracticeActivity(userId, 3650),
+    getMyDogs(),
+  ]);
+  const dog = dogs.find((item) => item.id === dogId);
+  if (!dog) throw new Error('Este perro no está disponible en tu cuenta.');
+  await writeClientResource(userId, clientReadKeys.programs, sanitizeProgramRowsForCache(programs));
+  return buildDogActivityFacts(dogId, dog.name, programs, practice);
 }
