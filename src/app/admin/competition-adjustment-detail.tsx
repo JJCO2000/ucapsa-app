@@ -179,6 +179,22 @@ export default function AdminCompetitionAdjustmentDetailScreen() {
             </View>
           </View>
 
+          {detail.score ? (
+            <View style={styles.summaryCard}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.summaryLabel}>PUNTAJE COMPETITIVO TOTAL</Text>
+                <Text style={styles.summaryValue}>{numberLabel(detail.score.competitive_score)} pts</Text>
+                <Text style={styles.muted}>
+                  {detail.score.is_ranking_eligible
+                    ? 'Elegible para el Ranking oficial.'
+                    : Number(detail.score.required_exams_count ?? 0) === 0
+                      ? 'Los puntos ya cuentan, pero no hay exámenes obligatorios publicados; aún no hay posición oficial.'
+                      : 'Los puntos ya cuentan. Faltan ' + Number(detail.score.missing_required_exams_count ?? 0) + ' exámenes para Ranking oficial.'}
+                </Text>
+              </View>
+            </View>
+          ) : null}
+
           {!mutable ? (
             <View style={styles.freezeCard}>
               <MaterialIcons name="lock" size={20} color={ucapsaBrand.colors.redDark} />
