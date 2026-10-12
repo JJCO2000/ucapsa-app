@@ -384,4 +384,38 @@ if (report.includes('(stats.attendanceRate * 100).toFixed(1)')) {
   throw new Error('Trainer attendance preview must not show false 0.0% for missing marks.');
 }
 
+
+for (const token of [
+  "const raw = (drafts[item.id]?.points ?? '').trim();",
+  'if (!raw) return false;',
+  'Califica todos los ejercicios. Si corresponde cero puntos, escribe 0 explícitamente.',
+]) {
+  if (!examAttempt.includes(token)) {
+    throw new Error('Trainer exam permits a blank grade to be submitted as zero: ' + token);
+  }
+}
+if (examAttempt.includes("Number((drafts[item.id]?.points ?? '').replace(',', '.'))")) {
+  throw new Error('Empty score is silently converted into zero in trainer exam.');
+}
+
+
+// Import batches must respect DB lifecycle draft -> validated -> committed.
+// An import that skips validated fails at runtime even with a valid XLSX.
+for (const path of [
+  'supabase/sql/ucapsa-trainer-workspace.sql',
+  'supabase/sql/ucapsa-trainer-exam-import-lifecycle-hotfix.sql',
+]) {
+  const source = read(path);
+  const fn = source.split('create or replace function public.trainer_import_ucapsa_exam_results(')[1];
+  if (!fn) throw new Error('Trainer Excel RPC missing from ' + path);
+  const validated = fn.indexOf("status = 'validated'");
+  const committed = fn.indexOf("status = 'committed'");
+  if (validated < 0 || committed < validated) {
+    throw new Error('Trainer Excel import skipped draft -> validated transition in ' + path);
+  }
+  if (!fn.includes('public.ucapsa_exam_import_snapshot(p_exam_id)')) {
+    throw new Error('Trainer import validation lost exam snapshot in ' + path);
+  }
+}
+
 console.log('UCAPSA trainer role, least privilege, exams, staff notes, reporting and next-day summary: PASS');
