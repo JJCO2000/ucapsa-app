@@ -58,6 +58,12 @@ begin
     from public.program_attendances a
     where a.enrollment_id = p_enrollment_id
       and a.client_event_id = p_client_event_id
+      and exists (
+        select 1
+        from public.program_enrollments owner_enrollment
+        where owner_enrollment.id = a.enrollment_id
+          and owner_enrollment.user_id = v_user_id
+      )
     limit 1;
 
     if v_attendance_id is not null then
