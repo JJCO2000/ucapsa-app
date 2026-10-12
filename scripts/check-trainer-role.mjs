@@ -440,4 +440,5 @@ for (const path of [
   }
 }
 
+console.log('COMANDOS SHARED SCHEDULE COVERAGE 5/5: DB invariant + Trainer Home + roster + Admin Home + trainer push');
 console.log('UCAPSA trainer role, least privilege, exams, staff notes, reporting and next-day summary: PASS');
