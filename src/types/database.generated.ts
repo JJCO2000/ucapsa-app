@@ -5319,6 +5319,10 @@ export type Database = {
         Args: { p_attempt_id: string }
         Returns: string
       }
+      can_ucapsa_staff_access_dog: {
+        Args: { p_dog_id: string }
+        Returns: boolean
+      }
       correct_member_visit_admin: {
         Args: { p_notes?: string; p_visit_id: string; p_visited_at: string }
         Returns: undefined
