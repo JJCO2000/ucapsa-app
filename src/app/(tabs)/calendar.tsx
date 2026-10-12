@@ -549,7 +549,7 @@ export default function CalendarScreen() {
               />
               <View style={styles.ringLegend}>
                 {([
-                  { label: 'Sin actividad', color: ucapsaBrand.colors.borderNeutral },
+                  { label: 'Sin actividad', color: ucapsaBrand.colors.adminBorder },
                   { label: 'Puppy', color: ucapsaBrand.colors.gold },
                   { label: 'Comandos', color: ucapsaBrand.colors.blue },
                   { label: 'Otras actividades', color: ucapsaBrand.colors.red },
