@@ -25,7 +25,13 @@ const screens = [
   ...tabNames.map(name => 'src/app/(tabs)/'+name+'.tsx'),
   ...standalone.map(name => 'src/app/'+name+'.tsx'),
 ].filter((file,index,all) => all.indexOf(file)===index);
+
+// Audit every TSX source too, because reusable components can own real press
+// surfaces and routes even when the screen only renders the component.
+const sourceTsxFiles = collect('src');
+const auditedFiles = sourceTsxFiles.filter((file,index,all) => all.indexOf(file)===index);
 let buttonCount=0, routesChecked=0;
+let screenButtonCount=0;
 let trainerStaffButtons=0;
 const trainerStaffScreens = new Set([
   ...collect('src/app/staff'),
@@ -55,13 +61,17 @@ function routeExists(route) {
     .some(p => fs.existsSync(path.join(root,p)));
 }
 for(const screen of screens) {
+  if(!fs.existsSync(path.join(root,screen))) errors.push('Missing expected screen: '+screen);
+}
+
+for(const screen of auditedFiles) {
   const full=path.join(root,screen);
-  if(!fs.existsSync(full)) {errors.push('Missing client screen: '+screen);continue;}
   const source=fs.readFileSync(full,'utf8');
   for(const match of source.matchAll(/<(?:Pressable|TouchableOpacity|TouchableHighlight|Button)\b/g)) {
     const opening=jsxOpeningTag(source,match.index);
     const line=source.slice(0,match.index).split('\n').length;
     buttonCount+=1;
+    if (screens.includes(screen)) screenButtonCount+=1;
     if (trainerStaffScreens.has(screen)) trainerStaffButtons+=1;
     if(!/\bonPress\s*=/.test(opening)) {
       errors.push(screen+':'+line+' has no onPress');
@@ -80,7 +90,12 @@ for(const screen of screens) {
     if(!routeExists(route)) errors.push(screen+':'+source.slice(0,match.index).split('\n').length+' missing destination '+route);
   }
 }
-if(screens.length<105 || buttonCount<400) errors.push('Scope shrank: '+screens.length+' screens/'+buttonCount+' buttons');
+if(screens.length<105 || screenButtonCount<400) {
+  errors.push('Screen scope shrank: '+screens.length+' screens/'+screenButtonCount+' buttons');
+}
+if(auditedFiles.length<150 || buttonCount<450) {
+  errors.push('Full TSX scope shrank: '+auditedFiles.length+' files/'+buttonCount+' press surfaces');
+}
 if(trainerStaffScreens.size<7 || trainerStaffButtons<30) {
   errors.push('Trainer/Staff scope shrank: '+trainerStaffScreens.size+' screens/'+trainerStaffButtons+' buttons');
 }
