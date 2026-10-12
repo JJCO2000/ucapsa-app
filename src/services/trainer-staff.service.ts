@@ -380,7 +380,9 @@ export async function createTrainerExamDraft(input: {
   const { data, error } = await supabase.rpc('trainer_create_ucapsa_exam_draft', {
     p_code: input.code.trim(),
     p_title: input.title.trim(),
-    p_exam_date: input.examDate || null,
+    // La fecha es opcional en el contrato SQL; los tipos generados no reflejan
+    // correctamente la nulabilidad del argumento de una función PostgreSQL.
+    p_exam_date: (input.examDate || null) as string,
     p_items: input.items,
   });
   if (error) throw error;
