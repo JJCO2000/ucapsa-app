@@ -110,6 +110,7 @@ for (const token of [
   'if v_count > 1 then',
   'create or replace function public.enforce_single_commands_schedule()',
   "v_program_code = 'comandos'",
+  'pg_advisory_xact_lock(20261012, 318)',
   'ps.id <> new.id',
   'before insert or update of program_id',
   'execute function public.enforce_single_commands_schedule()',
