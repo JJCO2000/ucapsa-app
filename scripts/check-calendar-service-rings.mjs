@@ -55,6 +55,44 @@ for (const token of [
 ]) {
   if (!ring.includes(token)) throw new Error('Ring lost accessible segmented visualization: ' + token);
 }
+// Dates without scheduled services should read as secondary, not disabled or invisible.
+// All numerals retain AA contrast against the white calendar surface.
+for (const token of [
+  'const RING_SIZE = 40;',
+  'const STROKE = 4.5;',
+  'hasScheduledService = count > 0',
+  'ucapsaBrand.colors.mutedNeutral',
+  'ucapsaBrand.colors.text',
+  'ucapsaBrand.colors.adminBorder',
+  'styles.selectedEmptySurface',
+  'styles.selectedServiceSurface',
+  "fontSize: 16",
+  "fontWeight: '900'",
+  'minHeight: 48',
+]) {
+  if (!ring.includes(token)) throw new Error('Missing legible, quiet empty-day treatment: ' + token);
+}
+if (!calendar.includes("{ label: 'Sin actividad', color: ucapsaBrand.colors.adminBorder }")) {
+  throw new Error('Legend must match the subdued no-class ring.');
+}
+const brand = fs.readFileSync('src/constants/brand.ts', 'utf8');
+function token(key) {
+  const match = brand.match(new RegExp('\\\\b' + key + ": '([#][0-9a-fA-F]{6})'"));
+  if (!match) throw new Error('Missing color token ' + key);
+  return match[1];
+}
+function luminance(hex) {
+  const rgb = [1, 3, 5].map((idx) => Number.parseInt(hex.slice(idx, idx + 2), 16) / 255);
+  const linear = rgb.map((value) => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+}
+const white = luminance(token('surface'));
+for (const type of ['mutedNeutral', 'text']) {
+  const ink = luminance(token(type));
+  const contrast = (Math.max(white, ink) + 0.05) / (Math.min(white, ink) + 0.05);
+  if (contrast < 4.5) throw new Error('Calendar numeral text fails WCAG AA: ' + type + ' ratio ' + contrast.toFixed(2));
+}
+
 if (calendar.includes('markedDates={markedDates}') || calendar.includes('monthExpanded ?')) {
   throw new Error('Month calendar reverted to red dots or a secondary weekly view.');
 }
