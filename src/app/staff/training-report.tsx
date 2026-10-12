@@ -65,7 +65,10 @@ export default function StaffTrainingReportScreen() {
     if (!next) return;
     try {
       setGenerating(true);
-      await exportTrainingReportXlsx(next, startDate, endDate);
+      const recorded = await getStaffRecordedAttendance(startDate, endDate);
+      await exportTrainingReportXlsx(next, startDate, endDate, recorded);
+      setHistoryRows(recorded);
+      setHistoryLoaded(true);
     } catch (cause) {
       Alert.alert('No se pudo exportar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     } finally {
