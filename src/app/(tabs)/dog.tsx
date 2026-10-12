@@ -9,7 +9,7 @@ import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBa
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
-import { activityAchievementCategoryMeta, activityAchievementDefinitions, activityAchievementValue, type ActivityAchievementMetric } from '../../constants/activityAchievements';
+import { activityAchievementCategoryMeta, buildActivityAchievementCollections } from '../../constants/activityAchievements';
 import {
   PROGRAM_COMPLETION_ACHIEVEMENT_CODES,
   isProgramCompletionAchievementCode,
@@ -62,23 +62,15 @@ function mostAdvancedActivityBadge(facts: {
   practiceTotal: number;
   longestPracticeStreak: number;
 }) {
-  const metrics: ActivityAchievementMetric[] = ['attendance', 'practice', 'streak'];
-  const candidates = metrics.flatMap((metric) => {
-    const definitions = activityAchievementDefinitions.filter((item) => item.metric === metric);
-    const value = activityAchievementValue(metric, {
-      ...facts,
-      memberVisitsTotal: 0,
-    });
-    return definitions
-      .map((definition, index) => ({ definition, index, total: definitions.length }))
-      .filter(({ definition }) => value >= definition.threshold);
-  });
-
-  return candidates.sort((left, right) => {
-    const leftStage = (left.index + 1) / left.total;
-    const rightStage = (right.index + 1) / right.total;
-    return rightStage - leftStage || right.definition.threshold - left.definition.threshold;
-  })[0]?.definition ?? null;
+  return buildActivityAchievementCollections({
+    ...facts,
+    memberVisitsTotal: 0,
+  }, { includeMemberVisits: false })
+    .filter((collection) => collection.currentLevel > 0)
+    .sort((left, right) => (
+      right.currentLevel / right.totalLevels - left.currentLevel / left.totalLevels
+      || (right.earnedDefinition?.threshold ?? 0) - (left.earnedDefinition?.threshold ?? 0)
+    ))[0]?.earnedDefinition ?? null;
 }
 
 export default function DogTab() {
