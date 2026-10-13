@@ -59,6 +59,7 @@ export const CalendarActivityRing = memo(function CalendarActivityRing({
 
   return (
     <Pressable
+      hitSlop={{ left: 4, right: 4 }}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       accessibilityLabel={dateLabel + (today ? ', hoy' : '') + ': ' + (count > 0
