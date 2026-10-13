@@ -417,7 +417,7 @@ export default function HomeExperienceScreen() {
           practice={practice}
           practiceGoal={practiceGoal}
           format={format}
-          onPress={() => router.push((mainProgram ? '/classes' : '/client/membership') as never)}
+          onPress={() => router.push((mainProgram ? '/classes' : '/client/program-interest') as never)}
           onPractice={() => router.push('/client/practice-activity' as never)}
           onAchievements={() => router.push((mainProgram?.dogId ? `/client/dog-achievements?dogId=${encodeURIComponent(mainProgram.dogId)}` : '/achievements') as never)}
         />
