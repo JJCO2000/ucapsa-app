@@ -67,7 +67,16 @@ export default function AdminProgramInterestsScreen() {
         Puppy School y Comandos. Atiende primero las pendientes; ninguna solicitud crea inscripciones ni asistencias.
       </Text>
       {loading ? <Text>Consultando solicitudes…</Text> : null}
-      {error ? <Text style={{ color: ucapsaBrand.colors.red, marginBottom: 15 }}>{error}</Text> : null}
+      {error ? (
+        <View style={{ gap: 6, marginBottom: 15 }}>
+          <Text accessibilityRole="alert" style={{ color: ucapsaBrand.colors.red }}>{error}</Text>
+          <Pressable accessibilityRole="button"
+            onPress={() => { setLoading(true); void load(); }}
+            style={{ minHeight: 48, alignSelf: 'flex-start', justifyContent: 'center', paddingHorizontal: 12 }}>
+            <Text style={{ color: ucapsaBrand.colors.redDark, fontWeight: '900', fontSize: 16 }}>Reintentar consultas →</Text>
+          </Pressable>
+        </View>
+      ) : null}
       {!loading && !error && requests.length === 0 ? <Text>No hay solicitudes abiertas.</Text> : null}
       {requests.map((row) => (
         <View key={row.id} style={{ borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder,
