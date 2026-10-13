@@ -311,9 +311,19 @@ export default function ClientCompetitionScreen() {
                         </View>
                       ))
                     ) : (
-                      <Text style={[styles.rankingMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.primaryButtonText }]}>
-                        Aún no hay posiciones oficiales. Toca para consultar la clasificación y requisitos.
-                      </Text>
+                      <View style={{ gap: 5 }}>
+                        <Text style={[styles.rankingMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.primaryButtonText }]}>
+                          Sin posiciones oficiales todavía. Tus puntos ya se acumulan:
+                        </Text>
+                        {snapshot.dogs.map((dog) => {
+                          const season = dog.seasons.find((item) => item.season_id === selectedSeasonId);
+                          return season ? (
+                            <Text key={dog.dog_id} style={[styles.rankingMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.primaryButtonText }]}>
+                              {dog.dog_name}: {numberLabel(season.competitive_score)} pts
+                            </Text>
+                          ) : null;
+                        })}
+                      </View>
                     )}
                   </View>
                 </Pressable>
