@@ -11,6 +11,11 @@ export const DOG_AVATAR_KEYS = [
   'cartoon_dog_side',
   'cartoon_paw',
   'cartoon_bone',
+  'dog_heart',
+  'dog_star',
+  'dog_sun',
+  'dog_moon',
+  'dog_play',
 ] as const;
 
 export type DogAvatarKey = (typeof DOG_AVATAR_KEYS)[number];
@@ -36,6 +41,7 @@ export const DOG_AVATAR_OPTIONS: Array<{
   label: string;
   kind: 'emoji' | 'icon';
   value: string;
+  badge?: string;
 }> = [
   { key: 'dog_face', label: 'Perrito', kind: 'emoji', value: '🐶' },
   { key: 'dog_side', label: 'Perro', kind: 'emoji', value: '🐕' },
@@ -47,6 +53,11 @@ export const DOG_AVATAR_OPTIONS: Array<{
   { key: 'cartoon_dog_side', label: 'Caricatura 2', kind: 'icon', value: 'dog-side' },
   { key: 'cartoon_paw', label: 'Caricatura 3', kind: 'icon', value: 'paw' },
   { key: 'cartoon_bone', label: 'Caricatura 4', kind: 'icon', value: 'bone' },
+  { key: 'dog_heart', label: 'Cariñoso', kind: 'icon', value: 'dog', badge: 'heart' },
+  { key: 'dog_star', label: 'Estrella', kind: 'icon', value: 'dog', badge: 'star' },
+  { key: 'dog_sun', label: 'Alegre', kind: 'icon', value: 'dog-side', badge: 'white-balance-sunny' },
+  { key: 'dog_moon', label: 'Dormilón', kind: 'icon', value: 'dog-side', badge: 'moon-waning-crescent' },
+  { key: 'dog_play', label: 'Juguetón', kind: 'icon', value: 'dog', badge: 'tennis-ball' },
 ];
 
 export function normalizeDogAvatarKey(value: unknown): DogAvatarKey {
