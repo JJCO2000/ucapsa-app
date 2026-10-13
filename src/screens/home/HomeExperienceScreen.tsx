@@ -1,6 +1,5 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, Text, View } from 'react-native';
@@ -33,7 +32,7 @@ import {
 import { getCachedMyPracticeActivity, getMyPracticeActivity, type PracticeActivitySnapshot } from '../../services/practice.service';
 import type { Announcement } from '../../types/app.types';
 import { DEFAULT_READ_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
-import { quickHelpSeenKey } from '../../utils/quick-help.utils';
+import { hasSeenQuickHelp, markQuickHelpSeen } from '../../services/quick-help.service';
 import { ActivityCard, ClassRsvpPrompt, ContextNotice, ContextStrip, NextActionCard, ProgramCard } from './HomeCards';
 import {
   firstName,
@@ -186,17 +185,15 @@ export default function HomeExperienceScreen() {
       setOfferQuickHelp(false);
       return () => { active = false; };
     }
-    void AsyncStorage.getItem(quickHelpSeenKey(user.id))
-      .then((seen) => { if (active) setOfferQuickHelp(seen !== '1'); })
-      .catch((cause) => devWarn('home: quick-help preference unavailable', cause));
+    void hasSeenQuickHelp(user.id)
+      .then((seen) => { if (active) setOfferQuickHelp(!seen); });
     return () => { active = false; };
   }, [isStaff, user]));
 
   function dismissQuickHelp() {
     if (!user) return;
     setOfferQuickHelp(false);
-    void AsyncStorage.setItem(quickHelpSeenKey(user.id), '1')
-      .catch((cause) => devWarn('home: could not save quick-help dismissal', cause));
+    void markQuickHelpSeen(user.id);
   }
 
   async function refresh() {
