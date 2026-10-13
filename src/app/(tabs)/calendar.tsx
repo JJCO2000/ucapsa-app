@@ -6,6 +6,7 @@ import { AccessibilityInfo, ActivityIndicator, Pressable, RefreshControl, Scroll
 import { Calendar, type DateData } from 'react-native-calendars';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { devWarn } from '../../lib/client-diagnostics';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { CalendarActivityRing } from '../../components/calendar/CalendarActivityRing';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
@@ -127,7 +128,7 @@ export default function CalendarScreen() {
     let active = true;
     void AccessibilityInfo.isReduceMotionEnabled()
       .then((enabled) => { if (active) setReduceMotion(enabled); })
-      .catch(() => { if (active) setReduceMotion(true); });
+      .catch((cause) => { devWarn('calendar: reduce motion preference unavailable, defaulting to no animation', cause); if (active) setReduceMotion(true); });
     const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
     return () => { active = false; subscription.remove(); };
   }, []);
