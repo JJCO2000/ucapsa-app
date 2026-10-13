@@ -140,8 +140,12 @@ for (const token of [
 ]) {
   if (!dogProfile.includes(token)) throw new Error('Private dog photo UI missing: ' + token);
 }
-for (const token of ['DOG_AVATAR_OPTIONS', 'DOG_AVATAR_COLORS', 'No pide acceso a tus fotos']) {
-  if (dogProfile.includes(token)) throw new Error('El perfil del perro volvió al selector de avatar/color: ' + token);
+// Requisito actualizado: el propietario elige avatar público sin exponer la foto privada.
+for (const token of ['DOG_AVATAR_OPTIONS', 'DOG_AVATAR_COLORS', 'avatar_key: avatarKey', 'avatar_color: avatarColor', 'La foto real sigue siendo privada']) {
+  if (!dogProfile.includes(token)) throw new Error('El perfil del perro perdió el selector público persistente: ' + token);
+}
+if (dogProfile.includes('No pide acceso a tus fotos')) {
+  throw new Error('No afirmar que nunca se solicita acceso: la cámara sigue siendo opcional.');
 }
 for (const token of ['dog-photos', 'createSignedUrl', 'set_my_dog_photo_path']) {
   if (!dogPhotoService.includes(token)) throw new Error('Private dog photo service missing: ' + token);
