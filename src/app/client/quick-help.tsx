@@ -2,6 +2,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
+import Animated, { FadeInUp, ReduceMotion } from 'react-native-reanimated';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
@@ -46,7 +47,13 @@ export default function QuickHelpScreen() {
       </View>
       <View style={{ borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface,
         padding: 24, borderRadius: 24, minHeight: 270, gap: 16, justifyContent: 'center', alignItems: 'center' }}>
-        <MaterialIcons name={item.icon} size={55} color={ucapsaBrand.colors.redDark} />
+        {step === 0 ? (
+          <Animated.View entering={FadeInUp.duration(350).reduceMotion(ReduceMotion.System)} accessible accessibilityLabel="Perrito de bienvenida">
+            <Text style={{ fontSize: 58 }}>🐶</Text>
+          </Animated.View>
+        ) : (
+          <MaterialIcons name={item.icon} size={55} color={ucapsaBrand.colors.redDark} />
+        )}
         <Text style={{ color: ucapsaBrand.colors.text, fontSize: 24, fontWeight: '900', textAlign: 'center' }}>{item.title}</Text>
         <Text style={{ color: ucapsaBrand.colors.muted, fontSize: 17, lineHeight: 25, textAlign: 'center' }}>{item.description}</Text>
         <Pressable accessibilityRole="button" onPress={() => void done(item.route)}
