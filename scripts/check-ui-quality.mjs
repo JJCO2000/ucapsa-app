@@ -40,6 +40,12 @@ must('src/components/ui/UcapsaDetailModal.tsx', /maxWidth:\s*560/, 'El modal de 
 must('src/components/ui/UcapsaDetailModal.tsx', /width:\s*48[\s\S]*height:\s*48/, 'El botón de cierre del modal volvió a quedar debajo de 48dp.');
 must('src/components/ui/OfflineDataNotice.tsx', /width:\s*48[\s\S]*height:\s*48/, 'Reintentar sincronización volvió a quedar debajo de 48dp.');
 must('src/components/ui/Screen.tsx', /maxWidth:\s*820/, 'El contenedor principal perdió su límite adaptable en pantallas anchas.');
+must('src/components/ui/Screen.tsx', /useSafeAreaInsets/, 'Las pantallas comunes dejaron de consultar el área segura del sistema.');
+must('src/components/ui/Screen.tsx', /paddingBottom:\s*28\s*\+\s*bottomBreathingRoom/, 'El ScrollView general perdió el espacio inferior.');
+must('src/app/(tabs)/_layout.tsx', /paddingBottom:\s*tabBottomInset/, 'Las pestañas perdieron el espacio inferior del sistema.');
+must('src/app/(tabs)/calendar.tsx', /paddingBottom:\s*110/, 'La agenda perdió el margen que protege el final de la vista.');
+must('src/app/(tabs)/profile.tsx', /paddingBottom:\s*124/, 'Perfil perdió el margen que protege el último botón.');
+
 must('src/app/(tabs)/_layout.tsx', /tabBarLabelStyle:\s*\{\s*fontSize:\s*11/, 'La barra inferior volvió a usar etiquetas demasiado pequeñas.');
 
 mustNot(
