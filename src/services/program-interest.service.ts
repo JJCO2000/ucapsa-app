@@ -14,14 +14,13 @@ type InterestRow = {
   program_code: ProgramInterestCode;
   status: ProgramInterestStatus;
   priority: 'urgent';
-  followup_note: string | null;
   created_at: string;
   updated_at: string;
 };
 type InterestTable = {
   Row: InterestRow;
   Insert: { user_id: string; dog_id: string; program_code: ProgramInterestCode };
-  Update: { status?: ProgramInterestStatus; followup_note?: string | null };
+  Update: { status?: ProgramInterestStatus };
   Relationships: [];
 };
 type InterestDb = Omit<Database, 'public'> & {
@@ -87,9 +86,9 @@ export async function getAdminProgramInterestRequests(): Promise<AdminProgramInt
   }));
 }
 
-export async function updateAdminProgramInterestRequest(id: string, status: 'contacted' | 'closed', note?: string) {
+export async function updateAdminProgramInterestRequest(id: string, status: 'contacted' | 'closed') {
   const { error } = await requestDb.from('program_interest_requests')
-    .update({ status, followup_note: note?.trim() || null })
+    .update({ status })
     .eq('id', id);
   if (error) throw error;
 }
