@@ -17,6 +17,9 @@ const payments = read('src/app/(tabs)/payments.tsx');
 const services = read('src/app/(tabs)/services.tsx');
 const membership = read('src/app/client/membership.tsx');
 const accountSettings = read('src/app/account-settings.tsx');
+const login = read('src/app/auth/login.tsx');
+const interests = read('src/app/client/program-interest.tsx');
+const adminInterests = read('src/app/admin/program-interests.tsx');
 const dogHistory = read('src/app/client/dog-history.tsx');
 const ranking = read('src/app/client/competition-ranking.tsx');
 const dogPhotoService = read('src/services/dog-photos.service.ts');
@@ -61,6 +64,24 @@ for (const token of ['LOGROS UCAPSA', 'AchievementBadgeGrid', 'Tus perros y Rank
 }
 for (const token of ['Programas y clases registradas.', '/client/class-detail?enrollmentId=']) {
   if (!dogHistory.includes(token)) throw new Error('Dog history detail missing: ' + token);
+}
+
+// Evidencia de UX: los errores de ingreso y solicitudes deben ser recuperables y visibles.
+for (const token of [
+  'setMissingEmail(!cleanEmail)', 'setMissingPassword(!password)',
+  'Escribe tu correo electrónico.', 'Escribe tu contraseña.',
+  'minHeight: 48', 'Crear cuenta', 'Recuperar contraseña',
+]) {
+  if (!login.includes(token)) throw new Error('Ingreso dejó de mostrar ayuda accionable: ' + token);
+}
+if (!interests.includes('!loading && !error && dogs.length === 0')) {
+  throw new Error('No sugerir registrar un perro cuando solo falló la consulta.');
+}
+if (!interests.includes('accessibilityLiveRegion="polite"')) {
+  throw new Error('Los cambios de estado de solicitudes dejaron de anunciarse accesiblemente.');
+}
+if (!adminInterests.includes('{!error ? requests.map((row) => (')) {
+  throw new Error('La bandeja no puede presentar filas antiguas como confirmadas cuando la consulta falla.');
 }
 
 // La entrevista de Miguel cambió la UX: mes completo y anillos de oferta real,
