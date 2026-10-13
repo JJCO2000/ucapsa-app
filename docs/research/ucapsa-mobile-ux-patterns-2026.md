@@ -6,6 +6,8 @@
 
 | Referencia | Hallazgo respaldado | Aplicación concreta en UCAPSA |
 |---|---|---|
+| Nielsen Norman Group — 10 Design Guidelines for Reporting Errors in Forms | Errores visibles junto al campo, ayudas prácticas para recuperarse y evitar mensajes prematuros | En Inicio de sesión se muestran errores de correo y contraseña junto a cada entrada, únicamente después de intentar enviar; enlaces de ayuda con área táctil de 48 dp. |
+| W3C WCAG 2.2 / WCAG2ICT — Resize Text | Permitir escalado del texto sin perder acceso a controles ni contenido | Mantener el texto de las acciones en componentes React Native; comprobar manualmente escalado hasta 200% antes de afirmar conformidad. |
 | Nielsen Norman Group — Mobile Tutorials: Wasted Effort or Efficiency Boost? | Tutoriales de tarjetas no mostraron mejoras en completar tareas; el tutorial obligatorio puede hacer que la app parezca más compleja | La ayuda sigue siendo **opcional**; acceso persistente desde Perfil. La acción principal permanece en la pantalla funcional. |
 | Nielsen Norman Group — Usability for Older Adults: Challenges and Changes | Investigación cualitativa con personas de 65+ sobre etiquetas, destinos táctiles, legibilidad y navegación | Priorizar textos entendibles, acceso visible a Restaurante y cursos y no ocultar acciones detrás de varias pantallas. No extrapolar automáticamente a todas las personas de 50+. |
 | Android Developers — Accessibility in Jetpack Compose (codelab) | Áreas de toque recomendadas de al menos 48×48 dp y descripciones accesibles | En el anillo mensual se amplió el área táctil sin variar el tamaño del círculo; controles principales conservan mínimo de 48 dp. |
@@ -15,6 +17,8 @@
 
 ### Enlaces
 
+- https://www.nngroup.com/articles/errors-forms-design-guidelines/
+- https://www.w3.org/WAI/WCAG21/Understanding/resize-text
 - https://www.nngroup.com/articles/mobile-tutorials/
 - https://www.nngroup.com/articles/usability-for-senior-citizens/
 - https://developer.android.com/codelabs/jetpack-compose-accessibility
@@ -50,6 +54,14 @@ Se evaluó su funcionalidad (resaltar controles y recorridos). No se instalaron:
 5. El color del sector de noticias se determina por **prioridad**, usando «fijado» únicamente como desempate.
 6. El área táctil de fechas se amplía sin desfigurar los anillos existentes.
 7. Los scripts de quality gate vigilan estos contratos.
+
+## 5. Formulario y estados no verificados (continuación)
+
+- Iniciar sesión: validación de campos vacíos solo tras pulsar Entrar. El mensaje se muestra al lado de cada entrada y se retira cuando se introduce un valor. Errores de autenticación reales siguen siendo genéricos, sin confirmar existencia de cuentas.
+- Solicitante: el fallo de red nunca equivale a no tener perros registrados. Mensajes de estado de solicitud incluyen región accesible cuando corresponde.
+- Administración: una consulta fallida no debe dejar botones operativos sobre filas que ya no pudieron verificarse; reintento explícito.
+- Calidad: `scripts/check-client-ux-clarity.mjs` protege estas condiciones.
+- **Pendiente**: pruebas físicas de lectura con textos ampliados, teclado, lectores TalkBack/VoiceOver y gestos en teléfonos; ningún script estático certifica conformidad WCAG.
 
 ## 5. Límites de verificación
 
