@@ -88,7 +88,7 @@ export default function TabsLayout() {
         tabBarHideOnKeyboard: true,
         tabBarActiveTintColor: activeTint,
         tabBarInactiveTintColor: inactiveTint,
-        tabBarLabelStyle: { fontSize: 11, lineHeight: 14, fontWeight: '900', marginTop: 2 },
+        tabBarLabelStyle: { fontSize: 12, lineHeight: 16, fontWeight: '900', marginTop: 2 },
         tabBarIconStyle: { marginTop: 1 },
         tabBarItemStyle: { paddingTop: 3 },
         tabBarStyle: {
