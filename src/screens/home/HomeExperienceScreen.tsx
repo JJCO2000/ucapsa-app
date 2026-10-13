@@ -11,6 +11,7 @@ import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import { devWarn } from '../../lib/client-diagnostics';
+import { getMyDogs } from '../../services/dogs.service';
 import { getHomeAnnouncements, rankHomeAnnouncements } from '../../services/announcements.service';
 import { getMyClassRsvp, setMyClassRsvp, tomorrowDateKey, type ClassRsvpResponse } from '../../services/class-rsvp.service';
 import { readCustomerValueSnapshotCache, writeCustomerValueSnapshotCache } from '../../services/customer-value-cache.service';
@@ -55,6 +56,7 @@ export default function HomeExperienceScreen() {
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [classRsvp, setClassRsvp] = useState<ClassRsvpResponse | null>(null);
   const [classRsvpSaving, setClassRsvpSaving] = useState(false);
+  const [dogCount, setDogCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const cacheScopeRef = useRef<string | null>(null);
@@ -160,6 +162,20 @@ export default function HomeExperienceScreen() {
       loadRunRef.current += 1;
     };
   }, [load]));
+
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    if (!user || isStaff) {
+      setDogCount(null);
+      return () => { active = false; };
+    }
+    void getMyDogs().then((dogs) => {
+      if (active) setDogCount(dogs.length);
+    }).catch(() => {
+      if (active) setDogCount(null);
+    });
+    return () => { active = false; };
+  }, [isStaff, user]));
 
   async function refresh() {
     setRefreshing(true);
