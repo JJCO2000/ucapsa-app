@@ -69,6 +69,11 @@ assert.match(schema, /old\.status = 'closed'/);
 assert.match(schema, /new\.status <> 'contacted'/);
 assert.match(schema, /new\.status <> 'closed'/);
 assert.match(client, /disabled=\{loading \|\| Boolean\(error\)/);
+assert.ok(client.includes('contactWhatsapp(true)'), 'La confirmación de WhatsApp debe conservar el registro recién guardado.');
+assert.ok(client.includes('confirmedRecord || saved || current'), 'No usar el estado React obsoleto tras guardar.');
+assert.ok(!client.includes('Tu solicitud registrada permanece disponible en Administración.'), 'WhatsApp no puede afirmar un registro sin verificar.');
+assert.ok(admin.includes('setRequests((current) => status'), 'Un cambio administrativo confirmado debe actualizar la UI sin depender de red.');
+assert.ok(!admin.includes('La solicitud no se ha modificado.'), 'No afirmar fallo definitivo ante timeout o problema de recarga.');
 
 const migrationNames = fs.readdirSync('supabase/migrations').filter((file) => /^\d{14}_.+\.sql$/.test(file));
 const ownMigrations = migrationNames.filter((name) => name.includes('program_interest_requests') || name.includes('expand_dog_avatars'));
