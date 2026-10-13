@@ -1,13 +1,11 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
-import { devWarn } from '../../lib/client-diagnostics';
-import { quickHelpSeenKey } from '../../utils/quick-help.utils';
+import { markQuickHelpSeen } from '../../services/quick-help.service';
 
 const guides = [
   { icon: 'pets' as const, title: 'Registra a tu perro',
@@ -31,7 +29,7 @@ export default function QuickHelpScreen() {
   if (isAdmin) return <Redirect href="/admin-home" />;
   const item = guides[step];
   async function done(route?: string) {
-    await AsyncStorage.setItem(quickHelpSeenKey(user!.id), '1').catch((cause) => devWarn('quick-help: could not persist tutorial completion.', cause));
+    await markQuickHelpSeen(user!.id);
     if (route) router.replace(route as never);
     else router.back();
   }
