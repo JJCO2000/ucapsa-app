@@ -23,6 +23,7 @@ const adminInterests = read('src/app/admin/program-interests.tsx');
 const dogHistory = read('src/app/client/dog-history.tsx');
 const ranking = read('src/app/client/competition-ranking.tsx');
 const dogPhotoService = read('src/services/dog-photos.service.ts');
+const avatarOptions = read('src/constants/dogAvatar.ts');
 const activityAchievements = read('src/constants/activityAchievements.ts');
 
 for (const token of [
@@ -160,6 +161,13 @@ for (const token of [
   'La foto es privada',
 ]) {
   if (!dogProfile.includes(token)) throw new Error('Private dog photo UI missing: ' + token);
+}
+// Cinco variantes adicionales esperan backend; con migración pendiente solo mostrar las diez válidas.
+for (const token of ['EXPO_PUBLIC_UCAPSA_EXTENDED_AVATARS', 'ALL_DOG_AVATAR_OPTIONS.slice(0, 10)', 'ALL_DOG_AVATAR_OPTIONS']) {
+  if (!avatarOptions.includes(token)) throw new Error('La UI de avatares perdió el modo compatible con producción: ' + token);
+}
+if (fs.existsSync('docs/product/guarderia-canine-internal-baseline.md')) {
+  throw new Error('No publicar rutas ni horarios internos de Guardería mediante GitHub Pages.');
 }
 // Requisito actualizado: el propietario elige avatar público sin exponer la foto privada.
 for (const token of ['DOG_AVATAR_OPTIONS', 'DOG_AVATAR_COLORS', 'avatar_key: avatarKey', 'avatar_color: avatarColor', 'La foto real sigue siendo privada']) {
