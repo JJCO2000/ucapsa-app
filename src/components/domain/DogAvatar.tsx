@@ -50,11 +50,21 @@ export function DogAvatar({
           {option.value}
         </Text>
       ) : (
-        <MaterialCommunityIcons
-          name={option.value as keyof typeof MaterialCommunityIcons.glyphMap}
-          size={Math.round(size * 0.54)}
-          color={foreground}
-        />
+        <>
+          <MaterialCommunityIcons
+            name={option.value as keyof typeof MaterialCommunityIcons.glyphMap}
+            size={Math.round(size * 0.54)}
+            color={foreground}
+          />
+          {option.badge ? (
+            <MaterialCommunityIcons
+              name={option.badge as keyof typeof MaterialCommunityIcons.glyphMap}
+              size={Math.round(size * 0.27)}
+              color={foreground}
+              style={{ position: 'absolute', right: Math.max(2, size * 0.07), bottom: Math.max(2, size * 0.07) }}
+            />
+          ) : null}
+        </>
       )}
     </View>
   );
