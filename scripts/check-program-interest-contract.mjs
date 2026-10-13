@@ -16,11 +16,10 @@ const sorted = utilExports.sortProgramInterestsByAttention([
 ]);
 assert.deepEqual(Array.from(sorted, (row) => row.id), ['c', 'b', 'a'],
   'Solicitudes nuevas se atienden antes que las contactadas, más antiguas primero.');
-assert.deepEqual(
-  Array.from(utilExports.sortProgramInterestsByAttention([{ id: '1', status: 'closed', created_at: '2026-10-01' }])),
-  [{ id: '1', status: 'closed', created_at: '2026-10-01' }],
-  'El selector no debe alterar las filas de origen.'
-);
+const originalRows = [{ id: '1', status: 'closed', created_at: '2026-10-01' }];
+void utilExports.sortProgramInterestsByAttention(originalRows);
+assert.deepEqual(originalRows, [{ id: '1', status: 'closed', created_at: '2026-10-01' }],
+  'El selector no debe alterar las filas de origen.');
 
 const schema = read('supabase/migrations/20261013062000_program_interest_requests.sql');
 const avatarSchema = read('supabase/migrations/20261013063000_expand_dog_avatars.sql');
