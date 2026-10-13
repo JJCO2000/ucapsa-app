@@ -136,6 +136,9 @@ for (const token of [
   'dataIncomplete={calendarDataIncomplete}',
   'eventCancellations: Boolean(eventCancellationCache)',
   'classes: Boolean(classCache)',
+  'announcements: Boolean(announcementCache)',
+  'announcements: true',
+  '!calendarSources.announcements',
   'events: Boolean(eventCache)',
   'Disponibilidad sin verificar',
 ]) {
