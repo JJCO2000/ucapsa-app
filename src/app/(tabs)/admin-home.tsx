@@ -102,6 +102,7 @@ export default function AdminHomeTab() {
   const [stats, setStats] = useState<DashboardStats>(emptyStats);
   const [tomorrowClasses, setTomorrowClasses] = useState<AdminClassRsvpSummary[]>([]);
   const [tomorrowSummaryFailed, setTomorrowSummaryFailed] = useState(false);
+  const [interestRequestsUnavailable, setInterestRequestsUnavailable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -139,6 +140,7 @@ export default function AdminHomeTab() {
       if (row.membership.current_payment_status === 'pending') attentionUsers.add(row.membership.user_id);
     }
 
+    setInterestRequestsUnavailable(programInterests === null);
     setStats({
       pendingRequests: memberships.filter((item) => item.membership.status === 'pending').length,
       paymentAttention: attentionUsers.size,
@@ -232,6 +234,17 @@ export default function AdminHomeTab() {
             <Text style={styles.retryText}>Reintentar</Text>
           </Pressable>
         </View>
+      ) : null}
+
+      {hasData && interestRequestsUnavailable ? (
+        <Pressable accessibilityRole="button" onPress={() => router.push('/admin/program-interests' as never)}
+          style={[styles.errorBox, { marginBottom: 12, minHeight: 60 }]}>
+          <Text style={styles.errorTitle}>Solicitudes de entrenamiento sin verificar</Text>
+          <Text style={styles.muted}>
+            No podemos confirmar las solicitudes urgentes. Revisa la conexión o la configuración antes de dar por terminados los pendientes.
+          </Text>
+          <Text style={styles.retryText}>Abrir solicitudes y reintentar →</Text>
+        </Pressable>
       ) : null}
 
       <View style={styles.tomorrowSection}>
@@ -361,7 +374,7 @@ export default function AdminHomeTab() {
             />
           ) : null}
         </View>
-      ) : hasData && !loading ? (
+      ) : hasData && !loading && !interestRequestsUnavailable ? (
         <View style={styles.allClear}>
           <View style={styles.allClearIcon}>
             <MaterialIcons name="check-circle" size={28} color={ucapsaBrand.colors.success} />
@@ -371,7 +384,7 @@ export default function AdminHomeTab() {
             <Text style={styles.allClearText}>No hay decisiones pendientes en clases, pagos o membresías.</Text>
           </View>
         </View>
-      ) : !loading && !error ? (
+      ) : !loading && !error && !interestRequestsUnavailable ? (
         <Text style={styles.muted}>Aún no hay un resumen confirmado.</Text>
       ) : null}
 
