@@ -46,7 +46,7 @@ must('src/app/(tabs)/_layout.tsx', /paddingBottom:\s*tabBottomInset/, 'Las pesta
 must('src/app/(tabs)/calendar.tsx', /paddingBottom:\s*110/, 'La agenda perdió el margen que protege el final de la vista.');
 must('src/app/(tabs)/profile.tsx', /paddingBottom:\s*124/, 'Perfil perdió el margen que protege el último botón.');
 
-must('src/app/(tabs)/_layout.tsx', /tabBarLabelStyle:\s*\{\s*fontSize:\s*11/, 'La barra inferior volvió a usar etiquetas demasiado pequeñas.');
+must('src/app/(tabs)/_layout.tsx', /tabBarLabelStyle:\s*\{\s*fontSize:\s*12/, 'La barra inferior debe conservar etiquetas legibles de al menos 12sp sin ocultar las cinco pestañas.');
 
 mustNot(
   'src/app/(tabs)/announcements.tsx',
