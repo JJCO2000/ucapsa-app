@@ -1,7 +1,27 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import ts from 'typescript';
 
 const read = (path) => fs.readFileSync(path, 'utf8');
+const sortModule = ts.transpileModule(read('src/utils/program-interest.utils.ts'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+});
+const utilExports = {};
+vm.runInNewContext(sortModule.outputText, { exports: utilExports });
+const sorted = utilExports.sortProgramInterestsByAttention([
+  { id: 'a', status: 'contacted', created_at: '2026-10-01T09:00:00Z' },
+  { id: 'b', status: 'pending', created_at: '2026-10-12T09:00:00Z' },
+  { id: 'c', status: 'pending', created_at: '2026-10-02T09:00:00Z' },
+]);
+assert.deepEqual(Array.from(sorted, (row) => row.id), ['c', 'b', 'a'],
+  'Solicitudes nuevas se atienden antes que las contactadas, más antiguas primero.');
+assert.deepEqual(
+  Array.from(utilExports.sortProgramInterestsByAttention([{ id: '1', status: 'closed', created_at: '2026-10-01' }])),
+  [{ id: '1', status: 'closed', created_at: '2026-10-01' }],
+  'El selector no debe alterar las filas de origen.'
+);
+
 const schema = read('supabase/migrations/20261013062000_program_interest_requests.sql');
 const avatarSchema = read('supabase/migrations/20261013063000_expand_dog_avatars.sql');
 const service = read('src/services/program-interest.service.ts');
@@ -23,7 +43,7 @@ for (const [label, contents, needles] of [
     'set_program_interest_updated_at', 'new.updated_at := clock_timestamp()',
     'on delete cascade',
   ]],
-  ['Servicio acotado', service, ['requestProgramInterest', 'getMyProgramInterestRequests',
+  ['Servicio acotado', service, ['sortProgramInterestsByAttention', 'requestProgramInterest', 'getMyProgramInterestRequests',
     'getAdminProgramInterestRequests', 'updateAdminProgramInterestRequest', "error?.code === '23505'", "['pending', 'contacted']"]],
   ['Cliente + alternativa', client, ['Promise.allSettled', 'Contactar a UCAPSA por WhatsApp',
     'no crea automáticamente un registro administrativo', 'alreadyEnrolled', 'current', 'requestProgramInterest']],
