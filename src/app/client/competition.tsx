@@ -3,6 +3,8 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated';
+import { DogAvatar } from '../../components/domain/DogAvatar';
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -302,13 +304,17 @@ export default function ClientCompetitionScreen() {
                     {!rankingReady ? (
                       <Text style={[styles.rankingMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.primaryButtonText }]}>Actualizando Top 3…</Text>
                     ) : rows.length > 0 ? (
-                      rows.slice(0, 3).map((row) => (
-                        <View key={row.dog_id ?? String(row.ranking_position)} style={[styles.positionPill, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.cardBackground }]}>
+                      rows.slice(0, 3).map((row, index) => (
+                        <Animated.View key={row.dog_id ?? String(row.ranking_position)}
+                          entering={FadeInDown.duration(220).delay(index * 65).reduceMotion(ReduceMotion.System)}
+                          style={[styles.positionPill, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.cardBackground }]}>
+                          <DogAvatar avatarKey={row.dog_avatar_key} avatarColor={row.dog_avatar_color} size={35}
+                            accessibilityLabel={'Avatar de ' + (row.dog_name || 'perro')} />
                           <Text style={[styles.positionName, { color: premium ? ucapsaBrand.colors.premiumText : format.cardText }]} numberOfLines={1}>
                             {Number(row.ranking_position) === 1 ? '🥇' : Number(row.ranking_position) === 2 ? '🥈' : '🥉'} {row.dog_name || 'Perro'}
                           </Text>
                           <Text style={[styles.positionValue, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>#{Number(row.ranking_position)}</Text>
-                        </View>
+                        </Animated.View>
                       ))
                     ) : (
                       <View style={{ gap: 5 }}>
