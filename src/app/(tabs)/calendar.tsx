@@ -2,7 +2,7 @@ import { ucapsaBrand, ucapsaColorKeyPalette, withAlpha } from '../../constants/b
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Calendar, type DateData } from 'react-native-calendars';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -122,6 +122,15 @@ export default function CalendarScreen() {
   const calendarScrollRef = useRef<ScrollView>(null);
   const calendarCardYRef = useRef(0);
   const agendaYRef = useRef(0);
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void AccessibilityInfo.isReduceMotionEnabled()
+      .then((enabled) => { if (active) setReduceMotion(enabled); })
+      .catch(() => { if (active) setReduceMotion(true); });
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    return () => { active = false; subscription.remove(); };
+  }, []);
   const [events, setEvents] = useState<UcapsaEvent[]>([]);
   const [eventCancellations, setEventCancellations] = useState<EventOccurrenceCancellation[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -473,7 +482,7 @@ export default function CalendarScreen() {
     requestAnimationFrame(() => {
       calendarScrollRef.current?.scrollTo({
         y: Math.max(0, calendarCardYRef.current + agendaYRef.current - 16),
-        animated: true,
+        animated: !reduceMotion,
       });
     });
   }
@@ -629,8 +638,14 @@ export default function CalendarScreen() {
                   {dayAgendaItems.length === 0 ? (
                     <View style={styles.dayEmpty}>
                       <MaterialIcons name="event-available" size={24} color={format.muted} />
-                      <Text style={[styles.dayEmptyTitle, { color: format.cardText }]}>Día libre</Text>
-                      <Text style={[styles.dayEmptyText, { color: format.muted }]}>No hay actividad registrada para este día.</Text>
+                      <Text style={[styles.dayEmptyTitle, { color: format.cardText }]}>
+                        {calendarDataIncomplete ? 'Agenda sin confirmar' : 'Día libre'}
+                      </Text>
+                      <Text style={[styles.dayEmptyText, { color: format.muted }]}>
+                        {calendarDataIncomplete
+                          ? 'No pudimos comprobar todas las clases, noticias y actividades de este día. Reintenta la sincronización.'
+                          : 'No hay actividad registrada para este día.'}
+                      </Text>
                     </View>
                   ) : dayAgendaItems.map((item) => {
                     const configuredTone = getColorTone(item.colorKey);
