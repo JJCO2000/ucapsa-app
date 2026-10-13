@@ -82,7 +82,7 @@ export default function AdminProgramInterestsScreen() {
         </View>
       ) : null}
       {!loading && !error && requests.length === 0 ? <Text>No hay solicitudes abiertas.</Text> : null}
-      {requests.map((row) => (
+      {!error ? requests.map((row) => (
         <View key={row.id} style={{ borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder,
           borderRadius: 20, padding: 16, backgroundColor: ucapsaBrand.colors.surface, marginBottom: 12, gap: 9 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -118,7 +118,7 @@ export default function AdminProgramInterestsScreen() {
             </Pressable>
           )}
         </View>
-      ))}
+      )) : null}
     </KeyboardAwareScreen>
   );
 }
