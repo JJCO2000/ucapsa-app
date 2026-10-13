@@ -3,6 +3,7 @@ import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
+import { TrainingAttendanceStamps } from '../../components/domain/TrainingAttendanceStamps';
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
@@ -289,6 +290,9 @@ function ClassCard({
         </View>
       </View>
 
+      {!unlimited && required > 0 && (item.program.code === 'puppy' || item.program.code === 'comandos') ? (
+        <TrainingAttendanceStamps code={item.program.code} attended={attendanceCount} required={required} />
+      ) : null}
       <View style={styles.usageRow}>
         <Text style={[styles.usageValue, { color: format.cardText }]}>{attendanceCount}</Text>
         <Text style={[styles.usageLabel, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
