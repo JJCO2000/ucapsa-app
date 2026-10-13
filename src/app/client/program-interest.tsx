@@ -36,16 +36,22 @@ export default function ProgramInterestScreen() {
     if (!user || isAdmin) return;
     setError(null);
     try {
-      const [myDogs, requests, enrollments] = await Promise.all([
+      const [dogResult, requestResult, enrollmentResult] = await Promise.allSettled([
         getMyDogs(), getMyProgramInterestRequests(user.id), getMyProgramEnrollments(),
       ]);
-      setDogs(myDogs);
-      setDogId((current) => myDogs.some((dog) => dog.id === current) ? current : myDogs[0]?.id ?? null);
-      setOpenRequests(requests);
-      setActiveByProgram(enrollments.filter((e) => e.enrollment.status === 'active')
-        .map((e) => e.enrollment.dog_id + ':' + e.program.code));
-    } catch {
-      setError('No pudimos verificar tus solicitudes. Revisa tu conexión y vuelve a intentar.');
+      if (dogResult.status === 'fulfilled') {
+        setDogs(dogResult.value);
+        setDogId((current) => dogResult.value.some((dog) => dog.id === current)
+          ? current : dogResult.value[0]?.id ?? null);
+      }
+      if (requestResult.status === 'fulfilled') setOpenRequests(requestResult.value);
+      if (enrollmentResult.status === 'fulfilled') {
+        setActiveByProgram(enrollmentResult.value.filter((e) => e.enrollment.status === 'active')
+          .map((e) => e.enrollment.dog_id + ':' + e.program.code));
+      }
+      if (dogResult.status === 'rejected' || requestResult.status === 'rejected' || enrollmentResult.status === 'rejected') {
+        setError('No pudimos verificar el registro. La solicitud en la app está deshabilitada. Puedes contactar directamente a UCAPSA por WhatsApp.');
+      }
     } finally {
       setLoading(false);
     }
@@ -65,8 +71,12 @@ export default function ProgramInterestScreen() {
   const alreadyEnrolled = activeByProgram.includes(dogId + ':' + program);
 
   async function contactWhatsapp() {
-    const message = 'Hola UCAPSA, solicité información de ' + (program === 'puppy' ? 'Puppy School' : 'Comandos')
-      + ' para ' + (selectedDog?.name || 'mi perro') + ' mediante la app. ¿Podemos coordinar el seguimiento?';
+    const message = (saved || current
+      ? 'Hola UCAPSA, registré una solicitud de '
+      : 'Hola UCAPSA, quiero información para inscribir a mi perro en ')
+      + (program === 'puppy' ? 'Puppy School' : 'Comandos')
+      + ' para ' + (selectedDog?.name || 'mi perro')
+      + '. ¿Podemos coordinar el seguimiento?';
     const join = baseWhatsapp.includes('?') ? '&' : '?';
     try {
       await Linking.openURL(baseWhatsapp + join + 'text=' + encodeURIComponent(message));
@@ -87,7 +97,7 @@ export default function ProgramInterestScreen() {
         { text: 'Abrir WhatsApp', onPress: () => void contactWhatsapp() },
       ]);
     } catch {
-      Alert.alert('No se registró la solicitud', 'No pudimos confirmar el registro. Vuelve a intentar sin crear una inscripción duplicada.');
+      Alert.alert('No se confirmó tu solicitud', 'No hay constancia de registro. Reintenta más tarde o comunícate por WhatsApp sin perder el seguimiento.');
     } finally {
       setSending(false);
     }
@@ -139,13 +149,16 @@ export default function ProgramInterestScreen() {
           {sending ? 'Registrando…' : current ? 'Solicitud en seguimiento' : alreadyEnrolled ? 'Ya estás inscrito' : 'Enviar solicitud'}
         </Text>
       </Pressable>
-      {saved || current ? (
-        <Pressable accessibilityRole="button" onPress={() => void contactWhatsapp()}
+      <Pressable accessibilityRole="button" onPress={() => void contactWhatsapp()}
           style={{ minHeight: 52, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border,
             marginTop: 12, justifyContent: 'center', alignItems: 'center', flexDirection: 'row', gap: 8 }}>
           <MaterialIcons name="chat" size={21} color={ucapsaBrand.colors.redDark} />
           <Text style={{ fontWeight: '800', color: ucapsaBrand.colors.redDark }}>Contactar a UCAPSA por WhatsApp</Text>
         </Pressable>
+      {!saved && !current ? (
+        <Text style={{ color: ucapsaBrand.colors.muted, fontSize: 12, marginTop: 5 }}>
+          Si usas WhatsApp antes de enviar la solicitud en la app, el mensaje no crea automáticamente un registro administrativo.
+        </Text>
       ) : null}
       <Text style={{ color: ucapsaBrand.colors.muted, fontSize: 12, marginTop: 12 }}>
         Solicitar no genera pago, asistencia, horario ni inscripción. Espera confirmación oficial.
