@@ -46,7 +46,7 @@ export function buildCalendarServiceKinds(
   );
 }
 
-/** Un único color de noticias por día: fijadas primero, después prioridad.
+/** Un único color de noticias por día: prioridad primero, fijadas como desempate.
  * Nunca crea ni modifica disponibilidad de clases; solo añade un sector visual.
  */
 export type CalendarAnnouncementColor = 'red' | 'blue' | 'yellow' | 'green' | 'purple' | 'gray';
@@ -64,8 +64,8 @@ export function selectCalendarAnnouncementColors(
   const rank = { urgent: 0, high: 1, normal: 2, low: 3 };
   const result: Record<string, CalendarAnnouncementColor> = {};
   const ordered = [...markers].sort((a, b) =>
-    Number(Boolean(b.isPinned)) - Number(Boolean(a.isPinned)) ||
     rank[a.priority ?? 'normal'] - rank[b.priority ?? 'normal'] ||
+    Number(Boolean(b.isPinned)) - Number(Boolean(a.isPinned)) ||
     (b.createdAt ?? '').localeCompare(a.createdAt ?? '') ||
     a.colorKey.localeCompare(b.colorKey),
   );
