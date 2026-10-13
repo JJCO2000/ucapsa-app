@@ -7,8 +7,8 @@ import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import { devWarn } from '../../lib/client-diagnostics';
+import { quickHelpSeenKey } from '../../utils/quick-help.utils';
 
-export const quickHelpSeenKey = (userId: string) => 'ucapsa-quick-help-v1:' + userId;
 const guides = [
   { icon: 'pets' as const, title: 'Registra a tu perro',
     description: 'En Mis perros puedes agregarlo por nombre. Después podrás solicitar entrenamiento.',
