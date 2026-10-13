@@ -10,6 +10,7 @@ import { devWarn } from '../../lib/client-diagnostics';
 import { getAdminClassRsvpSummary, tomorrowDateKey, type AdminClassRsvpSummary } from '../../services/class-rsvp.service';
 import { getAdminMembershipRows } from '../../services/memberships.service';
 import { getAdminClientFollowupRows } from '../../services/admin-client-followups.service';
+import { getAdminProgramInterestRequests } from '../../services/program-interest.service';
 import { getAdminTrainingDecisionRows } from '../../services/admin-training-decisions.service';
 import { getAdminPaymentAttentionRows } from '../../services/payments.service';
 import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
@@ -19,6 +20,7 @@ type DashboardStats = {
   paymentAttention: number;
   trainingDecisions: number;
   clientFollowups: number;
+  programInterests: number;
 };
 
 type TomorrowClassGroup = {
@@ -92,6 +94,7 @@ const emptyStats: DashboardStats = {
   paymentAttention: 0,
   trainingDecisions: 0,
   clientFollowups: 0,
+  programInterests: 0,
 };
 
 export default function AdminHomeTab() {
@@ -109,19 +112,23 @@ export default function AdminHomeTab() {
     [profile?.full_name, user?.email],
   );
   const roleLabel = role === 'super_admin' ? 'Superadmin' : 'Admin';
-  const pendingTotal = stats.trainingDecisions + stats.pendingRequests + stats.paymentAttention + stats.clientFollowups;
+  const pendingTotal = stats.trainingDecisions + stats.pendingRequests + stats.paymentAttention + stats.clientFollowups + stats.programInterests;
   const groupedTomorrowClasses = useMemo(() => groupTomorrowClasses(tomorrowClasses), [tomorrowClasses]);
 
   const load = useCallback(async () => {
     if (!isAdmin) return;
 
     setError(null);
-    const [memberships, paymentAttentionRows, trainingDecisions, clientFollowups] = await withOperationTimeout(
+    const [memberships, paymentAttentionRows, trainingDecisions, clientFollowups, programInterests] = await withOperationTimeout(
       Promise.all([
         getAdminMembershipRows(),
         getAdminPaymentAttentionRows(),
         getAdminTrainingDecisionRows(),
         getAdminClientFollowupRows(),
+        getAdminProgramInterestRequests().catch((cause) => {
+          devWarn('admin-home: program interest requests unavailable before migration or offline.', cause);
+          return null;
+        }),
       ]),
       DEFAULT_READ_TIMEOUT_MS,
       'admin-home-load',
@@ -137,6 +144,7 @@ export default function AdminHomeTab() {
       paymentAttention: attentionUsers.size,
       trainingDecisions: trainingDecisions.length,
       clientFollowups: clientFollowups.length,
+      programInterests: programInterests?.length ?? 0,
     });
 
     try {
@@ -302,6 +310,16 @@ export default function AdminHomeTab() {
 
       {hasData && pendingTotal > 0 ? (
         <View style={styles.decisionList}>
+          {stats.programInterests > 0 ? (
+            <DecisionCard
+              icon="priority-high"
+              title="Solicitudes nuevas de entrenamiento"
+              detail="Puppy y Comandos · seguimiento urgente."
+              value={stats.programInterests}
+              tone="danger"
+              onPress={() => router.push('/admin/program-interests' as never)}
+            />
+          ) : null}
           {stats.clientFollowups > 0 ? (
             <DecisionCard
               icon="priority-high"
