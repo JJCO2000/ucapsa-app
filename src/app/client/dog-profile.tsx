@@ -9,6 +9,7 @@ import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBa
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
+import { DOG_AVATAR_OPTIONS, DOG_AVATAR_COLORS, DEFAULT_DOG_AVATAR_KEY, DEFAULT_DOG_AVATAR_COLOR, type DogAvatarKey, type DogAvatarColor } from '../../constants/dogAvatar';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import { getPrivateDogPhotoUrl, removeMyDogPhoto, uploadMyDogPhoto } from '../../services/dog-photos.service';
@@ -66,6 +67,8 @@ export default function DogProfileScreen() {
 
   const [draft, setDraft] = useState<ProfileDraft>(EMPTY_DRAFT);
   const [profile, setProfile] = useState<DogProfile | null>(null);
+  const [avatarKey, setAvatarKey] = useState<DogAvatarKey>(DEFAULT_DOG_AVATAR_KEY);
+  const [avatarColor, setAvatarColor] = useState<DogAvatarColor>(DEFAULT_DOG_AVATAR_COLOR);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -83,6 +86,8 @@ export default function DogProfileScreen() {
       const nextProfile = await withOperationTimeout(getMyDogProfile(dogId), DEFAULT_READ_TIMEOUT_MS, 'dog-profile');
       setProfile(nextProfile);
       setDraft(draftFromProfile(nextProfile));
+      setAvatarKey(nextProfile.avatar_key);
+      setAvatarColor(nextProfile.avatar_color);
       setPhotoUrl(await getPrivateDogPhotoUrl(nextProfile.photo_path));
     } catch {
       setLoadError(true);
@@ -171,6 +176,8 @@ export default function DogProfileScreen() {
           birth_date: birthDate,
           sex: draft.sex,
           weight_kg: weight,
+          avatar_key: avatarKey,
+          avatar_color: avatarColor,
         }),
         DEFAULT_WRITE_TIMEOUT_MS,
         'dog-profile-save',
@@ -281,6 +288,38 @@ export default function DogProfileScreen() {
                   <Text style={[styles.photoButtonText, { color: ucapsaBrand.colors.redDark }]}>Quitar</Text>
                 </Pressable>
               ) : null}
+            </View>
+          </View>
+
+          <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
+            <Text style={[styles.sectionTitle, { color: format.cardText }]}>Avatar público del perro</Text>
+            <Text style={[styles.avatarHint, { color: format.muted }]}>
+              Elige cómo se verá en el Ranking. La foto real sigue siendo privada.
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {DOG_AVATAR_OPTIONS.map((option) => (
+                <Pressable key={option.key} accessibilityRole="button"
+                  accessibilityLabel={'Seleccionar avatar ' + option.label}
+                  accessibilityState={{ selected: avatarKey === option.key }}
+                  onPress={() => setAvatarKey(option.key)}
+                  style={{ width: 63, minHeight: 75, borderRadius: 13, borderWidth: avatarKey === option.key ? 2 : 1,
+                    borderColor: avatarKey === option.key ? format.accent : format.cardBorder,
+                    alignItems: 'center', justifyContent: 'center', padding: 5, gap: 4 }}>
+                  <DogAvatar avatarKey={option.key} avatarColor={avatarColor} size={42} accessibilityLabel={option.label} />
+                  <Text style={{ fontSize: 9, textAlign: 'center', color: format.cardText }} numberOfLines={1}>{option.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Text style={[styles.label, { color: format.cardText }]}>Color del avatar</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {DOG_AVATAR_COLORS.map((color) => (
+                <Pressable key={color} accessibilityRole="button" accessibilityLabel={'Seleccionar color ' + color}
+                  accessibilityState={{ selected: avatarColor === color }}
+                  onPress={() => setAvatarColor(color)}
+                  style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: color,
+                    borderColor: avatarColor === color ? format.accent : format.cardBorder,
+                    borderWidth: avatarColor === color ? 3 : 1 }} />
+              ))}
             </View>
           </View>
 
