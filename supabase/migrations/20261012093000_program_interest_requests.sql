@@ -9,7 +9,6 @@ create table if not exists public.program_interest_requests (
   program_code text not null check (program_code in ('puppy', 'comandos')),
   status text not null default 'pending' check (status in ('pending', 'contacted', 'closed')),
   priority text not null default 'urgent' check (priority = 'urgent'),
-  followup_note text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -24,7 +23,7 @@ alter table public.program_interest_requests enable row level security;
 revoke all on public.program_interest_requests from public, anon, authenticated;
 grant select on public.program_interest_requests to authenticated;
 grant insert (user_id, dog_id, program_code) on public.program_interest_requests to authenticated;
-grant update (status, followup_note) on public.program_interest_requests to authenticated;
+grant update (status) on public.program_interest_requests to authenticated;
 
 drop policy if exists program_interest_select on public.program_interest_requests;
 create policy program_interest_select on public.program_interest_requests
@@ -47,5 +46,29 @@ create policy program_interest_admin_followup on public.program_interest_request
 for update to authenticated
 using (public.is_admin())
 with check (public.is_admin());
+
+-- Los cambios de estado se fechan en el servidor y siguen el recorrido comercial.
+create or replace function public.set_program_interest_updated_at()
+returns trigger language plpgsql set search_path to 'public','pg_temp'
+as $function$
+begin
+  if old.status = 'closed' then
+    raise exception 'La solicitud ya está cerrada.';
+  end if;
+  if old.status = 'pending' and new.status <> 'contacted' then
+    raise exception 'Primero se debe marcar en seguimiento.';
+  end if;
+  if old.status = 'contacted' and new.status <> 'closed' then
+    raise exception 'Solo se puede cerrar una solicitud en seguimiento.';
+  end if;
+  new.updated_at := clock_timestamp();
+  return new;
+end;
+$function$;
+revoke all on function public.set_program_interest_updated_at() from public, anon, authenticated;
+
+drop trigger if exists program_interest_updated_at on public.program_interest_requests;
+create trigger program_interest_updated_at before update on public.program_interest_requests
+for each row execute function public.set_program_interest_updated_at();
 
 commit;
