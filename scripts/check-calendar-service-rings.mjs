@@ -20,6 +20,15 @@ if (selectedNews['2026-10-18'] !== 'green' || selectedNews['2026-10-19'] !== 're
 }
 
 
+// Una noticia fijada no debe imponerse sobre otra de mayor prioridad.
+const priorityMarker = selectCalendarAnnouncementColors([
+  { dateKey: '2026-10-25', colorKey: 'red', priority: 'normal', isPinned: true },
+  { dateKey: '2026-10-25', colorKey: 'purple', priority: 'urgent', isPinned: false },
+]);
+if (priorityMarker['2026-10-25'] !== 'purple') {
+  throw new Error('El color de la noticia urgente debe prevalecer sobre fijados menos prioritarios.');
+}
+
 const sample = buildCalendarServiceKinds([
   { dateKey: '2026-10-17', programCode: 'puppy', cancelled: false },
   { dateKey: '2026-10-18', programCode: 'puppy', cancelled: false },
@@ -61,6 +70,7 @@ for (const token of [
   'strokeDasharray', 'strokeDashoffset', 'rotation={-90}',
   'accessibilityLabel', 'Sin clases ni actividades programadas',
   'KIND_COLORS', 'STROKE', 'segments.length', 'announcementColor', 'ucapsaColorKeyPalette',
+  'hitSlop={{ left: 4, right: 4 }}',
 ]) {
   if (!ring.includes(token)) throw new Error('Ring lost accessible segmented visualization: ' + token);
 }
@@ -141,6 +151,10 @@ for (const token of [
   '!calendarSources.announcements',
   'events: Boolean(eventCache)',
   'Disponibilidad sin verificar',
+  'Agenda sin confirmar',
+  'AccessibilityInfo.isReduceMotionEnabled()',
+  "AccessibilityInfo.addEventListener('reduceMotionChanged'",
+  'animated: !reduceMotion',
 ]) {
   if (!calendar.includes(token)) throw new Error('Missing partial-fetch detection in calendar: ' + token);
 }
