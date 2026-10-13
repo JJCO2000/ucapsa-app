@@ -360,6 +360,27 @@ export default function HomeExperienceScreen() {
         </Pressable>
       ) : null}
 
+      {user && !isStaff && (dogCount === 0 || (!profileComplete && dogCount !== null)) ? (
+        <Pressable accessibilityRole="button"
+          accessibilityLabel={dogCount === 0 ? 'Agregar mi perro' : 'Completar datos de contacto'}
+          onPress={() => router.push((dogCount === 0 ? '/dog' : '/account-settings?section=profile') as never)}
+          style={[styles.guestCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground, minHeight: 92 }]}
+        >
+          <View style={[styles.guestIcon, { backgroundColor: format.accentSoft }]}>
+            <MaterialIcons name={dogCount === 0 ? 'pets' : 'person'} size={24} color={format.accentDark} />
+          </View>
+          <View style={styles.guestBody}>
+            <Text style={[styles.guestTitle, { color: format.cardText }]}>Completa tu cuenta</Text>
+            <Text style={[styles.guestText, { color: format.muted }]}>
+              {dogCount === 0 ? 'Primero agrega a tu perro para solicitar Puppy o Comandos.' : 'Agrega tus datos de contacto para que UCAPSA pueda comunicarse contigo.'}
+            </Text>
+            <Text style={{ color: format.accentDark, fontSize: 14, fontWeight: '900', marginTop: 4 }}>
+              {dogCount === 0 ? 'Agregar mi perro →' : 'Completar contacto →'}
+            </Text>
+          </View>
+        </Pressable>
+      ) : null}
+
       {!user ? (
         <View style={[styles.guestCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
           <View style={[styles.guestIcon, { backgroundColor: format.accentSoft }]}>
