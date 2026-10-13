@@ -45,3 +45,32 @@ export function buildCalendarServiceKinds(
     ]),
   );
 }
+
+/** Un único color de noticias por día: fijadas primero, después prioridad.
+ * Nunca crea ni modifica disponibilidad de clases; solo añade un sector visual.
+ */
+export type CalendarAnnouncementColor = 'red' | 'blue' | 'yellow' | 'green' | 'purple' | 'gray';
+export type CalendarAnnouncementMarker = {
+  dateKey: string;
+  colorKey: CalendarAnnouncementColor;
+  priority?: 'urgent' | 'high' | 'normal' | 'low' | null;
+  isPinned?: boolean;
+  createdAt?: string;
+};
+
+export function selectCalendarAnnouncementColors(
+  markers: readonly CalendarAnnouncementMarker[],
+): Record<string, CalendarAnnouncementColor> {
+  const rank = { urgent: 0, high: 1, normal: 2, low: 3 };
+  const result: Record<string, CalendarAnnouncementColor> = {};
+  const ordered = [...markers].sort((a, b) =>
+    Number(Boolean(b.isPinned)) - Number(Boolean(a.isPinned)) ||
+    rank[a.priority ?? 'normal'] - rank[b.priority ?? 'normal'] ||
+    (b.createdAt ?? '').localeCompare(a.createdAt ?? '') ||
+    a.colorKey.localeCompare(b.colorKey),
+  );
+  for (const marker of ordered) {
+    if (marker.dateKey && !result[marker.dateKey]) result[marker.dateKey] = marker.colorKey;
+  }
+  return result;
+}
