@@ -11,6 +11,7 @@ import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import { devWarn } from '../../lib/client-diagnostics';
+import { getMyDogs } from '../../services/dogs.service';
 import { getHomeAnnouncements, rankHomeAnnouncements } from '../../services/announcements.service';
 import { getMyClassRsvp, setMyClassRsvp, tomorrowDateKey, type ClassRsvpResponse } from '../../services/class-rsvp.service';
 import { readCustomerValueSnapshotCache, writeCustomerValueSnapshotCache } from '../../services/customer-value-cache.service';
@@ -31,6 +32,7 @@ import {
 import { getCachedMyPracticeActivity, getMyPracticeActivity, type PracticeActivitySnapshot } from '../../services/practice.service';
 import type { Announcement } from '../../types/app.types';
 import { DEFAULT_READ_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
+import { hasSeenQuickHelp, markQuickHelpSeen } from '../../services/quick-help.service';
 import { ActivityCard, ClassRsvpPrompt, ContextNotice, ContextStrip, NextActionCard, ProgramCard } from './HomeCards';
 import {
   firstName,
@@ -55,6 +57,8 @@ export default function HomeExperienceScreen() {
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [classRsvp, setClassRsvp] = useState<ClassRsvpResponse | null>(null);
   const [classRsvpSaving, setClassRsvpSaving] = useState(false);
+  const [dogCount, setDogCount] = useState<number | null>(null);
+  const [offerQuickHelp, setOfferQuickHelp] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const cacheScopeRef = useRef<string | null>(null);
@@ -160,6 +164,38 @@ export default function HomeExperienceScreen() {
       loadRunRef.current += 1;
     };
   }, [load]));
+
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    if (!user || isStaff) {
+      setDogCount(null);
+      return () => { active = false; };
+    }
+    void getMyDogs().then((dogs) => {
+      if (active) setDogCount(dogs.length);
+    }).catch((cause) => {
+      devWarn('home: cannot verify whether the account has registered dogs; hiding the onboarding prompt.', cause);
+      if (active) setDogCount(null);
+    });
+    return () => { active = false; };
+  }, [isStaff, user]));
+
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    if (!user || isStaff) {
+      setOfferQuickHelp(false);
+      return () => { active = false; };
+    }
+    void hasSeenQuickHelp(user.id)
+      .then((seen) => { if (active) setOfferQuickHelp(!seen); });
+    return () => { active = false; };
+  }, [isStaff, user]));
+
+  function dismissQuickHelp() {
+    if (!user) return;
+    setOfferQuickHelp(false);
+    void markQuickHelpSeen(user.id);
+  }
 
   async function refresh() {
     setRefreshing(true);
@@ -323,6 +359,66 @@ export default function HomeExperienceScreen() {
         </View>
       </View>
 
+      {user && !isStaff ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Consultar menú del restaurante UCAPSA"
+          onPress={() => router.push('/restaurant' as never)}
+          style={{
+            flexDirection: 'row', alignItems: 'center', gap: 12,
+            backgroundColor: format.cardBackground, borderColor: format.cardBorder,
+            borderWidth: 1, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 14,
+            marginBottom: 12, minHeight: 58,
+          }}
+        >
+          <MaterialIcons name="restaurant-menu" size={24} color={format.accentDark} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: format.cardText, fontSize: 16, fontWeight: '800' }}>Restaurante UCAPSA</Text>
+            <Text style={{ color: format.muted, fontSize: 13 }}>Ver menú y precios</Text>
+          </View>
+          <MaterialIcons name="chevron-right" size={22} color={format.accentDark} />
+        </Pressable>
+      ) : null}
+
+      {user && !isStaff && offerQuickHelp ? (
+        <View style={{ borderColor: format.cardBorder, backgroundColor: format.surfaceAlt,
+          borderWidth: 1, borderRadius: 18, padding: 14, marginBottom: 12, gap: 8 }}>
+          <Text style={{ color: format.cardText, fontSize: 16, fontWeight: '900' }}>¿Primera vez en UCAPSA?</Text>
+          <Text style={{ color: format.muted, fontSize: 13 }}>Descubre clases, agenda y restaurante en una guía rápida.</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
+            <Pressable accessibilityRole="button" onPress={() => router.push('/client/quick-help' as never)}
+              style={{ minHeight: 48, justifyContent: 'center', paddingHorizontal: 12 }}>
+              <Text style={{ color: format.accentDark, fontWeight: '900' }}>Ver guía →</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={dismissQuickHelp}
+              style={{ minHeight: 48, justifyContent: 'center', paddingHorizontal: 12 }}>
+              <Text style={{ color: format.muted, fontWeight: '700' }}>Ahora no</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+
+      {user && !isStaff && (dogCount === 0 || (!profileComplete && dogCount !== null)) ? (
+        <Pressable accessibilityRole="button"
+          accessibilityLabel={dogCount === 0 ? 'Agregar mi perro' : 'Completar datos de contacto'}
+          onPress={() => router.push((dogCount === 0 ? '/dog' : '/account-settings?section=profile') as never)}
+          style={[styles.guestCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground, minHeight: 92 }]}
+        >
+          <View style={[styles.guestIcon, { backgroundColor: format.accentSoft }]}>
+            <MaterialIcons name={dogCount === 0 ? 'pets' : 'person'} size={24} color={format.accentDark} />
+          </View>
+          <View style={styles.guestBody}>
+            <Text style={[styles.guestTitle, { color: format.cardText }]}>Completa tu cuenta</Text>
+            <Text style={[styles.guestText, { color: format.muted }]}>
+              {dogCount === 0 ? 'Primero agrega a tu perro para solicitar Puppy o Comandos.' : 'Agrega tus datos de contacto para que UCAPSA pueda comunicarse contigo.'}
+            </Text>
+            <Text style={{ color: format.accentDark, fontSize: 14, fontWeight: '900', marginTop: 4 }}>
+              {dogCount === 0 ? 'Agregar mi perro →' : 'Completar contacto →'}
+            </Text>
+          </View>
+        </Pressable>
+      ) : null}
+
       {!user ? (
         <View style={[styles.guestCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
           <View style={[styles.guestIcon, { backgroundColor: format.accentSoft }]}>
@@ -396,7 +492,7 @@ export default function HomeExperienceScreen() {
           practice={practice}
           practiceGoal={practiceGoal}
           format={format}
-          onPress={() => router.push((mainProgram ? '/classes' : '/client/membership') as never)}
+          onPress={() => router.push((mainProgram ? '/classes' : '/client/program-interest') as never)}
           onPractice={() => router.push('/client/practice-activity' as never)}
           onAchievements={() => router.push((mainProgram?.dogId ? `/client/dog-achievements?dogId=${encodeURIComponent(mainProgram.dogId)}` : '/achievements') as never)}
         />

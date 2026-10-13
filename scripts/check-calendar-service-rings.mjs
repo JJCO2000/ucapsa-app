@@ -9,7 +9,25 @@ const compiled = ts.transpileModule(source, {
 });
 const exports = {};
 vm.runInNewContext(compiled.outputText, { exports });
-const { buildCalendarServiceKinds } = exports;
+const { buildCalendarServiceKinds, selectCalendarAnnouncementColors } = exports;
+const selectedNews = selectCalendarAnnouncementColors([
+  { dateKey: '2026-10-18', colorKey: 'purple', priority: 'normal' },
+  { dateKey: '2026-10-18', colorKey: 'green', priority: 'urgent' },
+  { dateKey: '2026-10-19', colorKey: 'red', priority: 'normal' },
+]);
+if (selectedNews['2026-10-18'] !== 'green' || selectedNews['2026-10-19'] !== 'red') {
+  throw new Error('La noticia de mayor prioridad debe definir un solo color por día.');
+}
+
+
+// Una noticia fijada no debe imponerse sobre otra de mayor prioridad.
+const priorityMarker = selectCalendarAnnouncementColors([
+  { dateKey: '2026-10-25', colorKey: 'red', priority: 'normal', isPinned: true },
+  { dateKey: '2026-10-25', colorKey: 'purple', priority: 'urgent', isPinned: false },
+]);
+if (priorityMarker['2026-10-25'] !== 'purple') {
+  throw new Error('El color de la noticia urgente debe prevalecer sobre fijados menos prioritarios.');
+}
 
 const sample = buildCalendarServiceKinds([
   { dateKey: '2026-10-17', programCode: 'puppy', cancelled: false },
@@ -43,7 +61,7 @@ for (const token of [
   'dayComponent', 'CalendarActivityRing', 'buildCalendarServiceKinds',
   'occurrence.program?.code', 'Boolean(occurrence.cancellation)',
   'ucapsaBrand.colors.adminBorder',
-  'Otras actividades', 'Sin actividad', 'Puppy', 'Comandos',
+  'Otras actividades', 'Sin actividad', 'Puppy', 'Comandos', 'announcementColorsByDate', 'selectCalendarAnnouncementColors', 'selectCalendarDay', 'scrollTo',
 ]) {
   if (!calendar.includes(token)) throw new Error('Month calendar lost ring contract: ' + token);
 }
@@ -51,7 +69,8 @@ for (const token of [
   "import Svg, { Circle } from 'react-native-svg'",
   'strokeDasharray', 'strokeDashoffset', 'rotation={-90}',
   'accessibilityLabel', 'Sin clases ni actividades programadas',
-  'KIND_COLORS', 'STROKE',
+  'KIND_COLORS', 'STROKE', 'segments.length', 'announcementColor', 'ucapsaColorKeyPalette',
+  'hitSlop={{ left: 4, right: 4 }}',
 ]) {
   if (!ring.includes(token)) throw new Error('Ring lost accessible segmented visualization: ' + token);
 }
@@ -127,8 +146,15 @@ for (const token of [
   'dataIncomplete={calendarDataIncomplete}',
   'eventCancellations: Boolean(eventCancellationCache)',
   'classes: Boolean(classCache)',
+  'announcements: Boolean(announcementCache)',
+  'announcements: true',
+  '!calendarSources.announcements',
   'events: Boolean(eventCache)',
   'Disponibilidad sin verificar',
+  'Agenda sin confirmar',
+  'AccessibilityInfo.isReduceMotionEnabled()',
+  "AccessibilityInfo.addEventListener('reduceMotionChanged'",
+  'animated: !reduceMotion',
 ]) {
   if (!calendar.includes(token)) throw new Error('Missing partial-fetch detection in calendar: ' + token);
 }

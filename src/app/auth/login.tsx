@@ -1,5 +1,5 @@
 import { ucapsaBrand } from '../../constants/brand';
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -10,14 +10,15 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [missingEmail, setMissingEmail] = useState(false);
+  const [missingPassword, setMissingPassword] = useState(false);
 
   async function handleLogin() {
     const cleanEmail = email.trim();
 
-    if (!cleanEmail || !password) {
-      Alert.alert('Faltan datos', 'Escribe tu correo y contrasena.');
-      return;
-    }
+    setMissingEmail(!cleanEmail);
+    setMissingPassword(!password);
+    if (!cleanEmail || !password) return;
 
     setLoading(true);
     try {
@@ -28,7 +29,15 @@ export default function LoginScreen() {
       );
 
       if (error) {
-        Alert.alert('No se pudo iniciar sesion', error.message);
+        Alert.alert(
+          'No pudimos iniciar sesión',
+          'Revisa tu correo y contraseña. Si es tu primera vez en UCAPSA, puedes crear una cuenta.',
+          [
+            { text: 'Reintentar', style: 'cancel' },
+            { text: 'Recuperar contraseña', onPress: () => router.push('/auth/forgot-password' as never) },
+            { text: 'Crear cuenta', onPress: () => router.push('/auth/register' as never) },
+          ],
+        );
         return;
       }
 
@@ -52,7 +61,9 @@ export default function LoginScreen() {
         <Text style={styles.label}>Correo</Text>
         <TextInput
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(value) => { setEmail(value); if (value.trim()) setMissingEmail(false); }}
+          accessibilityLabel="Correo electrónico"
+          accessibilityHint="Correo necesario para iniciar sesión"
           placeholder="correo@ejemplo.com"
           autoCapitalize="none"
           autoCorrect={false}
@@ -61,11 +72,16 @@ export default function LoginScreen() {
           style={styles.input}
           returnKeyType="next"
         />
+        {missingEmail ? (
+          <Text accessibilityRole="alert" style={styles.inlineError}>Escribe tu correo electrónico.</Text>
+        ) : null}
 
         <Text style={styles.label}>Contrasena</Text>
         <TextInput
           value={password}
-          onChangeText={setPassword}
+          onChangeText={(value) => { setPassword(value); if (value) setMissingPassword(false); }}
+          accessibilityLabel="Contraseña"
+          accessibilityHint="Contraseña necesaria para iniciar sesión"
           placeholder="Tu contrasena"
           secureTextEntry
           textContentType="password"
@@ -73,13 +89,22 @@ export default function LoginScreen() {
           returnKeyType="done"
           onSubmitEditing={handleLogin}
         />
+        {missingPassword ? (
+          <Text accessibilityRole="alert" style={styles.inlineError}>Escribe tu contraseña.</Text>
+        ) : null}
 
         <Pressable style={[styles.button, loading && styles.buttonDisabled]} onPress={handleLogin} disabled={loading}>
           <Text style={styles.buttonText}>{loading ? 'Entrando...' : 'Entrar'}</Text>
         </Pressable>
 
-        <Link href="/auth/forgot-password" style={styles.link}>Olvide mi contrasena</Link>
-        <Link href="/auth/register" style={styles.linkStrong}>Crear cuenta</Link>
+        <Pressable accessibilityRole="button" onPress={() => router.push('/auth/forgot-password')}
+          style={styles.secondaryAction}>
+          <Text style={styles.link}>Olvidé mi contraseña</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={() => router.push('/auth/register')}
+          style={styles.secondaryAction}>
+          <Text style={styles.linkStrong}>Crear cuenta</Text>
+        </Pressable>
       </View>
     </KeyboardAwareScreen>
   );
@@ -120,6 +145,16 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: ucapsaBrand.colors.border,
+  },
+  inlineError: {
+    color: ucapsaBrand.colors.danger,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  secondaryAction: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   label: {
     color: ucapsaBrand.colors.text,

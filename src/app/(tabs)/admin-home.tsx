@@ -10,6 +10,7 @@ import { devWarn } from '../../lib/client-diagnostics';
 import { getAdminClassRsvpSummary, tomorrowDateKey, type AdminClassRsvpSummary } from '../../services/class-rsvp.service';
 import { getAdminMembershipRows } from '../../services/memberships.service';
 import { getAdminClientFollowupRows } from '../../services/admin-client-followups.service';
+import { getAdminProgramInterestRequests } from '../../services/program-interest.service';
 import { getAdminTrainingDecisionRows } from '../../services/admin-training-decisions.service';
 import { getAdminPaymentAttentionRows } from '../../services/payments.service';
 import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
@@ -19,6 +20,7 @@ type DashboardStats = {
   paymentAttention: number;
   trainingDecisions: number;
   clientFollowups: number;
+  programInterests: number;
 };
 
 type TomorrowClassGroup = {
@@ -92,6 +94,7 @@ const emptyStats: DashboardStats = {
   paymentAttention: 0,
   trainingDecisions: 0,
   clientFollowups: 0,
+  programInterests: 0,
 };
 
 export default function AdminHomeTab() {
@@ -99,6 +102,7 @@ export default function AdminHomeTab() {
   const [stats, setStats] = useState<DashboardStats>(emptyStats);
   const [tomorrowClasses, setTomorrowClasses] = useState<AdminClassRsvpSummary[]>([]);
   const [tomorrowSummaryFailed, setTomorrowSummaryFailed] = useState(false);
+  const [interestRequestsUnavailable, setInterestRequestsUnavailable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -109,19 +113,23 @@ export default function AdminHomeTab() {
     [profile?.full_name, user?.email],
   );
   const roleLabel = role === 'super_admin' ? 'Superadmin' : 'Admin';
-  const pendingTotal = stats.trainingDecisions + stats.pendingRequests + stats.paymentAttention + stats.clientFollowups;
+  const pendingTotal = stats.trainingDecisions + stats.pendingRequests + stats.paymentAttention + stats.clientFollowups + stats.programInterests;
   const groupedTomorrowClasses = useMemo(() => groupTomorrowClasses(tomorrowClasses), [tomorrowClasses]);
 
   const load = useCallback(async () => {
     if (!isAdmin) return;
 
     setError(null);
-    const [memberships, paymentAttentionRows, trainingDecisions, clientFollowups] = await withOperationTimeout(
+    const [memberships, paymentAttentionRows, trainingDecisions, clientFollowups, programInterests] = await withOperationTimeout(
       Promise.all([
         getAdminMembershipRows(),
         getAdminPaymentAttentionRows(),
         getAdminTrainingDecisionRows(),
         getAdminClientFollowupRows(),
+        getAdminProgramInterestRequests().catch((cause) => {
+          devWarn('admin-home: program interest requests unavailable before migration or offline.', cause);
+          return null;
+        }),
       ]),
       DEFAULT_READ_TIMEOUT_MS,
       'admin-home-load',
@@ -132,11 +140,13 @@ export default function AdminHomeTab() {
       if (row.membership.current_payment_status === 'pending') attentionUsers.add(row.membership.user_id);
     }
 
+    setInterestRequestsUnavailable(programInterests === null);
     setStats({
       pendingRequests: memberships.filter((item) => item.membership.status === 'pending').length,
       paymentAttention: attentionUsers.size,
       trainingDecisions: trainingDecisions.length,
       clientFollowups: clientFollowups.length,
+      programInterests: programInterests?.length ?? 0,
     });
 
     try {
@@ -226,6 +236,17 @@ export default function AdminHomeTab() {
         </View>
       ) : null}
 
+      {hasData && interestRequestsUnavailable ? (
+        <Pressable accessibilityRole="button" onPress={() => router.push('/admin/program-interests' as never)}
+          style={[styles.errorBox, { marginBottom: 12, minHeight: 60 }]}>
+          <Text style={styles.errorTitle}>Solicitudes de entrenamiento sin verificar</Text>
+          <Text style={styles.muted}>
+            No podemos confirmar las solicitudes urgentes. Revisa la conexión o la configuración antes de dar por terminados los pendientes.
+          </Text>
+          <Text style={styles.retryText}>Abrir solicitudes y reintentar →</Text>
+        </Pressable>
+      ) : null}
+
       <View style={styles.tomorrowSection}>
         <View style={styles.tomorrowHeader}>
           <View>
@@ -302,6 +323,16 @@ export default function AdminHomeTab() {
 
       {hasData && pendingTotal > 0 ? (
         <View style={styles.decisionList}>
+          {stats.programInterests > 0 ? (
+            <DecisionCard
+              icon="priority-high"
+              title="Solicitudes nuevas de entrenamiento"
+              detail="Puppy y Comandos · seguimiento urgente."
+              value={stats.programInterests}
+              tone="danger"
+              onPress={() => router.push('/admin/program-interests' as never)}
+            />
+          ) : null}
           {stats.clientFollowups > 0 ? (
             <DecisionCard
               icon="priority-high"
@@ -343,7 +374,7 @@ export default function AdminHomeTab() {
             />
           ) : null}
         </View>
-      ) : hasData && !loading ? (
+      ) : hasData && !loading && !interestRequestsUnavailable ? (
         <View style={styles.allClear}>
           <View style={styles.allClearIcon}>
             <MaterialIcons name="check-circle" size={28} color={ucapsaBrand.colors.success} />
@@ -353,7 +384,7 @@ export default function AdminHomeTab() {
             <Text style={styles.allClearText}>No hay decisiones pendientes en clases, pagos o membresías.</Text>
           </View>
         </View>
-      ) : !loading && !error ? (
+      ) : !loading && !error && !interestRequestsUnavailable ? (
         <Text style={styles.muted}>Aún no hay un resumen confirmado.</Text>
       ) : null}
 

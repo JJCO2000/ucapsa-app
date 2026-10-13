@@ -111,6 +111,14 @@ export default function ProfileScreen() {
           onPress={() => router.push('/account-settings?section=notifications&from=profile' as never)}
         />
         <HubRow
+        icon="help-outline"
+        title="Cómo usar UCAPSA"
+        subtitle="Guía rápida de clases, calendario y restaurante."
+        premium={premium}
+        format={format}
+        onPress={() => router.push('/client/quick-help' as never)}
+      />
+      <HubRow
           icon="grid-view"
           title="Servicios UCAPSA"
           subtitle="Restaurante, consultas y otros accesos."

@@ -21,6 +21,8 @@ export default function ClientLayout() {
       }}
     >
       <Stack.Screen name="membership" options={{ title: club ? 'Club UCAPSA' : 'Membresía' }} />
+      <Stack.Screen name="quick-help" options={{ title: "Cómo usar UCAPSA" }} />
+      <Stack.Screen name="program-interest" options={{ title: "Solicitar entrenamiento" }} />
       <Stack.Screen name="class-detail" options={{ title: 'Clase' }} />
       <Stack.Screen name="attendance-history" options={{ title: 'Asistencias' }} />
       <Stack.Screen name="payment-history" options={{ title: 'Historial de pagos' }} />

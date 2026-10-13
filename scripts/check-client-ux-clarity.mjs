@@ -17,9 +17,13 @@ const payments = read('src/app/(tabs)/payments.tsx');
 const services = read('src/app/(tabs)/services.tsx');
 const membership = read('src/app/client/membership.tsx');
 const accountSettings = read('src/app/account-settings.tsx');
+const login = read('src/app/auth/login.tsx');
+const interests = read('src/app/client/program-interest.tsx');
+const adminInterests = read('src/app/admin/program-interests.tsx');
 const dogHistory = read('src/app/client/dog-history.tsx');
 const ranking = read('src/app/client/competition-ranking.tsx');
 const dogPhotoService = read('src/services/dog-photos.service.ts');
+const avatarOptions = read('src/constants/dogAvatar.ts');
 const activityAchievements = read('src/constants/activityAchievements.ts');
 
 for (const token of [
@@ -61,6 +65,24 @@ for (const token of ['LOGROS UCAPSA', 'AchievementBadgeGrid', 'Tus perros y Rank
 }
 for (const token of ['Programas y clases registradas.', '/client/class-detail?enrollmentId=']) {
   if (!dogHistory.includes(token)) throw new Error('Dog history detail missing: ' + token);
+}
+
+// Evidencia de UX: los errores de ingreso y solicitudes deben ser recuperables y visibles.
+for (const token of [
+  'setMissingEmail(!cleanEmail)', 'setMissingPassword(!password)',
+  'Escribe tu correo electrónico.', 'Escribe tu contraseña.',
+  'minHeight: 48', 'Crear cuenta', 'Recuperar contraseña',
+]) {
+  if (!login.includes(token)) throw new Error('Ingreso dejó de mostrar ayuda accionable: ' + token);
+}
+if (!interests.includes('!loading && !error && dogs.length === 0')) {
+  throw new Error('No sugerir registrar un perro cuando solo falló la consulta.');
+}
+if (!interests.includes('accessibilityLiveRegion="polite"')) {
+  throw new Error('Los cambios de estado de solicitudes dejaron de anunciarse accesiblemente.');
+}
+if (!adminInterests.includes('{!error ? requests.map((row) => (')) {
+  throw new Error('La bandeja no puede presentar filas antiguas como confirmadas cuando la consulta falla.');
 }
 
 // La entrevista de Miguel cambió la UX: mes completo y anillos de oferta real,
@@ -140,8 +162,19 @@ for (const token of [
 ]) {
   if (!dogProfile.includes(token)) throw new Error('Private dog photo UI missing: ' + token);
 }
-for (const token of ['DOG_AVATAR_OPTIONS', 'DOG_AVATAR_COLORS', 'No pide acceso a tus fotos']) {
-  if (dogProfile.includes(token)) throw new Error('El perfil del perro volvió al selector de avatar/color: ' + token);
+// Cinco variantes adicionales esperan backend; con migración pendiente solo mostrar las diez válidas.
+for (const token of ['EXPO_PUBLIC_UCAPSA_EXTENDED_AVATARS', 'ALL_DOG_AVATAR_OPTIONS.slice(0, 10)', 'ALL_DOG_AVATAR_OPTIONS']) {
+  if (!avatarOptions.includes(token)) throw new Error('La UI de avatares perdió el modo compatible con producción: ' + token);
+}
+if (fs.existsSync('docs/product/guarderia-canine-internal-baseline.md')) {
+  throw new Error('No publicar rutas ni horarios internos de Guardería mediante GitHub Pages.');
+}
+// Requisito actualizado: el propietario elige avatar público sin exponer la foto privada.
+for (const token of ['DOG_AVATAR_OPTIONS', 'DOG_AVATAR_COLORS', 'avatar_key: avatarKey', 'avatar_color: avatarColor', 'La foto real sigue siendo privada']) {
+  if (!dogProfile.includes(token)) throw new Error('El perfil del perro perdió el selector público persistente: ' + token);
+}
+if (dogProfile.includes('No pide acceso a tus fotos')) {
+  throw new Error('No afirmar que nunca se solicita acceso: la cámara sigue siendo opcional.');
 }
 for (const token of ['dog-photos', 'createSignedUrl', 'set_my_dog_photo_path']) {
   if (!dogPhotoService.includes(token)) throw new Error('Private dog photo service missing: ' + token);

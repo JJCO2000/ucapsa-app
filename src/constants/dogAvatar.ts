@@ -11,6 +11,11 @@ export const DOG_AVATAR_KEYS = [
   'cartoon_dog_side',
   'cartoon_paw',
   'cartoon_bone',
+  'dog_heart',
+  'dog_star',
+  'dog_sun',
+  'dog_moon',
+  'dog_play',
 ] as const;
 
 export type DogAvatarKey = (typeof DOG_AVATAR_KEYS)[number];
@@ -31,11 +36,12 @@ export type DogAvatarColor = (typeof DOG_AVATAR_COLORS)[number];
 export const DEFAULT_DOG_AVATAR_KEY: DogAvatarKey = 'dog_face';
 export const DEFAULT_DOG_AVATAR_COLOR: DogAvatarColor = ucapsaBrand.colors.dogAvatarIvory;
 
-export const DOG_AVATAR_OPTIONS: Array<{
+const ALL_DOG_AVATAR_OPTIONS: Array<{
   key: DogAvatarKey;
   label: string;
   kind: 'emoji' | 'icon';
   value: string;
+  badge?: string;
 }> = [
   { key: 'dog_face', label: 'Perrito', kind: 'emoji', value: '🐶' },
   { key: 'dog_side', label: 'Perro', kind: 'emoji', value: '🐕' },
@@ -47,7 +53,22 @@ export const DOG_AVATAR_OPTIONS: Array<{
   { key: 'cartoon_dog_side', label: 'Caricatura 2', kind: 'icon', value: 'dog-side' },
   { key: 'cartoon_paw', label: 'Caricatura 3', kind: 'icon', value: 'paw' },
   { key: 'cartoon_bone', label: 'Caricatura 4', kind: 'icon', value: 'bone' },
+  { key: 'dog_heart', label: 'Cariñoso', kind: 'icon', value: 'dog', badge: 'heart' },
+  { key: 'dog_star', label: 'Estrella', kind: 'icon', value: 'dog', badge: 'star' },
+  { key: 'dog_sun', label: 'Alegre', kind: 'icon', value: 'dog-side', badge: 'white-balance-sunny' },
+  { key: 'dog_moon', label: 'Dormilón', kind: 'icon', value: 'dog-side', badge: 'moon-waning-crescent' },
+  { key: 'dog_play', label: 'Juguetón', kind: 'icon', value: 'dog', badge: 'tennis-ball' },
 ];
+
+/**
+ * No ofrecer las cinco variantes nuevas antes de ampliar la validación
+ * del backend. Expo sustituye este valor durante la compilación.
+ * Después de aplicar la migración de avatares, compilar con
+ * EXPO_PUBLIC_UCAPSA_EXTENDED_AVATARS=true para habilitar las 15 opciones.
+ */
+export const DOG_AVATAR_OPTIONS = process.env.EXPO_PUBLIC_UCAPSA_EXTENDED_AVATARS === 'true'
+  ? ALL_DOG_AVATAR_OPTIONS
+  : ALL_DOG_AVATAR_OPTIONS.slice(0, 10);
 
 export function normalizeDogAvatarKey(value: unknown): DogAvatarKey {
   return DOG_AVATAR_KEYS.includes(value as DogAvatarKey)

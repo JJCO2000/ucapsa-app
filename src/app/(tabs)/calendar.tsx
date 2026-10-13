@@ -1,11 +1,12 @@
 import { ucapsaBrand, ucapsaColorKeyPalette, withAlpha } from '../../constants/brand';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AccessibilityInfo, ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Calendar, type DateData } from 'react-native-calendars';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { devWarn } from '../../lib/client-diagnostics';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { CalendarActivityRing } from '../../components/calendar/CalendarActivityRing';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
@@ -25,7 +26,7 @@ import {
 } from '../../services/admin-class-roster.service';
 import type { Announcement, EventOccurrence, EventOccurrenceCancellation, ProgramClassCancellation, ProgramEnrollmentWithDetails, ProgramSchedule, UcapsaEvent, UcapsaProgram } from '../../types/app.types';
 import { expandEventOccurrences, formatDateKey, toDateKey, todayKey } from '../../utils/events.utils';
-import { buildCalendarServiceKinds } from '../../utils/calendar-service-rings.utils';
+import { buildCalendarServiceKinds, selectCalendarAnnouncementColors } from '../../utils/calendar-service-rings.utils';
 import { calendarMonthDateKeys } from '../../utils/calendar-date-window.utils';
 import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
 
@@ -119,6 +120,18 @@ export default function CalendarScreen() {
   const { date: dateParam } = useLocalSearchParams<{ date?: string | string[] }>();
   const requestedDate = Array.isArray(dateParam) ? dateParam[0] ?? null : dateParam ?? null;
   const { user, role, isAdmin } = useSession();
+  const calendarScrollRef = useRef<ScrollView>(null);
+  const calendarCardYRef = useRef(0);
+  const agendaYRef = useRef(0);
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void AccessibilityInfo.isReduceMotionEnabled()
+      .then((enabled) => { if (active) setReduceMotion(enabled); })
+      .catch((cause) => { devWarn('calendar: reduce motion preference unavailable, defaulting to no animation', cause); if (active) setReduceMotion(true); });
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    return () => { active = false; subscription.remove(); };
+  }, []);
   const [events, setEvents] = useState<UcapsaEvent[]>([]);
   const [eventCancellations, setEventCancellations] = useState<EventOccurrenceCancellation[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -136,6 +149,7 @@ export default function CalendarScreen() {
     classes: false,
     events: false,
     eventCancellations: false,
+    announcements: false,
   });
   const [openRoster, setOpenRoster] = useState<{ occurrenceId: string; level: AdminRosterLevel } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -178,6 +192,7 @@ export default function CalendarScreen() {
       events: Boolean(eventCache),
       eventCancellations: Boolean(eventCancellationCache),
       classes: Boolean(classCache),
+      announcements: Boolean(announcementCache),
     });
     if (eventCache) setEvents(eventCache.data);
     if (eventCancellationCache) setEventCancellations(eventCancellationCache.data);
@@ -230,6 +245,7 @@ export default function CalendarScreen() {
       );
     }
     if (announcementResult.status === 'fulfilled') {
+      setCalendarSources((current) => ({ ...current, announcements: true }));
       setAnnouncements(announcementResult.value);
       await writeClientResource(cacheScope, clientReadKeys.announcements, announcementResult.value);
     }
@@ -356,7 +372,7 @@ export default function CalendarScreen() {
 
   // Only actual non-cancelled classes and events mark an offered service.
   // Announcements and private practice entries never imply a class is available.
-  const calendarDataIncomplete = !calendarSources.classes || !calendarSources.events || !calendarSources.eventCancellations;
+  const calendarDataIncomplete = !calendarSources.classes || !calendarSources.events || !calendarSources.eventCancellations || !calendarSources.announcements;
   const servicesByDate = useMemo(() => buildCalendarServiceKinds(
     classOccurrences.map((occurrence) => ({
       dateKey: occurrence.dateKey,
@@ -367,6 +383,16 @@ export default function CalendarScreen() {
       .map((occurrence) => toDateKey(occurrence.start_date))
       .filter((dateKey): dateKey is string => Boolean(dateKey)),
   ), [classOccurrences, occurrences]);
+
+  const announcementColorsByDate = useMemo(() => selectCalendarAnnouncementColors(
+    announcements.map((announcement) => ({
+      dateKey: announcementDateKey(announcement) ?? '',
+      colorKey: announcement.color_key ?? 'red',
+      priority: announcement.priority,
+      isPinned: announcement.is_pinned,
+      createdAt: announcement.created_at,
+    })),
+  ), [announcements]);
 
   type DayAgendaItem = {
     id: string;
@@ -451,9 +477,21 @@ export default function CalendarScreen() {
   const dayCount = dayAgendaItems.length;
   const hasClientSyncWarning = usingSavedData || Boolean(partialLoadWarning || classLoadWarning || practiceLoadWarning);
 
+  function selectCalendarDay(dateKey: string) {
+    setSelectedDate(dateKey);
+    setVisibleMonth(dateKey.slice(0, 7));
+    requestAnimationFrame(() => {
+      calendarScrollRef.current?.scrollTo({
+        y: Math.max(0, calendarCardYRef.current + agendaYRef.current - 16),
+        animated: !reduceMotion,
+      });
+    });
+  }
+
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: format.background }]} edges={['top']}>
       <ScrollView
+        ref={calendarScrollRef}
         style={[styles.container, { backgroundColor: format.background }]}
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -516,7 +554,7 @@ export default function CalendarScreen() {
 
         {!error ? (
           <>
-            <View style={[styles.calendarCard, { borderColor: isPremium ? ucapsaBrand.colors.premiumBorderStrong : format.cardBorder }]}>
+            <View onLayout={(e) => { calendarCardYRef.current = e.nativeEvent.layout.y; }} style={[styles.calendarCard, { borderColor: isPremium ? ucapsaBrand.colors.premiumBorderStrong : format.cardBorder }]}>
               <View style={styles.agendaTopBar}>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={[styles.agendaDateEyebrow, { color: isPremium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>AGENDA</Text>
@@ -541,10 +579,7 @@ export default function CalendarScreen() {
                     current.slice(0, 7) === nextMonth ? current : month.dateString,
                   );
                 }}
-                onDayPress={(day: DateData) => {
-                  setSelectedDate(day.dateString);
-                  setVisibleMonth(day.dateString.slice(0, 7));
-                }}
+                onDayPress={(day: DateData) => selectCalendarDay(day.dateString)}
                 dayComponent={({ date, state }) => {
                   if (!date?.dateString) return null;
                   const dateKey = date.dateString;
@@ -553,14 +588,12 @@ export default function CalendarScreen() {
                       dateLabel={formatDateKey(dateKey)}
                       dayNumber={date.day}
                       kinds={servicesByDate[dateKey] ?? []}
+                      announcementColor={announcementColorsByDate[dateKey] ?? null}
                       selected={selectedDate === dateKey}
                       today={todayKey() === dateKey}
                       outsideMonth={state === 'disabled'}
                       dataIncomplete={calendarDataIncomplete}
-                      onPress={() => {
-                        setSelectedDate(dateKey);
-                        setVisibleMonth(dateKey.slice(0, 7));
-                      }}
+                      onPress={() => selectCalendarDay(dateKey)}
                     />
                   );
                 }}
@@ -582,6 +615,7 @@ export default function CalendarScreen() {
                   { label: 'Puppy', color: ucapsaBrand.colors.gold },
                   { label: 'Comandos', color: ucapsaBrand.colors.blue },
                   { label: 'Otras actividades', color: ucapsaBrand.colors.red },
+                  { label: 'Noticia (color elegible)', color: ucapsaColorKeyPalette[announcementColorsByDate[selectedDate] ?? 'gray'].accent },
                 ]).map((item) => (
                   <View key={item.label} style={styles.ringLegendItem}>
                     <View style={[styles.ringLegendCircle, { borderColor: item.color }]} />
@@ -590,23 +624,29 @@ export default function CalendarScreen() {
                 ))}
               </View>
               <Text style={[styles.calendarHint, { color: format.muted }]}>
-                Los colores se combinan cuando coinciden servicios. Toca un día para ver su agenda.
+                El anillo se reparte por partes iguales entre servicios y noticias. El color de la noticia lo define Administración.
               </Text>
               {calendarDataIncomplete ? (
                 <View style={styles.calendarDataWarning}>
                   <MaterialIcons name="cloud-off" size={16} color={ucapsaBrand.colors.warning} />
                   <Text style={[styles.calendarDataWarningText, { color: ucapsaBrand.colors.warning }]}>
-                    Disponibilidad sin verificar: faltan datos de clases, eventos o cancelaciones. Los anillos punteados no significan día libre.
+                    Disponibilidad sin verificar: pueden faltar clases, eventos, cancelaciones o noticias. Los anillos punteados no significan día libre.
                   </Text>
                 </View>
               ) : null}
 
-              <View style={[styles.daySchedule, { borderTopColor: format.cardBorder }]}>
+              <View onLayout={(e) => { agendaYRef.current = e.nativeEvent.layout.y; }} style={[styles.daySchedule, { borderTopColor: format.cardBorder }]}>
                   {dayAgendaItems.length === 0 ? (
                     <View style={styles.dayEmpty}>
                       <MaterialIcons name="event-available" size={24} color={format.muted} />
-                      <Text style={[styles.dayEmptyTitle, { color: format.cardText }]}>Día libre</Text>
-                      <Text style={[styles.dayEmptyText, { color: format.muted }]}>No hay actividad registrada para este día.</Text>
+                      <Text style={[styles.dayEmptyTitle, { color: format.cardText }]}>
+                        {calendarDataIncomplete ? 'Agenda sin confirmar' : 'Día libre'}
+                      </Text>
+                      <Text style={[styles.dayEmptyText, { color: format.muted }]}>
+                        {calendarDataIncomplete
+                          ? 'No pudimos comprobar todas las clases, noticias y actividades de este día. Reintenta la sincronización.'
+                          : 'No hay actividad registrada para este día.'}
+                      </Text>
                     </View>
                   ) : dayAgendaItems.map((item) => {
                     const configuredTone = getColorTone(item.colorKey);
