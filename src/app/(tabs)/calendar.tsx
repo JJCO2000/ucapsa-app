@@ -620,7 +620,7 @@ export default function CalendarScreen() {
                 <View style={styles.calendarDataWarning}>
                   <MaterialIcons name="cloud-off" size={16} color={ucapsaBrand.colors.warning} />
                   <Text style={[styles.calendarDataWarningText, { color: ucapsaBrand.colors.warning }]}>
-                    Agenda sin verificar: pueden faltar clases, eventos, cancelaciones o noticias. Los anillos punteados no significan día libre.
+                    Disponibilidad sin verificar: pueden faltar clases, eventos, cancelaciones o noticias. Los anillos punteados no significan día libre.
                   </Text>
                 </View>
               ) : null}
