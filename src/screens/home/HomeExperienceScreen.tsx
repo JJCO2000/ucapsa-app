@@ -323,6 +323,27 @@ export default function HomeExperienceScreen() {
         </View>
       </View>
 
+      {user && !isStaff ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Consultar menú del restaurante UCAPSA"
+          onPress={() => router.push('/restaurant' as never)}
+          style={{
+            flexDirection: 'row', alignItems: 'center', gap: 12,
+            backgroundColor: format.cardBackground, borderColor: format.cardBorder,
+            borderWidth: 1, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 14,
+            marginBottom: 12, minHeight: 58,
+          }}
+        >
+          <MaterialIcons name="restaurant-menu" size={24} color={format.accentDark} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: format.cardText, fontSize: 16, fontWeight: '800' }}>Restaurante UCAPSA</Text>
+            <Text style={{ color: format.muted, fontSize: 13 }}>Ver menú y precios</Text>
+          </View>
+          <MaterialIcons name="chevron-right" size={22} color={format.accentDark} />
+        </Pressable>
+      ) : null}
+
       {!user ? (
         <View style={[styles.guestCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
           <View style={[styles.guestIcon, { backgroundColor: format.accentSoft }]}>
