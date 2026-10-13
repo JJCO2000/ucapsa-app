@@ -4,8 +4,8 @@ begin;
 
 create table if not exists public.program_interest_requests (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete restrict,
-  dog_id uuid not null references public.dogs(id) on delete restrict,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  dog_id uuid not null references public.dogs(id) on delete cascade,
   program_code text not null check (program_code in ('puppy', 'comandos')),
   status text not null default 'pending' check (status in ('pending', 'contacted', 'closed')),
   priority text not null default 'urgent' check (priority = 'urgent'),
