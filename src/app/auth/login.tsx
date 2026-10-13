@@ -28,7 +28,15 @@ export default function LoginScreen() {
       );
 
       if (error) {
-        Alert.alert('No se pudo iniciar sesion', error.message);
+        Alert.alert(
+          'No pudimos iniciar sesión',
+          'Revisa tu correo y contraseña. Si es tu primera vez en UCAPSA, puedes crear una cuenta.',
+          [
+            { text: 'Reintentar', style: 'cancel' },
+            { text: 'Recuperar contraseña', onPress: () => router.push('/auth/forgot-password' as never) },
+            { text: 'Crear cuenta', onPress: () => router.push('/auth/register' as never) },
+          ],
+        );
         return;
       }
 
