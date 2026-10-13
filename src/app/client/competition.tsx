@@ -293,34 +293,27 @@ export default function ClientCompetitionScreen() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.rankingEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.primaryButtonText }]}>RANKING UCAPSA</Text>
-                      <Text style={[styles.rankingTitle, { color: premium ? ucapsaBrand.colors.premiumText : format.primaryButtonText }]}>Ver clasificación completa</Text>
+                      <Text style={[styles.rankingTitle, { color: premium ? ucapsaBrand.colors.premiumText : format.primaryButtonText }]}>Top 3 de la temporada</Text>
                     </View>
                     <MaterialIcons name="chevron-right" size={24} color={premium ? ucapsaBrand.colors.premiumAction : format.primaryButtonText} />
                   </View>
 
                   <View style={styles.myPositions}>
                     {!rankingReady ? (
-                      <Text style={[styles.rankingMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.primaryButtonText }]}>Actualizando posiciones…</Text>
-                    ) : myRankingRows.length > 0 ? (
-                      myRankingRows.map((row) => (
+                      <Text style={[styles.rankingMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.primaryButtonText }]}>Actualizando Top 3…</Text>
+                    ) : rows.length > 0 ? (
+                      rows.slice(0, 3).map((row) => (
                         <View key={row.dog_id ?? String(row.ranking_position)} style={[styles.positionPill, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.cardBackground }]}>
-                          <Text style={[styles.positionName, { color: premium ? ucapsaBrand.colors.premiumText : format.cardText }]}>{row.dog_name || 'Tu perro'}</Text>
-                          <Text style={[styles.positionValue, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>#{Number(row.ranking_position ?? 0)}</Text>
+                          <Text style={[styles.positionName, { color: premium ? ucapsaBrand.colors.premiumText : format.cardText }]} numberOfLines={1}>
+                            {Number(row.ranking_position) === 1 ? '🥇' : Number(row.ranking_position) === 2 ? '🥈' : '🥉'} {row.dog_name || 'Perro'}
+                          </Text>
+                          <Text style={[styles.positionValue, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>#{Number(row.ranking_position)}</Text>
                         </View>
                       ))
                     ) : (
-                      <View style={{ gap: 5 }}>
-                        <Text style={[styles.rankingMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.primaryButtonText }]}>Sin posiciones oficiales todavía. Tus puntos ya se acumulan:</Text>
-                        {snapshot.dogs.map((dog) => {
-                          const season = dog.seasons.find((item) => item.season_id === selectedSeasonId);
-                          return season ? (
-                            <View key={dog.dog_id} style={[styles.positionPill, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.cardBackground }]}>
-                              <Text style={[styles.positionName, { color: premium ? ucapsaBrand.colors.premiumText : format.cardText }]}>{dog.dog_name}</Text>
-                              <Text style={[styles.positionValue, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>{numberLabel(season.competitive_score)} pts</Text>
-                            </View>
-                          ) : null;
-                        })}
-                      </View>
+                      <Text style={[styles.rankingMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.primaryButtonText }]}>
+                        Aún no hay posiciones oficiales. Toca para consultar la clasificación y requisitos.
+                      </Text>
                     )}
                   </View>
                 </Pressable>
