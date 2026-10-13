@@ -63,7 +63,7 @@ export default function LoginScreen() {
           value={email}
           onChangeText={(value) => { setEmail(value); if (value.trim()) setMissingEmail(false); }}
           accessibilityLabel="Correo electrónico"
-          accessibilityState={{ invalid: missingEmail }}
+          accessibilityHint="Correo necesario para iniciar sesión"
           placeholder="correo@ejemplo.com"
           autoCapitalize="none"
           autoCorrect={false}
@@ -81,7 +81,7 @@ export default function LoginScreen() {
           value={password}
           onChangeText={(value) => { setPassword(value); if (value) setMissingPassword(false); }}
           accessibilityLabel="Contraseña"
-          accessibilityState={{ invalid: missingPassword }}
+          accessibilityHint="Contraseña necesaria para iniciar sesión"
           placeholder="Tu contrasena"
           secureTextEntry
           textContentType="password"
