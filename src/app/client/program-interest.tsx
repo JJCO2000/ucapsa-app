@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Linking, Pressable, Text, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -23,6 +23,10 @@ export default function ProgramInterestScreen() {
   const initial = params.program === 'comandos' ? 'comandos' : 'puppy';
   const { user, isAdmin } = useSession();
   const [program, setProgram] = useState<ProgramInterestCode>(initial);
+  useEffect(() => {
+    setProgram(initial);
+    setSaved(false);
+  }, [initial]);
   const [dogs, setDogs] = useState<BasicDog[]>([]);
   const [dogId, setDogId] = useState<string | null>(null);
   const [openRequests, setOpenRequests] = useState<ProgramInterestRequest[]>([]);
@@ -126,7 +130,15 @@ export default function ProgramInterestScreen() {
       ))}
       <Text style={{ color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '800', marginBottom: 10, marginTop: 8 }}>2. Tu perro</Text>
       {loading ? <Text>Cargando perros y solicitudes…</Text> : null}
-      {error ? <Text style={{ color: ucapsaBrand.colors.red, fontSize: 14, marginBottom: 12 }}>{error}</Text> : null}
+      {error ? (
+        <View style={{ gap: 6, marginBottom: 12 }}>
+          <Text accessibilityRole="alert" style={{ color: ucapsaBrand.colors.red, fontSize: 14 }}>{error}</Text>
+          <Pressable accessibilityRole="button" onPress={() => { setLoading(true); void load(); }}
+            style={{ alignSelf: 'flex-start', minHeight: 48, justifyContent: 'center', paddingHorizontal: 12 }}>
+            <Text style={{ color: ucapsaBrand.colors.redDark, fontSize: 16, fontWeight: '800' }}>Reintentar verificación →</Text>
+          </Pressable>
+        </View>
+      ) : null}
       {!loading && dogs.length === 0 ? (
         <Pressable style={optionStyle(false)} onPress={() => router.push('/dog' as never)}>
           <Text style={{ color: ucapsaBrand.colors.redDark, fontSize: 16, fontWeight: '800' }}>Primero registra a tu perro →</Text>
