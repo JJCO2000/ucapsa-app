@@ -9,7 +9,16 @@ const compiled = ts.transpileModule(source, {
 });
 const exports = {};
 vm.runInNewContext(compiled.outputText, { exports });
-const { buildCalendarServiceKinds } = exports;
+const { buildCalendarServiceKinds, selectCalendarAnnouncementColors } = exports;
+const selectedNews = selectCalendarAnnouncementColors([
+  { dateKey: '2026-10-18', colorKey: 'purple', priority: 'normal' },
+  { dateKey: '2026-10-18', colorKey: 'green', priority: 'urgent' },
+  { dateKey: '2026-10-19', colorKey: 'red', priority: 'normal' },
+]);
+if (selectedNews['2026-10-18'] !== 'green' || selectedNews['2026-10-19'] !== 'red') {
+  throw new Error('La noticia de mayor prioridad debe definir un solo color por día.');
+}
+
 
 const sample = buildCalendarServiceKinds([
   { dateKey: '2026-10-17', programCode: 'puppy', cancelled: false },
@@ -43,7 +52,7 @@ for (const token of [
   'dayComponent', 'CalendarActivityRing', 'buildCalendarServiceKinds',
   'occurrence.program?.code', 'Boolean(occurrence.cancellation)',
   'ucapsaBrand.colors.adminBorder',
-  'Otras actividades', 'Sin actividad', 'Puppy', 'Comandos',
+  'Otras actividades', 'Sin actividad', 'Puppy', 'Comandos', 'announcementColorsByDate', 'selectCalendarAnnouncementColors', 'selectCalendarDay', 'scrollTo',
 ]) {
   if (!calendar.includes(token)) throw new Error('Month calendar lost ring contract: ' + token);
 }
@@ -51,7 +60,7 @@ for (const token of [
   "import Svg, { Circle } from 'react-native-svg'",
   'strokeDasharray', 'strokeDashoffset', 'rotation={-90}',
   'accessibilityLabel', 'Sin clases ni actividades programadas',
-  'KIND_COLORS', 'STROKE',
+  'KIND_COLORS', 'STROKE', 'segments.length', 'announcementColor', 'ucapsaColorKeyPalette',
 ]) {
   if (!ring.includes(token)) throw new Error('Ring lost accessible segmented visualization: ' + token);
 }
