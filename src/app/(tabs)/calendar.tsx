@@ -139,6 +139,7 @@ export default function CalendarScreen() {
     classes: false,
     events: false,
     eventCancellations: false,
+    announcements: false,
   });
   const [openRoster, setOpenRoster] = useState<{ occurrenceId: string; level: AdminRosterLevel } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -181,6 +182,7 @@ export default function CalendarScreen() {
       events: Boolean(eventCache),
       eventCancellations: Boolean(eventCancellationCache),
       classes: Boolean(classCache),
+      announcements: Boolean(announcementCache),
     });
     if (eventCache) setEvents(eventCache.data);
     if (eventCancellationCache) setEventCancellations(eventCancellationCache.data);
@@ -233,6 +235,7 @@ export default function CalendarScreen() {
       );
     }
     if (announcementResult.status === 'fulfilled') {
+      setCalendarSources((current) => ({ ...current, announcements: true }));
       setAnnouncements(announcementResult.value);
       await writeClientResource(cacheScope, clientReadKeys.announcements, announcementResult.value);
     }
@@ -359,7 +362,7 @@ export default function CalendarScreen() {
 
   // Only actual non-cancelled classes and events mark an offered service.
   // Announcements and private practice entries never imply a class is available.
-  const calendarDataIncomplete = !calendarSources.classes || !calendarSources.events || !calendarSources.eventCancellations;
+  const calendarDataIncomplete = !calendarSources.classes || !calendarSources.events || !calendarSources.eventCancellations || !calendarSources.announcements;
   const servicesByDate = useMemo(() => buildCalendarServiceKinds(
     classOccurrences.map((occurrence) => ({
       dateKey: occurrence.dateKey,
@@ -602,7 +605,7 @@ export default function CalendarScreen() {
                   { label: 'Puppy', color: ucapsaBrand.colors.gold },
                   { label: 'Comandos', color: ucapsaBrand.colors.blue },
                   { label: 'Otras actividades', color: ucapsaBrand.colors.red },
-                  { label: 'Noticia', color: ucapsaBrand.colors.purple },
+                  { label: 'Noticia (color elegible)', color: ucapsaColorKeyPalette[announcementColorsByDate[selectedDate] ?? 'gray'].accent },
                 ]).map((item) => (
                   <View key={item.label} style={styles.ringLegendItem}>
                     <View style={[styles.ringLegendCircle, { borderColor: item.color }]} />
@@ -617,7 +620,7 @@ export default function CalendarScreen() {
                 <View style={styles.calendarDataWarning}>
                   <MaterialIcons name="cloud-off" size={16} color={ucapsaBrand.colors.warning} />
                   <Text style={[styles.calendarDataWarningText, { color: ucapsaBrand.colors.warning }]}>
-                    Disponibilidad sin verificar: faltan datos de clases, eventos o cancelaciones. Los anillos punteados no significan día libre.
+                    Agenda sin verificar: pueden faltar clases, eventos, cancelaciones o noticias. Los anillos punteados no significan día libre.
                   </Text>
                 </View>
               ) : null}
