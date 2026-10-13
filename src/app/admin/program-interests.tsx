@@ -49,9 +49,13 @@ export default function AdminProgramInterestsScreen() {
     setBusyId(row.id);
     try {
       await updateAdminProgramInterestRequest(row.id, status);
+      // Actualizar inmediatamente la bandeja; la recarga puede fallar sin deshacer el guardado.
+      setRequests((current) => status === 'closed'
+        ? current.filter((item) => item.id !== row.id)
+        : current.map((item) => item.id === row.id ? { ...item, status } : item));
       await load();
     } catch {
-      Alert.alert('No se guardó el seguimiento', 'Intenta nuevamente. La solicitud no se ha modificado.');
+      Alert.alert('No pudimos confirmar el cambio', 'Revisa el estado de la solicitud antes de intentar de nuevo, para no repetir la operación.');
     } finally {
       setBusyId(null);
     }
