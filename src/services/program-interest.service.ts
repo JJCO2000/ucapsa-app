@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../types/database.types';
+import { sortProgramInterestsByAttention } from '../utils/program-interest.utils';
 
 /** Temporal schema extension for a migration not yet deployed to production.
  * After applying the migration, regenerate database.generated.ts and remove this adapter.
@@ -78,12 +79,12 @@ export async function getAdminProgramInterestRequests(): Promise<AdminProgramInt
   if (dogs.error) throw dogs.error;
   const byOwner = new Map((owners.data ?? []).map((item) => [item.user_id, item]));
   const byDog = new Map((dogs.data ?? []).map((item) => [item.id, item]));
-  return data.map((row) => ({
+  return sortProgramInterestsByAttention(data.map((row) => ({
     ...row,
     customerName: byOwner.get(row.user_id)?.full_name || 'Cliente UCAPSA',
     customerPhone: byOwner.get(row.user_id)?.phone ?? null,
     dogName: byDog.get(row.dog_id)?.name || 'Perro',
-  }));
+  })));
 }
 
 export async function updateAdminProgramInterestRequest(id: string, status: 'contacted' | 'closed') {
