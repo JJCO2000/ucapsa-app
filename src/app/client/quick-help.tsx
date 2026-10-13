@@ -6,6 +6,7 @@ import { Pressable, Text, View } from 'react-native';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
+import { devWarn } from '../../lib/client-diagnostics';
 
 export const quickHelpSeenKey = (userId: string) => 'ucapsa-quick-help-v1:' + userId;
 const guides = [
@@ -30,7 +31,7 @@ export default function QuickHelpScreen() {
   if (isAdmin) return <Redirect href="/admin-home" />;
   const item = guides[step];
   async function done(route?: string) {
-    await AsyncStorage.setItem(quickHelpSeenKey(user!.id), '1').catch(() => {});
+    await AsyncStorage.setItem(quickHelpSeenKey(user!.id), '1').catch((cause) => devWarn('quick-help: could not persist tutorial completion.', cause));
     if (route) router.replace(route as never);
     else router.back();
   }
