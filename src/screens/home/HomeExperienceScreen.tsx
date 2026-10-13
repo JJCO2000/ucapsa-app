@@ -173,7 +173,8 @@ export default function HomeExperienceScreen() {
     }
     void getMyDogs().then((dogs) => {
       if (active) setDogCount(dogs.length);
-    }).catch(() => {
+    }).catch((cause) => {
+      devWarn('home: cannot verify whether the account has registered dogs; hiding the onboarding prompt.', cause);
       if (active) setDogCount(null);
     });
     return () => { active = false; };
