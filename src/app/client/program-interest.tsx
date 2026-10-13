@@ -74,8 +74,8 @@ export default function ProgramInterestScreen() {
   const current = openRequests.find((row) => row.dog_id === dogId && row.program_code === program && row.status !== 'closed');
   const alreadyEnrolled = activeByProgram.includes(dogId + ':' + program);
 
-  async function contactWhatsapp() {
-    const message = (saved || current
+  async function contactWhatsapp(confirmedRecord = false) {
+    const message = (confirmedRecord || saved || current
       ? 'Hola UCAPSA, registré una solicitud de '
       : 'Hola UCAPSA, quiero información para inscribir a mi perro en ')
       + (program === 'puppy' ? 'Puppy School' : 'Comandos')
@@ -85,7 +85,7 @@ export default function ProgramInterestScreen() {
     try {
       await Linking.openURL(baseWhatsapp + join + 'text=' + encodeURIComponent(message));
     } catch {
-      Alert.alert('No pudimos abrir WhatsApp', 'Tu solicitud registrada permanece disponible en Administración.');
+      Alert.alert('No pudimos abrir WhatsApp', 'Revisa que WhatsApp esté disponible. Si enviaste una solicitud en la app, puedes consultar su estado aquí.');
     }
   }
 
@@ -98,7 +98,7 @@ export default function ProgramInterestScreen() {
       setSaved(true);
       Alert.alert('Solicitud registrada', 'Administración recibió tu solicitud como urgente. Ahora puedes enviar también un mensaje a UCAPSA.', [
         { text: 'Después', style: 'cancel' },
-        { text: 'Abrir WhatsApp', onPress: () => void contactWhatsapp() },
+        { text: 'Abrir WhatsApp', onPress: () => void contactWhatsapp(true) },
       ]);
     } catch {
       Alert.alert('No se confirmó tu solicitud', 'No hay constancia de registro. Reintenta más tarde o comunícate por WhatsApp sin perder el seguimiento.');
