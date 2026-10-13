@@ -129,7 +129,7 @@ export default function ProgramInterestScreen() {
         </Pressable>
       ))}
       <Text style={{ color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '800', marginBottom: 10, marginTop: 8 }}>2. Tu perro</Text>
-      {loading ? <Text>Cargando perros y solicitudes…</Text> : null}
+      {loading ? <Text accessibilityLiveRegion="polite">Cargando perros y solicitudes…</Text> : null}
       {error ? (
         <View style={{ gap: 6, marginBottom: 12 }}>
           <Text accessibilityRole="alert" style={{ color: ucapsaBrand.colors.red, fontSize: 14 }}>{error}</Text>
@@ -139,7 +139,7 @@ export default function ProgramInterestScreen() {
           </Pressable>
         </View>
       ) : null}
-      {!loading && dogs.length === 0 ? (
+      {!loading && !error && dogs.length === 0 ? (
         <Pressable style={optionStyle(false)} onPress={() => router.push('/dog' as never)}>
           <Text style={{ color: ucapsaBrand.colors.redDark, fontSize: 16, fontWeight: '800' }}>Primero registra a tu perro →</Text>
         </Pressable>
@@ -149,8 +149,8 @@ export default function ProgramInterestScreen() {
           <Text style={{ color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '800' }}>{dog.name}</Text>
         </Pressable>
       ))}
-      {alreadyEnrolled ? <Text style={{ fontSize: 15 }}>Este perro ya tiene el programa activo. Revisa la pestaña Clases.</Text> : null}
-      {current ? <Text style={{ fontSize: 15, marginBottom: 14 }}>Tu solicitud ya está registrada y está {current.status === 'pending' ? 'pendiente de atención' : 'en seguimiento'}.</Text> : null}
+      {alreadyEnrolled ? <Text accessibilityLiveRegion="polite" style={{ fontSize: 15 }}>Este perro ya tiene el programa activo. Revisa la pestaña Clases.</Text> : null}
+      {current ? <Text accessibilityLiveRegion="polite" style={{ fontSize: 15, marginBottom: 14 }}>Tu solicitud ya está registrada y está {current.status === 'pending' ? 'pendiente de atención' : 'en seguimiento'}.</Text> : null}
       <Pressable
         accessibilityRole="button" disabled={loading || Boolean(error) || !dogId || Boolean(current) || alreadyEnrolled || sending}
         onPress={() => void submit()}
