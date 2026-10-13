@@ -1,5 +1,5 @@
 import { ucapsaBrand } from '../../constants/brand';
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -97,16 +97,14 @@ export default function LoginScreen() {
           <Text style={styles.buttonText}>{loading ? 'Entrando...' : 'Entrar'}</Text>
         </Pressable>
 
-        <Link href="/auth/forgot-password" asChild>
-          <Pressable accessibilityRole="link" style={styles.secondaryAction}>
-            <Text style={styles.link}>Olvidé mi contraseña</Text>
-          </Pressable>
-        </Link>
-        <Link href="/auth/register" asChild>
-          <Pressable accessibilityRole="link" style={styles.secondaryAction}>
-            <Text style={styles.linkStrong}>Crear cuenta</Text>
-          </Pressable>
-        </Link>
+        <Pressable accessibilityRole="button" onPress={() => router.push('/auth/forgot-password')}
+          style={styles.secondaryAction}>
+          <Text style={styles.link}>Olvidé mi contraseña</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={() => router.push('/auth/register')}
+          style={styles.secondaryAction}>
+          <Text style={styles.linkStrong}>Crear cuenta</Text>
+        </Pressable>
       </View>
     </KeyboardAwareScreen>
   );
