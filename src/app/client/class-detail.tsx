@@ -3,6 +3,7 @@ import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-rou
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
+import { TrainingAttendanceStamps } from '../../components/domain/TrainingAttendanceStamps';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
@@ -190,6 +191,12 @@ export default function ClientClassDetailScreen() {
             </Pressable>
           ) : null}
 
+          {!unlimited && item.program.required_attendances > 0 &&
+            (item.program.code === 'puppy' || item.program.code === 'comandos') ? (
+              <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
+                <TrainingAttendanceStamps code={item.program.code} attended={item.attendances.length} required={item.program.required_attendances} />
+              </View>
+            ) : null}
           <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
             <Text style={[styles.sectionTitle, { color: format.cardText }]}>Datos de la inscripción</Text>
             <InfoRow label="Inicio" value={dateLabel(unlimited ? item.enrollment.started_at : item.enrollment.card_started_on || item.enrollment.started_at)} premium={premium} format={format} />
