@@ -88,8 +88,13 @@ export async function getAdminProgramInterestRequests(): Promise<AdminProgramInt
 }
 
 export async function updateAdminProgramInterestRequest(id: string, status: 'contacted' | 'closed') {
-  const { error } = await requestDb.from('program_interest_requests')
+  const { data, error } = await requestDb.from('program_interest_requests')
     .update({ status })
-    .eq('id', id);
+    .eq('id', id)
+    .select('id,status,updated_at')
+    .single();
   if (error) throw error;
+  if (!data || data.status !== status) {
+    throw new Error('No pudimos confirmar el cambio de estado de la solicitud.');
+  }
 }
