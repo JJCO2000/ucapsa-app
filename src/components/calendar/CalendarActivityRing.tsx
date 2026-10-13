@@ -2,7 +2,8 @@ import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
-import { ucapsaBrand } from '../../constants/brand';
+import { ucapsaBrand, ucapsaColorKeyPalette } from '../../constants/brand';
+import type { CalendarAnnouncementColor } from '../../utils/calendar-service-rings.utils';
 import type { CalendarServiceKind } from '../../utils/calendar-service-rings.utils';
 
 const RING_SIZE = 40;
@@ -27,6 +28,7 @@ type Props = {
   dayNumber: number;
   dateLabel: string;
   kinds: readonly CalendarServiceKind[];
+  announcementColor?: CalendarAnnouncementColor | null;
   selected: boolean;
   today: boolean;
   outsideMonth: boolean;
@@ -38,13 +40,18 @@ export const CalendarActivityRing = memo(function CalendarActivityRing({
   dayNumber,
   dateLabel,
   kinds,
+  announcementColor = null,
   selected,
   today,
   outsideMonth,
   dataIncomplete = false,
   onPress,
 }: Props) {
-  const count = kinds.length;
+  const segments = [
+    ...kinds.map((kind) => ({ key: kind, color: KIND_COLORS[kind] })),
+    ...(announcementColor ? [{ key: 'announcement', color: ucapsaColorKeyPalette[announcementColor].accent }] : []),
+  ];
+  const count = segments.length;
   const hasScheduledService = count > 0;
   const arc = count > 0 ? CIRCUMFERENCE / count : CIRCUMFERENCE;
   // Small gaps delimit equal sectors without losing the three activity colors.
@@ -55,7 +62,7 @@ export const CalendarActivityRing = memo(function CalendarActivityRing({
       accessibilityRole="button"
       accessibilityState={{ selected }}
       accessibilityLabel={dateLabel + (today ? ', hoy' : '') + ': ' + (count > 0
-        ? kinds.map((kind) => KIND_LABELS[kind]).join(', ')
+        ? [...kinds.map((kind) => KIND_LABELS[kind]), ...(announcementColor ? ['Noticia'] : [])].join(', ')
         : dataIncomplete
           ? 'Información de actividades sin verificar'
           : 'Sin clases ni actividades programadas')
@@ -73,12 +80,12 @@ export const CalendarActivityRing = memo(function CalendarActivityRing({
               strokeWidth={STROKE}
               strokeDasharray={dataIncomplete ? '3 4' : undefined}
             />
-          ) : kinds.map((kind, index) => (
+          ) : segments.map((segment, index) => (
             <Circle
-              key={kind}
+              key={segment.key}
               cx={CENTER} cy={CENTER} r={RADIUS}
               fill="none"
-              stroke={KIND_COLORS[kind]}
+              stroke={segment.color}
               strokeWidth={STROKE}
               strokeDasharray={count === 1
                 ? undefined
