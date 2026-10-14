@@ -387,7 +387,7 @@ export default function CalendarScreen() {
           : status === 'planned'
             ? 'Guardamos tu visita inicial. No es una inscripción ni registra asistencia.'
             : 'Guardamos tu respuesta para el equipo UCAPSA. La asistencia real se registra el día de la clase.'
-          + '',
+          ,
       );
       if (status !== 'cancelled' && reminder === 'unsupported') {
         Alert.alert('Aviso de recordatorio', 'Tu visita quedó guardada, pero no pudimos activar el aviso en este dispositivo. Revisa los permisos y las preferencias de notificación.');
@@ -470,6 +470,25 @@ export default function CalendarScreen() {
     () => announcements.filter((announcement) => announcementDateKey(announcement) === selectedDate),
     [announcements, selectedDate],
   );
+
+  useEffect(() => {
+    if (!openClientClassId || !selectedClientDogId || !clientClassReady) return;
+    const occurrence = selectedClasses.find(item => item.id === openClientClassId);
+    const enrollment = occurrence && clientEnrollments.find(row =>
+      row.enrollment.dog_id === selectedClientDogId
+      && row.enrollment.schedule_id === occurrence.schedule.id
+      && row.enrollment.status === 'active');
+    if (!enrollment || !occurrence) return;
+    let active = true;
+    void getMyClassRsvp(enrollment.enrollment.id, occurrence.dateKey)
+      .then(response => {
+        if (active) setClassResponses(current => ({
+          ...current, [`${enrollment.enrollment.id}:${occurrence.dateKey}`]: response?.response ?? null,
+        }));
+      })
+      .catch(cause => devWarn('calendar: could not refresh class RSVP state', cause));
+    return () => { active = false; };
+  }, [clientClassReady, clientEnrollments, openClientClassId, selectedClasses, selectedClientDogId]);
 
   const selectedPractices = useMemo(
     () => practiceActivity.filter((item) => toLocalDateKey(new Date(item.completedAt)) === selectedDate),
