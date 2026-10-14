@@ -5,8 +5,8 @@
 ## Condiciones de entrada (bloqueantes)
 - La rama Supabase debe tener un `project_ref` distinto al de producción, sin datos de producción.
 - Confirmar que ambas migraciones del PR están aplicadas **en orden**:
-  - `20261013062000_program_interest_requests.sql`
-  - `20261013063000_expand_dog_avatars.sql`
+  - `20261014002108_program_interest_requests.sql`
+  - `20261014002120_expand_dog_avatars.sql`
 - Configurar en el cliente de pruebas únicamente claves publicables de esa rama. Nunca `service_role` en una app cliente.
 - Registrar identidades ficticias distintas: cliente A, cliente B, administrador, superadministrador y entrenador.
 - Crear dos perros de A y uno de B; sus usuarios deben ser propietarios efectivos.
@@ -58,7 +58,7 @@
 
 ## Procedimiento para certificar
 1. Ejecutar primero `npm run verify:release`, CodeQL y exportaciones Android/iOS.
-2. Aplicar las dos migraciones **únicamente** al Supabase branch aprobado.
+2. Migraciones aplicadas en el proyecto UCAPSA el 13 de octubre (hora México), conservando el historial real de versiones. La prueba con cuentas/roles reales sigue siendo un paso de aceptación.
 3. Regenerar tipos de la rama y retirar el adaptador provisional `InterestDb`.
 4. Ejecutar SEG/INT con usuarios ficticios desde clientes autenticados; guardar solo IDs sintéticos y evidencias sin datos personales.
 5. Ejecutar UX manual en Android con navegación por gestos y de tres botones, teléfono pequeño y texto 150%; repetir flujo crítico en iOS.
