@@ -915,7 +915,7 @@ export default function CalendarScreen() {
                                 </View>
                               )}
                             </>
-                          )}
+                          ) : null}
                           {item.cancelled ? <Text style={styles.clientClassWarning}>Clase cancelada.</Text> : null}
                         </View>
                       ) : null}
