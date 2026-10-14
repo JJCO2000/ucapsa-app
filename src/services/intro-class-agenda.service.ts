@@ -36,23 +36,18 @@ export async function saveMyIntroAgendaPlan(dogId: string, classDate: string, st
 
 export type StaffIntroVisit = IntroAgendaPlan & { clientName: string; dogName: string };
 export async function getStaffIntroAgendaPlans(classDate: string): Promise<StaffIntroVisit[]> {
-  const { data, error } = await supabase.from('intro_class_agenda_plans')
-    .select('*').eq('class_date', classDate).neq('status','cancelled').order('created_at', { ascending: true });
+  const { data, error } = await supabase.rpc('get_staff_intro_class_agenda', { p_class_date: classDate });
   if (error) throw error;
-  if (!data?.length) return [];
-  const ownerIds = [...new Set(data.map(row => row.user_id))];
-  const dogIds = [...new Set(data.map(row => row.dog_id))];
-  const [owners,dogs] = await Promise.all([
-    supabase.from('profiles').select('user_id,full_name').in('user_id',ownerIds),
-    supabase.from('dogs').select('id,name').in('id',dogIds),
-  ]);
-  if (owners.error) throw owners.error;
-  if (dogs.error) throw dogs.error;
-  const ownerById = new Map((owners.data??[]).map(row=>[row.user_id,row.full_name]));
-  const dogById = new Map((dogs.data??[]).map(row=>[row.id,row.name]));
-  return data.map(row=>({
-    ...row, status: row.status as IntroAgendaStatus,
-    clientName: ownerById.get(row.user_id) || 'Cliente UCAPSA',
-    dogName: dogById.get(row.dog_id) || 'Perro',
+  return (data ?? []).map(row => ({
+    id: row.id,
+    user_id: row.user_id,
+    dog_id: row.dog_id,
+    schedule_id: row.schedule_id,
+    class_date: row.class_date,
+    status: row.status as IntroAgendaStatus,
+    created_at: '',
+    updated_at: '',
+    clientName: row.client_name,
+    dogName: row.dog_name,
   }));
 }
