@@ -359,7 +359,7 @@ export default function HomeExperienceScreen() {
         </View>
       </View>
 
-      {user && !isStaff ? (
+      {(
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Consultar menú del restaurante UCAPSA"
