@@ -5901,6 +5901,19 @@ export type Database = {
           season_name: string
         }[]
       }
+      get_staff_intro_class_agenda: {
+        Args: { p_class_date: string }
+        Returns: {
+          class_date: string
+          client_name: string
+          dog_id: string
+          dog_name: string
+          id: string
+          schedule_id: string
+          status: string
+          user_id: string
+        }[]
+      }
       get_staff_recorded_attendance: {
         Args: { p_end_date: string; p_start_date: string }
         Returns: {
