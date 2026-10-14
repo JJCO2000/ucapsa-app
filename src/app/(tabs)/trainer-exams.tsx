@@ -30,6 +30,7 @@ export default function TrainerExamsTab() {
   const { isAdmin, capabilities } = useSession();
   const [exams, setExams] = useState<TrainerExamCatalogRow[]>([]);
   const [drafts, setDrafts] = useState<TrainerExamDraftRow[]>([]);
+  const [catalogView, setCatalogView] = useState<'published' | 'drafts'>('published');
   const [dogs, setDogs] = useState<TrainerExamDog[]>([]);
   const [selectedExam, setSelectedExam] = useState<TrainerExamCatalogRow | null>(null);
   const [dogQuery, setDogQuery] = useState('');
@@ -266,6 +267,7 @@ export default function TrainerExamsTab() {
       });
       setUploadOpen(false);
       resetDraftUpload();
+      setCatalogView('drafts');
       await load();
       Alert.alert(
         'Examen cargado',
@@ -298,6 +300,7 @@ export default function TrainerExamsTab() {
     try {
       setSaving(true);
       await publishTrainerExam(draft.examId);
+      setCatalogView('published');
       await load();
       Alert.alert('Examen publicado', `${draft.examTitle} ya está disponible para evaluación.`);
     } catch (cause) {
@@ -314,7 +317,7 @@ export default function TrainerExamsTab() {
       <View style={styles.header}>
         <Text style={styles.kicker}>{isAdmin ? 'Administración' : 'Entrenador'} · Evaluación</Text>
         <Text style={styles.title}>Exámenes</Text>
-        <Text style={styles.subtitle}>Carga y publica exámenes, captura resultados o sube calificaciones por Excel. Administración conserva la oficialidad de resultados y los cambios de nivel.</Text>
+        <Text style={styles.subtitle}>Consulta exámenes publicados o borradores. Solo Administración oficializa resultados y cambios de nivel.</Text>
         <Pressable
           disabled={saving}
           style={styles.newExamButton}
@@ -325,7 +328,24 @@ export default function TrainerExamsTab() {
         </Pressable>
       </View>
 
-      {drafts.length > 0 ? (
+      <View style={styles.catalogTabs} accessibilityRole="tablist">
+        <Pressable accessibilityRole="tab" accessibilityState={{ selected: catalogView === 'published' }}
+          style={[styles.catalogTab, catalogView === 'published' && styles.catalogTabSelected]}
+          onPress={() => setCatalogView('published')}>
+          <Text style={[styles.catalogTabText, catalogView === 'published' && styles.catalogTabTextSelected]}>
+            Publicados ({exams.length})
+          </Text>
+        </Pressable>
+        <Pressable accessibilityRole="tab" accessibilityState={{ selected: catalogView === 'drafts' }}
+          style={[styles.catalogTab, catalogView === 'drafts' && styles.catalogTabSelected]}
+          onPress={() => setCatalogView('drafts')}>
+          <Text style={[styles.catalogTabText, catalogView === 'drafts' && styles.catalogTabTextSelected]}>
+            Borradores ({drafts.length})
+          </Text>
+        </Pressable>
+      </View>
+
+      {!loading && !error && catalogView === 'drafts' && drafts.length > 0 ? (
         <View style={styles.draftsSection}>
           <Text style={styles.sectionKicker}>BORRADORES</Text>
           <Text style={styles.sectionTitle}>Borradores listos para publicar</Text>
@@ -372,14 +392,21 @@ export default function TrainerExamsTab() {
         <View style={styles.errorCard}><MaterialIcons name="error-outline" size={20} color={ucapsaBrand.colors.danger} /><Text style={styles.errorText}>{error}</Text></View>
       ) : null}
 
-      {!loading && !error && exams.length === 0 ? (
+      {!loading && !error && catalogView === 'drafts' && drafts.length === 0 ? (
+        <View style={styles.empty}>
+          <MaterialIcons name="pending-actions" size={28} color={ucapsaBrand.colors.muted} />
+          <Text style={styles.emptyTitle}>No hay borradores pendientes</Text>
+        </View>
+      ) : null}
+
+      {!loading && !error && catalogView === 'published' && exams.length === 0 ? (
         <View style={styles.empty}>
           <MaterialIcons name="assignment" size={28} color={ucapsaBrand.colors.muted} />
           <Text style={styles.emptyTitle}>No hay exámenes publicados</Text>
         </View>
       ) : null}
 
-      <View style={styles.list}>
+      {!loading && !error && catalogView === 'published' ? <View style={styles.list}>
         {exams.map((exam) => (
           <View key={exam.examId} style={styles.examCard}>
             <View style={styles.examIcon}><MaterialIcons name="assignment" size={21} color={ucapsaBrand.colors.purpleDark} /></View>
@@ -408,7 +435,7 @@ export default function TrainerExamsTab() {
             </View>
           </View>
         ))}
-      </View>
+      </View> : null}
 
       <KeyboardAwareModal
         visible={uploadOpen}
@@ -557,6 +584,11 @@ const styles = StyleSheet.create({
   subtitle: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 3 },
   newExamButton: { alignSelf: 'flex-start', minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, backgroundColor: ucapsaBrand.colors.greenDark, paddingHorizontal: 11, marginTop: 10 },
   newExamButtonText: { color: ucapsaBrand.colors.surface, fontSize: 10, fontWeight: '900' },
+  catalogTabs: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  catalogTab: { flex: 1, minHeight: 48, borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  catalogTabSelected: { backgroundColor: ucapsaBrand.colors.redDark, borderColor: ucapsaBrand.colors.redDark },
+  catalogTabText: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '800' },
+  catalogTabTextSelected: { color: ucapsaBrand.colors.surface },
   draftsSection: { marginBottom: 16 },
   sectionKicker: { color: ucapsaBrand.colors.goldDark, fontSize: 9, fontWeight: '900', letterSpacing: 0.7 },
   sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 17, fontWeight: '900', marginTop: 1, marginBottom: 8 },
