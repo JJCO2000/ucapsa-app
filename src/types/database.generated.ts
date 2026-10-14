@@ -744,6 +744,89 @@ export type Database = {
         }
         Relationships: []
       }
+      intro_class_agenda_plans: {
+        Row: {
+          class_date: string
+          created_at: string
+          dog_id: string
+          id: string
+          schedule_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          class_date: string
+          created_at?: string
+          dog_id: string
+          id?: string
+          schedule_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          class_date?: string
+          created_at?: string
+          dog_id?: string
+          id?: string
+          schedule_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intro_class_agenda_plans_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intro_class_agenda_plans_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "intro_class_agenda_plans_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_leaderboard"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "intro_class_agenda_plans_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_ranges"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "intro_class_agenda_plans_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "intro_class_agenda_plans_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "intro_class_agenda_plans_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "program_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       member_visit_dogs: {
         Row: {
           credit_source: string
@@ -6175,6 +6258,16 @@ export type Database = {
       rotate_attendance_qr_code: {
         Args: { p_program_code: string }
         Returns: string
+      }
+      save_intro_class_agenda_plan: {
+        Args: { p_class_date: string; p_dog_id: string; p_status: string }
+        Returns: {
+          class_date: string
+          dog_id: string
+          id: string
+          schedule_id: string
+          status: string
+        }[]
       }
       set_my_class_rsvp: {
         Args: {
