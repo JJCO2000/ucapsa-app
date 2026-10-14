@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { getMyCompetitionAccount } from './client-competition-account.service';
 import {
   readClientResource,
   writeClientResource,
@@ -54,37 +54,18 @@ async function fetchMyDogCompetition(
   const cleanDogId = dogId.trim();
   if (!userId.trim() || !cleanDogId) throw new Error('Falta el usuario o el perro.');
 
-  const dogResult = await supabase
-    .from('dogs')
-    .select('id,name,user_id')
-    .eq('id', cleanDogId)
-    .eq('user_id', userId)
-    .single();
-
-  if (dogResult.error) throw dogResult.error;
-
-  const [inputsResult, examsResult] = await Promise.all([
-    supabase
-      .from('ucapsa_competition_ranges')
-      .select('*')
-      .eq('dog_id', cleanDogId)
-      .eq('owner_user_id', userId)
-      .order('season_starts_at', { ascending: false }),
-    supabase
-      .from('ucapsa_exam_official_results')
-      .select('*')
-      .eq('dog_id', cleanDogId)
-      .order('published_at', { ascending: false }),
-  ]);
-
-  if (inputsResult.error) throw inputsResult.error;
-  if (examsResult.error) throw examsResult.error;
-
+  // Misma fuente que la pantalla general de Competencia: el perro existe
+  // incluso sin filas de rango, exámenes o puntos en una temporada.
+  const account = await getMyCompetitionAccount({
+    userId, forceRefresh: true, allowCachedOnError: false,
+  });
+  const dog = account.dogs.find(item => item.dog_id === cleanDogId);
+  if (!dog) throw new Error('No encontramos este perro en tu cuenta.');
   return {
-    dog_id: dogResult.data.id,
-    dog_name: dogResult.data.name,
-    seasons: inputsResult.data ?? [],
-    official_exams: examsResult.data ?? [],
+    dog_id: dog.dog_id,
+    dog_name: dog.dog_name,
+    seasons: dog.seasons,
+    official_exams: dog.official_exams,
   };
 }
 
