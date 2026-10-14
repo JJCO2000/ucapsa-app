@@ -233,7 +233,7 @@ if (!localReminder.includes('24 * 60 * 60 * 1000') ||
 if (!notificationRoute.includes('intro_class_reminder') || !notificationRoute.includes('class_date')) {
   throw new Error('Notificación de clase debe navegar a su fecha.');
 }
-if (!competitionDetailService.includes('getMyCompetitionAccount') ||
+if (!competitionDetailService.includes('getMyDogs') ||
     !competitionDetail.includes('Aún no hay actividad competitiva registrada')) {
   throw new Error('Perro sin datos competitivos debe mostrar estado vacío, sin inventar error de conexión.');
 }
