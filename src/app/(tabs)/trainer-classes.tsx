@@ -6,6 +6,7 @@ import { Calendar, type DateData } from 'react-native-calendars';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
+import { getStaffIntroAgendaPlans, type StaffIntroVisit } from '../../services/intro-class-agenda.service';
 import { useSession } from '../../hooks/useSession';
 import {
   getStaffClassRoster,
@@ -68,6 +69,7 @@ export default function TrainerClassesTab() {
   const [expandedScheduleId, setExpandedScheduleId] = useState<string | null>(routeScheduleId || null);
   const loadRunRef = useRef(0);
   const [rows, setRows] = useState<StaffRosterRow[]>([]);
+  const [introVisits, setIntroVisits] = useState<StaffIntroVisit[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -83,8 +85,14 @@ export default function TrainerClassesTab() {
     const runId = ++loadRunRef.current;
     setError(null);
     try {
-      const result = await getStaffClassRoster(dateKey);
-      if (runId === loadRunRef.current) setRows(result);
+      const [result, visits] = await Promise.all([
+        getStaffClassRoster(dateKey),
+        getStaffIntroAgendaPlans(dateKey),
+      ]);
+      if (runId === loadRunRef.current) {
+        setRows(result);
+        setIntroVisits(visits);
+      }
     } catch (cause) {
       if (runId === loadRunRef.current) setError(cause instanceof Error ? cause.message : 'No se pudo cargar el roster.');
     } finally {
@@ -115,6 +123,7 @@ export default function TrainerClassesTab() {
     setFocusedScheduleId('');
     setExpandedScheduleId(null);
     setRows([]);
+    setIntroVisits([]);
     setDateKey(nextDate);
   }
 
@@ -253,8 +262,26 @@ export default function TrainerClassesTab() {
         <View style={styles.errorCard}><MaterialIcons name="cloud-off" size={20} color={ucapsaBrand.colors.danger} /><Text style={styles.errorText}>{error}</Text></View>
       ) : null}
 
-      {!loading && !error && groups.length === 0 ? (
+      {!loading && !error && groups.length === 0 && introVisits.length === 0 ? (
         <View style={styles.emptyCard}><MaterialIcons name="event-busy" size={27} color={ucapsaBrand.colors.muted} /><Text style={styles.emptyTitle}>No hay clases para esta fecha</Text></View>
+      ) : null}
+
+      {!loading && !error && introVisits.length > 0 ? (
+        <View style={styles.introCard}>
+          <Text style={styles.introTitle}>Puppy inicial · visitas agendadas ({introVisits.length})</Text>
+          <Text style={styles.introHint}>No son inscripciones. Una respuesta Sí no registra asistencia ni reserva de cupo.</Text>
+          {introVisits.map(visit => (
+            <View key={visit.id} style={styles.introRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.introName}>{visit.dogName} · {visit.clientName}</Text>
+                <Text style={styles.introHint}>{
+                  visit.status === 'yes' ? 'Sí asistirá' :
+                  visit.status === 'no' ? 'No asistirá' : 'Agendó · sin respuesta'
+                }</Text>
+              </View>
+            </View>
+          ))}
+        </View>
       ) : null}
 
       <View style={styles.groups}>
@@ -360,6 +387,11 @@ export default function TrainerClassesTab() {
 }
 
 const styles = StyleSheet.create({
+  introCard: { borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 14, marginBottom: 14, backgroundColor: ucapsaBrand.colors.surface, gap: 9 },
+  introTitle: { fontSize: 16, fontWeight: '900', color: ucapsaBrand.colors.text },
+  introHint: { fontSize: 12, lineHeight: 18, color: ucapsaBrand.colors.muted, fontWeight: '700' },
+  introName: { fontSize: 13, fontWeight: '900', color: ucapsaBrand.colors.text },
+  introRow: { borderTopWidth: 1, borderColor: ucapsaBrand.colors.border, paddingTop: 8 },
   header: { marginBottom: 14 },
   kicker: { color: ucapsaBrand.colors.redDark, fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.7 },
   title: { color: ucapsaBrand.colors.text, fontSize: 28, lineHeight: 33, fontWeight: '900' },
