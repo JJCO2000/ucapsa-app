@@ -2331,6 +2331,82 @@ export type Database = {
           },
         ]
       }
+      program_interest_requests: {
+        Row: {
+          created_at: string
+          dog_id: string
+          id: string
+          priority: string
+          program_code: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dog_id: string
+          id?: string
+          priority?: string
+          program_code: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dog_id?: string
+          id?: string
+          priority?: string
+          program_code?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_interest_requests_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_interest_requests_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_inputs"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "program_interest_requests_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_leaderboard"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "program_interest_requests_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_ranges"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "program_interest_requests_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_competition_scores"
+            referencedColumns: ["dog_id"]
+          },
+          {
+            foreignKeyName: "program_interest_requests_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "ucapsa_exam_eligibility"
+            referencedColumns: ["dog_id"]
+          },
+        ]
+      }
       program_schedule_versions: {
         Row: {
           change_note: string | null

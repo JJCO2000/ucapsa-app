@@ -106,6 +106,19 @@ must('src/app/(tabs)/admin-classes.tsx', /\/admin\/class-schedules/, 'Hub de Cla
 must('src/app/(tabs)/admin-classes.tsx', /\/admin\/class-cancellations/, 'Hub de Clases perdió la entrada separada a Cancelaciones.');
 must('src/app/(tabs)/admin-classes.tsx', /admin-clients\?intent=attendance/, 'Hub de Clases perdió la entrada separada a Asistencia manual.');
 
+// UI administrativa general -> acción única. Indicadores son datos, no menús duplicados.
+must('src/app/(tabs)/admin-classes.tsx', /<Metric label="Puppy activos"[^>]*\/>/, 'Clases perdió el resumen de Puppy.');
+must('src/app/(tabs)/admin-classes.tsx', /<Metric label="Comandos activos"[^>]*\/>/, 'Clases perdió el resumen de Comandos.');
+mustNot('src/app/(tabs)/admin-classes.tsx', /<Metric[^>]*onPress=/, 'Los indicadores de Clases volvieron a duplicar accesos operativos.');
+must('src/app/(tabs)/admin-classes.tsx', /getAdminProgramRows\(\)/, 'Los indicadores deben usar inscripciones canónicas.');
+
+// Exámenes Entrenador: catálogo general separado por estado -> acciones sobre un examen concreto.
+must('src/app/(tabs)/trainer-exams.tsx', /catalogView === 'published'/, 'Falta vista de exámenes publicados.');
+must('src/app/(tabs)/trainer-exams.tsx', /catalogView === 'drafts'/, 'Falta vista de borradores.');
+must('src/app/(tabs)/trainer-exams.tsx', /setCatalogView\('drafts'\)/, 'El alta de borrador no regresa al contexto correcto.');
+must('src/app/(tabs)/trainer-exams.tsx', /setCatalogView\('published'\)/, 'La publicación no regresa al catálogo oficial.');
+must('src/app/(tabs)/trainer-exams.tsx', /canPublishExamDefinition/, 'Publicar examen no puede perder su control de permisos.');
+
 // Clases = contexto/listado -> ficha de inscripción -> acción QR.
 mustNot('src/app/(tabs)/classes.tsx', /router\.push\('\/attendance'/, 'Clases volvió a saltarse la ficha antes de Registrar asistencia.');
 must('src/app/(tabs)/classes.tsx', /\/client\/class-detail\?enrollmentId=/, 'Clases perdió la navegación a la ficha particular.');

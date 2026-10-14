@@ -65,4 +65,4 @@ Se evaluó su funcionalidad (resaltar controles y recorridos). No se instalaron:
 
 ## 5. Límites de verificación
 
-CI y exportaciones prueban integridad automatizada, **no** permisos reales de Supabase, accesibilidad física, sincronización real o ausencia de superposiciones en todos los teléfonos. Las migraciones del PR siguen sin aplicar. No crear infraestructura de pago ni afirmar que producción dispone de las nuevas funciones antes de habilitarlas.
+CI y exportaciones prueban integridad automatizada, **no** permisos reales de Supabase, accesibilidad física, sincronización real o ausencia de superposiciones en todos los teléfonos. Las migraciones se aplicaron el 13 de octubre de 2026 al proyecto UCAPSA; los tipos de base se regeneraron desde el esquema real. Siguen pendientes pruebas físicas de uso. No crear infraestructura de pago ni afirmar que producción dispone de las nuevas funciones antes de habilitarlas.
