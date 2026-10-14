@@ -34,7 +34,12 @@ export function notificationRouteFromData(data: NotificationData | undefined) {
   const category = stringValue(data?.category);
 
   if (source === 'trainer_class_summary') return '/trainer-home';
-  if (source === 'class_reminder') return '/home';
+  if (source === 'intro_class_reminder' || source === 'class_reminder') {
+    const date = stringValue(data?.class_date);
+    return date && /^\\d{4}-\\d{2}-\\d{2}$/.test(date)
+      ? `/calendar?date=${encodeURIComponent(date)}`
+      : '/calendar';
+  }
 
   if (source === 'class_cancellation' || category === 'classes') {
     const date = stringValue(data?.cancellation_date) ?? stringValue(data?.class_date);
