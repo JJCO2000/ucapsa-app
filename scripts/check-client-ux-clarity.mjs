@@ -162,9 +162,12 @@ for (const token of [
 ]) {
   if (!dogProfile.includes(token)) throw new Error('Private dog photo UI missing: ' + token);
 }
-// Cinco variantes adicionales esperan backend; con migración pendiente solo mostrar las diez válidas.
-for (const token of ['EXPO_PUBLIC_UCAPSA_EXTENDED_AVATARS', 'ALL_DOG_AVATAR_OPTIONS.slice(0, 10)', 'ALL_DOG_AVATAR_OPTIONS']) {
-  if (!avatarOptions.includes(token)) throw new Error('La UI de avatares perdió el modo compatible con producción: ' + token);
+// La base ya admite las 15 variantes; nunca esconderlas detrás de un flag de compilación.
+if (!avatarOptions.includes('export const DOG_AVATAR_OPTIONS: Array<') || avatarOptions.includes("EXPO_PUBLIC_UCAPSA_EXTENDED_AVATARS")) {
+  throw new Error('El catálogo de 15 avatares no debe quedar bloqueado por un flag obsoleto.');
+}
+for (const key of ["dog_heart", "dog_star", "dog_sun", "dog_moon", "dog_play"]) {
+  if (!avatarOptions.includes("key: '" + key + "'")) throw new Error('Falta el avatar ' + key);
 }
 if (fs.existsSync('docs/product/guarderia-canine-internal-baseline.md')) {
   throw new Error('No publicar rutas ni horarios internos de Guardería mediante GitHub Pages.');
