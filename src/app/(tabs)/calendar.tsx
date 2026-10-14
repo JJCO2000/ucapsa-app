@@ -768,7 +768,7 @@ export default function CalendarScreen() {
                         : item.kind === 'announcement'
                           ? 'campaign'
                           : 'local-fire-department';
-                    const pressable = item.kind === 'announcement' || (isAdmin && (item.kind === 'class' || item.kind === 'event'));
+                    const pressable = item.kind === 'announcement' || (isAdmin && (item.kind === 'class' || item.kind === 'event')) || (!isAdmin && Boolean(user) && item.kind === 'class');
 
                     const onItemPress = () => {
                       if (item.kind === 'announcement') {
@@ -779,12 +779,37 @@ export default function CalendarScreen() {
                         router.push(`/admin/events?eventId=${occurrence.event.id}` as never);
                       } else if (item.kind === 'class' && isAdmin) {
                         router.push(`/admin/class-cancellations?date=${selectedDate}` as never);
+                      } else if (item.kind === 'class' && user) {
+                        toggleClientClass(item.source as ClassOccurrence);
                       }
                     };
 
+                    const occurrence = item.kind === 'class' ? item.source as ClassOccurrence : null;
+                    const introClass = occurrence && isSaturdayIntroClass({
+                      programCode: occurrence.program?.code,
+                      dayOfWeek: occurrence.schedule.day_of_week,
+                      time: occurrence.schedule.start_time,
+                      sequenceOrder: occurrence.schedule.sequence_order,
+                    });
+                    const enrolled = occurrence ? clientEnrollments.find(row =>
+                      row.enrollment.dog_id === selectedClientDogId
+                      && row.enrollment.schedule_id === occurrence.schedule.id
+                      && row.enrollment.status === 'active'
+                      && (row.enrollment.access_mode === 'membership' || (
+                        Boolean(row.enrollment.card_started_on) && Boolean(row.enrollment.card_expires_on)
+                        && occurrence.dateKey >= String(row.enrollment.card_started_on)
+                        && occurrence.dateKey <= String(row.enrollment.card_expires_on)
+                      ))
+                    ) : null;
+                    const plan = occurrence ? introPlans.find(row => row.dog_id === selectedClientDogId
+                      && row.schedule_id === occurrence.schedule.id && row.class_date === occurrence.dateKey) : null;
+                    const available = clientClassReady && !classActionBusy && Boolean(occurrence)
+                      && occurrence.dateKey >= todayKey() && !item.cancelled;
+                    const expanded = Boolean(occurrence && openClientClassId === occurrence.id && user && !isAdmin);
                     return (
+                      <View key={item.id}>
                       <Pressable
-                        key={item.id}
+                        accessibilityState={item.kind === 'class' && !isAdmin ? { expanded } : undefined}
                         disabled={!pressable}
                         accessibilityRole={pressable ? 'button' : undefined}
                         style={styles.timelineRow}
@@ -801,6 +826,81 @@ export default function CalendarScreen() {
                           <Text numberOfLines={2} style={[styles.timelineDetail, { color: format.muted }]}>{item.detail}</Text>
                         </View>
                       </Pressable>
+                      {expanded && occurrence ? (
+                        <View style={styles.clientClassActions}>
+                          <Text style={styles.clientClassTitle}>Agenda de esta clase</Text>
+                          <Text style={styles.clientClassHint}>Agendar y confirmar no registra asistencia real.</Text>
+                          {clientClassError ? <Text style={styles.clientClassWarning}>{clientClassError}</Text> : null}
+                          {!clientClassReady && !clientClassError ? <Text style={styles.clientClassHint}>Comprobando inscripciones…</Text> : null}
+                          {clientClassReady && clientDogs.length === 0 ? (
+                            <Pressable accessibilityRole="button" style={styles.clientActionButton}
+                              onPress={() => router.push('/dog' as never)}>
+                              <Text style={styles.clientActionText}>Primero agrega tu perro</Text>
+                            </Pressable>
+                          ) : null}
+                          {clientClassReady && clientDogs.length > 0 ? (
+                            <>
+                              <Text style={styles.clientClassHint}>¿Con qué perro?</Text>
+                              <View style={styles.clientDogChoices}>
+                                {clientDogs.map(dog => (
+                                  <Pressable key={dog.id} accessibilityRole="button"
+                                    accessibilityState={{ selected: dog.id === selectedClientDogId }}
+                                    style={[styles.clientDogChip, dog.id === selectedClientDogId && styles.clientDogChipSelected]}
+                                    onPress={() => { setSelectedClientDogId(dog.id); }}>
+                                    <Text style={styles.clientDogText}>{dog.name}</Text>
+                                  </Pressable>
+                                ))}
+                              </View>
+                              {enrolled ? (
+                                <>
+                                  <Text style={styles.clientClassHint}>Esta clase ya está en tu programa. El recordatorio oficial llega un día antes si activaste notificaciones.</Text>
+                                  <Text style={styles.clientClassHint}>Respuesta: {classResponses[`${enrolled.enrollment.id}:${occurrence.dateKey}`] === 'yes'
+                                    ? 'Sí asistiré' : classResponses[`${enrolled.enrollment.id}:${occurrence.dateKey}`] === 'no'
+                                      ? 'No asistiré' : 'Sin respuesta'}</Text>
+                                  <View style={styles.clientChoiceRow}>
+                                    <Pressable accessibilityRole="button" disabled={!available} style={[styles.clientActionButton, !available && styles.clientDisabled]}
+                                      onPress={() => void confirmEnrolledClass(enrolled.enrollment.id, occurrence.dateKey, 'yes')}>
+                                      <Text style={styles.clientActionText}>Sí asistiré</Text>
+                                    </Pressable>
+                                    <Pressable accessibilityRole="button" disabled={!available} style={[styles.clientActionButton, !available && styles.clientDisabled]}
+                                      onPress={() => void confirmEnrolledClass(enrolled.enrollment.id, occurrence.dateKey, 'no')}>
+                                      <Text style={styles.clientActionText}>No asistiré</Text>
+                                    </Pressable>
+                                  </View>
+                                </>
+                              ) : introClass ? (
+                                <>
+                                  <Text style={styles.clientClassHint}>Puppy inicial · sábado 10:00. Disponible sin inscripción; no otorga pase ni asistencia.</Text>
+                                  <Text style={styles.clientClassHint}>Estado: {plan?.status === 'planned' ? 'Agendada, sin confirmar'
+                                    : plan?.status === 'yes' ? 'Sí asistiré' : plan?.status === 'no' ? 'No asistiré' : 'No agendada'}</Text>
+                                  <Pressable accessibilityRole="button" disabled={!available} style={[styles.clientActionButton, !available && styles.clientDisabled]}
+                                    onPress={() => void saveIntroClassChoice(occurrence.dateKey, plan && plan.status !== 'cancelled' ? 'cancelled' : 'planned')}>
+                                    <Text style={styles.clientActionText}>{plan && plan.status !== 'cancelled' ? 'Quitar de mi agenda' : 'Agendar visita'}</Text>
+                                  </Pressable>
+                                  {plan && plan.status !== 'cancelled' ? (
+                                    <View style={styles.clientChoiceRow}>
+                                      <Pressable accessibilityRole="button" disabled={!available} style={[styles.clientActionButton, !available && styles.clientDisabled]}
+                                        onPress={() => void saveIntroClassChoice(occurrence.dateKey, 'yes')}>
+                                        <Text style={styles.clientActionText}>Sí asistiré</Text>
+                                      </Pressable>
+                                      <Pressable accessibilityRole="button" disabled={!available} style={[styles.clientActionButton, !available && styles.clientDisabled]}
+                                        onPress={() => void saveIntroClassChoice(occurrence.dateKey, 'no')}>
+                                        <Text style={styles.clientActionText}>No asistiré</Text>
+                                      </Pressable>
+                                    </View>
+                                  ) : null}
+                                </>
+                              ) : (
+                                <View style={[styles.clientActionButton, styles.clientDisabled]}>
+                                  <Text style={styles.clientActionText}>Sin inscripción: no disponible para agendar</Text>
+                                </View>
+                              )}
+                            </>
+                          )}
+                          {item.cancelled ? <Text style={styles.clientClassWarning}>Clase cancelada.</Text> : null}
+                        </View>
+                      ) : null}
+                      </View>
                     );
                   })}
                 </View>
@@ -971,6 +1071,18 @@ const styles = StyleSheet.create({
   weekNavLabel: { flex: 1, textAlign: 'center', fontSize: 10, lineHeight: 14, fontWeight: '800' },
   weekDayCompact: { flex: 1, minHeight: 64, alignItems: 'center', justifyContent: 'center', gap: 2, borderRadius: 16, paddingVertical: 7 },
   activityDot: { width: 5, height: 5, borderRadius: 999, marginTop: 2 },
+  clientClassActions: { marginLeft: 38, marginBottom: 14, marginRight: 4, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, borderRadius: 14, padding: 12, gap: 8 },
+  clientClassTitle: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900' },
+  clientClassHint: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 17, fontWeight: '700' },
+  clientClassWarning: { color: ucapsaBrand.colors.danger, fontSize: 12, fontWeight: '800' },
+  clientDogChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  clientDogChip: { minHeight: 44, borderRadius: 11, backgroundColor: ucapsaBrand.colors.graySoft, paddingHorizontal: 12, justifyContent: 'center' },
+  clientDogChipSelected: { borderWidth: 1, borderColor: ucapsaBrand.colors.redDark, backgroundColor: ucapsaBrand.colors.redSoft },
+  clientDogText: { color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '800' },
+  clientChoiceRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  clientActionButton: { flexGrow: 1, minHeight: 48, borderRadius: 12, paddingHorizontal: 12, justifyContent: 'center', alignItems: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
+  clientActionText: { color: ucapsaBrand.colors.redDark, fontSize: 12, textAlign: 'center', fontWeight: '900' },
+  clientDisabled: { opacity: 0.4, backgroundColor: ucapsaBrand.colors.graySoft },
   daySchedule: { borderTopWidth: 1, paddingHorizontal: 12, paddingVertical: 10, gap: 4 },
   dayEmpty: { alignItems: 'center', gap: 5, paddingVertical: 24, paddingHorizontal: 18 },
   dayEmptyTitle: { fontSize: 15, lineHeight: 20, fontWeight: '900' },
