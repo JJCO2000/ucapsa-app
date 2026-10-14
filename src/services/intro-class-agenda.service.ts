@@ -34,7 +34,7 @@ export async function saveMyIntroAgendaPlan(dogId: string, classDate: string, st
   return row as IntroAgendaPlan;
 }
 
-export type StaffIntroVisit = IntroAgendaPlan & { clientName: string; dogName: string };
+export type StaffIntroVisit = Pick<IntroAgendaPlan, 'id' | 'user_id' | 'dog_id' | 'schedule_id' | 'class_date' | 'status'> & { clientName: string; dogName: string };
 export async function getStaffIntroAgendaPlans(classDate: string): Promise<StaffIntroVisit[]> {
   const { data, error } = await supabase.rpc('get_staff_intro_class_agenda', { p_class_date: classDate });
   if (error) throw error;
@@ -45,8 +45,6 @@ export async function getStaffIntroAgendaPlans(classDate: string): Promise<Staff
     schedule_id: row.schedule_id,
     class_date: row.class_date,
     status: row.status as IntroAgendaStatus,
-    created_at: '',
-    updated_at: '',
     clientName: row.client_name,
     dogName: row.dog_name,
   }));
