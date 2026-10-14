@@ -1,16 +1,16 @@
-# PR #341 — Protocolo de validación aislada (NO PRODUCCIÓN)
+# UCAPSA — Protocolo de aceptación de solicitudes y avatares
 
-**Estado:** preparado; no ejecutado. Requiere una rama Supabase de desarrollo creada con autorización previa de organización/costo.
+**Estado:** esquema aplicado y verificado por inspección de RLS. Pruebas con usuarios reales/sintéticos y dispositivos físicos pendientes; no se contrató infraestructura ni se crearon ramas de pago.
 
-## Condiciones de entrada (bloqueantes)
-- La rama Supabase debe tener un `project_ref` distinto al de producción, sin datos de producción.
-- Confirmar que ambas migraciones del PR están aplicadas **en orden**:
+## Estado del esquema y condiciones para futuras pruebas
+- Las dos migraciones están aplicadas en el proyecto UCAPSA; los tipos de base están regenerados.
+- Versiones de migraciones aplicadas **en orden**:
   - `20261014002108_program_interest_requests.sql`
   - `20261014002120_expand_dog_avatars.sql`
-- Configurar en el cliente de pruebas únicamente claves publicables de esa rama. Nunca `service_role` en una app cliente.
-- Registrar identidades ficticias distintas: cliente A, cliente B, administrador, superadministrador y entrenador.
-- Crear dos perros de A y uno de B; sus usuarios deben ser propietarios efectivos.
-- Las pruebas deben ejecutarse contra la rama, no contra el proyecto de producción. No traer datos reales a la rama.
+- Usar solo claves publicables en el cliente de prueba, nunca secretos. Nunca `service_role` en una app cliente.
+- Si se dispone de un entorno de prueba gratuito y autorizado, preparar identidades ficticias distintas: cliente A, cliente B, administrador, superadministrador y entrenador.
+- Usar perros sintéticos de esas identidades; no emplear usuarios ni mascotas reales.
+- No ejecutar pruebas de escritura destructiva ni generar registros ficticios en producción; no crear una rama con costo sin autorización.
 
 ## Objetivo 1 — Seguridad (100% casos aprobados)
 | ID | Escenario | Resultado requerido |
@@ -58,16 +58,16 @@
 
 ## Procedimiento para certificar
 1. Ejecutar primero `npm run verify:release`, CodeQL y exportaciones Android/iOS.
-2. Migraciones aplicadas en el proyecto UCAPSA el 13 de octubre (hora México), conservando el historial real de versiones. La prueba con cuentas/roles reales sigue siendo un paso de aceptación.
-3. Regenerar tipos de la rama y retirar el adaptador provisional `InterestDb`.
-4. Ejecutar SEG/INT con usuarios ficticios desde clientes autenticados; guardar solo IDs sintéticos y evidencias sin datos personales.
+2. Migraciones aplicadas al proyecto UCAPSA el 13 de octubre (hora México) y verificados sus permisos por inspección. Los casos SEG/INT siguen sin pruebas autenticadas de extremo a extremo.
+3. Tipos canónicos regenerados; adaptador provisional `InterestDb` eliminado en PR #342.
+4. En una oportunidad posterior sin costo y autorizada, ejecutar SEG/INT con usuarios ficticios; guardar evidencias sin datos personales.
 5. Ejecutar UX manual en Android con navegación por gestos y de tres botones, teléfono pequeño y texto 150%; repetir flujo crítico en iOS.
-6. Registrar casos fallidos y corregir en PR separado/commits antes de levantar estado `draft`.
+6. Registrar casos fallidos y corregirlos antes de dar por finalizada la aceptación del producto.
 7. Publicación bloqueada hasta pruebas de dispositivos, permisos, consentimiento y comprobación explícita del equipo UCAPSA.
 
 ### Guardar evidencia de resultados
 | ID | PASS/FAIL/BLOCKED | Entorno/fecha | Evidencia | Responsable |
 |---|---|---|---|---|
-| Todos | BLOCKED hasta rama aislada | — | — | — |
+| SEG/INT autenticados + UX en teléfonos | PENDIENTE | Sin entorno gratuito autorizado/dispositivos disponibles | Inspección del esquema y CI no equivalen a prueba E2E | Equipo UCAPSA |
 
 **No usar este documento como prueba de aprobación.** Es un protocolo de ejecución pendiente.
