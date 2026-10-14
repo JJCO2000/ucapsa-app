@@ -198,4 +198,48 @@ if (!home.includes('rsvpResponse={classRsvp}') || !home.includes('onRsvp={nextAc
   throw new Error('Inicio perdió la confirmación RSVP de la próxima clase.');
 }
 
+// SSOT de la agenda inicial: intención distinta de inscripción, confirmación y asistencia.
+const introMigration = read('supabase/migrations/20261014013545_intro_class_agenda_plans.sql');
+const staffMigration = read('supabase/migrations/20261014014437_staff_intro_class_agenda.sql');
+const introService = read('src/services/intro-class-agenda.service.ts');
+const localReminder = read('src/services/intro-class-reminder.service.ts');
+const roster = read('src/app/(tabs)/trainer-classes.tsx');
+const competitionDetailService = read('src/services/client-competition-summary.service.ts');
+const competitionDetail = read('src/app/client/competition-dog.tsx');
+const restaurantMenu = read('src/app/restaurant.tsx');
+const notificationRoute = read('src/hooks/useNotificationNavigation.ts');
+for (const token of ['public.intro_class_agenda_plans', 'enable row level security', 'p_dog_id uuid',
+  "s.day_of_week=6", "s.start_time=time '10:00'", 'd.user_id=v_user', 'program_class_cancellations',
+  "'planned','yes','no','cancelled'", 'grant select on public.intro_class_agenda_plans']) {
+  if (!introMigration.includes(token)) throw new Error('Agenda inicial perdió validación de DB: ' + token);
+}
+for (const token of ['public.is_ucapsa_staff()', 'get_staff_intro_class_agenda', 'Solo el personal']) {
+  if (!staffMigration.includes(token)) throw new Error('Consulta staff perdió protección: ' + token);
+}
+if (!introService.includes("supabase.rpc('get_staff_intro_class_agenda'") ||
+    introService.includes("supabase.from('profiles')")) throw new Error('Staff no debe leer perfiles de forma general.');
+for (const token of ['isSaturdayIntroClass', 'getMyProgramEnrollments', 'saveMyIntroAgendaPlan',
+  'setMyClassRsvp', 'confirmEnrolledClass', 'Agendar visita', 'Quitar de mi agenda',
+  'Sin inscripción: no disponible para agendar', 'Sí asistiré', 'No asistiré']) {
+  if (!calendar.includes(token)) throw new Error('Calendario perdió las acciones diferenciadas: ' + token);
+}
+if (!roster.includes('getStaffIntroAgendaPlans') || !roster.includes('No son inscripciones')) {
+  throw new Error('El Entrenador dejó de diferenciar visitas iniciales del roster oficial.');
+}
+if (!localReminder.includes('24 * 60 * 60 * 1000') ||
+    !localReminder.includes('preferences.enabled') || !localReminder.includes('preferences.classes')) {
+  throw new Error('Aviso inicial debe ser único, un día antes y opt-in.');
+}
+if (!notificationRoute.includes('intro_class_reminder') || !notificationRoute.includes('class_date')) {
+  throw new Error('Notificación de clase debe navegar a su fecha.');
+}
+if (!competitionDetailService.includes('getMyCompetitionAccount') ||
+    !competitionDetail.includes('Aún no hay actividad competitiva registrada')) {
+  throw new Error('Perro sin datos competitivos debe mostrar estado vacío, sin inventar error de conexión.');
+}
+if (!home.includes('accessibilityLabel="Consultar menú del restaurante UCAPSA"') ||
+    !restaurantMenu.includes('Actualmente UCAPSA no tiene productos habilitados')) {
+  throw new Error('Menú de comida debe seguir accesible y explicar catálogo no publicado.');
+}
+
 console.log('UCAPSA client UX clarity: PASS');
