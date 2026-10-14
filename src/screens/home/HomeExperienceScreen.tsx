@@ -359,7 +359,7 @@ export default function HomeExperienceScreen() {
         </View>
       </View>
 
-      {user && !isStaff ? (
+      {(
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Consultar menú del restaurante UCAPSA"
@@ -378,7 +378,7 @@ export default function HomeExperienceScreen() {
           </View>
           <MaterialIcons name="chevron-right" size={22} color={format.accentDark} />
         </Pressable>
-      ) : null}
+      )}
 
       {user && !isStaff && offerQuickHelp ? (
         <View style={{ borderColor: format.cardBorder, backgroundColor: format.surfaceAlt,

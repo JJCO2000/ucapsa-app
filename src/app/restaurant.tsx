@@ -83,8 +83,8 @@ export default function RestaurantScreen() {
       {error && sections.length === 0 ? (
         <View style={styles.errorCard}>
           <MaterialIcons name="restaurant-menu" size={30} color={ucapsaBrand.colors.redDark} />
-          <Text style={styles.emptyTitle}>El menú aún no está disponible</Text>
-          <Text style={styles.muted}>Cuando UCAPSA publique el menú aparecerá aquí. Desliza hacia abajo para reintentar.</Text>
+          <Text style={styles.emptyTitle}>No pudimos verificar el menú</Text>
+          <Text style={styles.muted}>La consulta falló. Comprueba tu conexión y desliza hacia abajo para reintentar.</Text>
         </View>
       ) : null}
 
@@ -92,7 +92,7 @@ export default function RestaurantScreen() {
         <View style={styles.errorCard}>
           <MaterialIcons name="menu-book" size={30} color={ucapsaBrand.colors.redDark} />
           <Text style={styles.emptyTitle}>Menú en preparación</Text>
-          <Text style={styles.muted}>Aún no hay productos publicados.</Text>
+          <Text style={styles.muted}>Actualmente UCAPSA no tiene productos habilitados para mostrar. El menú aparecerá cuando Administración los publique.</Text>
         </View>
       ) : null}
 

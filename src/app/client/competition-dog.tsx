@@ -166,9 +166,13 @@ export default function ClientDogCompetitionScreen() {
 
       {error ? (
         <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
-          <MaterialIcons name="cloud-off" size={24} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-          <Text style={[styles.cardTitle, { color: format.cardText }]}>No pudimos cargar la competencia</Text>
-          <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Conéctate una vez para guardar esta información en el dispositivo.</Text>
+          <MaterialIcons name="error-outline" size={24} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+          <Text style={[styles.cardTitle, { color: format.cardText }]}>No pudimos verificar el detalle competitivo</Text>
+          <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Esto no significa que tu perro tenga cero puntos. Revisa tu conexión e intenta otra vez.</Text>
+          <Pressable accessibilityRole="button" onPress={() => void refresh()}
+            style={[styles.pendingCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
+            <Text style={[styles.cardTitle, { color: format.cardText }]}>Reintentar</Text>
+          </Pressable>
         </View>
       ) : null}
 
@@ -196,8 +200,8 @@ export default function ClientDogCompetitionScreen() {
 
           {!selectedSeason ? (
             <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
-              <Text style={[styles.cardTitle, { color: format.cardText }]}>Sin temporada competitiva</Text>
-              <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Cuando UCAPSA active una temporada, aparecerá aquí.</Text>
+              <Text style={[styles.cardTitle, { color: format.cardText }]}>Aún no hay actividad competitiva registrada</Text>
+              <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Este perro todavía no tiene puntos, constancias ni resultados publicados. Cuando existan, se mostrarán aquí.</Text>
             </View>
           ) : (
             <>

@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { getMyDogs } from './dogs.service';
 import {
   readClientResource,
   writeClientResource,
@@ -54,35 +55,24 @@ async function fetchMyDogCompetition(
   const cleanDogId = dogId.trim();
   if (!userId.trim() || !cleanDogId) throw new Error('Falta el usuario o el perro.');
 
-  const dogResult = await supabase
-    .from('dogs')
-    .select('id,name,user_id')
-    .eq('id', cleanDogId)
-    .eq('user_id', userId)
-    .single();
-
-  if (dogResult.error) throw dogResult.error;
+  // Misma identidad y permisos que «Mis perros». Cero puntos no significa
+  // que falte el perro: las consultas de rango y exámenes pueden devolver [].
+  const dogs = await getMyDogs();
+  const dog = dogs.find(item => item.id === cleanDogId);
+  if (!dog) throw new Error('No encontramos este perro en tu cuenta.');
 
   const [inputsResult, examsResult] = await Promise.all([
-    supabase
-      .from('ucapsa_competition_ranges')
-      .select('*')
-      .eq('dog_id', cleanDogId)
-      .eq('owner_user_id', userId)
+    supabase.from('ucapsa_competition_ranges').select('*')
+      .eq('dog_id', cleanDogId).eq('owner_user_id', userId)
       .order('season_starts_at', { ascending: false }),
-    supabase
-      .from('ucapsa_exam_official_results')
-      .select('*')
-      .eq('dog_id', cleanDogId)
-      .order('published_at', { ascending: false }),
+    supabase.from('ucapsa_exam_official_results').select('*')
+      .eq('dog_id', cleanDogId).order('published_at', { ascending: false }),
   ]);
-
   if (inputsResult.error) throw inputsResult.error;
   if (examsResult.error) throw examsResult.error;
-
   return {
-    dog_id: dogResult.data.id,
-    dog_name: dogResult.data.name,
+    dog_id: dog.id,
+    dog_name: dog.name,
     seasons: inputsResult.data ?? [],
     official_exams: examsResult.data ?? [],
   };

@@ -2,7 +2,7 @@ import { ucapsaBrand, ucapsaColorKeyPalette, withAlpha } from '../../constants/b
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Calendar, type DateData } from 'react-native-calendars';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -16,6 +16,11 @@ import { getVisibleEventOccurrenceCancellations } from '../../services/event-occ
 import { getVisibleEvents } from '../../services/events.service';
 import { clientReadKeys, readClientResource, writeClientResource, type CalendarClassesOfflineSnapshot } from '../../services/client-read-cache.service';
 import { formatProgramScheduleDetailLabel, formatProgramScheduleName, getAdminProgramRows, getProgramClassCancellations, getProgramScheduleTimeline, getPrograms, isProgramScheduleActiveOnDate } from '../../services/programs.service';
+import { getMyDogs, type BasicDog } from '../../services/dogs.service';
+import { getMyProgramEnrollments } from '../../services/programs.service';
+import { getMyClassRsvp, setMyClassRsvp, type ClassRsvpResponse } from '../../services/class-rsvp.service';
+import { getMyIntroAgendaPlans, isSaturdayIntroClass, saveMyIntroAgendaPlan, type IntroAgendaPlan, type IntroAgendaStatus } from '../../services/intro-class-agenda.service';
+import { syncIntroAgendaLocalReminder } from '../../services/intro-class-reminder.service';
 import { getCachedMyPracticeActivity, getMyPracticeActivity, type PracticeActivityEntry } from '../../services/practice.service';
 import {
   adminRosterLevelLabel,
@@ -139,6 +144,16 @@ export default function CalendarScreen() {
   const [programSchedules, setProgramSchedules] = useState<ProgramSchedule[]>([]);
   const [classCancellations, setClassCancellations] = useState<ProgramClassCancellation[]>([]);
   const [adminProgramRows, setAdminProgramRows] = useState<ProgramEnrollmentWithDetails[]>([]);
+  const [clientDogs, setClientDogs] = useState<BasicDog[]>([]);
+  const [clientEnrollments, setClientEnrollments] = useState<ProgramEnrollmentWithDetails[]>([]);
+  const [introPlans, setIntroPlans] = useState<IntroAgendaPlan[]>([]);
+  const [clientClassReady, setClientClassReady] = useState(false);
+  const [clientClassError, setClientClassError] = useState<string | null>(null);
+  const [openClientClassId, setOpenClientClassId] = useState<string | null>(null);
+  const [selectedClientDogId, setSelectedClientDogId] = useState<string | null>(null);
+  const [classActionBusy, setClassActionBusy] = useState(false);
+  const [classResponses, setClassResponses] = useState<Record<string, ClassRsvpResponse | null>>({});
+
   const [practiceActivity, setPracticeActivity] = useState<PracticeActivityEntry[]>([]);
   const [practiceLoadWarning, setPracticeLoadWarning] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(todayKey());
@@ -324,10 +339,100 @@ export default function CalendarScreen() {
     }, [loadCalendarData]),
   );
 
+  const loadClientClassContext = useCallback(async () => {
+    if (!user || isAdmin) {
+      setClientClassReady(false);
+      return;
+    }
+    setClientClassReady(false);
+    setClientClassError(null);
+    try {
+      const [dogs, enrollments, plans] = await Promise.all([
+        getMyDogs(),
+        getMyProgramEnrollments(),
+        getMyIntroAgendaPlans(user.id, todayKey(), toLocalDateKey(new Date(Date.now() + 120 * 86400000))),
+      ]);
+      setClientDogs(dogs.filter(dog => dog.is_active));
+      setClientEnrollments(enrollments);
+      setIntroPlans(plans);
+      setSelectedClientDogId(current => dogs.some(dog => dog.id === current && dog.is_active)
+        ? current : dogs.find(dog => dog.is_active)?.id ?? null);
+      setClientClassReady(true);
+    } catch (cause) {
+      setClientDogs([]);
+      setClientEnrollments([]);
+      setIntroPlans([]);
+      setClientClassError('No pudimos comprobar las inscripciones. Reintenta antes de agendar.');
+      devWarn('calendar: failed to load client class context', cause);
+    }
+  }, [isAdmin, user?.id]);
+
+  useFocusEffect(useCallback(() => {
+    void loadClientClassContext();
+    return undefined;
+  }, [loadClientClassContext]));
+
+  async function saveIntroClassChoice(classDate: string, status: IntroAgendaStatus) {
+    if (!user || !selectedClientDogId || classActionBusy) return;
+    setClassActionBusy(true);
+    try {
+      const saved = await saveMyIntroAgendaPlan(selectedClientDogId, classDate, status);
+      const next = [...introPlans.filter(p => p.id !== saved.id), saved];
+      setIntroPlans(next);
+      const reminder = await syncIntroAgendaLocalReminder(user.id, classDate, next);
+      Alert.alert(
+        status === 'cancelled' ? 'Visita retirada' : 'Agenda actualizada',
+        status === 'cancelled'
+          ? 'Quitamos esta visita de tu agenda.'
+          : status === 'planned'
+            ? 'Guardamos tu visita inicial. No es una inscripción ni registra asistencia.'
+            : 'Guardamos tu respuesta para el equipo UCAPSA. La asistencia real se registra el día de la clase.'
+          ,
+      );
+      if (status !== 'cancelled' && reminder === 'unsupported') {
+        Alert.alert('Aviso de recordatorio', 'Tu visita quedó guardada, pero no pudimos activar el aviso en este dispositivo. Revisa los permisos y las preferencias de notificación.');
+      }
+    } catch (cause) {
+      Alert.alert('No se guardó', cause instanceof Error ? cause.message : 'Revisa tu conexión e intenta nuevamente.');
+    } finally {
+      setClassActionBusy(false);
+    }
+  }
+
+  async function confirmEnrolledClass(enrollmentId: string, classDate: string, response: ClassRsvpResponse) {
+    if (classActionBusy) return;
+    setClassActionBusy(true);
+    try {
+      await setMyClassRsvp(enrollmentId, classDate, response);
+      setClassResponses(current => ({ ...current, [`${enrollmentId}:${classDate}`]: response }));
+      Alert.alert('Respuesta guardada', 'El Entrenador verá tu respuesta. Esto no registra asistencia real.');
+    } catch (cause) {
+      Alert.alert('No se pudo confirmar', cause instanceof Error ? cause.message : 'Revisa tu conexión.');
+    } finally {
+      setClassActionBusy(false);
+    }
+  }
+
+  function toggleClientClass(occurrence: ClassOccurrence) {
+    if (openClientClassId === occurrence.id) { setOpenClientClassId(null); return; }
+    setOpenClientClassId(occurrence.id);
+    const enrollment = clientEnrollments.find(row =>
+      row.enrollment.schedule_id === occurrence.schedule.id
+      && row.enrollment.dog_id === selectedClientDogId
+      && row.enrollment.status === 'active');
+    if (enrollment) {
+      void getMyClassRsvp(enrollment.enrollment.id, occurrence.dateKey)
+        .then(response => setClassResponses(current => ({
+          ...current, [`${enrollment.enrollment.id}:${occurrence.dateKey}`]: response?.response ?? null,
+        })))
+        .catch(cause => devWarn('calendar: unable to read RSVP state', cause));
+    }
+  }
+
   async function onRefresh() {
     setRefreshing(true);
     try {
-      await loadCalendarData();
+      await Promise.all([loadCalendarData(), loadClientClassContext()]);
     } finally {
       setRefreshing(false);
     }
@@ -335,6 +440,7 @@ export default function CalendarScreen() {
 
   useEffect(() => {
     setOpenRoster(null);
+    setOpenClientClassId(null);
   }, [selectedDate]);
 
   const occurrences = useMemo(
@@ -364,6 +470,25 @@ export default function CalendarScreen() {
     () => announcements.filter((announcement) => announcementDateKey(announcement) === selectedDate),
     [announcements, selectedDate],
   );
+
+  useEffect(() => {
+    if (!openClientClassId || !selectedClientDogId || !clientClassReady) return;
+    const occurrence = selectedClasses.find(item => item.id === openClientClassId);
+    const enrollment = occurrence && clientEnrollments.find(row =>
+      row.enrollment.dog_id === selectedClientDogId
+      && row.enrollment.schedule_id === occurrence.schedule.id
+      && row.enrollment.status === 'active');
+    if (!enrollment || !occurrence) return;
+    let active = true;
+    void getMyClassRsvp(enrollment.enrollment.id, occurrence.dateKey)
+      .then(response => {
+        if (active) setClassResponses(current => ({
+          ...current, [`${enrollment.enrollment.id}:${occurrence.dateKey}`]: response?.response ?? null,
+        }));
+      })
+      .catch(cause => devWarn('calendar: could not refresh class RSVP state', cause));
+    return () => { active = false; };
+  }, [clientClassReady, clientEnrollments, openClientClassId, selectedClasses, selectedClientDogId]);
 
   const selectedPractices = useMemo(
     () => practiceActivity.filter((item) => toLocalDateKey(new Date(item.completedAt)) === selectedDate),
@@ -662,7 +787,7 @@ export default function CalendarScreen() {
                         : item.kind === 'announcement'
                           ? 'campaign'
                           : 'local-fire-department';
-                    const pressable = item.kind === 'announcement' || (isAdmin && (item.kind === 'class' || item.kind === 'event'));
+                    const pressable = item.kind === 'announcement' || (isAdmin && (item.kind === 'class' || item.kind === 'event')) || (!isAdmin && Boolean(user) && item.kind === 'class');
 
                     const onItemPress = () => {
                       if (item.kind === 'announcement') {
@@ -673,12 +798,37 @@ export default function CalendarScreen() {
                         router.push(`/admin/events?eventId=${occurrence.event.id}` as never);
                       } else if (item.kind === 'class' && isAdmin) {
                         router.push(`/admin/class-cancellations?date=${selectedDate}` as never);
+                      } else if (item.kind === 'class' && user) {
+                        toggleClientClass(item.source as ClassOccurrence);
                       }
                     };
 
+                    const occurrence = item.kind === 'class' ? item.source as ClassOccurrence : null;
+                    const introClass = occurrence && isSaturdayIntroClass({
+                      programCode: occurrence.program?.code,
+                      dayOfWeek: occurrence.schedule.day_of_week,
+                      time: occurrence.schedule.start_time,
+                      sequenceOrder: occurrence.schedule.sequence_order,
+                    });
+                    const enrolled = occurrence ? clientEnrollments.find(row =>
+                      row.enrollment.dog_id === selectedClientDogId
+                      && row.enrollment.schedule_id === occurrence.schedule.id
+                      && row.enrollment.status === 'active'
+                      && (row.enrollment.access_mode === 'membership' || (
+                        Boolean(row.enrollment.card_started_on) && Boolean(row.enrollment.card_expires_on)
+                        && occurrence.dateKey >= String(row.enrollment.card_started_on)
+                        && occurrence.dateKey <= String(row.enrollment.card_expires_on)
+                      ))
+                    ) : null;
+                    const plan = occurrence ? introPlans.find(row => row.dog_id === selectedClientDogId
+                      && row.schedule_id === occurrence.schedule.id && row.class_date === occurrence.dateKey) : null;
+                    const available = clientClassReady && !classActionBusy && occurrence !== null
+                      && occurrence.dateKey >= todayKey() && !item.cancelled;
+                    const expanded = Boolean(occurrence && openClientClassId === occurrence.id && user && !isAdmin);
                     return (
+                      <View key={item.id}>
                       <Pressable
-                        key={item.id}
+                        accessibilityState={item.kind === 'class' && !isAdmin ? { expanded } : undefined}
                         disabled={!pressable}
                         accessibilityRole={pressable ? 'button' : undefined}
                         style={styles.timelineRow}
@@ -695,6 +845,81 @@ export default function CalendarScreen() {
                           <Text numberOfLines={2} style={[styles.timelineDetail, { color: format.muted }]}>{item.detail}</Text>
                         </View>
                       </Pressable>
+                      {expanded && occurrence ? (
+                        <View style={styles.clientClassActions}>
+                          <Text style={styles.clientClassTitle}>Agenda de esta clase</Text>
+                          <Text style={styles.clientClassHint}>Agendar y confirmar no registra asistencia real.</Text>
+                          {clientClassError ? <Text style={styles.clientClassWarning}>{clientClassError}</Text> : null}
+                          {!clientClassReady && !clientClassError ? <Text style={styles.clientClassHint}>Comprobando inscripciones…</Text> : null}
+                          {clientClassReady && clientDogs.length === 0 ? (
+                            <Pressable accessibilityRole="button" style={styles.clientActionButton}
+                              onPress={() => router.push('/dog' as never)}>
+                              <Text style={styles.clientActionText}>Primero agrega tu perro</Text>
+                            </Pressable>
+                          ) : null}
+                          {clientClassReady && clientDogs.length > 0 ? (
+                            <>
+                              <Text style={styles.clientClassHint}>¿Con qué perro?</Text>
+                              <View style={styles.clientDogChoices}>
+                                {clientDogs.map(dog => (
+                                  <Pressable key={dog.id} accessibilityRole="button"
+                                    accessibilityState={{ selected: dog.id === selectedClientDogId }}
+                                    style={[styles.clientDogChip, dog.id === selectedClientDogId && styles.clientDogChipSelected]}
+                                    onPress={() => { setSelectedClientDogId(dog.id); }}>
+                                    <Text style={styles.clientDogText}>{dog.name}</Text>
+                                  </Pressable>
+                                ))}
+                              </View>
+                              {enrolled ? (
+                                <>
+                                  <Text style={styles.clientClassHint}>Esta clase ya está en tu programa. El recordatorio oficial llega un día antes si activaste notificaciones.</Text>
+                                  <Text style={styles.clientClassHint}>Respuesta: {classResponses[`${enrolled.enrollment.id}:${occurrence.dateKey}`] === 'yes'
+                                    ? 'Sí asistiré' : classResponses[`${enrolled.enrollment.id}:${occurrence.dateKey}`] === 'no'
+                                      ? 'No asistiré' : 'Sin respuesta'}</Text>
+                                  <View style={styles.clientChoiceRow}>
+                                    <Pressable accessibilityRole="button" disabled={!available} style={[styles.clientActionButton, !available && styles.clientDisabled]}
+                                      onPress={() => void confirmEnrolledClass(enrolled.enrollment.id, occurrence.dateKey, 'yes')}>
+                                      <Text style={styles.clientActionText}>Sí asistiré</Text>
+                                    </Pressable>
+                                    <Pressable accessibilityRole="button" disabled={!available} style={[styles.clientActionButton, !available && styles.clientDisabled]}
+                                      onPress={() => void confirmEnrolledClass(enrolled.enrollment.id, occurrence.dateKey, 'no')}>
+                                      <Text style={styles.clientActionText}>No asistiré</Text>
+                                    </Pressable>
+                                  </View>
+                                </>
+                              ) : introClass ? (
+                                <>
+                                  <Text style={styles.clientClassHint}>Puppy inicial · sábado 10:00. Disponible sin inscripción; no otorga pase ni asistencia.</Text>
+                                  <Text style={styles.clientClassHint}>Estado: {plan?.status === 'planned' ? 'Agendada, sin confirmar'
+                                    : plan?.status === 'yes' ? 'Sí asistiré' : plan?.status === 'no' ? 'No asistiré' : 'No agendada'}</Text>
+                                  <Pressable accessibilityRole="button" disabled={!available} style={[styles.clientActionButton, !available && styles.clientDisabled]}
+                                    onPress={() => void saveIntroClassChoice(occurrence.dateKey, plan && plan.status !== 'cancelled' ? 'cancelled' : 'planned')}>
+                                    <Text style={styles.clientActionText}>{plan && plan.status !== 'cancelled' ? 'Quitar de mi agenda' : 'Agendar visita'}</Text>
+                                  </Pressable>
+                                  {plan && plan.status !== 'cancelled' ? (
+                                    <View style={styles.clientChoiceRow}>
+                                      <Pressable accessibilityRole="button" disabled={!available} style={[styles.clientActionButton, !available && styles.clientDisabled]}
+                                        onPress={() => void saveIntroClassChoice(occurrence.dateKey, 'yes')}>
+                                        <Text style={styles.clientActionText}>Sí asistiré</Text>
+                                      </Pressable>
+                                      <Pressable accessibilityRole="button" disabled={!available} style={[styles.clientActionButton, !available && styles.clientDisabled]}
+                                        onPress={() => void saveIntroClassChoice(occurrence.dateKey, 'no')}>
+                                        <Text style={styles.clientActionText}>No asistiré</Text>
+                                      </Pressable>
+                                    </View>
+                                  ) : null}
+                                </>
+                              ) : (
+                                <View style={[styles.clientActionButton, styles.clientDisabled]}>
+                                  <Text style={styles.clientActionText}>Sin inscripción: no disponible para agendar</Text>
+                                </View>
+                              )}
+                            </>
+                          ) : null}
+                          {item.cancelled ? <Text style={styles.clientClassWarning}>Clase cancelada.</Text> : null}
+                        </View>
+                      ) : null}
+                      </View>
                     );
                   })}
                 </View>
@@ -865,6 +1090,18 @@ const styles = StyleSheet.create({
   weekNavLabel: { flex: 1, textAlign: 'center', fontSize: 10, lineHeight: 14, fontWeight: '800' },
   weekDayCompact: { flex: 1, minHeight: 64, alignItems: 'center', justifyContent: 'center', gap: 2, borderRadius: 16, paddingVertical: 7 },
   activityDot: { width: 5, height: 5, borderRadius: 999, marginTop: 2 },
+  clientClassActions: { marginLeft: 38, marginBottom: 14, marginRight: 4, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, borderRadius: 14, padding: 12, gap: 8 },
+  clientClassTitle: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900' },
+  clientClassHint: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 17, fontWeight: '700' },
+  clientClassWarning: { color: ucapsaBrand.colors.danger, fontSize: 12, fontWeight: '800' },
+  clientDogChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  clientDogChip: { minHeight: 44, borderRadius: 11, backgroundColor: ucapsaBrand.colors.graySoft, paddingHorizontal: 12, justifyContent: 'center' },
+  clientDogChipSelected: { borderWidth: 1, borderColor: ucapsaBrand.colors.redDark, backgroundColor: ucapsaBrand.colors.redSoft },
+  clientDogText: { color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '800' },
+  clientChoiceRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  clientActionButton: { flexGrow: 1, minHeight: 48, borderRadius: 12, paddingHorizontal: 12, justifyContent: 'center', alignItems: 'center', backgroundColor: ucapsaBrand.colors.redSoft },
+  clientActionText: { color: ucapsaBrand.colors.redDark, fontSize: 12, textAlign: 'center', fontWeight: '900' },
+  clientDisabled: { opacity: 0.4, backgroundColor: ucapsaBrand.colors.graySoft },
   daySchedule: { borderTopWidth: 1, paddingHorizontal: 12, paddingVertical: 10, gap: 4 },
   dayEmpty: { alignItems: 'center', gap: 5, paddingVertical: 24, paddingHorizontal: 18 },
   dayEmptyTitle: { fontSize: 15, lineHeight: 20, fontWeight: '900' },
