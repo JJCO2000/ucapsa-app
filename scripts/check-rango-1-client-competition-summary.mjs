@@ -68,12 +68,9 @@ const directOwnerQuery = [
   ".from('dogs')", ".eq('id', cleanDogId)", ".eq('user_id', userId)",
 ].every(token => dogService.includes(token));
 const canonicalOwnerQuery = [
-  'getMyCompetitionAccount', 'userId', 'forceRefresh: true',
-  'account.dogs.find(item => item.dog_id === cleanDogId)',
-].every(token => dogService.includes(token))
-  && accountService.includes('getMyDogs')
-  && accountService.includes(".eq('owner_user_id', cleanUserId)")
-  && accountService.includes(".in('dog_id', dogIds)");
+  'getMyDogs', 'dogs.find(item => item.id === cleanDogId)',
+  ".eq('dog_id', cleanDogId)", ".eq('owner_user_id', userId)",
+].every(token => dogService.includes(token));
 if (!directOwnerQuery && !canonicalOwnerQuery) {
   failures.push('Detalle competitivo no valida pertenencia del perro por ruta directa o canónica.');
 }
