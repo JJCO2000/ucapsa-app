@@ -822,7 +822,7 @@ export default function CalendarScreen() {
                     ) : null;
                     const plan = occurrence ? introPlans.find(row => row.dog_id === selectedClientDogId
                       && row.schedule_id === occurrence.schedule.id && row.class_date === occurrence.dateKey) : null;
-                    const available = clientClassReady && !classActionBusy && Boolean(occurrence)
+                    const available = clientClassReady && !classActionBusy && occurrence !== null
                       && occurrence.dateKey >= todayKey() && !item.cancelled;
                     const expanded = Boolean(occurrence && openClientClassId === occurrence.id && user && !isAdmin);
                     return (
