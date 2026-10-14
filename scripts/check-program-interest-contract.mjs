@@ -21,8 +21,8 @@ void utilExports.sortProgramInterestsByAttention(originalRows);
 assert.deepEqual(originalRows, [{ id: '1', status: 'closed', created_at: '2026-10-01' }],
   'El selector no debe alterar las filas de origen.');
 
-const schema = read('supabase/migrations/20261013062000_program_interest_requests.sql');
-const avatarSchema = read('supabase/migrations/20261013063000_expand_dog_avatars.sql');
+const schema = read('supabase/migrations/20261014002108_program_interest_requests.sql');
+const avatarSchema = read('supabase/migrations/20261014002120_expand_dog_avatars.sql');
 const service = read('src/services/program-interest.service.ts');
 const client = read('src/app/client/program-interest.tsx');
 const admin = read('src/app/admin/program-interests.tsx');
@@ -61,6 +61,8 @@ for (const [label, contents, needles] of [
 
 assert.ok(!schema.includes('followup_note'), 'No exponer notas de Administración al cliente.');
 assert.ok(!schema.includes('on delete restrict'), 'Una solicitud no debe impedir eliminar una cuenta.');
+assert.ok(!service.includes('InterestDb') && !service.includes('requestDb'), 'No conservar adaptador de tipos después de migrar.');
+assert.ok(service.includes("import type { TableRow } from '../types/database.helpers';"), 'Solicitudes deben usar tipos canónicos generados.');
 assert.ok(!service.includes(".from('program_enrollments')"), 'Solicitar no puede escribir una inscripción.');
 assert.ok(!service.includes(".from('program_attendances')"), 'Solicitar no puede escribir una asistencia.');
 assert.match(schema, /status text not null default 'pending'/);
@@ -78,8 +80,8 @@ assert.ok(!admin.includes('La solicitud no se ha modificado.'), 'No afirmar fall
 const migrationNames = fs.readdirSync('supabase/migrations').filter((file) => /^\d{14}_.+\.sql$/.test(file));
 const ownMigrations = migrationNames.filter((name) => name.includes('program_interest_requests') || name.includes('expand_dog_avatars'));
 assert.deepEqual(ownMigrations, [
-  '20261013062000_program_interest_requests.sql',
-  '20261013063000_expand_dog_avatars.sql',
+  '20261014002108_program_interest_requests.sql',
+  '20261014002120_expand_dog_avatars.sql',
 ], 'Versiones de migración inesperadas o desordenadas');
 assert.ok(ownMigrations.every((file) => file.slice(0, 14) > '20261012203322'),
   'Migraciones de esta funcionalidad fechadas antes de la última aplicada al iniciar la rama.');
