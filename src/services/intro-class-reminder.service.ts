@@ -35,7 +35,7 @@ export async function syncIntroAgendaLocalReminder(
         body: 'Revisa tu agenda y confirma si asistirás. Agendar no registra asistencia.',
         data: { source: 'intro_class_reminder', category: 'classes', class_date: classDate },
       },
-      trigger: new Date(reminderAt),
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(reminderAt) },
     });
     await AsyncStorage.setItem(key, id);
     return 'scheduled';
