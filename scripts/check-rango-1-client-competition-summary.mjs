@@ -62,13 +62,23 @@ for (const token of [
   if (!accountService.includes(token)) failures.push('Read model de cuenta perdió contrato: ' + token);
 }
 
-for (const token of [
-  ".from('dogs')",
-  ".eq('id', cleanDogId)",
-  ".eq('user_id', userId)",
-  'competition-dog:',
-]) {
-  if (!dogService.includes(token)) failures.push('Detalle por perro perdió contrato: ' + token);
+// El detalle ahora comparte la fuente de la cuenta; ambos caminos deben
+// autenticar propietario y buscar al perro concreto, no aceptar ids ajenos.
+const directOwnerQuery = [
+  ".from('dogs')", ".eq('id', cleanDogId)", ".eq('user_id', userId)",
+].every(token => dogService.includes(token));
+const canonicalOwnerQuery = [
+  'getMyCompetitionAccount', 'userId', 'forceRefresh: true',
+  'account.dogs.find(item => item.dog_id === cleanDogId)',
+].every(token => dogService.includes(token))
+  && accountService.includes('getMyDogs')
+  && accountService.includes(".eq('owner_user_id', cleanUserId)")
+  && accountService.includes(".in('dog_id', dogIds)");
+if (!directOwnerQuery && !canonicalOwnerQuery) {
+  failures.push('Detalle competitivo no valida pertenencia del perro por ruta directa o canónica.');
+}
+if (!dogService.includes('competition-dog:')) {
+  failures.push('Detalle competitivo perdió su clave de cache aislada por perro.');
 }
 
 const cacheIndex = accountScreen.indexOf('getCachedMyCompetitionAccount');
