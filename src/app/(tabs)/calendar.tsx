@@ -2,7 +2,7 @@ import { ucapsaBrand, ucapsaColorKeyPalette, withAlpha } from '../../constants/b
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Calendar, type DateData } from 'react-native-calendars';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -16,6 +16,11 @@ import { getVisibleEventOccurrenceCancellations } from '../../services/event-occ
 import { getVisibleEvents } from '../../services/events.service';
 import { clientReadKeys, readClientResource, writeClientResource, type CalendarClassesOfflineSnapshot } from '../../services/client-read-cache.service';
 import { formatProgramScheduleDetailLabel, formatProgramScheduleName, getAdminProgramRows, getProgramClassCancellations, getProgramScheduleTimeline, getPrograms, isProgramScheduleActiveOnDate } from '../../services/programs.service';
+import { getMyDogs, type BasicDog } from '../../services/dogs.service';
+import { getMyProgramEnrollments } from '../../services/programs.service';
+import { getMyClassRsvp, setMyClassRsvp, type ClassRsvpResponse } from '../../services/class-rsvp.service';
+import { getMyIntroAgendaPlans, isSaturdayIntroClass, saveMyIntroAgendaPlan, type IntroAgendaPlan, type IntroAgendaStatus } from '../../services/intro-class-agenda.service';
+import { syncIntroAgendaLocalReminder } from '../../services/intro-class-reminder.service';
 import { getCachedMyPracticeActivity, getMyPracticeActivity, type PracticeActivityEntry } from '../../services/practice.service';
 import {
   adminRosterLevelLabel,
@@ -139,6 +144,16 @@ export default function CalendarScreen() {
   const [programSchedules, setProgramSchedules] = useState<ProgramSchedule[]>([]);
   const [classCancellations, setClassCancellations] = useState<ProgramClassCancellation[]>([]);
   const [adminProgramRows, setAdminProgramRows] = useState<ProgramEnrollmentWithDetails[]>([]);
+  const [clientDogs, setClientDogs] = useState<BasicDog[]>([]);
+  const [clientEnrollments, setClientEnrollments] = useState<ProgramEnrollmentWithDetails[]>([]);
+  const [introPlans, setIntroPlans] = useState<IntroAgendaPlan[]>([]);
+  const [clientClassReady, setClientClassReady] = useState(false);
+  const [clientClassError, setClientClassError] = useState<string | null>(null);
+  const [openClientClassId, setOpenClientClassId] = useState<string | null>(null);
+  const [selectedClientDogId, setSelectedClientDogId] = useState<string | null>(null);
+  const [classActionBusy, setClassActionBusy] = useState(false);
+  const [classResponses, setClassResponses] = useState<Record<string, ClassRsvpResponse | null>>({});
+
   const [practiceActivity, setPracticeActivity] = useState<PracticeActivityEntry[]>([]);
   const [practiceLoadWarning, setPracticeLoadWarning] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(todayKey());
@@ -324,10 +339,100 @@ export default function CalendarScreen() {
     }, [loadCalendarData]),
   );
 
+  const loadClientClassContext = useCallback(async () => {
+    if (!user || isAdmin) {
+      setClientClassReady(false);
+      return;
+    }
+    setClientClassReady(false);
+    setClientClassError(null);
+    try {
+      const [dogs, enrollments, plans] = await Promise.all([
+        getMyDogs(),
+        getMyProgramEnrollments(),
+        getMyIntroAgendaPlans(user.id, todayKey(), toLocalDateKey(new Date(Date.now() + 120 * 86400000))),
+      ]);
+      setClientDogs(dogs.filter(dog => dog.is_active));
+      setClientEnrollments(enrollments);
+      setIntroPlans(plans);
+      setSelectedClientDogId(current => dogs.some(dog => dog.id === current && dog.is_active)
+        ? current : dogs.find(dog => dog.is_active)?.id ?? null);
+      setClientClassReady(true);
+    } catch (cause) {
+      setClientDogs([]);
+      setClientEnrollments([]);
+      setIntroPlans([]);
+      setClientClassError('No pudimos comprobar las inscripciones. Reintenta antes de agendar.');
+      devWarn('calendar: failed to load client class context', cause);
+    }
+  }, [isAdmin, user?.id]);
+
+  useFocusEffect(useCallback(() => {
+    void loadClientClassContext();
+    return undefined;
+  }, [loadClientClassContext]));
+
+  async function saveIntroClassChoice(classDate: string, status: IntroAgendaStatus) {
+    if (!user || !selectedClientDogId || classActionBusy) return;
+    setClassActionBusy(true);
+    try {
+      const saved = await saveMyIntroAgendaPlan(selectedClientDogId, classDate, status);
+      const next = [...introPlans.filter(p => p.id !== saved.id), saved];
+      setIntroPlans(next);
+      const reminder = await syncIntroAgendaLocalReminder(user.id, classDate, next);
+      Alert.alert(
+        status === 'cancelled' ? 'Visita retirada' : 'Agenda actualizada',
+        status === 'cancelled'
+          ? 'Quitamos esta visita de tu agenda.'
+          : status === 'planned'
+            ? 'Guardamos tu visita inicial. No es una inscripción ni registra asistencia.'
+            : 'Guardamos tu respuesta para el equipo UCAPSA. La asistencia real se registra el día de la clase.'
+          + '',
+      );
+      if (status !== 'cancelled' && reminder === 'unsupported') {
+        Alert.alert('Aviso de recordatorio', 'Tu visita quedó guardada, pero no pudimos activar el aviso en este dispositivo. Revisa los permisos y las preferencias de notificación.');
+      }
+    } catch (cause) {
+      Alert.alert('No se guardó', cause instanceof Error ? cause.message : 'Revisa tu conexión e intenta nuevamente.');
+    } finally {
+      setClassActionBusy(false);
+    }
+  }
+
+  async function confirmEnrolledClass(enrollmentId: string, classDate: string, response: ClassRsvpResponse) {
+    if (classActionBusy) return;
+    setClassActionBusy(true);
+    try {
+      await setMyClassRsvp(enrollmentId, classDate, response);
+      setClassResponses(current => ({ ...current, [`${enrollmentId}:${classDate}`]: response }));
+      Alert.alert('Respuesta guardada', 'El Entrenador verá tu respuesta. Esto no registra asistencia real.');
+    } catch (cause) {
+      Alert.alert('No se pudo confirmar', cause instanceof Error ? cause.message : 'Revisa tu conexión.');
+    } finally {
+      setClassActionBusy(false);
+    }
+  }
+
+  function toggleClientClass(occurrence: ClassOccurrence) {
+    if (openClientClassId === occurrence.id) { setOpenClientClassId(null); return; }
+    setOpenClientClassId(occurrence.id);
+    const enrollment = clientEnrollments.find(row =>
+      row.enrollment.schedule_id === occurrence.schedule.id
+      && row.enrollment.dog_id === selectedClientDogId
+      && row.enrollment.status === 'active');
+    if (enrollment) {
+      void getMyClassRsvp(enrollment.enrollment.id, occurrence.dateKey)
+        .then(response => setClassResponses(current => ({
+          ...current, [`${enrollment.enrollment.id}:${occurrence.dateKey}`]: response?.response ?? null,
+        })))
+        .catch(cause => devWarn('calendar: unable to read RSVP state', cause));
+    }
+  }
+
   async function onRefresh() {
     setRefreshing(true);
     try {
-      await loadCalendarData();
+      await Promise.all([loadCalendarData(), loadClientClassContext()]);
     } finally {
       setRefreshing(false);
     }
@@ -335,6 +440,7 @@ export default function CalendarScreen() {
 
   useEffect(() => {
     setOpenRoster(null);
+    setOpenClientClassId(null);
   }, [selectedDate]);
 
   const occurrences = useMemo(
