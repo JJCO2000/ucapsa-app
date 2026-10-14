@@ -378,7 +378,7 @@ export default function HomeExperienceScreen() {
           </View>
           <MaterialIcons name="chevron-right" size={22} color={format.accentDark} />
         </Pressable>
-      ) : null}
+      )}
 
       {user && !isStaff && offerQuickHelp ? (
         <View style={{ borderColor: format.cardBorder, backgroundColor: format.surfaceAlt,
