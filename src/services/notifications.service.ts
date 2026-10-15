@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { supabase } from '../lib/supabase';
+import { devWarn } from '../lib/client-diagnostics';
 import type { NotificationPreferences, NotificationToken } from '../types/app.types';
 
 const STORED_EXPO_PUSH_TOKEN_KEY = 'ucapsa:expoPushToken';
@@ -84,6 +85,16 @@ export async function updateNotificationPreferences(input: PreferenceUpdateInput
     .single();
 
   if (error) throw error;
+  // Respetar la baja de notificaciones incluso si se programaron antes
+  // en este dispositivo. No invalidar el guardado remoto si falla el SO.
+  if (!payload.enabled || !payload.classes) {
+    try {
+      const { cancelIntroAgendaLocalRemindersForUser } = await import('./intro-class-reminder.service');
+      await cancelIntroAgendaLocalRemindersForUser(userId);
+    } catch (cause) {
+      devWarn('Could not cancel local introductory class reminders after opt-out.', cause);
+    }
+  }
   return normalizePreference(data, userId);
 }
 
