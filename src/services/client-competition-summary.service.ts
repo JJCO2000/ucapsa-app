@@ -1,5 +1,4 @@
 import { supabase } from '../lib/supabase';
-import { getMyDogs } from './dogs.service';
 import {
   readClientResource,
   writeClientResource,
@@ -55,10 +54,13 @@ async function fetchMyDogCompetition(
   const cleanDogId = dogId.trim();
   if (!userId.trim() || !cleanDogId) throw new Error('Falta el usuario o el perro.');
 
-  // Misma identidad y permisos que «Mis perros». Cero puntos no significa
-  // que falte el perro: las consultas de rango y exámenes pueden devolver [].
-  const dogs = await getMyDogs();
-  const dog = dogs.find(item => item.id === cleanDogId);
+  // Verificación canónica de titularidad sin cargar fotos ni depender del
+  // servicio de multimedia: un fallo de fotos no es un fallo de Competencia.
+  const { data: ownedDogs, error: ownedDogError } = await supabase.rpc('get_my_basic_dog_profile', {
+    p_dog_id: cleanDogId,
+  });
+  if (ownedDogError) throw ownedDogError;
+  const dog = ownedDogs?.[0] ?? null;
   if (!dog) throw new Error('No encontramos este perro en tu cuenta.');
 
   const [inputsResult, examsResult] = await Promise.all([
