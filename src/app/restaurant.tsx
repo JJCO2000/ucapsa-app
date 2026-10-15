@@ -72,7 +72,7 @@ export default function RestaurantScreen() {
         </View>
       </View>
 
-      {usingCache ? (
+      {usingCache && visibleSections.length > 0 ? (
         <View style={styles.cacheNotice}>
           <MaterialIcons name="cloud-off" size={20} color={ucapsaBrand.colors.warningDark} />
           <Text style={styles.cacheText}>Sin conexión al menú actual. Mostramos la última versión guardada.</Text>
