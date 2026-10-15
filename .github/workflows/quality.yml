@@ -17,9 +17,12 @@ jobs:
       - run: npm ci
       - run: npm run verify:release
       - run: node scripts/check-play-review-provision.mjs
-      # Pin to validated stable doctor; unpinned npx resolved to a newer tag
-      # that rejects the PNG ios.icon Expo officially still supports.
-      - run: npx --yes expo-doctor@1.20.4
+      # Los paquetes del SDK 57 se verifican contra el lockfile probado en
+      # Android/iOS, no contra el catálogo remoto que cambia entre commits.
+      - run: node scripts/check-expo-validated-deps.mjs
+      # Doctor mantiene sus demás 20 verificaciones; solo se sustituye
+      # la versión remota de dependencias por el gate reproducible anterior.
+      - run: EXPO_DOCTOR_SKIP_DEPENDENCY_VERSION_CHECK=1 npx --yes expo-doctor@1.20.4
       - run: npm run audit:critical
       - run: npx expo config --type introspect --json > /tmp/ucapsa-expo-introspect.json
       - run: npx expo export --platform android --output-dir dist-ci-android --clear
