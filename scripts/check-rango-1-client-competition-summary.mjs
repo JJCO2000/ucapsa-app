@@ -68,7 +68,8 @@ const directOwnerQuery = [
   ".from('dogs')", ".eq('id', cleanDogId)", ".eq('user_id', userId)",
 ].every(token => dogService.includes(token));
 const canonicalOwnerQuery = [
-  'getMyDogs', 'dogs.find(item => item.id === cleanDogId)',
+  "supabase.rpc('get_my_basic_dog_profile'",
+  "p_dog_id: cleanDogId",
   ".eq('dog_id', cleanDogId)", ".eq('owner_user_id', userId)",
 ].every(token => dogService.includes(token));
 if (!directOwnerQuery && !canonicalOwnerQuery) {
