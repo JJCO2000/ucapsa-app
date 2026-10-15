@@ -246,7 +246,8 @@ if (!roster.includes('Promise.allSettled([') || !roster.includes('introWarning')
 if (!notificationRoute.includes('intro_class_reminder') || !notificationRoute.includes('class_date')) {
   throw new Error('Notificación de clase debe navegar a su fecha.');
 }
-if (!competitionDetailService.includes('getMyDogs') ||
+if (!competitionDetailService.includes("supabase.rpc('get_my_basic_dog_profile'") ||
+    competitionDetailService.includes("getMyDogs()") ||
     !competitionDetail.includes('Aún no hay actividad competitiva registrada')) {
   throw new Error('Perro sin datos competitivos debe mostrar estado vacío, sin inventar error de conexión.');
 }
