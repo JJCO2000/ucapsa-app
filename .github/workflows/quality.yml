@@ -17,7 +17,9 @@ jobs:
       - run: npm ci
       - run: npm run verify:release
       - run: node scripts/check-play-review-provision.mjs
-      - run: npx expo-doctor
+      # Pin to validated stable doctor; unpinned npx resolved to a newer tag
+      # that rejects the PNG ios.icon Expo officially still supports.
+      - run: npx --yes expo-doctor@1.20.4
       - run: npm run audit:critical
       - run: npx expo config --type introspect --json > /tmp/ucapsa-expo-introspect.json
       - run: npx expo export --platform android --output-dir dist-ci-android --clear
