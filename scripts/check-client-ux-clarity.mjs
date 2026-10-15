@@ -230,6 +230,19 @@ if (!localReminder.includes('24 * 60 * 60 * 1000') ||
     !localReminder.includes('preferences.enabled') || !localReminder.includes('preferences.classes')) {
   throw new Error('Aviso inicial debe ser único, un día antes y opt-in.');
 }
+// El deep-link de una notificación debe apuntar a la fecha concreta, no al mes actual.
+if (!notificationRoute.includes(String.raw`/^\d{4}-\d{2}-\d{2}$/.test(date)`)
+  || notificationRoute.includes(String.raw`/^\\d{4}-\\d{2}-\\d{2}$/.test(date)`)) {
+  throw new Error('Recordatorio Puppy dejó de navegar a la fecha real por regex mal escapada.');
+}
+const notificationService = read('src/services/notifications.service.ts');
+if (!notificationService.includes('cancelIntroAgendaLocalRemindersForUser(userId)')
+  || !localReminder.includes('AsyncStorage.multiRemove(keys)')) {
+  throw new Error('Desactivar alertas de clases debe cancelar avisos introductorios locales.');
+}
+if (!roster.includes('Promise.allSettled([') || !roster.includes('introWarning')) {
+  throw new Error('El roster oficial debe sobrevivir a fallas de consultas de visitas iniciales.');
+}
 if (!notificationRoute.includes('intro_class_reminder') || !notificationRoute.includes('class_date')) {
   throw new Error('Notificación de clase debe navegar a su fecha.');
 }
