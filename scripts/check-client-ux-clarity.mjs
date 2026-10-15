@@ -250,6 +250,11 @@ if (!competitionDetailService.includes('getMyDogs') ||
     !competitionDetail.includes('Aún no hay actividad competitiva registrada')) {
   throw new Error('Perro sin datos competitivos debe mostrar estado vacío, sin inventar error de conexión.');
 }
+if (!restaurantMenu.includes('usingCache && visibleSections.length === 0')
+  || !restaurantMenu.includes('!usingCache && visibleSections.length === 0')
+  || !restaurantMenu.includes('setSections([])')) {
+  throw new Error('Menú no debe presentar caché vacía/no verificada como catálogo actualizado.');
+}
 if (!home.includes('accessibilityLabel="Consultar menú del restaurante UCAPSA"') ||
     !restaurantMenu.includes('Actualmente UCAPSA no tiene productos habilitados')) {
   throw new Error('Menú de comida debe seguir accesible y explicar catálogo no publicado.');
