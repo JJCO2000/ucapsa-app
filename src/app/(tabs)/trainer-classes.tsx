@@ -74,6 +74,7 @@ export default function TrainerClassesTab() {
   const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [introWarning, setIntroWarning] = useState<string | null>(null);
 
   const groups = useMemo(() => {
     const all = groupRoster(rows);
@@ -84,17 +85,27 @@ export default function TrainerClassesTab() {
     if (!capabilities.canUseTrainingWorkspace) return;
     const runId = ++loadRunRef.current;
     setError(null);
+    setIntroWarning(null);
     try {
-      const [result, visits] = await Promise.all([
+      // La sección opcional de visitas no debe bloquear el roster oficial.
+      const [roster, visits] = await Promise.allSettled([
         getStaffClassRoster(dateKey),
         getStaffIntroAgendaPlans(dateKey),
       ]);
       if (runId === loadRunRef.current) {
-        setRows(result);
-        setIntroVisits(visits);
+        if (roster.status === 'fulfilled') {
+          setRows(roster.value);
+        } else {
+          setRows([]);
+          setError('No pudimos verificar el roster oficial. Reintenta antes de registrar asistencias.');
+        }
+        if (visits.status === 'fulfilled') {
+          setIntroVisits(visits.value);
+        } else {
+          setIntroVisits([]);
+          setIntroWarning('No pudimos verificar las visitas iniciales. Reintenta para actualizar.');
+        }
       }
-    } catch (cause) {
-      if (runId === loadRunRef.current) setError(cause instanceof Error ? cause.message : 'No se pudo cargar el roster.');
     } finally {
       if (runId === loadRunRef.current) setLoading(false);
     }
@@ -262,11 +273,16 @@ export default function TrainerClassesTab() {
         <View style={styles.errorCard}><MaterialIcons name="cloud-off" size={20} color={ucapsaBrand.colors.danger} /><Text style={styles.errorText}>{error}</Text></View>
       ) : null}
 
-      {!loading && !error && groups.length === 0 && introVisits.length === 0 ? (
+      {introWarning && !loading ? <View style={styles.errorCard}>
+        <MaterialIcons name="warning-amber" size={20} color={ucapsaBrand.colors.danger} />
+        <Text style={styles.errorText}>{introWarning}</Text>
+      </View> : null}
+
+      {!loading && !error && !introWarning && groups.length === 0 && introVisits.length === 0 ? (
         <View style={styles.emptyCard}><MaterialIcons name="event-busy" size={27} color={ucapsaBrand.colors.muted} /><Text style={styles.emptyTitle}>No hay clases para esta fecha</Text></View>
       ) : null}
 
-      {!loading && !error && introVisits.length > 0 ? (
+      {!loading && introVisits.length > 0 ? (
         <View style={styles.introCard}>
           <Text style={styles.introTitle}>Puppy inicial · visitas agendadas ({introVisits.length})</Text>
           <Text style={styles.introHint}>No son inscripciones. Una respuesta Sí no registra asistencia ni reserva de cupo.</Text>

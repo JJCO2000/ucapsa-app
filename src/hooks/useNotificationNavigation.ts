@@ -37,7 +37,7 @@ export function notificationRouteFromData(data: NotificationData | undefined) {
   if (source === 'class_reminder') return '/home';
   if (source === 'intro_class_reminder') {
     const date = stringValue(data?.class_date);
-    return date && /^\\d{4}-\\d{2}-\\d{2}$/.test(date)
+    return date && /^\d{4}-\d{2}-\d{2}$/.test(date)
       ? `/calendar?date=${encodeURIComponent(date)}`
       : '/calendar';
   }

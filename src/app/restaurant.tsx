@@ -42,6 +42,7 @@ export default function RestaurantScreen() {
       if (cached) {
         setUsingCache(true);
       } else {
+        setSections([]);
         setError(cause instanceof Error ? cause.message : 'No se pudo cargar el menú.');
       }
     } finally {
@@ -71,7 +72,7 @@ export default function RestaurantScreen() {
         </View>
       </View>
 
-      {usingCache ? (
+      {usingCache && visibleSections.length > 0 ? (
         <View style={styles.cacheNotice}>
           <MaterialIcons name="cloud-off" size={20} color={ucapsaBrand.colors.warningDark} />
           <Text style={styles.cacheText}>Sin conexión al menú actual. Mostramos la última versión guardada.</Text>
@@ -88,7 +89,15 @@ export default function RestaurantScreen() {
         </View>
       ) : null}
 
-      {!loading && !error && visibleSections.length === 0 ? (
+      {!loading && usingCache && visibleSections.length === 0 ? (
+        <View style={styles.errorCard}>
+          <MaterialIcons name="sync-problem" size={30} color={ucapsaBrand.colors.warningDark} />
+          <Text style={styles.emptyTitle}>Disponibilidad sin verificar</Text>
+          <Text style={styles.muted}>No podemos confirmar el menú actual. La última versión guardada no contiene productos visibles. Desliza para reintentar.</Text>
+        </View>
+      ) : null}
+
+      {!loading && !error && !usingCache && visibleSections.length === 0 ? (
         <View style={styles.errorCard}>
           <MaterialIcons name="menu-book" size={30} color={ucapsaBrand.colors.redDark} />
           <Text style={styles.emptyTitle}>Menú en preparación</Text>
