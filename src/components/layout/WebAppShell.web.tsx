@@ -68,7 +68,7 @@ export function WebAppShell({ children }: { children: ReactNode }) {
       <View style={styles.validation}>
         <MaterialIcons name="visibility" size={32} color={ucapsaBrand.colors.red} />
         <Text style={styles.validationTitle}>Vista de prueba sin datos reales</Text>
-        <Text style={styles.validationHint}>El inicio de sesión está deshabilitado aquí. La prueba funcional requiere una base de datos aislada.</Text>
+        <Text style={styles.validationHint}>DEMO SIN INGRESO: El inicio de sesión está deshabilitado aquí. La prueba funcional requiere una base de datos aislada.</Text>
         <Pressable style={styles.validationButton} onPress={() => router.replace('/home' as never)}>
           <Text style={styles.validationButtonText}>Volver al inicio</Text>
         </Pressable>
