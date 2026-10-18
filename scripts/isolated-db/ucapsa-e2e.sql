@@ -366,4 +366,61 @@ begin
 end
 $staff_provenance$;
 
+
+-- Read and action must be blocked for ordinary client accounts.
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',false);
+do $client_roster_denied$
+declare failed_view boolean:=false; failed_action boolean:=false;
+begin
+  begin
+    perform * from public.get_staff_preregistered_class_roster(
+      (now() at time zone 'America/Mexico_City')::date);
+  exception when insufficient_privilege then failed_view:=true;
+  end;
+  begin
+    perform public.staff_register_preregistered_attendance(
+      '00000000-0000-4000-8000-000000000099',
+      (now() at time zone 'America/Mexico_City')::date);
+  exception when insufficient_privilege then failed_action:=true;
+  end;
+  if not failed_view or not failed_action then
+    raise exception 'Client has access to restricted staff roster or attendance';
+  end if;
+end
+$client_roster_denied$;
+reset role;
+-- Puppy card without known start is shown as pending validity, not auto-granted.
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
+select public.admin_preregister_dog_with_program(
+  'Needs Review','pendingcard@test.invalid','','Pippa','puppy','base',
+  'P-404',null,0,array[]::date[],'old card start unknown');
+reset role;
+do $setup_unknown$
+begin
+  update ucapsa_intake.programs st set schedule_id=s.id
+  from ucapsa_intake.dogs d, ucapsa_intake.people p, public.program_schedules s
+  where st.dog_id=d.id and d.person_id=p.id
+    and p.email_key='pendingcard@test.invalid' and s.name='TEST TODAY';
+end
+$setup_unknown$;
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000005',false);
+do $unknown_denied$
+declare row_id uuid; blocked boolean:=false; today_date date:=(now() at time zone 'America/Mexico_City')::date;
+begin
+  select intake_program_id into row_id
+  from public.get_staff_preregistered_class_roster(today_date)
+  where dog_name='Pippa' and card_status='missing_start';
+  if row_id is null then raise exception 'Missing start not flagged in roster'; end if;
+  begin
+    perform public.staff_register_preregistered_attendance(row_id,today_date);
+  exception when invalid_parameter_value then blocked:=true;
+  end;
+  if not blocked then raise exception 'Unknown old card start was silently accepted'; end if;
+end
+$unknown_denied$;
+reset role;
+
 select 'UCAPSA isolated database E2E: PASS' as result;
