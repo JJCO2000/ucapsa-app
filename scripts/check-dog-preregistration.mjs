@@ -83,7 +83,7 @@ for (const token of [
   'trg_guard_attendance_history_duplicate',
   'union all',
   'sum(a.qty)',
-  'requirements_met_at then requirements_met_at',
+  'then requirements_met_at',
   'perform public.refresh_program_enrollment_progress(v_enrollment_id)',
   "v_stage.physical_card_number,v_stage.program_level",
   'linked_enrollment_id=v_enrollment_id',
