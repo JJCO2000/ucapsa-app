@@ -5209,6 +5209,17 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      admin_get_program_historical_evidence: {
+        Args: { p_enrollment_id: string }
+        Returns: {
+          evidence_id: string
+          attendance_date: string | null
+          quantity: number
+          evidence_kind: string
+          source_note: string | null
+          recorded_at: string
+        }[]
+      }
       admin_preregister_dog_with_program: {
         Args: {
           p_owner_name: string
