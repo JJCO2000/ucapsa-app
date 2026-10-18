@@ -27,5 +27,9 @@ jobs:
       - run: npx expo config --type introspect --json > /tmp/ucapsa-expo-introspect.json
       - run: npx expo export --platform android --output-dir dist-ci-android --clear
       - run: npx expo export --platform ios --output-dir dist-ci-ios --clear
-      # Compilación de navegador: no publica ni despliega ningún artefacto.
+      # Smoke de compilación web sin credenciales reales, red ni despliegue.
+      # Las pruebas de sesión/RLS requieren un entorno de revisión aislado.
       - run: npx expo export --platform web --output-dir dist-ci-web --clear
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: https://ci-web-export.invalid
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ci-only-no-access-key
