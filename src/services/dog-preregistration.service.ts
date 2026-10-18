@@ -5,6 +5,7 @@ export type HistoricalAttendanceEvidence = {
   attendanceDate: string | null;
   quantity: number;
   kind: 'dated' | 'undated_balance';
+  evidenceSource: 'staff_roster' | 'admin_history';
   sourceNote: string | null;
   recordedAt: string;
 };
@@ -19,6 +20,7 @@ export async function getAdminProgramHistoricalEvidence(enrollmentId: string): P
     attendanceDate: row.attendance_date,
     quantity: row.quantity,
     kind: row.evidence_kind === 'dated' ? 'dated' : 'undated_balance',
+    evidenceSource: row.evidence_source === 'staff_roster' ? 'staff_roster' : 'admin_history',
     sourceNote: row.source_note,
     recordedAt: row.recorded_at,
   }));
