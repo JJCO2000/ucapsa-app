@@ -2211,6 +2211,7 @@ export type Database = {
           dog_id: string | null
           dog_name: string | null
           id: string
+          intake_program_id: string | null
           last_attendance_at: string | null
           membership_id: string | null
           notes: string | null
@@ -2237,6 +2238,7 @@ export type Database = {
           dog_id?: string | null
           dog_name?: string | null
           id?: string
+          intake_program_id?: string | null
           last_attendance_at?: string | null
           membership_id?: string | null
           notes?: string | null
@@ -2263,6 +2265,7 @@ export type Database = {
           dog_id?: string | null
           dog_name?: string | null
           id?: string
+          intake_program_id?: string | null
           last_attendance_at?: string | null
           membership_id?: string | null
           notes?: string | null
