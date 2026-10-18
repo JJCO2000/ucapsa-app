@@ -245,4 +245,87 @@ begin
 end
 $history_unknown$;
 
+
+-- Trainer roster for a provisional dog BEFORE Auth registration.
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
+select public.admin_preregister_dog_with_program(
+  'Pending Tutor','staged@test.invalid','','Bongo','puppy','base',
+  'P-313','2026-01-01',1,array[]::date[],'historical 1');
+select public.admin_preregister_dog_with_program(
+  'Pending Tutor','staged@test.invalid','','Thor','comandos','avanzado',
+  '',null,0,array[]::date[],'without card must not grant access');
+reset role;
+-- Add an isolated effective class on whatever weekday the CI job runs.
+insert into public.program_schedules(program_id,name,day_of_week,start_time,sequence_order)
+select id,'TEST TODAY',extract(dow from (now() at time zone 'America/Mexico_City'))::int,
+ '09:00',99 from public.programs where code='puppy';
+update ucapsa_intake.programs st
+set schedule_id=s.id
+from ucapsa_intake.dogs d, ucapsa_intake.people person,
+  public.program_schedules s
+where st.dog_id=d.id and d.person_id=person.id and person.email_key='staged@test.invalid'
+  and d.dog_name='Bongo' and s.name='TEST TODAY';
+
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000005',false);
+do $trainer_roster$
+declare v_id uuid; v_date date:= (now() at time zone 'America/Mexico_City')::date;
+begin
+  select intake_program_id into v_id from public.get_staff_preregistered_class_roster(v_date)
+  where dog_name='Bongo' and card_status='valid';
+  if v_id is null then raise exception 'Trainer cannot see pre-Auth dog with valid card'; end if;
+  perform public.staff_register_preregistered_attendance(v_id,v_date);
+  perform public.staff_register_preregistered_attendance(v_id,v_date);
+end
+$trainer_roster$;
+reset role;
+do $trainer_count$
+begin
+ if (select coalesce(sum(h.quantity),0) from ucapsa_intake.attendance_evidence h
+     join ucapsa_intake.programs st on st.id=h.intake_program_id
+     join ucapsa_intake.dogs d on d.id=st.dog_id where d.dog_name='Bongo')<>2 then
+   raise exception 'Trainer repeat attendance doubled historical total';
+ end if;
+ if not exists(select 1 from ucapsa_intake.attendance_evidence h
+     join ucapsa_intake.programs st on st.id=h.intake_program_id
+     join ucapsa_intake.dogs d on d.id=st.dog_id
+     where d.dog_name='Bongo' and h.evidence_source='staff_roster') then
+   raise exception 'Trainer capture lost audit provenance';
+ end if;
+end
+$trainer_count$;
+-- Trainer must not be permitted to create a fresh dog or edit paid card.
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000005',false);
+do $trainer_denied$
+declare denied boolean:=false;
+begin
+  begin
+    perform public.admin_preregister_dog('Denied Parent','denied@test.invalid','','DeniedDog');
+  exception when insufficient_privilege then denied:=true;
+  end;
+  if not denied then raise exception 'Trainer unexpectedly has admin creation privileges'; end if;
+end
+$trainer_denied$;
+reset role;
+-- Admin historical correction must not erase a trainer's real dated class.
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
+do $history_guard$
+declare v_dog uuid; rejected boolean:=false;
+begin
+  select d.id into v_dog from ucapsa_intake.dogs d
+  join ucapsa_intake.people p on p.id=d.person_id
+  where p.email_key='staged@test.invalid' and d.dog_name='Bongo';
+  begin
+    perform public.admin_save_preregistered_program_history(
+      v_dog,'puppy','base','P-313','2026-01-01',1,array[]::date[],'overwrite');
+  exception when unique_violation then rejected:=true;
+  end;
+  if not rejected then raise exception 'Admin overwrote real trainer attendance'; end if;
+end
+$history_guard$;
+reset role;
+
 select 'UCAPSA isolated database E2E: PASS' as result;
