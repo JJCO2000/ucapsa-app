@@ -51,3 +51,5 @@ jobs:
           psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261018220000_link_preregistered_history.sql
       - name: Exercise permissions, identity, enrollments and attendance
         run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/ucapsa-e2e.sql
+      - name: Competing admins do not duplicate records
+        run: bash scripts/isolated-db/ucapsa-concurrency.sh
