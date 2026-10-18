@@ -13,7 +13,7 @@ export type StaffExamReportRow = {
   examId: string;
   examCode: string;
   examTitle: string;
-  classDate: string;
+  presentedDate: string;
   attemptNumber: number;
   status: string;
   isOfficial: boolean;
@@ -41,7 +41,7 @@ export async function getStaffExamReport(startDate: string, endDate: string, exa
     examId: row.exam_id,
     examCode: row.exam_code,
     examTitle: row.exam_title,
-    classDate: row.class_date,
+    presentedDate: row.presented_date,
     attemptNumber: Number(row.attempt_number),
     status: row.attempt_status,
     isOfficial: Boolean(row.is_official),
@@ -179,7 +179,7 @@ export function buildStaffExamWorkbookBytes(rows: StaffExamReportRow[], startDat
     ...attempts.map((a) => {
       const complete = a.totalItems > 0 && a.gradedItems === a.totalItems && a.maximum > 0;
       return [
-        a.head.classDate, a.head.examTitle, a.head.attemptNumber, a.head.dogName,
+        a.head.presentedDate, a.head.examTitle, a.head.attemptNumber, a.head.dogName,
         a.head.clientName, a.head.status, officialLabel(a.head),
         a.gradedItems, a.totalItems, complete ? a.scored : 'Sin datos',
         a.maximum, complete ? `${(a.scored / a.maximum * 100).toFixed(1)}%` : 'Sin datos',
@@ -190,7 +190,7 @@ export function buildStaffExamWorkbookBytes(rows: StaffExamReportRow[], startDat
   const detail: CellValue[][] = [
     ['Fecha', 'Examen', 'Intento', 'Perro', 'Cliente', 'Ejercicio', 'Puntos máximos', 'Puntos obtenidos', 'Nota', 'Oficial', 'Estado'],
     ...rows.filter((r) => r.itemId !== null).map((r) => [
-      r.classDate, r.examTitle, r.attemptNumber, r.dogName, r.clientName,
+      r.presentedDate, r.examTitle, r.attemptNumber, r.dogName, r.clientName,
       r.itemTitle ?? '', r.maxPoints ?? '', r.pointsAwarded ?? 'Sin registrar',
       r.evaluatorNote ?? '', officialLabel(r), r.status,
     ]),
