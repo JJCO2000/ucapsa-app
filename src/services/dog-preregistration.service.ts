@@ -1,5 +1,29 @@
 import { supabase } from '../lib/supabase';
 
+export type HistoricalAttendanceEvidence = {
+  id: string;
+  attendanceDate: string | null;
+  quantity: number;
+  kind: 'dated' | 'undated_balance';
+  sourceNote: string | null;
+  recordedAt: string;
+};
+
+export async function getAdminProgramHistoricalEvidence(enrollmentId: string): Promise<HistoricalAttendanceEvidence[]> {
+  const { data, error } = await supabase.rpc('admin_get_program_historical_evidence', {
+    p_enrollment_id: enrollmentId,
+  });
+  if (error) throw error;
+  return (data ?? []).map((row) => ({
+    id: row.evidence_id,
+    attendanceDate: row.attendance_date,
+    quantity: row.quantity,
+    kind: row.evidence_kind === 'dated' ? 'dated' : 'undated_balance',
+    sourceNote: row.source_note,
+    recordedAt: row.recorded_at,
+  }));
+}
+
 export type DogClaimResult = {
   status: 'linked' | 'none' | 'unverified' | 'not_applicable' | 'conflict';
   linkedDogs: number;
