@@ -86,7 +86,8 @@ export default function TrainerHomeTab() {
   const [todayRows, setTodayRows] = useState<StaffClassSummaryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [todayError, setTodayError] = useState<string | null>(null);
+  const [tomorrowError, setTomorrowError] = useState<string | null>(null);
 
   const dateKey = tomorrowKey();
   const todayKey = localDateKey();
@@ -96,20 +97,26 @@ export default function TrainerHomeTab() {
 
   const load = useCallback(async () => {
     if (!capabilities.canUseTrainingWorkspace) return;
-    setError(null);
-    try {
-      // Ambas fechas usan el mismo resumen canónico; un fallo impide un falso 'Sin clases'.
-      const [today, tomorrow] = await Promise.all([
-        getStaffClassSummary(todayKey),
-        getStaffClassSummary(dateKey),
-      ]);
-      setTodayRows(today);
-      setRows(tomorrow);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'No se pudieron verificar las clases.');
-    } finally {
-      setLoading(false);
+    // Cada día falla de forma independiente: la consulta de mañana no oculta hoy.
+    const [today, tomorrow] = await Promise.allSettled([
+      getStaffClassSummary(todayKey),
+      getStaffClassSummary(dateKey),
+    ]);
+    if (today.status === 'fulfilled') {
+      setTodayRows(today.value);
+      setTodayError(null);
+    } else {
+      setTodayRows([]);
+      setTodayError('No se pudieron verificar las clases de hoy.');
     }
+    if (tomorrow.status === 'fulfilled') {
+      setRows(tomorrow.value);
+      setTomorrowError(null);
+    } else {
+      setRows([]);
+      setTomorrowError('No se pudieron verificar las clases de mañana.');
+    }
+    setLoading(false);
   }, [capabilities.canUseTrainingWorkspace, dateKey, todayKey]);
 
   useFocusEffect(useCallback(() => {
@@ -147,16 +154,9 @@ export default function TrainerHomeTab() {
         </View>
       ) : null}
 
-      {error ? (
-        <View style={styles.errorCard}>
-          <MaterialIcons name="cloud-off" size={21} color={ucapsaBrand.colors.danger} />
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      ) : null}
-
       {([
-        { label: 'HOY', heading: 'Clases de hoy', day: todayKey, classes: todayGrouped, empty: 'No hay clases hoy' },
-        { label: 'MAÑANA', heading: 'Quién esperamos', day: dateKey, classes: grouped, empty: 'No hay clases mañana' },
+        { label: 'HOY', heading: 'Clases de hoy', day: todayKey, classes: todayGrouped, empty: 'No hay clases hoy', error: todayError },
+        { label: 'MAÑANA', heading: 'Quién esperamos', day: dateKey, classes: grouped, empty: 'No hay clases mañana', error: tomorrowError },
       ] as const).map((section) => (
         <View key={section.day} style={styles.daySection}>
           <View style={styles.sectionHeader}>
@@ -170,14 +170,21 @@ export default function TrainerHomeTab() {
             </View>
           </View>
 
-          {!loading && !error && section.classes.length === 0 ? (
+          {!loading && section.error ? (
+            <View style={styles.errorCard}>
+              <MaterialIcons name="cloud-off" size={21} color={ucapsaBrand.colors.danger} />
+              <Text style={styles.errorText}>{section.error}</Text>
+            </View>
+          ) : null}
+
+          {!loading && !section.error && section.classes.length === 0 ? (
             <View style={styles.emptyCard}>
               <MaterialIcons name="event-busy" size={26} color={ucapsaBrand.colors.muted} />
               <Text style={styles.emptyTitle}>{section.empty}</Text>
             </View>
           ) : null}
 
-          {!loading && !error ? (
+          {!loading && !section.error ? (
             <View style={styles.classList}>
               {section.classes.map((item) => {
                 const commands = item.programCode === 'comandos';
