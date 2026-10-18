@@ -195,4 +195,54 @@ begin
     raise exception 'Second login duplicated evidence';
   end if;
 end $$;
+
+-- Superadmin has the same scoped Admin prerogative; phone-only preregistration.
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000004',false);
+select public.admin_preregister_dog_with_program(
+  'Phone Parent','','+525512345678','Nala','puppy','base',
+  'P-200','2026-09-01',1,array[]::date[],'card reviewed by superadmin');
+reset role;
+-- The mere presence of a phone in Auth is NOT proof of possession.
+update auth.users set phone='+525512345678',phone_confirmed_at=null
+where id='00000000-0000-4000-8000-000000000003';
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000003',false);
+do $phone_unverified$
+declare result jsonb;
+begin
+  result:=public.claim_my_preregistered_dogs();
+  if result->>'status'<>'unverified' then
+    raise exception 'Unverified phone incorrectly claimed a card: %',result;
+  end if;
+end
+$phone_unverified$;
+reset role;
+update auth.users set phone_confirmed_at=now()
+where id='00000000-0000-4000-8000-000000000003';
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000003',false);
+do $phone_verified$
+declare result jsonb;
+begin
+  result:=public.claim_my_preregistered_dogs();
+  if result->>'status'<>'linked' or (result->>'linked_dogs')::int<>1 then
+    raise exception 'Verified phone did not claim correct dog: %',result;
+  end if;
+end
+$phone_verified$;
+reset role;
+do $history_unknown$
+begin
+  if not exists (
+    select 1 from public.program_enrollments e
+    join public.dogs d on d.id=e.dog_id
+    where d.user_id='00000000-0000-4000-8000-000000000003'
+      and e.attendances_count=1 and e.last_attendance_at is null
+  ) then
+    raise exception 'Undated-only prior attendance did not retain NULL date';
+  end if;
+end
+$history_unknown$;
+
 select 'UCAPSA isolated database E2E: PASS' as result;
