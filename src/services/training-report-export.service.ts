@@ -1,10 +1,8 @@
-import { File, Paths } from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
+import { downloadTrainingReport } from './training-report-download';
 import { strToU8, zipSync } from 'fflate';
 
 import type { StaffTrainingReportRow, StaffRecordedAttendanceRow } from './trainer-staff.service';
 
-const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const XML_SELF_CLOSE = '/' + '>';
 type CellValue = string | number | boolean;
 
@@ -352,18 +350,6 @@ export async function exportTrainingReportXlsx(
 ) {
   const safeStart = startDate.replaceAll('-', '');
   const safeEnd = endDate.replaceAll('-', '');
-  const file = new File(Paths.cache, `UCAPSA_estadisticas_clases_${safeStart}_${safeEnd}.xlsx`);
-  if (file.exists) file.delete();
-  file.create();
-  await file.write(workbookBytes(rows, startDate, endDate, recordedRows));
-
-  if (await Sharing.isAvailableAsync()) {
-    await Sharing.shareAsync(file.uri, {
-      dialogTitle: 'Exportar estadísticas UCAPSA',
-      mimeType: XLSX_MIME,
-      UTI: 'org.openxmlformats.spreadsheetml.sheet',
-    });
-  }
-
-  return file.uri;
+  const fileName = `UCAPSA_estadisticas_clases_${safeStart}_${safeEnd}.xlsx`;
+  return downloadTrainingReport(workbookBytes(rows, startDate, endDate, recordedRows), fileName);
 }
