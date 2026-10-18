@@ -234,6 +234,22 @@ begin
   if v_email is null and v_phone is null then
     return pg_catalog.jsonb_build_object('status','unverified','linked_dogs',0);
   end if;
+  -- No basta con un candidato provisional único: exigir identidad única
+  -- entre TODAS las cuentas Auth verificadas. Un teléfono compartido o
+  -- reasignado no puede transferir un expediente a la cuenta equivocada.
+  if exists (
+    select 1 from auth.users u
+    where u.id<>v_user
+      and (
+        (v_email is not null and u.email_confirmed_at is not null
+          and lower(btrim(u.email))=v_email)
+        or
+        (v_phone is not null and u.phone_confirmed_at is not null
+          and btrim(u.phone)=v_phone)
+      )
+  ) then
+    return pg_catalog.jsonb_build_object('status','conflict','linked_dogs',0);
+  end if;
 
   -- Bloquea solicitudes simultáneas de la misma cuenta.
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('ucapsa-claim:'||v_user::text,0));
