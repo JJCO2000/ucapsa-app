@@ -46,7 +46,7 @@ export default function AdminCustomerScreen() {
     return undefined;
   }, [load, userId]));
 
-  const actualAttendances = useMemo(() => record?.enrollments.reduce((sum, item) => sum + item.attendances.length, 0) ?? 0, [record]);
+  const recognizedAttendances = useMemo(() => record?.enrollments.reduce((sum, item) => sum + Math.max(0, Number(item.enrollment.attendances_count ?? 0)), 0) ?? 0, [record]);
   const pendingBalance = useMemo(() => {
     if (!record) return 0;
     const paid = new Map<string, number>();
@@ -93,7 +93,7 @@ export default function AdminCustomerScreen() {
           <View style={styles.metrics}>
             <Metric label="Membresia" value={membershipLabel(record.membership?.status)} />
             <Metric label="Programas" value={String(record.enrollments.length)} />
-            <Metric label="Asistencias" value={String(actualAttendances)} />
+            <Metric label="Asistencias reconocidas" value={String(recognizedAttendances)} />
             {record.membership ? <Metric label="Visitas socio" value={String(record.memberVisits.length)} /> : null}
             <Metric label="Saldo" value={money(pendingBalance)} small />
           </View>
