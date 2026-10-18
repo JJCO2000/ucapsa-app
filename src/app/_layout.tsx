@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 
+import { WebAppShell } from '../components/layout/WebAppShell';
 import { LoadingScreen } from '../components/ui/LoadingScreen';
 import { devWarn } from '../lib/client-diagnostics';
 import { useNotificationNavigation } from '../hooks/useNotificationNavigation';
@@ -57,7 +58,11 @@ function RootNavigator() {
     return <LoadingScreen message={startupError} onRetry={retryStartup} />;
   }
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <WebAppShell>
+      <Stack screenOptions={{ headerShown: false }} />
+    </WebAppShell>
+  );
 }
 
 export default function RootLayout() {
