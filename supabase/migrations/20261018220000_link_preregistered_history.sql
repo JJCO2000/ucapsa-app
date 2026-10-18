@@ -35,6 +35,10 @@ create or replace function public.guard_attendance_not_already_historical()
 returns trigger language plpgsql security definer set search_path=''
 as $fn$
 begin
+  -- Misma clave de bloqueo en ambos orígenes: impide carrera entre QR e historia.
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('ucapsa-attendance:' || new.enrollment_id::text ||
+      ':' || new.attendance_date::text,0));
   if exists (
     select 1 from public.program_attendance_historical_evidence h
     where h.enrollment_id=new.enrollment_id
@@ -56,6 +60,11 @@ create or replace function public.guard_history_not_already_attended()
 returns trigger language plpgsql security definer set search_path=''
 as $fn$
 begin
+  if new.evidence_kind='dated' then
+    perform pg_catalog.pg_advisory_xact_lock(
+      pg_catalog.hashtextextended('ucapsa-attendance:' || new.enrollment_id::text ||
+        ':' || new.attendance_date::text,0));
+  end if;
   if new.evidence_kind='dated' and exists(
     select 1 from public.program_attendances a
     where a.enrollment_id=new.enrollment_id and a.attendance_date=new.attendance_date
@@ -136,7 +145,12 @@ begin
       last_attendance_at = v_latest,
       schedule_id = coalesce(v_next_schedule_id, schedule_id),
       requirements_met_at = case
-        when v_count >= greatest(1, v_required) then coalesce(requirements_met_at, now())
+        when v_count >= greatest(1, v_required) and not exists (
+          select 1 from public.program_attendance_historical_evidence h
+          where h.enrollment_id=p_enrollment_id
+        ) then coalesce(requirements_met_at, now())
+        -- El saldo legado permite acreditar avance, no inventar la fecha de logro.
+        when v_count >= greatest(1, v_required) then requirements_met_at
         else null
       end,
       updated_at = now()
