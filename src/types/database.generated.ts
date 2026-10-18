@@ -5888,6 +5888,10 @@ export type Database = {
           weight_kg: number
         }[]
       }
+      get_staff_editable_ucapsa_exam_draft: {
+        Args: { p_exam_id: string }
+        Returns: Json
+      }
       get_staff_exam_drafts: {
         Args: never
         Returns: {
@@ -6355,6 +6359,17 @@ export type Database = {
       }
       trainer_create_ucapsa_exam_attempt: {
         Args: { p_dog_id: string; p_exam_id: string; p_presented_at?: string }
+        Returns: string
+      }
+      staff_update_ucapsa_exam_draft: {
+        Args: {
+          p_exam_id: string
+          p_code: string
+          p_title: string
+          p_exam_date: string | null
+          p_items: Json
+          p_expected_updated_at: string
+        }
         Returns: string
       }
       trainer_create_ucapsa_exam_draft: {
