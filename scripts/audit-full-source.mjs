@@ -319,7 +319,17 @@ for (const file of sourceFiles) {
   for (const pattern of importPatterns) {
     for (const match of text.matchAll(pattern)) {
       const target = resolveImport(file, match[1]);
-      if (target) imported.add(target);
+      if (!target) continue;
+      imported.add(target);
+      // Metro resolves sibling platform modules from this same import.
+      // Keep orphan detection strict: only real sibling files of an imported
+      // module count as referenced; unrelated .web/.native files still fail.
+      const extension = path.posix.extname(target);
+      const base = target.slice(0, -extension.length);
+      for (const platform of ['web', 'native', 'android', 'ios']) {
+        const platformModule = `${base}.${platform}${extension}`;
+        if (sourceSet.has(platformModule)) imported.add(platformModule);
+      }
     }
   }
 }
