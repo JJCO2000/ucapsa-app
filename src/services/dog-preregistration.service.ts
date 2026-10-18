@@ -22,6 +22,40 @@ export async function adminPreregisterDog(input: {
   return data;
 }
 
+export type PreregisteredProgramInput = {
+  ownerName: string;
+  ownerEmail: string;
+  ownerPhone: string;
+  dogName: string;
+  programCode: 'puppy' | 'comandos';
+  programLevel: 'base' | 'principiante' | 'medio' | 'avanzado';
+  physicalCardNumber: string;
+  cardStartedOn: string | null;
+  totalAttendances: number;
+  knownAttendanceDates: string[];
+  sourceNote: string;
+};
+
+// Una RPC: perro, programa, tarjeta y evidencia se confirman juntos.
+export async function adminPreregisterDogWithProgram(input: PreregisteredProgramInput): Promise<string> {
+  const { data, error } = await supabase.rpc('admin_preregister_dog_with_program', {
+    p_owner_name: input.ownerName.trim(),
+    p_owner_email: input.ownerEmail.trim(),
+    p_owner_phone: input.ownerPhone.trim(),
+    p_dog_name: input.dogName.trim(),
+    p_program_code: input.programCode,
+    p_program_level: input.programLevel,
+    p_card_number: input.physicalCardNumber.trim(),
+    p_card_started_on: input.cardStartedOn,
+    p_total_attendances: input.totalAttendances,
+    p_known_dates: input.knownAttendanceDates,
+    p_note: input.sourceNote.trim() || null,
+  });
+  if (error) throw error;
+  if (typeof data !== 'string' || !data) throw new Error('No se guardó la preinscripción.');
+  return data;
+}
+
 export async function claimMyPreregisteredDogs(): Promise<DogClaimResult> {
   const { data, error } = await supabase.rpc('claim_my_preregistered_dogs');
   if (error) throw error;
