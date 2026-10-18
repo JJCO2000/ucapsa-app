@@ -60,6 +60,21 @@ export function WebAppShell({ children }: { children: ReactNode }) {
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
   const isWide = width >= 920;
+  const visualDemo = process.env.EXPO_PUBLIC_UCAPSA_CODESPACES_DEMO === 'true';
+
+  // The GitHub preview is visual only. Never accept credentials or attempt real sign-in.
+  if (visualDemo && /^\/auth\//.test(pathname)) {
+    return (
+      <View style={styles.validation}>
+        <MaterialIcons name="visibility" size={32} color={ucapsaBrand.colors.red} />
+        <Text style={styles.validationTitle}>Vista de prueba sin datos reales</Text>
+        <Text style={styles.validationHint}>El inicio de sesión está deshabilitado aquí. La prueba funcional requiere una base de datos aislada.</Text>
+        <Pressable style={styles.validationButton} onPress={() => router.replace('/home' as never)}>
+          <Text style={styles.validationButtonText}>Volver al inicio</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   // Login, registration, recovery and legal pages remain free of navigation chrome.
   if (/^\/auth\//.test(pathname) || pathname === '/privacy' || pathname === '/terms') {
@@ -170,12 +185,22 @@ export function WebAppShell({ children }: { children: ReactNode }) {
           </ScrollView>
         </View>
       )}
-      <View style={styles.content}>{children}</View>
+      <View style={styles.content}>
+        {visualDemo ? (
+          <View style={styles.demoBanner}>
+            <MaterialIcons name="science" size={17} color={ucapsaBrand.colors.redDark} />
+            <Text style={styles.demoBannerText}>DEMO VISUAL · Sin acceso a cuentas, pagos ni datos reales</Text>
+          </View>
+        ) : null}
+        {children}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  demoBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 9, backgroundColor: ucapsaBrand.colors.redSoft },
+  demoBannerText: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '800' },
   validation: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 30, gap: 14, backgroundColor: ucapsaBrand.colors.background },
   validationTitle: { color: ucapsaBrand.colors.text, fontSize: 21, fontWeight: '900', textAlign: 'center' },
   validationHint: { color: ucapsaBrand.colors.muted, fontSize: 14, textAlign: 'center', maxWidth: 450 },
