@@ -28,4 +28,9 @@ jobs:
       - run: npx expo export --platform android --output-dir dist-ci-android --clear
       - run: npx expo export --platform ios --output-dir dist-ci-ios --clear
       # Una app, tres plataformas: detectar regresiones específicas de navegación web.
+      # CI solo compila rutas; usa valores ficticios, sin credenciales ni consultas reales.
       - run: npx expo export --platform web --output-dir dist-ci-web --clear
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: https://ucapsa-ci.invalid
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ucapsa-ci-publishable-placeholder
+
