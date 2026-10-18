@@ -1,0 +1,19 @@
+{
+  "name": "UCAPSA Web - vista privada sin datos",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
+  "postCreateCommand": "npm ci",
+  "postStartCommand": "nohup node scripts/github-web-preview.mjs > /tmp/ucapsa-github-preview.log 2>&1 < /dev/null &",
+  "forwardPorts": [8081],
+  "portsAttributes": {
+    "8081": {
+      "label": "UCAPSA Web (demo sin datos)",
+      "onAutoForward": "openPreview",
+      "protocol": "http"
+    }
+  },
+  "customizations": {
+    "codespaces": {
+      "openFiles": ["docs/qa/UCAPSA_GITHUB_BROWSER_PREVIEW.md"]
+    }
+  }
+}
