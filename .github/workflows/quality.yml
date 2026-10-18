@@ -16,8 +16,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run verify:release
-      # El build privado web nunca puede apuntar al Supabase de producción.
-      - run: node scripts/check-web-preview-env.mjs --self-test
+      # La demo privada de GitHub debe aislar todas las variables públicas y credenciales reales.
+      - run: node scripts/github-web-preview.mjs --self-test
       - run: node scripts/check-play-review-provision.mjs
       # Los paquetes del SDK 57 se verifican contra el lockfile probado en
       # Android/iOS, no contra el catálogo remoto que cambia entre commits.
