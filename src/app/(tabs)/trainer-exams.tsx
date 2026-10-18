@@ -326,6 +326,14 @@ export default function TrainerExamsTab() {
           <MaterialIcons name="note-add" size={18} color={ucapsaBrand.colors.surface} />
           <Text style={styles.newExamButtonText}>Nuevo examen</Text>
         </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          style={styles.examReportLink}
+          onPress={() => router.push('/staff/exam-report' as never)}
+        >
+          <MaterialIcons name="table-view" size={16} color={ucapsaBrand.colors.blueDark} />
+          <Text style={styles.examReportLinkText}>Reporte Excel</Text>
+        </Pressable>
       </View>
 
       <View style={styles.catalogTabs} accessibilityRole="tablist">
@@ -583,6 +591,8 @@ const styles = StyleSheet.create({
   title: { color: ucapsaBrand.colors.text, fontSize: 28, fontWeight: '900' },
   subtitle: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 3 },
   newExamButton: { alignSelf: 'flex-start', minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, backgroundColor: ucapsaBrand.colors.greenDark, paddingHorizontal: 11, marginTop: 10 },
+  examReportLink: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 34, marginTop: 5 },
+  examReportLinkText: { color: ucapsaBrand.colors.blueDark, fontSize: 11, fontWeight: '800' },
   newExamButtonText: { color: ucapsaBrand.colors.surface, fontSize: 10, fontWeight: '900' },
   catalogTabs: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   catalogTab: { flex: 1, minHeight: 48, borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
