@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 
-const raw = fs.readFileSync('src/services/preregistration-match-policy.ts','utf8');
+const raw = fs.readFileSync('scripts/lib/preregistration-match-policy.ts','utf8');
 const js = ts.transpileModule(raw,{ compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
 const module={exports:{}};
 vm.runInNewContext(js,{exports:module.exports,module});
