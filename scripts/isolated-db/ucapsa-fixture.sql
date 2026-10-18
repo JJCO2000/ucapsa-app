@@ -101,15 +101,15 @@ language sql stable as $$
   from public.program_schedules s where s.id=p_id
 $$;
 create or replace function public.is_ucapsa_staff()
-returns boolean stable security definer language sql set search_path='' as $
+returns boolean stable security definer language sql set search_path='' as $staff_fn$
   select exists (select 1 from public.profiles p where p.user_id=auth.uid()
     and p.role in ('trainer','admin','super_admin'))
-$;
+$staff_fn$;
 create or replace function public.program_schedule_occurs_on_date(p_id uuid,p_date date)
-returns boolean stable language sql as $
+returns boolean stable language sql as $occurs_fn$
   select exists(select 1 from public.program_schedules s where s.id=p_id
     and s.is_active and s.day_of_week=extract(dow from p_date)::int)
-$;
+$occurs_fn$;
 create or replace function public.trg_refresh_program_enrollment_progress()
 returns trigger language plpgsql as $$
 begin
