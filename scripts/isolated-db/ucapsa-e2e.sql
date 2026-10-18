@@ -36,7 +36,7 @@ select public.admin_preregister_dog_with_program(
 -- Introspection is intentionally not accessible to the authenticated role:
 -- exercise it as DB owner, independently of the RPC authorization test.
 reset role;
-do $
+do $$
 begin
   if (select count(*) from ucapsa_intake.people) <> 1 then
     raise exception 'Duplicate provisional owner';
@@ -59,7 +59,7 @@ select public.admin_preregister_dog_with_program(
   'Example Owner','later@test.invalid','','Luna','puppy','base',
   'P-100','2026-09-01',2,array[date '2026-10-04'],'synthetic physical card');
 reset role;
-do $
+do $$
 declare rejected boolean := false;
 begin
   if (select count(*) from ucapsa_intake.dogs) <> 2 then
@@ -134,7 +134,7 @@ end $$;
 -- not direct table INSERT from arbitrary authenticated clients.
 -- A date already in historical ledger cannot be added again as ordinary QR.
 reset role;
-do $
+do $$
 declare
   v_enrollment uuid;
   rejected boolean := false;
