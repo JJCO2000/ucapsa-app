@@ -79,7 +79,7 @@ function registerSafeClientDeleteContract(file, expectedCount, checks) {
 }
 
 registerSafeClientDeleteContract(
-  'src/services/training-report-export.service.ts',
+  'src/services/training-report-download.ts',
   1,
   [
     {
