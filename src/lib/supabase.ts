@@ -1,6 +1,7 @@
 import 'react-native-url-polyfill/auto';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { createClient } from '@supabase/supabase-js';
 
 import type { Database } from '../types/database.types';
@@ -22,7 +23,8 @@ if (process.env.EXPO_PUBLIC_UCAPSA_REVIEW_BUILD === 'true' &&
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: AsyncStorage,
+    // Native keeps AsyncStorage; the browser uses supabase-js web session storage.
+    ...(Platform.OS !== 'web' ? { storage: AsyncStorage } : {}),
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
