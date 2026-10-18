@@ -33,7 +33,10 @@ select public.admin_preregister_dog_with_program(
 select public.admin_preregister_dog_with_program(
   'Example Owner','later@test.invalid','','Max','comandos','avanzado',
   '',null,0,array[]::date[],'synthetic advanced placement') as second_dog;
-do $$
+-- Introspection is intentionally not accessible to the authenticated role:
+-- exercise it as DB owner, independently of the RPC authorization test.
+reset role;
+do $
 begin
   if (select count(*) from ucapsa_intake.people) <> 1 then
     raise exception 'Duplicate provisional owner';
@@ -50,10 +53,13 @@ begin
 end $$;
 
 -- Idempotency: same dog, same owner, same card must not multiply records.
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
 select public.admin_preregister_dog_with_program(
   'Example Owner','later@test.invalid','','Luna','puppy','base',
   'P-100','2026-09-01',2,array[date '2026-10-04'],'synthetic physical card');
-do $$
+reset role;
+do $
 declare rejected boolean := false;
 begin
   if (select count(*) from ucapsa_intake.dogs) <> 2 then
