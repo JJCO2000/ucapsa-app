@@ -9,6 +9,7 @@ import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../comp
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { getAdminCustomerRecord, type AdminCustomerRecord } from '../../services/admin-customer.service';
+import { getAdminProgramHistoricalEvidence, type HistoricalAttendanceEvidence } from '../../services/dog-preregistration.service';
 import {
   correctProgramAttendance,
   deleteProgramAttendance,
@@ -56,6 +57,8 @@ export default function CustomerAttendanceScreen() {
   const [visibleCount, setVisibleCount] = useState(8);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [historical, setHistorical] = useState<HistoricalAttendanceEvidence[]>([]);
+  const [historicalError, setHistoricalError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -77,6 +80,19 @@ export default function CustomerAttendanceScreen() {
 
   const selectedEnrollment = useMemo(() => record?.enrollments.find((item) => item.enrollment.id === selectedEnrollmentId) ?? record?.enrollments[0] ?? null, [record, selectedEnrollmentId]);
   const attendanceRows = useMemo(() => selectedEnrollment ? [...selectedEnrollment.attendances].sort((a, b) => b.attendance_date.localeCompare(a.attendance_date)) : [], [selectedEnrollment]);
+
+  useEffect(() => {
+    let active = true;
+    setHistorical([]);
+    setHistoricalError(null);
+    const enrollmentId = selectedEnrollment?.enrollment.id;
+    if (!enrollmentId) return () => { active = false; };
+    void getAdminProgramHistoricalEvidence(enrollmentId)
+      .then((rows) => { if (active) setHistorical(rows); })
+      .catch(() => { if (active) setHistoricalError('No se pudo consultar el historial reconocido.'); });
+    return () => { active = false; };
+  }, [selectedEnrollment?.enrollment.id]);
+
 
   const validSchedules = useMemo(() => {
     if (!edit.enrollment) return [] as ProgramSchedule[];
@@ -178,6 +194,27 @@ export default function CustomerAttendanceScreen() {
 
       {!loading && !selectedEnrollment ? <View style={styles.empty}><Text style={styles.emptyTitle}>Sin clases</Text><Text style={styles.muted}>El cliente no tiene inscripciones.</Text></View> : null}
 
+      {selectedEnrollment && (historical.length > 0 || historicalError) ? (
+        <View style={styles.historicalSection}>
+          <Text style={styles.summaryTitle}>Historial reconocido antes del registro</Text>
+          <Text style={styles.muted}>Procedencia administrativa; no equivale a una lectura de QR.</Text>
+          {historicalError ? <Text style={styles.rowMeta}>{historicalError}</Text> : null}
+          {historical.map((entry) => (
+            <View key={entry.id} style={styles.row}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowTitle}>
+                  {entry.attendanceDate
+                    ? formatDate(entry.attendanceDate)
+                    : `${entry.quantity} asistencia${entry.quantity === 1 ? '' : 's'} sin fecha`}
+                </Text>
+                <Text style={styles.rowMeta}>Reconocida por Administración · {entry.attendanceDate ? 'fecha informada' : 'saldo histórico'}</Text>
+                {entry.sourceNote ? <Text style={styles.rowMeta}>{entry.sourceNote}</Text> : null}
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
       {selectedEnrollment && attendanceRows.length === 0 ? <View style={styles.empty}><Text style={styles.emptyTitle}>Sin asistencias fechadas en este listado</Text><Text style={styles.muted}>El total puede incluir asistencias históricas reconocidas. Registra solo clases nuevas con fecha real.</Text></View> : null}
 
       {selectedEnrollment ? (
@@ -243,6 +280,7 @@ const styles = StyleSheet.create({
   addText: { color: ucapsaBrand.colors.surface, fontSize: 12, fontWeight: '900' },
   empty: { alignItems: 'center', gap: 7, paddingVertical: 30 },
   emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '900' },
+  historicalSection: { backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 18, padding: 14, marginBottom: 12 },
   list: { borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, overflow: 'hidden' },
   row: { flexDirection: 'row', gap: 10, alignItems: 'center', padding: 13, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.premiumMuted },
   rowLast: { borderBottomWidth: 0 },
