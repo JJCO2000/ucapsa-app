@@ -155,8 +155,9 @@ export function buildStaffExamWorkbookBytes(rows: StaffExamReportRow[], startDat
   const attempts = groupAttempts(rows);
   const scoredAttempts = attempts.filter((a) => a.totalItems > 0 && a.gradedItems === a.totalItems && a.maximum > 0);
   const officialAttempts = attempts.filter((a) => officialLabel(a.head) === 'Sí');
-  const meanScore = scoredAttempts.length > 0
-    ? scoredAttempts.reduce((sum, a) => sum + (a.scored / a.maximum), 0) / scoredAttempts.length
+  const officialGraded = scoredAttempts.filter((a) => officialLabel(a.head) === 'Sí');
+  const meanScore = officialGraded.length > 0
+    ? officialGraded.reduce((sum, a) => sum + (a.scored / a.maximum), 0) / officialGraded.length
     : null;
 
   const stats: CellValue[][] = [
@@ -169,7 +170,7 @@ export function buildStaffExamWorkbookBytes(rows: StaffExamReportRow[], startDat
     ['Exámenes distintos', new Set(attempts.map((a) => a.head.examId)).size],
     ['Perros evaluados', new Set(attempts.map((a) => a.head.dogId)).size],
     ['Intentos con todos los ejercicios evaluados', scoredAttempts.length],
-    ['Promedio sobre intentos completamente calificados', meanScore === null ? 'Sin datos' : `${(meanScore * 100).toFixed(1)}%`],
+    ['Promedio de resultados oficiales completamente calificados', meanScore === null ? 'Sin datos' : `${(meanScore * 100).toFixed(1)}%`],
     ['Aprobación/reprobación', 'No calculada: no se estableció criterio oficial'],
     ['Nota', 'Sin puntuación registrada no significa 0 puntos'],
   ];
