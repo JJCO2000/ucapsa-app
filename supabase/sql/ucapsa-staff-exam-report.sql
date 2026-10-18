@@ -11,7 +11,7 @@ returns table (
   exam_id uuid,
   exam_code text,
   exam_title text,
-  class_date date,
+  presented_date date,
   attempt_number integer,
   attempt_status text,
   is_official boolean,
