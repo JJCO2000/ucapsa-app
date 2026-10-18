@@ -309,8 +309,8 @@ begin
 end
 $trainer_denied$;
 reset role;
--- Admin historical correction must not erase a trainer's real dated class.
-set role authenticated;
+-- Verify audit invariants as DB owner; even Admin has no direct staging SELECT.
+-- The RPC itself still checks auth.uid() and public.is_ucapsa_admin().
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
 do $history_guard$
 declare v_dog uuid; rejected boolean:=false;
