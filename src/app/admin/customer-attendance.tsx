@@ -171,14 +171,14 @@ export default function CustomerAttendanceScreen() {
 
       {selectedEnrollment ? (
         <View style={styles.summary}>
-          <View><Text style={styles.summaryTitle}>{selectedEnrollment.program.name}</Text><Text style={styles.muted}>{attendanceRows.length} de {selectedEnrollment.program.required_attendances} registradas</Text></View>
+          <View><Text style={styles.summaryTitle}>{selectedEnrollment.program.name}</Text><Text style={styles.muted}>{selectedEnrollment.enrollment.attendances_count} de {selectedEnrollment.program.required_attendances} reconocidas · {Math.max(0, selectedEnrollment.enrollment.attendances_count - attendanceRows.length)} históricas</Text></View>
           <Pressable style={styles.addButton} onPress={openNew}><MaterialIcons name="add" size={19} color={ucapsaBrand.colors.surface} /><Text style={styles.addText}>Registrar</Text></Pressable>
         </View>
       ) : null}
 
       {!loading && !selectedEnrollment ? <View style={styles.empty}><Text style={styles.emptyTitle}>Sin clases</Text><Text style={styles.muted}>El cliente no tiene inscripciones.</Text></View> : null}
 
-      {selectedEnrollment && attendanceRows.length === 0 ? <View style={styles.empty}><Text style={styles.emptyTitle}>Sin asistencias</Text><Text style={styles.muted}>Usa Registrar para agregar la primera asistencia manual.</Text></View> : null}
+      {selectedEnrollment && attendanceRows.length === 0 ? <View style={styles.empty}><Text style={styles.emptyTitle}>Sin asistencias fechadas en este listado</Text><Text style={styles.muted}>El total puede incluir asistencias históricas reconocidas. Registra solo clases nuevas con fecha real.</Text></View> : null}
 
       {selectedEnrollment ? (
         <View style={styles.list}>
