@@ -13,7 +13,7 @@ for (const needle of [
   'if not public.is_ucapsa_staff() then',
   'public.can_ucapsa_staff_access_dog(a.dog_id)',
   "a.presented_at at time zone 'America/Mexico_City'",
-  'p_exam_id is null or e.id = p_exam_id',
+  'e.id = p_exam_id',
   'left join public.ucapsa_exam_item_results r',
   'r.points_awarded',
   'a.is_official',
