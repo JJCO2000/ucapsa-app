@@ -112,6 +112,11 @@ begin
       (v_email is not null and p.email_key=v_email) or
       (v_phone is not null and p.phone_e164=v_phone)
     ) for update;
+    -- Mismo contacto NO autoriza fusionar automáticamente dos tutores distintos.
+    if lower(btrim(v_person.owner_name)) <> lower(v_owner) then
+      raise exception 'Contacto compartido o identidad diferente: requiere revisión.'
+        using errcode='23505';
+    end if;
     if (v_email is not null and v_person.email_key is not null and v_email<>v_person.email_key)
       or (v_phone is not null and v_person.phone_e164 is not null and v_phone<>v_person.phone_e164) then
       raise exception 'Datos de contacto contradictorios; revisa la identidad.' using errcode='23505';
