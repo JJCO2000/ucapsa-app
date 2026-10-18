@@ -204,7 +204,7 @@ function dateKeyIsWithinRange(dateKey: string, startDate: string | null | undefi
 }
 
 function toProgramValue(item: Awaited<ReturnType<typeof getMyProgramEnrollments>>[number]): CustomerValueProgram {
-  const attendanceCount = item.attendances.length;
+  const attendanceCount = Math.max(0, Number(item.enrollment.attendances_count ?? 0));
   const requiredAttendances = Math.max(0, Number(item.program.required_attendances ?? 0));
   const cardStartedOn = item.enrollment.card_started_on ?? null;
   const cardExpiresOn = item.enrollment.card_expires_on ?? null;
