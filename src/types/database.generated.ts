@@ -5209,6 +5209,19 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      admin_preregister_dog: {
+        Args: {
+          p_owner_name: string
+          p_owner_email: string
+          p_owner_phone: string
+          p_dog_name: string
+        }
+        Returns: string
+      }
+      claim_my_preregistered_dogs: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       admin_create_basic_dog: {
         Args: { p_name: string; p_user_id: string }
         Returns: {
