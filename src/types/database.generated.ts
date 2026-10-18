@@ -5212,6 +5212,26 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      get_staff_preregistered_class_roster: {
+        Args: { p_class_date: string }
+        Returns: {
+          intake_program_id: string
+          schedule_id: string
+          program_code: string
+          program_level: string
+          schedule_name: string
+          start_time: string
+          dog_name: string
+          owner_name: string
+          attended: boolean
+          card_status: string
+          total_attendances: number
+        }[]
+      }
+      staff_register_preregistered_attendance: {
+        Args: { p_intake_program_id: string; p_attendance_date: string }
+        Returns: string
+      }
       admin_get_program_historical_evidence: {
         Args: { p_enrollment_id: string }
         Returns: {
