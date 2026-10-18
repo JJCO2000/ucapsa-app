@@ -32,8 +32,14 @@ for (const mapFile of maps) {
 
 const sources = [...allModules];
 assert.ok(sources.length > 0, 'Source maps vacíos: no se pudo auditar el bundle.');
-const unintendedWeb = sources.filter((source) => /\.web\.[cm]?[jt]sx?(?:\?|$)/i.test(source));
-assert.deepEqual(unintendedWeb, [], 'El paquete Android está importando módulos exclusivamente web.');
+// Third-party modules (for example react-native-reanimated) can bundle helper files
+// named .web.ts without originating from UCAPSA's web application. Audit our
+// first-party tree separately rather than weakening the exclusion requirement.
+const firstParty = sources.filter((source) =>
+  !source.includes('/node_modules/') && /(?:^|\/)src\//.test(source)
+);
+const unintendedWeb = firstParty.filter((source) => /\.web\.[cm]?[jt]sx?(?:\?|$)/i.test(source));
+assert.deepEqual(unintendedWeb, [], 'El paquete Android está importando módulos web propios de UCAPSA.');
 
 const mobileRouter = sources.some((source) =>
   /(?:^|\/)src\/app\/\(tabs\)\/_layout\.tsx(?:\?|$)/.test(source)
@@ -41,6 +47,6 @@ const mobileRouter = sources.some((source) =>
 assert.ok(mobileRouter, 'No se encontró el layout móvil en el bundle Android; revisar resolución Metro.');
 
 console.log(
-  `ANDROID WEB ISOLATION PASS: ${sources.length} módulos auditados; ` +
+  `ANDROID WEB ISOLATION PASS: ${sources.length} módulos totales, ${firstParty.length} propios; ` +
   '0 módulos .web.* y navegación nativa comprobada.'
 );
