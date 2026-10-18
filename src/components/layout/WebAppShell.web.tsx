@@ -56,13 +56,39 @@ function activeItem(href: string, pathname: string) {
 export function WebAppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { width } = useWindowDimensions();
-  const { user, profile, role, isAdmin, isTrainer, signOut } = useSession();
+  const { user, profile, role, isAdmin, isTrainer, signOut, usingCachedProfile, isOfflineFallback, refreshProfile } = useSession();
   const [signOutError, setSignOutError] = useState<string | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const isWide = width >= 920;
 
   // Login, registration, recovery and legal pages remain free of navigation chrome.
   if (/^\/auth\//.test(pathname) || pathname === '/privacy' || pathname === '/terms') {
     return <>{children}</>;
+  }
+
+  // Do not render privileged (or personal) routes with an unverified browser profile.
+  // All data authorization remains enforced by Supabase RLS on the server.
+  if (user && (!profile || usingCachedProfile || isOfflineFallback)) {
+    return (
+      <View style={styles.validation}>
+        <MaterialIcons name="verified-user" size={32} color={ucapsaBrand.colors.red} />
+        <Text style={styles.validationTitle}>Verificando tu acceso a UCAPSA</Text>
+        <Text style={styles.validationHint}>
+          Necesitamos confirmar tu perfil con el servidor antes de mostrar información en esta computadora.
+        </Text>
+        {profileError ? <Text accessibilityRole="alert" style={styles.signOutError}>{profileError}</Text> : null}
+        <Pressable
+          style={styles.validationButton}
+          accessibilityRole="button"
+          onPress={() => {
+            setProfileError(null);
+            void refreshProfile().catch(() => setProfileError('No pudimos verificar tu perfil. Revisa tu conexión.'));
+          }}
+        >
+          <Text style={styles.validationButtonText}>Reintentar verificación</Text>
+        </Pressable>
+      </View>
+    );
   }
 
   const nav = isAdmin ? adminNavigation
@@ -150,6 +176,11 @@ export function WebAppShell({ children }: { children: ReactNode }) {
 }
 
 const styles = StyleSheet.create({
+  validation: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 30, gap: 14, backgroundColor: ucapsaBrand.colors.background },
+  validationTitle: { color: ucapsaBrand.colors.text, fontSize: 21, fontWeight: '900', textAlign: 'center' },
+  validationHint: { color: ucapsaBrand.colors.muted, fontSize: 14, textAlign: 'center', maxWidth: 450 },
+  validationButton: { backgroundColor: ucapsaBrand.colors.red, paddingHorizontal: 22, paddingVertical: 13, borderRadius: 12 },
+  validationButtonText: { color: ucapsaBrand.colors.surface, fontWeight: '800' },
   container: { flex: 1, backgroundColor: ucapsaBrand.colors.background },
   wide: { flexDirection: 'row' },
   narrow: { flexDirection: 'column' },
