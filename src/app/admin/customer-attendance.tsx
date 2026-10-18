@@ -207,7 +207,7 @@ export default function CustomerAttendanceScreen() {
                     ? formatDate(entry.attendanceDate)
                     : `${entry.quantity} asistencia${entry.quantity === 1 ? '' : 's'} sin fecha`}
                 </Text>
-                <Text style={styles.rowMeta}>Reconocida por Administración · {entry.attendanceDate ? 'fecha informada' : 'saldo histórico'}</Text>
+                <Text style={styles.rowMeta}>{entry.evidenceSource === 'staff_roster' ? 'Registrada por entrenador' : 'Reconocida por Administración'} · {entry.attendanceDate ? 'fecha real' : 'saldo histórico'}</Text>
                 {entry.sourceNote ? <Text style={styles.rowMeta}>{entry.sourceNote}</Text> : null}
               </View>
             </View>
