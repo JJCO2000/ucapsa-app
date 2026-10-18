@@ -39,6 +39,7 @@ type SessionContextValue = {
   usingCachedProfile: boolean;
   lastProfileSyncAt: string | null;
   isOfflineFallback: boolean;
+  preregistrationSyncVersion: number;
   isAdmin: boolean;
   isTrainer: boolean;
   isStaff: boolean;
@@ -68,6 +69,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
   const [usingCachedProfile, setUsingCachedProfile] = useState(false);
   const [lastProfileSyncAt, setLastProfileSyncAt] = useState<string | null>(null);
   const [isOfflineFallback, setIsOfflineFallback] = useState(false);
+  const [preregistrationSyncVersion, setPreregistrationSyncVersion] = useState(0);
   const [startupAttempt, setStartupAttempt] = useState(0);
   const startupRunRef = useRef(0);
   const claimedPreregistrationUserRef = useRef<string | null>(null);
@@ -403,6 +405,10 @@ export function SessionProvider({ children }: SessionProviderProps) {
         if (outcome.linkedDogs > 0) {
           await clearClientReadCache(authenticatedUserId);
           await clearHomeCache(authenticatedUserId);
+          // Notificar a Inicio: el primer render pudo ocurrir antes de reclamar.
+          if (claimedPreregistrationUserRef.current === authenticatedUserId) {
+            setPreregistrationSyncVersion((version) => version + 1);
+          }
         }
       })
       .catch((error) => {
@@ -484,6 +490,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       usingCachedProfile,
       lastProfileSyncAt,
       isOfflineFallback,
+      preregistrationSyncVersion,
       isAdmin,
       isTrainer,
       isStaff,
@@ -503,6 +510,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       usingCachedProfile,
       lastProfileSyncAt,
       isOfflineFallback,
+      preregistrationSyncVersion,
       isAdmin,
       isTrainer,
       isStaff,
