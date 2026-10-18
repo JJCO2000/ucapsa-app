@@ -12,6 +12,7 @@ import { clearClientReadCache } from '../services/client-read-cache.service';
 import { clearPracticeActivityCache } from '../services/practice.service';
 import { disableStoredExpoPushToken } from '../services/notifications.service';
 import { getProfileByUserId } from '../services/profiles.service';
+import { claimMyPreregisteredDogs } from '../services/dog-preregistration.service';
 import {
   clearVerifiedLocalUser,
   isBackendUnreachable,
@@ -69,6 +70,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
   const [isOfflineFallback, setIsOfflineFallback] = useState(false);
   const [startupAttempt, setStartupAttempt] = useState(0);
   const startupRunRef = useRef(0);
+  const claimedPreregistrationUserRef = useRef<string | null>(null);
   const authEventAttemptRef = useRef(0);
 
   // The local identity only enables cached read-only views; all server requests
@@ -381,6 +383,34 @@ export function SessionProvider({ children }: SessionProviderProps) {
       listener.subscription.unsubscribe();
     };
   }, []);
+
+  // La cuenta Auth ya está autenticada y el perfil se confirmó en backend.
+  // Sólo entonces se intenta vincular fichas provisionales, nunca desde caché offline.
+  useEffect(() => {
+    const authenticatedUserId = session?.user.id ?? null;
+    if (!authenticatedUserId) {
+      claimedPreregistrationUserRef.current = null;
+      return;
+    }
+    if (isOfflineFallback || usingCachedProfile ||
+        profile?.user_id !== authenticatedUserId ||
+        (profile.role !== 'client' && profile.role !== 'member') ||
+        claimedPreregistrationUserRef.current === authenticatedUserId) return;
+
+    claimedPreregistrationUserRef.current = authenticatedUserId;
+    void claimMyPreregisteredDogs()
+      .then(async (outcome) => {
+        if (outcome.linkedDogs > 0) {
+          await clearClientReadCache(authenticatedUserId);
+          await clearHomeCache(authenticatedUserId);
+        }
+      })
+      .catch((error) => {
+        // No bloquear el login si falla el enlace. La sesión jamás pierde permisos.
+        claimedPreregistrationUserRef.current = null;
+        devWarn('La vinculación automática de perro está pendiente.', error);
+      });
+  }, [session?.user.id, profile?.user_id, profile?.role, usingCachedProfile, isOfflineFallback]);
 
   // On returning to the foreground, try to replace read-only identity with a
   // genuine Supabase session. No login re-prompt is necessary after a transient
