@@ -210,6 +210,18 @@ export default function AdminUsersScreen() {
         </View>
       ) : null}
 
+      {!adminsOnly ? (
+        <Pressable
+          accessibilityRole="button"
+          style={styles.preregisterLink}
+          onPress={() => router.push('/admin/preregister-dog' as never)}
+        >
+          <MaterialCommunityIcons name="dog" size={19} color={ucapsaBrand.colors.redDark} />
+          <Text style={styles.preregisterLinkText}>Preinscribir perro</Text>
+          <MaterialCommunityIcons name="chevron-right" size={19} color={ucapsaBrand.colors.redDark} />
+        </Pressable>
+      ) : null}
+
       <View style={styles.listCard}>
         {filteredProfiles.map((item) => (
           <Pressable
@@ -371,6 +383,9 @@ function Detail({ label, value }: { label: string; value?: string | null }) {
 }
 
 const styles = StyleSheet.create({
+  preregisterLink: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, marginBottom: 10, paddingHorizontal: 12, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 12 },
+  preregisterLinkText: { fontSize: 13, fontWeight: '800', color: ucapsaBrand.colors.redDark },
+
   hero: { backgroundColor: ucapsaBrand.colors.surface, borderRadius: 30, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 20 },
   heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   iconBubble: { width: 46, height: 46, borderRadius: 23, backgroundColor: ucapsaBrand.colors.redSoft, alignItems: 'center', justifyContent: 'center' },
