@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, usePathname } from 'expo-router';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { ucapsaBrand } from '../../constants/brand';
@@ -17,6 +17,7 @@ const adminNavigation: NavItem[] = [
   { label: 'Clientes', href: '/admin-clients', icon: 'people-alt' },
   { label: 'Clases', href: '/admin-classes', icon: 'school' },
   { label: 'Pagos', href: '/admin-payments', icon: 'payments' },
+  { label: 'Reportes', href: '/staff/training-report', icon: 'table-view' },
   { label: 'Gestión', href: '/admin-more', icon: 'settings' },
   { label: 'Mi cuenta', href: '/account-settings', icon: 'account-circle' },
 ];
@@ -55,7 +56,8 @@ function activeItem(href: string, pathname: string) {
 export function WebAppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { width } = useWindowDimensions();
-  const { user, profile, role, isAdmin, isTrainer } = useSession();
+  const { user, profile, role, isAdmin, isTrainer, signOut } = useSession();
+  const [signOutError, setSignOutError] = useState<string | null>(null);
   const isWide = width >= 920;
 
   // Login, registration, recovery and legal pages remain free of navigation chrome.
@@ -109,7 +111,22 @@ export function WebAppShell({ children }: { children: ReactNode }) {
           <View style={styles.account}>
             <MaterialIcons name="account-circle" size={24} color={ucapsaBrand.colors.muted} />
             <Text style={styles.accountText} numberOfLines={2}>{displayName}</Text>
+            {user ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar sesión en esta computadora"
+                onPress={() => {
+                  setSignOutError(null);
+                  void signOut()
+                    .then(() => router.replace('/auth/login' as never))
+                    .catch(() => setSignOutError('No se pudo cerrar sesión. Reintenta.'));
+                }}
+              >
+                <MaterialIcons name="logout" size={23} color={ucapsaBrand.colors.red} />
+              </Pressable>
+            ) : null}
           </View>
+          {signOutError ? <Text accessibilityRole="alert" style={styles.signOutError}>{signOutError}</Text> : null}
         </View>
       ) : (
         <View style={styles.topbar}>
@@ -155,6 +172,7 @@ const styles = StyleSheet.create({
   navTextActive: { color: ucapsaBrand.colors.red, fontWeight: '900' },
   account: { borderTopWidth: 1, borderTopColor: ucapsaBrand.colors.border, paddingTop: 16, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
   accountText: { flex: 1, fontSize: 12, color: ucapsaBrand.colors.muted, fontWeight: '700' },
+  signOutError: { paddingHorizontal: 10, color: ucapsaBrand.colors.danger, fontSize: 12 },
   topbar: { borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface },
   topbarTitle: { paddingHorizontal: 17, paddingTop: 12 },
   compactLinks: { paddingHorizontal: 9, paddingVertical: 7, gap: 3, alignItems: 'center' },
