@@ -5239,6 +5239,7 @@ export type Database = {
           attendance_date: string | null
           quantity: number
           evidence_kind: string
+          evidence_source: string
           source_note: string | null
           recorded_at: string
         }[]
