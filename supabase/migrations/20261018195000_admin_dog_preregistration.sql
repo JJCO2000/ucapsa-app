@@ -17,8 +17,9 @@ create table if not exists ucapsa_intake.people (
   linked_at timestamptz,
   constraint intake_contact_required check (email_key is not null or phone_e164 is not null),
   constraint intake_email_format check (email_key is null or
-    (email_key=lower(btrim(email_key)) and length(email_key)<=254 and
-     email_key ~ '^[^@[:space:]]+@[^@[:space:]]+[.][^@[:space:]]+
+    (email_key = lower(btrim(email_key)) and length(email_key) <= 254)),
+  constraint intake_phone_format check (phone_e164 is null or
+    (left(phone_e164, 1) = '+' and length(phone_e164) between 9 and 16)),
   constraint intake_link_state_check check (
     (status='pending' and linked_user_id is null and linked_at is null) or
     (status='linked' and linked_user_id is not null and linked_at is not null)
