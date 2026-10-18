@@ -26,6 +26,9 @@ for (const forbidden of [
   assert.ok(!forbidden.test(source), 'La conversión de rol no puede fabricar hechos comerciales');
 }
 assert.ok(sql.includes("p.role not in ('trainer', 'admin', 'super_admin')"));
+assert.ok(sql.includes("NEW.role = 'member'::public.app_role"));
+assert.ok(sql.includes('No se puede asignar Socio sin membresía activa.'));
+assert.ok(sql.includes("OLD.role = 'member'::public.app_role"));
 assert.ok(ui.includes("{ value: 'member', label: 'Socio' }"));
 assert.ok(ui.includes('setStaffRoleSuperAdmin'));
 assert.ok(!ui.includes('Una cuenta de socio conserva su rol de cliente'));
