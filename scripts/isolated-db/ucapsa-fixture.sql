@@ -39,7 +39,14 @@ create table public.program_schedules (
   day_of_week integer not null,
   start_time time not null,
   sequence_order integer not null default 1,
-  is_active boolean not null default true
+  is_active boolean not null default true,
+  repeat_type text not null default 'weekly',
+  cycle_start_date date
+);
+create table public.program_class_cancellations (
+  schedule_id uuid not null references public.program_schedules(id),
+  cancellation_date date not null,
+  restored_at timestamptz
 );
 create table public.program_enrollments (
   id uuid primary key default gen_random_uuid(),
@@ -88,11 +95,21 @@ $$;
 grant execute on function public.is_ucapsa_admin() to authenticated;
 create or replace function public.get_effective_program_schedule(p_id uuid, p_date date)
 returns table (is_active boolean, sequence_order integer, day_of_week integer,
-               start_time time, program_id uuid)
+               start_time time, program_id uuid, name text)
 language sql stable as $$
-  select s.is_active,s.sequence_order,s.day_of_week,s.start_time,s.program_id
+  select s.is_active,s.sequence_order,s.day_of_week,s.start_time,s.program_id,s.name
   from public.program_schedules s where s.id=p_id
 $$;
+create or replace function public.is_ucapsa_staff()
+returns boolean stable security definer language sql set search_path='' as $
+  select exists (select 1 from public.profiles p where p.user_id=auth.uid()
+    and p.role in ('trainer','admin','super_admin'))
+$;
+create or replace function public.program_schedule_occurs_on_date(p_id uuid,p_date date)
+returns boolean stable language sql as $
+  select exists(select 1 from public.program_schedules s where s.id=p_id
+    and s.is_active and s.day_of_week=extract(dow from p_date)::int)
+$;
 create or replace function public.trg_refresh_program_enrollment_progress()
 returns trigger language plpgsql as $$
 begin
@@ -128,11 +145,13 @@ insert into auth.users(id,email,email_confirmed_at)
 values ('00000000-0000-4000-8000-000000000001','admin@test.invalid',now()),
        ('00000000-0000-4000-8000-000000000002','client@test.invalid',now()),
        ('00000000-0000-4000-8000-000000000003','other@test.invalid',null),
-       ('00000000-0000-4000-8000-000000000004','super@test.invalid',now());
+       ('00000000-0000-4000-8000-000000000004','super@test.invalid',now()),
+       ('00000000-0000-4000-8000-000000000005','trainer@test.invalid',now());
 insert into public.profiles(user_id,email,role)
 values ('00000000-0000-4000-8000-000000000001','admin@test.invalid','admin'),
        ('00000000-0000-4000-8000-000000000002','client@test.invalid','client'),
        ('00000000-0000-4000-8000-000000000003','other@test.invalid','client'),
-       ('00000000-0000-4000-8000-000000000004','super@test.invalid','super_admin');
+       ('00000000-0000-4000-8000-000000000004','super@test.invalid','super_admin'),
+       ('00000000-0000-4000-8000-000000000005','trainer@test.invalid','trainer');
 -- Public RPCs need schema usage for signed-in actors.
 grant usage on schema public to authenticated;
