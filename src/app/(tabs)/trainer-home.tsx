@@ -8,6 +8,7 @@ import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import {
   getStaffClassSummary,
+  localDateKey,
   tomorrowKey,
   type StaffClassSummaryRow,
 } from '../../services/trainer-staff.service';
@@ -42,7 +43,7 @@ function groupClasses(rows: StaffClassSummaryRow[]): GroupedClass[] {
       existing.confirmedCount += row.confirmedCount;
       existing.declinedCount += row.declinedCount;
       existing.noResponseCount += row.noResponseCount;
-      if (row.programCode === 'comandos') {
+      if (row.programCode === 'comandos' && row.eligibleCount > 0) {
         const level = existing.levels.find((item) => item.label === levelLabel);
         if (level) {
           level.eligibleCount += row.eligibleCount;
@@ -63,7 +64,7 @@ function groupClasses(rows: StaffClassSummaryRow[]): GroupedClass[] {
       confirmedCount: row.confirmedCount,
       declinedCount: row.declinedCount,
       noResponseCount: row.noResponseCount,
-      levels: row.programCode === 'comandos'
+      levels: row.programCode === 'comandos' && row.eligibleCount > 0
         ? [{ label: levelLabel, eligibleCount: row.eligibleCount, confirmedCount: row.confirmedCount }]
         : [],
     });
@@ -82,25 +83,34 @@ function groupClasses(rows: StaffClassSummaryRow[]): GroupedClass[] {
 export default function TrainerHomeTab() {
   const { profile, isAdmin, capabilities } = useSession();
   const [rows, setRows] = useState<StaffClassSummaryRow[]>([]);
+  const [todayRows, setTodayRows] = useState<StaffClassSummaryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const dateKey = tomorrowKey();
+  const todayKey = localDateKey();
   const grouped = useMemo(() => groupClasses(rows), [rows]);
+  const todayGrouped = useMemo(() => groupClasses(todayRows), [todayRows]);
   const firstName = (profile?.full_name || 'Entrenador').trim().split(/\s+/)[0] || 'Entrenador';
 
   const load = useCallback(async () => {
     if (!capabilities.canUseTrainingWorkspace) return;
     setError(null);
     try {
-      setRows(await getStaffClassSummary(dateKey));
+      // Ambas fechas usan el mismo resumen canónico; un fallo impide un falso 'Sin clases'.
+      const [today, tomorrow] = await Promise.all([
+        getStaffClassSummary(todayKey),
+        getStaffClassSummary(dateKey),
+      ]);
+      setTodayRows(today);
+      setRows(tomorrow);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'No se pudo cargar mañana.');
+      setError(cause instanceof Error ? cause.message : 'No se pudieron verificar las clases.');
     } finally {
       setLoading(false);
     }
-  }, [capabilities.canUseTrainingWorkspace, dateKey]);
+  }, [capabilities.canUseTrainingWorkspace, dateKey, todayKey]);
 
   useFocusEffect(useCallback(() => {
     setLoading(true);
@@ -129,21 +139,11 @@ export default function TrainerHomeTab() {
         </Pressable>
       </View>
 
-      <View style={styles.sectionHeader}>
-        <View>
-          <Text style={styles.sectionEyebrow}>MAÑANA</Text>
-          <Text style={styles.sectionTitle}>Quién esperamos</Text>
-        </View>
-        <View style={styles.datePill}>
-          <MaterialIcons name="event" size={15} color={ucapsaBrand.colors.redDark} />
-          <Text style={styles.dateText}>{dateKey}</Text>
-        </View>
-      </View>
 
       {loading ? (
         <View style={styles.loadingRow}>
           <ActivityIndicator color={ucapsaBrand.colors.red} />
-          <Text style={styles.muted}>Calculando clases de mañana…</Text>
+          <Text style={styles.muted}>Verificando clases de hoy y mañana…</Text>
         </View>
       ) : null}
 
@@ -154,44 +154,64 @@ export default function TrainerHomeTab() {
         </View>
       ) : null}
 
-      {!loading && !error && grouped.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <MaterialIcons name="event-busy" size={26} color={ucapsaBrand.colors.muted} />
-          <Text style={styles.emptyTitle}>No hay clases mañana</Text>
-        </View>
-      ) : null}
+      {([
+        { label: 'HOY', heading: 'Clases de hoy', day: todayKey, classes: todayGrouped, empty: 'No hay clases hoy' },
+        { label: 'MAÑANA', heading: 'Quién esperamos', day: dateKey, classes: grouped, empty: 'No hay clases mañana' },
+      ] as const).map((section) => (
+        <View key={section.day} style={styles.daySection}>
+          <View style={styles.sectionHeader}>
+            <View>
+              <Text style={styles.sectionEyebrow}>{section.label}</Text>
+              <Text style={styles.sectionTitle}>{section.heading}</Text>
+            </View>
+            <View style={styles.datePill}>
+              <MaterialIcons name="event" size={15} color={ucapsaBrand.colors.redDark} />
+              <Text style={styles.dateText}>{section.day}</Text>
+            </View>
+          </View>
 
-      <View style={styles.classList}>
-        {grouped.map((item) => {
-          const commands = item.programCode === 'comandos';
-          const puppy = item.programCode === 'puppy';
-          return (
-            <Pressable
-              key={`${item.scheduleId}:${item.startTime}:${item.programCode}`}
-              style={[styles.classCard, puppy ? styles.puppyCard : styles.commandsCard]}
-              onPress={() => router.push(`/trainer-classes?date=${encodeURIComponent(dateKey)}&scheduleId=${encodeURIComponent(item.scheduleId)}` as never)}
-            >
-              <View style={[styles.classIcon, { backgroundColor: puppy ? ucapsaBrand.colors.goldPale : ucapsaBrand.colors.purpleSoft }]}>
-                <MaterialIcons name={puppy ? 'pets' : 'school'} size={22} color={puppy ? ucapsaBrand.colors.goldDark : ucapsaBrand.colors.purpleDark} />
-              </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <View style={styles.classTitleRow}>
-                  <Text style={styles.classTitle}>{puppy ? 'Puppy' : 'Comandos'}</Text>
-                  <Text style={styles.classTime}>{item.startTime}</Text>
-                </View>
-                <Text style={styles.confirmedText}>{item.confirmedCount} / {item.eligibleCount} confirmados</Text>
-                {commands ? (
-                  <Text style={styles.levelsText}>
-                    {item.levels.map((level) => `${level.label} ${level.confirmedCount}/${level.eligibleCount}`).join(' · ')}
-                  </Text>
-                ) : null}
-                <Text style={styles.metaText}>{item.declinedCount} no irá · {item.noResponseCount} sin responder</Text>
-              </View>
-              <MaterialIcons name="chevron-right" size={23} color={ucapsaBrand.colors.redDark} />
-            </Pressable>
-          );
-        })}
-      </View>
+          {!loading && !error && section.classes.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <MaterialIcons name="event-busy" size={26} color={ucapsaBrand.colors.muted} />
+              <Text style={styles.emptyTitle}>{section.empty}</Text>
+            </View>
+          ) : null}
+
+          {!loading && !error ? (
+            <View style={styles.classList}>
+              {section.classes.map((item) => {
+                const commands = item.programCode === 'comandos';
+                const puppy = item.programCode === 'puppy';
+                return (
+                  <Pressable
+                    key={`${item.scheduleId}:${item.startTime}:${item.programCode}`}
+                    style={[styles.classCard, puppy ? styles.puppyCard : styles.commandsCard]}
+                    onPress={() => router.push(`/trainer-classes?date=${encodeURIComponent(section.day)}&scheduleId=${encodeURIComponent(item.scheduleId)}` as never)}
+                  >
+                    <View style={[styles.classIcon, { backgroundColor: puppy ? ucapsaBrand.colors.goldPale : ucapsaBrand.colors.purpleSoft }]}>
+                      <MaterialIcons name={puppy ? 'pets' : 'school'} size={22} color={puppy ? ucapsaBrand.colors.goldDark : ucapsaBrand.colors.purpleDark} />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <View style={styles.classTitleRow}>
+                        <Text style={styles.classTitle}>{puppy ? 'Puppy' : 'Comandos'}</Text>
+                        <Text style={styles.classTime}>{item.startTime}</Text>
+                      </View>
+                      <Text style={styles.confirmedText}>{item.confirmedCount} / {item.eligibleCount} confirmados</Text>
+                      {commands && item.levels.length > 0 ? (
+                        <Text style={styles.levelsText}>
+                          {item.levels.map((level) => `${level.label} ${level.confirmedCount}/${level.eligibleCount}`).join(' · ')}
+                        </Text>
+                      ) : null}
+                      <Text style={styles.metaText}>{item.eligibleCount === 0 ? 'Sin inscritos' : `${item.declinedCount} no irá · ${item.noResponseCount} sin responder`}</Text>
+                    </View>
+                    <MaterialIcons name="chevron-right" size={23} color={ucapsaBrand.colors.redDark} />
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
+        </View>
+      ))}
 
       <View style={styles.quickGrid}>
         <QuickAction icon="groups" title="Clases" subtitle="Roster y asistencia" onPress={() => router.push('/trainer-classes' as never)} />
@@ -218,6 +238,7 @@ const styles = StyleSheet.create({
   title: { color: ucapsaBrand.colors.surface, fontSize: 27, lineHeight: 32, fontWeight: '900' },
   subtitle: { color: ucapsaBrand.colors.redSoft, fontSize: 12, lineHeight: 17, fontWeight: '700', marginTop: 2 },
   profileButton: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.redDark },
+  daySection: { marginBottom: 16 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 },
   sectionEyebrow: { color: ucapsaBrand.colors.redDark, fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
   sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 21, fontWeight: '900', marginTop: 2 },
