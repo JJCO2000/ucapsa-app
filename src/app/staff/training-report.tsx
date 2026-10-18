@@ -7,6 +7,7 @@ import { Calendar } from 'react-native-calendars';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
+import { devWarn } from '../../lib/client-diagnostics';
 import { buildTrainingReportStats, exportTrainingReportXlsx, formatTrainingPercentage } from '../../services/training-report-export.service';
 import {
   currentMonthRange,
@@ -60,6 +61,7 @@ export default function StaffTrainingReportScreen() {
       setPreviewed(true);
       return next;
     } catch (cause) {
+      devWarn('UCAPSA staff report preview failed.', cause);
       showReportError('No se pudo generar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
       return null;
     } finally {
@@ -77,6 +79,7 @@ export default function StaffTrainingReportScreen() {
       setHistoryRows(recorded);
       setHistoryLoaded(true);
     } catch (cause) {
+      devWarn('UCAPSA staff report XLSX export failed.', cause);
       showReportError('No se pudo exportar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     } finally {
       setGenerating(false);
@@ -97,6 +100,7 @@ export default function StaffTrainingReportScreen() {
       setHistoryLoaded(true);
       setHistoryVisible(true);
     } catch (cause) {
+      devWarn('UCAPSA staff recorded attendance query failed.', cause);
       showReportError('No se pudo consultar el historial', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     } finally {
       setHistoryLoading(false);
