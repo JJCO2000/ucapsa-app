@@ -122,7 +122,7 @@ begin
 
   insert into ucapsa_intake.dogs(person_id,dog_name)
   values (v_person.id,v_dog)
-  on conflict (person_id, lower(btrim(dog_name))) do nothing
+  on conflict (person_id, (lower(btrim(dog_name)))) do nothing
   returning id into v_dog_id;
 
   if v_dog_id is null then
@@ -160,7 +160,7 @@ begin
     raise exception 'Debes iniciar sesión.' using errcode='42501';
   end if;
   select p.role into v_profile_role from public.profiles p where p.user_id=v_user;
-  if v_profile_role not in ('client','member') then
+  if v_profile_role is null or v_profile_role not in ('client','member') then
     return pg_catalog.jsonb_build_object('status','not_applicable','linked_dogs',0);
   end if;
 
