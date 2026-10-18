@@ -23,6 +23,32 @@ Fuentes estratégicas suministradas por UCAPSA:
 - Los menús reflejan las capacidades actuales. **No representan una concesión de permisos** y no reemplazan validación del servidor.
 - La cuenta y los registros siguen teniendo una única fuente de verdad: el proyecto Supabase actual.
 
+## Fase 2 — sesión verificada y Excel en navegador (en rama)
+
+- Se utiliza la misma sesión Supabase Auth y el rol canónico del perfil. En web, un perfil obsoleto/almacenado en caché **no** concede acceso a pantallas administrativas: se exige una consulta válida al servidor y se presenta una pantalla de verificación con reintento.
+- El login, la recuperación y la actualización de contraseña muestran errores legibles dentro de la página, en vez de depender de `Alert.alert` móvil.
+- La recuperación móvil conserva `ucapsaapp://auth/update-password`. La recuperación desde navegador utiliza `<origen actual>/auth/update-password` en tiempo de ejecución: deben añadirse **sólo** los orígenes autorizados al allowlist de Supabase Auth, sin configurar comodines indiscriminados en producción.
+- La generación del libro Excel sigue en `training-report-export.service.ts` como fuente única (hojas **Resumen, Por programa, Detalle y Asistencias registradas**). Sólo la entrega se separa por plataforma: `training-report-download.ts` mantiene el archivo temporal y `expo-sharing` para Android/iOS; `training-report-download.web.ts` crea un Blob local y permite descargar sin enviar el reporte a servidores externos.
+- El administrador tiene un acceso directo a **Reportes** en la barra lateral; el cierre de sesión desde escritorio limpia la sesión local con el servicio de autenticación existente.
+- Sin migraciones, cambios de permisos SQL ni cuentas de prueba reales en producción.
+
+### Pruebas operativas que siguen pendientes
+
+| Escenario | Criterio de aceptación |
+| --- | --- |
+| Admin/Superadmin inicia sesión web | Perfil recuperado del servidor antes de habilitar menús administrativos |
+| Cliente abre URL de admin o llama RPC administrativa | Acceso denegado por RLS/RPC; no solo ocultación en interfaz |
+| Entrenador abre pagos, roles o exámenes oficiales | No se otorgan privilegios administrativos |
+| Sesión expirada o conexión caída | Ningún perfil administrativo en caché desbloquea la web |
+| Restablecimiento de contraseña web | Correo redirige al dominio permitido, enlace válido, contraseña guardada sin login previo ajeno |
+| Reporte Excel desde navegador | Descarga local válida, cuatro hojas, recuentos coinciden con servicios canónicos |
+| Reporte Excel desde Android/iOS | Se conserva apertura/compartición nativa y cifras originales |
+| Inicio de sesión y cierre en PC compartida | Sesiones separadas; no quedan datos personales visibles tras cerrar |
+| Diseño responsive | Chrome/Edge PC y pantalla estrecha sin accesos duplicados |
+| Acceso desde `ucapsa.mx` | Enlace del proveedor al subdominio con TLS y redirecciones permitidas |
+
+**Compilar en CI no valida estos escenarios con usuarios reales.** No levantar el bloqueo de publicación hasta comprobarlos con cuentas de prueba no productivas.
+
 ## Puerta de calidad obligatoria
 
 Antes de cualquier merge o publicación:
