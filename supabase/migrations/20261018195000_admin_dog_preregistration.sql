@@ -88,13 +88,21 @@ begin
     perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('ucapsa-intake-phone:'||v_phone, 0));
   end if;
 
-  -- Si ya tiene cuenta real, Admin utiliza su ficha ordinaria; no otra ficha.
+  -- Una cuenta Auth existente es identidad canónica aun si el perfil
+  -- administrativo aún no ha sincronizado su email/teléfono.
   if exists (
+    select 1 from auth.users u where
+      (v_email is not null and u.email_confirmed_at is not null
+       and lower(btrim(u.email))=v_email)
+      or (v_phone is not null and u.phone_confirmed_at is not null
+       and u.phone=v_phone)
+  ) or exists (
     select 1 from public.profiles p where
-      (v_email is not null and lower(btrim(p.email)) = v_email)
-      or (v_phone is not null and p.phone = v_phone)
+      (v_email is not null and lower(btrim(p.email))=v_email)
+      or (v_phone is not null and p.phone=v_phone)
   ) then
-    raise exception 'El tutor ya tiene cuenta: registra al perro desde su ficha.' using errcode='23505';
+    raise exception 'El tutor ya tiene una cuenta; usa su ficha oficial, no una segunda preinscripción.'
+      using errcode='23505';
   end if;
 
   select count(*) into v_count
