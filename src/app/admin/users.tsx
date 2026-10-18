@@ -133,7 +133,7 @@ export default function AdminUsersScreen() {
     setSelectedAdmin(profile);
   }
 
-  async function changeStaffRole(profile: Profile, nextRole: Extract<AppRole, 'client' | 'trainer' | 'admin'>) {
+  async function changeStaffRole(profile: Profile, nextRole: Extract<AppRole, 'client' | 'member' | 'trainer' | 'admin'>) {
     try {
       await setStaffRoleSuperAdmin(profile.user_id, nextRole);
       const nextProfiles = await getAdminProfiles();
@@ -272,23 +272,25 @@ function AdminAccountDetailModal({
 }: {
   profile: Profile | null;
   canManageRoles: boolean;
-  onRoleChange: (profile: Profile, role: Extract<AppRole, 'client' | 'trainer' | 'admin'>) => Promise<void>;
+  onRoleChange: (profile: Profile, role: Extract<AppRole, 'client' | 'member' | 'trainer' | 'admin'>) => Promise<void>;
   onClose: () => void;
 }) {
   const [savingRole, setSavingRole] = useState(false);
   if (!profile) return null;
 
-  const canEditThisRole = canManageRoles && profile.role !== 'super_admin' && profile.role !== 'member';
+  const canEditThisRole = canManageRoles && profile.role !== 'super_admin';
 
-  async function setRole(nextRole: Extract<AppRole, 'client' | 'trainer' | 'admin'>) {
+  async function setRole(nextRole: Extract<AppRole, 'client' | 'member' | 'trainer' | 'admin'>) {
     if (!profile || savingRole || !canEditThisRole || profile.role === nextRole) return;
     Alert.alert(
       'Cambiar rol',
-      nextRole === 'trainer'
+      nextRole === 'member'
+        ? 'Se activará su membresía oficial sin registrar ningún pago o comprobante. Esta acción quedará auditada.'
+        : nextRole === 'trainer'
         ? 'Esta cuenta verá únicamente las herramientas operativas de Entrenador.'
         : nextRole === 'admin'
           ? 'Esta cuenta tendrá acceso administrativo completo.'
-          : 'Esta cuenta volverá a la experiencia de cliente.',
+          : 'Esta cuenta volverá a Cliente. Si tiene membresía activa, primero deberás gestionarla en su ficha; los pagos nunca se cancelan automáticamente.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -324,16 +326,15 @@ function AdminAccountDetailModal({
           {canManageRoles ? (
             <View style={styles.roleManager}>
               <Text style={styles.roleManagerTitle}>Acceso del equipo</Text>
-              {profile.role === 'member' ? (
-                <Text style={styles.roleManagerHint}>Una cuenta de socio conserva su rol de cliente. Para staff usa una cuenta separada y así no mezclas permisos internos con membresía.</Text>
-              ) : profile.role === 'super_admin' ? (
+              {profile.role === 'super_admin' ? (
                 <Text style={styles.roleManagerHint}>Las cuentas Superadmin no se modifican desde esta pantalla.</Text>
               ) : (
                 <>
-                  <Text style={styles.roleManagerHint}>Entrenador sólo ve clases, roster, asistencia, exámenes, notas internas y reportes. No ve pagos, comunicación ni estadísticas internas.</Text>
+                  <Text style={styles.roleManagerHint}>Selecciona un rol real. Socio activa la membresía sin acreditar pagos; Entrenador opera clases y exámenes, Admin gestiona la operación. Solo Superadmin puede realizar estos cambios.</Text>
                   <View style={styles.roleOptions}>
                     {([
                       { value: 'client', label: 'Cliente' },
+                      { value: 'member', label: 'Socio' },
                       { value: 'trainer', label: 'Entrenador' },
                       { value: 'admin', label: 'Admin' },
                     ] as const).map((option) => (
