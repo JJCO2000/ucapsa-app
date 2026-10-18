@@ -84,7 +84,8 @@ function packagePartName(value: string) {
 
 function inlineCell(reference: string, value: CellValue, style = 0) {
   if (typeof value === 'number') {
-    return `<c r="${reference}" s="${style}"><v>${Number.isFinite(value) ? value : 0}</v></c>`;
+    if (!Number.isFinite(value)) throw new Error('Número inválido en el reporte UCAPSA.');
+    return `<c r="${reference}" s="${style}"><v>${value}</v></c>`;
   }
   if (typeof value === 'boolean') {
     return `<c r="${reference}" s="${style}" t="b"><v>${value ? 1 : 0}</v></c>`;
