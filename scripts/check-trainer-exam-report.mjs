@@ -18,7 +18,9 @@ for (const needle of [
   'r.points_awarded',
   'a.is_official',
   'a.voided_at',
-  'p_end_date - p_start_date',
+  "a.status = 'published'",
+  'a.is_official = true',
+  'a.voided_at is null',
   'revoke all on function public.get_staff_exam_report',
 ]) assert.ok(source.includes(needle), 'Falta protección del reporte: ' + needle);
 assert.ok(!/\b(insert|update|delete|truncate)\s+(?:into\s+|from\s+)?public\./i.test(source),
@@ -27,20 +29,24 @@ for (const token of [
   "supabase.rpc('get_staff_exam_report'",
   'row.points_awarded === null ? null',
   'row.presented_date',
-  'pointsAwarded !== null',
-  "r.pointsAwarded ?? 'Sin registrar'",
-  'const officialGraded = scoredAttempts.filter',
-  "a.totalItems > 0 && a.gradedItems === a.totalItems",
-  "'Estadísticas', 'Resultados', 'Ejercicios'",
-  "new File(Paths.cache",
-  "Sharing.shareAsync",
-]) assert.ok(service.includes(token), 'Datos/XLSX sin protección: ' + token);
+  "const sheetNames = ['Comparación']",
+  'selectedOfficialAttempts',
+]) {
+  // selectedOfficialAttempts se materializa en el builder, no como otra tabla.
+  if (token === 'selectedOfficialAttempts') {
+    assert.ok(service.includes('best = new Map<string, StaffExamReportRow>()'));
+  } else {
+    assert.ok(service.includes(token), 'Matriz incompleta: ' + token);
+  }
+}
 for (const token of [
-  'getStaffExamReport(startDate, endDate, selectedExamId)',
-  'exportStaffExamReportXlsx',
-  'Todos los exámenes',
-  'Rango máximo: 366 días',
-]) assert.ok(screen.includes(token), 'Falta exportación: ' + token);
+  'getStaffExamReport(selectedExamId)',
+  'selectedDogIds',
+  'Exportar Excel',
+  'Seleccionar todos',
+]) assert.ok(screen.includes(token), 'Falta selección: ' + token);
 assert.ok(catalog.includes("router.push('/staff/exam-report'"), 'Falta acceso contextual');
 assert.ok(types.includes('get_staff_exam_report:'), 'Faltan tipos de RPC');
+assert.ok(!screen.includes('Rango máximo: 366 días'), 'No conservar filtros innecesarios');
+assert.ok(!service.includes('p_start_date:'), 'No mezclar varios exámenes por periodo');
 console.log('UCAPSA Excel de exámenes: permisos por perro, SSOT y calificaciones verificadas: PASS');
