@@ -6,6 +6,7 @@ on:
       - 'supabase/migrations/20261018195000_admin_dog_preregistration.sql'
       - 'supabase/migrations/20261018210000_staged_program_attendance_evidence.sql'
       - 'supabase/migrations/20261018220000_link_preregistered_history.sql'
+      - 'supabase/migrations/20261018230000_staff_preregistered_roster.sql'
       - 'scripts/isolated-db/**'
       - '.github/workflows/ucapsa-preregistration-db.yml'
   workflow_dispatch:
@@ -49,6 +50,7 @@ jobs:
           psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261018195000_admin_dog_preregistration.sql
           psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261018210000_staged_program_attendance_evidence.sql
           psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261018220000_link_preregistered_history.sql
+          psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261018230000_staff_preregistered_roster.sql
       - name: Exercise permissions, identity, enrollments and attendance
         run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/ucapsa-e2e.sql
       - name: Competing admins do not duplicate records
