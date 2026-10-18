@@ -32,6 +32,20 @@ export type StaffRosterRow = {
   safetyNote: string | null;
 };
 
+export type StaffPreregisteredRosterRow = {
+  intakeProgramId: string;
+  scheduleId: string;
+  programCode: string;
+  programLevel: string;
+  scheduleName: string;
+  startTime: string;
+  dogName: string;
+  ownerName: string;
+  attended: boolean;
+  cardStatus: 'valid' | 'no_card' | 'missing_start' | 'not_started' | 'expired';
+  totalAttendances: number;
+};
+
 export type StaffDogNote = {
   id: string;
   dogId: string;
@@ -238,6 +252,38 @@ export async function getStaffClassRoster(dateKey: string): Promise<StaffRosterR
     safetySeverity: row.safety_severity === 'high' || row.safety_severity === 'caution' ? row.safety_severity : null,
     safetyNote: row.safety_note ?? null,
   }));
+}
+
+export async function getStaffPreregisteredRoster(dateKey: string): Promise<StaffPreregisteredRosterRow[]> {
+  const { data, error } = await supabase.rpc('get_staff_preregistered_class_roster', {
+    p_class_date: dateKey,
+  });
+  if (error) throw error;
+  return (data ?? []).map((row) => ({
+    intakeProgramId: row.intake_program_id,
+    scheduleId: row.schedule_id,
+    programCode: row.program_code,
+    programLevel: row.program_level,
+    scheduleName: row.schedule_name,
+    startTime: String(row.start_time).slice(0, 5),
+    dogName: row.dog_name,
+    ownerName: row.owner_name,
+    attended: Boolean(row.attended),
+    cardStatus: row.card_status as StaffPreregisteredRosterRow['cardStatus'],
+    totalAttendances: row.total_attendances,
+  }));
+}
+
+export async function registerStaffPreregisteredAttendance(input: {
+  intakeProgramId: string;
+  attendanceDate: string;
+}) {
+  const { data, error } = await supabase.rpc('staff_register_preregistered_attendance', {
+    p_intake_program_id: input.intakeProgramId,
+    p_attendance_date: input.attendanceDate,
+  });
+  if (error) throw error;
+  return data;
 }
 
 export async function registerStaffAttendance(input: {
