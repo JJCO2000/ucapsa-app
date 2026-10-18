@@ -190,7 +190,7 @@ export function buildStaffExamWorkbookBytes(rows: StaffExamReportRow[], selected
       resultByAttemptItem.get(dog.attemptId + ':' + item.itemId)?.pointsAwarded);
     const complete = scores.every((value) => value !== null && value !== undefined);
     const max = items.reduce((total, item) => total + (item.maxPoints ?? 0), 0);
-    const awarded = scores.reduce((total, value) => total + (value ?? 0), 0);
+    const awarded = scores.reduce<number>((total, value) => total + (value ?? 0), 0);
     const formula = 'IF(COUNT(' + col + '2:' + col + lastExerciseRow +
       ')=ROWS($B$2:$B$' + lastExerciseRow + '),SUM(' + col + '2:' + col +
       lastExerciseRow + ')/SUM($B$2:$B$' + lastExerciseRow + '),"Incompleto")';
