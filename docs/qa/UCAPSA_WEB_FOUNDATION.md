@@ -16,7 +16,7 @@ Fuentes estratégicas suministradas por UCAPSA:
 ## Arquitectura
 
 - Aplicación móvil: conserva `src/app/(tabs)/_layout.tsx`.
-- Navegador: `src/app/(tabs)/_layout.web.tsx` evita duplicar la barra de pestañas móvil.
+- Navegador: `src/app/(tabs)/_layout.tsx` utiliza `Slot` sólo en web para evitar duplicar la barra de pestañas móvil. No existen layouts `.web.tsx` dentro del árbol de rutas.
 - Contenedor web: `WebAppShell.web.tsx` muestra menú lateral en pantallas amplias y menú horizontal en pantallas estrechas.
 - Contenedor nativo: `WebAppShell.tsx` no altera ninguna pantalla.
 - Sesiones: mismo proveedor Supabase Auth y mismas políticas RLS existentes, con persistencia de sesión adecuada al navegador.
@@ -28,7 +28,7 @@ Fuentes estratégicas suministradas por UCAPSA:
 Antes de cualquier merge o publicación:
 
 1. `npm ci` y `npm run verify:release` completos, sin errores.
-2. Exports Android, iOS y Web completos en CI.
+2. Exports Android, iOS y Web completos en CI. La exportación Android genera source maps sólo para CI y `scripts/check-web-excluded-from-android-bundle.mjs` verifica que ningún módulo `.web.*` propio de UCAPSA forme parte de la gráfica nativa.
 3. Pruebas interactivas en Chrome y Edge: sesión, navegación y acceso a formularios.
 4. Pruebas negativas por rol: cliente no puede abrir/ejecutar operaciones de administrador; entrenador no puede gestionar pagos o roles.
 5. Pruebas de registro y consulta cruzada: cambio desde navegador visible correctamente en móvil, sin duplicados.
@@ -37,6 +37,14 @@ Antes de cualquier merge o publicación:
 8. Revisión de protección de datos, expiración de sesión y MFA para personal administrativo.
 9. Aprobación operativa de administración, verificación de regreso atrás y validación estratégica.
 10. Coordinar con el proveedor del sitio `ucapsa.mx` el futuro acceso al subdominio sin concederle permisos sobre Supabase.
+
+## Decisión sobre separación de aplicaciones
+
+- Para este MVP mantenemos un solo proyecto Expo: estar en el repositorio no equivale a estar en el AAB.
+- Evitamos mover el frontend móvil a un monorepo prematuramente porque cambiaría rutas, scripts de verificación, dependencias y configuración EAS.
+- Cuando la interfaz de escritorio requiera un stack web propio o mantenerla conjuntamente afecte al mantenimiento móvil, se evaluará **apps/web** + paquetes compartidos, con plan de migración y regresión.
+- Hallazgo real de CI: Expo Router incluyó `src/app/(tabs)/_layout.web.tsx` en el mapa de módulos Android incluso cuando compilaba correctamente. Se retiró ese archivo de `src/app` y se cambió a selección de `Slot` por plataforma desde un layout universal. Algunas dependencias externas incluyen módulos `.web` internos; la puerta de control audita explícitamente el código propio de UCAPSA y registra el resto por separado.
+- Ningún código/asset web debe publicarse en producción como parte de un AAB por accidente. La prueba del bundle Hermes es necesaria, pero todavía no reemplaza una inspección final del AAB generado.
 
 ## Pendientes posteriores
 
