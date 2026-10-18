@@ -1,9 +1,20 @@
 import type { AuthChangeEvent, EmailOtpType, Session } from '@supabase/supabase-js';
+import { Platform } from 'react-native';
 
 import { supabase } from '../lib/supabase';
 
 export const AUTH_PASSWORD_MIN_LENGTH = 6;
 export const PASSWORD_RECOVERY_REDIRECT_URL = 'ucapsaapp://auth/update-password';
+
+// Web reset links return to the SAME current origin (preview/local/prod).
+// Register each approved origin in Supabase Auth Redirect URLs before testing.
+export function passwordRecoveryRedirectUrl() {
+  if (Platform.OS !== 'web') return PASSWORD_RECOVERY_REDIRECT_URL;
+  if (typeof window === 'undefined') {
+    throw new Error('Se requiere un navegador para recuperar la contraseña por web.');
+  }
+  return new URL('/auth/update-password', window.location.origin).toString();
+}
 
 type SignUpInput = {
   email: string;
@@ -66,7 +77,7 @@ export async function signUpWithEmail({
 
 export async function resetPasswordForEmail(email: string) {
   return supabase.auth.resetPasswordForEmail(normalizeAuthEmail(email), {
-    redirectTo: PASSWORD_RECOVERY_REDIRECT_URL,
+    redirectTo: passwordRecoveryRedirectUrl(),
   });
 }
 
