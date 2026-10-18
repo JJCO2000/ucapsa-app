@@ -33,6 +33,8 @@ create table if not exists ucapsa_intake.attendance_evidence (
   intake_program_id uuid not null references ucapsa_intake.programs(id) on delete restrict,
   -- El saldo desconocido guarda SOLO la cantidad; jamás una fecha sintética.
   evidence_kind text not null check (evidence_kind in ('dated','undated_balance')),
+  evidence_source text not null default 'admin_history'
+    check (evidence_source in ('admin_history','staff_roster')),
   attendance_date date,
   quantity integer not null check (quantity between 1 and 500),
   recorded_by uuid not null references auth.users(id) on delete restrict,
