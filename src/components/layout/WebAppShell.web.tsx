@@ -47,8 +47,8 @@ const publicNavigation: NavItem[] = [
 function activeItem(href: string, pathname: string) {
   if (pathname === href) return true;
   if (href === '/admin-clients') return pathname.startsWith('/admin/customer');
-  if (href === '/admin-classes') return pathname.startsWith('/admin/class');
-  if (href === '/trainer-classes') return pathname.startsWith('/staff/training');
+  if (href === '/admin-classes') return /^\/admin\/class/.test(pathname);
+  if (href === '/trainer-classes') return false;
   return false;
 }
 
@@ -59,7 +59,7 @@ export function WebAppShell({ children }: { children: ReactNode }) {
   const isWide = width >= 920;
 
   // Login, registration, recovery and legal pages remain free of navigation chrome.
-  if (pathname.startsWith('/auth/') || pathname === '/privacy' || pathname === '/terms') {
+  if (/^\/auth\//.test(pathname) || pathname === '/privacy' || pathname === '/terms') {
     return <>{children}</>;
   }
 
