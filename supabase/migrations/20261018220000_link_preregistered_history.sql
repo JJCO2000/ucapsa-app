@@ -184,3 +184,151 @@ on public.program_attendance_historical_evidence for each row
 execute function public.trg_refresh_program_enrollment_progress();
 revoke all on function public.guard_attendance_not_already_historical() from public,anon;
 revoke all on function public.guard_history_not_already_attended() from public,anon;
+
+-- Reemplazar la reclamación SOLO tras crear staging + ledger permanente.
+create or replace function public.claim_my_preregistered_dogs()
+returns jsonb language plpgsql security definer set search_path = ''
+as $fn$
+declare
+  v_user uuid := auth.uid();
+  v_email text;
+  v_phone text;
+  v_profile_role public.app_role;
+  v_count integer;
+  v_person ucapsa_intake.people%rowtype;
+  v_dog record;
+  v_dog_id uuid;
+  v_linked integer := 0;
+  v_linked_programs integer := 0;
+  v_stage ucapsa_intake.programs%rowtype;
+  v_enrollment_id uuid;
+begin
+  if v_user is null then
+    raise exception 'Debes iniciar sesión.' using errcode='42501';
+  end if;
+  select p.role into v_profile_role from public.profiles p where p.user_id=v_user;
+  if v_profile_role is null or v_profile_role not in ('client','member') then
+    return pg_catalog.jsonb_build_object('status','not_applicable','linked_dogs',0);
+  end if;
+
+  select case when u.email_confirmed_at is not null
+       then nullif(lower(btrim(u.email)),'') else null end,
+       case when u.phone_confirmed_at is not null
+       then nullif(btrim(u.phone),'') else null end
+  into v_email,v_phone
+  from auth.users u where u.id=v_user;
+  if v_email is null and v_phone is null then
+    return pg_catalog.jsonb_build_object('status','unverified','linked_dogs',0);
+  end if;
+
+  -- Bloquea solicitudes simultáneas de la misma cuenta.
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('ucapsa-claim:'||v_user::text,0));
+
+  select count(*) into v_count from ucapsa_intake.people p
+  where p.status='pending' and (
+    (v_email is not null and p.email_key=v_email) or
+    (v_phone is not null and p.phone_e164=v_phone)
+  );
+  if v_count=0 then
+    return pg_catalog.jsonb_build_object('status','none','linked_dogs',0);
+  end if;
+  if v_count<>1 then
+    return pg_catalog.jsonb_build_object('status','conflict','linked_dogs',0);
+  end if;
+
+  select * into v_person from ucapsa_intake.people p
+  where p.status='pending' and (
+    (v_email is not null and p.email_key=v_email) or
+    (v_phone is not null and p.phone_e164=v_phone)
+  ) for update;
+
+  -- Un contacto verificado que contradiga la ficha impide reclamación.
+  if (v_email is not null and v_person.email_key is not null and v_email<>v_person.email_key)
+    or (v_phone is not null and v_person.phone_e164 is not null and v_phone<>v_person.phone_e164) then
+    return pg_catalog.jsonb_build_object('status','conflict','linked_dogs',0);
+  end if;
+
+  -- Evitar reasignación y asociación de fichas de otras identidades.
+  if exists (
+    select 1 from ucapsa_intake.people p
+    where p.linked_user_id=v_user and p.id<>v_person.id
+  ) then
+    return pg_catalog.jsonb_build_object('status','conflict','linked_dogs',0);
+  end if;
+  if exists (
+    select 1 from ucapsa_intake.dogs staged
+    join public.dogs d on d.user_id=v_user and d.is_active
+     and lower(btrim(d.name))=lower(btrim(staged.dog_name))
+    where staged.person_id=v_person.id
+  ) then
+    return pg_catalog.jsonb_build_object('status','conflict','linked_dogs',0);
+  end if;
+
+  for v_dog in select d.id,d.dog_name from ucapsa_intake.dogs d
+    where d.person_id=v_person.id order by d.id for update
+  loop
+    insert into public.dogs(user_id,name,is_active)
+    values(v_user,v_dog.dog_name,true)
+    returning id into v_dog_id;
+    update ucapsa_intake.dogs set linked_dog_id=v_dog_id where id=v_dog.id;
+
+    -- Propaga tarjeta, nivel e historial, sin crear fechas ni pagos.
+    -- Los triggers existentes recalculan el progreso desde ambas fuentes.
+    for v_stage in
+      select st.* from ucapsa_intake.programs st
+      where st.dog_id=v_dog.id
+      order by st.program_id for update
+    loop
+      if v_stage.linked_enrollment_id is not null then
+        raise exception 'La tarjeta provisional ya está vinculada.'
+          using errcode='23505';
+      end if;
+      if not exists (
+        select 1 from public.program_schedules sch
+        where sch.id=v_stage.schedule_id and sch.program_id=v_stage.program_id
+      ) then
+        raise exception 'No se encontró el horario oficial original.'
+          using errcode='55000';
+      end if;
+      insert into public.program_enrollments(
+        user_id,program_id,schedule_id,dog_id,dog_name,
+        physical_card_number,program_level,access_mode,status,
+        started_at,card_started_on,intake_program_id
+      ) values (
+        v_user,v_stage.program_id,v_stage.schedule_id,v_dog_id,v_dog.dog_name,
+        v_stage.physical_card_number,v_stage.program_level,'card','active',
+        v_stage.card_started_on,v_stage.card_started_on,v_stage.id
+      ) returning id into v_enrollment_id;
+
+      update ucapsa_intake.programs
+      set linked_enrollment_id=v_enrollment_id where id=v_stage.id;
+
+      insert into public.program_attendance_historical_evidence (
+        enrollment_id,intake_evidence_id,evidence_kind,
+        attendance_date,quantity,recorded_by,recorded_at,source_note
+      )
+      select
+        v_enrollment_id,h.id,h.evidence_kind,
+        h.attendance_date,h.quantity,h.recorded_by,h.recorded_at,h.source_note
+      from ucapsa_intake.attendance_evidence h
+      where h.intake_program_id=v_stage.id;
+
+      -- Idempotencia: la fuente del balance mantiene un único ID histórico.
+      perform public.refresh_program_enrollment_progress(v_enrollment_id);
+      v_linked_programs:=v_linked_programs+1;
+    end loop;
+
+    v_linked:=v_linked+1;
+  end loop;
+  update ucapsa_intake.people
+    set status='linked', linked_user_id=v_user, linked_at=clock_timestamp()
+    where id=v_person.id and status='pending';
+
+  insert into public.admin_audit_logs(admin_user_id,action,entity_type,entity_id,details)
+  values(v_user,'dog_preregistration.claimed','dog_preregistration',v_person.id,
+    pg_catalog.jsonb_build_object('dogs',v_linked,'programs',v_linked_programs));
+  return pg_catalog.jsonb_build_object('status','linked','linked_dogs',v_linked,'linked_programs',v_linked_programs);
+end;
+$fn$;
+
+
