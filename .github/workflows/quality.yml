@@ -25,7 +25,10 @@ jobs:
       - run: EXPO_DOCTOR_SKIP_DEPENDENCY_VERSION_CHECK=1 npx --yes expo-doctor@1.20.4
       - run: npm run audit:critical
       - run: npx expo config --type introspect --json > /tmp/ucapsa-expo-introspect.json
-      - run: npx expo export --platform android --output-dir dist-ci-android --clear
+      - run: npx expo export --platform android --source-maps --output-dir dist-ci-android --clear
+      # El bundle Android no debe incluir módulos exclusivos del navegador.
+      # Source maps sólo para auditoría local de CI; nunca se distribuyen.
+      - run: node scripts/check-web-excluded-from-android-bundle.mjs dist-ci-android
       - run: npx expo export --platform ios --output-dir dist-ci-ios --clear
       # Smoke de compilación web sin credenciales reales, red ni despliegue.
       # Las pruebas de sesión/RLS requieren un entorno de revisión aislado.
