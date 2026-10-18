@@ -206,33 +206,33 @@ export function buildStaffExamWorkbookBytes(rows: StaffExamReportRow[], startDat
   const files: Record<string, Uint8Array> = {
     '[Content_Types].xml': strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-  <Default Extension="xml" ContentType="application/xml"/>
-  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
-  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
-  ${sheetNames.map((_, n) => `<Override PartName="/xl/worksheets/sheet${n + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"${XML_SELF_CLOSE}
+  <Default Extension="xml" ContentType="application/xml"${XML_SELF_CLOSE}
+  <Override PartName="${packagePartName('xl/workbook.xml')}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"${XML_SELF_CLOSE}
+  <Override PartName="${packagePartName('xl/styles.xml')}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"${XML_SELF_CLOSE}
+  ${sheetNames.map((_, n) => `<Override PartName="${packagePartName(`xl/worksheets/sheet${n + 1}.xml`)}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"${XML_SELF_CLOSE}`).join('')}
 </Types>`),
     '_rels/.rels': strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"${XML_SELF_CLOSE}
 </Relationships>`),
     'xl/workbook.xml': strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
- <sheets>${sheetNames.map((n, i) => `<sheet name="${n}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets>
+ <sheets>${sheetNames.map((n, i) => `<sheet name="${n}" sheetId="${i + 1}" r:id="rId${i + 1}"${XML_SELF_CLOSE}`).join('')}</sheets>
 </workbook>`),
     'xl/_rels/workbook.xml.rels': strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  ${sheetNames.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}
-  <Relationship Id="rId${sheetNames.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+  ${sheetNames.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"${XML_SELF_CLOSE}`).join('')}
+  <Relationship Id="rId${sheetNames.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"${XML_SELF_CLOSE}
 </Relationships>`),
     'xl/styles.xml': strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>
-  <fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>
-  <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
-  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-  <cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
-  <xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs>
+  <fonts count="2"><font><sz val="11"${XML_SELF_CLOSE}<name val="Calibri"${XML_SELF_CLOSE}</font><font><b${XML_SELF_CLOSE}<sz val="11"${XML_SELF_CLOSE}<name val="Calibri"${XML_SELF_CLOSE}</font></fonts>
+  <fills count="2"><fill><patternFill patternType="none"${XML_SELF_CLOSE}</fill><fill><patternFill patternType="gray125"${XML_SELF_CLOSE}</fill></fills>
+  <borders count="1"><border><left${XML_SELF_CLOSE}<right${XML_SELF_CLOSE}<top${XML_SELF_CLOSE}<bottom${XML_SELF_CLOSE}<diagonal${XML_SELF_CLOSE}</border></borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"${XML_SELF_CLOSE}</cellStyleXfs>
+  <cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"${XML_SELF_CLOSE}
+  <xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"${XML_SELF_CLOSE}</cellXfs>
 </styleSheet>`),
   };
   for (let i = 0; i < sheets.length; i += 1) {
