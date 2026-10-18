@@ -130,10 +130,11 @@ begin
   end if;
 end $$;
 
+-- Simulate the existing authorized attendance service as DB owner,
+-- not direct table INSERT from arbitrary authenticated clients.
 -- A date already in historical ledger cannot be added again as ordinary QR.
-set role authenticated;
-select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
-do $$
+reset role;
+do $
 declare
   v_enrollment uuid;
   rejected boolean := false;
