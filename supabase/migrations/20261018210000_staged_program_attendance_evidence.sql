@@ -83,6 +83,7 @@ declare
   v_dates date[] := coalesce(p_known_dates,array[]::date[]);
   v_unique_count integer;
   v_missing integer;
+  v_previous_history jsonb;
   v_today date := (clock_timestamp() at time zone 'America/Mexico_City')::date;
 begin
   if v_actor is null or not public.is_ucapsa_admin() then
@@ -174,6 +175,15 @@ begin
   if v_stage.id is null then
     raise exception 'La inscripción ya está vinculada.' using errcode='55000';
   end if;
+  -- Conservar prueba exacta de la versión anterior antes de corregirla.
+  select coalesce(jsonb_agg(
+    jsonb_build_object(
+      'id',h.id,'kind',h.evidence_kind,'date',h.attendance_date,
+      'quantity',h.quantity,'actor',h.recorded_by,'recorded_at',h.recorded_at,
+      'note',h.source_note
+    ) order by h.recorded_at,h.id
+  ),'[]'::jsonb) into v_previous_history
+  from ucapsa_intake.attendance_evidence h where h.intake_program_id=v_stage.id;
   delete from ucapsa_intake.attendance_evidence h where h.intake_program_id=v_stage.id;
 
   insert into ucapsa_intake.attendance_evidence (
@@ -192,9 +202,15 @@ begin
 
   insert into public.admin_audit_logs(admin_user_id,action,entity_type,entity_id,details)
   values(v_actor,'dog_preregistration.history_set','intake_program',v_stage.id,
-    jsonb_build_object('program_code',v_program.code,'known_dates',v_unique_count,
-                       'undated_balance',v_missing,'total',p_total_attendances,
-                       'card_attested',v_card is not null));
+    jsonb_build_object(
+      'program_code',v_program.code,
+      'before_evidence',coalesce(v_previous_history,'[]'::jsonb),
+      'after_known_dates',to_jsonb(v_dates),
+      'after_undated_balance',v_missing,
+      'after_total',p_total_attendances,
+      'source_note',nullif(btrim(p_note),''),
+      'card_number_changed',v_card is not null
+    ));
   return v_stage.id;
 end;
 $fn$;
