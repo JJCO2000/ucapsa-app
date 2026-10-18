@@ -357,7 +357,8 @@ export async function getMyCustomerValueSnapshot(): Promise<CustomerValueSnapsho
 
   const warnings: string[] = [];
   for (const item of programs) {
-    if (item.enrollment.attendances_count !== item.attendances.length) {
+    // El contador incluye asistencias con fecha y saldo reconocido sin fecha.
+    if (item.enrollment.attendances_count < item.attendances.length) {
       warnings.push(`attendance_cache_mismatch:${item.enrollment.id}`);
     }
     if (
