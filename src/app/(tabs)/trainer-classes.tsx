@@ -10,12 +10,14 @@ import { getStaffIntroAgendaPlans, type StaffIntroVisit } from '../../services/i
 import { useSession } from '../../hooks/useSession';
 import {
   getStaffClassRoster,
+  getStaffClassSummary,
   localDateKey,
   markStaffAbsence,
   registerStaffAttendance,
   requestMembershipReviewFromStaff,
   tomorrowKey,
   type StaffRosterRow,
+  type StaffClassSummaryRow,
 } from '../../services/trainer-staff.service';
 
 type RosterGroup = {
@@ -38,8 +40,21 @@ function responseLabel(value: StaffRosterRow['rsvpResponse']) {
   return 'Sin responder';
 }
 
-function groupRoster(rows: StaffRosterRow[]) {
+function groupRoster(rows: StaffRosterRow[], officialSchedules: StaffClassSummaryRow[]) {
   const groups = new Map<string, RosterGroup>();
+  // El calendario oficial es la fuente para la existencia de clases.
+  for (const schedule of officialSchedules) {
+    const key = `${schedule.scheduleId}:${schedule.programCode}:${schedule.startTime}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        scheduleId: schedule.scheduleId,
+        programCode: schedule.programCode,
+        scheduleName: schedule.scheduleName,
+        startTime: schedule.startTime,
+        rows: [],
+      });
+    }
+  }
   for (const row of rows) {
     const key = `${row.scheduleId}:${row.programCode}:${row.startTime}`;
     const existing = groups.get(key);
@@ -69,6 +84,7 @@ export default function TrainerClassesTab() {
   const [expandedScheduleId, setExpandedScheduleId] = useState<string | null>(routeScheduleId || null);
   const loadRunRef = useRef(0);
   const [rows, setRows] = useState<StaffRosterRow[]>([]);
+  const [officialSchedules, setOfficialSchedules] = useState<StaffClassSummaryRow[]>([]);
   const [introVisits, setIntroVisits] = useState<StaffIntroVisit[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -77,9 +93,9 @@ export default function TrainerClassesTab() {
   const [introWarning, setIntroWarning] = useState<string | null>(null);
 
   const groups = useMemo(() => {
-    const all = groupRoster(rows);
+    const all = groupRoster(rows, officialSchedules);
     return focusedScheduleId ? all.filter((item) => item.scheduleId === focusedScheduleId) : all;
-  }, [focusedScheduleId, rows]);
+  }, [focusedScheduleId, rows, officialSchedules]);
 
   const load = useCallback(async () => {
     if (!capabilities.canUseTrainingWorkspace) return;
@@ -88,8 +104,9 @@ export default function TrainerClassesTab() {
     setIntroWarning(null);
     try {
       // La sección opcional de visitas no debe bloquear el roster oficial.
-      const [roster, visits] = await Promise.allSettled([
+      const [roster, scheduleSummary, visits] = await Promise.allSettled([
         getStaffClassRoster(dateKey),
+        getStaffClassSummary(dateKey),
         getStaffIntroAgendaPlans(dateKey),
       ]);
       if (runId === loadRunRef.current) {
@@ -98,6 +115,12 @@ export default function TrainerClassesTab() {
         } else {
           setRows([]);
           setError('No pudimos verificar el roster oficial. Reintenta antes de registrar asistencias.');
+        }
+        if (scheduleSummary.status === 'fulfilled') {
+          setOfficialSchedules(scheduleSummary.value);
+        } else {
+          setOfficialSchedules([]);
+          setError('No pudimos verificar los horarios oficiales. Reintenta antes de registrar asistencias.');
         }
         if (visits.status === 'fulfilled') {
           setIntroVisits(visits.value);
@@ -134,6 +157,7 @@ export default function TrainerClassesTab() {
     setFocusedScheduleId('');
     setExpandedScheduleId(null);
     setRows([]);
+    setOfficialSchedules([]);
     setIntroVisits([]);
     setDateKey(nextDate);
   }
@@ -323,6 +347,9 @@ export default function TrainerClassesTab() {
                 <MaterialIcons name={expandedScheduleId === group.scheduleId ? 'expand-less' : 'expand-more'} size={24} color={ucapsaBrand.colors.muted} />
               </Pressable>
 
+              {expandedScheduleId === group.scheduleId && group.rows.length === 0 ? (
+                <Text style={styles.emptyScheduleText}>Sin alumnos inscritos en este horario.</Text>
+              ) : null}
               {expandedScheduleId === group.scheduleId ? group.rows.map((row) => {
                 const busy = busyId === row.enrollmentId || busyId === row.userId;
                 return (
@@ -403,6 +430,7 @@ export default function TrainerClassesTab() {
 }
 
 const styles = StyleSheet.create({
+  emptyScheduleText: { paddingHorizontal: 16, paddingVertical: 14, color: ucapsaBrand.colors.muted, fontSize: 13, fontWeight: '700' },
   introCard: { borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 14, marginBottom: 14, backgroundColor: ucapsaBrand.colors.surface, gap: 9 },
   introTitle: { fontSize: 16, fontWeight: '900', color: ucapsaBrand.colors.text },
   introHint: { fontSize: 12, lineHeight: 18, color: ucapsaBrand.colors.muted, fontWeight: '700' },
