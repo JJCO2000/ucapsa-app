@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -38,12 +38,19 @@ export default function StaffTrainingReportScreen() {
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [historyVisible, setHistoryVisible] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+
+  function showReportError(title: string, message: string) {
+    if (Platform.OS === 'web') setReportError(`${title}: ${message}`);
+    else Alert.alert(title, message);
+  }
 
   if (!capabilities.canUseTrainingWorkspace) return <Redirect href={isAdmin ? '/admin-home' : '/home'} />;
 
   async function loadRows() {
+    setReportError(null);
     if (endDate < startDate) {
-      Alert.alert('Rango inválido', 'La fecha final debe ser igual o posterior a la inicial.');
+      showReportError('Rango inválido', 'La fecha final debe ser igual o posterior a la inicial.');
       return null;
     }
     try {
@@ -53,7 +60,7 @@ export default function StaffTrainingReportScreen() {
       setPreviewed(true);
       return next;
     } catch (cause) {
-      Alert.alert('No se pudo generar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+      showReportError('No se pudo generar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
       return null;
     } finally {
       setGenerating(false);
@@ -70,7 +77,7 @@ export default function StaffTrainingReportScreen() {
       setHistoryRows(recorded);
       setHistoryLoaded(true);
     } catch (cause) {
-      Alert.alert('No se pudo exportar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+      showReportError('No se pudo exportar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     } finally {
       setGenerating(false);
     }
@@ -79,7 +86,7 @@ export default function StaffTrainingReportScreen() {
   async function openRecordedHistory() {
     if (historyVisible) { setHistoryVisible(false); return; }
     if (endDate < startDate) {
-      Alert.alert('Rango inválido', 'La fecha final debe ser igual o posterior a la inicial.');
+      showReportError('Rango inválido', 'La fecha final debe ser igual o posterior a la inicial.');
       return;
     }
     if (historyLoaded) { setHistoryVisible(true); return; }
@@ -90,7 +97,7 @@ export default function StaffTrainingReportScreen() {
       setHistoryLoaded(true);
       setHistoryVisible(true);
     } catch (cause) {
-      Alert.alert('No se pudo consultar el historial', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+      showReportError('No se pudo consultar el historial', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     } finally {
       setHistoryLoading(false);
     }
@@ -136,6 +143,7 @@ export default function StaffTrainingReportScreen() {
         </View>
       </View>
 
+      {reportError ? <Text accessibilityRole="alert" style={styles.webError}>{reportError}</Text> : null}
       <View style={styles.presets}>
         <Pressable style={styles.presetButton} onPress={setCurrentMonth}>
           <MaterialIcons name="calendar-month" size={18} color={ucapsaBrand.colors.redDark} />
@@ -292,6 +300,7 @@ function Summary({ value, label }: { value: number | string; label: string }) {
 }
 
 const styles = StyleSheet.create({
+  webError: { marginBottom: 12, color: ucapsaBrand.colors.danger, fontSize: 14, fontWeight: '700' },
   historyToggle: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.borderNeutral, backgroundColor: ucapsaBrand.colors.blueSoft, minHeight: 75, padding: 12, marginBottom: 12 },
   historyToggleTitle: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
   historyToggleHint: { color: ucapsaBrand.colors.muted, fontSize: 10, fontWeight: '700', marginTop: 3 },
