@@ -62,7 +62,7 @@ export async function getAdminClientProfiles(): Promise<Profile[]> {
 export async function setStaffRoleSuperAdmin(
   userId: string,
   role: Extract<AppRole, 'client' | 'member' | 'trainer' | 'admin'>,
-): Promise<Extract<AppRole, 'client' | 'trainer' | 'admin'>> {
+): Promise<Extract<AppRole, 'client' | 'member' | 'trainer' | 'admin'>> {
   const cleanUserId = userId.trim();
   if (!cleanUserId) throw new Error('Falta el usuario.');
 
