@@ -346,3 +346,26 @@ end;
 $fn$;
 
 
+
+
+-- Consulta auditable para Administración. No permite modificar hechos históricos.
+create or replace function public.admin_get_program_historical_evidence(p_enrollment_id uuid)
+returns table (
+  evidence_id uuid,
+  attendance_date date,
+  quantity integer,
+  evidence_kind text,
+  source_note text,
+  recorded_at timestamptz
+)
+language sql stable security definer set search_path=''
+as $fn$
+  select h.id,h.attendance_date,h.quantity,h.evidence_kind,h.source_note,h.recorded_at
+  from public.program_attendance_historical_evidence h
+  where h.enrollment_id=p_enrollment_id
+    and auth.uid() is not null
+    and public.is_ucapsa_admin()
+  order by h.attendance_date desc nulls last,h.id
+$fn$;
+revoke all on function public.admin_get_program_historical_evidence(uuid) from public,anon;
+grant execute on function public.admin_get_program_historical_evidence(uuid) to authenticated,service_role;
