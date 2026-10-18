@@ -32,9 +32,12 @@ jobs:
       # Source maps sólo para auditoría local de CI; nunca se distribuyen.
       - run: node scripts/check-web-excluded-from-android-bundle.mjs dist-ci-android
       - run: npx expo export --platform ios --output-dir dist-ci-ios --clear
-      # Smoke de compilación web sin credenciales reales, red ni despliegue.
-      # Las pruebas de sesión/RLS requieren un entorno de revisión aislado.
+      # Build exacto de la demo de Codespaces: sin acceso a datos ni login.
+      # No se publica ni se abre un Codespace al ejecutar esta comprobación.
       - run: npx expo export --platform web --output-dir dist-ci-web --clear
         env:
           EXPO_PUBLIC_SUPABASE_URL: https://ci-web-export.invalid
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ci-only-no-access-key
+          EXPO_PUBLIC_UCAPSA_CODESPACES_DEMO: 'true'
+          EXPO_PUBLIC_UCAPSA_REVIEW_BUILD: 'true'
+      - run: node scripts/check-github-demo-bundle.mjs dist-ci-web
