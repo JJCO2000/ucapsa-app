@@ -94,8 +94,8 @@ begin
   if coalesce(array_length(v_dates,1),0)>500 then
     raise exception 'Demasiadas fechas.' using errcode='22023';
   end if;
-  select count(distinct d) into v_unique_count from unnest(v_dates) d;
-  if exists (select 1 from unnest(v_dates) d where d is null or d>v_today) or
+  select count(distinct dt) into v_unique_count from unnest(v_dates) as dates(dt);
+  if exists (select 1 from unnest(v_dates) as dates(dt) where dt is null or dt>v_today) or
      v_unique_count <> coalesce(array_length(v_dates,1),0) then
     raise exception 'Las fechas deben ser reales, únicas y no futuras.' using errcode='22023';
   end if;
@@ -203,3 +203,39 @@ revoke all on function public.admin_save_preregistered_program_history(
  uuid,text,text,text,date,integer,date[],text) from public,anon;
 grant execute on function public.admin_save_preregistered_program_history(
  uuid,text,text,text,date,integer,date[],text) to authenticated,service_role;
+
+-- Inscripción provisional y perro se crean en una sola transacción.
+-- Si la tarjeta o el histórico falla, tampoco se crea una ficha huérfana.
+create or replace function public.admin_preregister_dog_with_program(
+  p_owner_name text,
+  p_owner_email text,
+  p_owner_phone text,
+  p_dog_name text,
+  p_program_code text,
+  p_program_level text,
+  p_card_number text,
+  p_card_started_on date,
+  p_total_attendances integer,
+  p_known_dates date[],
+  p_note text default null
+) returns uuid
+language plpgsql security definer set search_path=''
+as $fn$
+declare
+  v_dog uuid;
+begin
+  if auth.uid() is null or not public.is_ucapsa_admin() then
+    raise exception 'Solo Admin o Superadmin puede registrar.' using errcode='42501';
+  end if;
+  v_dog:=public.admin_preregister_dog(p_owner_name,p_owner_email,p_owner_phone,p_dog_name);
+  perform public.admin_save_preregistered_program_history(
+    v_dog,p_program_code,p_program_level,p_card_number,p_card_started_on,
+    p_total_attendances,p_known_dates,p_note
+  );
+  return v_dog;
+end;
+$fn$;
+revoke all on function public.admin_preregister_dog_with_program(
+ text,text,text,text,text,text,text,date,integer,date[],text) from public,anon;
+grant execute on function public.admin_preregister_dog_with_program(
+ text,text,text,text,text,text,text,date,integer,date[],text) to authenticated,service_role;
