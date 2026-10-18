@@ -10,12 +10,15 @@ import { getStaffIntroAgendaPlans, type StaffIntroVisit } from '../../services/i
 import { useSession } from '../../hooks/useSession';
 import {
   getStaffClassRoster,
+  getStaffPreregisteredRoster,
   localDateKey,
   markStaffAbsence,
   registerStaffAttendance,
+  registerStaffPreregisteredAttendance,
   requestMembershipReviewFromStaff,
   tomorrowKey,
   type StaffRosterRow,
+  type StaffPreregisteredRosterRow,
 } from '../../services/trainer-staff.service';
 
 type RosterGroup = {
@@ -70,6 +73,8 @@ export default function TrainerClassesTab() {
   const loadRunRef = useRef(0);
   const [rows, setRows] = useState<StaffRosterRow[]>([]);
   const [introVisits, setIntroVisits] = useState<StaffIntroVisit[]>([]);
+  const [stagedRows, setStagedRows] = useState<StaffPreregisteredRosterRow[]>([]);
+  const [stagedWarning, setStagedWarning] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -86,11 +91,13 @@ export default function TrainerClassesTab() {
     const runId = ++loadRunRef.current;
     setError(null);
     setIntroWarning(null);
+    setStagedWarning(null);
     try {
       // La sección opcional de visitas no debe bloquear el roster oficial.
-      const [roster, visits] = await Promise.allSettled([
+      const [roster, visits, pendingRoster] = await Promise.allSettled([
         getStaffClassRoster(dateKey),
         getStaffIntroAgendaPlans(dateKey),
+        getStaffPreregisteredRoster(dateKey),
       ]);
       if (runId === loadRunRef.current) {
         if (roster.status === 'fulfilled') {
@@ -98,6 +105,12 @@ export default function TrainerClassesTab() {
         } else {
           setRows([]);
           setError('No pudimos verificar el roster oficial. Reintenta antes de registrar asistencias.');
+        }
+        if (pendingRoster.status === 'fulfilled') {
+          setStagedRows(pendingRoster.value);
+        } else {
+          setStagedRows([]);
+          setStagedWarning('No pudimos consultar las preinscripciones. La lista puede estar incompleta.');
         }
         if (visits.status === 'fulfilled') {
           setIntroVisits(visits.value);
@@ -135,6 +148,7 @@ export default function TrainerClassesTab() {
     setExpandedScheduleId(null);
     setRows([]);
     setIntroVisits([]);
+    setStagedRows([]);
     setDateKey(nextDate);
   }
 
@@ -158,6 +172,33 @@ export default function TrainerClassesTab() {
               await load();
             } catch (cause) {
               Alert.alert('No se pudo registrar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+            } finally {
+              setBusyId(null);
+            }
+          },
+        },
+      ],
+    );
+  }
+
+  function markStagedAttendance(row: StaffPreregisteredRosterRow) {
+    if (row.attended || busyId || row.cardStatus !== 'valid') return;
+    Alert.alert('Registrar asistencia provisional',
+      `¿Confirmas que ${row.dogName} asistió hoy? El registro conservará la fecha real y se vinculará cuando el dueño active su cuenta.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Registrar',
+          onPress: async () => {
+            try {
+              setBusyId(row.intakeProgramId);
+              await registerStaffPreregisteredAttendance({
+                intakeProgramId: row.intakeProgramId, attendanceDate: dateKey,
+              });
+              await load();
+            } catch (cause) {
+              Alert.alert('No se pudo registrar',
+                cause instanceof Error ? cause.message : 'Consulta a Administración.');
             } finally {
               setBusyId(null);
             }
@@ -273,12 +314,17 @@ export default function TrainerClassesTab() {
         <View style={styles.errorCard}><MaterialIcons name="cloud-off" size={20} color={ucapsaBrand.colors.danger} /><Text style={styles.errorText}>{error}</Text></View>
       ) : null}
 
+      {stagedWarning && !loading ? <View style={styles.errorCard}>
+        <MaterialIcons name="warning-amber" size={20} color={ucapsaBrand.colors.danger}/>
+        <Text style={styles.errorText}>{stagedWarning}</Text>
+      </View> : null}
+
       {introWarning && !loading ? <View style={styles.errorCard}>
         <MaterialIcons name="warning-amber" size={20} color={ucapsaBrand.colors.danger} />
         <Text style={styles.errorText}>{introWarning}</Text>
       </View> : null}
 
-      {!loading && !error && !introWarning && groups.length === 0 && introVisits.length === 0 ? (
+      {!loading && !error && !introWarning && !stagedWarning && groups.length === 0 && introVisits.length === 0 && stagedRows.length === 0 ? (
         <View style={styles.emptyCard}><MaterialIcons name="event-busy" size={27} color={ucapsaBrand.colors.muted} /><Text style={styles.emptyTitle}>No hay clases para esta fecha</Text></View>
       ) : null}
 
@@ -297,6 +343,50 @@ export default function TrainerClassesTab() {
               </View>
             </View>
           ))}
+        </View>
+      ) : null}
+
+      {!loading && !stagedWarning && stagedRows.some((r) =>
+        !focusedScheduleId || r.scheduleId === focusedScheduleId) ? (
+        <View style={styles.introCard}>
+          <Text style={styles.introTitle}>Perros preinscritos sin cuenta</Text>
+          <Text style={styles.introHint}>
+            Tienen expediente provisional. Una tarjeta con vigencia desconocida requiere revisión de Administración.
+          </Text>
+          {stagedRows.filter((r) => !focusedScheduleId || r.scheduleId === focusedScheduleId)
+            .map((row) => {
+              const busy = busyId === row.intakeProgramId;
+              const valid = row.cardStatus === 'valid';
+              const status = row.cardStatus === 'no_card' ? 'Sin tarjeta asociada'
+                : row.cardStatus === 'missing_start' ? 'Falta verificar inicio de tarjeta'
+                : row.cardStatus === 'expired' ? 'Tarjeta vencida'
+                : row.cardStatus === 'not_started' ? 'Tarjeta aún no vigente' : 'Tarjeta vigente';
+              return (
+                <View key={row.intakeProgramId} style={styles.introRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.introName}>{row.dogName} · {row.ownerName}</Text>
+                    <Text style={styles.introHint}>
+                      {row.programCode === 'puppy' ? 'Puppy' : 'Comandos'} · {row.startTime}
+                      {row.programCode === 'comandos' ? ` · ${levelLabel(row.programLevel)}` : ''}
+                      {' · '}{status}
+                    </Text>
+                    <Text style={styles.introHint}>{row.totalAttendances} asistencias reconocidas</Text>
+                  </View>
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={!canMarkAttendance || !valid || row.attended || busy}
+                    onPress={() => markStagedAttendance(row)}
+                    style={[styles.attendanceButton,
+                      row.attended && styles.attendanceDone,
+                      (!canMarkAttendance || !valid || row.attended || busy) && styles.disabled]}
+                  >
+                    <Text style={[styles.attendanceText,row.attended && styles.attendanceTextDone]}>
+                      {row.attended ? 'Asistió' : 'Asistió'}
+                    </Text>
+                  </Pressable>
+                </View>
+              );
+            })}
         </View>
       ) : null}
 
