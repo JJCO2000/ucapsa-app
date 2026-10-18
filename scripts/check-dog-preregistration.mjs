@@ -13,6 +13,7 @@ const adminClient = read('src/app/admin/customer.tsx');
 const clientSummary = read('src/services/customer-value.service.ts');
 const list = read('src/app/admin/users.tsx');
 const session = read('src/hooks/useSession.tsx');
+const home = read('src/screens/home/HomeExperienceScreen.tsx');
 const types = read('src/types/database.generated.ts');
 
 assert.equal((s1.match(/create table if not exists ucapsa_intake\.people/g)||[]).length,1,
@@ -110,6 +111,12 @@ assert.ok(list.includes("'/admin/preregister-dog'"));
 assert.ok(service.includes("supabase.rpc('admin_preregister_dog_with_program'"));
 assert.ok(service.includes("supabase.rpc('claim_my_preregistered_dogs'"));
 assert.ok(session.includes('claimMyPreregisteredDogs()'));
+assert.ok(session.includes('setPreregistrationSyncVersion((version) => version + 1)'));
+assert.ok(home.includes('[load, preregistrationSyncVersion]'));
+assert.ok(home.includes('[isStaff, user, preregistrationSyncVersion]'));
+assert.ok(s1.includes('lower(btrim(v_person.owner_name)) <> lower(v_owner)'));
+assert.ok(s1.includes('select 1 from auth.users u where'));
+
 assert.ok(session.includes('isOfflineFallback || usingCachedProfile'));
 assert.ok(clientSummary.includes('item.enrollment.attendances_count'));
 assert.ok(adminClient.includes('recognizedAttendances'));
