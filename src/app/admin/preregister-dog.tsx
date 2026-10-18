@@ -6,7 +6,7 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
-import { adminPreregisterDog } from '../../services/dog-preregistration.service';
+import { adminPreregisterDogWithProgram } from '../../services/dog-preregistration.service';
 
 export default function AdminPreregisterDogScreen() {
   const { isAdmin } = useSession();
@@ -14,6 +14,14 @@ export default function AdminPreregisterDogScreen() {
   const [ownerEmail, setOwnerEmail] = useState('');
   const [ownerPhone, setOwnerPhone] = useState('');
   const [dogName, setDogName] = useState('');
+  const [programCode, setProgramCode] = useState<'puppy'|'comandos'>('puppy');
+  const [level, setLevel] = useState<'principiante'|'medio'|'avanzado'>('principiante');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardStartedOn, setCardStartedOn] = useState('');
+  const [totalAttendances, setTotalAttendances] = useState('0');
+  const [includeDates, setIncludeDates] = useState(false);
+  const [datesText, setDatesText] = useState('');
+  const [sourceNote, setSourceNote] = useState('');
   const [saving, setSaving] = useState(false);
 
   async function save() {
@@ -24,7 +32,29 @@ export default function AdminPreregisterDogScreen() {
     }
     try {
       setSaving(true);
-      await adminPreregisterDog({ ownerName, ownerEmail, ownerPhone, dogName });
+      const count = Number(totalAttendances.trim());
+      const dates = includeDates ? datesText.split(/[\n,;]+/).map((d) => d.trim()).filter(Boolean) : [];
+      if (!Number.isSafeInteger(count) || count < 0 || count > 500) {
+        throw new Error('Indica un número de asistencias válido (0 a 500).');
+      }
+      if (dates.some((d) => !/^\d{4}-\d{2}-\d{2}$/.test(d))) {
+        throw new Error('Las fechas deben usar AAAA-MM-DD.');
+      }
+      if (new Set(dates).size !== dates.length || dates.length > count) {
+        throw new Error('No repitas fechas ni superes el total de asistencias.');
+      }
+      if (programCode === 'puppy' && !cardNumber.trim()) {
+        throw new Error('Indica la tarjeta física Puppy.');
+      }
+      if (cardStartedOn.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(cardStartedOn.trim())) {
+        throw new Error('El inicio de tarjeta debe usar AAAA-MM-DD.');
+      }
+      await adminPreregisterDogWithProgram({
+        ownerName, ownerEmail, ownerPhone, dogName,
+        programCode, programLevel: programCode === 'puppy' ? 'base' : level,
+        physicalCardNumber: cardNumber, cardStartedOn: cardStartedOn.trim() || null,
+        totalAttendances: count, knownAttendanceDates: dates, sourceNote,
+      });
       Alert.alert('Perro preinscrito',
         'Cuando el dueño se registre y verifique un contacto coincidente, el expediente se vinculará automáticamente si no hay conflictos.',
         [{ text: 'Listo', onPress: () => router.back() }]);
@@ -36,6 +66,10 @@ export default function AdminPreregisterDogScreen() {
     }
   }
 
+  const knownCount = includeDates
+    ? datesText.split(/[\n,;]+/).filter((value) => value.trim()).length
+    : 0;
+  const unknownCount = Math.max(0, Number(totalAttendances || 0) - knownCount);
   if (!isAdmin) return <Redirect href="/home" />;
 
   return (
@@ -73,6 +107,63 @@ export default function AdminPreregisterDogScreen() {
         <TextInput style={styles.input} value={dogName} onChangeText={setDogName}
           autoCapitalize="words" maxLength={80} placeholder="Nombre del perro"
           placeholderTextColor={ucapsaBrand.colors.muted} />
+
+        <Text style={styles.label}>Programa</Text>
+        <View style={styles.choiceRow}>
+          {(['puppy','comandos'] as const).map((program) => (
+            <Pressable key={program} accessibilityRole="button"
+              style={[styles.choice, programCode === program && styles.choiceActive]}
+              onPress={() => setProgramCode(program)}>
+              <Text style={[styles.choiceText, programCode === program && styles.choiceTextActive]}>
+                {program === 'puppy' ? 'Puppy' : 'Comandos'}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        {programCode === 'comandos' ? (
+          <>
+            <Text style={styles.label}>Nivel Comandos</Text>
+            <View style={styles.choiceRow}>
+              {([['principiante','Básico'],['medio','Intermedio'],['avanzado','Avanzado']] as const).map(([value,label]) => (
+                <Pressable key={value} accessibilityRole="button"
+                  style={[styles.choice, level === value && styles.choiceActive]} onPress={() => setLevel(value)}>
+                  <Text style={[styles.choiceText, level === value && styles.choiceTextActive]}>{label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        ) : null}
+        <Text style={styles.label}>Tarjeta física {programCode === 'puppy' ? '(obligatoria, ya pagada)' : '(si aplica)'}</Text>
+        <TextInput style={styles.input} value={cardNumber} onChangeText={setCardNumber}
+          maxLength={80} placeholder="Ej. P-0142" placeholderTextColor={ucapsaBrand.colors.muted} />
+        <Text style={styles.label}>Inicio de tarjeta (solo si se conoce)</Text>
+        <TextInput style={styles.input} value={cardStartedOn} onChangeText={setCardStartedOn}
+          maxLength={10} placeholder="AAAA-MM-DD" placeholderTextColor={ucapsaBrand.colors.muted} />
+        <Text style={styles.helper}>No se inventa fecha de vigencia ni se registra otro cobro.</Text>
+        <Text style={styles.label}>Asistencias históricas totales</Text>
+        <TextInput style={styles.input} value={totalAttendances} onChangeText={setTotalAttendances}
+          maxLength={3} keyboardType="number-pad" placeholder="2" placeholderTextColor={ucapsaBrand.colors.muted} />
+        <Pressable style={styles.choiceLine} accessibilityRole="button"
+          onPress={() => setIncludeDates((value) => !value)}>
+          <MaterialIcons name={includeDates ? 'check-box' : 'check-box-outline-blank'}
+            size={22} color={ucapsaBrand.colors.redDark} />
+          <Text style={styles.choiceText}>Conozco algunas o todas las fechas</Text>
+        </Pressable>
+        {includeDates ? (
+          <>
+            <Text style={styles.label}>Fechas reales (una por línea o separadas por coma)</Text>
+            <TextInput multiline numberOfLines={3} style={[styles.input,styles.multiline]}
+              value={datesText} onChangeText={setDatesText}
+              placeholder={'2026-10-04\n2026-10-11'} placeholderTextColor={ucapsaBrand.colors.muted} />
+          </>
+        ) : null}
+        <Text style={styles.helper}>
+          {unknownCount} asistencias quedan sin fecha conocida, conservando el total.
+        </Text>
+        <Text style={styles.label}>Origen o comentario (opcional)</Text>
+        <TextInput style={styles.input} value={sourceNote} onChangeText={setSourceNote}
+          maxLength={240} placeholder="Ej. Historial de tarjeta física revisada"
+          placeholderTextColor={ucapsaBrand.colors.muted} />
       </View>
 
       <Pressable style={[styles.saveButton, saving && styles.disabled]} disabled={saving}
@@ -82,7 +173,7 @@ export default function AdminPreregisterDogScreen() {
         <Text style={styles.saveText}>{saving ? 'Guardando…' : 'Guardar preinscripción'}</Text>
       </Pressable>
       <Text style={styles.footer}>
-        No activa membresías, inscripciones, pagos ni asistencias. Las coincidencias dudosas no se vinculan automáticamente.
+        Guarda preinscripción y evidencia histórica. Las inscripciones definitivas se vinculan tras verificar la cuenta; no se generan pagos ficticios.
       </Text>
     </KeyboardAwareScreen>
   );
@@ -101,5 +192,12 @@ const styles = StyleSheet.create({
   saveButton: { minHeight: 49, backgroundColor: ucapsaBrand.colors.greenDark, borderRadius: 14, justifyContent: 'center', alignItems: 'center', flexDirection: 'row', gap: 9 },
   saveText: { fontWeight: '900', color: ucapsaBrand.colors.surface, fontSize: 14 },
   footer: { color: ucapsaBrand.colors.muted, lineHeight: 17, fontSize: 11, marginTop: 12 },
+  choiceRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+  choice: { borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9 },
+  choiceActive: { backgroundColor: ucapsaBrand.colors.redDark, borderColor: ucapsaBrand.colors.redDark },
+  choiceText: { color: ucapsaBrand.colors.text, fontWeight: '800', fontSize: 12 },
+  choiceTextActive: { color: ucapsaBrand.colors.surface },
+  choiceLine: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10 },
+  multiline: { height: 84, textAlignVertical: 'top' },
   disabled: { opacity: 0.65 },
 });
