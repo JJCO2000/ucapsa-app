@@ -91,6 +91,24 @@ reset role;
 -- Simulate verified email AFTER preregistration. No external provider calls.
 update auth.users set email='later@test.invalid',email_confirmed_at=now()
 where id='00000000-0000-4000-8000-000000000002';
+-- Artificial duplicate verified contact, which real Auth uniqueness normally
+-- prevents: the RPC must independently reject it on the server.
+update auth.users set email='later@test.invalid',email_confirmed_at=now()
+where id='00000000-0000-4000-8000-000000000003';
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',false);
+do $check_shared$
+declare result jsonb;
+begin
+  result:=public.claim_my_preregistered_dogs();
+  if result->>'status'<>'conflict' then
+    raise exception 'Shared verified contact bypassed collision guard: %',result;
+  end if;
+end
+$check_shared$;
+reset role;
+update auth.users set email='other@test.invalid',email_confirmed_at=null
+where id='00000000-0000-4000-8000-000000000003';
 set role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',false);
 do $$
