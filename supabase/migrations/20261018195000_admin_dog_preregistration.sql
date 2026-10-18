@@ -159,9 +159,6 @@ declare
   v_dog record;
   v_dog_id uuid;
   v_linked integer := 0;
-  v_linked_programs integer := 0;
-  v_stage ucapsa_intake.programs%rowtype;
-  v_enrollment_id uuid;
 begin
   if v_user is null then
     raise exception 'Debes iniciar sesión.' using errcode='42501';
@@ -232,52 +229,6 @@ begin
     returning id into v_dog_id;
     update ucapsa_intake.dogs set linked_dog_id=v_dog_id where id=v_dog.id;
 
-    -- Propaga tarjeta, nivel e historial, sin crear fechas ni pagos.
-    -- Los triggers existentes recalculan el progreso desde ambas fuentes.
-    for v_stage in
-      select st.* from ucapsa_intake.programs st
-      where st.dog_id=v_dog.id
-      order by st.program_id for update
-    loop
-      if v_stage.linked_enrollment_id is not null then
-        raise exception 'La tarjeta provisional ya está vinculada.'
-          using errcode='23505';
-      end if;
-      if not exists (
-        select 1 from public.program_schedules sch
-        where sch.id=v_stage.schedule_id and sch.program_id=v_stage.program_id
-      ) then
-        raise exception 'No se encontró el horario oficial original.'
-          using errcode='55000';
-      end if;
-      insert into public.program_enrollments(
-        user_id,program_id,schedule_id,dog_id,dog_name,
-        physical_card_number,program_level,access_mode,status,
-        started_at,card_started_on,intake_program_id
-      ) values (
-        v_user,v_stage.program_id,v_stage.schedule_id,v_dog_id,v_dog.dog_name,
-        v_stage.physical_card_number,v_stage.program_level,'card','active',
-        v_stage.card_started_on,v_stage.card_started_on,v_stage.id
-      ) returning id into v_enrollment_id;
-
-      update ucapsa_intake.programs
-      set linked_enrollment_id=v_enrollment_id where id=v_stage.id;
-
-      insert into public.program_attendance_historical_evidence (
-        enrollment_id,intake_evidence_id,evidence_kind,
-        attendance_date,quantity,recorded_by,recorded_at,source_note
-      )
-      select
-        v_enrollment_id,h.id,h.evidence_kind,
-        h.attendance_date,h.quantity,h.recorded_by,h.recorded_at,h.source_note
-      from ucapsa_intake.attendance_evidence h
-      where h.intake_program_id=v_stage.id;
-
-      -- Idempotencia: la fuente del balance mantiene un único ID histórico.
-      perform public.refresh_program_enrollment_progress(v_enrollment_id);
-      v_linked_programs:=v_linked_programs+1;
-    end loop;
-
     v_linked:=v_linked+1;
   end loop;
   update ucapsa_intake.people
@@ -286,8 +237,8 @@ begin
 
   insert into public.admin_audit_logs(admin_user_id,action,entity_type,entity_id,details)
   values(v_user,'dog_preregistration.claimed','dog_preregistration',v_person.id,
-    pg_catalog.jsonb_build_object('dogs',v_linked,'programs',v_linked_programs));
-  return pg_catalog.jsonb_build_object('status','linked','linked_dogs',v_linked,'linked_programs',v_linked_programs);
+    pg_catalog.jsonb_build_object('dogs',v_linked));
+  return pg_catalog.jsonb_build_object('status','linked','linked_dogs',v_linked);
 end;
 $fn$;
 
