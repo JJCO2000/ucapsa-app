@@ -20,12 +20,48 @@ Fecha: 18-10-2026. **Diseño para revisión: sin migraciones, no se han creado u
 - Canonical: una cuenta `auth.users.id` → una fila `profiles.user_id`; perros reales continúan en `dogs.id`. Los vínculos no deben crear nuevas identidades de Auth para filas importadas.
 - No crear fichas oficiales de perros antes de poder relacionarlas de forma segura con una identidad válida; las visitas/inscripciones de un provisional necesitan diseño independiente antes de ofrecerse en UI.
 
+## Vinculación automática aprobada: correo o teléfono
+
+La meta es **cero fusiones manuales en casos inequívocos**. Vincular registros provisionales a una cuenta Auth verificada es distinto de fusionar 2 cuentas de Auth ya existentes; esta última operación queda fuera de alcance y nunca es automática.
+
+### Algoritmo server-side
+1. Auth identifica un `user_id` canónico. La base consulta la verificación real de Auth, no `profiles.email` ni `user_metadata` enviados por el cliente.
+2. Normalizar el correo según política establecida (trim, dominio case-insensitive y política explícita del local-part). Para teléfonos usar E.164, país y validación de número; no cortar arbitrariamente a 10 dígitos.
+3. Buscar las personas provisionales no vinculadas que coincidan con **correo verificado O teléfono confirmado por OTP**; descartar candidatos ambiguos por duplicados entre perfiles, personas provisionales, cuentas Auth o contactos compartidos.
+4. Si ambos contactos están disponibles y apuntan a personas provisionales diferentes, **bloquear** y auditar conflicto. Si un contacto coincide, pero el otro está registrado en una identidad distinta/verificada o contradice la ficha, **bloquear**; no resolver por nombre.
+5. Si hay **exactamente una persona provisional** compatible y libre, enlazar su expediente y todos sus perros asociados a `auth.uid()` en **una sola transacción**, usando claves de vinculación únicas; no crear usuario Auth adicional ni crear un segundo perfil.
+6. Reintentos concurrentes con la misma identidad regresan la misma vinculación; si la persona ya está vinculada a otro `user_id`, no sobrescribirla. Registro de actor/motivo/contacto verificado y sin registrar tokens/OTP.
+7. Si no hay coincidencia, crear el usuario normalmente sin expediente histórico. Si existe conflicto, encolar revisión excepcional sin exposición de datos privados.
+
+### Matriz de decisión
+| Señal | Acción |
+| --- | --- |
+| Un solo correo confirmado coincide, ningún otro contacto contradice y no hay vínculos | Automático |
+| Un solo teléfono confirmado mediante OTP coincide, no se comparte, no hay correo contradictorio y no hay vínculos | Automático |
+| Correo y teléfono confirmados coinciden con la misma persona provisional | Automático |
+| Varios provisionales con mismo correo/teléfono | Consolidación de importación por clave de fuente solo cuando es inequívoca; de otro modo excepción |
+| Correo coincide con A y teléfono con B | Bloquear; nunca elegir al azar |
+| Solo nombre, perro del mismo nombre o teléfono sin OTP | No vincular automáticamente |
+| Dos cuentas Auth canónicas existentes | **Nunca fusionar automáticamente** |
+| Usuario o provisional ya vinculado a otro | Bloquear, auditar |
+| El número pasó a otro titular | Verificación reforzada/segundo factor; nunca asumir propiedad histórica |
+
+**Privacidad:** antes de enlazar, el cliente no puede leer el expediente provisional completo. La correspondencia debe ocurrir por servidor y su respuesta no debe exponer si existe una persona concreta.
+
+### Pruebas automáticas adicionales
+- Correo único verificado, teléfono único con OTP y dos contactos coincidentes: 3 enlaces deterministas.
+- Teléfono compartido, correo no verificado, contactos contradictorios, usuario ya vinculado, dos candidatos con mismo correo: 0 enlaces indebidos.
+- Mismo cliente con 3 filas Excel de 3 perros: 1 ficha provisional de persona y 3 perros, no 3 personas.
+- Cambio de correo/teléfono o revocación de verificación y reintento posterior: no reclamar datos de otra cuenta.
+- Concurrencia: transacción + índices únicos y auditoría sin cambios parciales. Testing pgTAP de ramas autorizadas y denegadas.
+- Comparar números agregados antes y después de cualquier despliegue (nunca modificar datos reales en una prueba).
+
 ## Flujo propuesto
 1. Superadmin añade persona/perros manualmente o importa Excel → **previsualización**, sin persistir todavía en Auth/profiles/dogs.
 2. Normalización de email (trim/lower), teléfono en formato coherente y nombres (sin inferir identidad), validación por fila y por lote.
-3. Reconciliación: coincidencia fuerte con identificador propio validado o correo realmente verificado → revisión de vínculo; coincidencia débil (nombres/teléfonos/perro llamado igual) **NO** fusiona automáticamente.
+3. Reconciliación automática: correo verificado o teléfono confirmado por OTP cuando la coincidencia sea única, sin contradicciones ni vínculos existentes; si hay múltiples coincidencias, se eleva únicamente el caso excepcional.
 4. Persistir importación con idempotency key de lote y clave de fila: reintentar la misma importación no genera registros adicionales. UNIQUE en BD protege concurrencia.
-5. El cliente crea/verifica su cuenta Auth. Un RPC privilegiado con comprobación en servidor valida posesión de cuenta, autorización del usuario/administración y vincula el provisional; crea `dogs` reales **dentro de una transacción** sin duplicados.
+5. El cliente crea/verifica su cuenta Auth. Un RPC servidor identifica automáticamente una persona provisional de forma inequívoca usando correo verificado o teléfono con OTP; la vincula y crea `dogs` reales **dentro de una transacción** con autorización y restricciones únicas. No hay botón de fusión manual para el caso normal.
 6. Mantener trazabilidad: actor, origen, momento, ID provisional y canónico, motivo de vinculación, resultados y, si procede, reversión supervisada sin eliminación destructiva del historial.
 
 ## Seguridad y privilegios
@@ -72,3 +108,6 @@ Fecha: 18-10-2026. **Diseño para revisión: sin migraciones, no se han creado u
 - PostgreSQL ON CONFLICT: https://www.postgresql.org/docs/current/sql-insert.html
 - Video tutorial avanzado Supabase RLS: https://www.youtube.com/watch?v=PdEutzhsrws
 - Ejemplo pruebas DB en GitHub: https://github.com/usebasejump/basejump/tree/main/supabase/tests/database
+
+- Supabase Phone Auth (riesgo de reciclaje de números): https://supabase.com/docs/guides/auth/passwords
+- OWASP Email Verification: https://cheatsheetseries.owasp.org/cheatsheets/Email_Validation_and_Verification_Cheat_Sheet.html
