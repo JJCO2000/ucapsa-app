@@ -328,4 +328,42 @@ end
 $history_guard$;
 reset role;
 
+
+-- A trainer's dated session and Admin undated balance both survive account claim.
+insert into auth.users(id,email,email_confirmed_at)
+values('00000000-0000-4000-8000-000000000006','staged@test.invalid',now());
+insert into public.profiles(user_id,email,role)
+values('00000000-0000-4000-8000-000000000006','staged@test.invalid','client');
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000006',false);
+do $staff_transfer$
+declare result jsonb;
+begin
+  result:=public.claim_my_preregistered_dogs();
+  if result->>'status'<>'linked' then
+    raise exception 'Pre-Auth trainer record was not linked: %',result;
+  end if;
+end
+$staff_transfer$;
+reset role;
+do $staff_provenance$
+declare v_id uuid;
+begin
+  select e.id into v_id from public.program_enrollments e
+  join public.dogs d on d.id=e.dog_id
+  where d.user_id='00000000-0000-4000-8000-000000000006' and d.name='Bongo';
+  if v_id is null then raise exception 'Transferred provisional dog not in canonical enrollments'; end if;
+  if (select count(*) from public.program_attendance_historical_evidence h
+    where h.enrollment_id=v_id and h.evidence_source='staff_roster')<>1 then
+    raise exception 'Transfer lost origin of trainer attendance';
+  end if;
+  if (select attendances_count from public.program_enrollments where id=v_id)<>2 then
+    raise exception 'Transfer double counted or lost prior attendance';
+  end if;
+  if (select count(*) from ucapsa_intake.people where email_key='staged@test.invalid' and status='pending')<>0 then
+    raise exception 'Linked person still pending in staging';
+  end if;
+end
+$staff_provenance$;
+
 select 'UCAPSA isolated database E2E: PASS' as result;
