@@ -5895,7 +5895,7 @@ export type Database = {
           exam_id: string
           exam_code: string
           exam_title: string
-          class_date: string
+          presented_date: string
           attempt_number: number
           attempt_status: string
           is_official: boolean
