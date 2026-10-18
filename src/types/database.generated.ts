@@ -5209,6 +5209,35 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      admin_preregister_dog_with_program: {
+        Args: {
+          p_owner_name: string
+          p_owner_email: string
+          p_owner_phone: string
+          p_dog_name: string
+          p_program_code: string
+          p_program_level: string
+          p_card_number: string
+          p_card_started_on: string | null
+          p_total_attendances: number
+          p_known_dates: string[]
+          p_note?: string | null
+        }
+        Returns: string
+      }
+      admin_save_preregistered_program_history: {
+        Args: {
+          p_intake_dog_id: string
+          p_program_code: string
+          p_program_level: string
+          p_card_number: string
+          p_card_started_on: string | null
+          p_total_attendances: number
+          p_known_dates: string[]
+          p_note?: string | null
+        }
+        Returns: string
+      }
       admin_preregister_dog: {
         Args: {
           p_owner_name: string
