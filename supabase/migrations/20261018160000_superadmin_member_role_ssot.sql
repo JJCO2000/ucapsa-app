@@ -182,3 +182,74 @@ $$;
 -- La función SECURITY DEFINER valida auth.uid() internamente.
 revoke all on function public.superadmin_set_profile_role(uuid,text) from public, anon;
 grant execute on function public.superadmin_set_profile_role(uuid,text) to authenticated, service_role;
+
+-- 3. Toda transición a Socio queda validada contra la membresía activa;
+-- ningún Admin puede fabricar privilegios de Socio con UPDATE directo.
+CREATE OR REPLACE FUNCTION public.prevent_unauthorized_profile_changes()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path TO 'public'
+AS $function$
+BEGIN
+  -- Trusted service/SQL maintenance does not have an end-user auth.uid().
+  IF auth.uid() IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  IF OLD.id IS DISTINCT FROM NEW.id THEN
+    RAISE EXCEPTION 'No puedes cambiar el id del perfil.';
+  END IF;
+  IF OLD.user_id IS DISTINCT FROM NEW.user_id THEN
+    RAISE EXCEPTION 'No puedes cambiar el user_id del perfil.';
+  END IF;
+  IF OLD.created_at IS DISTINCT FROM NEW.created_at THEN
+    RAISE EXCEPTION 'No puedes cambiar la fecha de creación del perfil.';
+  END IF;
+  IF OLD.deletion_requested_at IS DISTINCT FROM NEW.deletion_requested_at
+     OR OLD.deletion_request_reason IS DISTINCT FROM NEW.deletion_request_reason THEN
+    RAISE EXCEPTION 'La baja de cuenta debe gestionarse mediante el flujo canónico.';
+  END IF;
+  IF OLD.email IS DISTINCT FROM NEW.email AND NOT public.is_admin() THEN
+    RAISE EXCEPTION 'No puedes cambiar el email del perfil.';
+  END IF;
+
+  IF OLD.role IS DISTINCT FROM NEW.role THEN
+    -- Socio sólo existe cuando la fuente comercial está realmente activa;
+    -- no basta con alterar una columna de perfiles.
+    IF NEW.role = 'member'::public.app_role
+       AND NOT EXISTS (
+         SELECT 1 FROM public.memberships m
+         WHERE m.user_id = NEW.user_id AND m.status = 'active'
+       ) THEN
+      RAISE EXCEPTION 'No se puede asignar Socio sin membresía activa.'
+        USING errcode = '23514';
+    END IF;
+    -- Cliente no puede esconder una membresía comercial aún vigente.
+    IF OLD.role = 'member'::public.app_role
+       AND NEW.role = 'client'::public.app_role
+       AND EXISTS (
+         SELECT 1 FROM public.memberships m
+         WHERE m.user_id = NEW.user_id AND m.status = 'active'
+       ) THEN
+      RAISE EXCEPTION 'Primero gestiona la cancelación de la membresía activa.'
+        USING errcode = '23514';
+    END IF;
+    IF NOT public.is_admin() THEN
+      RAISE EXCEPTION 'No tienes permiso para cambiar roles.';
+    END IF;
+
+    -- Sensitive role transitions must not bypass superadmin_set_profile_role
+    -- through a direct profiles UPDATE by an ordinary admin.
+    IF (
+      OLD.role IN ('trainer', 'admin', 'super_admin')
+      OR NEW.role IN ('trainer', 'admin', 'super_admin')
+    ) AND NOT public.is_super_admin() THEN
+      RAISE EXCEPTION 'Solo super_admin puede modificar roles de personal.';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$function$;
+
+
