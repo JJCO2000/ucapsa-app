@@ -1,7 +1,7 @@
 import { ucapsaBrand } from '../../constants/brand';
 import { Link } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { resetPasswordForEmail } from '../../services/auth.service';
 import { DEFAULT_WRITE_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
@@ -9,12 +9,17 @@ import { DEFAULT_WRITE_TIMEOUT_MS, withOperationTimeout } from '../../utils/asyn
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
 
   async function handleResetPassword() {
     const cleanEmail = email.trim();
+    setFeedback(null);
+    setSent(false);
 
     if (!cleanEmail) {
-      Alert.alert('Falta correo', 'Escribe tu correo para recuperar tu contrasena.');
+      if (Platform.OS === 'web') setFeedback('Escribe tu correo para recuperar tu contraseña.');
+      else Alert.alert('Falta correo', 'Escribe tu correo para recuperar tu contrasena.');
       return;
     }
 
@@ -27,13 +32,18 @@ export default function ForgotPasswordScreen() {
       );
 
       if (error) {
-        Alert.alert('No se pudo enviar el correo', error.message);
+        if (Platform.OS === 'web') setFeedback('No se pudo enviar el correo. Comprueba tu conexión e inténtalo de nuevo.');
+        else Alert.alert('No se pudo enviar el correo', error.message);
         return;
       }
 
-      Alert.alert('Correo enviado', 'Revisa tu correo para continuar.');
+      if (Platform.OS === 'web') {
+        setSent(true);
+        setFeedback('Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.');
+      } else Alert.alert('Correo enviado', 'Revisa tu correo para continuar.');
     } catch {
-      Alert.alert('No se pudo conectar', 'Revisa tu conexion e intenta de nuevo.');
+      if (Platform.OS === 'web') setFeedback('No se pudo conectar. Revisa tu conexión e intenta de nuevo.');
+      else Alert.alert('No se pudo conectar', 'Revisa tu conexion e intenta de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -66,6 +76,9 @@ export default function ForgotPasswordScreen() {
           <Text style={styles.buttonText}>{loading ? 'Enviando...' : 'Enviar instrucciones'}</Text>
         </Pressable>
 
+        {feedback ? (
+          <Text accessibilityRole={sent ? 'text' : 'alert'} style={[styles.feedback, sent && styles.feedbackSuccess]}>{feedback}</Text>
+        ) : null}
         <Link href="/auth/login" style={styles.linkStrong}>Volver a iniciar sesion</Link>
       </View>
     </KeyboardAwareScreen>
@@ -140,6 +153,8 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '900',
   },
+  feedback: { color: ucapsaBrand.colors.danger, fontSize: 14, fontWeight: '700' },
+  feedbackSuccess: { color: ucapsaBrand.colors.greenDark },
   linkStrong: {
     marginTop: 8,
     color: ucapsaBrand.colors.text,
