@@ -16,6 +16,7 @@ export default function StaffExamReportScreen() {
   const [endDate, setEndDate] = useState(month.endDate);
   const [exams, setExams] = useState<TrainerExamCatalogRow[]>([]);
   const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
+  const [examOptionsOpen, setExamOptionsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,16 +79,31 @@ export default function StaffExamReportScreen() {
 
       <View style={styles.card}>
         <Text style={styles.section}>Examen</Text>
-        <Pressable style={[styles.option, !selectedExamId && styles.selected]} onPress={() => setSelectedExamId(null)}>
-          <Text style={[styles.optionText, !selectedExamId && styles.selectedText]}>Todos los exámenes</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: examOptionsOpen }}
+          style={styles.selectTrigger}
+          onPress={() => setExamOptionsOpen((value) => !value)}
+        >
+          <Text style={styles.optionText}>
+            {exams.find((exam) => exam.examId === selectedExamId)?.examTitle ?? 'Todos los exámenes'}
+          </Text>
+          <MaterialIcons name={examOptionsOpen ? 'expand-less' : 'expand-more'} size={20} color={ucapsaBrand.colors.redDark} />
         </Pressable>
         {loading ? <ActivityIndicator color={ucapsaBrand.colors.red} /> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        {exams.map((exam) => (
-          <Pressable key={exam.examId} style={[styles.option, selectedExamId === exam.examId && styles.selected]} onPress={() => setSelectedExamId(exam.examId)}>
-            <Text style={[styles.optionText, selectedExamId === exam.examId && styles.selectedText]}>{exam.examTitle}</Text>
-          </Pressable>
-        ))}
+        {examOptionsOpen ? (
+          <View>
+            <Pressable style={[styles.option, !selectedExamId && styles.selected]} onPress={() => { setSelectedExamId(null); setExamOptionsOpen(false); }}>
+              <Text style={[styles.optionText, !selectedExamId && styles.selectedText]}>Todos los exámenes</Text>
+            </Pressable>
+            {exams.map((exam) => (
+              <Pressable key={exam.examId} style={[styles.option, selectedExamId === exam.examId && styles.selected]} onPress={() => { setSelectedExamId(exam.examId); setExamOptionsOpen(false); }}>
+                <Text style={[styles.optionText, selectedExamId === exam.examId && styles.selectedText]}>{exam.examTitle}</Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
         <Text style={styles.hint}>Si necesitas exámenes históricos no visibles en el catálogo, usa «Todos los exámenes» y filtra por fecha en Excel.</Text>
       </View>
 
@@ -112,6 +128,7 @@ const styles = StyleSheet.create({
   label: { color: ucapsaBrand.colors.text, fontWeight: '800', fontSize: 12, marginTop: 9, marginBottom: 5 },
   input: { color: ucapsaBrand.colors.text, borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 11, paddingHorizontal: 12, minHeight: 46, backgroundColor: ucapsaBrand.colors.surface, fontWeight: '700' },
   hint: { color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 16, marginTop: 9 },
+  selectTrigger: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginTop: 6 },
   option: { padding: 10, borderRadius: 10, borderWidth: 1, borderColor: ucapsaBrand.colors.border, marginTop: 7 },
   optionText: { color: ucapsaBrand.colors.text, fontWeight: '700', fontSize: 12 },
   selected: { backgroundColor: ucapsaBrand.colors.redDark, borderColor: ucapsaBrand.colors.redDark },
