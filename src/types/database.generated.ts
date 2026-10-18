@@ -5889,7 +5889,7 @@ export type Database = {
         }[]
       }
       get_staff_exam_report: {
-        Args: { p_start_date: string; p_end_date: string; p_exam_id?: string | null }
+        Args: { p_exam_id: string }
         Returns: {
           attempt_id: string
           exam_id: string
