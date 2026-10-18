@@ -23,7 +23,7 @@ let containsFakeEndpoint = false;
 for (const file of files) {
   const source = fs.readFileSync(file, 'utf8');
   if (source.includes('DEMO VISUAL')) containsBanner = true;
-  if (source.includes('El inicio de sesión está deshabilitado aquí')) containsDisabledSignIn = true;
+  if (source.includes('DEMO SIN INGRESO')) containsDisabledSignIn = true;
   if (source.includes('ci-web-export.invalid')) containsFakeEndpoint = true;
 }
 
