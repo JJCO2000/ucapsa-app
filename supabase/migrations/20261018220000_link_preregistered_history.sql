@@ -9,6 +9,8 @@ create table if not exists public.program_attendance_historical_evidence (
   enrollment_id uuid not null references public.program_enrollments(id) on delete restrict,
   intake_evidence_id uuid not null unique references ucapsa_intake.attendance_evidence(id) on delete restrict,
   evidence_kind text not null check(evidence_kind in ('dated','undated_balance')),
+  evidence_source text not null default 'admin_history'
+    check(evidence_source in ('admin_history','staff_roster')),
   attendance_date date,
   quantity integer not null check(quantity between 1 and 500),
   recorded_by uuid not null references auth.users(id) on delete restrict,
@@ -334,11 +336,11 @@ begin
       set linked_enrollment_id=v_enrollment_id where id=v_stage.id;
 
       insert into public.program_attendance_historical_evidence (
-        enrollment_id,intake_evidence_id,evidence_kind,
+        enrollment_id,intake_evidence_id,evidence_kind,evidence_source,
         attendance_date,quantity,recorded_by,recorded_at,source_note
       )
       select
-        v_enrollment_id,h.id,h.evidence_kind,
+        v_enrollment_id,h.id,h.evidence_kind,h.evidence_source,
         h.attendance_date,h.quantity,h.recorded_by,h.recorded_at,h.source_note
       from ucapsa_intake.attendance_evidence h
       where h.intake_program_id=v_stage.id;
@@ -371,12 +373,13 @@ returns table (
   attendance_date date,
   quantity integer,
   evidence_kind text,
+  evidence_source text,
   source_note text,
   recorded_at timestamptz
 )
 language sql stable security definer set search_path=''
 as $fn$
-  select h.id,h.attendance_date,h.quantity,h.evidence_kind,h.source_note,h.recorded_at
+  select h.id,h.attendance_date,h.quantity,h.evidence_kind,h.evidence_source,h.source_note,h.recorded_at
   from public.program_attendance_historical_evidence h
   where h.enrollment_id=p_enrollment_id
     and auth.uid() is not null
