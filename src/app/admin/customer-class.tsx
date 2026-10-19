@@ -102,7 +102,7 @@ export default function CustomerClassScreen() {
         scheduleId,
         dogId: linkedDog.id,
         dogName: linkedDog.name,
-        physicalCardNumber: cardNumber,
+        physicalCardNumber: row.program.code === 'puppy' ? cardNumber : null,
         programLevel: row.program.code === 'comandos' ? level : 'base',
         notes,
       });
@@ -154,8 +154,12 @@ export default function CustomerClassScreen() {
               {row.program.code === 'comandos' ? <Detail label="Nivel" value={levelLabel(row.enrollment.program_level)} /> : null}
               <Detail label="Horario" value={formatProgramScheduleDisplayLabel(row.schedule, row.program)} />
               <Detail label="Perro" value={getProgramEnrollmentDogName(row)} />
-              <Detail label="Número de tarjeta física" value={row.enrollment.physical_card_number?.trim() || 'No registrado'} />
-              <Detail label="Asistencias" value={`${row.attendances.length} de ${row.program.required_attendances}`} last />
+              {row.program.code === 'puppy' ? (
+                <Detail label="Referencia física Puppy" value={row.enrollment.physical_card_number?.trim() || 'No registrada'} />
+              ) : null}
+              <Detail label="Asistencias" value={row.enrollment.access_mode === 'membership'
+                ? `${row.enrollment.attendances_count} registradas · socio con acceso ilimitado`
+                : `${row.enrollment.attendances_count} de ${row.program.required_attendances}`} last />
             </View>
           ) : (
             <View style={styles.card}>
@@ -186,7 +190,9 @@ export default function CustomerClassScreen() {
                 onSelectDog={(dog) => { setDogMode('existing'); setDogId(dog.id); setDogName(dog.name); }}
                 onNewDogNameChange={(value) => { setDogMode('new'); setDogId(''); setDogName(value); }}
               />
-              <Field label="Número de tarjeta (si se conoce)" value={cardNumber} onChangeText={setCardNumber} placeholder="Dato opcional" />
+              {row.program.code === 'puppy' ? (
+                <Field label="Referencia de tarjeta Puppy (si se conoce)" value={cardNumber} onChangeText={setCardNumber} placeholder="Dato opcional" />
+              ) : null}
               <Field label="Notas" value={notes} onChangeText={setNotes} placeholder="Notas internas" multiline />
             </View>
           )}
