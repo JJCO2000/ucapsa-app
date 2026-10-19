@@ -5306,6 +5306,31 @@ export type Database = {
         Args: { p_attempt_id: string; p_exam_item_id: string }
         Returns: string
       }
+      admin_get_preregistered_program_records: {
+        Args: { p_intake_program_id?: string }
+        Returns: {
+          attendances_count: number
+          authorized_on: string
+          dated_attendances: number
+          dog_name: string
+          intake_dog_id: string
+          intake_program_id: string
+          linked_enrollment_id: string
+          linked_user_id: string
+          membership_status: string
+          owner_email: string
+          owner_name: string
+          owner_phone: string
+          person_id: string
+          physical_card_reference: string
+          program_code: string
+          program_level: string
+          registration_status: string
+          schedule_name: string
+          schedule_time: string
+          undated_attendances: number
+        }[]
+      }
       admin_get_program_historical_evidence: {
         Args: { p_enrollment_id: string }
         Returns: {

@@ -19,8 +19,15 @@ const isPlayReviewBuild = process.env.EXPO_PUBLIC_UCAPSA_REVIEW_BUILD === 'true'
 export const preregistrationEnabled =
   !isPlayReviewBuild && !disabledExplicitly && (enabledExplicitly || isProductionUcapsa);
 
-// RPC de directorio disponible solo tras migración y habilitación explícita.
-// Evita llamar funciones inexistentes en instalaciones desfasadas.
-export const preregistrationDirectoryEnabled =
-  preregistrationEnabled &&
+// El RPC admin_get_preregistered_program_records ya está instalado en
+// Supabase UCAPSA. Solo la URL de producción lo habilita automáticamente.
+// false explícito es una salida segura para futuras builds/implementaciones;
+// las versiones de revisión permanecen apagadas por preregistrationEnabled.
+const directoryEnabledExplicitly =
   process.env.EXPO_PUBLIC_UCAPSA_PREREGISTRATION_DIRECTORY_ENABLED === 'true';
+const directoryDisabledExplicitly =
+  process.env.EXPO_PUBLIC_UCAPSA_PREREGISTRATION_DIRECTORY_ENABLED === 'false';
+
+export const preregistrationDirectoryEnabled =
+  preregistrationEnabled && !directoryDisabledExplicitly &&
+  (directoryEnabledExplicitly || isProductionUcapsa);
