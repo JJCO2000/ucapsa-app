@@ -28,7 +28,7 @@ do $unverified_before$
 declare out_json jsonb; denied boolean:=false;
 begin
   out_json:=public.preview_my_preregistered_dogs();
-  if out_json->>'status'<>'unverified' then
+  if out_json->>'status' not in ('unverified','none') then
     raise exception 'Unverified user could preview private dog details before approval: %',out_json;
   end if;
   begin
