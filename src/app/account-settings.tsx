@@ -54,7 +54,7 @@ export default function AccountSettingsScreen() {
       const detail = status === 'conflict'
         ? 'Encontramos datos que requieren revisión de Administración para proteger la cuenta.'
         : status === 'unverified'
-          ? 'Para vincular un expediente debes confirmar tu correo o celular en Supabase.'
+          ? 'Sin correo ni celular verificados, solicita a Administración que autorice tu expediente. Después vuelve a buscar aquí.'
           : status === 'not_applicable'
             ? 'Inicia sesión con una cuenta conectada para consultar expedientes.'
             : 'Por ahora no hay expedientes pendientes asociados a tus contactos confirmados.';
@@ -336,11 +336,11 @@ export default function AccountSettingsScreen() {
             <Text style={[styles.muted, premium && styles.premiumText]}>
               El celular guardado es un dato de contacto, no una prueba de identidad.
               La vinculación por correo confirmado sigue disponible sin SMS.
-              Para números sin verificar, pide revisión a Administración.
+              También puedes pedir a Administración una autorización presencial,
+              sin necesidad de verificar correo ni celular.
             </Text>
           ) : null}
-          {preregistrationEnabled && !isOfflineFallback &&
-            (user.email_confirmed_at || user.phone_confirmed_at) ? (
+          {preregistrationEnabled && !isOfflineFallback ? (
             <Pressable accessibilityRole="button"
               accessibilityLabel="Buscar mis expedientes preinscritos pendientes"
               disabled={checkingPreregistration}
