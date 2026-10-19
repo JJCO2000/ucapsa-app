@@ -88,6 +88,7 @@ select public.admin_set_restaurant_menu_published(true);
 select public.admin_set_restaurant_menu_published(true);
 reset role;
 set role anon;
+select set_config('request.jwt.claim.sub','',false);
 do $published$
 begin
  if not public.is_restaurant_menu_published() then
@@ -104,6 +105,7 @@ select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001'
 select public.admin_set_restaurant_menu_published(false);
 reset role;
 set role anon;
+select set_config('request.jwt.claim.sub','',false);
 do $unpublished$
 begin
  if public.is_restaurant_menu_published() then
