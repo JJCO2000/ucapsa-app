@@ -32,6 +32,7 @@ const edge=read('supabase/functions/send-class-reminders/index.ts');
 const nav=read('src/hooks/useNotificationNavigation.ts');
 const sql=read('supabase/migrations/20261019001500_restaurant_publication_ssot.sql');
 const service=read('src/services/restaurant-menu.service.ts');
+const publicScreen=read('src/app/restaurant.tsx');
 const admin=read('src/app/admin/restaurant.tsx');
 
 for(const token of [
@@ -55,6 +56,13 @@ assert.ok(sql.includes('public.is_ucapsa_admin()') &&
  sql.includes('ucapsa_config.restaurant_publication') &&
  sql.includes("to anon,authenticated,service_role"),
  'Publication requires private SSOT, Admin and service access');
+assert.ok(publicScreen.includes('const published = await isRestaurantMenuPublished()') &&
+ publicScreen.indexOf('await isRestaurantMenuPublished()') <
+ publicScreen.indexOf('await getCachedRestaurantMenu()') &&
+ publicScreen.includes('if (!published)') &&
+ publicScreen.includes('setSections([]);') &&
+ publicScreen.includes('await cacheRestaurantMenu([])'),
+ 'La caché pública no puede saltarse el control de publicación ni sobrevivir a una revocación');
 assert.ok(service.includes('if (!published) return []'),
  'Public menu must honor global publication');
 assert.ok(admin.includes('setRestaurantMenuPublished(value)') &&
