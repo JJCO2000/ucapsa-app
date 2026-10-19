@@ -8,7 +8,8 @@ grant usage on schema auth to authenticated;
 create type public.app_role as enum ('client','member','admin','super_admin','trainer');
 create table auth.users (
   id uuid primary key default gen_random_uuid(), email text, phone text,
-  email_confirmed_at timestamptz, phone_confirmed_at timestamptz
+  email_confirmed_at timestamptz, phone_confirmed_at timestamptz,
+  phone_change text
 );
 create or replace function auth.uid() returns uuid language sql stable as $$
   select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid
