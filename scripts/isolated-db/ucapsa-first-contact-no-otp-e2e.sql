@@ -26,7 +26,7 @@ values
 insert into public.profiles(user_id,email,phone,role)
 values
  ('00000000-0000-4000-8000-000000000010','phone-unverified@test.invalid','55 1110 0010','client'),
- ('00000000-0000-4000-8000-000000000011','other-phone@test.invalid',null,'client'),
+ ('00000000-0000-4000-8000-000000000011','other-phone@test.invalid','5511100010','client'),
  ('00000000-0000-4000-8000-000000000012','sin-sms-correo@test.invalid',null,'client');
 
 -- El teléfono del perfil SIN SMS permite reclamar UNA única primera vez.
@@ -51,9 +51,7 @@ begin
 end $first_phone$;
 reset role;
 
--- La otra cuenta que escriba el mismo teléfono queda bloqueada.
-update public.profiles set phone='5511100010'
-where user_id='00000000-0000-4000-8000-000000000011';
+-- Otra cuenta YA tenia el mismo teléfono antes de la primera reclamación.
 set role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000011',false);
 do $second_phone$
@@ -66,6 +64,14 @@ begin
   j:=public.claim_my_first_preregistered_dogs();
   if j->>'status'='linked' then
     raise exception 'Otra cuenta reclamó el teléfono ya reservado: %',j;
+  end if;
+  j:=public.request_my_preregistration_link_review();
+  if j->>'status'<>'requested' then
+    raise exception 'No se creo solicitud a Admin: %',j;
+  end if;
+  j:=public.request_my_preregistration_link_review();
+  if j->>'status'<>'requested' then
+    raise exception 'No fue idempotente el intento posterior: %',j;
   end if;
 end $second_phone$;
 reset role;
@@ -85,6 +91,19 @@ begin
     raise exception 'Primer correo no vinculado: %',j;
   end if;
 end $first_email$;
+reset role;
+
+-- Administración puede ver un único ticket sin transferencia automática.
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
+do $admin_review$
+declare j jsonb;
+begin
+  j:=public.admin_list_preregistration_link_requests();
+  if jsonb_array_length(j)<>1 then
+    raise exception 'Admin no recibió exactamente una solicitud: %',j;
+  end if;
+end $admin_review$;
 reset role;
 
 -- Los contactos quedan reservados a la primera cuenta, incluso sin fecha OTP.
@@ -111,6 +130,10 @@ begin
       where action='dog_preregistration.claimed'
         and details->>'link_method'='first_contact_unverified') < 2 then
     raise exception 'Falta auditoría del primer contacto'; end if;
+  if (select count(*) from ucapsa_intake.owner_link_requests)<>1 then
+    raise exception 'Solicitud duplicada o ausente'; end if;
+  if has_table_privilege('authenticated','ucapsa_intake.owner_link_requests','SELECT') then
+    raise exception 'Bandeja interna expuesta a clientes'; end if;
   if has_table_privilege('authenticated','ucapsa_intake.claimed_contacts','SELECT') then
     raise exception 'Contactos reclamados accesibles sin autorización'; end if;
 end $verify_claims$;
