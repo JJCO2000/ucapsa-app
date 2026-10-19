@@ -61,8 +61,8 @@ export async function getAdminClientProfiles(): Promise<Profile[]> {
 
 export async function setStaffRoleSuperAdmin(
   userId: string,
-  role: Extract<AppRole, 'client' | 'trainer' | 'admin'>,
-): Promise<Extract<AppRole, 'client' | 'trainer' | 'admin'>> {
+  role: Extract<AppRole, 'client' | 'member' | 'trainer' | 'admin' | 'super_admin'>,
+): Promise<Extract<AppRole, 'client' | 'member' | 'trainer' | 'admin' | 'super_admin'>> {
   const cleanUserId = userId.trim();
   if (!cleanUserId) throw new Error('Falta el usuario.');
 
@@ -71,7 +71,7 @@ export async function setStaffRoleSuperAdmin(
     p_role: role,
   });
   if (error) throw error;
-  if (data !== 'client' && data !== 'trainer' && data !== 'admin') {
+  if (data !== 'client' && data !== 'member' && data !== 'trainer' && data !== 'admin' && data !== 'super_admin') {
     throw new Error('UCAPSA devolvió un rol inesperado.');
   }
   return data;
