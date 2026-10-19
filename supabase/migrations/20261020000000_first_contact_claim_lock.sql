@@ -4,10 +4,10 @@ create or replace function ucapsa_intake.normalize_profile_phone(raw text)
 returns text language sql immutable set search_path=''
 as $normalize$
 select case
-  when pg_catalog.regexp_replace(pg_catalog.coalesce(raw,''),'[^+0-9]','','g')
+  when pg_catalog.regexp_replace(coalesce(raw,''),'[^+0-9]','','g')
        ~ '^[+][1-9][0-9]{7,14}$'
     then pg_catalog.regexp_replace(raw,'[^+0-9]','','g')
-  when pg_catalog.regexp_replace(pg_catalog.coalesce(raw,''),'[^0-9]','','g')
+  when pg_catalog.regexp_replace(coalesce(raw,''),'[^0-9]','','g')
        ~ '^[0-9]{10}$'
     then '+52'||pg_catalog.regexp_replace(raw,'[^0-9]','','g')
   else null
@@ -95,14 +95,14 @@ begin
     v_first_contact := true;
     select nullif(pg_catalog.lower(pg_catalog.btrim(u.email)), ''),
            ucapsa_intake.normalize_profile_phone(
-             pg_catalog.coalesce(nullif(p.phone,''),nullif(u.phone,'')))
+             coalesce(nullif(p.phone,''),nullif(u.phone,'')))
     into v_first_email,v_first_phone
     from auth.users u join public.profiles p on p.user_id=u.id
     where u.id=v_user;
     v_used_unverified := (v_email is null and v_first_email is not null)
       or (v_phone is null and v_first_phone is not null);
-    v_email := pg_catalog.coalesce(v_email,v_first_email);
-    v_phone := pg_catalog.coalesce(v_phone,v_first_phone);
+    v_email := coalesce(v_email,v_first_email);
+    v_phone := coalesce(v_phone,v_first_phone);
     if exists(
       select 1 from public.profiles other where other.user_id<>v_user
         and (
@@ -360,12 +360,12 @@ begin
     v_first_contact := true;
     select nullif(pg_catalog.lower(pg_catalog.btrim(u.email)), ''),
            ucapsa_intake.normalize_profile_phone(
-             pg_catalog.coalesce(nullif(p.phone,''),nullif(u.phone,'')))
+             coalesce(nullif(p.phone,''),nullif(u.phone,'')))
     into v_first_email,v_first_phone
     from auth.users u join public.profiles p on p.user_id=u.id
     where u.id=v_user;
-    v_email := pg_catalog.coalesce(v_email,v_first_email);
-    v_phone := pg_catalog.coalesce(v_phone,v_first_phone);
+    v_email := coalesce(v_email,v_first_email);
+    v_phone := coalesce(v_phone,v_first_phone);
     if exists (
       select 1 from public.profiles other where other.user_id<>v_user
         and ((v_phone is not null and ucapsa_intake.normalize_profile_phone(other.phone)=v_phone)
