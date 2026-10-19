@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.108.2';
+import { isSaturdayForSundayMenu } from '../_shared/restaurant-sunday-reminder.ts';
 
 type ReminderRequest = {
   target_date?: string;
@@ -267,6 +268,22 @@ Deno.serve(async (req) => {
     ? payload.reminder_type.trim().slice(0, 40)
     : 'class_24h';
   const dryRun = Boolean(payload.dry_run);
+
+  // El cron existente envía mañana. Solo los sábados incorporamos el menú
+  // dominical al MISMO push; no se crea una segunda campaña ni otro lock.
+  const menuCandidate = isSaturdayForSundayMenu(
+    mexicoDateKey(), classDateKey, reminderType, daysAhead,
+  );
+  let sundayMenuPublished = false;
+  if (menuCandidate) {
+    const publication = await serviceClient.rpc('is_restaurant_menu_published');
+    if (publication.error) {
+      console.warn('No se pudo confirmar publicación del menú; se mantiene el recordatorio normal.');
+    } else {
+      sundayMenuPublished = publication.data === true;
+    }
+  }
+
 
   const [programsResult, schedulesResult, enrollmentsResult, cancellationsResult, tokenResult] = await Promise.all([
     serviceClient.from('programs').select('id,code,name,is_active').eq('is_active', true),
@@ -657,12 +674,16 @@ Deno.serve(async (req) => {
       const firstTimeLabel = first?.schedule ? formatTime(first.schedule.start_time) : '--:--';
       const firstDogPart = first?.enrollment.dog_name ? ` de ${first.enrollment.dog_name}` : '';
 
-      const title = reminders.length === 1
-        ? `Recordatorio ${firstProgramLabel}`
-        : 'Recordatorio de clases';
-      const body = reminders.length === 1
-        ? `Tu clase${firstDogPart} (${firstScheduleLabel}) es el ${classDateKey} a las ${firstTimeLabel}. Abre UCAPSA y confirma si vas a asistir.`
-        : `Tienes ${reminders.length} clases el ${classDateKey}. La primera es ${firstProgramLabel} (${firstScheduleLabel}) a las ${firstTimeLabel}. Abre UCAPSA y confirma tu asistencia.`;
+      const title = sundayMenuPublished
+        ? '¿Se te antoja algo para mañana?'
+        : reminders.length === 1 ? `Recordatorio ${firstProgramLabel}` : 'Recordatorio de clases';
+      const body = sundayMenuPublished
+        ? reminders.length === 1
+          ? `Tu clase${firstDogPart} es mañana a las ${firstTimeLabel}. Consulta el menú del domingo en UCAPSA.`
+          : `Tienes ${reminders.length} clases mañana. ¿Se te antoja algo? Consulta el menú del domingo en UCAPSA.`
+        : reminders.length === 1
+          ? `Tu clase${firstDogPart} (${firstScheduleLabel}) es el ${classDateKey} a las ${firstTimeLabel}. Abre UCAPSA y confirma si vas a asistir.`
+          : `Tienes ${reminders.length} clases el ${classDateKey}. La primera es ${firstProgramLabel} (${firstScheduleLabel}) a las ${firstTimeLabel}. Abre UCAPSA y confirma tu asistencia.`;
 
       return {
         to: token.expo_push_token,
@@ -673,6 +694,7 @@ Deno.serve(async (req) => {
         data: {
           category: 'classes',
           source: 'class_reminder',
+          restaurant_menu: sundayMenuPublished,
           campaign_id: campaign.id,
           class_date: classDateKey,
           enrollment_ids: reminders.map((item) => item.enrollment.id),
