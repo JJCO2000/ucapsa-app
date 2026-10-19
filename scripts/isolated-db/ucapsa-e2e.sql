@@ -493,4 +493,73 @@ begin
 end
 $staff_role_retained$;
 
+-- Regresión crítica: seis asistencias históricas reconocidas habilitan
+-- evaluación Admin y progresión, sin inventar fechas ni cambiar de horario.
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
+select public.admin_preregister_dog_with_program(
+  'Six Count Owner','six@test.invalid','','Six Dog','comandos','principiante',
+  '',null,6,array[]::date[],'Seis asistencias avaladas por Administración');
+reset role;
+insert into auth.users(id,email,email_confirmed_at)
+values('00000000-0000-4000-8000-000000000008','six@test.invalid',now());
+insert into public.profiles(user_id,email,role)
+values('00000000-0000-4000-8000-000000000008','six@test.invalid','client');
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000008',false);
+do $historical_claim$
+declare v_result jsonb;
+begin
+  v_result:=public.claim_my_preregistered_dogs();
+  if v_result->>'status'<>'linked' then
+    raise exception 'Historical Comandos not linked: %',v_result;
+  end if;
+end
+$historical_claim$;
+reset role;
+do $historical_counts$
+begin
+  if not exists (
+    select 1 from public.program_enrollments e
+    join public.programs p on p.id=e.program_id
+    where e.user_id='00000000-0000-4000-8000-000000000008'
+      and p.code='comandos' and e.program_level='principiante'
+      and e.attendances_count=6
+      and e.last_attendance_at is null
+      and e.status='active'
+  ) then raise exception 'Six historical classes not in canonical SSOT'; end if;
+  if (select count(*) from public.program_attendances a
+    join public.program_enrollments e on e.id=a.enrollment_id
+    where e.user_id='00000000-0000-4000-8000-000000000008')<>0 then
+    raise exception 'Synthetic dates or attendance records were invented'; end if;
+end
+$historical_counts$;
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
+do $admin_history_decision$
+declare v_id uuid; v_result record; v_original_schedule uuid;
+begin
+  select e.id,e.schedule_id into v_id,v_original_schedule
+  from public.program_enrollments e
+  join public.programs p on p.id=e.program_id
+  where e.user_id='00000000-0000-4000-8000-000000000008'
+    and p.code='comandos' and e.program_level='principiante';
+  select * into v_result from public.admin_resolve_training_card_decision(v_id,'next_level',null);
+  if v_result.next_enrollment_id is null then
+    raise exception 'Admin decision failed to create next level after historical 6'; end if;
+  if not exists (select 1 from public.program_enrollments
+    where id=v_id and status='completed' and attendances_count=6) then
+    raise exception 'Historic enrollment incorrectly closed'; end if;
+  if not exists (select 1 from public.program_enrollments
+    where id=v_result.next_enrollment_id and status='active'
+     and program_level='medio' and schedule_id=v_original_schedule
+     and physical_card_number is null) then
+    raise exception 'New level lost shared Comandos schedule or requires card reference'; end if;
+  if not exists (select 1 from public.admin_audit_logs
+    where entity_id=v_id and action='training_card.decision') then
+    raise exception 'Training decision lacks audit evidence'; end if;
+end
+$admin_history_decision$;
+reset role;
+
 select 'UCAPSA isolated database E2E: PASS' as result;
