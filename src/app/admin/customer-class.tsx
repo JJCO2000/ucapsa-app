@@ -102,7 +102,7 @@ export default function CustomerClassScreen() {
         scheduleId,
         dogId: linkedDog.id,
         dogName: linkedDog.name,
-        physicalCardNumber: row.program.code === 'puppy' ? cardNumber : null,
+        ...(row.program.code === 'puppy' ? { physicalCardNumber: cardNumber } : {}),
         programLevel: row.program.code === 'comandos' ? level : 'base',
         notes,
       });
