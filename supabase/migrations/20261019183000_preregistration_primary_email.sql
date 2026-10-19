@@ -112,7 +112,7 @@ begin
   end if;
   return v_dog_id;
 end;
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION public.claim_my_preregistered_dogs()
  RETURNS jsonb
@@ -275,7 +275,7 @@ begin
     pg_catalog.jsonb_build_object('dogs',v_linked,'programs',v_linked_programs));
   return pg_catalog.jsonb_build_object('status','linked','linked_dogs',v_linked,'linked_programs',v_linked_programs);
 end;
-$function$
+$function$;
 
 -- RPC previas solo para authenticated; Auth/role verificado dentro.
 revoke all on function public.admin_preregister_dog(text,text,text,text) from public,anon;
