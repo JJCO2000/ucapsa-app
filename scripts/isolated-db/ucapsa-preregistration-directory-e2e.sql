@@ -1,6 +1,6 @@
 -- Regression of private Admin directory against the PostgreSQL-only UCAPSA
 -- fixture AFTER the preregistration and account-claim E2E has populated it.
-\\set ON_ERROR_STOP on
+\set ON_ERROR_STOP on
 do $$ begin
   if current_database() <> 'ucapsa_test' then
     raise exception 'Refusing directory E2E on production: %', current_database();
