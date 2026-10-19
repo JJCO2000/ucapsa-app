@@ -4,7 +4,7 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View 
 
 import { KeyboardAwareScreen } from '../ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
-import type { PreregisteredProgramInput } from '../../services/preregistration-form.domain';
+import { parsePreregisteredHistory, type PreregisteredProgramInput } from '../../services/preregistration-form.domain';
 
 export function PreregisterDogForm({ onSave, onCancel }: {
   onSave: (input: PreregisteredProgramInput) => Promise<void>;
@@ -32,17 +32,8 @@ export function PreregisterDogForm({ onSave, onCancel }: {
     }
     try {
       setSaving(true);
-      const count = Number(totalAttendances.trim());
-      const dates = includeDates ? datesText.split(/[\n,;]+/).map((d) => d.trim()).filter(Boolean) : [];
-      if (!Number.isSafeInteger(count) || count < 0 || count > 500) {
-        throw new Error('Indica un número de asistencias válido (0 a 500).');
-      }
-      if (dates.some((d) => !/^\d{4}-\d{2}-\d{2}$/.test(d))) {
-        throw new Error('Las fechas deben usar AAAA-MM-DD.');
-      }
-      if (new Set(dates).size !== dates.length || dates.length > count) {
-        throw new Error('No repitas fechas ni superes el total de asistencias.');
-      }
+      const { totalAttendances: count, knownAttendanceDates: dates } =
+        parsePreregisteredHistory(totalAttendances, includeDates, datesText);
       if (cardStartedOn.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(cardStartedOn.trim())) {
         throw new Error('El inicio de tarjeta debe usar AAAA-MM-DD.');
       }
