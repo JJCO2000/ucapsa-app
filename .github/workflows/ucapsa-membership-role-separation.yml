@@ -36,9 +36,16 @@ jobs:
       PGDATABASE: ucapsa_role_separation_test
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Bootstrap isolated schema
+        run: psql -X -v ON_ERROR_STOP=1 -f scripts/isolated-db/membership-separation-fixture.sql
       - name: Migrate function from real production contract
         run: psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20261019040000_preserve_staff_role_during_membership_lifecycle.sql
-      - name: Fixture and lifecycle trigger
-        run: psql -X -v ON_ERROR_STOP=1 -f scripts/isolated-db/membership-separation-fixture.sql
+      - name: Install lifecycle trigger in isolated schema
+        run: |
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          create trigger trg_membership_status_lifecycle
+          after insert or delete or update on public.memberships
+          for each row execute function public.sync_membership_status_lifecycle();
+          SQL
       - name: Validate staff privileges independent from commercial entitlements
         run: psql -X -v ON_ERROR_STOP=1 -f scripts/isolated-db/membership-separation-e2e.sql
