@@ -111,8 +111,11 @@ assert.ok(screen.includes("programCode === 'puppy' ? cardNumber : ''"));
 assert.ok(!screen.includes('obligatoria, ya pagada'));
 assert.ok(s2.includes("if v_program.code='puppy' and v_level<>'base'"));
 assert.ok(!s2.includes('card_paid_attested_by'));
-assert.ok(s3.includes('coalesce(v_stage.card_started_on,v_stage.authorized_on)'),
-  'El acceso autorizado por Admin debe sobrevivir al vincular Auth sin inventar asistencias.');
+assert.ok(s3.includes('v_stage.authorized_on,v_stage.authorized_on,v_stage.id'),
+  'La inscripción oficial usa autorización real de Admin, no fecha física desconocida.');
+assert.ok(staffSql.includes("p_class_date > (st.authorized_on + interval '1 year')::date") ||
+  !staffSql.includes('v_program.card_started_on is null'),
+  'La autorización operativa de preinscritos no depende de número físico.');
 const staffSql = read('supabase/migrations/20261018230000_staff_preregistered_roster.sql');
 assert.ok(staffSql.includes('p_attendance_date < v_program.authorized_on'));
 assert.ok(!staffSql.includes('v_program.physical_card_number is null'));
