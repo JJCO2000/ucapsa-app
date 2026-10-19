@@ -68,6 +68,7 @@ export default function AdminLayout() {
       <Stack.Screen name="competition-exam-import-detail" options={{ title: 'Lote Excel' }} />
       <Stack.Screen name="points" options={{ title: 'Competencia UCAPSA' }} />
       <Stack.Screen name="tools-communication" options={{ title: 'Comunicacion' }} />
+      <Stack.Screen name="link-review-requests" options={{ title: 'Solicitudes de vinculación' }} />
       <Stack.Screen name="account-deletion-requests" options={{ title: 'Bajas de cuenta' }} />
       <Stack.Screen name="privacy-notices" options={{ title: 'Avisos de privacidad' }} />
       <Stack.Screen name="privacy-notice-form" options={{ title: 'Aviso de privacidad' }} />
