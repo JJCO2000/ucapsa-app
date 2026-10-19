@@ -133,7 +133,7 @@ export default function AdminUsersScreen() {
     setSelectedAdmin(profile);
   }
 
-  async function changeStaffRole(profile: Profile, nextRole: Extract<AppRole, 'client' | 'trainer' | 'admin'>) {
+  async function changeStaffRole(profile: Profile, nextRole: Extract<AppRole, 'client' | 'member' | 'trainer' | 'admin' | 'super_admin'>) {
     try {
       await setStaffRoleSuperAdmin(profile.user_id, nextRole);
       const nextProfiles = await getAdminProfiles();
@@ -272,23 +272,27 @@ function AdminAccountDetailModal({
 }: {
   profile: Profile | null;
   canManageRoles: boolean;
-  onRoleChange: (profile: Profile, role: Extract<AppRole, 'client' | 'trainer' | 'admin'>) => Promise<void>;
+  onRoleChange: (profile: Profile, role: Extract<AppRole, 'client' | 'member' | 'trainer' | 'admin' | 'super_admin'>) => Promise<void>;
   onClose: () => void;
 }) {
   const [savingRole, setSavingRole] = useState(false);
   if (!profile) return null;
 
-  const canEditThisRole = canManageRoles && profile.role !== 'super_admin' && profile.role !== 'member';
+  const canEditThisRole = canManageRoles && profile.role !== 'super_admin';
 
-  async function setRole(nextRole: Extract<AppRole, 'client' | 'trainer' | 'admin'>) {
+  async function setRole(nextRole: Extract<AppRole, 'client' | 'member' | 'trainer' | 'admin' | 'super_admin'>) {
     if (!profile || savingRole || !canEditThisRole || profile.role === nextRole) return;
     Alert.alert(
       'Cambiar rol',
       nextRole === 'trainer'
-        ? 'Esta cuenta verá únicamente las herramientas operativas de Entrenador.'
-        : nextRole === 'admin'
-          ? 'Esta cuenta tendrá acceso administrativo completo.'
-          : 'Esta cuenta volverá a la experiencia de cliente.',
+        ? 'Esta cuenta usará las herramientas de Entrenador. Si era Socio, se desactivará la membresía sin borrar su historial.'
+        : nextRole === 'member'
+          ? 'Se activará la membresía de Socio por autorización de Superadmin, sin inventar un cobro.'
+          : nextRole === 'super_admin'
+            ? 'Este usuario tendrá todos los permisos Superadmin. Confirma únicamente si debe administrar todo UCAPSA.'
+            : nextRole === 'admin'
+              ? 'Tendrá acceso administrativo. Si era Socio, se desactivará su membresía conservando los pagos históricos.'
+              : 'Volverá a Cliente. Una membresía activa de Socio se desactivará sin eliminar el historial.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -324,18 +328,18 @@ function AdminAccountDetailModal({
           {canManageRoles ? (
             <View style={styles.roleManager}>
               <Text style={styles.roleManagerTitle}>Acceso del equipo</Text>
-              {profile.role === 'member' ? (
-                <Text style={styles.roleManagerHint}>Una cuenta de socio conserva su rol de cliente. Para staff usa una cuenta separada y así no mezclas permisos internos con membresía.</Text>
-              ) : profile.role === 'super_admin' ? (
-                <Text style={styles.roleManagerHint}>Las cuentas Superadmin no se modifican desde esta pantalla.</Text>
+              {profile.role === 'super_admin' ? (
+                <Text style={styles.roleManagerHint}>Para proteger el acceso principal, una cuenta Superadmin no se degrada desde aquí.</Text>
               ) : (
                 <>
-                  <Text style={styles.roleManagerHint}>Entrenador sólo ve clases, roster, asistencia, exámenes, notas internas y reportes. No ve pagos, comunicación ni estadísticas internas.</Text>
+                  <Text style={styles.roleManagerHint}>El rol cambia permisos en el servidor. Socio activa membresía otorgada; cambiar a otro rol desactiva sus beneficios, pero conserva el historial de pagos.</Text>
                   <View style={styles.roleOptions}>
                     {([
                       { value: 'client', label: 'Cliente' },
+                      { value: 'member', label: 'Socio' },
                       { value: 'trainer', label: 'Entrenador' },
                       { value: 'admin', label: 'Admin' },
+                      { value: 'super_admin', label: 'Superadmin' },
                     ] as const).map((option) => (
                       <Pressable
                         key={option.value}
