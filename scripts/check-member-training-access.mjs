@@ -180,7 +180,7 @@ for (const [label, ok] of [
 // Expedientes de preinscripción: lectura solo Admin y SSOT de membresía/nivel.
 const preregReadSql = fs.readFileSync('supabase/migrations/20261019170000_admin_preregistration_records.sql','utf8');
 const preregReadService = fs.readFileSync('src/services/preregistration-admin.service.ts','utf8');
-const preregistrationFeature = fs.readFileSync('src/constants/preregistrationFeature.ts','utf8');
+
 const preregListScreen = fs.readFileSync('src/app/admin/preregistrations.tsx','utf8');
 const preregDetailScreen = fs.readFileSync('src/app/admin/preregistration.tsx','utf8');
 const officialClientScreen = fs.readFileSync('src/app/admin/customer.tsx','utf8');
