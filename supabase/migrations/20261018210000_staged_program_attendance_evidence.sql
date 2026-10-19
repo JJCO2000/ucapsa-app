@@ -8,21 +8,18 @@ create table if not exists ucapsa_intake.programs (
   schedule_id uuid not null references public.program_schedules(id) on delete restrict,
   program_level text not null default 'base'
     check (program_level in ('base','principiante','medio','avanzado')),
+  -- Solo Puppy puede tener referencia física; no prueba un cobro.
   physical_card_number text,
+  -- Dato histórico opcional, distinto de la autorización administrativa.
   card_started_on date,
-  -- La tarjeta entregada acredita compra según UCAPSA, NO crea movimiento
-  -- financiero ni comprobante de pago sin evidencia contable.
-  card_paid_attested_by uuid references auth.users(id) on delete restrict,
-  card_paid_attested_at timestamptz,
+  -- La alta por Administración autoriza el acceso a partir de este día.
+  -- No se usa como fecha inventada de compra o emisión de tarjeta.
+  authorized_on date not null default ((now() at time zone 'America/Mexico_City')::date),
   record_source text not null default 'admin_preregistered',
   created_by uuid not null references auth.users(id) on delete restrict,
   created_at timestamptz not null default now(),
   linked_enrollment_id uuid unique references public.program_enrollments(id) on delete restrict,
-  constraint prereg_one_program_per_dog unique (dog_id,program_id),
-  constraint prereg_card_attestation check (
-    (physical_card_number is null and card_paid_attested_by is null and card_paid_attested_at is null)
-    or (physical_card_number is not null and card_paid_attested_by is not null and card_paid_attested_at is not null)
-  )
+  constraint prereg_one_program_per_dog unique (dog_id,program_id)
 );
 create unique index if not exists prereg_card_number_unique
   on ucapsa_intake.programs (program_id,lower(btrim(physical_card_number)))
@@ -125,11 +122,14 @@ begin
   if not found then
     raise exception 'Programa no admitido.' using errcode='22023';
   end if;
-  if v_program.code='puppy' and (v_level<>'base' or v_card is null) then
-    raise exception 'Puppy requiere tarjeta física pagada y nivel base.' using errcode='22023';
+  if v_program.code='puppy' and v_level<>'base' then
+    raise exception 'Puppy requiere nivel base.' using errcode='22023';
   end if;
   if v_program.code='comandos' and v_level not in ('principiante','medio','avanzado') then
     raise exception 'Indica Básico, Intermedio o Avanzado.' using errcode='22023';
+  end if;
+  if v_program.code='comandos' and (v_card is not null or p_card_started_on is not null) then
+    raise exception 'Comandos no usa referencia de tarjeta física; registre únicamente el programa y nivel.' using errcode='22023';
   end if;
   if v_card is not null and (length(v_card)>80 or v_card ~ '[[:cntrl:]]') then
     raise exception 'Número de tarjeta inválido.' using errcode='22023';
@@ -157,20 +157,16 @@ begin
 
   insert into ucapsa_intake.programs(
     dog_id,program_id,schedule_id,program_level,physical_card_number,
-    card_started_on,card_paid_attested_by,card_paid_attested_at,created_by
+    card_started_on,authorized_on,created_by
   ) values (
     v_dog.id,v_program.id,v_schedule_id,
     case when v_level='principiante' then 'principiante' else v_level end,
-    v_card,p_card_started_on,
-    case when v_card is not null then v_actor else null end,
-    case when v_card is not null then clock_timestamp() else null end,
-    v_actor
+    v_card,p_card_started_on,v_today,v_actor
   ) on conflict(dog_id,program_id) do update set
     program_level=excluded.program_level,
     physical_card_number=excluded.physical_card_number,
-    card_started_on=excluded.card_started_on,
-    card_paid_attested_by=excluded.card_paid_attested_by,
-    card_paid_attested_at=excluded.card_paid_attested_at
+    card_started_on=excluded.card_started_on
+    -- No reiniciar authorized_on en una edición: preserva autorización original.
   where ucapsa_intake.programs.linked_enrollment_id is null
   returning * into v_stage;
 
@@ -211,7 +207,8 @@ begin
       'after_undated_balance',v_missing,
       'after_total',p_total_attendances,
       'source_note',nullif(btrim(p_note),''),
-      'card_number_changed',v_card is not null
+      'puppy_reference_recorded',v_program.code='puppy' and v_card is not null,
+      'authorized_on',v_stage.authorized_on
     ));
   return v_stage.id;
 end;
