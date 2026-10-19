@@ -1,0 +1,40 @@
+name: UCAPSA Superadmin authorization regression
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261019072000_superadmin_operational_role_null_guard.sql'
+      - 'scripts/isolated-db/superadmin-role-guard-e2e.sql'
+      - '.github/workflows/ucapsa-superadmin-role-guard.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  superadmin-role-guard:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16.4-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ucapsa_isolated_test
+          POSTGRES_DB: ucapsa_role_guard_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ucapsa_role_guard_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: ucapsa_isolated_test
+      PGDATABASE: ucapsa_role_guard_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Test authorization, grants, membership and audit preservation
+        run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/superadmin-role-guard-e2e.sql
