@@ -397,10 +397,10 @@ export function SessionProvider({ children }: SessionProviderProps) {
       return;
     }
     const emailConfirmed = session?.user.email_confirmed_at ?? '';
-    const phoneConfirmed = session?.user.phone_confirmed_at ?? '';
-    if (!emailConfirmed && !phoneConfirmed) return;
+    // El correo electrónico verificado es la identidad principal.
+    if (!emailConfirmed) return;
     if (isOfflineFallback || usingCachedProfile || profile?.user_id !== userId) return;
-    const attemptKey = [userId, emailConfirmed, phoneConfirmed].join('|');
+    const attemptKey = [userId, emailConfirmed].join('|');
     if (claimAttemptKeyRef.current === attemptKey) return;
     claimAttemptKeyRef.current = attemptKey;
     void claimMyPreregisteredDogs()
@@ -419,8 +419,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
         devWarn('Vinculación pendiente: no se bloquea la sesión.', error);
       });
   }, [session?.user.id, session?.user.email_confirmed_at,
-    session?.user.phone_confirmed_at, profile?.user_id,
-    usingCachedProfile, isOfflineFallback]);
+    profile?.user_id, usingCachedProfile, isOfflineFallback]);
 
   // On returning to the foreground, try to replace read-only identity with a
   // genuine Supabase session. No login re-prompt is necessary after a transient
