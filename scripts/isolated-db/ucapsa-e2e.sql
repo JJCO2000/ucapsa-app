@@ -259,42 +259,42 @@ select public.admin_preregister_dog_with_program(
   'P-200','2026-09-01',1,array[]::date[],'phone-only owner attested');
 reset role;
 
--- Profile phone alone is not an Auth-verified credential.
+-- El primer usuario con el contacto puede reclamar SIN SMS, una vez.
 update auth.users set phone='+525512345678',phone_confirmed_at=null
 where id='00000000-0000-4000-8000-000000000003';
 set role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000003',false);
-do $phone_unverified$
+do $phone_first_no_otp$
 declare result jsonb;
 begin
   result:=public.preview_my_preregistered_dogs();
-  if result->>'status'<>'unverified' then
-    raise exception 'Unverified phone leaked preview: %',result;
+  if result->>'status'<>'available' or result->>'auto_first'<>'true' then
+    raise exception 'Primer teléfono no ofrecido antes de SMS: %',result;
   end if;
-  result:=public.claim_my_preregistered_dogs();
-  if result->>'status'<>'unverified' then
-    raise exception 'Unverified profile phone claimed account: %',result;
+  result:=public.claim_my_first_preregistered_dogs();
+  if result->>'status'<>'linked' or (result->>'linked_dogs')::int<>1 then
+    raise exception 'Primer teléfono no vinculado sin SMS: %',result;
   end if;
-end $phone_unverified$;
+end $phone_first_no_otp$;
 reset role;
 
--- Verificado con OTP (evidencia simulada únicamente en fixture aislado).
+-- Verificarlo posteriormente no duplica un perro previamente vinculado.
 update auth.users set phone_confirmed_at=now()
 where id='00000000-0000-4000-8000-000000000003';
 set role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000003',false);
-do $phone_verified$
+do $phone_post_verification$
 declare result jsonb;
 begin
-  result:=public.preview_my_preregistered_dogs();
-  if result->>'status'<>'available' or (result->>'count')::int<>1 then
-    raise exception 'Confirmed cellphone should preview one dog: %',result;
+  result:=public.claim_my_first_preregistered_dogs();
+  if result->>'status'<>'requires_approval' then
+    raise exception 'Un SMS posterior reabrió vínculo automático: %',result;
   end if;
   result:=public.claim_my_preregistered_dogs();
-  if result->>'status'<>'linked' or (result->>'linked_dogs')::int<>1 then
-    raise exception 'Verified phone did not link unique matching dog: %',result;
+  if result->>'status'='linked' then
+    raise exception 'Confirmar SMS duplicó expediente: %',result;
   end if;
-end $phone_verified$;
+end $phone_post_verification$;
 reset role;
 
 -- Protección contra reutilización de un número que otra cuenta verifica.
