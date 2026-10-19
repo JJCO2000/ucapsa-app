@@ -442,7 +442,9 @@ export async function updateStaffExamDraft(input: EditableTrainerExamDraft) {
     p_exam_id: input.examId,
     p_code: input.code.trim(),
     p_title: input.title.trim(),
-    p_exam_date: input.examDate,
+    // Los tipos recién generados definen DATE como string, pero el RPC acepta
+    // NULL para mantener borradores sin fecha. Conservar el valor real.
+    p_exam_date: input.examDate as string,
     p_items: input.items,
     p_expected_updated_at: input.updatedAt,
   });

@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import type { Database } from '../types/database.types';
 import { preregistrationEnabled } from '../constants/preregistrationFeature';
 
 export type PreregisteredProgramInput = {
@@ -15,19 +16,19 @@ export type PreregisteredProgramInput = {
   sourceNote: string;
 };
 
-export type PreregistrationRpcName =
+export type PreregistrationRpcName = Extract<keyof Database['public']['Functions'],
   | 'admin_preregister_dog_with_program'
   | 'claim_my_preregistered_dogs'
   | 'get_staff_preregistered_class_roster'
-  | 'staff_register_preregistered_attendance';
+  | 'staff_register_preregistered_attendance'>;
 type RpcOutcome = {
   data: unknown;
   error: { message: string } | null;
 };
 
-// Contrato provisional restringido a dos RPC definidos en las migraciones del
-// PR #380. No alterar database.generated.ts manualmente: sus tipos definitivos
-// deben regenerarse desde Supabase una vez aplicado el esquema autorizado.
+// Los nombres RPC están restringidos a las funciones existentes en los tipos
+// regenerados oficialmente desde Supabase. La frontera de parámetros tolera
+// fechas SQL nulas que el generador declara como cadenas no nulas.
 export async function callPreregistrationRpc(
   name: PreregistrationRpcName,
   args: Record<string, unknown> = {},
