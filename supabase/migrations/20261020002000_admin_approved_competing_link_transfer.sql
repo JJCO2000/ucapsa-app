@@ -13,6 +13,8 @@ declare
   v_dogs uuid[];
   v_enrollments uuid[];
   v_num integer;
+  v_table text;
+  v_has_activity boolean;
 begin
   if auth.uid() is null or not public.is_ucapsa_admin() then
     raise exception 'Solo Administracion puede autorizar cambios.' using errcode='42501';
@@ -64,26 +66,45 @@ begin
           pg_catalog.lower(pg_catalog.btrim(incoming.name))) then
     raise exception 'La cuenta destino ya tiene un perro con este nombre.' using errcode='23505';
   end if;
-  -- All following tables may contain records created AFTER preregistration.
-  -- Preserve them intact: a complex case must go through separate reconciliation.
-  if exists(select 1 from public.program_attendances x where x.enrollment_id=any(v_enrollments))
-    or exists(select 1 from public.program_attendance_absences x where x.enrollment_id=any(v_enrollments))
-    or exists(select 1 from public.program_exams x where x.enrollment_id=any(v_enrollments))
-    or exists(select 1 from public.program_class_rsvps x where x.enrollment_id=any(v_enrollments))
-    or exists(select 1 from public.practice_sessions x where x.dog_id=any(v_dogs))
-    or exists(select 1 from public.membership_dog_access x where x.dog_id=any(v_dogs))
-    or exists(select 1 from public.member_visit_dogs x where x.dog_id=any(v_dogs))
-    or exists(select 1 from public.dog_awards x where x.dog_id=any(v_dogs))
-    or exists(select 1 from public.ucapsa_exam_attempts x where x.dog_id=any(v_dogs))
-    or exists(select 1 from public.intro_class_agenda_plans x where x.dog_id=any(v_dogs))
-    or exists(select 1 from public.ucapsa_value_exposures x where x.dog_id=any(v_dogs))
-    or exists(select 1 from public.user_achievements x where x.dog_id=any(v_dogs))
-    or exists(select 1 from public.payments x where x.user_id=v_old)
-    or exists(select 1 from public.payment_obligations x where x.user_id=v_old)
-  then
-    raise exception 'Hay actividad, membresias o pagos posteriores: no se transfiere sin conciliacion.'
-      using errcode='55000';
-  end if;
+  -- The isolated fixture is intentionally minimal; production may have more
+  -- activity tables. Check only tables that exist, with hard-coded identifiers.
+  for v_table in select unnest(array[
+    'program_attendances','program_attendance_absences',
+    'program_exams','program_class_rsvps'
+  ]) loop
+    if pg_catalog.to_regclass('public.'||v_table) is not null then
+      execute pg_catalog.format(
+        'select exists(select 1 from public.%I where enrollment_id=any($1))',v_table)
+      into v_has_activity using v_enrollments;
+      if v_has_activity then
+        raise exception 'Hay asistencias o exámenes posteriores: requiere conciliación.' using errcode='55000';
+      end if;
+    end if;
+  end loop;
+  for v_table in select unnest(array[
+    'practice_sessions','membership_dog_access','member_visit_dogs',
+    'dog_awards','ucapsa_exam_attempts','intro_class_agenda_plans',
+    'ucapsa_value_exposures','user_achievements'
+  ]) loop
+    if pg_catalog.to_regclass('public.'||v_table) is not null then
+      execute pg_catalog.format(
+        'select exists(select 1 from public.%I where dog_id=any($1))',v_table)
+      into v_has_activity using v_dogs;
+      if v_has_activity then
+        raise exception 'Hay actividad vinculada al perro: requiere conciliación.' using errcode='55000';
+      end if;
+    end if;
+  end loop;
+  for v_table in select unnest(array['payments','payment_obligations']) loop
+    if pg_catalog.to_regclass('public.'||v_table) is not null then
+      execute pg_catalog.format(
+        'select exists(select 1 from public.%I where user_id=$1)',v_table)
+      into v_has_activity using v_old;
+      if v_has_activity then
+        raise exception 'Hay pagos posteriores: requiere conciliación.' using errcode='55000';
+      end if;
+    end if;
+  end loop;
 
   -- Atomic change: preserve dogs, original enrollment IDs, attendance
   -- historical evidence and level data; no delete/recreation.
