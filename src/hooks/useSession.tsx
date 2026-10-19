@@ -527,7 +527,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       lastProfileSyncAt,
       isOfflineFallback,
       preregistrationSyncVersion,
-      preregistrationLinkOffer: preregistrationLinkOffer?.userId === user?.id
+      preregistrationLinkOffer: preregistrationLinkOffer && preregistrationLinkOffer.userId === user?.id
         ? preregistrationLinkOffer.count : null,
       preregistrationLinkBusy,
       confirmPreregistrationLink,
