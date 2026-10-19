@@ -99,7 +99,7 @@ for (const token of [
   'getProgramEnrollmentsForUser',
   'getMyProgramEnrollments',
   'getAdminProgramRows',
-  'getProgramClientProfiles',
+  'getProgramAssignableProfiles',
   'createProgramEnrollment',
   'updateProgramEnrollment',
   'setProgramEnrollmentStatus',
