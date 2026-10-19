@@ -1,4 +1,4 @@
-\\set ON_ERROR_STOP on
+\set ON_ERROR_STOP on
 do $guard$ begin
  if current_database() <> 'ucapsa_membership_program_guard_test' then
   raise exception 'Refusing to run outside ephemeral test database';
