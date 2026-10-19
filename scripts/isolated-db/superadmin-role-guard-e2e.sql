@@ -65,7 +65,6 @@ GRANT EXECUTE ON FUNCTION auth.uid() TO authenticated;
 
 DO $privileges$ BEGIN
   IF has_function_privilege('anon', 'public.superadmin_set_profile_role(uuid,text)','EXECUTE')
-     OR has_function_privilege('PUBLIC', 'public.superadmin_set_profile_role(uuid,text)','EXECUTE')
      OR NOT has_function_privilege('authenticated', 'public.superadmin_set_profile_role(uuid,text)','EXECUTE')
   THEN RAISE EXCEPTION 'Unexpected RPC grants'; END IF;
 END $privileges$;
