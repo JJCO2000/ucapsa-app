@@ -395,9 +395,9 @@ export function SessionProvider({ children }: SessionProviderProps) {
     };
   }, []);
 
-  // Primer expediente: vínculo automático SOLO con contacto Auth confirmado
-  // o autorización administrativa previa a esta cuenta exacta. El servidor
-  // garantiza atomicidad e impide una segunda vinculación silenciosa.
+  // Primer expediente: coincidencia de correo Auth O telefono del perfil,
+  // incluso sin OTP; el servidor atomiza el reclamo. Otro intento crea una
+  // solicitud a Administracion y no transfiere datos.
   // Los expedientes posteriores esperan confirmación explícita.
   useEffect(() => {
     if (!preregistrationEnabled) return;
@@ -485,8 +485,8 @@ export function SessionProvider({ children }: SessionProviderProps) {
     setPreregistrationLinkOffer(null);
   }
 
-  // Reapertura tras "Ahora no", y vínculo automático del primer expediente
-  // autorizado. Jamás se confía en contactos editables de perfil.
+  // Reapertura tras "Ahora no" y vinculo automático inicial.
+  // El contacto escrito en el perfil se acepta solo en el primer reclamo.
   async function reviewPreregistrationLink():
     Promise<'available' | 'none' | 'unverified' | 'not_applicable' | 'conflict' | 'linked' | 'requested'> {
     if (!preregistrationEnabled || !session?.user || isOfflineFallback ||
