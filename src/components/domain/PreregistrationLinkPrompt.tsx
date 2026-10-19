@@ -36,7 +36,7 @@ export function PreregistrationLinkPrompt() {
         <View style={styles.dialog}>
           <View style={styles.head}>
             <MaterialIcons name="pets" size={22} color={ucapsaBrand.colors.greenDark} />
-            <Text style={styles.title}>Se encontraron registros</Text>
+            <Text style={styles.title}>Se encontraron nuevos registros</Text>
           </View>
           <Text style={styles.body}>
             UCAPSA encontró {count === 1 ? 'un perro' : `${count ?? 0} perros`}
