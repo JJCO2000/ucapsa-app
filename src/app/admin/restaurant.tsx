@@ -11,6 +11,8 @@ import {
   createRestaurantCategory,
   createRestaurantItem,
   getAdminRestaurantMenu,
+  isRestaurantMenuPublished,
+  setRestaurantMenuPublished,
   updateRestaurantCategory,
   updateRestaurantItem,
   type RestaurantMenuCategory,
@@ -34,6 +36,7 @@ function errorMessage(cause: unknown, fallback: string) {
 export default function AdminRestaurantScreen() {
   const { isAdmin } = useSession();
   const [sections, setSections] = useState<RestaurantMenuSection[]>([]);
+  const [menuPublished, setMenuPublished] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +58,9 @@ export default function AdminRestaurantScreen() {
     if (!isAdmin) return;
     setError(null);
     try {
-      setSections(await getAdminRestaurantMenu());
+      const [menu, published] = await Promise.all([getAdminRestaurantMenu(),isRestaurantMenuPublished()]);
+      setSections(menu);
+      setMenuPublished(published);
     } catch (cause) {
       setError(errorMessage(cause, 'No se pudo cargar el menú. Revisa tu conexión y vuelve a intentarlo.'));
     } finally {
@@ -161,6 +166,11 @@ export default function AdminRestaurantScreen() {
     }
   }
 
+  const visibleProductCount = sections.reduce((total, section) =>
+    total + (section.category.is_active
+      ? section.items.filter((item) => item.is_available).length
+      : 0), 0);
+
   return (
     <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={ucapsaBrand.colors.red} />}>
       <View style={styles.headerRow}>
@@ -172,6 +182,36 @@ export default function AdminRestaurantScreen() {
         </View>
         <Pressable style={styles.addButton} onPress={openNewCategory}><MaterialIcons name="add" size={20} color={ucapsaBrand.colors.surface} /><Text style={styles.addText}>Categoría</Text></Pressable>
       </View>
+
+      {!loading && !error ? (
+        <View style={styles.sectionCard}>
+          <View style={styles.categoryHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.categoryTitle}>Publicar menú del domingo</Text>
+              <Text style={styles.categoryMeta}>
+                {menuPublished ? 'Publicado para Clientes, Socios y visitantes' : 'Oculto para el público'}
+              </Text>
+              <Text style={styles.categoryMeta}>
+                {visibleProductCount} productos disponibles en categorías activas
+              </Text>
+              {visibleProductCount === 0 ? (
+                <Text style={styles.categoryMeta}>
+                  Activa al menos un producto en una categoría visible para poder publicar.
+                </Text>
+              ) : null}
+            </View>
+            <Switch
+              accessibilityLabel="Publicar u ocultar el menú del restaurante"
+              value={menuPublished}
+              disabled={saving || (!menuPublished && visibleProductCount === 0)}
+              onValueChange={(value) => void runAndReload(async () => {
+                await setRestaurantMenuPublished(value);
+              })}
+              trackColor={{ true: ucapsaBrand.colors.greenDark }}
+            />
+          </View>
+        </View>
+      ) : null}
 
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando menú...</Text></View> : null}
 
