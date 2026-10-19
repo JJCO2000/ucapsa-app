@@ -170,7 +170,10 @@ for (const [label, ok] of [
   ['pantalla bloqueada',preregistrationScreen.includes('!isAdmin || !preregistrationEnabled')],
   ['directorio bloqueado',preregistrationUsers.includes('{preregistrationEnabled ? (')],
   ['vinculación Auth bloqueada',preregistrationSession.includes('if (!preregistrationEnabled) return;')],
-  ['vinculación exige credencial verificada',preregistrationSession.includes('if (!phoneConfirmed && !emailConfirmed) return;')],
+  ['primer vínculo exige verificación real o aprobación Admin',
+    preregistrationSession.includes('claimMyFirstPreregisteredDogs()') &&
+    fs.readFileSync('supabase/migrations/20261019235000_first_trusted_auto_prereg_link.sql','utf8')
+      .includes('return public.claim_my_preregistered_dogs();')],
   ['roster provisional apagado',preregistrationRoster.includes('if (!preregistrationEnabled) return [];')],
   ['mismo horario de roster',trainerClasses.includes('row.scheduleId === group.scheduleId && row.programCode === group.programCode')],
   ['sin número en Comandos',preregistrationService.includes("input.programCode === 'puppy' ? input.physicalCardNumber.trim() : ''")],
