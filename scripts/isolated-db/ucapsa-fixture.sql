@@ -48,6 +48,11 @@ create table public.program_class_cancellations (
   cancellation_date date not null,
   restored_at timestamptz
 );
+create table public.memberships (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id),
+  status text not null default 'active'
+);
 create table public.program_enrollments (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id),
@@ -57,15 +62,28 @@ create table public.program_enrollments (
   dog_name text,
   physical_card_number text,
   program_level text not null default 'base' check (program_level in ('base','principiante','medio','avanzado')),
-  access_mode text not null default 'card',
-  status text not null default 'active',
-  attendances_count integer not null default 0,
+  access_mode text not null default 'card' check (access_mode in ('card','membership')),
+  membership_id uuid references public.memberships(id),
+  status text not null default 'active' check (status in ('active','completed','cancelled')),
+  attendances_count integer not null default 0 check (attendances_count >= 0),
   last_attendance_at date,
   requirements_met_at timestamptz,
   started_at date default current_date,
   card_started_on date,
   card_expires_on date,
-  updated_at timestamptz not null default now()
+  completed_at timestamptz,
+  cancelled_at timestamptz,
+  notes text,
+  unlocked_from_enrollment_id uuid references public.program_enrollments(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint enrollment_membership_mode check (
+    (access_mode='card' and membership_id is null)
+    or (access_mode='membership' and membership_id is not null)
+  ),
+  constraint enrollment_card_dates check (
+    card_started_on is null or card_expires_on is null or card_expires_on>=card_started_on
+  )
 );
 create unique index program_enrollments_card_unique
   on public.program_enrollments(program_id, lower(btrim(physical_card_number)))
@@ -75,6 +93,16 @@ create table public.program_attendances (
   enrollment_id uuid not null references public.program_enrollments(id),
   attendance_date date not null,
   unique(enrollment_id, attendance_date)
+);
+create table public.user_achievements (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id),
+  dog_id uuid references public.dogs(id),
+  achievement_code text not null,
+  source_type text,
+  source_id uuid,
+  awarded_at timestamptz,
+  awarded_by uuid references auth.users(id)
 );
 create table public.admin_audit_logs (
   id uuid primary key default gen_random_uuid(),
