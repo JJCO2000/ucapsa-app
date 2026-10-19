@@ -121,7 +121,7 @@ export default function AdminPreregisterDogScreen() {
         totalAttendances: count, knownAttendanceDates: dates, sourceNote,
       });
       Alert.alert('Perro preinscrito',
-        'El primer expediente se vinculará al iniciar sesión si coincide un contacto verificado o existe autorización administrativa. Los posteriores requieren nueva autorización.',
+        'El primer expediente se vinculará automáticamente si coincide celular o correo, sin OTP. Si otra cuenta intenta reclamarlo después, se solicitará revisión de Administración.',
         [{ text: 'Listo', onPress: () => router.back() }]);
     } catch (cause) {
       Alert.alert('No se pudo preinscribir',

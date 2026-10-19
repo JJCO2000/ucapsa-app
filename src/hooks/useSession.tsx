@@ -14,6 +14,7 @@ import { clearPracticeActivityCache } from '../services/practice.service';
 import { disableStoredExpoPushToken } from '../services/notifications.service';
 import { getProfileByUserId } from '../services/profiles.service';
 import { claimMyFirstPreregisteredDogs, claimMyPreregisteredDogs, previewMyPreregisteredDogs } from '../services/dog-preregistration.service';
+import { requestMyPreregistrationLinkReview } from '../services/preregistration-link-requests.service';
 import {
   clearVerifiedLocalUser,
   isBackendUnreachable,
@@ -45,7 +46,7 @@ type SessionContextValue = {
   preregistrationLinkBusy: boolean;
   confirmPreregistrationLink: () => Promise<void>;
   dismissPreregistrationLink: () => void;
-  reviewPreregistrationLink: () => Promise<'available' | 'none' | 'unverified' | 'not_applicable' | 'conflict' | 'linked'>;
+  reviewPreregistrationLink: () => Promise<'available' | 'none' | 'unverified' | 'not_applicable' | 'conflict' | 'linked' | 'requested'>;
   isAdmin: boolean;
   isTrainer: boolean;
   isStaff: boolean;
@@ -394,9 +395,9 @@ export function SessionProvider({ children }: SessionProviderProps) {
     };
   }, []);
 
-  // Primer expediente: vínculo automático SOLO con contacto Auth confirmado
-  // o autorización administrativa previa a esta cuenta exacta. El servidor
-  // garantiza atomicidad e impide una segunda vinculación silenciosa.
+  // Primer expediente: coincidencia de correo Auth O telefono del perfil,
+  // incluso sin OTP; el servidor atomiza el reclamo. Otro intento crea una
+  // solicitud a Administracion y no transfiere datos.
   // Los expedientes posteriores esperan confirmación explícita.
   useEffect(() => {
     if (!preregistrationEnabled) return;
@@ -418,6 +419,11 @@ export function SessionProvider({ children }: SessionProviderProps) {
       const result = await previewMyPreregisteredDogs();
       if (!active || claimAttemptKeyRef.current !== attemptKey) return;
       if (result.status !== 'available' || result.count < 1) {
+        if (result.status === 'conflict') {
+          // Un segundo intento sobre un expediente ya vinculado crea una
+          // solicitud para Administración. Nunca transfiere expedientes.
+          await requestMyPreregistrationLinkReview();
+        }
         setPreregistrationLinkOffer(null);
         return;
       }
@@ -431,6 +437,9 @@ export function SessionProvider({ children }: SessionProviderProps) {
             setPreregistrationSyncVersion((value) => value + 1);
           }
           return;
+        }
+        if (claimed.status === 'conflict') {
+          await requestMyPreregistrationLinkReview();
         }
         if (claimed.status !== 'requires_approval') {
           setPreregistrationLinkOffer(null);
@@ -479,16 +488,20 @@ export function SessionProvider({ children }: SessionProviderProps) {
     setPreregistrationLinkOffer(null);
   }
 
-  // Reapertura tras "Ahora no", y vínculo automático del primer expediente
-  // autorizado. Jamás se confía en contactos editables de perfil.
+  // Reapertura tras "Ahora no" y vinculo automático inicial.
+  // El contacto escrito en el perfil se acepta solo en el primer reclamo.
   async function reviewPreregistrationLink():
-    Promise<'available' | 'none' | 'unverified' | 'not_applicable' | 'conflict' | 'linked'> {
+    Promise<'available' | 'none' | 'unverified' | 'not_applicable' | 'conflict' | 'linked' | 'requested'> {
     if (!preregistrationEnabled || !session?.user || isOfflineFallback ||
         usingCachedProfile || profile?.user_id !== session.user.id) return 'not_applicable';
     const userId = session.user.id;
     // Una autorización explícita de Administración habilita la consulta
     // aunque el contacto Auth todavía no esté confirmado.
     const result = await previewMyPreregisteredDogs();
+    if (result.status === 'conflict') {
+      const requestStatus = await requestMyPreregistrationLinkReview();
+      return requestStatus === 'requested' ? 'requested' : 'conflict';
+    }
     if (result.status === 'available' && result.count > 0 && result.autoFirst) {
       const claimed = await claimMyFirstPreregisteredDogs();
       if (claimed.status === 'linked' && claimed.linkedDogs > 0) {
@@ -496,6 +509,10 @@ export function SessionProvider({ children }: SessionProviderProps) {
         setPreregistrationLinkOffer(null);
         setPreregistrationSyncVersion((value) => value + 1);
         return 'linked';
+      }
+      if (claimed.status === 'conflict') {
+        const requestStatus = await requestMyPreregistrationLinkReview();
+        return requestStatus === 'requested' ? 'requested' : 'conflict';
       }
       if (claimed.status !== 'requires_approval') return claimed.status;
     }

@@ -66,6 +66,11 @@ export default function AdminPreregistrationsScreen() {
         <MaterialIcons name="add" size={20} color={ucapsaBrand.colors.surface} />
         <Text style={styles.primaryText}>Registrar perro sin cuenta</Text>
       </Pressable>
+      <Pressable accessibilityRole="button" style={styles.primary}
+        onPress={() => router.push('/admin/link-review-requests' as never)}>
+        <MaterialIcons name="assignment" size={20} color={ucapsaBrand.colors.surface} />
+        <Text style={styles.primaryText}>Solicitudes de otras cuentas</Text>
+      </Pressable>
       <TextInput style={styles.search} value={filter} onChangeText={setFilter}
         accessibilityLabel="Buscar preinscripciones"
         placeholder="Buscar tutor, perro, teléfono o programa"
