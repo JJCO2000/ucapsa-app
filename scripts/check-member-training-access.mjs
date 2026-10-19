@@ -232,7 +232,7 @@ for (const [rule,ok] of [
   ['El usuario puede rechazar',consentModal.includes('Ahora no')],
   ['Ventana universal',rootLayout.includes('<PreregistrationLinkPrompt />')],
   ['Servicio consulta preview',preregClaims.includes('preview_my_preregistered_dogs')],
-  ['Cuenta distingue teléfono sin verificar',accountSettings.includes('El celular guardado es un dato de contacto')],
+  ['Cuenta distingue teléfono sin verificar',accountSettings.includes('No se necesita SMS para esa primera vinculación')],
 ]) {
   if (!ok) throw new Error('Regresión consentimiento de preinscripción: '+rule);
 }
