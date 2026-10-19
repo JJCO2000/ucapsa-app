@@ -27,12 +27,16 @@ export default function AdminPreregisterDogScreen() {
 
   async function save() {
     if (saving) return;
-    if (!ownerName.trim() || !dogName.trim() || !ownerEmail.trim()) {
-      Alert.alert('Faltan datos', 'Escribe el tutor, el perro y el correo electrónico principal.');
+    if (!ownerName.trim() || !dogName.trim() || (!ownerPhone.trim() && !ownerEmail.trim())) {
+      Alert.alert('Faltan datos', 'Escribe tutor, perro y celular o correo de contacto. Prioriza el celular.');
       return;
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail.trim())) {
+    if (ownerEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail.trim())) {
       Alert.alert('Correo inválido', 'Escribe un correo electrónico válido para vincular la cuenta.');
+      return;
+    }
+    if (ownerPhone.trim() && !/^\+[1-9][0-9]{7,14}$/.test(ownerPhone.trim())) {
+      Alert.alert('Celular inválido', 'Escribe el teléfono con código internacional, por ejemplo +525512345678.');
       return;
     }
     try {
@@ -59,7 +63,7 @@ export default function AdminPreregisterDogScreen() {
         totalAttendances: count, knownAttendanceDates: dates, sourceNote,
       });
       Alert.alert('Perro preinscrito',
-        'Cuando el tutor cree su cuenta y verifique ese correo electrónico, el expediente podrá vincularse si no hay conflictos.',
+        'El expediente se vinculará cuando el tutor confirme su celular en Supabase Auth, o su correo si es el contacto disponible, siempre que no haya conflictos.',
         [{ text: 'Listo', onPress: () => router.back() }]);
     } catch (cause) {
       Alert.alert('No se pudo preinscribir',
@@ -86,7 +90,7 @@ export default function AdminPreregisterDogScreen() {
       <Text style={styles.heading}>Preinscribir perro</Text>
       <Text style={styles.description}>
         Registra al perro sin crear una cuenta ficticia. El tutor podrá reclamar su expediente al
-        verificar el mismo correo electrónico.
+        verificar su celular o correo en UCAPSA. La verificación evita vincularlo con otra cuenta.
       </Text>
 
       <View style={styles.card}>
@@ -95,17 +99,17 @@ export default function AdminPreregisterDogScreen() {
           autoCapitalize="words" autoCorrect={false} maxLength={120}
           placeholder="Nombre del tutor" placeholderTextColor={ucapsaBrand.colors.muted} />
 
-        <Text style={styles.label}>Correo principal del tutor (obligatorio)</Text>
+        <Text style={styles.label}>Correo del tutor (opcional, recomendado)</Text>
         <TextInput style={styles.input} value={ownerEmail} onChangeText={setOwnerEmail}
           autoCapitalize="none" keyboardType="email-address" autoCorrect={false}
           maxLength={254} placeholder="correo@ejemplo.com"
           placeholderTextColor={ucapsaBrand.colors.muted} />
 
-        <Text style={styles.label}>Teléfono del tutor (opcional)</Text>
+        <Text style={styles.label}>Celular del tutor (principal)</Text>
         <TextInput style={styles.input} value={ownerPhone} onChangeText={setOwnerPhone}
           keyboardType="phone-pad" maxLength={16} placeholder="+525512345678"
           placeholderTextColor={ucapsaBrand.colors.muted} />
-        <Text style={styles.helper}>Usa formato internacional: +52 y los 10 dígitos de México. El correo identifica la cuenta. El teléfono es complementario y opcional.</Text>
+        <Text style={styles.helper}>Usa formato internacional: +52 y los 10 dígitos de México. El celular es el contacto prioritario. El correo es una alternativa; para vincular automáticamente debe verificarse al menos uno en Supabase Auth.</Text>
 
         <Text style={styles.label}>Nombre del perro</Text>
         <TextInput style={styles.input} value={dogName} onChangeText={setDogName}
