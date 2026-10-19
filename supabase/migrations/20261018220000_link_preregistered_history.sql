@@ -224,7 +224,7 @@ begin
   end if;
   select p.role into v_profile_role from public.profiles p where p.user_id=v_user;
   -- Rol de Staff no impide reclamar su propia ficha con contacto verificado.
-  if v_profile_role is null or v_profile_role = 'visitor' then
+  if v_profile_role is null then
     return pg_catalog.jsonb_build_object('status','not_applicable','linked_dogs',0);
   end if;
 
