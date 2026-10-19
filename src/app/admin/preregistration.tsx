@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } 
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
-import { preregistrationEnabled } from '../../constants/preregistrationFeature';
+import { preregistrationDirectoryEnabled } from '../../constants/preregistrationFeature';
 import { useSession } from '../../hooks/useSession';
 import {
   getAdminPreregistrationRecords,
@@ -44,12 +44,12 @@ export default function AdminPreregistrationDetailScreen() {
   }, [recordId]);
 
   useFocusEffect(useCallback(() => {
-    if (!isAdmin || !preregistrationEnabled || !recordId) return;
+    if (!isAdmin || !preregistrationDirectoryEnabled || !recordId) return;
     setLoading(true);
     void load();
   }, [isAdmin, recordId, load]));
 
-  if (!isAdmin || !preregistrationEnabled) return <Redirect href="/home" />;
+  if (!isAdmin || !preregistrationDirectoryEnabled) return <Redirect href="/home" />;
 
   return (
     <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} tintColor={ucapsaBrand.colors.red}
