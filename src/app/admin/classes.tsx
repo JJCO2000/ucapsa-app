@@ -17,7 +17,7 @@ import {
   formatProgramScheduleName,
   getAdminProgramRows,
   getDefaultProgramLevel,
-  getProgramClientProfiles,
+  getProgramAssignableProfiles,
   getProgramEnrollmentDogName,
   getProgramLevelLabel,
   getProgramSchedules,
@@ -119,7 +119,7 @@ export default function AdminClassesScreen() {
       const [programResult, scheduleResult, profileResult, rowResult] = await Promise.all([
         getPrograms(),
         getProgramSchedules(),
-        getProgramClientProfiles(),
+        getProgramAssignableProfiles(),
         getAdminProgramRows(),
       ]);
       setPrograms(programResult);
@@ -269,7 +269,7 @@ export default function AdminClassesScreen() {
 
   async function handleCreate() {
     if (!form.userId) {
-      Alert.alert('Selecciona cliente', 'Elige a la persona que se inscribe al programa.');
+      Alert.alert('Selecciona persona', 'Elige a la persona responsable del perro para este programa.');
       return;
     }
 
@@ -549,7 +549,7 @@ function CreateEnrollmentModal({
       <Text style={styles.modalKicker}>Inscripciones</Text>
       <Text style={styles.modalTitle}>Nueva inscripción</Text>
 
-      <Text style={styles.label}>Cliente</Text>
+      <Text style={styles.label}>Persona responsable del perro</Text>
       <TextInput value={clientSearch} onChangeText={onClientSearch} placeholder="Buscar por nombre, correo o teléfono" style={styles.input} />
       <View style={styles.optionsBox}>
         {clientSearch.trim().length === 0 ? (
