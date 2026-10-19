@@ -150,12 +150,11 @@ export async function getAdminProgramRows(): Promise<ProgramEnrollmentWithDetail
 }
 
 /**
- * Candidatos de Administración para Puppy y Comandos.
- * El rol operativo no determina el derecho comercial a inscribirse:
- * Entrenador/Admin/Superadmin también pueden tener perros en estos programas.
- * La consulta sigue protegida por profiles_select_own_or_admin (RLS).
+ * Programas Puppy/Comandos pertenecen al perro, no al rol operativo del tutor.
+ * Un Entrenador, Admin o Superadmin también puede registrar a su propio perro.
+ * La autorización de la pantalla y de la inscripción permanece en RLS/backend.
  */
-export async function getProgramClientProfiles(): Promise<Profile[]> {
+export async function getProgramAssignableProfiles(): Promise<Profile[]> {
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
