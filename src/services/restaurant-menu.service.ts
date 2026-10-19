@@ -86,12 +86,28 @@ export async function cacheRestaurantMenu(sections: RestaurantMenuSection[]): Pr
   }
 }
 
+export async function isRestaurantMenuPublished(): Promise<boolean> {
+  const { data, error } = await supabase.rpc('is_restaurant_menu_published');
+  if (error) throw error;
+  return data === true;
+}
+
+export async function setRestaurantMenuPublished(enabled: boolean): Promise<boolean> {
+  const { data, error } = await supabase.rpc('admin_set_restaurant_menu_published', {
+    p_published: enabled,
+  });
+  if (error) throw error;
+  return data === true;
+}
+
 export async function getRestaurantMenu(): Promise<RestaurantMenuSection[]> {
-  const [categoryResult, itemResult] = await Promise.all([
+  const [published, categoryResult, itemResult] = await Promise.all([
+    isRestaurantMenuPublished(),
     supabase.from('restaurant_menu_categories').select('*').eq('is_active', true).order('sort_order').order('name'),
     supabase.from('restaurant_menu_items').select('*').eq('is_available', true).order('sort_order').order('name'),
   ]);
 
+  if (!published) return [];
   if (categoryResult.error) throw categoryResult.error;
   if (itemResult.error) throw itemResult.error;
 
