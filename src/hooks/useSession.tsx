@@ -463,9 +463,8 @@ export function SessionProvider({ children }: SessionProviderProps) {
     if (!preregistrationEnabled || !session?.user || isOfflineFallback ||
         usingCachedProfile || profile?.user_id !== session.user.id) return 'not_applicable';
     const userId = session.user.id;
-    if (!session.user.phone_confirmed_at && !session.user.email_confirmed_at) {
-      return 'unverified';
-    }
+    // Una autorización explícita de Administración habilita la consulta
+    // aunque el contacto Auth todavía no esté confirmado.
     const result = await previewMyPreregisteredDogs();
     if (result.status === 'available' && result.count > 0) {
       setPreregistrationLinkOffer({ userId, count: result.count });
