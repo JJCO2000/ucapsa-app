@@ -273,7 +273,7 @@ function AdminAccountDetailModal({
   const [savingRole, setSavingRole] = useState(false);
   if (!profile) return null;
 
-  const canEditThisRole = canManageRoles && profile.role !== 'super_admin' && profile.role !== 'member';
+  const canEditThisRole = canManageRoles && profile.role !== 'super_admin';
 
   async function setRole(nextRole: Extract<AppRole, 'client' | 'trainer' | 'admin'>) {
     if (!profile || savingRole || !canEditThisRole || profile.role === nextRole) return;
@@ -307,7 +307,7 @@ function AdminAccountDetailModal({
         <KeyboardAwareScreen contentContainerStyle={styles.modalContent}>
           <Text style={styles.eyebrow}>Cuenta administrativa</Text>
           <Text style={styles.modalTitle}>{profile.full_name || 'Sin nombre'}</Text>
-          <Text style={styles.subtitle}>{getRoleLabel(profile.role)}</Text>
+          <Text style={styles.subtitle}>{getRoleLabel(profile.role)} · acceso operativo</Text>
 
           <View style={styles.detailBox}>
             <Detail label="Nombre" value={profile.full_name} />
@@ -319,13 +319,12 @@ function AdminAccountDetailModal({
           {canManageRoles ? (
             <View style={styles.roleManager}>
               <Text style={styles.roleManagerTitle}>Acceso del equipo</Text>
-              {profile.role === 'member' ? (
-                <Text style={styles.roleManagerHint}>Una cuenta de socio conserva su rol de cliente. Para staff usa una cuenta separada y así no mezclas permisos internos con membresía.</Text>
-              ) : profile.role === 'super_admin' ? (
+              {profile.role === 'super_admin' ? (
                 <Text style={styles.roleManagerHint}>Las cuentas Superadmin no se modifican desde esta pantalla.</Text>
               ) : (
                 <>
-                  <Text style={styles.roleManagerHint}>Entrenador sólo ve clases, roster, asistencia, exámenes, notas internas y reportes. No ve pagos, comunicación ni estadísticas internas.</Text>
+                  <Text style={styles.roleManagerHint}>Estos permisos son independientes de la membresía de Socio y las tarjetas Puppy/Comandos. Cambiar el acceso operativo no altera pagos, inscripciones ni la membresía.</Text>
+                  <Text style={styles.roleManagerHint}>Entrenador administra clases y exámenes; Admin gestiona UCAPSA. Superadmin conserva control exclusivo de cambios de rol.</Text>
                   <View style={styles.roleOptions}>
                     {([
                       { value: 'client', label: 'Cliente' },
@@ -345,6 +344,20 @@ function AdminAccountDetailModal({
                 </>
               )}
             </View>
+          ) : null}
+
+          {canManageRoles ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Gestionar membresía de Socio por separado"
+              style={styles.roleOption}
+              onPress={() => {
+                onClose();
+                router.push(('/admin/customer-membership?userId=' + encodeURIComponent(profile.user_id)) as never);
+              }}
+            >
+              <Text style={styles.roleOptionText}>Membresía de Socio · gestión separada</Text>
+            </Pressable>
           ) : null}
 
           <Pressable style={styles.closeButton} onPress={onClose}>
