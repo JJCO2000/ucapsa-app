@@ -284,10 +284,8 @@ grant execute on function public.admin_preregister_dog(text,text,text,text) to a
 revoke all on function public.claim_my_preregistered_dogs() from public,anon;
 grant execute on function public.claim_my_preregistered_dogs() to authenticated;
 
--- Previene intentar asociar teléfonos ya verificados o con cambios pendientes
--- en otras cuentas Auth. No confirma números ni envía SMS.
--- Límite: comprobación previa; también debe validarse auth.uid tras OTP,
--- y detener la vinculación si Supabase actualiza una cuenta diferente.
+-- No iniciar SMS hacia un teléfono confirmado o con verificación pendiente
+-- en otra cuenta Auth. Rechazar si falta sesión o el formato E.164 es incorrecto.
 create or replace function public.can_request_my_phone_verification(p_phone text)
 returns boolean
 language plpgsql security definer
@@ -300,25 +298,7 @@ begin
   if v_user is null then
     raise exception 'Inicia sesión para verificar tu celular.' using errcode='42501';
   end if;
-  if v_phone is null or v_phone !~ '^\+[1-9][0-9]{7,14} then
-    raise exception 'Usa número internacional E.164.' using errcode='22023';
-  end if;
-  if exists (
-    select 1 from auth.users u
-    where u.id<>v_user
-      and (
-        (u.phone=v_phone and u.phone_confirmed_at is not null)
-        or u.phone_change=v_phone
-      )
-  ) then
-    return false;
-  end if;
-  return true;
-end;
-$func$;
-revoke all on function public.can_request_my_phone_verification(text) from public,anon;
-grant execute on function public.can_request_my_phone_verification(text) to authenticated;
- then
+  if v_phone is null or v_phone !~ '^\+[1-9][0-9]{7,14}$' then
     raise exception 'Usa número internacional E.164.' using errcode='22023';
   end if;
   if exists (
