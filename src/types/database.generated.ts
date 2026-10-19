@@ -5892,6 +5892,29 @@ export type Database = {
         Args: { p_exam_id: string }
         Returns: Json
       }
+      get_staff_exam_report: {
+        Args: { p_exam_id: string }
+        Returns: {
+          attempt_id: string
+          exam_id: string
+          exam_code: string
+          exam_title: string
+          presented_date: string
+          attempt_number: number
+          attempt_status: string
+          is_official: boolean
+          voided_at: string | null
+          dog_id: string
+          dog_name: string
+          client_name: string
+          item_id: string | null
+          item_number: number | null
+          item_title: string | null
+          max_points: number | null
+          points_awarded: number | null
+          evaluator_note: string | null
+        }[]
+      }
       get_staff_exam_drafts: {
         Args: never
         Returns: {
