@@ -116,6 +116,15 @@ export type TrainerExamCatalogRow = {
   maxPoints: number;
 };
 
+export type EditableTrainerExamDraft = {
+  examId: string;
+  code: string;
+  title: string;
+  examDate: string | null;
+  updatedAt: string;
+  items: TrainerExamDraftItem[];
+};
+
 export type TrainerExamDraftRow = {
   examId: string;
   examCode: string;
@@ -384,6 +393,58 @@ export async function createTrainerExamDraft(input: {
     // correctamente la nulabilidad del argumento de una función PostgreSQL.
     p_exam_date: (input.examDate || null) as string,
     p_items: input.items,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function getStaffEditableExamDraft(examId: string): Promise<EditableTrainerExamDraft> {
+  const { data, error } = await supabase.rpc('get_staff_editable_ucapsa_exam_draft', {
+    p_exam_id: examId,
+  });
+  if (error) throw error;
+  if (!data || Array.isArray(data) || typeof data !== 'object') {
+    throw new Error('El borrador no está disponible.');
+  }
+  const value = data as Record<string, unknown>;
+  if (typeof value.exam_id !== 'string' || typeof value.code !== 'string'
+    || typeof value.title !== 'string' || typeof value.updated_at !== 'string'
+    || !Array.isArray(value.items)) {
+    throw new Error('La estructura del borrador no es válida.');
+  }
+  const items = value.items.map((raw) => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      throw new Error('El borrador contiene un ejercicio inválido.');
+    }
+    const item = raw as Record<string, unknown>;
+    const points = Number(item.max_points);
+    if (typeof item.title !== 'string' || !Number.isFinite(points) || points <= 0) {
+      throw new Error('El borrador contiene un ejercicio inválido.');
+    }
+    return {
+      title: item.title,
+      description: typeof item.description === 'string' ? item.description : null,
+      max_points: points,
+    };
+  });
+  return {
+    examId: value.exam_id,
+    code: value.code,
+    title: value.title,
+    examDate: typeof value.exam_date === 'string' ? value.exam_date : null,
+    updatedAt: value.updated_at,
+    items,
+  };
+}
+
+export async function updateStaffExamDraft(input: EditableTrainerExamDraft) {
+  const { data, error } = await supabase.rpc('staff_update_ucapsa_exam_draft', {
+    p_exam_id: input.examId,
+    p_code: input.code.trim(),
+    p_title: input.title.trim(),
+    p_exam_date: input.examDate,
+    p_items: input.items,
+    p_expected_updated_at: input.updatedAt,
   });
   if (error) throw error;
   return data;

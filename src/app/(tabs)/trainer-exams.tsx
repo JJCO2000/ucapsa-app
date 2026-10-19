@@ -11,11 +11,13 @@ import {
   createTrainerExamAttempt,
   createTrainerExamDraft,
   getStaffExamDrafts,
+  getStaffEditableExamDraft,
   getTrainerExamCatalog,
   getTrainerExamDogs,
   getTrainerExamItems,
   publishTrainerExam,
   uploadTrainerExamResults,
+  updateStaffExamDraft,
   type TrainerExamCatalogRow,
   type TrainerExamDog,
   type TrainerExamDraftRow,
@@ -35,6 +37,7 @@ export default function TrainerExamsTab() {
   const [selectedExam, setSelectedExam] = useState<TrainerExamCatalogRow | null>(null);
   const [dogQuery, setDogQuery] = useState('');
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [editingDraft, setEditingDraft] = useState<{ examId: string; updatedAt: string } | null>(null);
   const [draftCode, setDraftCode] = useState('');
   const [draftTitle, setDraftTitle] = useState('');
   const [draftDate, setDraftDate] = useState('');
@@ -130,6 +133,7 @@ export default function TrainerExamsTab() {
   }
 
   function resetDraftUpload() {
+    setEditingDraft(null);
     setDraftCode('');
     setDraftTitle('');
     setDraftDate('');
@@ -140,6 +144,27 @@ export default function TrainerExamsTab() {
     setEditingItemIndex(null);
     setDraftFileName('');
     setDraftItems([]);
+  }
+
+  async function openSavedDraft(draft: TrainerExamDraftRow) {
+    if (saving) return;
+    try {
+      setSaving(true);
+      const definition = await getStaffEditableExamDraft(draft.examId);
+      resetDraftUpload();
+      setEditingDraft({ examId: definition.examId, updatedAt: definition.updatedAt });
+      setDraftCode(definition.code);
+      setDraftTitle(definition.title);
+      setDraftDate(definition.examDate ?? '');
+      setDraftInputMode('manual');
+      setDraftItems(definition.items);
+      setUploadOpen(true);
+    } catch (cause) {
+      Alert.alert('No se pudo abrir el borrador',
+        cause instanceof Error ? cause.message : 'Reintenta desde el listado.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   function chooseDraftInputMode(nextMode: 'manual' | 'excel') {
@@ -259,22 +284,37 @@ export default function TrainerExamsTab() {
 
     try {
       setSaving(true);
-      await createTrainerExamDraft({
-        code,
-        title,
-        examDate: date || null,
-        items: draftItems,
-      });
+      if (editingDraft) {
+        await updateStaffExamDraft({
+          examId: editingDraft.examId,
+          updatedAt: editingDraft.updatedAt,
+          code,
+          title,
+          examDate: date || null,
+          items: draftItems,
+        });
+      } else {
+        await createTrainerExamDraft({
+          code,
+          title,
+          examDate: date || null,
+          items: draftItems,
+        });
+      }
+      const wasEditing = Boolean(editingDraft);
       setUploadOpen(false);
       resetDraftUpload();
       setCatalogView('drafts');
       await load();
       Alert.alert(
-        'Examen cargado',
-        'Quedó guardado como borrador. Puedes publicarlo desde esta misma pantalla.',
+        wasEditing ? 'Borrador actualizado' : 'Examen cargado',
+        wasEditing
+          ? 'Los ejercicios del borrador quedaron actualizados.'
+          : 'Quedó guardado como borrador. Puedes publicarlo desde esta misma pantalla.',
       );
     } catch (cause) {
-      Alert.alert('No se pudo cargar el examen', cause instanceof Error ? cause.message : 'Revisa los datos e intenta de nuevo.');
+      Alert.alert(editingDraft ? 'No se pudo actualizar el borrador' : 'No se pudo cargar el examen',
+        cause instanceof Error ? cause.message : 'Revisa los datos e intenta de nuevo.');
     } finally {
       setSaving(false);
     }
@@ -367,6 +407,18 @@ export default function TrainerExamsTab() {
                   <View style={styles.pendingPill}>
                     <Text style={styles.pendingPillText}>Borrador</Text>
                   </View>
+                  {capabilities.canUploadExamDefinition ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Editar borrador ${draft.examTitle}`}
+                      disabled={saving}
+                      style={[styles.editDraftButton, saving && styles.disabled]}
+                      onPress={() => void openSavedDraft(draft)}
+                    >
+                      <MaterialIcons name="edit" size={16} color={ucapsaBrand.colors.blueDark} />
+                      <Text style={styles.editDraftText}>Editar</Text>
+                    </Pressable>
+                  ) : null}
                   {capabilities.canPublishExamDefinition ? (
                     <Pressable
                       disabled={saving}
@@ -441,8 +493,8 @@ export default function TrainerExamsTab() {
         visible={uploadOpen}
         onClose={() => { setUploadOpen(false); resetDraftUpload(); }}
       >
-        <Text style={styles.modalKicker}>Nuevo examen</Text>
-        <Text style={styles.modalTitle}>Crear examen</Text>
+        <Text style={styles.modalKicker}>{editingDraft ? 'Editar borrador' : 'Nuevo examen'}</Text>
+        <Text style={styles.modalTitle}>{editingDraft ? 'Editar examen' : 'Crear examen'}</Text>
         <Text style={styles.modalSubtitle}>
           Define la estructura manualmente o importa los ejercicios desde Excel. Ambos métodos guardan el mismo borrador canónico.
         </Text>
@@ -540,7 +592,7 @@ export default function TrainerExamsTab() {
           onPress={() => void saveExamDraft()}
         >
           <MaterialIcons name="save" size={18} color={ucapsaBrand.colors.surface} />
-          <Text style={styles.saveDraftText}>{saving ? 'Guardando…' : 'Guardar borrador'}</Text>
+          <Text style={styles.saveDraftText}>{saving ? 'Guardando…' : editingDraft ? 'Guardar cambios' : 'Guardar borrador'}</Text>
         </Pressable>
       </KeyboardAwareModal>
 
@@ -601,6 +653,8 @@ const styles = StyleSheet.create({
   draftActions: { alignItems: 'flex-end', gap: 6 },
   pendingPill: { borderRadius: 999, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 8, paddingVertical: 5 },
   pendingPillText: { color: ucapsaBrand.colors.goldDark, fontSize: 8, fontWeight: '900' },
+  editDraftButton: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 10, backgroundColor: ucapsaBrand.colors.blueSoft, paddingHorizontal: 8 },
+  editDraftText: { color: ucapsaBrand.colors.blueDark, fontSize: 8, fontWeight: '900' },
   publishDraftButton: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 10, backgroundColor: ucapsaBrand.colors.greenDark, paddingHorizontal: 8 },
   publishDraftText: { color: ucapsaBrand.colors.surface, fontSize: 8, fontWeight: '900' },
   loading: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12 },
