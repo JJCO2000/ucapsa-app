@@ -383,6 +383,20 @@ begin
   if (select count(*) from ucapsa_intake.people where email_key='staged@test.invalid' and status='pending')<>0 then
     raise exception 'Linked person still pending in staging';
   end if;
+  -- Comandos sin referencia conserva la autorización administrativa y el
+  -- registro del entrenador después de vincular Auth.
+  if not exists (
+    select 1 from public.program_enrollments e
+    join public.programs p on p.id=e.program_id
+    join public.dogs d on d.id=e.dog_id
+    where d.user_id='00000000-0000-4000-8000-000000000006'
+      and d.name='Thor' and p.code='comandos'
+      and e.status='active' and e.physical_card_number is null
+      and e.card_started_on is not null and e.card_expires_on is not null
+      and e.attendances_count=1
+  ) then
+    raise exception 'Comandos lost its Admin authorization or attendance after Auth claim';
+  end if;
 end
 $staff_provenance$;
 
