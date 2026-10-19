@@ -106,8 +106,20 @@ if (!trainerHome.includes("const key = `${row.scheduleId}:${row.startTime}:${row
 if (trainerHome.includes("row.programLevel}:") || trainerHome.includes(":${row.programLevel}")) {
   throw new Error('Básico, Intermedio y Avanzado comparten horario; el nivel no puede convertirse en otro schedule.');
 }
-if (!trainerClasses.includes("const key = `${row.scheduleId}:${row.programCode}:${row.startTime}`")) {
-  throw new Error('El roster de Comandos debe partir del horario compartido y conservar el nivel en cada inscripción.');
+// Canonical schedule_id is the grouping key; never split one Comandos time by level.
+for (const token of [
+  'groups.set(schedule.id, {',
+  'const existing = groups.get(row.scheduleId);',
+  'existing.rows.push(row);',
+  'groups.set(row.scheduleId, {',
+]) {
+  if (!trainerClasses.includes(token)) {
+    throw new Error('Roster must group levels under the single official schedule: ' + token);
+  }
+}
+if (trainerClasses.includes('groups.get(row.programLevel)')
+    || trainerClasses.includes('groups.set(row.programLevel,')) {
+  throw new Error('Comandos level must not become a separate schedule grouping key.');
 }
 
 for (const token of [
