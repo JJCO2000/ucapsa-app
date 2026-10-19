@@ -5,7 +5,7 @@ import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, Text, View } fr
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
-import { preregistrationEnabled } from '../../constants/preregistrationFeature';
+import { preregistrationDirectoryEnabled } from '../../constants/preregistrationFeature';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import { getAdminProfiles, setStaffRoleSuperAdmin } from '../../services/profiles.service';
@@ -163,7 +163,7 @@ export default function AdminUsersScreen() {
 
       {!adminsOnly ? (
         <>
-          {preregistrationEnabled ? (
+          {preregistrationDirectoryEnabled ? (
             <Pressable accessibilityRole="button"
               accessibilityLabel="Abrir expedientes de preinscripción"
               onPress={() => router.push('/admin/preregistrations' as never)}
