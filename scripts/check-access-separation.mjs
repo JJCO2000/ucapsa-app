@@ -92,4 +92,18 @@ for (const role of who) {
  assert.deepEqual(JSON.parse(JSON.stringify(b.operational.capabilities)),
    JSON.parse(JSON.stringify(a)));
 }
+// Admin must be able to select any existing account's dog for Puppy/Comandos,
+// even if the owner is Trainer/Admin or has a separate Socio membership.
+const enrollmentService = fs.readFileSync('src/services/program-enrollments.service.ts','utf8');
+const candidates = enrollmentService.slice(
+ enrollmentService.indexOf('export async function getProgramClientProfiles()'),
+ enrollmentService.indexOf('export async function createProgramEnrollment('),
+);
+assert.ok(candidates.includes(".from('profiles')") && candidates.includes(".select('*')"),
+  'Program candidates derive from canonical profiles');
+assert.ok(!candidates.includes(".in('role'") && !candidates.includes(".eq('role'"),
+  'Trainer, Admin, Superadmin and Socio cannot be excluded by operational role');
+assert.ok(candidates.includes('if (error) throw error'),
+  'RLS or database read failures must remain visible, never silently skip customers');
+
 console.log('UCAPSA source separation: operational role vs Socio vs Puppy/Comandos vs preview PASS');
