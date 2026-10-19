@@ -351,16 +351,14 @@ export default function TrainerClassesTab() {
         <View style={styles.introCard}>
           <Text style={styles.introTitle}>Perros preinscritos sin cuenta</Text>
           <Text style={styles.introHint}>
-            Tienen expediente provisional. Una tarjeta con vigencia desconocida requiere revisión de Administración.
+            Registro autorizado por Administración; las asistencias se guardan en el expediente provisional hasta vincular la cuenta.
           </Text>
           {stagedRows.filter((r) => !focusedScheduleId || r.scheduleId === focusedScheduleId)
             .map((row) => {
               const busy = busyId === row.intakeProgramId;
               const valid = row.cardStatus === 'valid';
-              const status = row.cardStatus === 'no_card' ? 'Sin tarjeta asociada'
-                : row.cardStatus === 'missing_start' ? 'Falta verificar inicio de tarjeta'
-                : row.cardStatus === 'expired' ? 'Tarjeta vencida'
-                : row.cardStatus === 'not_started' ? 'Tarjeta aún no vigente' : 'Tarjeta vigente';
+              const status = row.cardStatus === 'expired' ? 'Autorización vencida'
+                : row.cardStatus === 'not_started' ? 'Acceso aún no vigente' : 'Acceso autorizado';
               return (
                 <View key={row.intakeProgramId} style={styles.introRow}>
                   <View style={{ flex: 1 }}>
