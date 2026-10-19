@@ -52,6 +52,11 @@ assert.ok(nav.includes("if (source === 'class_reminder') return '/home'"),
  'Normal class reminders retain their route');
 assert.ok(sql.includes('select true, exists (') && sql.includes('on conflict(id) do nothing'),
  'Migración debe conservar el menú público existente sin reactivar productos ocultos');
+assert.ok(sql.includes('Public can read published restaurant categories') &&
+ sql.includes('Public can read published restaurant items') &&
+ sql.includes('public.is_restaurant_menu_published()') &&
+ sql.includes('drop policy if exists "Public can read restaurant items"'),
+ 'RLS debe ocultar la lectura directa de productos del restaurante');
 assert.ok(sql.includes('public.is_ucapsa_admin()') &&
  sql.includes('ucapsa_config.restaurant_publication') &&
  sql.includes("to anon,authenticated,service_role"),
