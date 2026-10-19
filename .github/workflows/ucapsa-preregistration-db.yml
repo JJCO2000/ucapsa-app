@@ -12,6 +12,7 @@ on:
       - 'supabase/migrations/20261019183000_preregistration_primary_email.sql'
       - 'supabase/migrations/20261019193000_verified_phone_preregistration_claim.sql'
       - 'supabase/migrations/20261019220000_private_preregistration_link_preview.sql'
+      - 'supabase/migrations/20261019233000_admin_approved_preregistration_owner_link.sql'
       - 'scripts/isolated-db/**'
       - '.github/workflows/ucapsa-preregistration-db.yml'
   workflow_dispatch:
@@ -61,9 +62,12 @@ jobs:
           psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261019183000_preregistration_primary_email.sql
           psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261019193000_verified_phone_preregistration_claim.sql
           psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261019220000_private_preregistration_link_preview.sql
+          psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261019233000_admin_approved_preregistration_owner_link.sql
       - name: Exercise permissions, identity, enrollments and attendance
         run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/ucapsa-e2e.sql
       - name: Verify Admin-only directory from seeded historical data
         run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/ucapsa-preregistration-directory-e2e.sql
       - name: Competing admins do not duplicate records
         run: bash scripts/isolated-db/ucapsa-concurrency.sh
+      - name: Prove Admin-only manual linking, no verified contacts or paid SMS
+        run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/ucapsa-admin-approved-link-e2e.sql
