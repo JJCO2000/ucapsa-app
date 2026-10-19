@@ -71,6 +71,34 @@ begin
 end $super_guard$;
 reset role;
 
+-- A live class cannot disappear when Superadmin changes membership role.
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
+do $prevent_training_loss$
+declare prevented boolean:=false;
+begin
+  begin
+    perform public.superadmin_set_profile_role(
+      '00000000-0000-4000-8000-000000000006','trainer');
+  exception when object_not_in_prerequisite_state then prevented:=true;
+  end;
+  if not prevented then
+    raise exception 'Superadmin role switch cancelled active training access';
+  end if;
+end $prevent_training_loss$;
+reset role;
+do $check_training_survived$
+begin
+  if (select role from public.profiles
+      where user_id='00000000-0000-4000-8000-000000000006') <> 'member'
+    or not exists (select 1 from public.memberships
+      where user_id='00000000-0000-4000-8000-000000000006' and status='active')
+    or not exists (select 1 from public.program_enrollments where
+      status='active' and access_mode='membership') then
+    raise exception 'Legacy active Comandos enrollment or member was lost';
+  end if;
+end $check_training_survived$;
+
 do $audit$
 begin
  if (select count(*) from public.admin_audit_logs where action='profile.staff_role_change')<>5 then
