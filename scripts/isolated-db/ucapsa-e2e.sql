@@ -254,18 +254,26 @@ select public.admin_preregister_dog_with_program(
   'P-313','2026-01-01',1,array[]::date[],'historical 1');
 select public.admin_preregister_dog_with_program(
   'Pending Tutor','staged@test.invalid','','Thor','comandos','avanzado',
-  '',null,0,array[]::date[],'without card must not grant access');
+  '',null,0,array[]::date[],'authorized without physical reference');
 reset role;
 -- Add an isolated effective class on whatever weekday the CI job runs.
 insert into public.program_schedules(program_id,name,day_of_week,start_time,sequence_order)
 select id,'TEST TODAY',extract(dow from (now() at time zone 'America/Mexico_City'))::int,
  '09:00',99 from public.programs where code='puppy';
+insert into public.program_schedules(program_id,name,day_of_week,start_time,sequence_order)
+select id,'TEST COMMANDS TODAY',extract(dow from (now() at time zone 'America/Mexico_City'))::int,
+ '11:30',99 from public.programs where code='comandos';
 update ucapsa_intake.programs st
 set schedule_id=s.id
 from ucapsa_intake.dogs d, ucapsa_intake.people person,
   public.program_schedules s
 where st.dog_id=d.id and d.person_id=person.id and person.email_key='staged@test.invalid'
   and d.dog_name='Bongo' and s.name='TEST TODAY';
+update ucapsa_intake.programs st
+set schedule_id=s.id
+from ucapsa_intake.dogs d, ucapsa_intake.people person, public.program_schedules s
+where st.dog_id=d.id and d.person_id=person.id and person.email_key='staged@test.invalid'
+  and d.dog_name='Thor' and s.name='TEST COMMANDS TODAY';
 
 set role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000005',false);
@@ -275,6 +283,11 @@ begin
   select intake_program_id into v_id from public.get_staff_preregistered_class_roster(v_date)
   where dog_name='Bongo' and card_status='valid';
   if v_id is null then raise exception 'Trainer cannot see pre-Auth dog with valid card'; end if;
+  perform public.staff_register_preregistered_attendance(v_id,v_date);
+  perform public.staff_register_preregistered_attendance(v_id,v_date);
+  select intake_program_id into v_id from public.get_staff_preregistered_class_roster(v_date)
+  where dog_name='Thor' and program_code='comandos' and card_status='valid';
+  if v_id is null then raise exception 'Admin-authorized Comandos without reference not visible'; end if;
   perform public.staff_register_preregistered_attendance(v_id,v_date);
   perform public.staff_register_preregistered_attendance(v_id,v_date);
 end
@@ -390,12 +403,12 @@ begin
 end
 $client_roster_denied$;
 reset role;
--- Puppy card without known start is shown as pending validity, not auto-granted.
+-- The new Admin authorization permits Puppy even if physical card metadata is unknown.
 set role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
 select public.admin_preregister_dog_with_program(
   'Needs Review','pendingcard@test.invalid','','Pippa','puppy','base',
-  'P-404',null,0,array[]::date[],'old card start unknown');
+  '',null,0,array[]::date[],'physical card reference and start unknown');
 reset role;
 do $setup_unknown$
 begin
@@ -407,20 +420,25 @@ end
 $setup_unknown$;
 set role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000005',false);
-do $unknown_denied$
-declare row_id uuid; blocked boolean:=false; today_date date:=(now() at time zone 'America/Mexico_City')::date;
+do $puppy_authorized$
+declare row_id uuid; today_date date:=(now() at time zone 'America/Mexico_City')::date;
 begin
   select intake_program_id into row_id
   from public.get_staff_preregistered_class_roster(today_date)
-  where dog_name='Pippa' and card_status='missing_start';
-  if row_id is null then raise exception 'Missing start not flagged in roster'; end if;
-  begin
-    perform public.staff_register_preregistered_attendance(row_id,today_date);
-  exception when invalid_parameter_value then blocked:=true;
-  end;
-  if not blocked then raise exception 'Unknown old card start was silently accepted'; end if;
+  where dog_name='Pippa' and card_status='valid';
+  if row_id is null then raise exception 'Puppy without physical reference not visible'; end if;
+  if (select st.physical_card_number from ucapsa_intake.programs st where st.id=row_id) is not null
+     or (select st.card_started_on from ucapsa_intake.programs st where st.id=row_id) is not null then
+    raise exception 'Invented a physical card number or date';
+  end if;
+  perform public.staff_register_preregistered_attendance(row_id,today_date);
+  perform public.staff_register_preregistered_attendance(row_id,today_date);
+  if (select count(*) from ucapsa_intake.attendance_evidence h
+    where h.intake_program_id=row_id and h.evidence_source='staff_roster')<>1 then
+    raise exception 'Puppy duplicate class or missing origin';
+  end if;
 end
-$unknown_denied$;
+$puppy_authorized$;
 reset role;
 
 select 'UCAPSA isolated database E2E: PASS' as result;
