@@ -5062,6 +5062,14 @@ export type Database = {
       }
     }
     Functions: {
+      is_restaurant_menu_published: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      admin_set_restaurant_menu_published: {
+        Args: { p_published: boolean }
+        Returns: boolean
+      }
       admin_activate_ucapsa_competition_season: {
         Args: { p_season_id: string }
         Returns: string
