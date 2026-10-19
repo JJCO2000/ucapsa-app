@@ -91,5 +91,16 @@ insert into public.profiles(user_id,role) values
  ('00000000-0000-4000-8000-000000000005','admin');
 insert into public.memberships(user_id,status,member_number,start_date,current_payment_status,last_payment_at)
 values('00000000-0000-4000-8000-000000000003','active','SOC-ALREADY','2026-04-02','paid','2026-04-02T12:00:00Z');
+-- Legacy Comandos access coupled to a Socio membership:
+-- role switch must be blocked until an independent training entitlement exists.
+insert into auth.users(id) values('00000000-0000-4000-8000-000000000006');
+insert into public.profiles(user_id,role)
+values('00000000-0000-4000-8000-000000000006','member');
+insert into public.memberships(user_id,status,member_number,current_payment_status)
+values('00000000-0000-4000-8000-000000000006','active','SOC-COMANDOS','paid');
+insert into public.program_enrollments(membership_id,access_mode,status)
+select id,'membership','active' from public.memberships
+where user_id='00000000-0000-4000-8000-000000000006';
+
 grant usage on schema public,auth to authenticated;
 grant execute on function auth.uid() to authenticated;
