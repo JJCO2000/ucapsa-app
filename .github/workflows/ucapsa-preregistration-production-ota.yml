@@ -1,0 +1,85 @@
+name: Publish UCAPSA Preregistration Production OTA
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ucap-preregistration-production-ota
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Verify and publish production preregistration OTA
+    if: >
+      github.event.action == 'created' &&
+      github.event.issue.number == 383 &&
+      github.event.comment.user.login == 'JJCO2000' &&
+      github.actor == 'JJCO2000' &&
+      github.event.comment.body == '/publish-preregistration-production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment:
+      name: production
+    steps:
+      - name: Require EXPO_TOKEN
+        shell: bash
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "EXPO_TOKEN no configurado en el entorno production."
+            exit 1
+          fi
+
+      - name: Checkout canonical main
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@c7b66a9c327a43a8fa7c0158e7f30d6040d2481e # v8
+        with:
+          eas-version: 20.3.0
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Verify activation source
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'hrfecmviyiluubymsoeq.supabase.co' src/constants/preregistrationFeature.ts
+          grep -q 'isPlayReviewBuild' src/constants/preregistrationFeature.ts
+          test -f supabase/migrations/20261019080000_preregistration_historical_training_decisions.sql
+          echo "Activación UCAPSA y migraciones canónicas presentes."
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Release quality gates
+        run: npm run verify:release
+
+      - name: Expo dependency consistency
+        run: node scripts/check-expo-validated-deps.mjs
+
+      - name: Expo Doctor
+        run: EXPO_DOCTOR_SKIP_DEPENDENCY_VERSION_CHECK=1 npx --yes expo-doctor@1.20.4
+
+      - name: Critical vulnerability gate
+        run: npm run audit:critical
+
+      - name: Publish production OTA (Android and iOS)
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHORT_SHA="$(git rev-parse --short HEAD)"
+          eas update --channel production --platform all --environment production --message "UCAPSA Puppy/Comandos preinscripcion ${SHORT_SHA}" --non-interactive
