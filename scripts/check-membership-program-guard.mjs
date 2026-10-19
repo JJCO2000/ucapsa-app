@@ -10,7 +10,7 @@ for(const key of [
   'BEFORE UPDATE OF status ON public.memberships',
   "ERRCODE = '23514'",
 ]) assert.ok(sql.includes(key),'Missing membership/program protection invariant: '+key);
-assert.ok(!/update\\s+public\\.program_enrollments/i.test(sql),
+assert.ok(!/update\s+public\.program_enrollments/i.test(sql),
   'Status guard must not rewrite training enrollments');
 const ci=fs.readFileSync('.github/workflows/ucapsa-membership-program-guard.yml','utf8');
 assert.ok(ci.includes('membership-program-guard-e2e.sql'));
