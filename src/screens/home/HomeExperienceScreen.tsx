@@ -344,7 +344,7 @@ export default function HomeExperienceScreen() {
           ) : null}
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Abrir menú del restaurante UCAPSA"
+            accessibilityLabel="Consultar menú del restaurante UCAPSA"
             onPress={() => router.push('/restaurant' as never)}
             style={[
               styles.headerQuickAction,
