@@ -33,6 +33,14 @@ function buildForcedMemberNumber(profile: Profile) {
   return `SOC-${year}${month}-${shortId}`;
 }
 
+/** Solo los usuarios con membresía activa; no infiere Socio desde profiles.role. */
+export async function getAdminActiveMembershipUserIds(): Promise<string[]> {
+  const { data, error } = await supabase.from('memberships')
+    .select('user_id').eq('status', 'active');
+  if (error) throw error;
+  return [...new Set((data ?? []).map((item) => item.user_id))];
+}
+
 export async function getAdminMembershipRows(): Promise<MembershipAdminRow[]> {
   const { data: membershipsData, error: membershipsError } = await supabase
     .from('memberships')
