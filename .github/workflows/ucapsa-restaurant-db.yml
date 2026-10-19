@@ -1,0 +1,44 @@
+name: UCAPSA restaurant menu publication
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261019001500_restaurant_publication_ssot.sql'
+      - 'scripts/isolated-db/restaurant-*'
+      - '.github/workflows/ucapsa-restaurant-db.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  restaurant-db:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16.4-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ucapsa_restaurant_test_only
+          POSTGRES_DB: ucapsa_restaurant_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ucapsa_restaurant_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: ucapsa_restaurant_test_only
+      PGDATABASE: ucapsa_restaurant_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Synthetic restaurant setup
+        run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/restaurant-fixture.sql
+      - name: Apply only restaurant publication migration
+        run: psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261019001500_restaurant_publication_ssot.sql
+      - name: Validate role guards and menu publication
+        run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/restaurant-e2e.sql
