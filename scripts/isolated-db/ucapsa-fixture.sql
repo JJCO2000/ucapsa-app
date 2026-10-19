@@ -5,7 +5,7 @@ create role authenticated nologin;
 create role service_role nologin;
 create schema auth;
 grant usage on schema auth to authenticated;
-create type public.app_role as enum ('visitor','client','member','trainer','admin','super_admin');
+create type public.app_role as enum ('client','member','admin','super_admin','trainer');
 create table auth.users (
   id uuid primary key default gen_random_uuid(), email text, phone text,
   email_confirmed_at timestamptz, phone_confirmed_at timestamptz
