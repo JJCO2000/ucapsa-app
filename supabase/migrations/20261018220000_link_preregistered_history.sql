@@ -223,7 +223,8 @@ begin
     raise exception 'Debes iniciar sesión.' using errcode='42501';
   end if;
   select p.role into v_profile_role from public.profiles p where p.user_id=v_user;
-  if v_profile_role is null or v_profile_role not in ('client','member') then
+  -- Rol de Staff no impide reclamar su propia ficha con contacto verificado.
+  if v_profile_role is null or v_profile_role = 'visitor' then
     return pg_catalog.jsonb_build_object('status','not_applicable','linked_dogs',0);
   end if;
 
@@ -304,8 +305,9 @@ begin
     returning id into v_dog_id;
     update ucapsa_intake.dogs set linked_dog_id=v_dog_id where id=v_dog.id;
 
-    -- Propaga tarjeta, nivel e historial, sin crear fechas ni pagos.
-    -- Los triggers existentes recalculan el progreso desde ambas fuentes.
+    -- Conserva la fecha histórica conocida o, si no existe, utiliza la fecha
+    -- verificable de autorización de Admin como inicio operativo del acceso.
+    -- No inventa fecha de asistencia ni registro financiero.
     for v_stage in
       select st.* from ucapsa_intake.programs st
       where st.dog_id=v_dog.id
@@ -329,7 +331,8 @@ begin
       ) values (
         v_user,v_stage.program_id,v_stage.schedule_id,v_dog_id,v_dog.dog_name,
         v_stage.physical_card_number,v_stage.program_level,'card','active',
-        v_stage.card_started_on,v_stage.card_started_on,v_stage.id
+        coalesce(v_stage.card_started_on,v_stage.authorized_on),
+        coalesce(v_stage.card_started_on,v_stage.authorized_on),v_stage.id
       ) returning id into v_enrollment_id;
 
       update ucapsa_intake.programs
