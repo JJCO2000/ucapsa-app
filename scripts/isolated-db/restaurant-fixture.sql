@@ -37,3 +37,9 @@ insert into public.profiles(user_id,role) values
 ('00000000-0000-4000-8000-000000000002','client');
 grant usage on schema public,auth to authenticated,anon;
 grant execute on function auth.uid() to authenticated,anon;
+
+-- Legacy production-visible menu must remain visible during the first migration.
+insert into public.restaurant_menu_categories(id,is_active)
+values('00000000-0000-4000-8000-000000000099',true);
+insert into public.restaurant_menu_items(category_id,is_available)
+values('00000000-0000-4000-8000-000000000099',true);
