@@ -196,11 +196,22 @@ begin
   end if;
 end $$;
 
--- Superadmin has the same scoped Admin prerogative; phone-only preregistration.
+-- Superadmin must provide a primary email, even when phone is present.
 set role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000004',false);
+do $email_required$
+declare blocked boolean := false;
+begin
+  begin
+    perform public.admin_preregister_dog_with_program(
+      'Phone Parent','','+525512345678','Nala','puppy','base',
+      'P-200','2026-09-01',1,array[]::date[],'email is mandatory');
+  exception when invalid_parameter_value then blocked := true;
+  end;
+  if not blocked then raise exception 'Admin preregistered a phone-only owner'; end if;
+end $email_required$;
 select public.admin_preregister_dog_with_program(
-  'Phone Parent','','+525512345678','Nala','puppy','base',
+  'Phone Parent','nala-owner@test.invalid','+525512345678','Nala','puppy','base',
   'P-200','2026-09-01',1,array[]::date[],'card reviewed by superadmin');
 reset role;
 -- The mere presence of a phone in Auth is NOT proof of possession.
@@ -226,11 +237,26 @@ do $phone_verified$
 declare result jsonb;
 begin
   result:=public.claim_my_preregistered_dogs();
-  if result->>'status'<>'linked' or (result->>'linked_dogs')::int<>1 then
-    raise exception 'Verified phone did not claim correct dog: %',result;
+  if result->>'status'<>'unverified' then
+    raise exception 'Verified phone incorrectly claimed a dog without email: %',result;
   end if;
 end
 $phone_verified$;
+reset role;
+-- A matching verified primary email is required for a real claim.
+update auth.users set email='nala-owner@test.invalid',email_confirmed_at=now()
+where id='00000000-0000-4000-8000-000000000003';
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000003',false);
+do $primary_email_verified$
+declare result jsonb;
+begin
+  result:=public.claim_my_preregistered_dogs();
+  if result->>'status'<>'linked' or (result->>'linked_dogs')::int<>1 then
+    raise exception 'Verified primary email did not claim matching dog: %',result;
+  end if;
+end
+$primary_email_verified$;
 reset role;
 do $history_unknown$
 begin
