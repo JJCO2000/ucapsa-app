@@ -149,11 +149,15 @@ export async function getAdminProgramRows(): Promise<ProgramEnrollmentWithDetail
   return hydrateEnrollments((data ?? []).map(normalizeEnrollment));
 }
 
-export async function getProgramClientProfiles(): Promise<Profile[]> {
+/**
+ * Programas Puppy/Comandos pertenecen al perro, no al rol operativo del tutor.
+ * Un Entrenador, Admin o Superadmin también puede registrar a su propio perro.
+ * La autorización de la pantalla y de la inscripción permanece en RLS/backend.
+ */
+export async function getProgramAssignableProfiles(): Promise<Profile[]> {
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
-    .in('role', ['client', 'member'])
     .order('full_name', { ascending: true });
 
   if (error) throw error;
