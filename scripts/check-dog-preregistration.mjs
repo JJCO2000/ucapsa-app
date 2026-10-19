@@ -55,11 +55,11 @@ for (const token of [
   'prereg_card_number_unique',
   'intake_history_one_date',
   'intake_history_one_undated_balance',
-  'card_paid_attested_by',
+  'authorized_on date not null',
   'p_total_attendances-v_unique_count',
   'p_known_dates date[]',
   'v_unique_count>p_total_attendances',
-  'v_card is null',
+  "v_program.code='comandos' and (v_card is not null",
   "v_program.code='comandos'",
   'admin_preregister_dog_with_program',
   'public.admin_preregister_dog(',
@@ -106,7 +106,18 @@ assert.ok(screen.includes('adminPreregisterDogWithProgram({'));
 assert.ok(screen.includes('knownAttendanceDates: dates'));
 assert.ok(screen.includes('Asistencias históricas totales'));
 assert.ok(screen.includes('Conozco algunas o todas las fechas'));
-assert.ok(screen.includes('Tarjeta física'));
+assert.ok(screen.includes('Referencia física Puppy (si se conoce)'));
+assert.ok(screen.includes("physicalCardNumber: programCode === 'puppy' ? cardNumber : ''"));
+assert.ok(!screen.includes('programCode === \'puppy\' && !cardNumber.trim()'));
+assert.ok(s2.includes('v_card,p_card_started_on,v_today,v_actor'));
+assert.ok(s3.includes('v_stage.authorized_on,v_stage.authorized_on,v_stage.id'));
+const staffRoster=read('supabase/migrations/20261018230000_staff_preregistered_roster.sql');
+assert.ok(staffRoster.includes('p_class_date < st.authorized_on'));
+assert.ok(staffRoster.includes('p_attendance_date < v_program.authorized_on'));
+assert.ok(!staffRoster.includes('v_program.physical_card_number is null'));
+assert.ok(!staffRoster.includes('when st.physical_card_number is null'));
+assert.ok(!s2.includes('card_paid_attested_by'));
+assert.ok(!s2.includes('Puppy requiere tarjeta física pagada'));
 assert.ok(list.includes("'/admin/preregister-dog'"));
 assert.ok(service.includes("supabase.rpc('admin_preregister_dog_with_program'"));
 assert.ok(service.includes("supabase.rpc('claim_my_preregistered_dogs'"));
