@@ -103,21 +103,7 @@ begin
       or (v_phone is null and v_first_phone is not null);
     v_email := coalesce(v_email,v_first_email);
     v_phone := coalesce(v_phone,v_first_phone);
-    if exists(
-      select 1 from public.profiles other where other.user_id<>v_user
-        and (
-          (v_phone is not null and ucapsa_intake.normalize_profile_phone(other.phone)=v_phone)
-          or (v_email is not null and pg_catalog.lower(pg_catalog.btrim(other.email))=v_email)
-        )
-    ) or exists(
-      select 1 from auth.users other where other.id<>v_user
-        and (
-          (v_phone is not null and ucapsa_intake.normalize_profile_phone(other.phone)=v_phone)
-          or (v_email is not null and pg_catalog.lower(pg_catalog.btrim(other.email))=v_email)
-        )
-    ) then
-      return pg_catalog.jsonb_build_object('status','conflict','linked_dogs',0);
-    end if;
+    -- Otro perfil puede usar el mismo dato: prevalece el primer reclamo confirmado por la transacción.
   end if;
   -- Bloqueos globales por contacto: dos cuentas distintas no pueden
   -- reclamar a la vez el mismo número o correo, incluso sin SMS.
@@ -150,22 +136,7 @@ begin
     -- o formularios no autorizan reclamar historial ajeno.
     return pg_catalog.jsonb_build_object('status','unverified','linked_dogs',0);
   end if;
-  -- No basta con un candidato provisional único: exigir identidad única
-  -- entre TODAS las cuentas Auth verificadas. Un teléfono compartido o
-  -- reasignado no puede transferir un expediente a la cuenta equivocada.
-  if not v_manual and exists (
-    select 1 from auth.users u
-    where u.id<>v_user
-      and (
-        (v_email is not null and u.email_confirmed_at is not null
-          and lower(btrim(u.email))=v_email)
-        or
-        (v_phone is not null and u.phone_confirmed_at is not null
-          and btrim(u.phone)=v_phone)
-      )
-  ) then
-    return pg_catalog.jsonb_build_object('status','conflict','linked_dogs',0);
-  end if;
+  -- La unicidad se decide por reserva efectiva del contacto, no por otras cuentas sin vincular.
 
   -- Bloquea solicitudes simultáneas de la misma cuenta.
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('ucapsa-claim:'||v_user::text,0));
@@ -366,17 +337,7 @@ begin
     where u.id=v_user;
     v_email := coalesce(v_email,v_first_email);
     v_phone := coalesce(v_phone,v_first_phone);
-    if exists (
-      select 1 from public.profiles other where other.user_id<>v_user
-        and ((v_phone is not null and ucapsa_intake.normalize_profile_phone(other.phone)=v_phone)
-          or (v_email is not null and pg_catalog.lower(pg_catalog.btrim(other.email))=v_email))
-    ) or exists (
-      select 1 from auth.users other where other.id<>v_user
-        and ((v_phone is not null and ucapsa_intake.normalize_profile_phone(other.phone)=v_phone)
-          or (v_email is not null and pg_catalog.lower(pg_catalog.btrim(other.email))=v_email))
-    ) then
-      return pg_catalog.jsonb_build_object('status','conflict','count',0);
-    end if;
+    -- No bloquear la primera vinculación porque exista otra cuenta con el contacto escrito.
   end if;
   if not v_manual and exists (
     select 1 from ucapsa_intake.people prev
@@ -397,17 +358,7 @@ begin
   if v_email is null and v_phone is null and not v_manual then
     return pg_catalog.jsonb_build_object('status','unverified','count',0);
   end if;
-  if not v_manual and exists (
-    select 1 from auth.users u where u.id<>v_user and (
-      (v_email is not null and u.email_confirmed_at is not null
-        and pg_catalog.lower(pg_catalog.btrim(u.email))=v_email)
-      or
-      (v_phone is not null and u.phone_confirmed_at is not null
-        and pg_catalog.btrim(u.phone)=v_phone)
-    )
-  ) then
-    return pg_catalog.jsonb_build_object('status','conflict','count',0);
-  end if;
+  -- Las cuentas no vinculadas no reservan el contacto. El primer claim es quien gana.
 
   select count(*) into v_pending_count
   from ucapsa_intake.people p where p.status='pending' and (
