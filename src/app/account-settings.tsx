@@ -11,6 +11,7 @@ import { resolveUcapsaFormat } from '../constants/ucapsaFormats';
 import { ucapsaBrand, withAlpha } from '../constants/brand';
 import { UCAPSA_ACCOUNT_DELETION_PUBLIC_URL } from '../constants/legal';
 import { phoneVerificationEnabled } from '../constants/phoneVerification';
+import { preregistrationEnabled } from '../constants/preregistrationFeature';
 import { useSession } from '../hooks/useSession';
 import { devWarn } from '../lib/client-diagnostics';
 import { deleteMyAccount, getAccountDeletionStatusLabel, getMyAccountDeletionRequest, isAccountDeletionOpen, type AccountDeletionRequest } from '../services/account-deletion.service';
@@ -20,7 +21,7 @@ import { DEFAULT_WRITE_TIMEOUT_MS, friendlyWriteError, withOperationTimeout } fr
 type SettingsSection = 'notifications' | 'profile' | 'delete';
 
 export default function AccountSettingsScreen() {
-  const { loading, user, profile, role, isAdmin, isTrainer, isStaff, signOut, refreshProfile, acceptProfile, isOfflineFallback, lastProfileSyncAt } = useSession();
+  const { loading, user, profile, role, isAdmin, isTrainer, isStaff, signOut, refreshProfile, acceptProfile, isOfflineFallback, lastProfileSyncAt, reviewPreregistrationLink } = useSession();
   const params = useLocalSearchParams<{ section?: string; from?: string }>();
   const fromProfile = params.from === 'profile';
   const section = normalizeSection(params.section, isAdmin, isTrainer);
@@ -30,6 +31,7 @@ export default function AccountSettingsScreen() {
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [checkingPreregistration, setCheckingPreregistration] = useState(false);
   const [deletionRequest, setDeletionRequest] = useState<AccountDeletionRequest | null>(null);
   const [deletionLoading, setDeletionLoading] = useState(false);
 
@@ -40,6 +42,31 @@ export default function AccountSettingsScreen() {
   const deletionLocked = deletionCompleted || deletionRequest?.status === 'blocked';
   const deletionStatusLabel = getAccountDeletionStatusLabel(deletionRequest?.status);
   const profileComplete = Boolean((profile?.full_name ?? '').trim() && (profile?.phone ?? '').trim());
+
+  async function checkMyPreregistrations() {
+    if (checkingPreregistration || isOfflineFallback) return;
+    try {
+      setCheckingPreregistration(true);
+      const status = await reviewPreregistrationLink();
+      // Si hay coincidencia, el diálogo global muestra "Sí, vincular" o
+      // "Ahora no". La consulta nunca vincula automáticamente.
+      if (status === 'available') return;
+      const detail = status === 'conflict'
+        ? 'Encontramos datos que requieren revisión de Administración para proteger la cuenta.'
+        : status === 'unverified'
+          ? 'Para vincular un expediente debes confirmar tu correo o celular en Supabase.'
+          : status === 'not_applicable'
+            ? 'Inicia sesión con una cuenta conectada para consultar expedientes.'
+            : 'Por ahora no hay expedientes pendientes asociados a tus contactos confirmados.';
+      Alert.alert('Preinscripciones', detail);
+    } catch (cause) {
+      Alert.alert('No se pudo consultar',
+        cause instanceof Error ? cause.message : 'Vuelve a intentarlo.');
+    } finally {
+      setCheckingPreregistration(false);
+    }
+  }
+
 
   useEffect(() => {
     setFullName(profile?.full_name ?? '');
@@ -311,6 +338,18 @@ export default function AccountSettingsScreen() {
               La vinculación por correo confirmado sigue disponible sin SMS.
               Para números sin verificar, pide revisión a Administración.
             </Text>
+          ) : null}
+          {preregistrationEnabled && !isOfflineFallback &&
+            (user.email_confirmed_at || user.phone_confirmed_at) ? (
+            <Pressable accessibilityRole="button"
+              accessibilityLabel="Buscar mis expedientes preinscritos pendientes"
+              disabled={checkingPreregistration}
+              onPress={() => void checkMyPreregistrations()}
+              style={[styles.smallButton, premium && styles.premiumSmallButton]}>
+              <Text style={[styles.smallButtonText, premium && styles.premiumSmallButtonText]}>
+                {checkingPreregistration ? 'Consultando…' : 'Buscar mis preinscripciones'}
+              </Text>
+            </Pressable>
           ) : null}
           {phoneVerificationEnabled ? (
             <Pressable accessibilityRole="button"
