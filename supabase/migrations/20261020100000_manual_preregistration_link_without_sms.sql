@@ -41,7 +41,7 @@ begin
    and (r.status in ('pending','approved') or r.created_at>now()-interval '24 hours')) then
    return 'pending';
  end if;
- select count(*)::integer,min(id) into v_count,v_person
+ select count(*)::integer,min(id::text)::uuid into v_count,v_person
  from ucapsa_intake.people pe where pe.status='pending'
  and ((v_phone is not null and pe.phone_e164=v_phone)
    or (v_email is not null and pe.email_key=v_email));
