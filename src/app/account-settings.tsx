@@ -170,13 +170,13 @@ export default function AccountSettingsScreen() {
       const phoneChanged = (phone.trim() || '') !== (profile?.phone ?? '').trim();
       if (phoneChanged && manualPreregistrationLinkEnabled && phone.trim()) {
         Alert.alert('¿Tienes una preinscripción anterior?',
-          'Podemos buscar posibles registros con tus datos. ¿Deseas solicitar la vinculación? Administración confirmará tu identidad sin usar SMS.',
+          'Datos guardados. ¿Deseas solicitar que Administración revise si existen expedientes tuyos? No enviaremos SMS ni vincularemos por coincidencia sin comprobar identidad.'
+          + (emailChange?.confirmationRequired ? ' Confirma también el cambio de correo en tu bandeja.' : ''),
           [
             { text: 'Ahora no', style: 'cancel' },
-            { text: 'Solicitar vinculación', onPress: () => { void requestLinkReview(); } },
+            { text: 'Solicitar revisión', onPress: () => { void requestLinkReview(); } },
           ]);
-      }
-      if (emailChange?.confirmationRequired) {
+      } else if (emailChange?.confirmationRequired) {
         Alert.alert('Confirma tu nuevo correo', `Enviamos la confirmación a ${emailChange.requestedEmail}. El cambio se reflejará al confirmarlo.`);
       } else {
         Alert.alert('Datos guardados', 'Tu información se actualizó correctamente.');
