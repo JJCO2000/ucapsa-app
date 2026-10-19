@@ -20,6 +20,11 @@ returns boolean language sql stable security definer set search_path=''
 as $fn$
   select coalesce((select p.is_published
     from ucapsa_config.restaurant_publication p where p.id=true),false)
+    and exists (
+      select 1 from public.restaurant_menu_categories c
+      join public.restaurant_menu_items i on i.category_id=c.id
+      where c.is_active=true and i.is_available=true
+    )
 $fn$;
 revoke all on function public.is_restaurant_menu_published() from public;
 grant execute on function public.is_restaurant_menu_published() to anon,authenticated;
