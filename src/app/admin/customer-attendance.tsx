@@ -171,7 +171,9 @@ export default function CustomerAttendanceScreen() {
 
       {selectedEnrollment ? (
         <View style={styles.summary}>
-          <View><Text style={styles.summaryTitle}>{selectedEnrollment.program.name}</Text><Text style={styles.muted}>{attendanceRows.length} de {selectedEnrollment.program.required_attendances} registradas</Text></View>
+          <View><Text style={styles.summaryTitle}>{selectedEnrollment.program.name}</Text><Text style={styles.muted}>{selectedEnrollment.enrollment.access_mode === 'membership'
+                  ? `${selectedEnrollment.enrollment.attendances_count} asistencias · socio ilimitado`
+                  : `${selectedEnrollment.enrollment.attendances_count} de ${selectedEnrollment.program.required_attendances} reconocidas`}</Text></View>
           <Pressable style={styles.addButton} onPress={openNew}><MaterialIcons name="add" size={19} color={ucapsaBrand.colors.surface} /><Text style={styles.addText}>Registrar</Text></Pressable>
         </View>
       ) : null}
