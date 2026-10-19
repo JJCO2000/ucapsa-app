@@ -14,6 +14,7 @@ import { clearPracticeActivityCache } from '../services/practice.service';
 import { disableStoredExpoPushToken } from '../services/notifications.service';
 import { getProfileByUserId } from '../services/profiles.service';
 import { claimMyFirstPreregisteredDogs, claimMyPreregisteredDogs, previewMyPreregisteredDogs } from '../services/dog-preregistration.service';
+import { requestMyPreregistrationLinkReview } from '../services/preregistration-link-requests.service';
 import {
   clearVerifiedLocalUser,
   isBackendUnreachable,
@@ -45,7 +46,7 @@ type SessionContextValue = {
   preregistrationLinkBusy: boolean;
   confirmPreregistrationLink: () => Promise<void>;
   dismissPreregistrationLink: () => void;
-  reviewPreregistrationLink: () => Promise<'available' | 'none' | 'unverified' | 'not_applicable' | 'conflict' | 'linked'>;
+  reviewPreregistrationLink: () => Promise<'available' | 'none' | 'unverified' | 'not_applicable' | 'conflict' | 'linked' | 'requested'>;
   isAdmin: boolean;
   isTrainer: boolean;
   isStaff: boolean;
@@ -418,6 +419,11 @@ export function SessionProvider({ children }: SessionProviderProps) {
       const result = await previewMyPreregisteredDogs();
       if (!active || claimAttemptKeyRef.current !== attemptKey) return;
       if (result.status !== 'available' || result.count < 1) {
+        if (result.status === 'conflict') {
+          // Un segundo intento sobre un expediente ya vinculado crea una
+          // solicitud para Administración. Nunca transfiere expedientes.
+          await requestMyPreregistrationLinkReview();
+        }
         setPreregistrationLinkOffer(null);
         return;
       }
@@ -482,13 +488,17 @@ export function SessionProvider({ children }: SessionProviderProps) {
   // Reapertura tras "Ahora no", y vínculo automático del primer expediente
   // autorizado. Jamás se confía en contactos editables de perfil.
   async function reviewPreregistrationLink():
-    Promise<'available' | 'none' | 'unverified' | 'not_applicable' | 'conflict' | 'linked'> {
+    Promise<'available' | 'none' | 'unverified' | 'not_applicable' | 'conflict' | 'linked' | 'requested'> {
     if (!preregistrationEnabled || !session?.user || isOfflineFallback ||
         usingCachedProfile || profile?.user_id !== session.user.id) return 'not_applicable';
     const userId = session.user.id;
     // Una autorización explícita de Administración habilita la consulta
     // aunque el contacto Auth todavía no esté confirmado.
     const result = await previewMyPreregisteredDogs();
+    if (result.status === 'conflict') {
+      const requestStatus = await requestMyPreregistrationLinkReview();
+      return requestStatus === 'requested' ? 'requested' : 'conflict';
+    }
     if (result.status === 'available' && result.count > 0 && result.autoFirst) {
       const claimed = await claimMyFirstPreregisteredDogs();
       if (claimed.status === 'linked' && claimed.linkedDogs > 0) {
