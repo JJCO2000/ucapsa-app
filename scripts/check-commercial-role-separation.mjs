@@ -36,4 +36,15 @@ assert.equal(capabilities('comandos').canManagePayments,false,
   'Comandos nunca es rol con permisos administrativos.');
 assert.equal(capabilities('puppy').canRecordAttendance,false,
   'Puppy nunca es rol Entrenador.');
+const lifecycle = fs.readFileSync('supabase/migrations/20261019040000_preserve_staff_role_during_membership_lifecycle.sql','utf8');
+for(const invariant of [
+ "p.role not in ('trainer', 'admin', 'super_admin')",
+ "o.due_date > current_date",
+ "p.status = 'paid'",
+ "p.voided_at is null",
+ "o.cancelled_at is null",
+ "v_has_active then 'member'::public.app_role",
+]) assert.ok(lifecycle.includes(invariant),'Membership lifecycle lost invariant: '+invariant);
+assert.ok(!lifecycle.includes("p.role not in ('admin', 'super_admin')"),
+  'Legacy trigger still demotes Trainer');
 console.log('UCAPSA roleCapabilities: commercial rights do not imply staff permissions PASS');
