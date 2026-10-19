@@ -8,8 +8,8 @@ end $guard$;
 set role anon;
 do $before$
 begin
- if public.is_restaurant_menu_published() then
-  raise exception 'Empty menu should start unpublished';
+ if not public.is_restaurant_menu_published() then
+  raise exception 'Legacy visible menu must remain visible after migration';
  end if;
 end $before$;
 reset role;
@@ -26,6 +26,13 @@ begin
  if not blocked then raise exception 'Client published menu'; end if;
 end $client_denied$;
 reset role;
+
+-- An admin can hide the inherited visible menu without hiding individual products.
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
+select public.admin_set_restaurant_menu_published(false);
+reset role;
+update public.restaurant_menu_items set is_available=false;
 
 set role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
@@ -86,10 +93,10 @@ end $unpublished$;
 reset role;
 do $audit$
 begin
- if (select count(*) from public.admin_audit_logs where action='restaurant.menu_publication')<>2 then
-  raise exception 'Publication transition audit should be 2 (true then false)';
+ if (select count(*) from public.admin_audit_logs where action='restaurant.menu_publication')<>3 then
+  raise exception 'Publication audit must count legacy true->false, false->true and true->false';
  end if;
- if (select count(*) from public.restaurant_menu_items where is_available)<>1 then
+ if (select count(*) from public.restaurant_menu_items where is_available)<>2 then
   raise exception 'Global switch changed individual product availability';
  end if;
 end $audit$;
