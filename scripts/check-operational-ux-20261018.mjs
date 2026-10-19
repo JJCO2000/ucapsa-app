@@ -14,12 +14,12 @@ for (const [name, source] of Object.entries(sources)) {
   assert.equal(parsed.parseDiagnostics.length,0,
     name+': '+parsed.parseDiagnostics.map(x=>ts.flattenDiagnosticMessageText(x.messageText,' ')).join('; '));
 }
-assert.equal((sources.home.match(/accessibilityLabel="Abrir menú del restaurante UCAPSA"/g)||[]).length,1,
+assert.equal((sources.home.match(/accessibilityLabel="Consultar menú del restaurante UCAPSA"/g)||[]).length,1,
   'Restaurante debe tener un único acceso en el encabezado');
 assert.ok(sources.home.includes("router.push('/restaurant' as never)"),
   'Acceso independiente de membresía');
-assert.ok(!sources.home.includes('Consultar menú del restaurante UCAPSA'),
-  'No duplicar tarjeta del menú bajo encabezado');
+assert.equal((sources.home.match(/onPress=\{\(\) => router\.push\('\/restaurant' as never\)\}/g)||[]).length,1,
+  'Evitar botones de restaurante duplicados');
 assert.ok(sources.trainer.includes("label: 'HOY' | 'MAÑANA'"));
 assert.ok(sources.trainer.includes('getStaffClassSummary(today)') &&
   sources.trainer.includes('getStaffClassSummary(tomorrow)'));
