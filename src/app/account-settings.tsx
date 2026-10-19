@@ -10,6 +10,7 @@ import { OfflineDataNotice } from '../components/ui/OfflineDataNotice';
 import { resolveUcapsaFormat } from '../constants/ucapsaFormats';
 import { ucapsaBrand, withAlpha } from '../constants/brand';
 import { UCAPSA_ACCOUNT_DELETION_PUBLIC_URL } from '../constants/legal';
+import { phoneVerificationEnabled } from '../constants/phoneVerification';
 import { useSession } from '../hooks/useSession';
 import { devWarn } from '../lib/client-diagnostics';
 import { deleteMyAccount, getAccountDeletionStatusLabel, getMyAccountDeletionRequest, isAccountDeletionOpen, type AccountDeletionRequest } from '../services/account-deletion.service';
@@ -299,7 +300,19 @@ export default function AccountSettingsScreen() {
           </View>
           <ReadonlyRow label="Nombre" value={profile?.full_name || 'Pendiente'} premium={premium} />
           <ReadonlyRow label="Correo" value={profile?.email || user.email || 'Pendiente'} premium={premium} />
-          <ReadonlyRow label="Teléfono" value={profile?.phone || 'Pendiente'} premium={premium} />
+          <ReadonlyRow label="Teléfono de contacto" value={profile?.phone || 'Pendiente'} premium={premium} />
+          <ReadonlyRow label="Celular verificado en Supabase"
+            value={user.phone_confirmed_at && user.phone ? user.phone : 'Sin verificar'} premium={premium} />
+          {phoneVerificationEnabled ? (
+            <Pressable accessibilityRole="button"
+              accessibilityLabel="Verificar mi celular para vincular la preinscripción"
+              onPress={() => router.push('/verify-phone' as never)}
+              style={[styles.smallButton, premium && styles.premiumSmallButton]}>
+              <Text style={[styles.smallButtonText, premium && styles.premiumSmallButtonText]}>
+                {user.phone_confirmed_at ? 'Actualizar celular verificado' : 'Verificar celular por SMS'}
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
 
