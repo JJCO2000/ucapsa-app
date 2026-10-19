@@ -22,9 +22,9 @@ begin
     return pg_catalog.jsonb_build_object('status','not_applicable','count',0);
   end if;
   select case when u.email_confirmed_at is not null
-    then pg_catalog.nullif(pg_catalog.lower(pg_catalog.btrim(u.email)),'') else null end,
+    then nullif(pg_catalog.lower(pg_catalog.btrim(u.email)),'') else null end,
     case when u.phone_confirmed_at is not null
-    then pg_catalog.nullif(pg_catalog.btrim(u.phone),'') else null end
+    then nullif(pg_catalog.btrim(u.phone),'') else null end
     into v_email,v_phone from auth.users u where u.id=v_user;
   if v_email is null and v_phone is null then
     return pg_catalog.jsonb_build_object('status','unverified','count',0);
