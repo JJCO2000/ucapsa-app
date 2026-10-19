@@ -13,7 +13,7 @@ import { clearClientReadCache } from '../services/client-read-cache.service';
 import { clearPracticeActivityCache } from '../services/practice.service';
 import { disableStoredExpoPushToken } from '../services/notifications.service';
 import { getProfileByUserId } from '../services/profiles.service';
-import { claimMyPreregisteredDogs, previewMyPreregisteredDogs } from '../services/dog-preregistration.service';
+import { claimMyFirstPreregisteredDogs, claimMyPreregisteredDogs, previewMyPreregisteredDogs } from '../services/dog-preregistration.service';
 import {
   clearVerifiedLocalUser,
   isBackendUnreachable,
@@ -45,7 +45,7 @@ type SessionContextValue = {
   preregistrationLinkBusy: boolean;
   confirmPreregistrationLink: () => Promise<void>;
   dismissPreregistrationLink: () => void;
-  reviewPreregistrationLink: () => Promise<'available' | 'none' | 'unverified' | 'not_applicable' | 'conflict'>;
+  reviewPreregistrationLink: () => Promise<'available' | 'none' | 'unverified' | 'not_applicable' | 'conflict' | 'linked'>;
   isAdmin: boolean;
   isTrainer: boolean;
   isStaff: boolean;
@@ -394,8 +394,10 @@ export function SessionProvider({ children }: SessionProviderProps) {
     };
   }, []);
 
-  // Consulta privada con contactos verificados de Auth. NO se vincula nada
-  // al iniciar sesión hasta que el titular dé consentimiento explícito.
+  // Primer expediente: vínculo automático SOLO con contacto Auth confirmado
+  // o autorización administrativa previa a esta cuenta exacta. El servidor
+  // garantiza atomicidad e impide una segunda vinculación silenciosa.
+  // Los expedientes posteriores esperan confirmación explícita.
   useEffect(() => {
     if (!preregistrationEnabled) return;
     const userId = session?.user.id ?? null;
@@ -404,23 +406,44 @@ export function SessionProvider({ children }: SessionProviderProps) {
       setPreregistrationLinkOffer(null);
       return;
     }
+    if (isOfflineFallback || usingCachedProfile || profile?.user_id !== userId) return;
     const emailConfirmed = session?.user.email_confirmed_at ?? '';
     const phoneConfirmed = session?.user.phone_confirmed_at ?? '';
-    if (!phoneConfirmed && !emailConfirmed) return;
-    if (isOfflineFallback || usingCachedProfile || profile?.user_id !== userId) return;
     const attemptKey = [userId, phoneConfirmed, emailConfirmed].join('|');
     if (claimAttemptKeyRef.current === attemptKey) return;
     claimAttemptKeyRef.current = attemptKey;
     let active = true;
-    void previewMyPreregisteredDogs().then((result) => {
+    void (async () => {
+      const result = await previewMyPreregisteredDogs();
       if (!active || claimAttemptKeyRef.current !== attemptKey) return;
-      setPreregistrationLinkOffer(result.status === 'available' && result.count > 0
-        ? { userId, count: result.count } : null);
-    }).catch((error) => {
+      if (result.status !== 'available' || result.count < 1) {
+        setPreregistrationLinkOffer(null);
+        return;
+      }
+      if (result.autoFirst) {
+        const claimed = await claimMyFirstPreregisteredDogs();
+        if (!active || claimAttemptKeyRef.current !== attemptKey) return;
+        if (claimed.status === 'linked' && claimed.linkedDogs > 0) {
+          await Promise.all([clearClientReadCache(userId), clearHomeCache(userId)]);
+          if (active && claimAttemptKeyRef.current === attemptKey) {
+            setPreregistrationLinkOffer(null);
+            setPreregistrationSyncVersion((value) => value + 1);
+          }
+          return;
+        }
+        if (claimed.status !== 'requires_approval') {
+          setPreregistrationLinkOffer(null);
+          return;
+        }
+      }
+      // Un segundo expediente exige la decisión del titular y la aprobación
+      // específica de Admin validada también por el RPC del servidor.
+      setPreregistrationLinkOffer({ userId, count: result.count });
+    })().catch((error) => {
       if (active && claimAttemptKeyRef.current === attemptKey) {
         claimAttemptKeyRef.current = null;
       }
-      devWarn('No se pudo consultar preinscripción pendiente.', error);
+      devWarn('No se pudo completar la revisión de preinscripción.', error);
     });
     return () => { active = false; };
   }, [session?.user.id, session?.user.phone_confirmed_at,
@@ -455,17 +478,26 @@ export function SessionProvider({ children }: SessionProviderProps) {
     setPreregistrationLinkOffer(null);
   }
 
-  // Permite volver a consultar un expediente después de elegir "Ahora no".
-  // La búsqueda solo usa los contactos que Supabase Auth confirmó para
-  // la sesión actual; jamás acepta teléfonos escritos en el perfil.
+  // Reapertura tras "Ahora no", y vínculo automático del primer expediente
+  // autorizado. Jamás se confía en contactos editables de perfil.
   async function reviewPreregistrationLink():
-    Promise<'available' | 'none' | 'unverified' | 'not_applicable' | 'conflict'> {
+    Promise<'available' | 'none' | 'unverified' | 'not_applicable' | 'conflict' | 'linked'> {
     if (!preregistrationEnabled || !session?.user || isOfflineFallback ||
         usingCachedProfile || profile?.user_id !== session.user.id) return 'not_applicable';
     const userId = session.user.id;
     // Una autorización explícita de Administración habilita la consulta
     // aunque el contacto Auth todavía no esté confirmado.
     const result = await previewMyPreregisteredDogs();
+    if (result.status === 'available' && result.count > 0 && result.autoFirst) {
+      const claimed = await claimMyFirstPreregisteredDogs();
+      if (claimed.status === 'linked' && claimed.linkedDogs > 0) {
+        await Promise.all([clearClientReadCache(userId), clearHomeCache(userId)]);
+        setPreregistrationLinkOffer(null);
+        setPreregistrationSyncVersion((value) => value + 1);
+        return 'linked';
+      }
+      if (claimed.status !== 'requires_approval') return claimed.status;
+    }
     if (result.status === 'available' && result.count > 0) {
       setPreregistrationLinkOffer({ userId, count: result.count });
     }

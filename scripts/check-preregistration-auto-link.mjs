@@ -59,7 +59,7 @@ for (const [label,ok] of [
   ['Búsqueda por teléfono Auth',phoneSql.includes('v_phone is not null and p.phone_e164=v_phone')],
   ['No vincular sin contacto confirmado',phoneSql.includes('if v_phone is null and v_email is null then')],
   ['Telefono principal en formulario',adminUi.includes('Celular del tutor (principal)')],
-  ['Sesión admite teléfono confirmado',sessionHook.includes('if (!phoneConfirmed && !emailConfirmed) return;')],
+  ['Sesión revisa vínculos con seguridad',sessionHook.includes('claimMyFirstPreregisteredDogs()')],
   ['SMS apagado hasta aprobación',phoneFlag.includes("EXPO_PUBLIC_UCAPSA_PHONE_OTP_ENABLED === 'true'")],
   ['Código Supabase phone_change',phoneService.includes("type: 'phone_change'")],
   ['Comprueba mismo usuario luego del OTP',phoneService.includes('after.data.user?.id !== expectedUserId')],
@@ -81,7 +81,7 @@ for (const [label,passed] of [
   ['opción visible desde Ajustes',settings.includes('Buscar mis preinscripciones')],
   ['navegación sin SMS',settings.includes('void checkMyPreregistrations()')],
   ['permite posponer',consent.includes('Ahora no')],
-  ['no promete vínculo automático tras OTP',phoneView.includes('te preguntará si deseas vincularlos')],
+  ['explica primer vínculo tras OTP',phoneView.includes('lo vinculará automáticamente')],
 ]) {
   if (!passed) throw new Error('Regresión de consentimiento: ' + label);
 }
@@ -111,3 +111,23 @@ for (const [label,ok] of [
  if (!ok) throw new Error('Manual owner-link regression: '+label);
 }
 console.log('UCAPSA admin-approved no-OTP link policy: Admin verifies offline, user consents.');
+
+
+// First safe match is auto-linked, but the second can never bypass a specific
+// Admin approval and user consent; never trust manually entered contact data.
+const firstSql = fs.readFileSync(
+  'supabase/migrations/20261019235000_first_trusted_auto_prereg_link.sql','utf8');
+for (const [label,ok] of [
+  ['first auto RPC checks first-ever link',firstSql.includes('claim_my_first_preregistered_dogs()')],
+  ['first RPC locks user before checking',firstSql.includes("'ucapsa-claim:'||v_user::text")],
+  ['second link requires Admin approval',firstSql.includes('if not v_manual and exists')],
+  ['preview decides auto on first only',firstSql.includes("'auto_first',not exists")],
+  ['subsequent link still asks permission',sessionHook.includes('setPreregistrationLinkOffer({ userId, count: result.count })')],
+  ['first link clears cache',sessionHook.includes('clearClientReadCache(userId), clearHomeCache(userId)')],
+  ['first link uses server-check',manualService.includes("claim_my_first_preregistered_dogs")],
+  ['SMS remains opt in only',phoneFlag.includes("EXPO_PUBLIC_UCAPSA_PHONE_OTP_ENABLED === 'true'")],
+  ['integration tests for second attempt',fs.existsSync('scripts/isolated-db/ucapsa-first-auto-link-e2e.sql')],
+]) {
+ if (!ok) throw new Error('First-auto/second-consent regression: '+label);
+}
+console.log('UCAPSA secure initial auto-link and repeat authorization: PASS');

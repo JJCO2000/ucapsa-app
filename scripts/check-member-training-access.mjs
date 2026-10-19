@@ -170,7 +170,10 @@ for (const [label, ok] of [
   ['pantalla bloqueada',preregistrationScreen.includes('!isAdmin || !preregistrationEnabled')],
   ['directorio bloqueado',preregistrationUsers.includes('{preregistrationEnabled ? (')],
   ['vinculación Auth bloqueada',preregistrationSession.includes('if (!preregistrationEnabled) return;')],
-  ['vinculación exige credencial verificada',preregistrationSession.includes('if (!phoneConfirmed && !emailConfirmed) return;')],
+  ['primer vínculo exige verificación real o aprobación Admin',
+    preregistrationSession.includes('claimMyFirstPreregisteredDogs()') &&
+    fs.readFileSync('supabase/migrations/20261019235000_first_trusted_auto_prereg_link.sql','utf8')
+      .includes('return public.claim_my_preregistered_dogs();')],
   ['roster provisional apagado',preregistrationRoster.includes('if (!preregistrationEnabled) return [];')],
   ['mismo horario de roster',trainerClasses.includes('row.scheduleId === group.scheduleId && row.programCode === group.programCode')],
   ['sin número en Comandos',preregistrationService.includes("input.programCode === 'puppy' ? input.physicalCardNumber.trim() : ''")],
@@ -210,8 +213,8 @@ for (const [label, yes] of [
   if (!yes) throw new Error('Contrato de ficha de preinscripción incumplido: ' + label);
 }
 
-// Vinculación por consentimiento: el formulario del propietario siempre
-// obtiene preview privado con Auth confirmado antes de escribir en SQL.
+// Vinculación: el primer expediente de identidad confiable es automático;
+// los siguientes requieren aprobación Admin y consentimiento del titular.
 const privatePreviewSql = fs.readFileSync('supabase/migrations/20261019220000_private_preregistration_link_preview.sql','utf8');
 const consentModal = fs.readFileSync('src/components/domain/PreregistrationLinkPrompt.tsx','utf8');
 const preregClaims = fs.readFileSync('src/services/dog-preregistration.service.ts','utf8');
@@ -223,8 +226,8 @@ for (const [rule,ok] of [
   ['Preview no acepta contactos arbitrarios',privatePreviewSql.includes('preview_my_preregistered_dogs()')],
   ['Preview revocado a anon',privatePreviewSql.includes('from public,anon')],
   ['No devuelve nombres',!privatePreviewSql.includes('owner_name')],
-  ['Session ya no hace claim silencioso',!preregistrationSession.includes('void claimMyPreregisteredDogs()')],
-  ['Session usa preview',preregistrationSession.includes('void previewMyPreregisteredDogs()')],
+  ['Session no hace segundo claim silencioso',preregistrationSession.includes('claimMyFirstPreregisteredDogs()') && preregistrationSession.includes('async function confirmPreregistrationLink()')],
+  ['Session usa preview',preregistrationSession.includes('const result = await previewMyPreregisteredDogs();')],
   ['El usuario acepta explícitamente',consentModal.includes('Sí, vincular expedientes')],
   ['El usuario puede rechazar',consentModal.includes('Ahora no')],
   ['Ventana universal',rootLayout.includes('<PreregistrationLinkPrompt />')],

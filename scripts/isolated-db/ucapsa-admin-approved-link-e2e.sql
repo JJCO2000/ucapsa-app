@@ -86,10 +86,13 @@ begin
   if j->>'status'<>'available' or (j->>'count')::int<>1 then
     raise exception 'Admin-approved contactless preview failed: %',j;
   end if;
-  j:=public.claim_my_preregistered_dogs();
+  if j->>'auto_first'<>'true' then
+    raise exception 'First trusted approval must be eligible for automatic linking: %',j;
+  end if;
+  j:=public.claim_my_first_preregistered_dogs();
   if j->>'status'<>'linked' or (j->>'linked_dogs')::int<>1
      or (j->>'linked_programs')::int<>1 then
-    raise exception 'Admin-approved claim failed: %',j;
+    raise exception 'Automatic first approved claim failed: %',j;
   end if;
   j:=public.claim_my_preregistered_dogs();
   if j->>'status'='linked' then raise exception 'Duplicate manual claim accepted'; end if;

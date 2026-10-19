@@ -121,7 +121,7 @@ export default function AdminPreregisterDogScreen() {
         totalAttendances: count, knownAttendanceDates: dates, sourceNote,
       });
       Alert.alert('Perro preinscrito',
-        'El titular podrá vincular con un contacto verificado o mediante autorización de Administración sin SMS ni verificación de correo.',
+        'El primer expediente se vinculará al iniciar sesión si coincide un contacto verificado o existe autorización administrativa. Los posteriores requieren nueva autorización.',
         [{ text: 'Listo', onPress: () => router.back() }]);
     } catch (cause) {
       Alert.alert('No se pudo preinscribir',
@@ -147,9 +147,9 @@ export default function AdminPreregisterDogScreen() {
       <Text style={styles.eyebrow}>Administración</Text>
       <Text style={styles.heading}>Preinscribir perro</Text>
       <Text style={styles.description}>
-        Registra al perro sin crear una cuenta ficticia. El tutor podrá reclamar su expediente
-        con un contacto confirmado o después de que Administración compruebe la identidad
-        y autorice la cuenta correspondiente.
+        Registra al perro sin crear una cuenta ficticia. El primer expediente se vincula automáticamente cuando hay un contacto de Auth
+        confirmado o Administración autorizó previamente la cuenta exacta.
+        Un teléfono escrito sin verificar no permite reclamar el historial de otra persona.
       </Text>
 
       <View style={styles.card}>

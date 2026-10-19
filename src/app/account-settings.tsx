@@ -51,7 +51,9 @@ export default function AccountSettingsScreen() {
       // Si hay coincidencia, el diálogo global muestra "Sí, vincular" o
       // "Ahora no". La consulta nunca vincula automáticamente.
       if (status === 'available') return;
-      const detail = status === 'conflict'
+      const detail = status === 'linked'
+        ? 'Tu primer expediente quedó vinculado automáticamente a tu cuenta.'
+        : status === 'conflict'
         ? 'Encontramos datos que requieren revisión de Administración para proteger la cuenta.'
         : status === 'unverified'
           ? 'Sin correo ni celular verificados, solicita a Administración que autorice tu expediente. Después vuelve a buscar aquí.'
