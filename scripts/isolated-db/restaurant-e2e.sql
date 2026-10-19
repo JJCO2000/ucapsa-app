@@ -6,10 +6,17 @@ do $guard$ begin
 end $guard$;
 
 set role anon;
+select set_config('request.jwt.claim.sub','',false);
 do $before$
 begin
  if not public.is_restaurant_menu_published() then
   raise exception 'Legacy visible menu must remain visible after migration';
+ end if;
+ if (select count(*) from public.restaurant_menu_items) <> 1 then
+  raise exception 'Legacy available menu must remain SELECT-readable';
+ end if;
+ if (select count(*) from public.restaurant_menu_categories) <> 1 then
+  raise exception 'Legacy active category must remain readable';
  end if;
 end $before$;
 reset role;
@@ -31,6 +38,16 @@ reset role;
 set role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
 select public.admin_set_restaurant_menu_published(false);
+reset role;
+set role anon;
+select set_config('request.jwt.claim.sub','',false);
+do $revoked_api$
+begin
+ if (select count(*) from public.restaurant_menu_items) <> 0
+  or (select count(*) from public.restaurant_menu_categories) <> 0 then
+  raise exception 'Public SELECT can bypass hidden restaurant menu';
+ end if;
+end $revoked_api$;
 reset role;
 update public.restaurant_menu_items set is_available=false;
 
@@ -76,6 +93,9 @@ begin
  if not public.is_restaurant_menu_published() then
   raise exception 'Public menu did not become published';
  end if;
+ if (select count(*) from public.restaurant_menu_items) <> 2 then
+  raise exception 'Public SELECT must expose exactly available items';
+ end if;
 end $published$;
 reset role;
 
@@ -88,6 +108,10 @@ do $unpublished$
 begin
  if public.is_restaurant_menu_published() then
   raise exception 'Global menu publication not revoked';
+ end if;
+ if (select count(*) from public.restaurant_menu_items) <> 0
+  or (select count(*) from public.restaurant_menu_categories) <> 0 then
+  raise exception 'RLS leaked hidden menu through direct REST tables';
  end if;
 end $unpublished$;
 reset role;
