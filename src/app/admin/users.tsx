@@ -165,11 +165,11 @@ export default function AdminUsersScreen() {
         <>
           {preregistrationEnabled ? (
             <Pressable accessibilityRole="button"
-              accessibilityLabel="Preinscribir perro sin cuenta de usuario"
-              onPress={() => router.push('/admin/preregister-dog' as never)}
+              accessibilityLabel="Abrir expedientes de preinscripción"
+              onPress={() => router.push('/admin/preregistrations' as never)}
               style={styles.preregisterAction}>
               <MaterialCommunityIcons name="dog" size={21} color={ucapsaBrand.colors.redDark} />
-              <Text style={styles.preregisterActionText}>Registrar perro sin cuenta</Text>
+              <Text style={styles.preregisterActionText}>Preinscripciones · perros sin cuenta</Text>
               <MaterialCommunityIcons name="chevron-right" size={20} color={ucapsaBrand.colors.redDark} />
             </Pressable>
           ) : null}
