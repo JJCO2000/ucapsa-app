@@ -172,11 +172,15 @@ begin
 
   -- El administrador ya comprobó presencialmente la identidad del titular.
   -- Se autoriza SOLO el expediente identificado para esta cuenta Auth.
-  select count(*), min(a.person_id)
-    into v_manual_count, v_approved_person
+  select count(*) into v_manual_count
   from ucapsa_intake.owner_link_approvals a
   join ucapsa_intake.people p on p.id=a.person_id
   where a.user_id=v_user and a.consumed_at is null and p.status='pending';
+  select a.person_id into v_approved_person
+  from ucapsa_intake.owner_link_approvals a
+  join ucapsa_intake.people p on p.id=a.person_id
+  where a.user_id=v_user and a.consumed_at is null and p.status='pending'
+  limit 1;
   if v_manual_count>1 then
     return pg_catalog.jsonb_build_object('status','conflict','linked_dogs',0);
   end if;
@@ -354,11 +358,15 @@ begin
 
   -- El administrador ya comprobó presencialmente la identidad del titular.
   -- Se autoriza SOLO el expediente identificado para esta cuenta Auth.
-  select count(*), min(a.person_id)
-    into v_manual_count, v_approved_person
+  select count(*) into v_manual_count
   from ucapsa_intake.owner_link_approvals a
   join ucapsa_intake.people p on p.id=a.person_id
   where a.user_id=v_user and a.consumed_at is null and p.status='pending';
+  select a.person_id into v_approved_person
+  from ucapsa_intake.owner_link_approvals a
+  join ucapsa_intake.people p on p.id=a.person_id
+  where a.user_id=v_user and a.consumed_at is null and p.status='pending'
+  limit 1;
   if v_manual_count>1 then
     return pg_catalog.jsonb_build_object('status','conflict','count',0);
   end if;
