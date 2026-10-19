@@ -138,7 +138,7 @@ update auth.users set email='other@test.invalid',email_confirmed_at=null
 where id='00000000-0000-4000-8000-000000000003';
 set role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',false);
-do $
+do $$
 declare result jsonb;
 begin
   result:=public.preview_my_preregistered_dogs();
