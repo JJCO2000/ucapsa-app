@@ -7,6 +7,10 @@ import { Calendar, type DateData } from 'react-native-calendars';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { getStaffIntroAgendaPlans, type StaffIntroVisit } from '../../services/intro-class-agenda.service';
+import { getProgramClassCancellations } from '../../services/program-cancellations.service';
+import { getPrograms, getProgramSchedules } from '../../services/program-schedules.service';
+import { isProgramScheduleActiveOnDate } from '../../services/programs.domain';
+import type { ProgramClassCancellation, ProgramSchedule, UcapsaProgram } from '../../types/app.types';
 import { useSession } from '../../hooks/useSession';
 import {
   getStaffClassRoster,
@@ -38,15 +42,43 @@ function responseLabel(value: StaffRosterRow['rsvpResponse']) {
   return 'Sin responder';
 }
 
-function groupRoster(rows: StaffRosterRow[]) {
+type OfficialRosterContext = {
+  schedules: ProgramSchedule[];
+  programs: UcapsaProgram[];
+  cancellations: ProgramClassCancellation[];
+};
+
+function groupRoster(rows: StaffRosterRow[], official: OfficialRosterContext | null, dateKey: string) {
   const groups = new Map<string, RosterGroup>();
+  if (official) {
+    const programsById = new Map(official.programs.map((item) => [item.id, item]));
+    const cancelledIds = new Set(official.cancellations
+      .filter((item) => !item.restored_at && item.cancellation_date === dateKey)
+      .map((item) => item.schedule_id));
+
+    // The official timetable defines whether a class exists, not enrollment count.
+    for (const schedule of official.schedules) {
+      const program = programsById.get(schedule.program_id);
+      if (!program || !program.is_active || !['puppy', 'comandos'].includes(program.code)) continue;
+      if (!isProgramScheduleActiveOnDate(schedule, dateKey) || cancelledIds.has(schedule.id)) continue;
+      groups.set(schedule.id, {
+        scheduleId: schedule.id,
+        programCode: program.code,
+        scheduleName: schedule.name,
+        startTime: String(schedule.start_time).slice(0, 5),
+        rows: [],
+      });
+    }
+  }
+
   for (const row of rows) {
-    const key = `${row.scheduleId}:${row.programCode}:${row.startTime}`;
-    const existing = groups.get(key);
+    const existing = groups.get(row.scheduleId);
     if (existing) {
       existing.rows.push(row);
     } else {
-      groups.set(key, {
+      // Keep official staff-roster results visible if server and client projections differ.
+      // Never fabricate attendees or attendance status for empty sessions.
+      groups.set(row.scheduleId, {
         scheduleId: row.scheduleId,
         programCode: row.programCode,
         scheduleName: row.scheduleName,
@@ -55,7 +87,8 @@ function groupRoster(rows: StaffRosterRow[]) {
       });
     }
   }
-  return [...groups.values()].sort((a, b) => a.startTime.localeCompare(b.startTime));
+  return [...groups.values()].sort((a, b) =>
+    a.startTime.localeCompare(b.startTime) || a.programCode.localeCompare(b.programCode));
 }
 
 export default function TrainerClassesTab() {
@@ -69,6 +102,7 @@ export default function TrainerClassesTab() {
   const [expandedScheduleId, setExpandedScheduleId] = useState<string | null>(routeScheduleId || null);
   const loadRunRef = useRef(0);
   const [rows, setRows] = useState<StaffRosterRow[]>([]);
+  const [official, setOfficial] = useState<OfficialRosterContext | null>(null);
   const [introVisits, setIntroVisits] = useState<StaffIntroVisit[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -77,9 +111,9 @@ export default function TrainerClassesTab() {
   const [introWarning, setIntroWarning] = useState<string | null>(null);
 
   const groups = useMemo(() => {
-    const all = groupRoster(rows);
+    const all = groupRoster(rows, official, dateKey);
     return focusedScheduleId ? all.filter((item) => item.scheduleId === focusedScheduleId) : all;
-  }, [focusedScheduleId, rows]);
+  }, [dateKey, focusedScheduleId, official, rows]);
 
   const load = useCallback(async () => {
     if (!capabilities.canUseTrainingWorkspace) return;
@@ -88,8 +122,11 @@ export default function TrainerClassesTab() {
     setIntroWarning(null);
     try {
       // La sección opcional de visitas no debe bloquear el roster oficial.
-      const [roster, visits] = await Promise.allSettled([
+      const [roster, schedules, programs, cancellations, visits] = await Promise.allSettled([
         getStaffClassRoster(dateKey),
+        getProgramSchedules(dateKey),
+        getPrograms(),
+        getProgramClassCancellations(),
         getStaffIntroAgendaPlans(dateKey),
       ]);
       if (runId === loadRunRef.current) {
@@ -98,6 +135,18 @@ export default function TrainerClassesTab() {
         } else {
           setRows([]);
           setError('No pudimos verificar el roster oficial. Reintenta antes de registrar asistencias.');
+        }
+        if (schedules.status === 'fulfilled'
+            && programs.status === 'fulfilled'
+            && cancellations.status === 'fulfilled') {
+          setOfficial({
+            schedules: schedules.value,
+            programs: programs.value,
+            cancellations: cancellations.value,
+          });
+        } else {
+          setOfficial(null);
+          setError('No pudimos verificar los horarios oficiales. Reintenta antes de registrar asistencias.');
         }
         if (visits.status === 'fulfilled') {
           setIntroVisits(visits.value);
@@ -134,6 +183,7 @@ export default function TrainerClassesTab() {
     setFocusedScheduleId('');
     setExpandedScheduleId(null);
     setRows([]);
+    setOfficial(null);
     setIntroVisits([]);
     setDateKey(nextDate);
   }
@@ -323,6 +373,9 @@ export default function TrainerClassesTab() {
                 <MaterialIcons name={expandedScheduleId === group.scheduleId ? 'expand-less' : 'expand-more'} size={24} color={ucapsaBrand.colors.muted} />
               </Pressable>
 
+              {expandedScheduleId === group.scheduleId && group.rows.length === 0 ? (
+                <Text style={styles.emptyScheduleText}>Sin alumnos inscritos en este horario.</Text>
+              ) : null}
               {expandedScheduleId === group.scheduleId ? group.rows.map((row) => {
                 const busy = busyId === row.enrollmentId || busyId === row.userId;
                 return (
@@ -433,6 +486,7 @@ const styles = StyleSheet.create({
   groupIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   groupTitle: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900' },
   groupMeta: { color: ucapsaBrand.colors.muted, fontSize: 10, fontWeight: '800', marginTop: 2 },
+  emptyScheduleText: { paddingHorizontal: 16, paddingVertical: 14, color: ucapsaBrand.colors.muted, fontSize: 13, fontWeight: '700' },
   personRow: { minHeight: 98, flexDirection: 'row', alignItems: 'center', gap: 9, padding: 12, borderTopWidth: 1, borderTopColor: ucapsaBrand.colors.borderNeutral },
   nameLine: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 5 },
   dogName: { color: ucapsaBrand.colors.text, fontSize: 14, fontWeight: '900' },
