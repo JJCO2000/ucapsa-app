@@ -2047,6 +2047,53 @@ export type Database = {
           },
         ]
       }
+      program_attendance_historical_evidence: {
+        Row: {
+          attendance_date: string | null
+          enrollment_id: string
+          evidence_kind: string
+          evidence_source: string
+          id: string
+          intake_evidence_id: string
+          quantity: number
+          recorded_at: string
+          recorded_by: string
+          source_note: string | null
+        }
+        Insert: {
+          attendance_date?: string | null
+          enrollment_id: string
+          evidence_kind: string
+          evidence_source?: string
+          id?: string
+          intake_evidence_id: string
+          quantity: number
+          recorded_at: string
+          recorded_by: string
+          source_note?: string | null
+        }
+        Update: {
+          attendance_date?: string | null
+          enrollment_id?: string
+          evidence_kind?: string
+          evidence_source?: string
+          id?: string
+          intake_evidence_id?: string
+          quantity?: number
+          recorded_at?: string
+          recorded_by?: string
+          source_note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_attendance_historical_evidence_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "program_enrollments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       program_attendances: {
         Row: {
           attendance_date: string
@@ -2211,6 +2258,7 @@ export type Database = {
           dog_id: string | null
           dog_name: string | null
           id: string
+          intake_program_id: string | null
           last_attendance_at: string | null
           membership_id: string | null
           notes: string | null
@@ -2237,6 +2285,7 @@ export type Database = {
           dog_id?: string | null
           dog_name?: string | null
           id?: string
+          intake_program_id?: string | null
           last_attendance_at?: string | null
           membership_id?: string | null
           notes?: string | null
@@ -2263,6 +2312,7 @@ export type Database = {
           dog_id?: string | null
           dog_name?: string | null
           id?: string
+          intake_program_id?: string | null
           last_attendance_at?: string | null
           membership_id?: string | null
           notes?: string | null
@@ -5062,14 +5112,6 @@ export type Database = {
       }
     }
     Functions: {
-      is_restaurant_menu_published: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      admin_set_restaurant_menu_published: {
-        Args: { p_published: boolean }
-        Returns: boolean
-      }
       admin_activate_ucapsa_competition_season: {
         Args: { p_season_id: string }
         Returns: string
@@ -5264,6 +5306,18 @@ export type Database = {
         Args: { p_attempt_id: string; p_exam_item_id: string }
         Returns: string
       }
+      admin_get_program_historical_evidence: {
+        Args: { p_enrollment_id: string }
+        Returns: {
+          attendance_date: string
+          evidence_id: string
+          evidence_kind: string
+          evidence_source: string
+          quantity: number
+          recorded_at: string
+          source_note: string
+        }[]
+      }
       admin_grant_ucapsa_dog_award: {
         Args: {
           p_award_code: string
@@ -5308,6 +5362,31 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      admin_preregister_dog: {
+        Args: {
+          p_dog_name: string
+          p_owner_email: string
+          p_owner_name: string
+          p_owner_phone: string
+        }
+        Returns: string
+      }
+      admin_preregister_dog_with_program: {
+        Args: {
+          p_card_number: string
+          p_card_started_on: string
+          p_dog_name: string
+          p_known_dates: string[]
+          p_note?: string
+          p_owner_email: string
+          p_owner_name: string
+          p_owner_phone: string
+          p_program_code: string
+          p_program_level: string
+          p_total_attendances: number
+        }
+        Returns: string
       }
       admin_publish_privacy_notice: {
         Args: { p_id: string }
@@ -5436,6 +5515,19 @@ export type Database = {
         Args: { p_award_id: string; p_note?: string }
         Returns: string
       }
+      admin_save_preregistered_program_history: {
+        Args: {
+          p_card_number: string
+          p_card_started_on: string
+          p_intake_dog_id: string
+          p_known_dates: string[]
+          p_note?: string
+          p_program_code: string
+          p_program_level: string
+          p_total_attendances: number
+        }
+        Returns: string
+      }
       admin_save_privacy_notice: {
         Args: {
           p_arco_procedure: string
@@ -5503,6 +5595,10 @@ export type Database = {
           p_membership_id: string
         }
         Returns: undefined
+      }
+      admin_set_restaurant_menu_published: {
+        Args: { p_published: boolean }
+        Returns: boolean
       }
       admin_set_ucapsa_exam_official_attempt: {
         Args: { p_attempt_id: string }
@@ -5623,6 +5719,7 @@ export type Database = {
         Args: { p_dog_id: string }
         Returns: boolean
       }
+      claim_my_preregistered_dogs: { Args: never; Returns: Json }
       correct_member_visit_admin: {
         Args: { p_notes?: string; p_visit_id: string; p_visited_at: string }
         Returns: undefined
@@ -5900,29 +5997,6 @@ export type Database = {
         Args: { p_exam_id: string }
         Returns: Json
       }
-      get_staff_exam_report: {
-        Args: { p_exam_id: string }
-        Returns: {
-          attempt_id: string
-          exam_id: string
-          exam_code: string
-          exam_title: string
-          presented_date: string
-          attempt_number: number
-          attempt_status: string
-          is_official: boolean
-          voided_at: string | null
-          dog_id: string
-          dog_name: string
-          client_name: string
-          item_id: string | null
-          item_number: number | null
-          item_title: string | null
-          max_points: number | null
-          points_awarded: number | null
-          evaluator_note: string | null
-        }[]
-      }
       get_staff_exam_drafts: {
         Args: never
         Returns: {
@@ -5936,6 +6010,29 @@ export type Database = {
           season_name: string
         }[]
       }
+      get_staff_exam_report: {
+        Args: { p_exam_id: string }
+        Returns: {
+          attempt_id: string
+          attempt_number: number
+          attempt_status: string
+          client_name: string
+          dog_id: string
+          dog_name: string
+          evaluator_note: string
+          exam_code: string
+          exam_id: string
+          exam_title: string
+          is_official: boolean
+          item_id: string
+          item_number: number
+          item_title: string
+          max_points: number
+          points_awarded: number
+          presented_date: string
+          voided_at: string
+        }[]
+      }
       get_staff_intro_class_agenda: {
         Args: { p_class_date: string }
         Returns: {
@@ -5947,6 +6044,22 @@ export type Database = {
           schedule_id: string
           status: string
           user_id: string
+        }[]
+      }
+      get_staff_preregistered_class_roster: {
+        Args: { p_class_date: string }
+        Returns: {
+          attended: boolean
+          card_status: string
+          dog_name: string
+          intake_program_id: string
+          owner_name: string
+          program_code: string
+          program_level: string
+          schedule_id: string
+          schedule_name: string
+          start_time: string
+          total_attendances: number
         }[]
       }
       get_staff_recorded_attendance: {
@@ -6148,6 +6261,7 @@ export type Database = {
       has_active_membership: { Args: never; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_feature_enabled: { Args: { p_code: string }; Returns: boolean }
+      is_restaurant_menu_published: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
       is_ucapsa_admin: { Args: never; Returns: boolean }
       is_ucapsa_staff: { Args: never; Returns: boolean }
@@ -6357,6 +6471,10 @@ export type Database = {
         Args: { p_exam_id: string }
         Returns: string
       }
+      staff_register_preregistered_attendance: {
+        Args: { p_attendance_date: string; p_intake_program_id: string }
+        Returns: string
+      }
       staff_register_program_attendance: {
         Args: {
           p_attendance_date: string
@@ -6384,23 +6502,23 @@ export type Database = {
         }
         Returns: string
       }
+      staff_update_ucapsa_exam_draft: {
+        Args: {
+          p_code: string
+          p_exam_date: string
+          p_exam_id: string
+          p_expected_updated_at: string
+          p_items: Json
+          p_title: string
+        }
+        Returns: string
+      }
       superadmin_set_profile_role: {
         Args: { p_role: string; p_user_id: string }
         Returns: string
       }
       trainer_create_ucapsa_exam_attempt: {
         Args: { p_dog_id: string; p_exam_id: string; p_presented_at?: string }
-        Returns: string
-      }
-      staff_update_ucapsa_exam_draft: {
-        Args: {
-          p_exam_id: string
-          p_code: string
-          p_title: string
-          p_exam_date: string | null
-          p_items: Json
-          p_expected_updated_at: string
-        }
         Returns: string
       }
       trainer_create_ucapsa_exam_draft: {
