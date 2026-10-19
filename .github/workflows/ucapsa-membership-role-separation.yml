@@ -1,0 +1,44 @@
+name: UCAPSA membership role separation
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261019040000_preserve_staff_role_during_membership_lifecycle.sql'
+      - 'scripts/isolated-db/membership-separation-*'
+      - '.github/workflows/ucapsa-membership-role-separation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  membership-role-separation:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16.4-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: local_only_ucapsa
+          POSTGRES_DB: ucapsa_role_separation_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ucapsa_role_separation_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: local_only_ucapsa
+      PGDATABASE: ucapsa_role_separation_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Migrate function from real production contract
+        run: psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20261019040000_preserve_staff_role_during_membership_lifecycle.sql
+      - name: Fixture and lifecycle trigger
+        run: psql -X -v ON_ERROR_STOP=1 -f scripts/isolated-db/membership-separation-fixture.sql
+      - name: Validate staff privileges independent from commercial entitlements
+        run: psql -X -v ON_ERROR_STOP=1 -f scripts/isolated-db/membership-separation-e2e.sql
