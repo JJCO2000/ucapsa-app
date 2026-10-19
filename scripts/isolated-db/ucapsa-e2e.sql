@@ -196,25 +196,27 @@ begin
   end if;
 end $$;
 
--- Superadmin must provide a primary email, even when phone is present.
+-- Administración permite preinscripción únicamente con celular E.164.
+-- Verificar el teléfono debe ocurrir en Supabase Auth, no en public.profiles.
 set role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000004',false);
-do $email_required$
-declare blocked boolean := false;
+do $contact_required$
+declare denied boolean := false;
 begin
   begin
     perform public.admin_preregister_dog_with_program(
-      'Phone Parent','','+525512345678','Nala','puppy','base',
-      'P-200','2026-09-01',1,array[]::date[],'email is mandatory');
-  exception when invalid_parameter_value then blocked := true;
+      'Phone Parent','','','Nala','puppy','base',
+      'P-200','2026-09-01',1,array[]::date[],'missing all contact');
+  exception when invalid_parameter_value then denied := true;
   end;
-  if not blocked then raise exception 'Admin preregistered a phone-only owner'; end if;
-end $email_required$;
+  if not denied then raise exception 'Admin preregistered dog without contact'; end if;
+end $contact_required$;
 select public.admin_preregister_dog_with_program(
-  'Phone Parent','nala-owner@test.invalid','+525512345678','Nala','puppy','base',
-  'P-200','2026-09-01',1,array[]::date[],'card reviewed by superadmin');
+  'Phone Parent','','+525512345678','Nala','puppy','base',
+  'P-200','2026-09-01',1,array[]::date[],'phone-only owner attested');
 reset role;
--- The mere presence of a phone in Auth is NOT proof of possession.
+
+-- Profile phone alone is not an Auth-verified credential.
 update auth.users set phone='+525512345678',phone_confirmed_at=null
 where id='00000000-0000-4000-8000-000000000003';
 set role authenticated;
@@ -224,11 +226,12 @@ declare result jsonb;
 begin
   result:=public.claim_my_preregistered_dogs();
   if result->>'status'<>'unverified' then
-    raise exception 'Unverified phone incorrectly claimed a card: %',result;
+    raise exception 'Unverified profile phone claimed account: %',result;
   end if;
-end
-$phone_unverified$;
+end $phone_unverified$;
 reset role;
+
+-- Verificado con OTP (evidencia simulada únicamente en fixture aislado).
 update auth.users set phone_confirmed_at=now()
 where id='00000000-0000-4000-8000-000000000003';
 set role authenticated;
@@ -237,27 +240,26 @@ do $phone_verified$
 declare result jsonb;
 begin
   result:=public.claim_my_preregistered_dogs();
-  if result->>'status'<>'unverified' then
-    raise exception 'Verified phone incorrectly claimed a dog without email: %',result;
-  end if;
-end
-$phone_verified$;
-reset role;
--- A matching verified primary email is required for a real claim.
-update auth.users set email='nala-owner@test.invalid',email_confirmed_at=now()
-where id='00000000-0000-4000-8000-000000000003';
-set role authenticated;
-select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000003',false);
-do $primary_email_verified$
-declare result jsonb;
-begin
-  result:=public.claim_my_preregistered_dogs();
   if result->>'status'<>'linked' or (result->>'linked_dogs')::int<>1 then
-    raise exception 'Verified primary email did not claim matching dog: %',result;
+    raise exception 'Verified phone did not link unique matching dog: %',result;
   end if;
-end
-$primary_email_verified$;
+end $phone_verified$;
 reset role;
+
+-- Protección contra reutilización de un número que otra cuenta verifica.
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
+do $check_phone_before_sms$
+begin
+  if public.can_request_my_phone_verification('+525512345678') then
+    raise exception 'Phone already verified by another Auth user was considered available';
+  end if;
+  if not public.can_request_my_phone_verification('+525588882222') then
+    raise exception 'New phone unexpectedly blocked';
+  end if;
+end $check_phone_before_sms$;
+reset role;
+
 do $history_unknown$
 begin
   if not exists (
