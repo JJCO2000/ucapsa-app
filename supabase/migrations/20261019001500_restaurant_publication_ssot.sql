@@ -27,7 +27,7 @@ as $fn$
     )
 $fn$;
 revoke all on function public.is_restaurant_menu_published() from public;
-grant execute on function public.is_restaurant_menu_published() to anon,authenticated;
+grant execute on function public.is_restaurant_menu_published() to anon,authenticated,service_role;
 
 create or replace function public.admin_set_restaurant_menu_published(p_published boolean)
 returns boolean language plpgsql security definer set search_path=''
