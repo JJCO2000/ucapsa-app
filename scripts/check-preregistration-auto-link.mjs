@@ -68,4 +68,22 @@ for (const [label,ok] of [
   if (!ok) throw new Error('Regresión de vinculación móvil: ' + label);
 }
 
+// Después de "Ahora no", el titular debe poder volver a revisar sin SMS,
+// sin revelar teléfonos de expedientes ajenos y SIN vinculación automática.
+const settings = fs.readFileSync('src/app/account-settings.tsx','utf8');
+const consent = fs.readFileSync('src/components/domain/PreregistrationLinkPrompt.tsx','utf8');
+const phoneView = fs.readFileSync('src/app/verify-phone.tsx','utf8');
+for (const [label,passed] of [
+  ['reapertura en sesión',sessionHook.includes('async function reviewPreregistrationLink()')],
+  ['RPC solo de consulta',sessionHook.includes('const result = await previewMyPreregisteredDogs();')],
+  ['consentimiento sigue separado',sessionHook.includes('async function confirmPreregistrationLink()')],
+  ['reapertura usa usuario real',sessionHook.includes('profile?.user_id !== session.user.id')],
+  ['opción visible desde Ajustes',settings.includes('Buscar mis preinscripciones')],
+  ['navegación sin SMS',settings.includes('void checkMyPreregistrations()')],
+  ['permite posponer',consent.includes('Ahora no')],
+  ['no promete vínculo automático tras OTP',phoneView.includes('te preguntará si deseas vincularlos')],
+]) {
+  if (!passed) throw new Error('Regresión de consentimiento: ' + label);
+}
+
 console.log('UCAPSA auto-link policy: verified phone-first, email fallback; zero DB writes');
