@@ -180,6 +180,7 @@ for (const [label, ok] of [
 // Expedientes de preinscripción: lectura solo Admin y SSOT de membresía/nivel.
 const preregReadSql = fs.readFileSync('supabase/migrations/20261019170000_admin_preregistration_records.sql','utf8');
 const preregReadService = fs.readFileSync('src/services/preregistration-admin.service.ts','utf8');
+const preregistrationFeature = fs.readFileSync('src/constants/preregistrationFeature.ts','utf8');
 const preregListScreen = fs.readFileSync('src/app/admin/preregistrations.tsx','utf8');
 const preregDetailScreen = fs.readFileSync('src/app/admin/preregistration.tsx','utf8');
 const officialClientScreen = fs.readFileSync('src/app/admin/customer.tsx','utf8');
@@ -196,9 +197,13 @@ for (const [label, yes] of [
   ['Clase muestra contador canónico',officialClassScreen.includes('row.enrollment.attendances_count')],
   ['Detalle de asistencias muestra contador canónico',officialAttendanceScreen.includes('selectedEnrollment.enrollment.attendances_count')],
   ['Comandos no guarda referencia Puppy',officialClassScreen.includes("row.program.code === 'puppy' ? { physicalCardNumber: cardNumber }")],
-  ['Directorio enlaza al listado',officialUserDirectory.includes("router.push('/admin/preregistrations'")],
+  ['Directorio enlaza al listado tras activar el RPC',officialUserDirectory.includes("preregistrationDirectoryEnabled ? '/admin/preregistrations' : '/admin/preregister-dog'")],
+  ['Alta previa sigue operativa',officialUserDirectory.includes('{preregistrationEnabled ? (')],
+  ['Nuevo directorio apagado hasta despliegue',preregistrationFeature.includes("EXPO_PUBLIC_UCAPSA_PREREGISTRATION_DIRECTORY_ENABLED === 'true'")],
+  ['Lista cerrada sin nueva RPC',preregListScreen.includes('!isAdmin || !preregistrationDirectoryEnabled')],
+  ['Ficha cerrada sin nueva RPC',preregDetailScreen.includes('!isAdmin || !preregistrationDirectoryEnabled')],
   ['Lista abre fichas',preregListScreen.includes("router.push(('/admin/preregistration?intakeProgramId='")],
-  ['Solo Admin consulta fichas',preregDetailScreen.includes("!isAdmin || !preregistrationEnabled")],
+  ['Solo Admin consulta fichas',preregDetailScreen.includes("!isAdmin || !preregistrationDirectoryEnabled")],
   ['Lectura no crea membresía',!preregReadService.includes("from('memberships').insert")],
 ]) {
   if (!yes) throw new Error('Contrato de ficha de preinscripción incumplido: ' + label);
