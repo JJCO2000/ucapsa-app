@@ -300,7 +300,25 @@ begin
   if v_user is null then
     raise exception 'Inicia sesión para verificar tu celular.' using errcode='42501';
   end if;
-  if v_phone is null or v_phone !~ '^\\+[1-9][0-9]{7,14}$' then
+  if v_phone is null or v_phone !~ '^\+[1-9][0-9]{7,14} then
+    raise exception 'Usa número internacional E.164.' using errcode='22023';
+  end if;
+  if exists (
+    select 1 from auth.users u
+    where u.id<>v_user
+      and (
+        (u.phone=v_phone and u.phone_confirmed_at is not null)
+        or u.phone_change=v_phone
+      )
+  ) then
+    return false;
+  end if;
+  return true;
+end;
+$func$;
+revoke all on function public.can_request_my_phone_verification(text) from public,anon;
+grant execute on function public.can_request_my_phone_verification(text) to authenticated;
+ then
     raise exception 'Usa número internacional E.164.' using errcode='22023';
   end if;
   if exists (
