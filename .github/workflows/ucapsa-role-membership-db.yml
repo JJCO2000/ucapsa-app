@@ -1,0 +1,44 @@
+name: UCAPSA Superadmin role isolation
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261018235000_superadmin_role_membership_ssot.sql'
+      - 'scripts/isolated-db/role-membership-*'
+      - '.github/workflows/ucapsa-role-membership-db.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  role-membership:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16.4-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ucapsa_isolated_test
+          POSTGRES_DB: ucapsa_role_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ucapsa_role_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: ucapsa_isolated_test
+      PGDATABASE: ucapsa_role_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Bootstrap synthetic role model
+        run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/role-membership-fixture.sql
+      - name: Apply Superadmin role migration
+        run: psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261018235000_superadmin_role_membership_ssot.sql
+      - name: Test role transitions and membership history
+        run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/role-membership-e2e.sql
