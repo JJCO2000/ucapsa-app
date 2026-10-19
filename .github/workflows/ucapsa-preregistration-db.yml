@@ -9,6 +9,7 @@ on:
       - 'supabase/migrations/20261018230000_staff_preregistered_roster.sql'
       - 'supabase/migrations/20261019080000_preregistration_historical_training_decisions.sql'
       - 'supabase/migrations/20261019170000_admin_preregistration_records.sql'
+      - 'supabase/migrations/20261019193000_preregistration_verified_phone_or_email.sql'
       - 'supabase/migrations/20261019183000_preregistration_primary_email.sql'
       - 'scripts/isolated-db/**'
       - '.github/workflows/ucapsa-preregistration-db.yml'
@@ -57,6 +58,7 @@ jobs:
           psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261019080000_preregistration_historical_training_decisions.sql
           psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261019170000_admin_preregistration_records.sql
           psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261019183000_preregistration_primary_email.sql
+          psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261019193000_preregistration_verified_phone_or_email.sql
       - name: Exercise permissions, identity, enrollments and attendance
         run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/ucapsa-e2e.sql
       - name: Verify Admin-only directory from seeded historical data
