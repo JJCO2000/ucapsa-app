@@ -61,7 +61,7 @@ INSERT INTO public.payments(membership_id,amount)
 GRANT USAGE ON SCHEMA auth, public TO authenticated;
 GRANT EXECUTE ON FUNCTION auth.uid() TO authenticated;
 
-\i supabase/migrations/20261019072000_superadmin_operational_role_null_guard.sql
+\i supabase/migrations/20261019064812_superadmin_operational_role_null_guard.sql
 
 DO $privileges$ BEGIN
   IF has_function_privilege('anon', 'public.superadmin_set_profile_role(uuid,text)','EXECUTE')

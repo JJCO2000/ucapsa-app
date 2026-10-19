@@ -3,7 +3,7 @@ name: UCAPSA Superadmin authorization regression
 on:
   pull_request:
     paths:
-      - 'supabase/migrations/20261019072000_superadmin_operational_role_null_guard.sql'
+      - 'supabase/migrations/20261019064812_superadmin_operational_role_null_guard.sql'
       - 'scripts/isolated-db/superadmin-role-guard-e2e.sql'
       - '.github/workflows/ucapsa-superadmin-role-guard.yml'
   workflow_dispatch:
