@@ -66,6 +66,7 @@ export async function adminPreregisterDogWithProgram(input: PreregisteredProgram
 export type DogClaimPreview = {
   status: 'available' | 'none' | 'unverified' | 'not_applicable' | 'conflict';
   count: number;
+  autoFirst: boolean;
 };
 
 /**
@@ -88,7 +89,11 @@ export async function previewMyPreregisteredDogs(): Promise<DogClaimPreview> {
     || !Number.isSafeInteger(row.count) || Number(row.count) < 0) {
     throw new Error('La respuesta del servidor no es válida.');
   }
-  return { status: row.status as DogClaimPreview['status'], count: Number(row.count) };
+  return {
+    status: row.status as DogClaimPreview['status'],
+    count: Number(row.count),
+    autoFirst: row.status === 'available' && row.auto_first === true,
+  };
 }
 
 export type DogClaimResult = {
@@ -173,4 +178,36 @@ export async function adminApprovePreregistrationOwnerLink(
   if (!data || typeof data !== 'object' || (data as Record<string,unknown>).status !== 'approved') {
     throw new Error('No se confirmó la autorización.');
   }
+}
+
+
+/**
+ * The server atomically permits the FIRST intake claim only. The contact must
+ * be confirmed by Supabase Auth OR explicitly pre-approved for this user by
+ * Admin. A typed but unverified email/phone is never ownership evidence.
+ * Subsequent intake people require a separate Admin authorization + consent.
+ */
+export async function claimMyFirstPreregisteredDogs(): Promise<DogClaimResult | {
+  status: 'requires_approval';
+  linkedDogs: 0;
+}> {
+  if (!preregistrationEnabled) throw new Error('La preinscripción no está habilitada.');
+  const rpc = supabase.rpc.bind(supabase) as unknown as
+    (name: 'claim_my_first_preregistered_dogs') => PromiseLike<RpcOutcome>;
+  const { data, error } = await rpc('claim_my_first_preregistered_dogs');
+  if (error) throw new Error(error.message);
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new Error('Respuesta inválida de vinculación inicial.');
+  }
+  const row = data as Record<string, unknown>;
+  if (!['linked','none','unverified','not_applicable','conflict','requires_approval']
+    .includes(String(row.status))) {
+    throw new Error('Estado inesperado de vinculación inicial.');
+  }
+  if (typeof row.linked_dogs !== 'number' || !Number.isSafeInteger(row.linked_dogs)
+      || row.linked_dogs < 0) {
+    throw new Error('Conteo inválido en vinculación inicial.');
+  }
+  return { status: row.status as DogClaimResult['status'] | 'requires_approval',
+    linkedDogs: row.linked_dogs } as DogClaimResult | { status: 'requires_approval'; linkedDogs: 0 };
 }
