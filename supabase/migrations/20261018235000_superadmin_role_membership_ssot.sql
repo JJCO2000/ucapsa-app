@@ -1,4 +1,21 @@
 -- UCAPSA: un rol efectivo por perfil. Socio es membresía comercial, no Comandos.
+-- Preserve original paid evidence and explicitly granted (no-charge) memberships.
+-- Production's old invariant rewrites active not_required to pending and
+-- cancelled paid to not_required. That is incorrect for manually granted access
+-- and overwrites the payment snapshot; payment ledger itself is still SSOT.
+create or replace function public.enforce_membership_state_invariants()
+returns trigger language plpgsql set search_path='public'
+as $invariant$
+begin
+  if new.status='active' then
+    new.end_date:=null;
+  elsif new.status='cancelled' and new.current_payment_status<>'paid' then
+    new.current_payment_status:='not_required';
+  end if;
+  return new;
+end;
+$invariant$;
+
 -- No aplicar a producción antes de CI aislado, integración y revisión de permisos.
 create or replace function public.superadmin_set_profile_role(
   p_user_id uuid, p_role text
@@ -66,6 +83,16 @@ begin
       updated_at=clock_timestamp();
     v_membership_action:='granted';
   elsif v_membership.id is not null and v_membership.status='active' then
+    -- Las inscripciones históricas pueden depender de membresía aunque
+    -- Comandos y Socio deban ser independientes. No cancelar clases a ciegas.
+    if exists (
+      select 1 from public.program_enrollments e
+      where e.membership_id=v_membership.id
+        and e.status='active' and e.access_mode='membership'
+    ) then
+      raise exception 'Esta membresía está vinculada a clases activas. Migra primero el acceso a un programa independiente antes de cambiar el rol.'
+        using errcode='55000';
+    end if;
     -- Revocar beneficios sin borrar ningún pago ni historial.
     update public.memberships set status='cancelled',
       end_date=greatest(current_date,coalesce(start_date,current_date)),
