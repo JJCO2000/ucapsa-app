@@ -42,7 +42,8 @@ export type StaffPreregisteredRosterRow = {
   dogName: string;
   ownerName: string;
   attended: boolean;
-  cardStatus: 'valid' | 'no_card' | 'missing_start' | 'not_started' | 'expired';
+  // Estado temporal del acceso autorizado; el contrato RPC conserva card_status.
+  cardStatus: 'valid' | 'not_started' | 'expired';
   totalAttendances: number;
 };
 
