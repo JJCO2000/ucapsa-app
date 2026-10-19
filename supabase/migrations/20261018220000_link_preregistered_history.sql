@@ -304,7 +304,9 @@ begin
     returning id into v_dog_id;
     update ucapsa_intake.dogs set linked_dog_id=v_dog_id where id=v_dog.id;
 
-    -- Propaga tarjeta, nivel e historial, sin crear fechas ni pagos.
+    -- Propaga referencia Puppy, nivel e historial, sin crear pagos.
+    -- La vigencia comienza con la autorización administrativa, nunca con
+    -- una fecha física inventada de compra o emisión.
     -- Los triggers existentes recalculan el progreso desde ambas fuentes.
     for v_stage in
       select st.* from ucapsa_intake.programs st
@@ -329,7 +331,7 @@ begin
       ) values (
         v_user,v_stage.program_id,v_stage.schedule_id,v_dog_id,v_dog.dog_name,
         v_stage.physical_card_number,v_stage.program_level,'card','active',
-        v_stage.card_started_on,v_stage.card_started_on,v_stage.id
+        v_stage.authorized_on,v_stage.authorized_on,v_stage.id
       ) returning id into v_enrollment_id;
 
       update ucapsa_intake.programs
