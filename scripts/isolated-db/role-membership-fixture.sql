@@ -29,6 +29,48 @@ create table public.memberships (
  payment_notes text,
  updated_at timestamptz default now()
 );
+-- Reflect actual production membership invariants, lifecycle side effects,
+-- and legacy Comandos enrollments that are still tied to Socio.
+create or replace function public.enforce_membership_state_invariants()
+returns trigger language plpgsql as $old_guard$
+begin
+  if new.status='active' then
+    new.end_date:=null;
+    if new.current_payment_status='not_required' then
+      new.current_payment_status:='pending';
+    end if;
+  elsif new.status='cancelled' then
+    new.current_payment_status:='not_required';
+  end if;
+  return new;
+end;
+$old_guard$;
+create trigger trg_membership_state_invariants
+before insert or update of status,end_date,current_payment_status
+on public.memberships for each row
+execute function public.enforce_membership_state_invariants();
+
+create table public.program_enrollments (
+  id uuid primary key default gen_random_uuid(),
+  membership_id uuid references public.memberships(id),
+  status text not null default 'active',
+  access_mode text not null default 'card'
+);
+create or replace function public.prevent_legacy_class_cancellation()
+returns trigger language plpgsql as $old_access$
+begin
+  if new.status='cancelled' and old.status is distinct from new.status then
+    update public.program_enrollments e set status='cancelled'
+    where e.membership_id=new.id and e.status='active'
+      and e.access_mode='membership';
+  end if;
+  return new;
+end;
+$old_access$;
+create trigger trg_legacy_membership_program_access
+after update of status on public.memberships
+for each row execute function public.prevent_legacy_class_cancellation();
+
 create table public.admin_audit_logs (
  id uuid primary key default gen_random_uuid(),
  admin_user_id uuid references auth.users(id),
