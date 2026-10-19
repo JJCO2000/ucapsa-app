@@ -46,7 +46,7 @@ export async function callPreregistrationRpc(
 export async function adminPreregisterDogWithProgram(input: PreregisteredProgramInput): Promise<string> {
   const { data } = await callPreregistrationRpc('admin_preregister_dog_with_program', {
     p_owner_name: input.ownerName.trim(),
-    p_owner_email: input.ownerEmail.trim(),
+    p_owner_email: input.ownerEmail.trim().toLowerCase(),
     p_owner_phone: input.ownerPhone.trim(),
     p_dog_name: input.dogName.trim(),
     p_program_code: input.programCode,
