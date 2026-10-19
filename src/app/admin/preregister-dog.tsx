@@ -27,8 +27,12 @@ export default function AdminPreregisterDogScreen() {
 
   async function save() {
     if (saving) return;
-    if (!ownerName.trim() || !dogName.trim() || (!ownerEmail.trim() && !ownerPhone.trim())) {
-      Alert.alert('Faltan datos', 'Escribe el tutor, el perro y al menos correo o teléfono.');
+    if (!ownerName.trim() || !dogName.trim() || !ownerEmail.trim()) {
+      Alert.alert('Faltan datos', 'Escribe el tutor, el perro y el correo electrónico principal.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail.trim())) {
+      Alert.alert('Correo inválido', 'Escribe un correo electrónico válido para vincular la cuenta.');
       return;
     }
     try {
@@ -48,14 +52,14 @@ export default function AdminPreregisterDogScreen() {
         throw new Error('El inicio de tarjeta debe usar AAAA-MM-DD.');
       }
       await adminPreregisterDogWithProgram({
-        ownerName, ownerEmail, ownerPhone, dogName,
+        ownerName, ownerEmail: ownerEmail.trim().toLowerCase(), ownerPhone, dogName,
         programCode, programLevel: programCode === 'puppy' ? 'base' : level,
         physicalCardNumber: programCode === 'puppy' ? cardNumber : '',
         cardStartedOn: programCode === 'puppy' ? (cardStartedOn.trim() || null) : null,
         totalAttendances: count, knownAttendanceDates: dates, sourceNote,
       });
       Alert.alert('Perro preinscrito',
-        'Cuando el dueño se registre y verifique un contacto coincidente, el expediente se vinculará automáticamente si no hay conflictos.',
+        'Cuando el tutor cree su cuenta y verifique ese correo electrónico, el expediente podrá vincularse si no hay conflictos.',
         [{ text: 'Listo', onPress: () => router.back() }]);
     } catch (cause) {
       Alert.alert('No se pudo preinscribir',
@@ -82,7 +86,7 @@ export default function AdminPreregisterDogScreen() {
       <Text style={styles.heading}>Preinscribir perro</Text>
       <Text style={styles.description}>
         Registra al perro sin crear una cuenta ficticia. El tutor podrá reclamar su expediente al
-        verificar un correo o teléfono coincidente.
+        verificar el mismo correo electrónico.
       </Text>
 
       <View style={styles.card}>
@@ -91,7 +95,7 @@ export default function AdminPreregisterDogScreen() {
           autoCapitalize="words" autoCorrect={false} maxLength={120}
           placeholder="Nombre del tutor" placeholderTextColor={ucapsaBrand.colors.muted} />
 
-        <Text style={styles.label}>Correo del tutor (opcional)</Text>
+        <Text style={styles.label}>Correo principal del tutor (obligatorio)</Text>
         <TextInput style={styles.input} value={ownerEmail} onChangeText={setOwnerEmail}
           autoCapitalize="none" keyboardType="email-address" autoCorrect={false}
           maxLength={254} placeholder="correo@ejemplo.com"
@@ -101,7 +105,7 @@ export default function AdminPreregisterDogScreen() {
         <TextInput style={styles.input} value={ownerPhone} onChangeText={setOwnerPhone}
           keyboardType="phone-pad" maxLength={16} placeholder="+525512345678"
           placeholderTextColor={ucapsaBrand.colors.muted} />
-        <Text style={styles.helper}>Usa formato internacional: +52 y los 10 dígitos de México. Debes indicar correo o teléfono; ambos son preferibles.</Text>
+        <Text style={styles.helper}>Usa formato internacional: +52 y los 10 dígitos de México. El correo identifica la cuenta. El teléfono es complementario y opcional.</Text>
 
         <Text style={styles.label}>Nombre del perro</Text>
         <TextInput style={styles.input} value={dogName} onChangeText={setDogName}
