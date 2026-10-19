@@ -45,6 +45,7 @@ type SessionContextValue = {
   preregistrationLinkBusy: boolean;
   confirmPreregistrationLink: () => Promise<void>;
   dismissPreregistrationLink: () => void;
+  reviewPreregistrationLink: () => Promise<'available' | 'none' | 'unverified' | 'not_applicable' | 'conflict'>;
   isAdmin: boolean;
   isTrainer: boolean;
   isStaff: boolean;
@@ -454,6 +455,24 @@ export function SessionProvider({ children }: SessionProviderProps) {
     setPreregistrationLinkOffer(null);
   }
 
+  // Permite volver a consultar un expediente después de elegir "Ahora no".
+  // La búsqueda solo usa los contactos que Supabase Auth confirmó para
+  // la sesión actual; jamás acepta teléfonos escritos en el perfil.
+  async function reviewPreregistrationLink():
+    Promise<'available' | 'none' | 'unverified' | 'not_applicable' | 'conflict'> {
+    if (!preregistrationEnabled || !session?.user || isOfflineFallback ||
+        usingCachedProfile || profile?.user_id !== session.user.id) return 'not_applicable';
+    const userId = session.user.id;
+    if (!session.user.phone_confirmed_at && !session.user.email_confirmed_at) {
+      return 'unverified';
+    }
+    const result = await previewMyPreregisteredDogs();
+    if (result.status === 'available' && result.count > 0) {
+      setPreregistrationLinkOffer({ userId, count: result.count });
+    }
+    return result.status;
+  }
+
   // On returning to the foreground, try to replace read-only identity with a
   // genuine Supabase session. No login re-prompt is necessary after a transient
   // network outage if the persisted refresh token is still accepted.
@@ -532,6 +551,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       preregistrationLinkBusy,
       confirmPreregistrationLink,
       dismissPreregistrationLink,
+      reviewPreregistrationLink,
       isAdmin,
       isTrainer,
       isStaff,
