@@ -177,4 +177,23 @@ for (const [label, ok] of [
   if (!ok) throw new Error('Regresión de preinscripción: ' + label);
 }
 
+// La publicación OTA de producción nunca puede quedar sin gate de usuario,
+// controles release ni un canal EAS explícito.
+const productionOtaWorkflow = fs.readFileSync('.github/workflows/ucapsa-preregistration-production-ota.yml','utf8');
+for (const requirement of [
+  "github.event.issue.number == 383",
+  "github.event.comment.user.login == 'JJCO2000'",
+  "github.actor == 'JJCO2000'",
+  "github.event.comment.body == '/publish-preregistration-production'",
+  "environment:",
+  "name: production",
+  "npm run verify:release",
+  "npm run audit:critical",
+  "eas update --channel production --platform all --environment production",
+]) {
+  if (!productionOtaWorkflow.includes(requirement)) {
+    throw new Error('La publicación OTA perdió protección obligatoria: ' + requirement);
+  }
+}
+
 console.log('UCAPSA member per-dog unlimited training + QR/progression contract: PASS');
