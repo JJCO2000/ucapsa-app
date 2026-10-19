@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ucapsaBrand } from '../../constants/brand';
+import { devWarn } from '../../lib/client-diagnostics';
 import { phoneOtpEnabled } from '../../constants/preregistrationFeature';
 import { claimMyPreregisteredDogs } from '../../services/dog-preregistration.service';
 import { confirmPhoneVerification, requestPhoneVerification } from '../../services/phone-verification.service';
@@ -59,8 +60,11 @@ export function PhoneVerificationCard({ user }: { user: User }) {
         else if (claimed.status === 'conflict') {
           suffix = ' La preinscripción requiere revisión de Administración por datos contradictorios.';
         }
-      } catch {
-        suffix = ' La vinculación queda pendiente; tu celular sí está verificado.';
+      } catch (cause) {
+        // El OTP quedó confirmado en Auth, pero no se pudo consultar el enlace.
+        // Registrar diagnóstico y dejar reintento al refrescar la sesión.
+        devWarn('phone-verification: verified in Auth; claim could not complete.', cause);
+        suffix = ' La vinculación quedó pendiente; reabre Inicio para reintentar sin volver a enviar SMS.';
       }
       Alert.alert('Celular verificado en Supabase', 'Tu número ya pertenece a esta cuenta.' + suffix);
     } catch (cause) {
