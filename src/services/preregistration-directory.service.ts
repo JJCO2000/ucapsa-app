@@ -92,7 +92,14 @@ export async function updateAdminPreregisteredHistory(input: {
   knownDates: string[];
   sourceNote: string | null;
 }): Promise<void> {
-  const { error } = await supabase.rpc('admin_save_preregistered_program_history', {
+  // Función SQL existente permite NULL para fecha y referencia Puppy.
+  // Los tipos generados actualmente representan esos DATE como string;
+  // mantener los valores reales sin inventar fechas en el adaptador.
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
+    name: 'admin_save_preregistered_program_history',
+    args: Record<string, unknown>,
+  ) => PromiseLike<{ data: unknown; error: { message: string } | null }>;
+  const { error } = await rpc('admin_save_preregistered_program_history', {
     p_intake_dog_id: input.dogId,
     p_program_code: input.programCode,
     p_program_level: input.level,
