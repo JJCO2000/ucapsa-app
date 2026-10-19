@@ -50,13 +50,18 @@ export function PhoneVerificationCard({ user }: { user: User }) {
       setVerifiedPhone(sentTo);
       setSentTo(null);
       setCode('');
-      // La función de backend vuelve a comprobar Auth; nunca confía en este UI.
-      const claimed = await claimMyPreregisteredDogs();
-      const suffix = claimed.status === 'linked'
-        ? ` Se vincularon ${claimed.linkedDogs} perros a tu cuenta.`
-        : claimed.status === 'conflict'
-          ? ' Hay un expediente con datos distintos; Administración debe revisarlo.'
-          : ' Tus expedientes pendientes se vincularán cuando coincidan los datos.';
+      // Si el enlace falla por red/conflicto, NO informar que falló el OTP:
+      // la confirmación pertenece a Auth y ya fue verificada en servidor.
+      let suffix = ' Tus expedientes se vincularán cuando coincidan los datos.';
+      try {
+        const claimed = await claimMyPreregisteredDogs();
+        if (claimed.status === 'linked') suffix = ` Se vincularon ${claimed.linkedDogs} perros a tu cuenta.`;
+        else if (claimed.status === 'conflict') {
+          suffix = ' La preinscripción requiere revisión de Administración por datos contradictorios.';
+        }
+      } catch {
+        suffix = ' La vinculación queda pendiente; tu celular sí está verificado.';
+      }
       Alert.alert('Celular verificado en Supabase', 'Tu número ya pertenece a esta cuenta.' + suffix);
     } catch (cause) {
       Alert.alert('No se pudo completar',
