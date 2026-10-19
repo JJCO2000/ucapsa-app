@@ -64,7 +64,7 @@ export function PhoneVerificationCard({ user }: { user: User }) {
         // El OTP quedó confirmado en Auth, pero no se pudo consultar el enlace.
         // Registrar diagnóstico y dejar reintento al refrescar la sesión.
         devWarn('phone-verification: verified in Auth; claim could not complete.', cause);
-        suffix = ' La vinculación quedó pendiente; reabre Inicio para reintentar sin volver a enviar SMS.';
+        suffix = ' La vinculación quedó pendiente; puedes reintentar iniciando sesión nuevamente o pedir revisión a Administración.';
       }
       Alert.alert('Celular verificado en Supabase', 'Tu número ya pertenece a esta cuenta.' + suffix);
     } catch (cause) {
