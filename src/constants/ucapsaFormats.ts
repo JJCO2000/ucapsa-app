@@ -1,4 +1,5 @@
 import type { AppRole, MembershipStatus } from '../types/app.types';
+import { projectUcapsaAccess } from '../services/access-projection.domain';
 
 import { ucapsaBrand } from './brand';
 
@@ -189,9 +190,16 @@ export function resolveUcapsaFormat(input: {
   membershipStatus?: MembershipStatus | null;
   hasActivePrograms?: boolean;
 }): UcapsaFormat {
+  // Visual presentation derives from the existing actual role and membership.
+  // Never use a preview role to grant operational capabilities.
+  const access = projectUcapsaAccess({
+    actualRole: input.role ?? null,
+    membershipStatus: input.membershipStatus ?? null,
+    programEnrollments: [],
+  });
   if (input.isAdmin || input.role === 'admin' || input.role === 'super_admin') return ucapsaFormats.admin;
   if (input.role === 'trainer') return ucapsaFormats.trainer;
-  if (input.role === 'member' || input.membershipStatus === 'active') return ucapsaFormats.member;
+  if (input.role === 'member' || access.commercial.hasActiveSocioMembership) return ucapsaFormats.member;
   if (input.user || input.hasActivePrograms || input.membershipStatus === 'pending') return ucapsaFormats.client;
   return ucapsaFormats.visitor;
 }
