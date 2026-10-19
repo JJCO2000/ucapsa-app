@@ -48,6 +48,7 @@ declare
   v_manual_count integer := 0;
   v_linked_programs integer := 0;
   v_first_contact boolean := false;
+  v_used_unverified boolean := false;
   v_first_email text;
   v_first_phone text;
   v_stage ucapsa_intake.programs%rowtype;
@@ -98,6 +99,8 @@ begin
     into v_first_email,v_first_phone
     from auth.users u join public.profiles p on p.user_id=u.id
     where u.id=v_user;
+    v_used_unverified := (v_email is null and v_first_email is not null)
+      or (v_phone is null and v_first_phone is not null);
     v_email := pg_catalog.coalesce(v_email,v_first_email);
     v_phone := pg_catalog.coalesce(v_phone,v_first_phone);
     if exists(
@@ -297,7 +300,7 @@ begin
   insert into public.admin_audit_logs(admin_user_id,action,entity_type,entity_id,details)
   values(v_user,'dog_preregistration.claimed','dog_preregistration',v_person.id,
     pg_catalog.jsonb_build_object('dogs',v_linked,'programs',v_linked_programs,
-      'link_method',case when v_manual then 'admin_approved' when v_first_contact then 'first_contact_unverified' else 'verified_contact' end));
+      'link_method',case when v_manual then 'admin_approved' when v_used_unverified then 'first_contact_unverified' else 'verified_contact' end));
   return pg_catalog.jsonb_build_object('status','linked','linked_dogs',v_linked,'linked_programs',v_linked_programs);
 end;
 $function$;
