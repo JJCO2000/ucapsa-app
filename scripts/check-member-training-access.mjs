@@ -130,4 +130,28 @@ if (adminClasses.includes('physicalCardNumber: form.physicalCardNumber,')) {
   throw new Error('Comandos no puede guardar número físico reutilizado de Puppy.');
 }
 
+// La evaluación de Puppy/Comandos debe reconocer el total canónico calculado
+// en servidor, incluidas asistencias históricas auditadas, no solo fechas QR.
+const decisionService = fs.readFileSync('src/services/admin-training-decisions.service.ts', 'utf8');
+const historicDecisionMigration = fs.readFileSync(
+  'supabase/migrations/20261019080000_preregistration_historical_training_decisions.sql',
+  'utf8',
+);
+if (!decisionService.includes('row.enrollment.attendances_count >= required') ||
+    !decisionService.includes('attendanceCount: row.enrollment.attendances_count') ||
+    decisionService.includes('row.attendances.length >= required')) {
+  throw new Error('Evaluación administrativa ignoraría historial sin fechas.');
+}
+for (const token of [
+  'public.is_ucapsa_admin()',
+  'public.program_attendance_historical_evidence h',
+  'sum(h.quantity)::integer',
+  'v_attendance_count < greatest(1',
+  'training_card.decision',
+]) {
+  if (!historicDecisionMigration.includes(token)) {
+    throw new Error('La decisión histórica perdió una condición esencial: ' + token);
+  }
+}
+
 console.log('UCAPSA member per-dog unlimited training + QR/progression contract: PASS');
