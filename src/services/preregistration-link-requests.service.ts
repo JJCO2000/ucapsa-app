@@ -66,3 +66,18 @@ export async function closeAdminPreregistrationLinkRequest(
     throw new Error('El servidor no confirmó la resolución.');
   }
 }
+
+/** Admin approval transfers only a clean preregistration. The server rejects
+ * any case with subsequent financial, membership, attendance or exam history.
+ */
+export async function approveAdminPreregistrationLinkRequest(requestId: string): Promise<number> {
+  const { data, error } = await rpc('admin_approve_preregistration_link_request', {
+    p_request_id: requestId,
+  });
+  if (error) throw new Error(error.message);
+  const payload = data as { status?: unknown; linked_dogs?: unknown } | null;
+  if (payload?.status !== 'linked' || !Number.isSafeInteger(payload.linked_dogs)) {
+    throw new Error('No se confirmó el cambio de titular.');
+  }
+  return payload.linked_dogs as number;
+}
