@@ -177,4 +177,31 @@ for (const [label, ok] of [
   if (!ok) throw new Error('Regresión de preinscripción: ' + label);
 }
 
+// Expedientes de preinscripción: lectura solo Admin y SSOT de membresía/nivel.
+const preregReadSql = fs.readFileSync('supabase/migrations/20261019170000_admin_preregistration_records.sql','utf8');
+const preregReadService = fs.readFileSync('src/services/preregistration-admin.service.ts','utf8');
+const preregListScreen = fs.readFileSync('src/app/admin/preregistrations.tsx','utf8');
+const preregDetailScreen = fs.readFileSync('src/app/admin/preregistration.tsx','utf8');
+const officialClientScreen = fs.readFileSync('src/app/admin/customer.tsx','utf8');
+const officialClassScreen = fs.readFileSync('src/app/admin/customer-class.tsx','utf8');
+const officialAttendanceScreen = fs.readFileSync('src/app/admin/customer-attendance.tsx','utf8');
+const officialUserDirectory = fs.readFileSync('src/app/admin/users.tsx','utf8');
+for (const [label, yes] of [
+  ['RPC exige Admin autenticado',preregReadSql.includes('auth.uid() is null or not public.is_ucapsa_admin()')],
+  ['RPC revoca acceso a público y anon',preregReadSql.includes('from public, anon;')],
+  ['RPC no concede datos directos',!preregReadSql.includes('grant select on ucapsa_intake')],
+  ['Socio viene de membresía real',preregReadSql.includes('from public.memberships m')],
+  ['Histórico se suma de evidencia privada',preregReadSql.includes('from ucapsa_intake.attendance_evidence h')],
+  ['Cliente muestra contador canónico',officialClientScreen.includes('sum + item.enrollment.attendances_count')],
+  ['Clase muestra contador canónico',officialClassScreen.includes('row.enrollment.attendances_count')],
+  ['Detalle de asistencias muestra contador canónico',officialAttendanceScreen.includes('selectedEnrollment.enrollment.attendances_count')],
+  ['Comandos no guarda referencia Puppy',officialClassScreen.includes("row.program.code === 'puppy' ? { physicalCardNumber: cardNumber }")],
+  ['Directorio enlaza al listado',officialUserDirectory.includes("router.push('/admin/preregistrations'")],
+  ['Lista abre fichas',preregListScreen.includes("router.push(('/admin/preregistration?intakeProgramId='")],
+  ['Solo Admin consulta fichas',preregDetailScreen.includes("!isAdmin || !preregistrationEnabled")],
+  ['Lectura no crea membresía',!preregReadService.includes("from('memberships').insert")],
+]) {
+  if (!yes) throw new Error('Contrato de ficha de preinscripción incumplido: ' + label);
+}
+
 console.log('UCAPSA member per-dog unlimited training + QR/progression contract: PASS');
