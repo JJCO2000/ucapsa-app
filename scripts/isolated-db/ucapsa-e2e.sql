@@ -254,7 +254,7 @@ select public.admin_preregister_dog_with_program(
   'P-313','2026-01-01',1,array[]::date[],'historical 1');
 select public.admin_preregister_dog_with_program(
   'Pending Tutor','staged@test.invalid','','Thor','comandos','avanzado',
-  '',null,0,array[]::date[],'without card must not grant access');
+  '',null,0,array[]::date[],'Admin authorized Comandos without physical reference');
 reset role;
 -- Add an isolated effective class on whatever weekday the CI job runs.
 insert into public.program_schedules(program_id,name,day_of_week,start_time,sequence_order)
@@ -390,7 +390,7 @@ begin
 end
 $client_roster_denied$;
 reset role;
--- Puppy card without known start is shown as pending validity, not auto-granted.
+-- Puppy without a known physical start remains authorized from Admin registration date.
 set role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
 select public.admin_preregister_dog_with_program(
@@ -407,20 +407,17 @@ end
 $setup_unknown$;
 set role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000005',false);
-do $unknown_denied$
-declare row_id uuid; blocked boolean:=false; today_date date:=(now() at time zone 'America/Mexico_City')::date;
+do $puppy_admin_authorized$
+declare row_id uuid; today_date date:=(now() at time zone 'America/Mexico_City')::date;
 begin
   select intake_program_id into row_id
   from public.get_staff_preregistered_class_roster(today_date)
-  where dog_name='Pippa' and card_status='missing_start';
-  if row_id is null then raise exception 'Missing start not flagged in roster'; end if;
-  begin
-    perform public.staff_register_preregistered_attendance(row_id,today_date);
-  exception when invalid_parameter_value then blocked:=true;
-  end;
-  if not blocked then raise exception 'Unknown old card start was silently accepted'; end if;
+  where dog_name='Pippa' and card_status='valid';
+  if row_id is null then raise exception 'Admin-authorized Puppy is missing without physical start'; end if;
+  perform public.staff_register_preregistered_attendance(row_id,today_date);
+  perform public.staff_register_preregistered_attendance(row_id,today_date);
 end
-$unknown_denied$;
+$puppy_admin_authorized$;
 reset role;
 
 select 'UCAPSA isolated database E2E: PASS' as result;
