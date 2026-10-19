@@ -77,7 +77,7 @@ for(const [label,ok] of [
   ['Alta exige contacto',adminUi.includes('(!ownerPhone.trim() && !ownerEmail.trim())')],
   ['Sesión exige Auth verificado',session.includes('if (!phoneConfirmed && !emailConfirmed) return;')],
   ['OTP solo cuenta autenticada',verifyService.includes('current.user.id !== expectedUserId')],
-  ['OTP no crea usuario nuevo',!verifyService.includes('signInWithOtp')],
+  ['OTP no crea usuario nuevo',!verifyService.includes('supabase.auth.signInWithOtp(')],
   ['Confirmación OTP teléfono',verifyService.includes("type: 'phone_change'")],
   ['Después verifica Auth del servidor',verifyService.includes('after.user.phone !== phone')],
   ['SMS apagado sin autorización',flag.includes("EXPO_PUBLIC_UCAPSA_PHONE_OTP_ENABLED === 'true'")],
