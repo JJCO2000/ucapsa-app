@@ -18,3 +18,9 @@ const isPlayReviewBuild = process.env.EXPO_PUBLIC_UCAPSA_REVIEW_BUILD === 'true'
 
 export const preregistrationEnabled =
   !isPlayReviewBuild && !disabledExplicitly && (enabledExplicitly || isProductionUcapsa);
+
+// RPC de directorio disponible solo tras migración y habilitación explícita.
+// Evita llamar funciones inexistentes en instalaciones desfasadas.
+export const preregistrationDirectoryEnabled =
+  preregistrationEnabled &&
+  process.env.EXPO_PUBLIC_UCAPSA_PREREGISTRATION_DIRECTORY_ENABLED === 'true';
