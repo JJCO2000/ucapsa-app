@@ -137,4 +137,43 @@ begin
   if has_table_privilege('authenticated','ucapsa_intake.claimed_contacts','SELECT') then
     raise exception 'Contactos reclamados accesibles sin autorización'; end if;
 end $verify_claims$;
-select 'UCAPSA primera vinculación sin OTP y bloqueo posterior: PASS';
+-- Administración APRUEBA la segunda cuenta. Debe cambiar propietario SIN
+-- duplicar perros, inscripciones o asistencias de los registros históricos.
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
+do $approve_claim$
+declare j jsonb; v_id uuid; r jsonb;
+begin
+  j:=public.admin_list_preregistration_link_requests();
+  v_id:=(j->0->>'id')::uuid;
+  r:=public.admin_approve_preregistration_link_request(v_id);
+  if r->>'status'<>'linked' or (r->>'linked_dogs')::int<>1 then
+    raise exception 'Admin no pudo aprobar: %',r;
+  end if;
+  j:=public.admin_list_preregistration_link_requests();
+  if pg_catalog.jsonb_array_length(j)<>0 then
+    raise exception 'Quedó ticket pendiente tras aprobar: %',j;
+  end if;
+end $approve_claim$;
+reset role;
+
+do $check_transfer$
+begin
+  if not exists(select 1 from ucapsa_intake.people p
+    where p.phone_e164='+525511100010'
+      and p.linked_user_id='00000000-0000-4000-8000-000000000011') then
+    raise exception 'La ficha sigue con titular anterior'; end if;
+  if not exists(select 1 from public.dogs d
+    join public.program_enrollments e on e.dog_id=d.id
+    where d.name='Max'
+      and d.user_id='00000000-0000-4000-8000-000000000011'
+      and e.user_id='00000000-0000-4000-8000-000000000011'
+      and e.attendances_count=1) then
+    raise exception 'No se reasignaron perro, inscripcion y asistencia'; end if;
+  if (select count(*) from public.dogs where name='Max')<>1 then
+    raise exception 'Se duplicó Max'; end if;
+  if (select count(*) from ucapsa_intake.owner_link_requests)<>1 then
+    raise exception 'Se duplicaron las solicitudes'; end if;
+end $check_transfer$;
+
+select 'UCAPSA primera vinculación, solicitud y aprobación Admin: PASS';
