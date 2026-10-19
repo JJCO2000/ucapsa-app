@@ -25,7 +25,7 @@ export type ProvisionalPersonCandidate = {
 };
 
 export type PreregLinkDecision =
-  | { action: 'link'; provisionalId: string; verifiedBy: 'email' | 'both' }
+  | { action: 'link'; provisionalId: string; verifiedBy: 'phone' | 'email' | 'both' }
   | { action: 'already-linked'; provisionalId: string }
   | { action: 'no-match' }
   | { action: 'blocked'; reason: 'conflicting-contacts' | 'ambiguous' | 'existing-binding' | 'untrusted-contact' };
@@ -37,9 +37,9 @@ export function decidePreregistrationLink(
   if (!account.userId) return { action: 'blocked', reason: 'untrusted-contact' };
   const emailEligible = Boolean(account.emailVerified && account.emailKey && account.emailUniqueAcrossAuth);
   const phoneEligible = Boolean(account.phoneVerified && account.phoneE164 && account.phoneUniqueAcrossAuth);
-  // El correo verificado es el único identificador que habilita el enlace.
-  // Teléfono verificado solo ayuda a detectar conflictos de identidad.
-  if (!emailEligible) return { action: 'no-match' };
+  // Solo contactos CONFIRMADOS por Auth habilitan la vinculación.
+  // Preferir teléfono; email confirmado es alternativa compatible.
+  if (!phoneEligible && !emailEligible) return { action: 'no-match' };
 
   const emailMatches = emailEligible
     ? people.filter((p) => p.status !== 'rejected' && p.emailKey === account.emailKey)
@@ -48,20 +48,15 @@ export function decidePreregistrationLink(
     ? people.filter((p) => p.status !== 'rejected' && p.phoneE164 === account.phoneE164)
     : [];
 
-  // There must not be competing candidates for the same verified contact.
-  if (emailMatches.length > 1) {
+  if (phoneMatches.length > 1 || emailMatches.length > 1) {
     return { action: 'blocked', reason: 'ambiguous' };
   }
-  if (emailMatches.length === 0) {
-    return phoneMatches.length > 0
-      ? { action: 'blocked', reason: 'conflicting-contacts' }
-      : { action: 'no-match' };
-  }
-  const candidate = emailMatches[0];
-  if (phoneMatches.length > 1) return { action: 'blocked', reason: 'ambiguous' };
-  if (phoneMatches.length === 1 && phoneMatches[0]?.id !== candidate.id) {
+  if (phoneMatches.length && emailMatches.length &&
+      phoneMatches[0]?.id !== emailMatches[0]?.id) {
     return { action: 'blocked', reason: 'conflicting-contacts' };
   }
+  const candidate = phoneMatches[0] ?? emailMatches[0];
+  if (!candidate) return { action: 'no-match' };
 
   // If verified profile contacts conflict with a stored contact, do not
   // silently prefer the other verified contact. Phone number recycling and
@@ -81,6 +76,7 @@ export function decidePreregistrationLink(
   return {
     action: 'link',
     provisionalId: candidate.id,
-    verifiedBy: phoneMatches.length === 1 ? 'both' : 'email',
+    verifiedBy: phoneMatches.length && emailMatches.length ? 'both'
+      : phoneMatches.length ? 'phone' : 'email',
   };
 }
