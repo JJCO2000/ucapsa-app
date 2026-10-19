@@ -69,8 +69,9 @@ for (const token of ['Programas y clases registradas.', '/client/class-detail?en
 
 // Evidencia de UX: los errores de ingreso y solicitudes deben ser recuperables y visibles.
 for (const token of [
-  'setMissingEmail(!cleanEmail)', 'setMissingPassword(!password)',
-  'Escribe tu correo electrónico.', 'Escribe tu contraseña.',
+  'setMissingContact(!cleanContact)', 'setMissingPassword(!password)',
+  'Escribe tu correo o celular registrado.', 'Escribe tu contraseña.',
+  'accessibilityLabel="Correo o celular para iniciar sesión"',
   'minHeight: 48', 'Crear cuenta', 'Recuperar contraseña',
 ]) {
   if (!login.includes(token)) throw new Error('Ingreso dejó de mostrar ayuda accionable: ' + token);
