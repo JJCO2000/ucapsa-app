@@ -1,0 +1,44 @@
+name: UCAPSA staff exam XLSX SQL
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261018193000_staff_exam_report.sql'
+      - 'scripts/isolated-db/staff-exam-report-*'
+      - '.github/workflows/ucapsa-exam-report-db.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-exam-report:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16.4-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ucapsa_exam_test
+          POSTGRES_DB: ucapsa_exam_report_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ucapsa_exam_report_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: ucapsa_exam_test
+      PGDATABASE: ucapsa_exam_report_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Prepare fake exam roster
+        run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/staff-exam-report-fixture.sql
+      - name: Apply report SQL
+        run: psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261018193000_staff_exam_report.sql
+      - name: Test staff security and matrix source
+        run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/staff-exam-report-e2e.sql
