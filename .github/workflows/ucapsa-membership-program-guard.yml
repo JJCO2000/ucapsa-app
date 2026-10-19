@@ -1,0 +1,43 @@
+name: UCAPSA membership program-cancellation guard
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261019062000_guard_member_program_enrollments.sql'
+      - 'scripts/isolated-db/membership-program-guard-*'
+      - '.github/workflows/ucapsa-membership-program-guard.yml'
+      - 'scripts/check-membership-program-guard.mjs'
+      - 'package.json'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  membership-program-guard:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16.4-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: local_only_ucapsa
+          POSTGRES_DB: ucapsa_membership_program_guard_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ucapsa_membership_program_guard_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: local_only_ucapsa
+      PGDATABASE: ucapsa_membership_program_guard_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Bootstrap isolated schema including legacy cancel trigger
+        run: psql -X -v ON_ERROR_STOP=1 -f scripts/isolated-db/membership-program-guard-fixture.sql
+      - name: Install protection under test
+        run: psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20261019062000_guard_member_program_enrollments.sql
+      - name: Test cancellation, suspension, normal edits and historical preservation
+        run: psql -X -v ON_ERROR_STOP=1 -f scripts/isolated-db/membership-program-guard-e2e.sql
