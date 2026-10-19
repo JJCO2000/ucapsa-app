@@ -154,4 +154,27 @@ for (const token of [
   }
 }
 
+// El frontend puede entrar a main ANTES de que las nuevas tablas existan.
+// Nunca exponer la pantalla ni llamar RPC sin habilitación expresa.
+const preregistrationFeature = fs.readFileSync('src/constants/preregistrationFeature.ts','utf8');
+const preregistrationService = fs.readFileSync('src/services/dog-preregistration.service.ts','utf8');
+const preregistrationScreen = fs.readFileSync('src/app/admin/preregister-dog.tsx','utf8');
+const preregistrationUsers = fs.readFileSync('src/app/admin/users.tsx','utf8');
+const preregistrationSession = fs.readFileSync('src/hooks/useSession.tsx','utf8');
+const preregistrationRoster = fs.readFileSync('src/services/preregistration-roster.service.ts','utf8');
+const trainerClasses = fs.readFileSync('src/app/(tabs)/trainer-classes.tsx','utf8');
+for (const [label, ok] of [
+  ['flag apagado salvo true expreso',preregistrationFeature.includes("=== 'true'")],
+  ['RPC bloqueada',preregistrationService.includes("if (!preregistrationEnabled) throw new Error")],
+  ['pantalla bloqueada',preregistrationScreen.includes('!isAdmin || !preregistrationEnabled')],
+  ['directorio bloqueado',preregistrationUsers.includes('{preregistrationEnabled ? (')],
+  ['vinculación Auth bloqueada',preregistrationSession.includes('if (!preregistrationEnabled) return;')],
+  ['vinculación exige credencial verificada',preregistrationSession.includes('if (!emailConfirmed && !phoneConfirmed) return;')],
+  ['roster provisional apagado',preregistrationRoster.includes('if (!preregistrationEnabled) return [];')],
+  ['mismo horario de roster',trainerClasses.includes('row.scheduleId === group.scheduleId && row.programCode === group.programCode')],
+  ['sin número en Comandos',preregistrationService.includes("input.programCode === 'puppy' ? input.physicalCardNumber.trim() : ''")],
+]) {
+  if (!ok) throw new Error('Regresión de preinscripción: ' + label);
+}
+
 console.log('UCAPSA member per-dog unlimited training + QR/progression contract: PASS');

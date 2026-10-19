@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, Text, View } fr
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
+import { preregistrationEnabled } from '../../constants/preregistrationFeature';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import { getAdminProfiles, setStaffRoleSuperAdmin } from '../../services/profiles.service';
@@ -162,6 +163,16 @@ export default function AdminUsersScreen() {
 
       {!adminsOnly ? (
         <>
+          {preregistrationEnabled ? (
+            <Pressable accessibilityRole="button"
+              accessibilityLabel="Preinscribir perro sin cuenta de usuario"
+              onPress={() => router.push('/admin/preregister-dog' as never)}
+              style={styles.preregisterAction}>
+              <MaterialCommunityIcons name="dog" size={21} color={ucapsaBrand.colors.redDark} />
+              <Text style={styles.preregisterActionText}>Registrar perro sin cuenta</Text>
+              <MaterialCommunityIcons name="chevron-right" size={20} color={ucapsaBrand.colors.redDark} />
+            </Pressable>
+          ) : null}
           <View style={styles.summaryGrid}>
             <Summary label="Todos" value={counts.total} />
             <Summary label="Clientes" value={counts.clients} />
@@ -391,6 +402,8 @@ const styles = StyleSheet.create({
   summaryCard: { width: '48%', backgroundColor: ucapsaBrand.colors.surface, borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 14 },
   summaryValue: { color: ucapsaBrand.colors.red, fontSize: 26, fontWeight: '900' },
   summaryLabel: { color: ucapsaBrand.colors.muted, fontSize: 12, fontWeight: '900', marginTop: 4 },
+  preregisterAction: { marginHorizontal: 16, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 14, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border },
+  preregisterActionText: { flex: 1, color: ucapsaBrand.colors.text, fontWeight: '800', fontSize: 14 },
   filterGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   filterChip: { width: '48%', backgroundColor: ucapsaBrand.colors.surface, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 12 },
   filterChipActive: { backgroundColor: ucapsaBrand.colors.red, borderColor: ucapsaBrand.colors.red },
