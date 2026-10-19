@@ -6,8 +6,11 @@ import { Calendar, type DateData } from 'react-native-calendars';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
+import { preregistrationEnabled } from '../../constants/preregistrationFeature';
 import { getStaffIntroAgendaPlans, type StaffIntroVisit } from '../../services/intro-class-agenda.service';
 import { getProgramClassCancellations } from '../../services/program-cancellations.service';
+import { getStaffPreregisteredRoster, registerStaffPreregisteredAttendance,
+  type StaffPreregisteredRosterRow } from '../../services/preregistration-roster.service';
 import { getPrograms, getProgramSchedules } from '../../services/program-schedules.service';
 import { isProgramScheduleActiveOnDate } from '../../services/programs.domain';
 import type { ProgramClassCancellation, ProgramSchedule, UcapsaProgram } from '../../types/app.types';
@@ -104,6 +107,8 @@ export default function TrainerClassesTab() {
   const [rows, setRows] = useState<StaffRosterRow[]>([]);
   const [official, setOfficial] = useState<OfficialRosterContext | null>(null);
   const [introVisits, setIntroVisits] = useState<StaffIntroVisit[]>([]);
+  const [stagedRows, setStagedRows] = useState<StaffPreregisteredRosterRow[]>([]);
+  const [stagedWarning, setStagedWarning] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -120,14 +125,16 @@ export default function TrainerClassesTab() {
     const runId = ++loadRunRef.current;
     setError(null);
     setIntroWarning(null);
+    setStagedWarning(null);
     try {
       // La sección opcional de visitas no debe bloquear el roster oficial.
-      const [roster, schedules, programs, cancellations, visits] = await Promise.allSettled([
+      const [roster, schedules, programs, cancellations, visits, preregistered] = await Promise.allSettled([
         getStaffClassRoster(dateKey),
         getProgramSchedules(dateKey),
         getPrograms(),
         getProgramClassCancellations(),
         getStaffIntroAgendaPlans(dateKey),
+        getStaffPreregisteredRoster(dateKey),
       ]);
       if (runId === loadRunRef.current) {
         if (roster.status === 'fulfilled') {
@@ -153,6 +160,12 @@ export default function TrainerClassesTab() {
         } else {
           setIntroVisits([]);
           setIntroWarning('No pudimos verificar las visitas iniciales. Reintenta para actualizar.');
+        }
+        if (preregistered.status === 'fulfilled') {
+          setStagedRows(preregistered.value);
+        } else if (preregistrationEnabled) {
+          setStagedRows([]);
+          setStagedWarning('No se pudo consultar el registro de perros sin cuenta.');
         }
       }
     } finally {
@@ -185,6 +198,8 @@ export default function TrainerClassesTab() {
     setRows([]);
     setOfficial(null);
     setIntroVisits([]);
+    setStagedRows([]);
+    setStagedWarning(null);
     setDateKey(nextDate);
   }
 
@@ -208,6 +223,34 @@ export default function TrainerClassesTab() {
               await load();
             } catch (cause) {
               Alert.alert('No se pudo registrar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+            } finally {
+              setBusyId(null);
+            }
+          },
+        },
+      ],
+    );
+  }
+
+  function markStagedAttendance(row: StaffPreregisteredRosterRow) {
+    if (busyId || row.attended || row.authorizationStatus !== 'valid' || dateKey !== localDateKey()) return;
+    Alert.alert('Registrar asistencia',
+      `¿Confirmas que ${row.dogName} asistió hoy? La fecha se conservará cuando el propietario vincule su cuenta.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Registrar',
+          onPress: async () => {
+            try {
+              setBusyId(row.intakeProgramId);
+              await registerStaffPreregisteredAttendance({
+                intakeProgramId: row.intakeProgramId,
+                attendanceDate: dateKey,
+              });
+              await load();
+            } catch (cause) {
+              Alert.alert('No se pudo registrar',
+                cause instanceof Error ? cause.message : 'Solicita revisión a Administración.');
             } finally {
               setBusyId(null);
             }
