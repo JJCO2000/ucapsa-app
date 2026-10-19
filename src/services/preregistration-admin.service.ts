@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { preregistrationEnabled } from '../constants/preregistrationFeature';
+import { preregistrationDirectoryEnabled } from '../constants/preregistrationFeature';
 
 export type AdminPreregistrationRecord = {
   intakeProgramId: string;
@@ -95,7 +95,7 @@ function parseRow(value: unknown): AdminPreregistrationRecord {
 export async function getAdminPreregistrationRecords(
   intakeProgramId: string | null = null,
 ): Promise<AdminPreregistrationRecord[]> {
-  if (!preregistrationEnabled) return [];
+  if (!preregistrationDirectoryEnabled) return [];
   const read = supabase.rpc.bind(supabase) as unknown as (
     name: 'admin_get_preregistered_program_records',
     args: { p_intake_program_id: string | null },
