@@ -55,10 +55,10 @@ begin
       where h.intake_program_id=st.id and h.attendance_date=p_class_date
         and h.evidence_kind='dated') as attended,
     case
-      when st.physical_card_number is null then 'no_card'
-      when st.card_started_on is null then 'missing_start'
-      when p_class_date < st.card_started_on then 'not_started'
-      when p_class_date > (st.card_started_on + interval '1 year')::date then 'expired'
+      when p_class_date < st.authorized_on then 'not_started'
+      when st.card_started_on is not null and p_class_date < st.card_started_on then 'not_started'
+      when st.card_started_on is not null
+       and p_class_date > (st.card_started_on + interval '1 year')::date then 'expired'
       else 'valid'
     end::text as card_status,
     coalesce((select sum(h.quantity)::integer
@@ -127,10 +127,13 @@ begin
   then
     raise exception 'No existe clase activa para esta fecha.' using errcode='22023';
   end if;
-  if v_program.physical_card_number is null or v_program.card_started_on is null
-     or p_attendance_date < v_program.card_started_on
-     or p_attendance_date > (v_program.card_started_on + interval '1 year')::date then
-    raise exception 'Vigencia de tarjeta sin comprobar. Administración debe validarla.'
+  -- La inscripción por Admin habilita asistencia desde su autorización.
+  -- Un número de referencia Puppy no confirma existencia ni pago de la tarjeta.
+  if p_attendance_date < v_program.authorized_on
+     or (v_program.card_started_on is not null and (
+       p_attendance_date < v_program.card_started_on
+       or p_attendance_date > (v_program.card_started_on + interval '1 year')::date)) then
+    raise exception 'Esta inscripción no estaba autorizada para esa fecha.'
       using errcode='22023';
   end if;
   select id into v_existing from ucapsa_intake.attendance_evidence
