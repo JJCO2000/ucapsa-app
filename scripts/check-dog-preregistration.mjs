@@ -111,6 +111,8 @@ assert.ok(screen.includes("programCode === 'puppy' ? cardNumber : ''"));
 assert.ok(!screen.includes('obligatoria, ya pagada'));
 assert.ok(s2.includes("if v_program.code='puppy' and v_level<>'base'"));
 assert.ok(!s2.includes('card_paid_attested_by'));
+assert.ok(s3.includes('coalesce(v_stage.card_started_on,v_stage.authorized_on)'),
+  'El acceso autorizado por Admin debe sobrevivir al vincular Auth sin inventar asistencias.');
 const staffSql = read('supabase/migrations/20261018230000_staff_preregistered_roster.sql');
 assert.ok(staffSql.includes('p_attendance_date < v_program.authorized_on'));
 assert.ok(!staffSql.includes('v_program.physical_card_number is null'));
