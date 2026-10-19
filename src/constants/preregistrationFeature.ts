@@ -31,3 +31,9 @@ const directoryDisabledExplicitly =
 export const preregistrationDirectoryEnabled =
   preregistrationEnabled && !directoryDisabledExplicitly &&
   (directoryEnabledExplicitly || isProductionUcapsa);
+
+/** El modo sin SMS se activa solo tras instalar su RPC de autorización
+ * administrativa. No se habilita por la mera coincidencia de un número. */
+export const manualPreregistrationLinkEnabled =
+  preregistrationEnabled &&
+  process.env.EXPO_PUBLIC_UCAPSA_MANUAL_PREREG_LINK_ENABLED === 'true';
