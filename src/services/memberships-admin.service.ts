@@ -134,11 +134,8 @@ export async function updateMembershipDetails(
 }
 
 export async function forceMembershipForProfile(profile: Profile): Promise<Membership> {
-  if (profile.role === 'admin' || profile.role === 'super_admin') {
-    throw new Error(
-      'No se debe convertir una cuenta administrativa en socio desde esta ficha.',
-    );
-  }
+  // Los permisos operativos son independientes de la membresía comercial.
+  // Supabase RLS autoriza la operación; los triggers preservan roles Staff.
 
   const { data: authData, error: authError } = await supabase.auth.getUser();
   if (authError) throw authError;
@@ -193,9 +190,8 @@ export async function forceMembershipForProfile(profile: Profile): Promise<Membe
 }
 
 export async function deactivateMembershipForProfile(profile: Profile): Promise<void> {
-  if (profile.role === 'admin' || profile.role === 'super_admin') {
-    throw new Error('No se debe cambiar una cuenta administrativa desde esta accion.');
-  }
+  // La revocación comercial no modifica el rol ni el historial del Staff.
+  // La base bloquea cancelaciones si existe acceso activo a clases por membresía.
 
   const { data: existingData, error: existingError } = await supabase
     .from('memberships')
