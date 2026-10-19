@@ -40,6 +40,4 @@ insert into public.profiles(user_id,role) values
  ('00000000-0000-4000-8000-000000000004','admin'),
  ('00000000-0000-4000-8000-000000000005','super_admin');
 
-create trigger trg_membership_status_lifecycle
-after insert or delete or update on public.memberships
-for each row execute function public.sync_membership_status_lifecycle();
+-- Trigger is installed after the migration under test.
