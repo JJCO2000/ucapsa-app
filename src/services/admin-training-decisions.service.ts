@@ -58,7 +58,7 @@ export function isTrainingDecisionReady(row: ProgramEnrollmentWithDetails) {
   const required = Math.max(1, Number(row.program.required_attendances ?? 0));
   return row.enrollment.status === 'active'
     && isFiniteTrainingCard(row)
-    && row.attendances.length >= required;
+    && row.enrollment.attendances_count >= required;
 }
 
 export async function getAdminTrainingDecisionRows(): Promise<AdminTrainingDecisionRow[]> {
@@ -78,7 +78,7 @@ export async function getAdminTrainingDecisionRows(): Promise<AdminTrainingDecis
       levelLabel: row.program.code === 'comandos'
         ? getProgramLevelLabel(row.enrollment.program_level)
         : 'Puppy',
-      attendanceCount: row.attendances.length,
+      attendanceCount: row.enrollment.attendances_count,
       requiredAttendances: Math.max(1, Number(row.program.required_attendances ?? 0)),
       physicalCardNumber: row.enrollment.physical_card_number ?? null,
       requirementsMetAt: row.enrollment.requirements_met_at ?? null,

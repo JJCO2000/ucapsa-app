@@ -1,0 +1,59 @@
+name: UCAPSA isolated PostgreSQL integration
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261018195000_admin_dog_preregistration.sql'
+      - 'supabase/migrations/20261018210000_staged_program_attendance_evidence.sql'
+      - 'supabase/migrations/20261018220000_link_preregistered_history.sql'
+      - 'supabase/migrations/20261018230000_staff_preregistered_roster.sql'
+      - 'supabase/migrations/20261019080000_preregistration_historical_training_decisions.sql'
+      - 'scripts/isolated-db/**'
+      - '.github/workflows/ucapsa-preregistration-db.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-db:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16.4-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: local_only_ucapsa_test
+          POSTGRES_DB: ucapsa_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ucapsa_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: local_only_ucapsa_test
+      PGDATABASE: ucapsa_test
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Verify PostgreSQL client
+        run: psql --version
+      - name: Initialize isolated fixture
+        run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/ucapsa-fixture.sql
+      - name: Apply preregistration migrations IN ORDER
+        run: |
+          psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261018195000_admin_dog_preregistration.sql
+          psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261018210000_staged_program_attendance_evidence.sql
+          psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261018220000_link_preregistered_history.sql
+          psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261018230000_staff_preregistered_roster.sql
+          psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261019080000_preregistration_historical_training_decisions.sql
+      - name: Exercise permissions, identity, enrollments and attendance
+        run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/ucapsa-e2e.sql
+      - name: Competing admins do not duplicate records
+        run: bash scripts/isolated-db/ucapsa-concurrency.sh
