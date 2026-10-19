@@ -11,8 +11,15 @@ create table if not exists ucapsa_config.restaurant_publication (
 );
 alter table ucapsa_config.restaurant_publication enable row level security;
 revoke all on ucapsa_config.restaurant_publication from public, anon, authenticated;
+-- Migración sin interrupción: conserva la visibilidad previa del menú de producción.
+-- No publica productos ocultos ni cambia el estado de categorías o artículos.
 insert into ucapsa_config.restaurant_publication(id,is_published)
-values(true,false) on conflict(id) do nothing;
+select true, exists (
+  select 1 from public.restaurant_menu_categories c
+  join public.restaurant_menu_items i on i.category_id=c.id
+  where c.is_active=true and i.is_available=true
+)
+on conflict(id) do nothing;
 
 -- No expone personas, contactos, pagos ni IDs del administrador.
 create or replace function public.is_restaurant_menu_published()
