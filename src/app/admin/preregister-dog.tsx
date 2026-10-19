@@ -43,16 +43,15 @@ export default function AdminPreregisterDogScreen() {
       if (new Set(dates).size !== dates.length || dates.length > count) {
         throw new Error('No repitas fechas ni superes el total de asistencias.');
       }
-      if (programCode === 'puppy' && !cardNumber.trim()) {
-        throw new Error('Indica la tarjeta física Puppy.');
-      }
+      // El registro de Admin concede acceso; el número físico Puppy es opcional.
       if (cardStartedOn.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(cardStartedOn.trim())) {
         throw new Error('El inicio de tarjeta debe usar AAAA-MM-DD.');
       }
       await adminPreregisterDogWithProgram({
         ownerName, ownerEmail, ownerPhone, dogName,
         programCode, programLevel: programCode === 'puppy' ? 'base' : level,
-        physicalCardNumber: cardNumber, cardStartedOn: cardStartedOn.trim() || null,
+        physicalCardNumber: programCode === 'puppy' ? cardNumber : '',
+        cardStartedOn: programCode === 'puppy' ? cardStartedOn.trim() || null : null,
         totalAttendances: count, knownAttendanceDates: dates, sourceNote,
       });
       Alert.alert('Perro preinscrito',
@@ -133,13 +132,17 @@ export default function AdminPreregisterDogScreen() {
             </View>
           </>
         ) : null}
-        <Text style={styles.label}>Tarjeta física {programCode === 'puppy' ? '(obligatoria, ya pagada)' : '(si aplica)'}</Text>
-        <TextInput style={styles.input} value={cardNumber} onChangeText={setCardNumber}
-          maxLength={80} placeholder="Ej. P-0142" placeholderTextColor={ucapsaBrand.colors.muted} />
-        <Text style={styles.label}>Inicio de tarjeta (solo si se conoce)</Text>
-        <TextInput style={styles.input} value={cardStartedOn} onChangeText={setCardStartedOn}
-          maxLength={10} placeholder="AAAA-MM-DD" placeholderTextColor={ucapsaBrand.colors.muted} />
-        <Text style={styles.helper}>No se inventa fecha de vigencia ni se registra otro cobro.</Text>
+        {programCode === 'puppy' ? (
+          <>
+            <Text style={styles.label}>Referencia física Puppy (si se conoce)</Text>
+            <TextInput style={styles.input} value={cardNumber} onChangeText={setCardNumber}
+              maxLength={80} placeholder="Ej. P-0142" placeholderTextColor={ucapsaBrand.colors.muted} />
+            <Text style={styles.label}>Inicio de tarjeta física (si se conoce)</Text>
+            <TextInput style={styles.input} value={cardStartedOn} onChangeText={setCardStartedOn}
+              maxLength={10} placeholder="AAAA-MM-DD" placeholderTextColor={ucapsaBrand.colors.muted} />
+          </>
+        ) : null}
+        <Text style={styles.helper}>Administración autoriza la inscripción desde el registro; no se inventan pagos ni fechas históricas.</Text>
         <Text style={styles.label}>Asistencias históricas totales</Text>
         <TextInput style={styles.input} value={totalAttendances} onChangeText={setTotalAttendances}
           maxLength={3} keyboardType="number-pad" placeholder="2" placeholderTextColor={ucapsaBrand.colors.muted} />
