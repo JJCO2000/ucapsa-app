@@ -46,7 +46,7 @@ export default function AdminCustomerScreen() {
     return undefined;
   }, [load, userId]));
 
-  const actualAttendances = useMemo(() => record?.enrollments.reduce((sum, item) => sum + item.attendances.length, 0) ?? 0, [record]);
+  const actualAttendances = useMemo(() => record?.enrollments.reduce((sum, item) => sum + item.enrollment.attendances_count, 0) ?? 0, [record]);
   const pendingBalance = useMemo(() => {
     if (!record) return 0;
     const paid = new Map<string, number>();
