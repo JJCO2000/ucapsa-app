@@ -1,0 +1,44 @@
+name: UCAPSA exam draft PostgreSQL integration
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261018183000_staff_edit_exam_drafts.sql'
+      - 'scripts/isolated-db/exam-draft-*'
+      - '.github/workflows/ucapsa-exam-draft-db.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-exam-draft-db:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16.4-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ucapsa_exam_draft_test
+          POSTGRES_DB: ucapsa_exam_draft_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ucapsa_exam_draft_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: ucapsa_exam_draft_test
+      PGDATABASE: ucapsa_exam_draft_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # pinned
+      - name: Prepare synthetic UCAPSA identities and exam schema
+        run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/exam-draft-fixture.sql
+      - name: Apply staff exam draft SQL in isolated PostgreSQL
+        run: psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261018183000_staff_edit_exam_drafts.sql
+      - name: Deny clients and protect published results, history and concurrency
+        run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/exam-draft-e2e.sql
