@@ -25,7 +25,7 @@ returns table (
   evaluator_note text
 )
 language plpgsql stable security definer
-set search_path = public
+set search_path = ''
 as $function$
 begin
   if not public.is_ucapsa_staff() then
@@ -76,5 +76,5 @@ $function$;
 
 revoke all on function public.get_staff_exam_report(uuid)
   from public, anon;
-grant execute on function public.get_staff_exam_report(date,date,uuid)
+grant execute on function public.get_staff_exam_report(uuid)
   to authenticated, service_role;
