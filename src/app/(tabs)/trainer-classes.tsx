@@ -366,6 +366,11 @@ export default function TrainerClassesTab() {
         <View style={styles.errorCard}><MaterialIcons name="cloud-off" size={20} color={ucapsaBrand.colors.danger} /><Text style={styles.errorText}>{error}</Text></View>
       ) : null}
 
+      {stagedWarning && !loading ? <View style={styles.errorCard}>
+        <MaterialIcons name="warning-amber" size={20} color={ucapsaBrand.colors.danger} />
+        <Text style={styles.errorText}>{stagedWarning}</Text>
+      </View> : null}
+
       {introWarning && !loading ? <View style={styles.errorCard}>
         <MaterialIcons name="warning-amber" size={20} color={ucapsaBrand.colors.danger} />
         <Text style={styles.errorText}>{introWarning}</Text>
@@ -397,11 +402,13 @@ export default function TrainerClassesTab() {
         {!loading && !error ? groups.map((group) => {
           const puppy = group.programCode === 'puppy';
           const confirmed = group.rows.filter((row) => row.rsvpResponse === 'yes').length;
+          const provisionalRows = stagedRows.filter((row) =>
+            row.scheduleId === group.scheduleId && row.programCode === group.programCode);
           return (
             <View key={`${group.scheduleId}:${group.startTime}`} style={styles.groupCard}>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`${puppy ? 'Puppy' : 'Comandos'} ${group.startTime}, ${group.rows.length} perros`}
+                accessibilityLabel={`${puppy ? 'Puppy' : 'Comandos'} ${group.startTime}, ${group.rows.length + provisionalRows.length} perros`}
                 accessibilityState={{ expanded: expandedScheduleId === group.scheduleId }}
                 onPress={() => setExpandedScheduleId((selected) => selected === group.scheduleId ? null : group.scheduleId)}
                 style={styles.groupHeader}
@@ -411,12 +418,12 @@ export default function TrainerClassesTab() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.groupTitle}>{puppy ? 'Puppy' : 'Comandos'} · {group.startTime}</Text>
-                  <Text style={styles.groupMeta}>{confirmed} / {group.rows.length} confirmados</Text>
+                  <Text style={styles.groupMeta}>{confirmed} / {group.rows.length} confirmados{provisionalRows.length ? ` · ${provisionalRows.length} sin cuenta` : ''}</Text>
                 </View>
                 <MaterialIcons name={expandedScheduleId === group.scheduleId ? 'expand-less' : 'expand-more'} size={24} color={ucapsaBrand.colors.muted} />
               </Pressable>
 
-              {expandedScheduleId === group.scheduleId && group.rows.length === 0 ? (
+              {expandedScheduleId === group.scheduleId && group.rows.length === 0 && provisionalRows.length === 0 ? (
                 <Text style={styles.emptyScheduleText}>Sin alumnos inscritos en este horario.</Text>
               ) : null}
               {expandedScheduleId === group.scheduleId ? group.rows.map((row) => {
@@ -485,6 +492,46 @@ export default function TrainerClassesTab() {
                           color={row.absent ? ucapsaBrand.colors.surface : ucapsaBrand.colors.danger}
                         />
                         <Text style={[styles.absenceText, row.absent && styles.absenceTextDone]}>No asistió</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                );
+              }) : null}
+              {expandedScheduleId === group.scheduleId ? provisionalRows.map((row) => {
+                const busy = busyId === row.intakeProgramId;
+                const authorized = row.authorizationStatus === 'valid';
+                return (
+                  <View key={row.intakeProgramId} style={styles.personRow}>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <View style={styles.nameLine}>
+                        <Text style={styles.dogName}>{row.dogName}</Text>
+                        {!puppy ? (
+                          <View style={styles.levelPill}>
+                            <Text style={styles.levelText}>{levelLabel(row.programLevel)}</Text>
+                          </View>
+                        ) : null}
+                      </View>
+                      <Text style={styles.clientName}>{row.ownerName} · Sin cuenta vinculada</Text>
+                      <Text style={styles.rsvpText}>
+                        {authorized ? 'Autorizado por Administración' :
+                          row.authorizationStatus === 'expired' ? 'Autorización vencida' : 'Autorización pendiente'}
+                      </Text>
+                      <Text style={styles.clientName}>{row.totalAttendances} asistencias reconocidas</Text>
+                    </View>
+                    <View style={styles.actions}>
+                      <Pressable accessibilityRole="button"
+                        accessibilityLabel={`Registrar asistencia de ${row.dogName} sin cuenta`}
+                        disabled={!canMarkAttendance || !authorized || row.attended || busy}
+                        onPress={() => markStagedAttendance(row)}
+                        style={[styles.attendanceButton,
+                          row.attended && styles.attendanceDone,
+                          (!canMarkAttendance || !authorized || row.attended || busy) && styles.disabled]}
+                      >
+                        <MaterialIcons name={row.attended ? 'check-circle' : 'how-to-reg'} size={18}
+                          color={row.attended ? ucapsaBrand.colors.surface : ucapsaBrand.colors.greenDark} />
+                        <Text style={[styles.attendanceText, row.attended && styles.attendanceTextDone]}>
+                          {row.attended ? 'Asistió' : 'Asistió'}
+                        </Text>
                       </Pressable>
                     </View>
                   </View>
