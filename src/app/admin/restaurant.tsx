@@ -185,9 +185,9 @@ export default function AdminRestaurantScreen() {
 
       {!loading && !error ? (
         <View style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
+          <View style={styles.categoryHeader}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.categoryName}>Publicar menú del domingo</Text>
+              <Text style={styles.categoryTitle}>Publicar menú del domingo</Text>
               <Text style={styles.categoryMeta}>
                 {menuPublished ? 'Publicado para Clientes, Socios y visitantes' : 'Oculto para el público'}
               </Text>
