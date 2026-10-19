@@ -17,12 +17,11 @@ export async function requestVerifiedPhoneCode(rawPhone: string): Promise<string
   const phone = normalizePhoneE164(rawPhone);
   const { data: current, error: authError } = await supabase.auth.getUser();
   if (authError || !current.user) throw new Error('Inicia sesión para verificar tu celular.');
-  // Al ser una RPC nueva, el tipo estará disponible tras aplicar la migración.
-  const rpc = supabase.rpc.bind(supabase) as unknown as (
-    name: 'can_request_my_phone_verification',
-    args: { p_phone: string },
-  ) => PromiseLike<{ data: unknown; error: { message: string } | null }>;
-  const checked = await rpc('can_request_my_phone_verification', { p_phone: phone });
+  // RPC tipada desde el esquema oficial: el servidor determina si puede
+  // comenzar la verificación; no basta consultar el perfil del cliente.
+  const checked = await supabase.rpc('can_request_my_phone_verification', {
+    p_phone: phone,
+  });
   if (checked.error) throw new Error(checked.error.message);
   if (checked.data !== true) {
     throw new Error('Este celular está asociado a otra verificación. Solicita revisión a Administración.');
