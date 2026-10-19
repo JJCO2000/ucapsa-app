@@ -177,4 +177,34 @@ for (const [label, ok] of [
   if (!ok) throw new Error('Regresión de preinscripción: ' + label);
 }
 
+// Preinscripciones pendientes: el nuevo directorio sigue cerrado hasta
+// desplegar su RPC, con control de rol y sin SELECT directo al esquema privado.
+const intakeDirectorySql = fs.readFileSync(
+  'supabase/migrations/20261019170000_preregistration_directory_safe_history.sql',
+  'utf8',
+);
+const intakeDirectory = fs.readFileSync('src/app/admin/preregistrations.tsx', 'utf8');
+const intakeDetail = fs.readFileSync('src/app/admin/preregistration-record.tsx', 'utf8');
+const intakeDirectoryService = fs.readFileSync('src/services/preregistration-directory.service.ts','utf8');
+const adminCustomerScreen = fs.readFileSync('src/app/admin/customer.tsx','utf8');
+const adminClassScreen = fs.readFileSync('src/app/admin/customer-class.tsx','utf8');
+const adminAttendanceScreen = fs.readFileSync('src/app/admin/customer-attendance.tsx','utf8');
+for (const [label, passed] of [
+  ['Directorio Admin con auth.uid()', intakeDirectorySql.includes('auth.uid() is null or not public.is_ucapsa_admin()')],
+  ['RPC no anónima', intakeDirectorySql.includes('from public,anon')],
+  ['No borrar historial Staff', intakeDirectorySql.includes("where h.intake_program_id=v_stage.id and h.evidence_source='admin_history'")],
+  ['Proteger fecha Staff', intakeDirectorySql.includes("h.evidence_source='staff_roster'")],
+  ['Flag específica apagada', preregistrationFeature.includes("EXPO_PUBLIC_UCAPSA_PREREGISTRATION_DIRECTORY_ENABLED === 'true'")],
+  ['Lista cerrada', intakeDirectory.includes('!isAdmin || !preregistrationDirectoryEnabled')],
+  ['Ficha cerrada', intakeDetail.includes('!isAdmin || !preregistrationDirectoryEnabled')],
+  ['Navegación protegida', preregistrationUsers.includes('{preregistrationDirectoryEnabled ? (')],
+  ['RPC solo Admin', intakeDirectoryService.includes("'admin_get_preregistered_directory'")],
+  ['Contador canónico de Cliente', adminCustomerScreen.includes('sum + item.enrollment.attendances_count')],
+  ['Contador canónico de clase', adminClassScreen.includes('row.enrollment.attendances_count')],
+  ['Contador canónico de asistencias', adminAttendanceScreen.includes('selectedEnrollment.enrollment.attendances_count')],
+  ['Número físico solo Puppy', adminClassScreen.includes("row.program.code === 'puppy' ? (")],
+]) {
+  if (!passed) throw new Error('Regresión directorio de preinscritos: ' + label);
+}
+
 console.log('UCAPSA member per-dog unlimited training + QR/progression contract: PASS');
