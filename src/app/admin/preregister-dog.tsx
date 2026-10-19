@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View 
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
+import { preregistrationEnabled } from '../../constants/preregistrationFeature';
 import { useSession } from '../../hooks/useSession';
 import { adminPreregisterDogWithProgram } from '../../services/dog-preregistration.service';
 
@@ -68,7 +69,8 @@ export default function AdminPreregisterDogScreen() {
     ? datesText.split(/[\n,;]+/).filter((value) => value.trim()).length
     : 0;
   const unknownCount = Math.max(0, Number(totalAttendances || 0) - knownCount);
-  if (!isAdmin) return <Redirect href="/home" />;
+  // No exponer formulario cuando las migraciones aún no están instaladas.
+  if (!isAdmin || !preregistrationEnabled) return <Redirect href="/home" />;
 
   return (
     <KeyboardAwareScreen style={{ backgroundColor: ucapsaBrand.colors.background }}>
