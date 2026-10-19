@@ -248,16 +248,8 @@ export function getCustomerValuePrimaryNextAction(
     };
   }
 
-  if (snapshot.whatIsNext.legacyMembershipPaymentPending) {
-    return {
-      kind: 'payment',
-      source: 'legacy_membership',
-      obligationId: null,
-      dueDate: null,
-      remainingAmount: null,
-      status: 'pending',
-    };
-  }
+  // Las membresías otorgadas pueden tener pago legado pendiente.
+  // Solo una obligación contable verificable justifica la alerta de cobro.
 
   const membership = snapshot.whatIHave.membership;
   if (membership?.status === 'active' && !membership.isValidToday) {
