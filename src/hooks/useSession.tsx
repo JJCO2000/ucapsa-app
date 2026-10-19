@@ -4,6 +4,7 @@ import { AppState } from 'react-native';
 import type { ReactNode } from 'react';
 
 import { getRoleCapabilities, type UcapsaCapabilities } from '../constants/roleCapabilities';
+import { preregistrationEnabled } from '../constants/preregistrationFeature';
 import { devWarn } from '../lib/client-diagnostics';
 import { clearAchievementCacheForUser } from '../services/achievements.service';
 import { getCurrentSession, signOutLocal, subscribeToAuthState } from '../services/auth.service';
@@ -12,6 +13,7 @@ import { clearClientReadCache } from '../services/client-read-cache.service';
 import { clearPracticeActivityCache } from '../services/practice.service';
 import { disableStoredExpoPushToken } from '../services/notifications.service';
 import { getProfileByUserId } from '../services/profiles.service';
+import { claimMyPreregisteredDogs } from '../services/dog-preregistration.service';
 import {
   clearVerifiedLocalUser,
   isBackendUnreachable,
@@ -38,6 +40,7 @@ type SessionContextValue = {
   usingCachedProfile: boolean;
   lastProfileSyncAt: string | null;
   isOfflineFallback: boolean;
+  preregistrationSyncVersion: number;
   isAdmin: boolean;
   isTrainer: boolean;
   isStaff: boolean;
@@ -67,6 +70,8 @@ export function SessionProvider({ children }: SessionProviderProps) {
   const [usingCachedProfile, setUsingCachedProfile] = useState(false);
   const [lastProfileSyncAt, setLastProfileSyncAt] = useState<string | null>(null);
   const [isOfflineFallback, setIsOfflineFallback] = useState(false);
+  const [preregistrationSyncVersion, setPreregistrationSyncVersion] = useState(0);
+  const claimAttemptKeyRef = useRef<string | null>(null);
   const [startupAttempt, setStartupAttempt] = useState(0);
   const startupRunRef = useRef(0);
   const authEventAttemptRef = useRef(0);
@@ -382,6 +387,41 @@ export function SessionProvider({ children }: SessionProviderProps) {
     };
   }, []);
 
+  // Sólo Auth verificado + perfil remoto pueden reclamar un expediente.
+  // Esta ruta permanece apagada hasta instalar Supabase y activar el feature.
+  useEffect(() => {
+    if (!preregistrationEnabled) return;
+    const userId = session?.user.id ?? null;
+    if (!userId) {
+      claimAttemptKeyRef.current = null;
+      return;
+    }
+    const emailConfirmed = session?.user.email_confirmed_at ?? '';
+    const phoneConfirmed = session?.user.phone_confirmed_at ?? '';
+    if (!emailConfirmed && !phoneConfirmed) return;
+    if (isOfflineFallback || usingCachedProfile || profile?.user_id !== userId) return;
+    const attemptKey = [userId, emailConfirmed, phoneConfirmed].join('|');
+    if (claimAttemptKeyRef.current === attemptKey) return;
+    claimAttemptKeyRef.current = attemptKey;
+    void claimMyPreregisteredDogs()
+      .then(async ({ linkedDogs }) => {
+        if (linkedDogs > 0) {
+          await Promise.all([clearClientReadCache(userId), clearHomeCache(userId)]);
+          if (claimAttemptKeyRef.current === attemptKey) {
+            setPreregistrationSyncVersion((value) => value + 1);
+          }
+        }
+      })
+      .catch((error) => {
+        if (claimAttemptKeyRef.current === attemptKey) {
+          claimAttemptKeyRef.current = null;
+        }
+        devWarn('Vinculación pendiente: no se bloquea la sesión.', error);
+      });
+  }, [session?.user.id, session?.user.email_confirmed_at,
+    session?.user.phone_confirmed_at, profile?.user_id,
+    usingCachedProfile, isOfflineFallback]);
+
   // On returning to the foreground, try to replace read-only identity with a
   // genuine Supabase session. No login re-prompt is necessary after a transient
   // network outage if the persisted refresh token is still accepted.
@@ -454,6 +494,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       usingCachedProfile,
       lastProfileSyncAt,
       isOfflineFallback,
+      preregistrationSyncVersion,
       isAdmin,
       isTrainer,
       isStaff,
@@ -473,6 +514,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       usingCachedProfile,
       lastProfileSyncAt,
       isOfflineFallback,
+      preregistrationSyncVersion,
       isAdmin,
       isTrainer,
       isStaff,
