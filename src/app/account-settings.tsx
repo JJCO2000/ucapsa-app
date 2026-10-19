@@ -336,10 +336,10 @@ export default function AccountSettingsScreen() {
             value={user.phone_confirmed_at && user.phone ? user.phone : 'Sin verificar'} premium={premium} />
           {!user.phone_confirmed_at && !phoneVerificationEnabled ? (
             <Text style={[styles.muted, premium && styles.premiumText]}>
-              El celular guardado es un dato de contacto, no una prueba de identidad.
-              La vinculación por correo confirmado sigue disponible sin SMS.
-              También puedes pedir a Administración una autorización presencial,
-              sin necesidad de verificar correo ni celular.
+              UCAPSA puede vincular automáticamente tu primer expediente cuando
+              tu celular o correo coincida con una preinscripción todavía libre.
+              No se necesita SMS para esa primera vinculación.
+              Si el contacto ya está vinculado a otra cuenta, Administración deberá revisarlo.
             </Text>
           ) : null}
           {preregistrationEnabled && !isOfflineFallback ? (
