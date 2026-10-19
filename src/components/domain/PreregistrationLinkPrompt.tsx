@@ -6,8 +6,8 @@ import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 
 /**
- * Appears only after a verified contact match OR a specific Admin approval.
- * No tutor, dog or phone details are leaked before user consent.
+ * Appears for later preinscriptions or an explicitly Admin-approved claim.
+ * The first claim is automatic; no private contact data is shown.
  */
 export function PreregistrationLinkPrompt() {
   const {
@@ -41,7 +41,7 @@ export function PreregistrationLinkPrompt() {
           <Text style={styles.body}>
             UCAPSA encontró {count === 1 ? 'un perro' : `${count ?? 0} perros`}
             {' '}preinscrito{count === 1 ? '' : 's'} autorizado{count === 1 ? '' : 's'}
-            para esta cuenta por Administración o por un contacto verificado.
+            para esta cuenta por Administración o por un contacto coincidente.
             ¿Deseas vincular {count === 1 ? 'su expediente' : 'sus expedientes'} a esta cuenta?
           </Text>
           <Text style={styles.note}>
