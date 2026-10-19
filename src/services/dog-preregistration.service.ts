@@ -70,8 +70,8 @@ export type DogClaimPreview = {
 };
 
 /**
- * Look up ONLY preregistrations matching the current user's already
- * confirmed Auth contact. Never pass arbitrary email/phone to this RPC.
+ * Look up preregistrations matching authenticated email OR profile phone;
+ * the first matching account may claim without OTP as UCAPSA requested.
  * The server returns a count, not dog names or third-party contact data.
  */
 export async function previewMyPreregisteredDogs(): Promise<DogClaimPreview> {
@@ -182,10 +182,8 @@ export async function adminApprovePreregistrationOwnerLink(
 
 
 /**
- * The server atomically permits the FIRST intake claim only. The contact must
- * be confirmed by Supabase Auth OR explicitly pre-approved for this user by
- * Admin. A typed but unverified email/phone is never ownership evidence.
- * Subsequent intake people require a separate Admin authorization + consent.
+ * The server atomically permits a FIRST intake claim by email or phone
+ * without contact verification. Later attempts never transfer ownership.
  */
 export async function claimMyFirstPreregisteredDogs(): Promise<DogClaimResult | {
   status: 'requires_approval';
