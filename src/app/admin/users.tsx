@@ -5,7 +5,7 @@ import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, Text, View } fr
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
-import { preregistrationDirectoryEnabled } from '../../constants/preregistrationFeature';
+import { preregistrationDirectoryEnabled, preregistrationEnabled } from '../../constants/preregistrationFeature';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import { getAdminProfiles, setStaffRoleSuperAdmin } from '../../services/profiles.service';
@@ -163,13 +163,15 @@ export default function AdminUsersScreen() {
 
       {!adminsOnly ? (
         <>
-          {preregistrationDirectoryEnabled ? (
+          {preregistrationEnabled ? (
             <Pressable accessibilityRole="button"
-              accessibilityLabel="Abrir expedientes de preinscripción"
-              onPress={() => router.push('/admin/preregistrations' as never)}
+              accessibilityLabel="Abrir preinscripciones"
+              onPress={() => router.push(
+                (preregistrationDirectoryEnabled ? '/admin/preregistrations' : '/admin/preregister-dog') as never
+              )}
               style={styles.preregisterAction}>
               <MaterialCommunityIcons name="dog" size={21} color={ucapsaBrand.colors.redDark} />
-              <Text style={styles.preregisterActionText}>Preinscripciones · perros sin cuenta</Text>
+              <Text style={styles.preregisterActionText}>{preregistrationDirectoryEnabled ? 'Ver preinscripciones' : 'Registrar perro sin cuenta'}</Text>
               <MaterialCommunityIcons name="chevron-right" size={20} color={ucapsaBrand.colors.redDark} />
             </Pressable>
           ) : null}
