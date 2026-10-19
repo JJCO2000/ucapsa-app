@@ -51,7 +51,8 @@ create table public.program_class_cancellations (
 create table public.memberships (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id),
-  status text not null default 'active'
+  status text not null default 'active',
+  updated_at timestamptz not null default now()
 );
 create table public.program_enrollments (
   id uuid primary key default gen_random_uuid(),
