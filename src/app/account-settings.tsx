@@ -51,12 +51,14 @@ export default function AccountSettingsScreen() {
       // Si hay coincidencia, el diálogo global muestra "Sí, vincular" o
       // "Ahora no". La consulta nunca vincula automáticamente.
       if (status === 'available') return;
-      const detail = status === 'linked'
+      const detail = status === 'requested'
+        ? 'Tu solicitud de revisión se envió a Administración. El expediente actual no cambiará mientras se revisa.'
+        : status === 'linked'
         ? 'Tu primer expediente quedó vinculado automáticamente a tu cuenta.'
         : status === 'conflict'
-        ? 'Encontramos datos que requieren revisión de Administración para proteger la cuenta.'
+        ? 'Hay datos duplicados. Administración puede revisar el caso; no se transferirá ningún expediente automáticamente.'
         : status === 'unverified'
-          ? 'Sin correo ni celular verificados, solicita a Administración que autorice tu expediente. Después vuelve a buscar aquí.'
+          ? 'Agrega tu celular al perfil o inicia sesión con el correo asociado al preregistro y vuelve a consultar.'
           : status === 'not_applicable'
             ? 'Inicia sesión con una cuenta conectada para consultar expedientes.'
             : 'Por ahora no hay expedientes pendientes asociados a tus contactos confirmados.';
