@@ -3,27 +3,27 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
-import { signInWithEmail } from '../../services/auth.service';
+import { signInWithVerifiedContact } from '../../services/auth.service';
 import { DEFAULT_WRITE_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
+  const [contact, setContact] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [missingEmail, setMissingEmail] = useState(false);
+  const [missingContact, setMissingContact] = useState(false);
   const [missingPassword, setMissingPassword] = useState(false);
 
   async function handleLogin() {
-    const cleanEmail = email.trim();
+    const cleanContact = contact.trim();
 
-    setMissingEmail(!cleanEmail);
+    setMissingContact(!cleanContact);
     setMissingPassword(!password);
-    if (!cleanEmail || !password) return;
+    if (!cleanContact || !password) return;
 
     setLoading(true);
     try {
       const { error } = await withOperationTimeout(
-        signInWithEmail(cleanEmail, password),
+        signInWithVerifiedContact(cleanContact, password),
         DEFAULT_WRITE_TIMEOUT_MS,
         'auth-login',
       );
@@ -31,7 +31,7 @@ export default function LoginScreen() {
       if (error) {
         Alert.alert(
           'No pudimos iniciar sesión',
-          'Revisa tu correo y contraseña. Si es tu primera vez en UCAPSA, puedes crear una cuenta.',
+          'Revisa tu correo o celular registrado y contraseña. Para entrar por celular, primero debe estar asociado a tu cuenta de Supabase.',
           [
             { text: 'Reintentar', style: 'cancel' },
             { text: 'Recuperar contraseña', onPress: () => router.push('/auth/forgot-password' as never) },
@@ -58,22 +58,22 @@ export default function LoginScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.label}>Correo</Text>
+        <Text style={styles.label}>Correo o celular registrado</Text>
         <TextInput
-          value={email}
-          onChangeText={(value) => { setEmail(value); if (value.trim()) setMissingEmail(false); }}
-          accessibilityLabel="Correo electrónico"
-          accessibilityHint="Correo necesario para iniciar sesión"
-          placeholder="correo@ejemplo.com"
+          value={contact}
+          onChangeText={(value) => { setContact(value); if (value.trim()) setMissingContact(false); }}
+          accessibilityLabel="Correo o celular para iniciar sesión"
+          accessibilityHint="Ingresa tu correo o celular ya registrado en Supabase"
+          placeholder="correo@ejemplo.com o +525512345678"
           autoCapitalize="none"
           autoCorrect={false}
-          keyboardType="email-address"
-          textContentType="emailAddress"
+          keyboardType="default"
+          textContentType="username"
           style={styles.input}
           returnKeyType="next"
         />
-        {missingEmail ? (
-          <Text accessibilityRole="alert" style={styles.inlineError}>Escribe tu correo electrónico.</Text>
+        {missingContact ? (
+          <Text accessibilityRole="alert" style={styles.inlineError}>Escribe tu correo o celular registrado.</Text>
         ) : null}
 
         <Text style={styles.label}>Contrasena</Text>

@@ -300,9 +300,18 @@ export default function AccountSettingsScreen() {
           </View>
           <ReadonlyRow label="Nombre" value={profile?.full_name || 'Pendiente'} premium={premium} />
           <ReadonlyRow label="Correo" value={profile?.email || user.email || 'Pendiente'} premium={premium} />
+          <ReadonlyRow label="Verificación del correo"
+            value={user.email_confirmed_at ? 'Confirmado por Supabase' : 'Sin confirmar'} premium={premium} />
           <ReadonlyRow label="Teléfono de contacto" value={profile?.phone || 'Pendiente'} premium={premium} />
           <ReadonlyRow label="Celular verificado en Supabase"
             value={user.phone_confirmed_at && user.phone ? user.phone : 'Sin verificar'} premium={premium} />
+          {!user.phone_confirmed_at && !phoneVerificationEnabled ? (
+            <Text style={[styles.muted, premium && styles.premiumText]}>
+              El celular guardado es un dato de contacto, no una prueba de identidad.
+              La vinculación por correo confirmado sigue disponible sin SMS.
+              Para números sin verificar, pide revisión a Administración.
+            </Text>
+          ) : null}
           {phoneVerificationEnabled ? (
             <Pressable accessibilityRole="button"
               accessibilityLabel="Verificar mi celular para vincular la preinscripción"

@@ -32,6 +32,17 @@ export async function signInWithEmail(email: string, password: string) {
   });
 }
 
+/** Password login does not send SMS. Phone must already belong to the Auth user. */
+export async function signInWithVerifiedContact(contact: string, password: string) {
+  const value = contact.trim();
+  if (value.includes('@')) return signInWithEmail(value, password);
+  const phone = value.replace(/[\s()\-]/g, '');
+  if (!/^\+[1-9][0-9]{7,14}$/.test(phone)) {
+    throw new Error('Usa tu correo o el celular con +52 y sus diez dígitos.');
+  }
+  return supabase.auth.signInWithPassword({ phone, password });
+}
+
 export async function signUpWithEmail({
   email,
   password,

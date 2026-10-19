@@ -43,8 +43,13 @@ if (!register.includes('signUpWithEmail') || !register.includes('validateNewPass
   throw new Error('Register is not using the canonical auth boundary and password policy.');
 }
 
-if (!login.includes('signInWithEmail')) {
-  throw new Error('Login is not using the canonical auth boundary.');
+// Ambas formas de ingreso deben permanecer en auth.service, no realizar
+// operaciones de Supabase directamente desde la pantalla.
+if (!login.includes('signInWithVerifiedContact') ||
+    !service.includes('export async function signInWithVerifiedContact') ||
+    !service.includes('return signInWithEmail(value, password)') ||
+    !service.includes('supabase.auth.signInWithPassword({ phone, password })')) {
+  throw new Error('Login must use the canonical email/phone password auth boundary.');
 }
 
 if (!forgot.includes('resetPasswordForEmail')) {

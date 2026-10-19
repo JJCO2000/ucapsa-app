@@ -13,7 +13,7 @@ import { clearClientReadCache } from '../services/client-read-cache.service';
 import { clearPracticeActivityCache } from '../services/practice.service';
 import { disableStoredExpoPushToken } from '../services/notifications.service';
 import { getProfileByUserId } from '../services/profiles.service';
-import { claimMyPreregisteredDogs } from '../services/dog-preregistration.service';
+import { claimMyPreregisteredDogs, previewMyPreregisteredDogs } from '../services/dog-preregistration.service';
 import {
   clearVerifiedLocalUser,
   isBackendUnreachable,
@@ -41,6 +41,10 @@ type SessionContextValue = {
   lastProfileSyncAt: string | null;
   isOfflineFallback: boolean;
   preregistrationSyncVersion: number;
+  preregistrationLinkOffer: number | null;
+  preregistrationLinkBusy: boolean;
+  confirmPreregistrationLink: () => Promise<void>;
+  dismissPreregistrationLink: () => void;
   isAdmin: boolean;
   isTrainer: boolean;
   isStaff: boolean;
@@ -71,6 +75,8 @@ export function SessionProvider({ children }: SessionProviderProps) {
   const [lastProfileSyncAt, setLastProfileSyncAt] = useState<string | null>(null);
   const [isOfflineFallback, setIsOfflineFallback] = useState(false);
   const [preregistrationSyncVersion, setPreregistrationSyncVersion] = useState(0);
+  const [preregistrationLinkOffer, setPreregistrationLinkOffer] = useState<{ userId: string; count: number } | null>(null);
+  const [preregistrationLinkBusy, setPreregistrationLinkBusy] = useState(false);
   const claimAttemptKeyRef = useRef<string | null>(null);
   const [startupAttempt, setStartupAttempt] = useState(0);
   const startupRunRef = useRef(0);
@@ -387,41 +393,66 @@ export function SessionProvider({ children }: SessionProviderProps) {
     };
   }, []);
 
-  // Sólo Auth verificado + perfil remoto pueden reclamar un expediente.
-  // Esta ruta permanece apagada hasta instalar Supabase y activar el feature.
+  // Consulta privada con contactos verificados de Auth. NO se vincula nada
+  // al iniciar sesión hasta que el titular dé consentimiento explícito.
   useEffect(() => {
     if (!preregistrationEnabled) return;
     const userId = session?.user.id ?? null;
     if (!userId) {
       claimAttemptKeyRef.current = null;
+      setPreregistrationLinkOffer(null);
       return;
     }
     const emailConfirmed = session?.user.email_confirmed_at ?? '';
     const phoneConfirmed = session?.user.phone_confirmed_at ?? '';
-    // Priorizar celular ya confirmado por Supabase Auth, con correo como alternativa.
     if (!phoneConfirmed && !emailConfirmed) return;
     if (isOfflineFallback || usingCachedProfile || profile?.user_id !== userId) return;
     const attemptKey = [userId, phoneConfirmed, emailConfirmed].join('|');
     if (claimAttemptKeyRef.current === attemptKey) return;
     claimAttemptKeyRef.current = attemptKey;
-    void claimMyPreregisteredDogs()
-      .then(async ({ linkedDogs }) => {
-        if (linkedDogs > 0) {
-          await Promise.all([clearClientReadCache(userId), clearHomeCache(userId)]);
-          if (claimAttemptKeyRef.current === attemptKey) {
-            setPreregistrationSyncVersion((value) => value + 1);
-          }
-        }
-      })
-      .catch((error) => {
-        if (claimAttemptKeyRef.current === attemptKey) {
-          claimAttemptKeyRef.current = null;
-        }
-        devWarn('Vinculación pendiente: no se bloquea la sesión.', error);
-      });
+    let active = true;
+    void previewMyPreregisteredDogs().then((result) => {
+      if (!active || claimAttemptKeyRef.current !== attemptKey) return;
+      setPreregistrationLinkOffer(result.status === 'available' && result.count > 0
+        ? { userId, count: result.count } : null);
+    }).catch((error) => {
+      if (active && claimAttemptKeyRef.current === attemptKey) {
+        claimAttemptKeyRef.current = null;
+      }
+      devWarn('No se pudo consultar preinscripción pendiente.', error);
+    });
+    return () => { active = false; };
   }, [session?.user.id, session?.user.phone_confirmed_at,
     session?.user.email_confirmed_at, profile?.user_id,
     usingCachedProfile, isOfflineFallback]);
+
+  async function confirmPreregistrationLink() {
+    const offer = preregistrationLinkOffer;
+    if (!offer || preregistrationLinkBusy || !session?.user ||
+        session.user.id !== offer.userId || isOfflineFallback) return;
+    setPreregistrationLinkBusy(true);
+    try {
+      // El servidor comprueba de nuevo la identidad y los conflictos.
+      const result = await claimMyPreregisteredDogs();
+      if (result.status === 'conflict') {
+        throw new Error('Los contactos no coinciden de forma segura. Solicita revisión a Administración.');
+      }
+      if (result.status !== 'linked' && result.status !== 'none') {
+        throw new Error('La preinscripción todavía no está disponible para vincularse.');
+      }
+      setPreregistrationLinkOffer(null);
+      if (result.linkedDogs > 0) {
+        await Promise.all([clearClientReadCache(offer.userId), clearHomeCache(offer.userId)]);
+        setPreregistrationSyncVersion((value) => value + 1);
+      }
+    } finally {
+      setPreregistrationLinkBusy(false);
+    }
+  }
+
+  function dismissPreregistrationLink() {
+    setPreregistrationLinkOffer(null);
+  }
 
   // On returning to the foreground, try to replace read-only identity with a
   // genuine Supabase session. No login re-prompt is necessary after a transient
@@ -496,6 +527,11 @@ export function SessionProvider({ children }: SessionProviderProps) {
       lastProfileSyncAt,
       isOfflineFallback,
       preregistrationSyncVersion,
+      preregistrationLinkOffer: preregistrationLinkOffer && preregistrationLinkOffer.userId === user?.id
+        ? preregistrationLinkOffer.count : null,
+      preregistrationLinkBusy,
+      confirmPreregistrationLink,
+      dismissPreregistrationLink,
       isAdmin,
       isTrainer,
       isStaff,
@@ -516,6 +552,8 @@ export function SessionProvider({ children }: SessionProviderProps) {
       lastProfileSyncAt,
       isOfflineFallback,
       preregistrationSyncVersion,
+      preregistrationLinkOffer,
+      preregistrationLinkBusy,
       isAdmin,
       isTrainer,
       isStaff,

@@ -210,4 +210,28 @@ for (const [label, yes] of [
   if (!yes) throw new Error('Contrato de ficha de preinscripción incumplido: ' + label);
 }
 
+// Vinculación por consentimiento: el formulario del propietario siempre
+// obtiene preview privado con Auth confirmado antes de escribir en SQL.
+const privatePreviewSql = fs.readFileSync('supabase/migrations/20261019220000_private_preregistration_link_preview.sql','utf8');
+const consentModal = fs.readFileSync('src/components/domain/PreregistrationLinkPrompt.tsx','utf8');
+const preregClaims = fs.readFileSync('src/services/dog-preregistration.service.ts','utf8');
+const rootLayout = fs.readFileSync('src/app/_layout.tsx','utf8');
+const accountSettings = fs.readFileSync('src/app/account-settings.tsx','utf8');
+for (const [rule,ok] of [
+  ['Preview respeta Auth',privatePreviewSql.includes('auth.uid()')],
+  ['Preview consulta solo Auth confirmado',privatePreviewSql.includes('u.phone_confirmed_at is not null')],
+  ['Preview no acepta contactos arbitrarios',privatePreviewSql.includes('preview_my_preregistered_dogs()')],
+  ['Preview revocado a anon',privatePreviewSql.includes('from public,anon')],
+  ['No devuelve nombres',!privatePreviewSql.includes('owner_name')],
+  ['Session ya no hace claim silencioso',!preregistrationSession.includes('void claimMyPreregisteredDogs()')],
+  ['Session usa preview',preregistrationSession.includes('void previewMyPreregisteredDogs()')],
+  ['El usuario acepta explícitamente',consentModal.includes('Sí, vincular expedientes')],
+  ['El usuario puede rechazar',consentModal.includes('Ahora no')],
+  ['Ventana universal',rootLayout.includes('<PreregistrationLinkPrompt />')],
+  ['Servicio consulta preview',preregClaims.includes('preview_my_preregistered_dogs')],
+  ['Cuenta distingue teléfono sin verificar',accountSettings.includes('El celular guardado es un dato de contacto')],
+]) {
+  if (!ok) throw new Error('Regresión consentimiento de preinscripción: '+rule);
+}
+
 console.log('UCAPSA member per-dog unlimited training + QR/progression contract: PASS');

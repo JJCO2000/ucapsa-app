@@ -75,6 +75,16 @@ begin
 end $$;
 reset role;
 
+-- Preview is not available anonymously, and an unmatched account cannot
+-- enumerate tutor/dog details or invent a match.
+do $preview_anonymous$
+declare denied boolean := false;
+begin
+  if has_function_privilege('anon','public.preview_my_preregistered_dogs()','EXECUTE') then
+    raise exception 'Anonymous access to private preview';
+  end if;
+end $preview_anonymous$;
+
 -- Claim requires a VERIFIED Auth address, not a manually entered profile address.
 set role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',false);
@@ -86,6 +96,19 @@ begin
     raise exception 'Unmatched account claimed a dog: %',result;
   end if;
 end $$;
+reset role;
+
+-- Authenticated but unmatched account gets no private data.
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',false);
+do $preview_none$
+declare info jsonb;
+begin
+  info := public.preview_my_preregistered_dogs();
+  if info->>'status'<>'none' or (info->>'count')::int<>0 then
+    raise exception 'Unmatched preview leaked candidate information: %',info;
+  end if;
+end $preview_none$;
 reset role;
 
 -- Simulate verified email AFTER preregistration. No external provider calls.
@@ -100,6 +123,10 @@ select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002'
 do $check_shared$
 declare result jsonb;
 begin
+  result:=public.preview_my_preregistered_dogs();
+  if result->>'status'<>'conflict' or (result->>'count')::int<>0 then
+    raise exception 'Shared contact preview leaked candidate details: %',result;
+  end if;
   result:=public.claim_my_preregistered_dogs();
   if result->>'status'<>'conflict' then
     raise exception 'Shared verified contact bypassed collision guard: %',result;
@@ -114,6 +141,10 @@ select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002'
 do $$
 declare result jsonb;
 begin
+  result:=public.preview_my_preregistered_dogs();
+  if result->>'status'<>'available' or (result->>'count')::integer<>2 then
+    raise exception 'Verified user should see 2 pending dogs BEFORE consent: %',result;
+  end if;
   result:=public.claim_my_preregistered_dogs();
   if result->>'status'<>'linked' or (result->>'linked_dogs')::integer<>2
       or (result->>'linked_programs')::integer<>2 then
@@ -147,6 +178,18 @@ begin
     raise exception 'Comandos advanced generated a different schedule';
   end if;
 end $$;
+
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',false);
+do $preview_after_claim$
+declare info jsonb;
+begin
+  info:=public.preview_my_preregistered_dogs();
+  if info->>'status'<>'none' then
+    raise exception 'Previously linked dog offered for duplicate transfer: %',info;
+  end if;
+end $preview_after_claim$;
+reset role;
 
 -- Simulate the existing authorized attendance service as DB owner,
 -- not direct table INSERT from arbitrary authenticated clients.
@@ -224,6 +267,10 @@ select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000003'
 do $phone_unverified$
 declare result jsonb;
 begin
+  result:=public.preview_my_preregistered_dogs();
+  if result->>'status'<>'unverified' then
+    raise exception 'Unverified phone leaked preview: %',result;
+  end if;
   result:=public.claim_my_preregistered_dogs();
   if result->>'status'<>'unverified' then
     raise exception 'Unverified profile phone claimed account: %',result;
@@ -239,6 +286,10 @@ select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000003'
 do $phone_verified$
 declare result jsonb;
 begin
+  result:=public.preview_my_preregistered_dogs();
+  if result->>'status'<>'available' or (result->>'count')::int<>1 then
+    raise exception 'Confirmed cellphone should preview one dog: %',result;
+  end if;
   result:=public.claim_my_preregistered_dogs();
   if result->>'status'<>'linked' or (result->>'linked_dogs')::int<>1 then
     raise exception 'Verified phone did not link unique matching dog: %',result;
