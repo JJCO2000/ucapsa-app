@@ -11,6 +11,10 @@ import { resolveUcapsaFormat } from '../constants/ucapsaFormats';
 import { ucapsaBrand, withAlpha } from '../constants/brand';
 import { UCAPSA_ACCOUNT_DELETION_PUBLIC_URL } from '../constants/legal';
 import { phoneVerificationEnabled } from '../constants/phoneVerification';
+import { manualPreregistrationLinkEnabled } from '../constants/preregistrationFeature';
+import { claimMyPreregisteredDogs } from '../services/dog-preregistration.service';
+import { getMyManualPreregistrationStatus, requestManualPreregistrationLink,
+  type ManualLinkStatus } from '../services/preregistration-manual-link.service';
 import { useSession } from '../hooks/useSession';
 import { devWarn } from '../lib/client-diagnostics';
 import { deleteMyAccount, getAccountDeletionStatusLabel, getMyAccountDeletionRequest, isAccountDeletionOpen, type AccountDeletionRequest } from '../services/account-deletion.service';
@@ -28,6 +32,8 @@ export default function AccountSettingsScreen() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [saving, setSaving] = useState(false);
+  const [manualLinkStatus, setManualLinkStatus] = useState<ManualLinkStatus>('none');
+  const [linkBusy, setLinkBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [editing, setEditing] = useState(false);
   const [deletionRequest, setDeletionRequest] = useState<AccountDeletionRequest | null>(null);
@@ -46,6 +52,43 @@ export default function AccountSettingsScreen() {
     setEmail(profile?.email ?? user?.email ?? '');
     setPhone(profile?.phone ?? '');
   }, [profile, user?.email]);
+
+  const loadManualLinkStatus = useCallback(async () => {
+    if (!user || isOfflineFallback || !manualPreregistrationLinkEnabled) return;
+    try { setManualLinkStatus(await getMyManualPreregistrationStatus()); }
+    catch (cause) { devWarn('account-settings: manual linking status not available', cause); }
+  }, [user?.id, isOfflineFallback]);
+
+  useEffect(() => { void loadManualLinkStatus(); }, [loadManualLinkStatus]);
+
+  async function requestLinkReview() {
+    if (linkBusy || !manualPreregistrationLinkEnabled) return;
+    setLinkBusy(true);
+    try {
+      await requestManualPreregistrationLink();
+      await loadManualLinkStatus();
+      Alert.alert('Solicitud recibida',
+        'Administración revisará si existen expedientes tuyos. Tu número aún no está verificado y no se transferirá ningún perro sin comprobar la identidad.');
+    } catch (cause) {
+      Alert.alert('No se pudo solicitar',cause instanceof Error ? cause.message : 'Intenta después.');
+    } finally { setLinkBusy(false); }
+  }
+
+  async function finishApprovedLink() {
+    if (linkBusy) return;
+    setLinkBusy(true);
+    try {
+      const result = await claimMyPreregisteredDogs();
+      await loadManualLinkStatus();
+      await refreshProfile();
+      Alert.alert(result.status === 'linked' ? 'Expediente vinculado' : 'Revisar vinculación',
+        result.status === 'linked'
+          ? `Se vincularon ${result.linkedDogs} perros sin duplicar sus registros.`
+          : 'No fue posible completar automáticamente. Administración puede revisar tu expediente.');
+    } catch (cause) {
+      Alert.alert('Vinculación pendiente',cause instanceof Error ? cause.message : 'Intenta nuevamente.');
+    } finally { setLinkBusy(false); }
+  }
 
   const refreshDeletionRequest = useCallback(async () => {
     if (!user || isStaff) {
@@ -122,6 +165,17 @@ export default function AccountSettingsScreen() {
       await acceptProfile(savedProfile);
       setEditing(false);
 
+      // Un celular guardado no es un celular verificado. Preguntar al usuario
+      // antes de solicitar revisión; nunca transferir perros por coincidencia.
+      const phoneChanged = (phone.trim() || '') !== (profile?.phone ?? '').trim();
+      if (phoneChanged && manualPreregistrationLinkEnabled && phone.trim()) {
+        Alert.alert('¿Tienes una preinscripción anterior?',
+          'Podemos buscar posibles registros con tus datos. ¿Deseas solicitar la vinculación? Administración confirmará tu identidad sin usar SMS.',
+          [
+            { text: 'Ahora no', style: 'cancel' },
+            { text: 'Solicitar vinculación', onPress: () => { void requestLinkReview(); } },
+          ]);
+      }
       if (emailChange?.confirmationRequired) {
         Alert.alert('Confirma tu nuevo correo', `Enviamos la confirmación a ${emailChange.requestedEmail}. El cambio se reflejará al confirmarlo.`);
       } else {
@@ -303,6 +357,44 @@ export default function AccountSettingsScreen() {
           <ReadonlyRow label="Teléfono de contacto" value={profile?.phone || 'Pendiente'} premium={premium} />
           <ReadonlyRow label="Celular verificado en Supabase"
             value={user.phone_confirmed_at && user.phone ? user.phone : 'Sin verificar'} premium={premium} />
+          {manualPreregistrationLinkEnabled ? (
+            <View style={{ marginTop: 12, gap: 8 }}>
+              <Text style={{ color: ucapsaBrand.colors.text, fontWeight: '800' }}>
+                Expedientes registrados antes de crear cuenta
+              </Text>
+              <Text style={{ color: ucapsaBrand.colors.muted, fontSize: 12 }}>
+                {manualLinkStatus === 'approved' ? 'Administración confirmó tu identidad. Puedes vincular ahora tus perros.'
+                  : manualLinkStatus === 'claimed' ? 'La solicitud fue completada.'
+                  : manualLinkStatus === 'pending' ? 'Solicitud pendiente de revisión por Administración.'
+                  : manualLinkStatus === 'rejected' ? 'La solicitud necesita aclaración con Administración.'
+                  : 'Puedes solicitar vinculación sin pagar SMS. Administración comprobará tu identidad.'}
+              </Text>
+              {manualLinkStatus === 'approved' ? (
+                <Pressable accessibilityRole="button" disabled={linkBusy}
+                  style={[styles.smallButton, premium && styles.premiumSmallButton]}
+                  onPress={() => { void finishApprovedLink(); }}>
+                  <Text style={[styles.smallButtonText, premium && styles.premiumSmallButtonText]}>
+                    Completar vinculación autorizada
+                  </Text>
+                </Pressable>
+              ) : null}
+              {manualLinkStatus === 'none' || manualLinkStatus === 'rejected' ? (
+                <Pressable accessibilityRole="button" disabled={linkBusy}
+                  style={[styles.smallButton, premium && styles.premiumSmallButton]}
+                  onPress={() => Alert.alert('Solicitar revisión',
+                    'Tus contactos no están verificados por SMS. UCAPSA revisará tu identidad antes de vincular cualquier expediente.',
+                    [{ text: 'Cancelar', style: 'cancel' },
+                     { text: 'Solicitar', onPress: () => { void requestLinkReview(); } }])}>
+                  <Text style={[styles.smallButtonText, premium && styles.premiumSmallButtonText]}>
+                    ¿Tengo registros anteriores? Solicitar vinculación
+                  </Text>
+                </Pressable>
+              ) : null}
+              <Pressable accessibilityRole="button" onPress={() => { void loadManualLinkStatus(); }}>
+                <Text style={{ color: ucapsaBrand.colors.redDark, fontSize: 12 }}>Actualizar estado</Text>
+              </Pressable>
+            </View>
+          ) : null}
           {phoneVerificationEnabled ? (
             <Pressable accessibilityRole="button"
               accessibilityLabel="Verificar mi celular para vincular la preinscripción"
