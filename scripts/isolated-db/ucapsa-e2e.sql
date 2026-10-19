@@ -534,24 +534,41 @@ begin
     raise exception 'Synthetic dates or attendance records were invented'; end if;
 end
 $historical_counts$;
+-- Extraer IDs como propietario del fixture: la sesión autenticada NO obtiene
+-- SELECT directo a tablas internas para construir parámetros del RPC.
+select set_config('ucapsa.test.history_enrollment',e.id::text,false)
+from public.program_enrollments e
+join public.programs p on p.id=e.program_id
+where e.user_id='00000000-0000-4000-8000-000000000008'
+  and p.code='comandos' and e.program_level='principiante';
+
 set role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
 do $admin_history_decision$
-declare v_id uuid; v_result record; v_original_schedule uuid;
+declare v_id uuid:=current_setting('ucapsa.test.history_enrollment')::uuid; v_result record;
 begin
-  select e.id,e.schedule_id into v_id,v_original_schedule
-  from public.program_enrollments e
-  join public.programs p on p.id=e.program_id
-  where e.user_id='00000000-0000-4000-8000-000000000008'
-    and p.code='comandos' and e.program_level='principiante';
   select * into v_result from public.admin_resolve_training_card_decision(v_id,'next_level',null);
   if v_result.next_enrollment_id is null then
     raise exception 'Admin decision failed to create next level after historical 6'; end if;
+  perform set_config('ucapsa.test.history_next',v_result.next_enrollment_id::text,false);
+end
+$admin_history_decision$;
+reset role;
+
+-- Validación independiente como dueño del fixture, después de ejecutar
+-- la RPC con el rol real authenticated y auth.uid() de Admin.
+do $history_decision_audit$
+declare
+  v_id uuid:=current_setting('ucapsa.test.history_enrollment')::uuid;
+  v_next uuid:=current_setting('ucapsa.test.history_next')::uuid;
+  v_original_schedule uuid;
+begin
+  select schedule_id into v_original_schedule from public.program_enrollments where id=v_id;
   if not exists (select 1 from public.program_enrollments
     where id=v_id and status='completed' and attendances_count=6) then
     raise exception 'Historic enrollment incorrectly closed'; end if;
   if not exists (select 1 from public.program_enrollments
-    where id=v_result.next_enrollment_id and status='active'
+    where id=v_next and status='active'
      and program_level='medio' and schedule_id=v_original_schedule
      and physical_card_number is null) then
     raise exception 'New level lost shared Comandos schedule or requires card reference'; end if;
@@ -559,7 +576,6 @@ begin
     where entity_id=v_id and action='training_card.decision') then
     raise exception 'Training decision lacks audit evidence'; end if;
 end
-$admin_history_decision$;
-reset role;
+$history_decision_audit$;
 
 select 'UCAPSA isolated database E2E: PASS' as result;
