@@ -96,4 +96,19 @@ if (!pkg.includes('"check:member-training-access"')) {
   throw new Error('npm verify does not include member training access guard.');
 }
 
+
+// El número de tarjeta física puede ser desconocido en registros históricos.
+// Nunca inferir inexistencia de la tarjeta ni invalidar una inscripción Puppy.
+const puppyAdmin=fs.readFileSync('src/app/admin/customer-class.tsx','utf8');
+const enrollmentService=fs.readFileSync('src/services/program-enrollments.service.ts','utf8');
+if(!puppyAdmin.includes("physical_card_number?.trim() || 'No registrado'") ||
+   !puppyAdmin.includes('label="Número de tarjeta (si se conoce)"')) {
+  throw new Error('El número físico opcional no debe implicar tarjeta inexistente.');
+}
+if(!enrollmentService.includes('physicalCardNumber?: string | null;') ||
+   !enrollmentService.includes('physical_card_number: input.physicalCardNumber?.trim() || null') ||
+   !enrollmentService.includes("if ('physicalCardNumber' in input) {")) {
+  throw new Error('El servicio debe conservar registros sin número y permitir su edición.');
+}
+
 console.log('UCAPSA member per-dog unlimited training + QR/progression contract: PASS');
