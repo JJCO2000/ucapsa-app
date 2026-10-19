@@ -40,7 +40,7 @@ begin
   end if;
   -- Only a ALREADY LINKED preregistration, owned by a different user, can
   -- generate a request. No person name, dog name, or contact is returned.
-  select count(*),min(p.id) into v_matches,v_person_id
+  select count(*),min(p.id::text)::uuid into v_matches,v_person_id
   from ucapsa_intake.people p
   where p.status='linked' and p.linked_user_id is distinct from v_user
     and ((v_email is not null and p.email_key=v_email)
