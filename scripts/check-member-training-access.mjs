@@ -227,7 +227,7 @@ for (const [rule,ok] of [
   ['Preview revocado a anon',privatePreviewSql.includes('from public,anon')],
   ['No devuelve nombres',!privatePreviewSql.includes('owner_name')],
   ['Session no hace segundo claim silencioso',preregistrationSession.includes('claimMyFirstPreregisteredDogs()') && preregistrationSession.includes('async function confirmPreregistrationLink()')],
-  ['Session usa preview',preregistrationSession.includes('const result = await previewMyPreregisteredDogs()')],
+  ['Session usa preview',preregistrationSession.includes('const result = await previewMyPreregisteredDogs();')],
   ['El usuario acepta explícitamente',consentModal.includes('Sí, vincular expedientes')],
   ['El usuario puede rechazar',consentModal.includes('Ahora no')],
   ['Ventana universal',rootLayout.includes('<PreregistrationLinkPrompt />')],
