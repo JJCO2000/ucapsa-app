@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.108.2';
+import { isSaturdayForSundayMenu } from '../_shared/restaurant-sunday-reminder.ts';
 
 type ReminderRequest = {
   target_date?: string;
@@ -270,9 +271,9 @@ Deno.serve(async (req) => {
 
   // El cron existente envía mañana. Solo los sábados incorporamos el menú
   // dominical al MISMO push; no se crea una segunda campaña ni otro lock.
-  const menuCandidate = reminderType === 'class_24h' && daysAhead === 1
-    && mexicoToday.getUTCDay() === 6
-    && classDateKey === dateKeyFromDate(addDays(mexicoToday, 1));
+  const menuCandidate = isSaturdayForSundayMenu(
+    mexicoDateKey(), classDateKey, reminderType, daysAhead,
+  );
   let sundayMenuPublished = false;
   if (menuCandidate) {
     const publication = await serviceClient.rpc('is_restaurant_menu_published');
