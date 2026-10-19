@@ -5740,6 +5740,10 @@ export type Database = {
         Args: { p_attempt_id: string }
         Returns: string
       }
+      can_request_my_phone_verification: {
+        Args: { p_phone: string }
+        Returns: boolean
+      }
       can_ucapsa_staff_access_dog: {
         Args: { p_dog_id: string }
         Returns: boolean
