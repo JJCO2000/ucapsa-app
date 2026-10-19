@@ -34,7 +34,7 @@ export default function VerifyPhoneScreen() {
     try {
       setBusy(true);
       await confirmVerifiedPhoneCode(pendingPhone, token, user.id);
-      Alert.alert('Celular confirmado', 'Supabase verificó el número. Tu expediente se vinculará si corresponde a una única persona.');
+      Alert.alert('Celular confirmado', 'Supabase verificó el número. Si hay expedientes coincidentes, UCAPSA te preguntará si deseas vincularlos.');
       router.replace('/account-settings?section=profile' as never);
     } catch (e) {
       Alert.alert('No se pudo confirmar', e instanceof Error ? e.message : 'Comprueba el código.');
