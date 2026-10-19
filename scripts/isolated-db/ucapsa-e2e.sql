@@ -454,4 +454,43 @@ end
 $puppy_admin_authorized$;
 reset role;
 
+-- El rol operativo Entrenador no borra ni bloquea su expediente canónico.
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
+select public.admin_preregister_dog_with_program(
+ 'Staff Owner','staffowner@test.invalid','','Staff Dog','comandos','principiante',
+ '',null,0,array[]::date[],'synthetic staff owner');
+reset role;
+insert into auth.users(id,email,email_confirmed_at)
+values('00000000-0000-4000-8000-000000000007','staffowner@test.invalid',now());
+insert into public.profiles(user_id,email,role)
+values('00000000-0000-4000-8000-000000000007','staffowner@test.invalid','trainer');
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000007',false);
+do $staff_role_claim$
+declare v_result jsonb;
+begin
+ v_result := public.claim_my_preregistered_dogs();
+ if v_result->>'status'<>'linked' then
+   raise exception 'Verified Trainer could not claim own approved dog: %',v_result;
+ end if;
+end
+$staff_role_claim$;
+reset role;
+do $staff_role_retained$
+begin
+ if not exists (select 1 from public.profiles
+   where user_id='00000000-0000-4000-8000-000000000007' and role='trainer') then
+   raise exception 'Preregistration claim altered the Staff operational role';
+ end if;
+ if not exists (select 1 from public.program_enrollments e
+  join public.programs p on p.id=e.program_id
+  where e.user_id='00000000-0000-4000-8000-000000000007'
+    and p.code='comandos' and e.physical_card_number is null
+    and e.card_started_on is not null) then
+   raise exception 'Verified Trainer lost authorized Comandos enrollment';
+ end if;
+end
+$staff_role_retained$;
+
 select 'UCAPSA isolated database E2E: PASS' as result;
