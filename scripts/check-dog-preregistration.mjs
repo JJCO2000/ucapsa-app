@@ -126,6 +126,11 @@ assert.ok(list.includes("'/admin/preregister-dog'"));
 assert.ok(service.includes("supabase.rpc('admin_preregister_dog_with_program'"));
 assert.ok(service.includes("supabase.rpc('claim_my_preregistered_dogs'"));
 assert.ok(session.includes('claimMyPreregisteredDogs()'));
+assert.ok(session.includes('claimedPreregistrationKeyRef.current === claimKey'));
+assert.ok(session.includes('session?.user.email_confirmed_at'));
+assert.ok(session.includes('session?.user.phone_confirmed_at'));
+assert.ok(!session.includes("profile.role !== 'client' && profile.role !== 'member'"),
+  'La vinculación no debe excluir Staff con contacto Auth verificado.');
 assert.ok(session.includes('setPreregistrationSyncVersion((version) => version + 1)'));
 assert.ok(home.includes('[load, preregistrationSyncVersion]'));
 assert.ok(home.includes('[isStaff, user, preregistrationSyncVersion]'));
