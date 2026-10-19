@@ -438,6 +438,9 @@ export function SessionProvider({ children }: SessionProviderProps) {
           }
           return;
         }
+        if (claimed.status === 'conflict') {
+          await requestMyPreregistrationLinkReview();
+        }
         if (claimed.status !== 'requires_approval') {
           setPreregistrationLinkOffer(null);
           return;
@@ -506,6 +509,10 @@ export function SessionProvider({ children }: SessionProviderProps) {
         setPreregistrationLinkOffer(null);
         setPreregistrationSyncVersion((value) => value + 1);
         return 'linked';
+      }
+      if (claimed.status === 'conflict') {
+        const requestStatus = await requestMyPreregistrationLinkReview();
+        return requestStatus === 'requested' ? 'requested' : 'conflict';
       }
       if (claimed.status !== 'requires_approval') return claimed.status;
     }
