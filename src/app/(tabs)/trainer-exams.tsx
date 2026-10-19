@@ -366,6 +366,14 @@ export default function TrainerExamsTab() {
           <MaterialIcons name="note-add" size={18} color={ucapsaBrand.colors.surface} />
           <Text style={styles.newExamButtonText}>Nuevo examen</Text>
         </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          style={styles.examReportLink}
+          onPress={() => router.push('/staff/exam-report' as never)}
+        >
+          <MaterialIcons name="table-view" size={16} color={ucapsaBrand.colors.blueDark} />
+          <Text style={styles.examReportLinkText}>Reporte Excel</Text>
+        </Pressable>
       </View>
 
       <View style={styles.catalogTabs} accessibilityRole="tablist">
@@ -630,6 +638,8 @@ export default function TrainerExamsTab() {
 }
 
 const styles = StyleSheet.create({
+  examReportLink: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 34, marginTop: 5 },
+  examReportLinkText: { color: ucapsaBrand.colors.blueDark, fontSize: 11, fontWeight: '800' },
   header: { marginBottom: 14 },
   kicker: { color: ucapsaBrand.colors.redDark, fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.7 },
   title: { color: ucapsaBrand.colors.text, fontSize: 28, fontWeight: '900' },
