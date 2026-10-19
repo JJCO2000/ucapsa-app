@@ -31,3 +31,10 @@ const directoryDisabledExplicitly =
 export const preregistrationDirectoryEnabled =
   preregistrationEnabled && !directoryDisabledExplicitly &&
   (directoryEnabledExplicitly || isProductionUcapsa);
+
+// El SMS puede generar cargos de terceros. Permanece DESHABILITADO salvo
+// activación explícita tras contratar/configurar proveedor, CAPTCHA y límites.
+// Nunca habilitar por la URL de producción por sí sola.
+export const phoneOtpEnabled =
+  preregistrationEnabled &&
+  process.env.EXPO_PUBLIC_UCAPSA_PHONE_OTP_ENABLED === 'true';
