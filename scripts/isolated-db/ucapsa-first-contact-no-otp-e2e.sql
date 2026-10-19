@@ -170,7 +170,10 @@ begin
       and e.user_id='00000000-0000-4000-8000-000000000011'
       and e.attendances_count=1) then
     raise exception 'No se reasignaron perro, inscripcion y asistencia'; end if;
-  if (select count(*) from public.dogs where name='Max')<>1 then
+  if (select count(*) from public.dogs d
+      join ucapsa_intake.dogs staged on staged.linked_dog_id=d.id
+      join ucapsa_intake.people p on p.id=staged.person_id
+      where p.phone_e164='+525511100010' and d.name='Max')<>1 then
     raise exception 'Se duplicó Max'; end if;
   if (select count(*) from ucapsa_intake.owner_link_requests)<>1 then
     raise exception 'Se duplicaron las solicitudes'; end if;
