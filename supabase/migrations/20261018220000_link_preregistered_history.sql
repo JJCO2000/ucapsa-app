@@ -305,9 +305,10 @@ begin
     returning id into v_dog_id;
     update ucapsa_intake.dogs set linked_dog_id=v_dog_id where id=v_dog.id;
 
-    -- Conserva la fecha histórica conocida o, si no existe, utiliza la fecha
-    -- verificable de autorización de Admin como inicio operativo del acceso.
-    -- No inventa fecha de asistencia ni registro financiero.
+    -- La fecha histórica de la tarjeta física permanece en ucapsa_intake.programs.
+    -- La inscripción oficial empieza cuando Admin la autorizó, sin inventar
+    -- la fecha física ni alterar el histórico de asistencias o generar pagos.
+    -- La columna card_started_on es un campo legado de vigencia operativa.
     for v_stage in
       select st.* from ucapsa_intake.programs st
       where st.dog_id=v_dog.id
@@ -331,8 +332,7 @@ begin
       ) values (
         v_user,v_stage.program_id,v_stage.schedule_id,v_dog_id,v_dog.dog_name,
         v_stage.physical_card_number,v_stage.program_level,'card','active',
-        coalesce(v_stage.card_started_on,v_stage.authorized_on),
-        coalesce(v_stage.card_started_on,v_stage.authorized_on),v_stage.id
+        v_stage.authorized_on,v_stage.authorized_on,v_stage.id
       ) returning id into v_enrollment_id;
 
       update ucapsa_intake.programs
