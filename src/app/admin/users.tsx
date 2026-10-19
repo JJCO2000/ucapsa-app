@@ -8,14 +8,16 @@ import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import { getAdminProfiles, setStaffRoleSuperAdmin } from '../../services/profiles.service';
+import { getAdminActiveMembershipUserIds } from '../../services/memberships-admin.service';
+import { directoryStatusLabel, getDirectoryCounts, matchesDirectoryFilter } from '../../services/admin-directory-classification.domain';
 import type { AppRole, Profile } from '../../types/app.types';
 
 type UserFilter = 'clients_and_members' | 'clients' | 'members' | 'admins';
 
 const filterOptions: Array<{ value: UserFilter; label: string; helper: string }> = [
-  { value: 'clients_and_members', label: 'Todos', helper: 'Clientes y socios' },
-  { value: 'clients', label: 'Clientes', helper: 'Sin rol de socio' },
-  { value: 'members', label: 'Socios', helper: 'Con membresía' },
+  { value: 'clients_and_members', label: 'Todos', helper: 'Todas las personas registradas' },
+  { value: 'clients', label: 'Clientes', helper: 'Sin membresía activa ni rol de staff' },
+  { value: 'members', label: 'Socios', helper: 'Membresía activa, incluso si son staff' },
   { value: 'admins', label: 'Staff', helper: 'Entrenadores y administración' },
 ];
 
@@ -25,13 +27,6 @@ function getRoleLabel(role: AppRole) {
   if (role === 'trainer') return 'Entrenador';
   if (role === 'member') return 'Socio';
   return 'Cliente';
-}
-
-function matchesFilter(profile: Profile, filter: UserFilter) {
-  if (filter === 'clients_and_members') return profile.role === 'client' || profile.role === 'member';
-  if (filter === 'clients') return profile.role === 'client';
-  if (filter === 'members') return profile.role === 'member';
-  return profile.role === 'trainer' || profile.role === 'admin' || profile.role === 'super_admin';
 }
 
 function getFilterLabel(filter: UserFilter) {
@@ -52,6 +47,7 @@ export default function AdminUsersScreen() {
   const adminsOnly = params.filter === 'admins';
 
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [activeMemberIds, setActiveMemberIds] = useState<ReadonlySet<string>>(new Set());
   const [filter, setFilter] = useState<UserFilter>(adminsOnly ? 'admins' : 'clients_and_members');
   const [loading, setLoading] = useState(true);
   const [selectedAdmin, setSelectedAdmin] = useState<Profile | null>(null);
@@ -69,9 +65,12 @@ export default function AdminUsersScreen() {
   useEffect(() => {
     let active = true;
     setLoading(true);
-    void getAdminProfiles()
-      .then((rows) => {
-        if (active) setProfiles(rows);
+    void Promise.all([getAdminProfiles(), getAdminActiveMembershipUserIds()])
+      .then(([rows, memberUserIds]) => {
+        if (active) {
+          setProfiles(rows);
+          setActiveMemberIds(new Set(memberUserIds));
+        }
       })
       .catch((error) => {
         if (active) {
@@ -112,18 +111,11 @@ export default function AdminUsersScreen() {
   }, [params.userId, profiles]);
 
   const filteredProfiles = useMemo(
-    () => profiles.filter((profile) => matchesFilter(profile, filter)),
-    [profiles, filter],
+    () => profiles.filter((profile) => matchesDirectoryFilter(profile, filter, activeMemberIds)),
+    [profiles, filter, activeMemberIds],
   );
 
-  const counts = useMemo(() => ({
-    clientsAndMembers: profiles.filter((profile) => isCustomer(profile)).length,
-    clients: profiles.filter((profile) => profile.role === 'client').length,
-    members: profiles.filter((profile) => profile.role === 'member').length,
-    admins: profiles.filter(
-      (profile) => profile.role === 'trainer' || profile.role === 'admin' || profile.role === 'super_admin',
-    ).length,
-  }), [profiles]);
+  const counts = useMemo(() => getDirectoryCounts(profiles, activeMemberIds), [profiles, activeMemberIds]);
 
   function openProfile(profile: Profile) {
     if (isCustomer(profile)) {
@@ -136,8 +128,11 @@ export default function AdminUsersScreen() {
   async function changeStaffRole(profile: Profile, nextRole: Extract<AppRole, 'client' | 'trainer' | 'admin'>) {
     try {
       await setStaffRoleSuperAdmin(profile.user_id, nextRole);
-      const nextProfiles = await getAdminProfiles();
+      const [nextProfiles, memberUserIds] = await Promise.all([
+        getAdminProfiles(), getAdminActiveMembershipUserIds(),
+      ]);
       setProfiles(nextProfiles);
+      setActiveMemberIds(new Set(memberUserIds));
       setSelectedAdmin(nextProfiles.find((item) => item.user_id === profile.user_id) ?? null);
     } catch (cause) {
       Alert.alert('No se pudo cambiar el rol', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
@@ -168,10 +163,10 @@ export default function AdminUsersScreen() {
       {!adminsOnly ? (
         <>
           <View style={styles.summaryGrid}>
-            <Summary label="Todos" value={counts.clientsAndMembers} />
+            <Summary label="Todos" value={counts.total} />
             <Summary label="Clientes" value={counts.clients} />
             <Summary label="Socios" value={counts.members} />
-            <Summary label="Staff" value={counts.admins} />
+            <Summary label="Staff" value={counts.staff} />
           </View>
 
           <View style={styles.filterGrid}>
@@ -225,7 +220,7 @@ export default function AdminUsersScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.userName}>{item.full_name || 'Sin nombre'}</Text>
               <Text style={styles.userEmail}>{item.email || 'Sin correo'}</Text>
-              <Text style={styles.userRole}>{getRoleLabel(item.role)}</Text>
+              <Text style={styles.userRole}>{directoryStatusLabel(item, activeMemberIds)}</Text>
             </View>
             {role === 'super_admin' && item.role !== 'super_admin' ? (
               <Pressable
