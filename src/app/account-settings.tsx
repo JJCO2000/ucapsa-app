@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Linking, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { NotificationSettingsCard } from '../components/domain/NotificationSettingsCard';
+import { PhoneVerificationCard } from '../components/domain/PhoneVerificationCard';
 import { KeyboardAwareModal } from '../components/ui/KeyboardAwareModal';
 import { KeyboardAwareScreen } from '../components/ui/KeyboardAwareScreen';
 import { OfflineDataNotice } from '../components/ui/OfflineDataNotice';
@@ -299,7 +300,8 @@ export default function AccountSettingsScreen() {
           </View>
           <ReadonlyRow label="Nombre" value={profile?.full_name || 'Pendiente'} premium={premium} />
           <ReadonlyRow label="Correo" value={profile?.email || user.email || 'Pendiente'} premium={premium} />
-          <ReadonlyRow label="Teléfono" value={profile?.phone || 'Pendiente'} premium={premium} />
+          <ReadonlyRow label="Teléfono de contacto" value={profile?.phone || 'Pendiente'} premium={premium} />
+          <PhoneVerificationCard user={user} />
         </View>
       ) : null}
 
