@@ -63,6 +63,34 @@ export async function adminPreregisterDogWithProgram(input: PreregisteredProgram
   return data;
 }
 
+export type DogClaimPreview = {
+  status: 'available' | 'none' | 'unverified' | 'not_applicable' | 'conflict';
+  count: number;
+};
+
+/**
+ * Look up ONLY preregistrations matching the current user's already
+ * confirmed Auth contact. Never pass arbitrary email/phone to this RPC.
+ * The server returns a count, not dog names or third-party contact data.
+ */
+export async function previewMyPreregisteredDogs(): Promise<DogClaimPreview> {
+  if (!preregistrationEnabled) throw new Error('La preinscripción no está habilitada.');
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
+    name: 'preview_my_preregistered_dogs',
+  ) => PromiseLike<RpcOutcome>;
+  const { data, error } = await rpc('preview_my_preregistered_dogs');
+  if (error) throw new Error(error.message);
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new Error('No se pudo consultar la preinscripción.');
+  }
+  const row = data as Record<string, unknown>;
+  if (!['available','none','unverified','not_applicable','conflict'].includes(String(row.status))
+    || !Number.isSafeInteger(row.count) || Number(row.count) < 0) {
+    throw new Error('La respuesta del servidor no es válida.');
+  }
+  return { status: row.status as DogClaimPreview['status'], count: Number(row.count) };
+}
+
 export type DogClaimResult = {
   status: 'linked' | 'none' | 'unverified' | 'not_applicable' | 'conflict';
   linkedDogs: number;
