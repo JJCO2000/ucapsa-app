@@ -266,6 +266,9 @@ from ucapsa_intake.dogs d, ucapsa_intake.people person,
   public.program_schedules s
 where st.dog_id=d.id and d.person_id=person.id and person.email_key='staged@test.invalid'
   and d.dog_name='Bongo' and s.name='TEST TODAY';
+-- Comandos conserva su ÚNICO horario; cambiar solo su día en fixture aislado.
+update public.program_schedules s set day_of_week=extract(dow from (now() at time zone 'America/Mexico_City'))::int
+where s.program_id=(select p.id from public.programs p where p.code='comandos');
 
 set role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000005',false);
@@ -275,6 +278,12 @@ begin
   select intake_program_id into v_id from public.get_staff_preregistered_class_roster(v_date)
   where dog_name='Bongo' and card_status='valid';
   if v_id is null then raise exception 'Trainer cannot see pre-Auth dog with valid card'; end if;
+  perform public.staff_register_preregistered_attendance(v_id,v_date);
+  perform public.staff_register_preregistered_attendance(v_id,v_date);
+  -- La inscripción Comandos autorizada por Admin no tiene número de tarjeta.
+  select intake_program_id into v_id from public.get_staff_preregistered_class_roster(v_date)
+  where dog_name='Thor' and program_code='comandos' and card_status='valid';
+  if v_id is null then raise exception 'Comandos autorizado por Admin no aparece en roster'; end if;
   perform public.staff_register_preregistered_attendance(v_id,v_date);
   perform public.staff_register_preregistered_attendance(v_id,v_date);
 end
@@ -295,7 +304,18 @@ begin
  end if;
 end
 $trainer_count$;
--- Trainer must not be permitted to create a fresh dog or edit paid card.
+do $comandos_no_reference$
+begin
+  if not exists (
+    select 1 from ucapsa_intake.attendance_evidence h
+    join ucapsa_intake.programs st on st.id=h.intake_program_id
+    join ucapsa_intake.dogs d on d.id=st.dog_id
+    where d.dog_name='Thor' and st.physical_card_number is null
+      and h.evidence_source='staff_roster'
+  ) then raise exception 'Comandos without physical number did not register attendance'; end if;
+end
+$comandos_no_reference$;
+-- Trainer must not be permitted to create a fresh dog or edit historical data.
 set role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000005',false);
 do $trainer_denied$
