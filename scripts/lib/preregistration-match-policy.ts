@@ -52,7 +52,11 @@ export function decidePreregistrationLink(
   if (emailMatches.length > 1) {
     return { action: 'blocked', reason: 'ambiguous' };
   }
-  if (emailMatches.length === 0) return { action: 'no-match' };
+  if (emailMatches.length === 0) {
+    return phoneMatches.length > 0
+      ? { action: 'blocked', reason: 'conflicting-contacts' }
+      : { action: 'no-match' };
+  }
   const candidate = emailMatches[0];
   if (phoneMatches.length > 1) return { action: 'blocked', reason: 'ambiguous' };
   if (phoneMatches.length === 1 && phoneMatches[0]?.id !== candidate.id) {
