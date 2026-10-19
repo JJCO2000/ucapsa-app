@@ -7,7 +7,12 @@ import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { preregistrationEnabled } from '../../constants/preregistrationFeature';
 import { useSession } from '../../hooks/useSession';
-import { adminPreregisterDogWithProgram } from '../../services/dog-preregistration.service';
+import {
+  adminPreregisterDogWithProgram,
+  adminPreviewPreregistrationOwnerLink,
+  adminApprovePreregistrationOwnerLink,
+  type ManualLinkPreview,
+} from '../../services/dog-preregistration.service';
 
 export default function AdminPreregisterDogScreen() {
   const { isAdmin } = useSession();
@@ -24,6 +29,59 @@ export default function AdminPreregisterDogScreen() {
   const [datesText, setDatesText] = useState('');
   const [sourceNote, setSourceNote] = useState('');
   const [saving, setSaving] = useState(false);
+  const [linkContact, setLinkContact] = useState('');
+  const [linkAccountEmail, setLinkAccountEmail] = useState('');
+  const [linkReason, setLinkReason] = useState('');
+  const [linkPreview, setLinkPreview] = useState<ManualLinkPreview | null>(null);
+  const [linkBusy, setLinkBusy] = useState(false);
+
+  async function previewManualLink() {
+    if (linkBusy) return;
+    setLinkPreview(null);
+    try {
+      setLinkBusy(true);
+      const found = await adminPreviewPreregistrationOwnerLink(linkContact, linkAccountEmail);
+      if (found.status !== 'available') {
+        Alert.alert('No se encontró una vinculación única',
+          found.status === 'account_not_found' ? 'No hay una cuenta registrada con ese correo.' :
+          found.status === 'conflict' ? 'Hay coincidencias ambiguas: revisa los datos con la persona.' :
+          'No existe una preinscripción pendiente para ese contacto.');
+        return;
+      }
+      setLinkPreview(found);
+    } catch (error) {
+      Alert.alert('No se pudo revisar', error instanceof Error ? error.message : 'Inténtalo de nuevo.');
+    } finally {
+      setLinkBusy(false);
+    }
+  }
+
+  function confirmManualLink() {
+    const selected = linkPreview;
+    if (!selected?.personId || !selected.userId || linkBusy) return;
+    if (linkReason.trim().length < 12) {
+      Alert.alert('Falta evidencia', 'Describe cómo comprobaste la identidad del tutor (mínimo 12 caracteres).');
+      return;
+    }
+    Alert.alert('Confirmar vinculación asistida',
+      `¿Comprobaste que ${selected.ownerName} es el titular de la cuenta ${selected.accountName || selected.accountEmail}?\n\nSe autorizará ${selected.dogCount} perro(s). El cliente todavía deberá aceptar desde su perfil.`,
+      [{ text: 'Cancelar', style: 'cancel' }, { text: 'Sí, autorizar', onPress: () => {
+        void (async () => {
+          try {
+            setLinkBusy(true);
+            await adminApprovePreregistrationOwnerLink(selected.personId!, selected.userId!, linkReason);
+            setLinkPreview(null);
+            setLinkReason('');
+            Alert.alert('Autorización guardada',
+              'Indica al titular que abra Mi perfil → Ajustes → Buscar mis preinscripciones y pulse «Sí, vincular expedientes». No necesita verificar correo ni SMS.');
+          } catch (error) {
+            Alert.alert('No se pudo autorizar', error instanceof Error ? error.message : 'Revisa el expediente.');
+          } finally {
+            setLinkBusy(false);
+          }
+        })();
+      }}]);
+  }
 
   async function save() {
     if (saving) return;
@@ -63,7 +121,7 @@ export default function AdminPreregisterDogScreen() {
         totalAttendances: count, knownAttendanceDates: dates, sourceNote,
       });
       Alert.alert('Perro preinscrito',
-        'El expediente se vinculará cuando el tutor confirme su celular en Supabase Auth, o su correo si es el contacto disponible, siempre que no haya conflictos.',
+        'El titular podrá vincular con un contacto verificado o mediante autorización de Administración sin SMS ni verificación de correo.',
         [{ text: 'Listo', onPress: () => router.back() }]);
     } catch (cause) {
       Alert.alert('No se pudo preinscribir',
@@ -89,8 +147,9 @@ export default function AdminPreregisterDogScreen() {
       <Text style={styles.eyebrow}>Administración</Text>
       <Text style={styles.heading}>Preinscribir perro</Text>
       <Text style={styles.description}>
-        Registra al perro sin crear una cuenta ficticia. El tutor podrá reclamar su expediente al
-        verificar su celular o correo en UCAPSA. La verificación evita vincularlo con otra cuenta.
+        Registra al perro sin crear una cuenta ficticia. El tutor podrá reclamar su expediente
+        con un contacto confirmado o después de que Administración compruebe la identidad
+        y autorice la cuenta correspondiente.
       </Text>
 
       <View style={styles.card}>
@@ -109,7 +168,7 @@ export default function AdminPreregisterDogScreen() {
         <TextInput style={styles.input} value={ownerPhone} onChangeText={setOwnerPhone}
           keyboardType="phone-pad" maxLength={16} placeholder="+525512345678"
           placeholderTextColor={ucapsaBrand.colors.muted} />
-        <Text style={styles.helper}>Usa formato internacional: +52 y los 10 dígitos de México. El celular es el contacto prioritario. El correo es una alternativa; para vincular automáticamente debe verificarse al menos uno en Supabase Auth.</Text>
+        <Text style={styles.helper}>Usa formato internacional: +52 y los 10 dígitos de México. El celular es el contacto prioritario. El correo es opcional. Sin contactos verificados, Administración puede autorizar una vinculación asistida a la cuenta real del tutor.</Text>
 
         <Text style={styles.label}>Nombre del perro</Text>
         <TextInput style={styles.input} value={dogName} onChangeText={setDogName}
@@ -184,8 +243,50 @@ export default function AdminPreregisterDogScreen() {
           <MaterialIcons name="pets" size={20} color={ucapsaBrand.colors.surface} />}
         <Text style={styles.saveText}>{saving ? 'Guardando…' : 'Guardar preinscripción'}</Text>
       </Pressable>
+      <View style={styles.card}>
+        <Text style={styles.heading}>Vinculación asistida</Text>
+        <Text style={styles.description}>
+          Sin SMS ni verificación de correo. Primero comprueba presencialmente la identidad del tutor.
+          Este proceso no permite reclamar expedientes por escribir un teléfono ajeno.
+        </Text>
+        <Text style={styles.label}>Teléfono o correo de la preinscripción</Text>
+        <TextInput style={styles.input} value={linkContact}
+          onChangeText={(value) => { setLinkContact(value); setLinkPreview(null); }}
+          autoCapitalize="none" autoCorrect={false} maxLength={254}
+          placeholder="+525512345678 o correo preinscrito"
+          placeholderTextColor={ucapsaBrand.colors.muted} />
+        <Text style={styles.label}>Correo de acceso de la cuenta existente</Text>
+        <TextInput style={styles.input} value={linkAccountEmail}
+          onChangeText={(value) => { setLinkAccountEmail(value); setLinkPreview(null); }}
+          autoCapitalize="none" keyboardType="email-address" autoCorrect={false}
+          maxLength={254} placeholder="cuenta@ejemplo.com"
+          placeholderTextColor={ucapsaBrand.colors.muted} />
+        <Pressable style={[styles.saveButton, { marginTop: 14 }, linkBusy && styles.disabled]}
+          accessibilityRole="button" disabled={linkBusy}
+          onPress={() => void previewManualLink()}>
+          <Text style={styles.saveText}>{linkBusy ? 'Revisando…' : 'Revisar cuentas y expedientes'}</Text>
+        </Pressable>
+        {linkPreview?.status === 'available' ? (
+          <View>
+            <Text style={styles.label}>Titular preinscrito: {linkPreview.ownerName}</Text>
+            <Text style={styles.label}>Cuenta: {linkPreview.accountName || 'Sin nombre'} ({linkPreview.accountEmail})</Text>
+            <Text style={styles.helper}>Perros pendientes: {linkPreview.dogCount}. Confirma estos datos con la persona antes de autorizar.</Text>
+            <Text style={styles.label}>¿Cómo comprobaste la identidad?</Text>
+            <TextInput style={[styles.input,styles.multiline]} multiline
+              value={linkReason} onChangeText={setLinkReason} maxLength={400}
+              placeholder="Ej. Tutor presente con su tarjeta física y expediente"
+              placeholderTextColor={ucapsaBrand.colors.muted} />
+            <Pressable style={[styles.saveButton, { marginTop: 14 }, linkBusy && styles.disabled]}
+              accessibilityRole="button" disabled={linkBusy}
+              onPress={confirmManualLink}>
+              <Text style={styles.saveText}>Autorizar vinculación a esta cuenta</Text>
+            </Pressable>
+          </View>
+        ) : null}
+      </View>
       <Text style={styles.footer}>
-        Guarda preinscripción y evidencia histórica. Las inscripciones definitivas se vinculan tras verificar la cuenta; no se generan pagos ficticios.
+        La autorización administrativa conserva Puppy, Comandos y las asistencias históricas.
+        La vinculación definitiva requiere aceptación del titular; nunca genera pagos ficticios.
       </Text>
     </KeyboardAwareScreen>
   );

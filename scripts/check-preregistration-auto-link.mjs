@@ -87,3 +87,27 @@ for (const [label,passed] of [
 }
 
 console.log('UCAPSA auto-link policy: verified phone-first, email fallback; zero DB writes');
+
+
+// Admin-approved alternative: no OTP/SMS and no editable profile field
+// confers ownership. A server-side Admin authorizes ONE specific Auth user.
+const manualSql = fs.readFileSync(
+  'supabase/migrations/20261019233000_admin_approved_preregistration_owner_link.sql','utf8');
+const manualService = fs.readFileSync('src/services/dog-preregistration.service.ts','utf8');
+for (const [label,ok] of [
+  ['approvals private and RLS protected',manualSql.includes('owner_link_approvals enable row level security')],
+  ['only Admin may approve',manualSql.includes("auth.uid() is null or not public.is_ucapsa_admin()")],
+  ['approval is account-scoped',manualSql.includes('where a.user_id=v_user and a.consumed_at is null')],
+  ['unverified never automatically linked',manualSql.includes('and not v_manual then')],
+  ['explicit consent remains',sessionHook.includes('async function confirmPreregistrationLink()')],
+  ['manual entry in profile',settings.includes('preregistrationEnabled && !isOfflineFallback ? (')],
+  ['Admin confirms person and account',adminUi.includes('Confirmar vinculación asistida')],
+  ['admin preview typed service',manualService.includes('adminPreviewPreregistrationOwnerLink')],
+  ['admin approval typed service',manualService.includes('adminApprovePreregistrationOwnerLink')],
+  ['audit traces approval',manualSql.includes('dog_preregistration.manual_approval')],
+  ['preserve pre-existing verified contact route',manualSql.includes("else 'verified_contact' end")],
+  ['manual SQL integration test exists',fs.existsSync('scripts/isolated-db/ucapsa-admin-approved-link-e2e.sql')],
+]) {
+ if (!ok) throw new Error('Manual owner-link regression: '+label);
+}
+console.log('UCAPSA admin-approved no-OTP link policy: Admin verifies offline, user consents.');

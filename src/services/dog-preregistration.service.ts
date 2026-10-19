@@ -113,3 +113,64 @@ export async function claimMyPreregisteredDogs(): Promise<DogClaimResult> {
       ? row.linked_dogs : 0,
   };
 }
+
+
+export type ManualLinkPreview = {
+  status: 'available' | 'none' | 'conflict' | 'account_not_found';
+  personId?: string;
+  userId?: string;
+  ownerName?: string;
+  accountName?: string;
+  accountEmail?: string;
+  dogCount?: number;
+};
+
+/** Admin must verify the real-world identity before authorizing the account.
+ * The entered email is solely an account locator, never ownership evidence.
+ */
+export async function adminPreviewPreregistrationOwnerLink(
+  ownerContact: string, accountEmail: string,
+): Promise<ManualLinkPreview> {
+  if (!preregistrationEnabled) throw new Error('La preinscripción está deshabilitada.');
+  const rpc = supabase.rpc.bind(supabase) as unknown as
+    (name: string, args: Record<string, unknown>) => PromiseLike<RpcOutcome>;
+  const { data, error } = await rpc('admin_preview_preregistration_owner_link', {
+    p_owner_contact: ownerContact.trim(),
+    p_account_email: accountEmail.trim().toLowerCase(),
+  });
+  if (error) throw new Error(error.message);
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new Error('Supabase devolvió una respuesta de revisión inválida.');
+  }
+  const raw = data as Record<string, unknown>;
+  if (!['available','none','conflict','account_not_found'].includes(String(raw.status))) {
+    throw new Error('Estado inesperado en la revisión administrativa.');
+  }
+  if (raw.status !== 'available') return { status: raw.status as ManualLinkPreview['status'] };
+  for (const key of ['person_id','user_id','owner_name','account_email']) {
+    if (typeof raw[key] !== 'string' || !raw[key]) throw new Error('Datos incompletos en la revisión.');
+  }
+  if (!Number.isSafeInteger(raw.dog_count) || Number(raw.dog_count) < 1) {
+    throw new Error('Cantidad de perros inválida.');
+  }
+  return {
+    status: 'available',
+    personId: String(raw.person_id), userId: String(raw.user_id),
+    ownerName: String(raw.owner_name), accountName: String(raw.account_name ?? ''),
+    accountEmail: String(raw.account_email), dogCount: Number(raw.dog_count),
+  };
+}
+
+export async function adminApprovePreregistrationOwnerLink(
+  personId: string, userId: string, reason: string,
+): Promise<void> {
+  const rpc = supabase.rpc.bind(supabase) as unknown as
+    (name: string, args: Record<string, unknown>) => PromiseLike<RpcOutcome>;
+  const { data, error } = await rpc('admin_approve_preregistration_owner_link', {
+    p_person_id: personId, p_user_id: userId, p_reason: reason.trim(),
+  });
+  if (error) throw new Error(error.message);
+  if (!data || typeof data !== 'object' || (data as Record<string,unknown>).status !== 'approved') {
+    throw new Error('No se confirmó la autorización.');
+  }
+}

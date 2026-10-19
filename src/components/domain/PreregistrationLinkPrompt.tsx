@@ -6,7 +6,7 @@ import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 
 /**
- * Only appears after the server has matched an authenticated VERIFIED contact.
+ * Appears only after a verified contact match OR a specific Admin approval.
  * No tutor, dog or phone details are leaked before user consent.
  */
 export function PreregistrationLinkPrompt() {
@@ -40,7 +40,8 @@ export function PreregistrationLinkPrompt() {
           </View>
           <Text style={styles.body}>
             UCAPSA encontró {count === 1 ? 'un perro' : `${count ?? 0} perros`}
-            {' '}preinscrito{count === 1 ? '' : 's'} con un contacto verificado de tu cuenta.
+            {' '}preinscrito{count === 1 ? '' : 's'} autorizado{count === 1 ? '' : 's'}
+            para esta cuenta por Administración o por un contacto verificado.
             ¿Deseas vincular {count === 1 ? 'su expediente' : 'sus expedientes'} a esta cuenta?
           </Text>
           <Text style={styles.note}>
