@@ -14,6 +14,7 @@ on:
       - 'supabase/migrations/20261019220000_private_preregistration_link_preview.sql'
       - 'supabase/migrations/20261019233000_admin_approved_preregistration_owner_link.sql'
       - 'supabase/migrations/20261019235000_first_trusted_auto_prereg_link.sql'
+      - 'supabase/migrations/20261020000000_first_contact_claim_lock.sql'
       - 'scripts/isolated-db/**'
       - '.github/workflows/ucapsa-preregistration-db.yml'
   workflow_dispatch:
@@ -65,6 +66,7 @@ jobs:
           psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261019220000_private_preregistration_link_preview.sql
           psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261019233000_admin_approved_preregistration_owner_link.sql
           psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261019235000_first_trusted_auto_prereg_link.sql
+          psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261020000000_first_contact_claim_lock.sql
       - name: Exercise permissions, identity, enrollments and attendance
         run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/ucapsa-e2e.sql
       - name: Verify Admin-only directory from seeded historical data
@@ -75,3 +77,5 @@ jobs:
         run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/ucapsa-admin-approved-link-e2e.sql
       - name: Reject repeated auto-link and require Admin plus user acceptance
         run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/ucapsa-first-auto-link-e2e.sql
+      - name: First unique phone or email wins without SMS; later account blocked
+        run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/ucapsa-first-contact-no-otp-e2e.sql
