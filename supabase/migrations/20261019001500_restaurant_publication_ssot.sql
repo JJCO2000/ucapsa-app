@@ -77,3 +77,37 @@ $fn$;
 revoke all on function public.admin_set_restaurant_menu_published(boolean) from public,anon;
 grant execute on function public.admin_set_restaurant_menu_published(boolean)
   to authenticated;
+
+-- Evita eludir el interruptor leyendo la API REST de Supabase directamente.
+-- Los administradores conservan la lectura completa de productos y categorías desactivadas.
+drop policy if exists "Public can read restaurant categories"
+  on public.restaurant_menu_categories;
+drop policy if exists "Public can read restaurant items"
+  on public.restaurant_menu_items;
+drop policy if exists "Public can read published restaurant categories"
+  on public.restaurant_menu_categories;
+drop policy if exists "Public can read published restaurant items"
+  on public.restaurant_menu_items;
+
+create policy "Public can read published restaurant categories"
+  on public.restaurant_menu_categories
+  for select to anon, authenticated
+  using (
+    public.is_ucapsa_admin()
+    or (is_active = true and public.is_restaurant_menu_published())
+  );
+
+create policy "Public can read published restaurant items"
+  on public.restaurant_menu_items
+  for select to anon, authenticated
+  using (
+    public.is_ucapsa_admin()
+    or (
+      is_available = true
+      and public.is_restaurant_menu_published()
+      and exists (
+        select 1 from public.restaurant_menu_categories c
+        where c.id = category_id and c.is_active = true
+      )
+    )
+  );
