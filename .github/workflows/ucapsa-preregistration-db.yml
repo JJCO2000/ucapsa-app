@@ -83,3 +83,5 @@ jobs:
         run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/ucapsa-first-auto-link-e2e.sql
       - name: First matching account wins without SMS; later account generates Admin request
         run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/ucapsa-first-contact-no-otp-e2e.sql
+      - name: Late phone entry after email signup matches as existing first-claim flow
+        run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/ucapsa-late-phone-first-match-e2e.sql
