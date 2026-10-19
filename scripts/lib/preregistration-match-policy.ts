@@ -25,7 +25,7 @@ export type ProvisionalPersonCandidate = {
 };
 
 export type PreregLinkDecision =
-  | { action: 'link'; provisionalId: string; verifiedBy: 'email' | 'phone' | 'both' }
+  | { action: 'link'; provisionalId: string; verifiedBy: 'email' | 'both' }
   | { action: 'already-linked'; provisionalId: string }
   | { action: 'no-match' }
   | { action: 'blocked'; reason: 'conflicting-contacts' | 'ambiguous' | 'existing-binding' | 'untrusted-contact' };
@@ -37,7 +37,9 @@ export function decidePreregistrationLink(
   if (!account.userId) return { action: 'blocked', reason: 'untrusted-contact' };
   const emailEligible = Boolean(account.emailVerified && account.emailKey && account.emailUniqueAcrossAuth);
   const phoneEligible = Boolean(account.phoneVerified && account.phoneE164 && account.phoneUniqueAcrossAuth);
-  if (!emailEligible && !phoneEligible) return { action: 'no-match' };
+  // El correo verificado es el único identificador que habilita el enlace.
+  // Teléfono verificado solo ayuda a detectar conflictos de identidad.
+  if (!emailEligible) return { action: 'no-match' };
 
   const emailMatches = emailEligible
     ? people.filter((p) => p.status !== 'rejected' && p.emailKey === account.emailKey)
@@ -47,14 +49,19 @@ export function decidePreregistrationLink(
     : [];
 
   // There must not be competing candidates for the same verified contact.
-  if (emailMatches.length > 1 || phoneMatches.length > 1) {
+  if (emailMatches.length > 1) {
     return { action: 'blocked', reason: 'ambiguous' };
   }
-  const found = new Map([...emailMatches, ...phoneMatches].map((p) => [p.id, p]));
-  if (found.size > 1) return { action: 'blocked', reason: 'conflicting-contacts' };
-  if (found.size === 0) return { action: 'no-match' };
-  const candidate = [...found.values()][0];
-  if (!candidate) return { action: 'no-match' };
+  if (emailMatches.length === 0) {
+    return phoneMatches.length > 0
+      ? { action: 'blocked', reason: 'conflicting-contacts' }
+      : { action: 'no-match' };
+  }
+  const candidate = emailMatches[0];
+  if (phoneMatches.length > 1) return { action: 'blocked', reason: 'ambiguous' };
+  if (phoneMatches.length === 1 && phoneMatches[0]?.id !== candidate.id) {
+    return { action: 'blocked', reason: 'conflicting-contacts' };
+  }
 
   // If verified profile contacts conflict with a stored contact, do not
   // silently prefer the other verified contact. Phone number recycling and
@@ -74,8 +81,6 @@ export function decidePreregistrationLink(
   return {
     action: 'link',
     provisionalId: candidate.id,
-    verifiedBy: emailMatches.length > 0 && phoneMatches.length > 0
-      ? 'both'
-      : emailMatches.length > 0 ? 'email' : 'phone',
+    verifiedBy: phoneMatches.length === 1 ? 'both' : 'email',
   };
 }

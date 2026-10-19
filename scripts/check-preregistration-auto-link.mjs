@@ -18,7 +18,7 @@ const act=(a,arr)=>decide({...base,...a},arr);
 assert.equal(act({},[person]).action,'link');
 assert.equal(act({},[person]).verifiedBy,'both');
 assert.equal(act({phoneVerified:false},[person]).verifiedBy,'email');
-assert.equal(act({emailVerified:false},[person]).verifiedBy,'phone');
+assert.equal(act({emailVerified:false},[person]).action,'no-match');
 assert.equal(act({emailVerified:false,phoneVerified:false},[person]).action,'no-match');
 assert.equal(act({emailUniqueAcrossAuth:false,phoneVerified:false},[person]).action,'no-match');
 assert.equal(act({phoneUniqueAcrossAuth:false,emailVerified:false},[person]).action,'no-match');
@@ -35,7 +35,7 @@ assert.equal(act({userId:''},[person]).reason,'untrusted-contact');
 assert.equal(act({emailVerified:false,phoneVerified:true},[
   {...person, emailKey:null,phoneE164:'+525512345678'},
   {...person,id:'p2',emailKey:null,phoneE164:'+525512345678'}
-]).reason,'ambiguous');
+]).action,'no-match');
 assert.equal(act({emailVerified:true,phoneVerified:false},[
   {...person,phoneE164:null},
   {...person,id:'p2',emailKey:null,phoneE164:base.phoneE164}
@@ -44,4 +44,25 @@ assert.equal(act({},[
   {...person,phoneE164:'+525511111111'},
   {...person,id:'p2',emailKey:'otro@ejemplo.mx'}
 ]).reason,'conflicting-contacts');
-console.log('UCAPSA auto-link policy: 18 cases passed; zero DB writes');
+// Teléfono confirmado nunca sustituye un correo aún no verificado.
+assert.equal(act({emailKey:null,emailVerified:false,phoneVerified:true},[person]).action,'no-match');
+assert.equal(act({emailVerified:true,phoneVerified:false},[person]).verifiedBy,'email');
+// Los contratos de interfaz, sesión y SQL deben exigir el mismo correo
+// verificado. El número telefónico es secundario y no habilita el enlace.
+const emailSql = fs.readFileSync('supabase/migrations/20261019183000_preregistration_primary_email.sql','utf8');
+const adminUi = fs.readFileSync('src/app/admin/preregister-dog.tsx','utf8');
+const sessionHook = fs.readFileSync('src/hooks/useSession.tsx','utf8');
+const emailService = fs.readFileSync('src/services/dog-preregistration.service.ts','utf8');
+for (const [label,ok] of [
+  ['Alta SQL exige email',emailSql.includes("if v_email is null then")],
+  ['Consulta SQL por correo primario',emailSql.includes("where p.status='pending' and p.email_key=v_email")],
+  ['Teléfono no permite vínculo sin correo',emailSql.includes("return pg_catalog.jsonb_build_object('status','unverified','linked_dogs',0)")],
+  ['Formulario exige correo',adminUi.includes("!ownerEmail.trim()")],
+  ['Formulario informa prioridad del correo',adminUi.includes('Correo principal del tutor (obligatorio)')],
+  ['Sesión exige email verificado',sessionHook.includes('if (!emailConfirmed) return;')],
+  ['Servicio normaliza correo',emailService.includes('input.ownerEmail.trim().toLowerCase()')],
+]) {
+  if (!ok) throw new Error('Regresión de correo principal: '+label);
+}
+
+console.log('UCAPSA auto-link policy: email-first, 20 cases passed; zero DB writes');
