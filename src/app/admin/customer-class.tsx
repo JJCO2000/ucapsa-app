@@ -154,7 +154,7 @@ export default function CustomerClassScreen() {
               {row.program.code === 'comandos' ? <Detail label="Nivel" value={levelLabel(row.enrollment.program_level)} /> : null}
               <Detail label="Horario" value={formatProgramScheduleDisplayLabel(row.schedule, row.program)} />
               <Detail label="Perro" value={getProgramEnrollmentDogName(row)} />
-              <Detail label="Tarjeta" value={row.enrollment.physical_card_number || 'Sin numero'} />
+              <Detail label="Número de tarjeta física" value={row.enrollment.physical_card_number?.trim() || 'No registrado'} />
               <Detail label="Asistencias" value={`${row.attendances.length} de ${row.program.required_attendances}`} last />
             </View>
           ) : (
@@ -186,7 +186,7 @@ export default function CustomerClassScreen() {
                 onSelectDog={(dog) => { setDogMode('existing'); setDogId(dog.id); setDogName(dog.name); }}
                 onNewDogNameChange={(value) => { setDogMode('new'); setDogId(''); setDogName(value); }}
               />
-              <Field label="Tarjeta" value={cardNumber} onChangeText={setCardNumber} placeholder="Numero de tarjeta" />
+              <Field label="Número de tarjeta (si se conoce)" value={cardNumber} onChangeText={setCardNumber} placeholder="Dato opcional" />
               <Field label="Notas" value={notes} onChangeText={setNotes} placeholder="Notas internas" multiline />
             </View>
           )}
