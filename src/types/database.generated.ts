@@ -5816,6 +5816,14 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      is_restaurant_menu_published: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      admin_set_restaurant_menu_published: {
+        Args: { p_published: boolean }
+        Returns: boolean
+      }
       get_staff_class_roster: {
         Args: { p_class_date: string }
         Returns: {
