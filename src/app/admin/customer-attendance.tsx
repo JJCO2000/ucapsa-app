@@ -171,14 +171,17 @@ export default function CustomerAttendanceScreen() {
 
       {selectedEnrollment ? (
         <View style={styles.summary}>
-          <View><Text style={styles.summaryTitle}>{selectedEnrollment.program.name}</Text><Text style={styles.muted}>{attendanceRows.length} de {selectedEnrollment.program.required_attendances} registradas</Text></View>
+          <View><Text style={styles.summaryTitle}>{selectedEnrollment.program.name}</Text><Text style={styles.muted}>{selectedEnrollment.enrollment.access_mode === 'membership' ? `${selectedEnrollment.enrollment.attendances_count} asistencias · socio sin límite` : `${selectedEnrollment.enrollment.attendances_count} de ${selectedEnrollment.program.required_attendances} contabilizadas`}</Text>
+            {selectedEnrollment.enrollment.attendances_count > attendanceRows.length ? (
+              <Text style={styles.muted}>{selectedEnrollment.enrollment.attendances_count - attendanceRows.length} asistencias de historial sin fecha individual</Text>
+            ) : null}</View>
           <Pressable style={styles.addButton} onPress={openNew}><MaterialIcons name="add" size={19} color={ucapsaBrand.colors.surface} /><Text style={styles.addText}>Registrar</Text></Pressable>
         </View>
       ) : null}
 
       {!loading && !selectedEnrollment ? <View style={styles.empty}><Text style={styles.emptyTitle}>Sin clases</Text><Text style={styles.muted}>El cliente no tiene inscripciones.</Text></View> : null}
 
-      {selectedEnrollment && attendanceRows.length === 0 ? <View style={styles.empty}><Text style={styles.emptyTitle}>Sin asistencias</Text><Text style={styles.muted}>Usa Registrar para agregar la primera asistencia manual.</Text></View> : null}
+      {selectedEnrollment && attendanceRows.length === 0 ? <View style={styles.empty}><Text style={styles.emptyTitle}>Sin asistencias con fecha</Text><Text style={styles.muted}>{selectedEnrollment.enrollment.attendances_count > 0 ? 'La inscripción tiene asistencias históricas reconocidas sin fecha individual.' : 'Usa Registrar para agregar la primera asistencia real.'}</Text></View> : null}
 
       {selectedEnrollment ? (
         <View style={styles.list}>
