@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, TextInp
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
-import { preregistrationDirectoryEnabled } from '../../constants/preregistrationFeature';
+import { manualPreregistrationLinkEnabled, preregistrationDirectoryEnabled } from '../../constants/preregistrationFeature';
 import { useSession } from '../../hooks/useSession';
 import {
   getAdminPreregistrationRecords,
@@ -66,6 +66,13 @@ export default function AdminPreregistrationsScreen() {
         <MaterialIcons name="add" size={20} color={ucapsaBrand.colors.surface} />
         <Text style={styles.primaryText}>Registrar perro sin cuenta</Text>
       </Pressable>
+      {manualPreregistrationLinkEnabled ? (
+        <Pressable accessibilityRole="button" style={styles.primary}
+          onPress={() => router.push('/admin/preregistration-link-requests' as never)}>
+          <MaterialIcons name="how-to-reg" size={20} color={ucapsaBrand.colors.surface}/>
+          <Text style={styles.primaryText}>Solicitudes de vinculación</Text>
+        </Pressable>
+      ) : null}
       <TextInput style={styles.search} value={filter} onChangeText={setFilter}
         accessibilityLabel="Buscar preinscripciones"
         placeholder="Buscar tutor, perro, teléfono o programa"
