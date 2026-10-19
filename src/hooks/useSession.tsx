@@ -72,7 +72,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
   const [preregistrationSyncVersion, setPreregistrationSyncVersion] = useState(0);
   const [startupAttempt, setStartupAttempt] = useState(0);
   const startupRunRef = useRef(0);
-  const claimedPreregistrationUserRef = useRef<string | null>(null);
+  const claimedPreregistrationKeyRef = useRef<string | null>(null);
   const authEventAttemptRef = useRef(0);
 
   // The local identity only enables cached read-only views; all server requests
@@ -391,32 +391,42 @@ export function SessionProvider({ children }: SessionProviderProps) {
   useEffect(() => {
     const authenticatedUserId = session?.user.id ?? null;
     if (!authenticatedUserId) {
-      claimedPreregistrationUserRef.current = null;
+      claimedPreregistrationKeyRef.current = null;
       return;
     }
+    // Los eventos de Auth pueden confirmar el contacto después del login.
+    // La clave evita reintentos infinitos y permite reintentar si la identidad
+    // verificada cambió. Nunca confiar en email/teléfono escritos por el cliente.
+    const claimKey = [authenticatedUserId,
+      session?.user.email_confirmed_at ?? '',
+      session?.user.phone_confirmed_at ?? ''].join('|');
     if (isOfflineFallback || usingCachedProfile ||
         profile?.user_id !== authenticatedUserId ||
-        (profile.role !== 'client' && profile.role !== 'member') ||
-        claimedPreregistrationUserRef.current === authenticatedUserId) return;
+        profile.role === 'visitor' ||
+        claimedPreregistrationKeyRef.current === claimKey) return;
 
-    claimedPreregistrationUserRef.current = authenticatedUserId;
+    claimedPreregistrationKeyRef.current = claimKey;
     void claimMyPreregisteredDogs()
       .then(async (outcome) => {
         if (outcome.linkedDogs > 0) {
           await clearClientReadCache(authenticatedUserId);
           await clearHomeCache(authenticatedUserId);
           // Notificar a Inicio: el primer render pudo ocurrir antes de reclamar.
-          if (claimedPreregistrationUserRef.current === authenticatedUserId) {
+          if (claimedPreregistrationKeyRef.current === claimKey) {
             setPreregistrationSyncVersion((version) => version + 1);
           }
         }
       })
       .catch((error) => {
         // No bloquear el login si falla el enlace. La sesión jamás pierde permisos.
-        claimedPreregistrationUserRef.current = null;
+        if (claimedPreregistrationKeyRef.current === claimKey) {
+          claimedPreregistrationKeyRef.current = null;
+        }
         devWarn('La vinculación automática de perro está pendiente.', error);
       });
-  }, [session?.user.id, profile?.user_id, profile?.role, usingCachedProfile, isOfflineFallback]);
+  }, [session?.user.id, session?.user.email_confirmed_at,
+    session?.user.phone_confirmed_at, profile?.user_id, profile?.role,
+    usingCachedProfile, isOfflineFallback]);
 
   // On returning to the foreground, try to replace read-only identity with a
   // genuine Supabase session. No login re-prompt is necessary after a transient
