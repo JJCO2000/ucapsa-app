@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { preregistrationEnabled } from '../constants/preregistrationFeature';
 
 export type PreregisteredProgramInput = {
   ownerName: string;
@@ -14,7 +15,11 @@ export type PreregisteredProgramInput = {
   sourceNote: string;
 };
 
-type PreregistrationRpcName = 'admin_preregister_dog_with_program' | 'claim_my_preregistered_dogs';
+export type PreregistrationRpcName =
+  | 'admin_preregister_dog_with_program'
+  | 'claim_my_preregistered_dogs'
+  | 'get_staff_preregistered_class_roster'
+  | 'staff_register_preregistered_attendance';
 type RpcOutcome = {
   data: unknown;
   error: { message: string } | null;
@@ -23,10 +28,11 @@ type RpcOutcome = {
 // Contrato provisional restringido a dos RPC definidos en las migraciones del
 // PR #380. No alterar database.generated.ts manualmente: sus tipos definitivos
 // deben regenerarse desde Supabase una vez aplicado el esquema autorizado.
-async function callPreregistrationRpc(
+export async function callPreregistrationRpc(
   name: PreregistrationRpcName,
   args: Record<string, unknown> = {},
 ): Promise<RpcOutcome> {
+  if (!preregistrationEnabled) throw new Error('La preinscripción todavía no está habilitada.');
   const rpc = supabase.rpc.bind(supabase) as unknown as (
     functionName: string,
     params: Record<string, unknown>,
