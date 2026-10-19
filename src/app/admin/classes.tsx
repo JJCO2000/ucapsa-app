@@ -222,6 +222,7 @@ export default function AdminClassesScreen() {
       ...current,
       programId,
       scheduleId: 'auto',
+      physicalCardNumber: nextProgram?.code === 'puppy' ? current.physicalCardNumber : '',
       programLevel: getDefaultProgramLevel(nextProgram),
     }));
   }
@@ -305,7 +306,7 @@ export default function AdminClassesScreen() {
         scheduleId: effectiveScheduleId,
         dogId: linkedDog.id,
         dogName: linkedDog.name,
-        physicalCardNumber: form.physicalCardNumber,
+        physicalCardNumber: selectedProgram?.code === 'puppy' ? form.physicalCardNumber : null,
         programLevel: selectedProgram?.code === 'comandos' ? form.programLevel : 'base',
         notes: form.notes,
       });
@@ -483,7 +484,7 @@ export default function AdminClassesScreen() {
               <Text style={styles.rowMeta}>{getProgramEnrollmentDogName(row)} · {row.program.name}{row.program.code === 'comandos' ? ` · ${getProgramLevelLabel(row.enrollment.program_level)}` : ''}</Text>
               <Text style={styles.rowMeta}>{formatProgramScheduleName(row.schedule, row.program)} · {formatProgramScheduleDetailLabel(row.schedule)}</Text>
               <Text style={styles.rowMeta}>{formatNextProgramClassLabel(row.schedule)}</Text>
-              <Text style={styles.rowMeta}>Asistencias {row.enrollment.attendances_count}/{row.program.required_attendances} · Tarjeta {row.enrollment.physical_card_number || 'sin número'}</Text>
+              <Text style={styles.rowMeta}>Asistencias {row.enrollment.attendances_count}/{row.program.required_attendances}{row.program.code === 'puppy' ? ` · Ref. Puppy: ${row.enrollment.physical_card_number || 'No registrada'}` : ''}</Text>
             </View>
             <MaterialIcons name="chevron-right" size={23} color={ucapsaBrand.colors.redDark} />
           </Pressable>
@@ -609,8 +610,12 @@ function CreateEnrollmentModal({
         onNewDogNameChange={(dogName) => onChange({ ...form, dogMode: 'new', dogId: '', dogName })}
       />
 
-      <Text style={styles.label}>Número de tarjeta física</Text>
-      <TextInput value={form.physicalCardNumber} onChangeText={(physicalCardNumber) => onChange({ ...form, physicalCardNumber })} placeholder="Ej. P-0142" autoCapitalize="characters" style={styles.input} />
+      {selectedProgram?.code === 'puppy' ? (
+        <>
+          <Text style={styles.label}>Referencia de tarjeta física Puppy (si se conoce)</Text>
+          <TextInput value={form.physicalCardNumber} onChangeText={(physicalCardNumber) => onChange({ ...form, physicalCardNumber })} placeholder="Ej. P-0142" autoCapitalize="characters" style={styles.input} />
+        </>
+      ) : null}
 
       <Text style={styles.label}>Notas</Text>
       <TextInput value={form.notes} onChangeText={(notes) => onChange({ ...form, notes })} multiline style={[styles.input, styles.textArea]} />

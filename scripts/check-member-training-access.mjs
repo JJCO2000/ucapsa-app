@@ -111,4 +111,23 @@ if(!enrollmentService.includes('physicalCardNumber?: string | null;') ||
   throw new Error('El servicio debe conservar registros sin número y permitir su edición.');
 }
 
+// La referencia es exclusivamente un campo físico de Puppy. El programa
+// Comandos se autoriza por inscripción, no por un número de tarjeta inventado.
+// No borrar los números antiguos almacenados en otros expedientes.
+const adminClasses = fs.readFileSync('src/app/admin/classes.tsx', 'utf8');
+for (const contract of [
+  "physicalCardNumber: selectedProgram?.code === 'puppy' ? form.physicalCardNumber : null",
+  "physicalCardNumber: nextProgram?.code === 'puppy' ? current.physicalCardNumber : ''",
+  "selectedProgram?.code === 'puppy' ? (",
+  'Referencia de tarjeta física Puppy (si se conoce)',
+  "row.program.code === 'puppy'",
+]) {
+  if (!adminClasses.includes(contract)) {
+    throw new Error('Comandos no debe depender de referencia física Puppy: ' + contract);
+  }
+}
+if (adminClasses.includes('physicalCardNumber: form.physicalCardNumber,')) {
+  throw new Error('Comandos no puede guardar número físico reutilizado de Puppy.');
+}
+
 console.log('UCAPSA member per-dog unlimited training + QR/progression contract: PASS');
