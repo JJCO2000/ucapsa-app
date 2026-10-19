@@ -43,3 +43,13 @@ insert into public.restaurant_menu_categories(id,is_active)
 values('00000000-0000-4000-8000-000000000099',true);
 insert into public.restaurant_menu_items(category_id,is_available)
 values('00000000-0000-4000-8000-000000000099',true);
+
+-- Simular el estado RLS/GRANT de la base existente (public read abierto).
+alter table public.restaurant_menu_categories enable row level security;
+alter table public.restaurant_menu_items enable row level security;
+grant select on public.restaurant_menu_categories, public.restaurant_menu_items
+  to anon, authenticated;
+create policy "Public can read restaurant categories"
+  on public.restaurant_menu_categories for select to anon,authenticated using(true);
+create policy "Public can read restaurant items"
+  on public.restaurant_menu_items for select to anon,authenticated using(true);
