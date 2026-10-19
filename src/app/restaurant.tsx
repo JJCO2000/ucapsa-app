@@ -9,6 +9,7 @@ import {
   cacheRestaurantMenu,
   getCachedRestaurantMenu,
   getRestaurantMenu,
+  isRestaurantMenuPublished,
   type RestaurantMenuSection,
 } from '../services/restaurant-menu.service';
 
@@ -27,14 +28,21 @@ export default function RestaurantScreen() {
     if (showSpinner) setLoading(true);
     setError(null);
     setUsingCache(false);
-
-    const cached = await getCachedRestaurantMenu();
-    if (cached) {
-      setSections(cached);
-      setLoading(false);
-    }
-
+    // SSOT de publicación: no mostrar caché hasta verificar que el menú está publicado.
+    // Si no hay conexión o el menú fue ocultado, fallamos cerrados.
+    setSections([]);
+    let cached: RestaurantMenuSection[] | null = null;
     try {
+      const published = await isRestaurantMenuPublished();
+      if (!published) {
+        await cacheRestaurantMenu([]);
+        return;
+      }
+      cached = await getCachedRestaurantMenu();
+      if (cached) {
+        setSections(cached);
+        setLoading(false);
+      }
       const next = await getRestaurantMenu();
       setSections(next);
       await cacheRestaurantMenu(next);
@@ -43,11 +51,12 @@ export default function RestaurantScreen() {
         setUsingCache(true);
       } else {
         setSections([]);
-        setError(cause instanceof Error ? cause.message : 'No se pudo cargar el menú.');
+        setError(cause instanceof Error ? cause.message : 'No se pudo verificar el menú.');
       }
     } finally {
       setLoading(false);
     }
+
   }, []);
 
   useFocusEffect(useCallback(() => { void load(); return undefined; }, [load]));
