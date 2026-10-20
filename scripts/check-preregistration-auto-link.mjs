@@ -159,7 +159,7 @@ console.log('UCAPSA first-claim profile-contact email MVP contract: PASS');
 // Admin can only append missing contact to a pending provisional record.
 // Never update linked owners, official programs, attendances, memberships or Auth.
 const completeSql = fs.readFileSync(
-  'supabase/migrations/20261020044600_admin_complete_preregistration_contact.sql', 'utf8');
+  'supabase/migrations/20261020045901_admin_complete_preregistration_contact.sql', 'utf8');
 const directoryUi = fs.readFileSync('src/app/admin/preregistration.tsx', 'utf8');
 const directoryService = fs.readFileSync('src/services/preregistration-admin.service.ts', 'utf8');
 for (const [label, passed] of [
