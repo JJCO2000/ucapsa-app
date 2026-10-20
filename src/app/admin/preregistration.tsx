@@ -80,6 +80,7 @@ export default function AdminPreregistrationDetailScreen() {
     if (phone) {
       try { phone = normalizeContactPhone(phone); }
       catch (cause) {
+        devWarn('admin-preregistration: invalid contact phone format.', cause);
         showFeedback('Celular inválido', cause instanceof Error ? cause.message
           : 'Usa diez dígitos mexicanos o formato internacional +52.');
         return;
