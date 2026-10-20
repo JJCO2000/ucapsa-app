@@ -27,6 +27,7 @@ export default function AccountSettingsScreen() {
   const section = normalizeSection(params.section, isAdmin, isTrainer);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -75,6 +76,7 @@ export default function AccountSettingsScreen() {
   useEffect(() => {
     setFullName(profile?.full_name ?? '');
     setEmail(profile?.email ?? user?.email ?? '');
+    setContactEmail(profile?.preregistration_contact_email ?? '');
     setPhone(profile?.phone ?? '');
   }, [profile, user?.email]);
 
@@ -133,10 +135,17 @@ export default function AccountSettingsScreen() {
 
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedPhone = phone.trim();
+    const normalizedContactEmail = contactEmail.trim().toLowerCase();
     const contactChanged = normalizedPhone !== (profile?.phone ?? '').trim()
+      || normalizedContactEmail !== (profile?.preregistration_contact_email ?? '').trim().toLowerCase()
       || normalizedEmail !== (user.email ?? '').trim().toLowerCase();
     if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       Alert.alert('Correo inválido', 'Escribe un correo válido antes de guardar.');
+      return;
+    }
+    if (preregistrationEnabled && normalizedContactEmail
+      && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedContactEmail)) {
+      Alert.alert('Correo de contacto inválido', 'Revisa el correo de vinculación.');
       return;
     }
 
@@ -149,6 +158,7 @@ export default function AccountSettingsScreen() {
         updateMyProfile({
           full_name: fullName,
           phone,
+          ...(preregistrationEnabled ? { preregistration_contact_email: normalizedContactEmail } : {}),
         }),
         DEFAULT_WRITE_TIMEOUT_MS,
         'profile-save',
@@ -339,6 +349,10 @@ export default function AccountSettingsScreen() {
           <ReadonlyRow label="Verificación del correo"
             value={user.email_confirmed_at ? 'Confirmado por Supabase' : 'Sin confirmar'} premium={premium} />
           <ReadonlyRow label="Teléfono de contacto" value={profile?.phone || 'Pendiente'} premium={premium} />
+          {preregistrationEnabled ? (
+            <ReadonlyRow label="Correo de contacto para preinscripción"
+              value={profile?.preregistration_contact_email || 'No agregado'} premium={premium} />
+          ) : null}
           <ReadonlyRow label="Celular verificado en Supabase"
             value={user.phone_confirmed_at && user.phone ? user.phone : 'Sin verificar'} premium={premium} />
           {!user.phone_confirmed_at && !phoneVerificationEnabled ? (
@@ -450,6 +464,20 @@ export default function AccountSettingsScreen() {
           placeholderTextColor={premium ? ucapsaBrand.colors.redBorder : ucapsaBrand.colors.gray}
           style={[styles.input, premium && styles.premiumInput]}
         />
+        {preregistrationEnabled ? (
+          <>
+            <Text style={[styles.label, premium && styles.premiumLabel]}>Correo de contacto para vincular preinscripción (MVP)</Text>
+            <TextInput value={contactEmail} onChangeText={setContactEmail}
+              placeholder="correo del preregistro (opcional)"
+              keyboardType="email-address" autoCapitalize="none" autoCorrect={false}
+              placeholderTextColor={premium ? ucapsaBrand.colors.redBorder : ucapsaBrand.colors.gray}
+              style={[styles.input, premium && styles.premiumInput]} />
+            <Text style={[styles.muted, premium && styles.premiumText]}>
+              Sirve para encontrar tu primer expediente aunque no sea tu correo de acceso.
+              En este MVP no se verifica su titularidad: revisa que esté correcto.
+            </Text>
+          </>
+        ) : null}
         <Text style={[styles.label, premium && styles.premiumLabel]}>Teléfono</Text>
         <TextInput value={phone} onChangeText={setPhone} placeholder="Teléfono" keyboardType="phone-pad" placeholderTextColor={premium ? ucapsaBrand.colors.redBorder : ucapsaBrand.colors.gray} style={[styles.input, premium && styles.premiumInput]} />
         <Pressable disabled={saving} style={[styles.primaryButton, { backgroundColor: format.primaryButton }, saving && styles.disabled]} onPress={handleSaveProfile}><Text style={[styles.primaryButtonText, { color: format.primaryButtonText }]}>{saving ? 'Guardando...' : 'Guardar cambios'}</Text></Pressable>
