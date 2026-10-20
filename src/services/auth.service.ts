@@ -2,6 +2,7 @@ import type { AuthChangeEvent, EmailOtpType, Session } from '@supabase/supabase-
 import { Platform } from 'react-native';
 
 import { supabase } from '../lib/supabase';
+import { normalizeContactPhone } from '../utils/phone-contact';
 
 export const AUTH_PASSWORD_MIN_LENGTH = 6;
 export const PASSWORD_RECOVERY_REDIRECT_URL = 'ucapsaapp://auth/update-password';
@@ -47,10 +48,7 @@ export async function signInWithEmail(email: string, password: string) {
 export async function signInWithVerifiedContact(contact: string, password: string) {
   const value = contact.trim();
   if (value.includes('@')) return signInWithEmail(value, password);
-  const phone = value.replace(/[\s()\-]/g, '');
-  if (!/^\+[1-9][0-9]{7,14}$/.test(phone)) {
-    throw new Error('Usa tu correo o el celular con +52 y sus diez dígitos.');
-  }
+  const phone = normalizeContactPhone(value);
   return supabase.auth.signInWithPassword({ phone, password });
 }
 
