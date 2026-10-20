@@ -497,6 +497,13 @@ export function SessionProvider({ children }: SessionProviderProps) {
         await Promise.all([clearClientReadCache(offer.userId), clearHomeCache(offer.userId)]);
         setPreregistrationLinkedNotice({ userId: offer.userId, count: result.linkedDogs });
         setPreregistrationSyncVersion((value) => value + 1);
+        // El claim ya fue confirmado; un fallo al refrescar no debe parecer un fallo de vinculación.
+        try {
+          const nextProfile = await getProfileByUserId(offer.userId);
+          if (nextProfile?.user_id === offer.userId) await applyFreshProfile(offer.userId, nextProfile);
+        } catch (error) {
+          devWarn('Vinculación confirmada; perfil de Socio pendiente de actualizar.', error);
+        }
       }
     } finally {
       setPreregistrationLinkBusy(false);
@@ -532,6 +539,13 @@ export function SessionProvider({ children }: SessionProviderProps) {
         setPreregistrationLinkOffer(null);
         setPreregistrationLinkedNotice({ userId, count: claimed.linkedDogs });
         setPreregistrationSyncVersion((value) => value + 1);
+        // La ruta de Ajustes también debe reflejar la membresía recién activada.
+        try {
+          const nextProfile = await getProfileByUserId(userId);
+          if (nextProfile?.user_id === userId) await applyFreshProfile(userId, nextProfile);
+        } catch (error) {
+          devWarn('Vinculación desde Ajustes confirmada; perfil pendiente de actualizar.', error);
+        }
         return 'linked';
       }
       if (claimed.status === 'conflict') {
