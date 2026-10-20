@@ -5,8 +5,9 @@ import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, TextIn
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
-import { preregistrationEnabled } from '../../constants/preregistrationFeature';
+import { preregistrationEnabled, preregistrationDirectoryEnabled } from '../../constants/preregistrationFeature';
 import { normalizeContactPhone } from '../../utils/phone-contact';
+import { getAdminPreregistrationRecords } from '../../services/preregistration-admin.service';
 import { useSession } from '../../hooks/useSession';
 import {
   adminPreregisterDogWithProgram,
@@ -99,6 +100,17 @@ export default function AdminPreregisterDogScreen() {
     else Alert.alert(title, message);
   }
 
+  async function confirmHistoryCorrection(dog: string, program: string, attendances: number): Promise<boolean> {
+    const message = `Ya existe una preinscripción pendiente de ${dog} en ${program}, con ${attendances} asistencias reconocidas. Continuar reemplazará la evidencia provisional de esa tarjeta; la versión anterior se conservará en auditoría. ¿Confirmas la corrección?`;
+    if (Platform.OS === 'web') return window.confirm(message);
+    return new Promise<boolean>((resolve) => {
+      Alert.alert('Corregir tarjeta existente', message, [
+        { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Sí, corregir', onPress: () => resolve(true) },
+      ], { cancelable: false });
+    });
+  }
+
   async function save() {
     if (saving) return;
     setSubmissionNotice(null);
@@ -134,6 +146,36 @@ export default function AdminPreregisterDogScreen() {
       }
       if (cardStartedOn.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(cardStartedOn.trim())) {
         throw new Error('El inicio de tarjeta debe usar AAAA-MM-DD.');
+      }
+      // La RPC del servidor hace upsert y conserva un snapshot auditado,
+      // pero una recaptura puede REEMPLAZAR evidencia: nunca sobrescribir sin
+      // mostrar el expediente y exigir confirmación/motivo de la corrección.
+      if (!preregistrationDirectoryEnabled) {
+        throw new Error('No puedo comprobar duplicados porque el directorio de preinscripciones está deshabilitado.');
+      }
+      const existingRecords = await getAdminPreregistrationRecords();
+      const emailKey = ownerEmail.trim().toLowerCase();
+      const phoneKey = ownerPhone.trim() ? normalizeContactPhone(ownerPhone) : '';
+      const sameDogProgram = existingRecords.filter((record) =>
+        record.dogName.trim().toLowerCase() === dogName.trim().toLowerCase()
+        && record.programCode === programCode
+        && ((emailKey && record.ownerEmail?.trim().toLowerCase() === emailKey)
+          || (phoneKey && record.ownerPhone === phoneKey))
+      );
+      if (sameDogProgram.length > 1) {
+        throw new Error('Encontré varios expedientes para esta tarjeta. Abre Preinscripciones y resuelve la coincidencia antes de modificar historial.');
+      }
+      if (sameDogProgram.length === 1) {
+        const existing = sameDogProgram[0];
+        if (existing.status !== 'pending') {
+          throw new Error('El expediente ya está vinculado. Edita el historial oficial desde la ficha correspondiente.');
+        }
+        if (sourceNote.trim().length < 12) {
+          throw new Error('Esta tarjeta ya existe. Para corregirla, escribe el motivo en Observaciones (mínimo 12 caracteres) y guarda nuevamente.');
+        }
+        const confirmed = await confirmHistoryCorrection(existing.dogName,
+          existing.programCode === 'puppy' ? 'Puppy' : 'Comandos', existing.attendancesCount);
+        if (!confirmed) return;
       }
       await adminPreregisterDogWithProgram({
         ownerName, ownerEmail: ownerEmail.trim().toLowerCase(), ownerPhone, dogName,
