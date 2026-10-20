@@ -17,7 +17,7 @@ on:
       - 'supabase/migrations/20261020000000_first_contact_claim_lock.sql'
       - 'supabase/migrations/20261020001000_preregistration_second_claim_requests.sql'
       - 'supabase/migrations/20261020002000_admin_approved_competing_link_transfer.sql'
-      - 'supabase/migrations/20261020044600_admin_complete_preregistration_contact.sql'
+      - 'supabase/migrations/20261020045901_admin_complete_preregistration_contact.sql'
       - 'scripts/isolated-db/**'
       - '.github/workflows/ucapsa-preregistration-db.yml'
   workflow_dispatch:
@@ -72,7 +72,7 @@ jobs:
           psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261020000000_first_contact_claim_lock.sql
           psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261020001000_preregistration_second_claim_requests.sql
           psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261020002000_admin_approved_competing_link_transfer.sql
-          psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261020044600_admin_complete_preregistration_contact.sql
+          psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261020045901_admin_complete_preregistration_contact.sql
       - name: Exercise permissions, identity, enrollments and attendance
         run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/ucapsa-e2e.sql
       - name: Verify Admin-only directory from seeded historical data
