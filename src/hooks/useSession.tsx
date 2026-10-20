@@ -1,6 +1,6 @@
 import type { Session, User } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import type { ReactNode } from 'react';
 
 import { getRoleCapabilities, type UcapsaCapabilities } from '../constants/roleCapabilities';
@@ -87,7 +87,11 @@ export function SessionProvider({ children }: SessionProviderProps) {
   // The local identity only enables cached read-only views; all server requests
   // still rely on Supabase Auth's real session and RLS.
   const user = session?.user ?? (isOfflineFallback ? offlineUser : null);
-  const role = profile?.role ?? null;
+  // Web admin permissions are never inferred from offline or cached profiles.
+  // Native retains the previously approved read-only offline experience.
+  const role = Platform.OS === 'web' && (usingCachedProfile || isOfflineFallback || !session)
+    ? null
+    : profile?.role ?? null;
   const isAdmin = role === 'admin' || role === 'super_admin';
   const isTrainer = role === 'trainer';
   const isStaff = isAdmin || isTrainer;
@@ -189,6 +193,9 @@ export function SessionProvider({ children }: SessionProviderProps) {
       setIsOfflineFallback(false);
 
       async function restoreReadOnlyOfflineShell(): Promise<boolean> {
+        // Browser sessions must be validated online; do not unlock staff screens
+        // using cached identities from shared/public computers.
+        if (Platform.OS === 'web') return false;
         const stored = await readVerifiedLocalUser();
         if (!stored) return false;
         const cached = await readCachedProfile(stored.id);
@@ -315,7 +322,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       if (!nextSession?.user) {
         const eventAttempt = authEventAttemptRef.current + 1;
         authEventAttemptRef.current = eventAttempt;
-        if (event === 'SIGNED_OUT') {
+        if (event === 'SIGNED_OUT' && Platform.OS !== 'web') {
           // A refresh that fails offline can emit SIGNED_OUT. Preserve only
           // locally verified, cached read-only state; never mint a JWT.
           void (async () => {

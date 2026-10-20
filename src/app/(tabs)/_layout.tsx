@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Tabs } from 'expo-router';
+import { Slot, Tabs } from 'expo-router';
 import { Platform, View, type ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -79,6 +79,10 @@ export default function TabsLayout() {
   const icon = (name: keyof typeof MaterialIcons.glyphMap) => ({ color, size, focused }: { color: ColorValue; size: number; focused: boolean }) => (
     <TabIcon name={name} color={color} size={size} focused={focused} activeSurface={activeSurface} />
   );
+
+  // Expo Router's route directory remains universal: no .web route file can leak
+  // into the native router module graph. Browser navigation lives outside src/app.
+  if (Platform.OS === 'web') return <Slot />;
 
   return (
     <Tabs

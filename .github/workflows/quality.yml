@@ -16,6 +16,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run verify:release
+      # La demo privada de GitHub debe aislar todas las variables públicas y credenciales reales.
+      - run: node scripts/github-web-preview.mjs --self-test
       - run: node scripts/check-play-review-provision.mjs
       # Los paquetes del SDK 57 se verifican contra el lockfile probado en
       # Android/iOS, no contra el catálogo remoto que cambia entre commits.
@@ -25,5 +27,17 @@ jobs:
       - run: EXPO_DOCTOR_SKIP_DEPENDENCY_VERSION_CHECK=1 npx --yes expo-doctor@1.20.4
       - run: npm run audit:critical
       - run: npx expo config --type introspect --json > /tmp/ucapsa-expo-introspect.json
-      - run: npx expo export --platform android --output-dir dist-ci-android --clear
+      - run: npx expo export --platform android --source-maps --output-dir dist-ci-android --clear
+      # El bundle Android no debe incluir módulos exclusivos del navegador.
+      # Source maps sólo para auditoría local de CI; nunca se distribuyen.
+      - run: node scripts/check-web-excluded-from-android-bundle.mjs dist-ci-android
       - run: npx expo export --platform ios --output-dir dist-ci-ios --clear
+      # Build exacto de la demo de Codespaces: sin acceso a datos ni login.
+      # No se publica ni se abre un Codespace al ejecutar esta comprobación.
+      - run: npx expo export --platform web --output-dir dist-ci-web --clear
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: https://ci-web-export.invalid
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ci-only-no-access-key
+          EXPO_PUBLIC_UCAPSA_CODESPACES_DEMO: 'true'
+          EXPO_PUBLIC_UCAPSA_REVIEW_BUILD: 'true'
+      - run: node scripts/check-github-demo-bundle.mjs dist-ci-web
