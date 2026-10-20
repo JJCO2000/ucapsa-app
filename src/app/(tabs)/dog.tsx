@@ -18,6 +18,7 @@ import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { ucapsaBrand, ucapsaColorKeyPalette, withAlpha } from '../../constants/brand';
 import { useReturnToProfile } from '../../hooks/useReturnToProfile';
 import { useSession } from '../../hooks/useSession';
+import { useMemberAppearance } from '../../hooks/useMemberAppearance';
 import { devWarn } from '../../lib/client-diagnostics';
 import { getCachedAchievementsForDog, getMyDogAchievements, type AchievementWithState } from '../../services/achievements.service';
 import { getPrivateDogPhotoUrls } from '../../services/dog-photos.service';
@@ -234,9 +235,10 @@ export default function DogTab() {
     ),
     [activeEnrollments],
   );
+  const { memberTheme } = useMemberAppearance();
   const format = useMemo(
-    () => resolveUcapsaFormat({ user, role, isAdmin, hasActivePrograms: activeEnrollments.length > 0 }),
-    [activeEnrollments.length, isAdmin, role, user],
+    () => resolveUcapsaFormat({ user, role, isAdmin, memberTheme, hasActivePrograms: activeEnrollments.length > 0 }),
+    [memberTheme, activeEnrollments.length, isAdmin, role, user],
   );
   const premium = format.key === 'member';
   const selectedDog = useMemo(() => dogs.find((dog) => dog.id === selectedDogId) ?? dogs[0] ?? null, [dogs, selectedDogId]);
@@ -373,7 +375,7 @@ export default function DogTab() {
     <KeyboardAwareScreen
       backgroundColor={format.background}
       style={{ backgroundColor: format.background }}
-      contentContainerStyle={[styles.screenContent, premium && styles.premiumContent]}
+      contentContainerStyle={[styles.screenContent, premium && styles.premiumContent, { backgroundColor: format.background }]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={format.accent} />}
     >
       <UcapsaAmbientBackground format={format} variant="dog" />
@@ -393,7 +395,7 @@ export default function DogTab() {
           <MaterialIcons name="cloud-off" size={22} color={premium ? ucapsaBrand.colors.premiumActionText : format.accentDark} />
           <View style={styles.offlineCopy}>
             <Text style={[styles.offlineTitle, { color: format.cardText }]}>Clases aún no guardadas</Text>
-            <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Tus perros están disponibles. Conéctate una vez para guardar también sus clases y asistencias.</Text>
+            <Text style={[styles.muted, { color: format.muted }]}>Tus perros están disponibles. Conéctate una vez para guardar también sus clases y asistencias.</Text>
           </View>
         </View>
       ) : null}
@@ -407,7 +409,7 @@ export default function DogTab() {
               <View style={styles.sectionHeader}>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={[styles.sectionTitle, { color: format.cardText }]}>Tus perros</Text>
-                  <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+                  <Text style={[styles.muted, { color: format.muted }]}>
                     {offlineEmpty ? 'No hay una copia local todavía.' : dogs.length > 1 ? 'Selecciona un perro.' : 'Agrega tu primer perro.'}
                   </Text>
                 </View>
@@ -428,7 +430,7 @@ export default function DogTab() {
                 <View style={[styles.emptyDog, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}>
                   <MaterialIcons name="cloud-off" size={28} color={premium ? ucapsaBrand.colors.premiumActionText : format.accentDark} />
                   <Text style={[styles.emptyDogTitle, { color: format.cardText }]}>Perros aún no guardados</Text>
-                  <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>La app funciona sin conexión después de la primera sincronización. Conéctate una vez para guardar tus perros en este dispositivo.</Text>
+                  <Text style={[styles.muted, { color: format.muted }]}>La app funciona sin conexión después de la primera sincronización. Conéctate una vez para guardar tus perros en este dispositivo.</Text>
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel="Reintentar sincronización de perros"
@@ -446,9 +448,9 @@ export default function DogTab() {
                   style={[styles.emptyDog, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}
                   onPress={openCreate}
                 >
-                  <MaterialIcons name="pets" size={28} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                  <MaterialIcons name="pets" size={28} color={format.accentDark} />
                   <Text style={[styles.emptyDogTitle, { color: format.cardText }]}>Agrega tu primer perro</Text>
-                  <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Después podrás agregar los demás desde esta misma pantalla.</Text>
+                  <Text style={[styles.muted, { color: format.muted }]}>Después podrás agregar los demás desde esta misma pantalla.</Text>
                 </Pressable>
               ) : (
                 <View style={styles.dogGrid}>
@@ -493,7 +495,7 @@ export default function DogTab() {
                 >
                   <DogTabPortrait dog={selectedDog} photoUrl={photoUrls[selectedDog.id] ?? null} size={52} />
                   <View style={[styles.dogPortraitEditBadge, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
-                    <MaterialIcons name="edit" size={12} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                    <MaterialIcons name="edit" size={12} color={format.accentDark} />
                   </View>
                 </Pressable>
                 <View style={{ flex: 1, minWidth: 0 }}>
@@ -506,7 +508,7 @@ export default function DogTab() {
                       </View>
                     ) : null}
                   </View>
-                  <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+                  <Text style={[styles.muted, { color: format.muted }]}>
                     {programWarning ? 'Entrenamiento sin verificar' : 'Entrenamiento, avances y logros'}
                   </Text>
                 </View>
@@ -524,9 +526,9 @@ export default function DogTab() {
 
               {!programWarning && selectedEnrollments.length === 0 ? (
                 <View style={styles.dogEmptyProgram}>
-                  <MaterialIcons name="school" size={24} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                  <MaterialIcons name="school" size={24} color={format.accentDark} />
                   <Text style={[styles.classTitle, { color: format.cardText }]}>Sin programa vinculado</Text>
-                  <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Cuando {selectedDog.name} tenga clases o historial, aparecerá aquí.</Text>
+                  <Text style={[styles.muted, { color: format.muted }]}>Cuando {selectedDog.name} tenga clases o historial, aparecerá aquí.</Text>
                 </View>
               ) : null}
 
@@ -545,13 +547,13 @@ export default function DogTab() {
                   >
                     <View style={[styles.dogProgramIcon, { backgroundColor: format.pillBackground }]}><MaterialIcons name="school" size={22} color={format.pillText} /></View>
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={[styles.dogProgramEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>ENTRENAMIENTO ACTUAL</Text>
+                      <Text style={[styles.dogProgramEyebrow, { color: format.accentDark }]}>ENTRENAMIENTO ACTUAL</Text>
                       <Text style={[styles.dogProgramTitle, { color: format.cardText }]}>{programLabel}</Text>
-                      <Text style={[styles.dogProgramMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+                      <Text style={[styles.dogProgramMeta, { color: format.muted }]}>
                         {unlimited ? `${item.attendances.length} clases registradas · acceso ilimitado` : `${item.attendances.length} clases tomadas`}
                       </Text>
                     </View>
-                    {!unlimited && remaining != null ? <View style={[styles.dogRemainingBox, { backgroundColor: format.accent }]}><Text style={[styles.dogRemainingValue, { color: format.primaryButtonText }]}>{remaining}</Text><Text style={[styles.dogRemainingLabel, { color: format.primaryButtonText }]}>restantes</Text></View> : <MaterialIcons name="chevron-right" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />}
+                    {!unlimited && remaining != null ? <View style={[styles.dogRemainingBox, { backgroundColor: format.accent }]}><Text style={[styles.dogRemainingValue, { color: format.primaryButtonText }]}>{remaining}</Text><Text style={[styles.dogRemainingLabel, { color: format.primaryButtonText }]}>restantes</Text></View> : <MaterialIcons name="chevron-right" size={22} color={format.accentDark} />}
                   </Pressable>
                 );
               })() : null}
@@ -610,9 +612,9 @@ export default function DogTab() {
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={[styles.dogSecondaryTitle, { color: format.cardText }]}>Historial</Text>
-                    <Text style={[styles.dogSecondaryMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Programas y clases anteriores</Text>
+                    <Text style={[styles.dogSecondaryMeta, { color: format.muted }]}>Programas y clases anteriores</Text>
                   </View>
-                  <MaterialIcons name="chevron-right" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                  <MaterialIcons name="chevron-right" size={20} color={format.accentDark} />
                 </Pressable>
               </View>
             </View>
@@ -629,7 +631,7 @@ export default function DogTab() {
         <View style={styles.modalHeader}>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={[styles.modalTitle, premium && styles.textPremium]}>Agregar perro</Text>
-            <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Registra otro perro en tu cuenta.</Text>
+            <Text style={[styles.muted, { color: format.muted }]}>Registra otro perro en tu cuenta.</Text>
           </View>
           <Pressable accessibilityRole="button" accessibilityLabel="Cerrar edición" style={styles.modalCloseButton} onPress={() => setEditorMode(null)}>
             <MaterialIcons name="close" size={25} color={premium ? ucapsaBrand.colors.premiumActionText : ucapsaBrand.colors.text} />
@@ -700,15 +702,15 @@ function CompactDogHeader({
     <View style={styles.header}>
       {onBack ? (
         <Pressable accessibilityRole="button" accessibilityLabel="Volver a Perfil" style={[styles.headerBack, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]} onPress={onBack}>
-          <MaterialIcons name="arrow-back" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+          <MaterialIcons name="arrow-back" size={22} color={format.accentDark} />
         </Pressable>
       ) : null}
-      <View style={[styles.headerIcon, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft, borderColor: premium ? ucapsaBrand.colors.premiumBorder : format.border }]}>
-        <MaterialIcons name="pets" size={25} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+      <View style={[styles.headerIcon, { backgroundColor: format.accentSoft, borderColor: format.border }]}>
+        <MaterialIcons name="pets" size={25} color={format.accentDark} />
       </View>
       <View style={styles.headerCopy}>
         <Text style={[styles.headerTitle, { color: format.text }]}>{dogsCount > 1 ? 'Mis perros' : 'Mi perro'}</Text>
-        <Text style={[styles.headerSubtitle, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{subtitle}</Text>
+        <Text style={[styles.headerSubtitle, { color: format.muted }]}>{subtitle}</Text>
       </View>
       {!offlineEmpty ? (
         <Pressable
@@ -717,7 +719,7 @@ function CompactDogHeader({
           style={[styles.headerAddButton, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}
           onPress={onAdd}
         >
-          <MaterialIcons name="add" size={23} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+          <MaterialIcons name="add" size={23} color={format.accentDark} />
         </Pressable>
       ) : null}
     </View>

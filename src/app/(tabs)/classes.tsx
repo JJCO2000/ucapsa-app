@@ -10,6 +10,7 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
+import { useMemberAppearance } from '../../hooks/useMemberAppearance';
 import {
   getMyProgramEnrollments,
   getProgramCodeLabel,
@@ -136,7 +137,8 @@ export default function ClassesTab() {
 
   const active = useMemo(() => rows.filter((item) => item.enrollment.status === 'active'), [rows]);
   const previous = useMemo(() => rows.filter((item) => item.enrollment.status !== 'active'), [rows]);
-  const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin, hasActivePrograms: active.length > 0 }), [active.length, isAdmin, role, user]);
+  const { memberTheme } = useMemberAppearance();
+  const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin, memberTheme, hasActivePrograms: active.length > 0 }), [memberTheme, active.length, isAdmin, role, user]);
   const premium = format.key === 'member';
 
   async function refresh() {
@@ -151,7 +153,7 @@ export default function ClassesTab() {
     <KeyboardAwareScreen
       backgroundColor={format.background}
       style={{ backgroundColor: format.background }}
-      contentContainerStyle={[styles.screenContent, premium && styles.premiumContent]}
+      contentContainerStyle={[styles.screenContent, premium && styles.premiumContent, { backgroundColor: format.background }]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={format.accent} />}
     >
       <UcapsaAmbientBackground format={format} variant="classes" />
@@ -206,12 +208,12 @@ export default function ClassesTab() {
 function CompactClassesHeader({ premium, format }: { premium: boolean; format: ReturnType<typeof resolveUcapsaFormat> }) {
   return (
     <View style={styles.header}>
-      <View style={[styles.headerIcon, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft, borderColor: premium ? ucapsaBrand.colors.premiumBorder : format.border }]}>
-        <MaterialIcons name="school" size={25} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+      <View style={[styles.headerIcon, { backgroundColor: format.accentSoft, borderColor: format.border }]}>
+        <MaterialIcons name="school" size={25} color={format.accentDark} />
       </View>
       <View style={styles.headerCopy}>
         <Text style={[styles.headerTitle, { color: format.text }]}>Clases</Text>
-        <Text style={[styles.headerSubtitle, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Tu programa y próximas sesiones</Text>
+        <Text style={[styles.headerSubtitle, { color: format.muted }]}>Tu programa y próximas sesiones</Text>
       </View>
     </View>
   );
@@ -250,9 +252,9 @@ function ClassCard({
         </View>
         <View style={styles.historyCopy}>
           <Text style={[styles.historyTitle, { color: format.cardText }]}>{getProgramCodeLabel(item.program.code)}{levelLabel ? ` · ${levelLabel}` : ''}</Text>
-          <Text style={[styles.cardMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{dogName} · {statusLabel} · {attendanceCount} asistencias</Text>
+          <Text style={[styles.cardMeta, { color: format.muted }]}>{dogName} · {statusLabel} · {attendanceCount} asistencias</Text>
         </View>
-        <MaterialIcons name="chevron-right" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+        <MaterialIcons name="chevron-right" size={22} color={format.accentDark} />
       </Pressable>
     );
   }
@@ -265,7 +267,7 @@ function ClassCard({
         </View>
         <View style={styles.programCopy}>
           <Text style={[styles.currentProgram, { color: format.cardText }]}>{getProgramCodeLabel(item.program.code)}{levelLabel ? ` ${levelLabel}` : ''}</Text>
-          <Text style={[styles.currentDog, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Con {dogName}</Text>
+          <Text style={[styles.currentDog, { color: format.muted }]}>Con {dogName}</Text>
         </View>
         {!unlimited && remaining != null ? (
           <View style={[styles.remainingBadge, { backgroundColor: format.accentSoft, borderColor: format.border }]}>
@@ -284,9 +286,9 @@ function ClassCard({
           <MaterialIcons name="event" size={19} color={format.pillText} />
         </View>
         <View style={styles.sessionCopy}>
-          <Text style={[styles.nextSessionLabel, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>PRÓXIMA SESIÓN</Text>
+          <Text style={[styles.nextSessionLabel, { color: format.accentDark }]}>PRÓXIMA SESIÓN</Text>
           <Text style={[styles.nextClass, { color: format.cardText }]}>{nextClassLabel(nextSession, sessionUnavailable)}</Text>
-          <Text style={[styles.scheduleText, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{scheduleLabel(item)}</Text>
+          <Text style={[styles.scheduleText, { color: format.muted }]}>{scheduleLabel(item)}</Text>
         </View>
       </View>
 
@@ -295,7 +297,7 @@ function ClassCard({
       ) : null}
       <View style={styles.usageRow}>
         <Text style={[styles.usageValue, { color: format.cardText }]}>{attendanceCount}</Text>
-        <Text style={[styles.usageLabel, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+        <Text style={[styles.usageLabel, { color: format.muted }]}>
           {unlimited ? 'asistencias · acceso ilimitado' : 'asistencias registradas'}
         </Text>
       </View>

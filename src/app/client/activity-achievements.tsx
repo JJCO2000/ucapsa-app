@@ -12,6 +12,7 @@ import { ucapsaBrand, ucapsaColorKeyPalette } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useReturnToProfile } from '../../hooks/useReturnToProfile';
 import { useSession } from '../../hooks/useSession';
+import { useMemberAppearance } from '../../hooks/useMemberAppearance';
 import {
   getCachedMyClientActivityFacts,
   getCachedDogActivityFacts,
@@ -38,7 +39,8 @@ export default function ActivityAchievementsScreen() {
   const [usingSavedData, setUsingSavedData] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const loadRunRef = useRef(0);
-  const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
+  const { memberTheme } = useMemberAppearance();
+  const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin, memberTheme }), [memberTheme, isAdmin, role, user]);
   const premium = format.key === 'member';
   // El deep link antiguo (?code=attendance_5) abre la categoría de ese nivel.
   useEffect(() => {
@@ -108,7 +110,7 @@ export default function ActivityAchievementsScreen() {
   return (
     <KeyboardAwareScreen
       style={{ backgroundColor: format.background }}
-      contentContainerStyle={premium ? styles.premiumContent : undefined}
+      contentContainerStyle={premium ? { backgroundColor: format.background } : undefined}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={format.accent} />}
     >
       <UcapsaAmbientBackground format={format} variant="home" />

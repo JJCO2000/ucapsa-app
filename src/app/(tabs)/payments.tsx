@@ -11,6 +11,7 @@ import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useReturnToProfile } from '../../hooks/useReturnToProfile';
 import { useSession } from '../../hooks/useSession';
+import { useMemberAppearance } from '../../hooks/useMemberAppearance';
 import {
   clientReadKeys,
   createPaymentOfflineSummary,
@@ -128,7 +129,8 @@ export default function PaymentsTab() {
     return () => { loadRunRef.current += 1; };
   }, [load]));
 
-  const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
+  const { memberTheme } = useMemberAppearance();
+  const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin, memberTheme }), [memberTheme, isAdmin, role, user]);
   const premium = format.key === 'member';
 
   async function refresh() {
@@ -166,7 +168,7 @@ export default function PaymentsTab() {
     <KeyboardAwareScreen
       backgroundColor={format.background}
       style={{ backgroundColor: format.background }}
-      contentContainerStyle={[styles.screenContent, premium && styles.premiumContent]}
+      contentContainerStyle={[styles.screenContent, premium && styles.premiumContent, { backgroundColor: format.background }]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={format.accent} />}
     >
       <UcapsaAmbientBackground format={format} variant="payments" />
@@ -179,11 +181,11 @@ export default function PaymentsTab() {
             style={[styles.backButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}
             onPress={backToProfile}
           >
-            <MaterialIcons name="arrow-back" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+            <MaterialIcons name="arrow-back" size={22} color={format.accentDark} />
           </Pressable>
         ) : null}
         <View style={[styles.headerIcon, premium && styles.headerIconPremium]}>
-          <MaterialIcons name="account-balance-wallet" size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+          <MaterialIcons name="account-balance-wallet" size={22} color={format.accentDark} />
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={[styles.headerTitle, premium && styles.textPremium]}>Pagos</Text>
@@ -226,8 +228,8 @@ export default function PaymentsTab() {
           {bankSettings ? (
             <View style={styles.bankGroup}>
               <View style={[styles.bankStrip, premium && styles.cardPremium]}>
-                <View style={[styles.bankIcon, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft }]}>
-                  <MaterialIcons name="account-balance" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                <View style={[styles.bankIcon, { backgroundColor: format.accentSoft }]}>
+                  <MaterialIcons name="account-balance" size={20} color={format.accentDark} />
                 </View>
                 <View style={styles.bankCopy}>
                   <Text style={[styles.eyebrow, premium && styles.goldText]}>CLABE UCAPSA</Text>
@@ -240,14 +242,14 @@ export default function PaymentsTab() {
                   onPress={() => void copyClabe()}
                   style={({ pressed }) => [styles.copyButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }, pressed && styles.pressed]}
                 >
-                  <MaterialIcons name="content-copy" size={18} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-                  <Text style={[styles.copyText, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Copiar</Text>
+                  <MaterialIcons name="content-copy" size={18} color={format.accentDark} />
+                  <Text style={[styles.copyText, { color: format.accentDark }]}>Copiar</Text>
                 </Pressable>
               </View>
 
               <View style={[styles.bankStrip, styles.holderStrip, premium && styles.cardPremium]}>
-                <View style={[styles.bankIcon, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft }]}>
-                  <MaterialIcons name="person" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                <View style={[styles.bankIcon, { backgroundColor: format.accentSoft }]}>
+                  <MaterialIcons name="person" size={20} color={format.accentDark} />
                 </View>
                 <View style={styles.bankCopy}>
                   <Text style={[styles.eyebrow, premium && styles.goldText]}>TITULAR</Text>
@@ -259,21 +261,21 @@ export default function PaymentsTab() {
                   onPress={() => void copyAccountHolder()}
                   style={({ pressed }) => [styles.copyButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }, pressed && styles.pressed]}
                 >
-                  <MaterialIcons name="content-copy" size={18} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-                  <Text style={[styles.copyText, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Copiar</Text>
+                  <MaterialIcons name="content-copy" size={18} color={format.accentDark} />
+                  <Text style={[styles.copyText, { color: format.accentDark }]}>Copiar</Text>
                 </Pressable>
               </View>
             </View>
           ) : bankUnavailable ? (
             <View style={[styles.bankUnavailableStrip, premium && styles.cardPremium]}>
-              <MaterialIcons name="cloud-off" size={18} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+              <MaterialIcons name="cloud-off" size={18} color={format.accentDark} />
               <Text style={[styles.bankUnavailableText, premium && styles.mutedPremium]}>Conéctate para consultar la CLABE vigente.</Text>
             </View>
           ) : null}
 
           {overview.legacy_membership_pending ? (
             <View style={[styles.notice, premium && styles.cardPremium]}>
-              <MaterialIcons name="hourglass-top" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+              <MaterialIcons name="hourglass-top" size={20} color={format.accentDark} />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.rowTitle, premium && styles.textPremium]}>Comprobante en revisión</Text>
                 <Text style={[styles.muted, premium && styles.mutedPremium]}>UCAPSA está revisando un pago de membresía.</Text>
@@ -327,7 +329,7 @@ export default function PaymentsTab() {
                     <Text style={[styles.muted, premium && styles.mutedPremium]}>{paymentDateLabel(payment.paid_at)}</Text>
                   </View>
                   <Text style={[styles.paidAmount, premium && styles.goldText]}>{money(Number(payment.amount ?? 0))}</Text>
-                  <MaterialIcons name="chevron-right" size={21} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                  <MaterialIcons name="chevron-right" size={21} color={format.accentDark} />
                 </Pressable>
               ))}
             </>
@@ -342,11 +344,11 @@ export default function PaymentsTab() {
 
       {localReady && !overviewAvailable ? (
         <View style={[styles.emptyCard, premium && styles.cardPremium]}>
-          <MaterialIcons name="cloud-off" size={24} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+          <MaterialIcons name="cloud-off" size={24} color={format.accentDark} />
           <Text style={[styles.rowTitle, premium && styles.textPremium]}>Saldo aún no guardado</Text>
           <Text style={[styles.muted, premium && styles.mutedPremium]}>Conéctate una vez para guardar un resumen de tu saldo. No asumiremos que tu saldo es cero cuando no podamos verificarlo.</Text>
           <Pressable style={[styles.retryButton, { borderColor: format.cardBorder }]} onPress={() => void refresh()}>
-            <Text style={[styles.retryText, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Reintentar</Text>
+            <Text style={[styles.retryText, { color: format.accentDark }]}>Reintentar</Text>
           </Pressable>
         </View>
       ) : null}

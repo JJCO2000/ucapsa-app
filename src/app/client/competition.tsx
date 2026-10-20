@@ -12,6 +12,7 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
+import { useMemberAppearance } from '../../hooks/useMemberAppearance';
 import { devWarn } from '../../lib/client-diagnostics';
 import {
   getAccountCompetitionSeasons,
@@ -38,7 +39,8 @@ function statusLabel(status: string | null | undefined) {
 
 export default function ClientCompetitionScreen() {
   const { user, role, isAdmin } = useSession();
-  const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
+  const { memberTheme } = useMemberAppearance();
+  const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin, memberTheme }), [memberTheme, isAdmin, role, user]);
   const premium = format.key === 'member';
 
   const [snapshot, setSnapshot] = useState<ClientAccountCompetitionSnapshot | null>(null);
@@ -191,9 +193,9 @@ export default function ClientCompetitionScreen() {
       <UcapsaAmbientBackground format={format} variant="dog" />
 
       <View style={styles.header}>
-        <Text style={[styles.eyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>COMPETENCIA UCAPSA</Text>
+        <Text style={[styles.eyebrow, { color: format.accentDark }]}>COMPETENCIA UCAPSA</Text>
         <Text style={[styles.title, { color: format.cardText }]}>Tus perros</Text>
-        <Text style={[styles.subtitle, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+        <Text style={[styles.subtitle, { color: format.muted }]}>
           Revisa en un solo lugar cómo van tus perros y entra al Ranking sin recorrer varias pantallas.
         </Text>
       </View>
@@ -210,15 +212,15 @@ export default function ClientCompetitionScreen() {
       {!localReady ? (
         <View style={styles.loadingRow}>
           <ActivityIndicator color={format.accent} />
-          <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Cargando competencia…</Text>
+          <Text style={[styles.muted, { color: format.muted }]}>Cargando competencia…</Text>
         </View>
       ) : null}
 
       {error ? (
         <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
-          <MaterialIcons name="cloud-off" size={24} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+          <MaterialIcons name="cloud-off" size={24} color={format.accentDark} />
           <Text style={[styles.cardTitle, { color: format.cardText }]}>No pudimos cargar la competencia</Text>
-          <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+          <Text style={[styles.muted, { color: format.muted }]}>
             Conéctate una vez para guardar esta información en el dispositivo.
           </Text>
         </View>
@@ -227,9 +229,9 @@ export default function ClientCompetitionScreen() {
       {localReady && !error && snapshot ? (
         snapshot.dogs.length === 0 ? (
           <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
-            <MaterialIcons name="pets" size={24} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+            <MaterialIcons name="pets" size={24} color={format.accentDark} />
             <Text style={[styles.cardTitle, { color: format.cardText }]}>Primero registra un perro</Text>
-            <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Puedes consultar el Ranking aunque todavía no tengas perros registrados.</Text>
+            <Text style={[styles.muted, { color: format.muted }]}>Puedes consultar el Ranking aunque todavía no tengas perros registrados.</Text>
             <Pressable
               style={[styles.rankingCard, { backgroundColor: format.accent, borderColor: format.accent }]}
               onPress={() => router.push(('/client/competition-ranking' + (selectedSeason?.season_id
@@ -268,7 +270,7 @@ export default function ClientCompetitionScreen() {
             {!selectedSeason ? (
               <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
                 <Text style={[styles.cardTitle, { color: format.cardText }]}>{usingSavedData ? 'Temporadas sin sincronizar' : 'No hay temporadas publicadas'}</Text>
-                <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+                <Text style={[styles.muted, { color: format.muted }]}>
                   {usingSavedData
                     ? 'Los datos guardados no confirman el estado actual de las temporadas. Conéctate y actualiza.'
                     : 'No hay ninguna temporada disponible para consultar. Actualiza si Administración acaba de activarla.'}
@@ -291,7 +293,7 @@ export default function ClientCompetitionScreen() {
                 >
                   <View style={styles.rankingTop}>
                     <View style={[styles.rankingIcon, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.cardBackground }]}>
-                      <MaterialIcons name="emoji-events" size={25} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+                      <MaterialIcons name="emoji-events" size={25} color={format.accentDark} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.rankingEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.primaryButtonText }]}>RANKING UCAPSA</Text>
@@ -313,7 +315,7 @@ export default function ClientCompetitionScreen() {
                           <Text style={[styles.positionName, { color: premium ? ucapsaBrand.colors.premiumText : format.cardText }]} numberOfLines={1}>
                             {Number(row.ranking_position) === 1 ? '🥇' : Number(row.ranking_position) === 2 ? '🥈' : '🥉'} {row.dog_name || 'Perro'}
                           </Text>
-                          <Text style={[styles.positionValue, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>#{Number(row.ranking_position)}</Text>
+                          <Text style={[styles.positionValue, { color: format.accentDark }]}>#{Number(row.ranking_position)}</Text>
                         </Animated.View>
                       ))
                     ) : (
@@ -349,7 +351,7 @@ export default function ClientCompetitionScreen() {
                           </View>
                           <View style={{ flex: 1, minWidth: 0 }}>
                             <Text style={[styles.dogName, { color: format.cardText }]}>{dog.dog_name}</Text>
-                            <Text style={[styles.dogMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+                            <Text style={[styles.dogMeta, { color: format.muted }]}>
                               {ranking
                                 ? ('#' + Number(ranking.ranking_position ?? 0) + ' en Ranking · ' + (ranking.range_name || season?.range_name || 'Cobre'))
                                 : season
