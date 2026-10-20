@@ -37,7 +37,7 @@ reset role;
 do $stage_not_auth$
 begin
   if exists (select 1 from public.memberships where user_id =
-    '00000000-0000-4000-8000-000000000010') then
+    '00000000-0000-4000-8000-000000000990') then
     raise exception 'Invented Auth membership before owner account existed';
   end if;
   if not exists (
@@ -65,12 +65,12 @@ end $read_pending$;
 reset role;
 
 insert into auth.users(id,email,email_confirmed_at)
-values('00000000-0000-4000-8000-000000000010','member@ucapsa.invalid',now());
+values('00000000-0000-4000-8000-000000000990','member@ucapsa.invalid',now());
 insert into public.profiles(user_id,email,role)
-values('00000000-0000-4000-8000-000000000010','member@ucapsa.invalid','client');
+values('00000000-0000-4000-8000-000000000990','member@ucapsa.invalid','client');
 
 set role authenticated;
-select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000010',false);
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000990',false);
 do $first_member_claim$
 declare result jsonb;
 begin
@@ -85,44 +85,44 @@ do $member_truth$
 declare v_id uuid;
 begin
   select id into v_id from public.memberships
-  where user_id='00000000-0000-4000-8000-000000000010'
+  where user_id='00000000-0000-4000-8000-000000000990'
     and status='active';
   if v_id is null then raise exception 'Member authorization not activated'; end if;
   if not exists (select 1 from public.profiles
-    where user_id='00000000-0000-4000-8000-000000000010'
+    where user_id='00000000-0000-4000-8000-000000000990'
       and role='member') then
     raise exception 'Canonical member role not synchronized'; end if;
   if (select count(*) from public.memberships
-    where user_id='00000000-0000-4000-8000-000000000010')<>1 then
+    where user_id='00000000-0000-4000-8000-000000000990')<>1 then
     raise exception 'Duplicate membership'; end if;
   if not exists (
     select 1 from public.program_enrollments e
     join public.programs p on p.id=e.program_id
-    where e.user_id='00000000-0000-4000-8000-000000000010'
+    where e.user_id='00000000-0000-4000-8000-000000000990'
       and e.membership_id=v_id and e.access_mode='membership' and e.status='active'
       and p.code='comandos' and e.program_level='avanzado'
   ) then raise exception 'Unlimited Comandos advanced stage lost'; end if;
   if not exists (
     select 1 from public.program_enrollments e join public.programs p on p.id=e.program_id
-    where e.user_id='00000000-0000-4000-8000-000000000010'
+    where e.user_id='00000000-0000-4000-8000-000000000990'
     and p.code='comandos' and e.access_mode='card' and e.attendances_count=3
   ) then raise exception 'Original Comandos attendance was overwritten'; end if;
   if not exists (
     select 1 from public.program_enrollments e join public.programs p on p.id=e.program_id
-    where e.user_id='00000000-0000-4000-8000-000000000010'
+    where e.user_id='00000000-0000-4000-8000-000000000990'
     and p.code='puppy' and e.attendances_count=2
   ) then raise exception 'Puppy attendance was lost'; end if;
 end $member_truth$;
 
 -- Repeat linking must not mint a second membership or duplicate history.
 set role authenticated;
-select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000010',false);
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000990',false);
 select public.claim_my_preregistered_dogs();
 reset role;
 do $member_idempotency$
 begin
   if (select count(*) from public.memberships
-    where user_id='00000000-0000-4000-8000-000000000010')<>1 then
+    where user_id='00000000-0000-4000-8000-000000000990')<>1 then
     raise exception 'Repeated claim duplicated membership'; end if;
 end $member_idempotency$;
 select 'UCAPSA provisional Socio with Comandos/Puppy: PASS' as result;
