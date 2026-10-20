@@ -111,7 +111,9 @@ export default function AdminPreregisterDogScreen() {
     if (ownerPhone.trim()) {
       try { normalizeContactPhone(ownerPhone); }
       catch (error) {
-        reportCardError('Celular inválido', error instanceof Error ? error.message : 'Revisa el celular.');
+        const message = error instanceof Error ? error.message : 'Revisa el celular.';
+        if (Platform.OS === 'web') setSubmissionNotice({ kind: 'error', message });
+        else Alert.alert('Celular inválido', message);
         return;
       }
     }
