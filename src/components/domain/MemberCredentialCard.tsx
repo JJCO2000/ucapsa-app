@@ -4,7 +4,7 @@ import QRCode from 'react-native-qrcode-svg';
 
 import { MemberClubCrest } from './MemberClubCrest';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
-import type { UcapsaFormat } from '../../constants/ucapsaFormats';
+import { ucapsaFormats, type UcapsaFormat } from '../../constants/ucapsaFormats';
 import { formatDate } from '../../services/memberships.service';
 import type { Membership, Profile } from '../../types/app.types';
 
@@ -12,10 +12,10 @@ type MemberCredentialCardProps = {
   membership: Membership;
   profile: Profile | null;
   displayName: string;
-  format: UcapsaFormat;
+  format?: UcapsaFormat;
 };
 
-export function MemberCredentialCard({ membership, profile: _profile, displayName, format }: MemberCredentialCardProps) {
+export function MemberCredentialCard({ membership, profile: _profile, displayName, format = ucapsaFormats.member }: MemberCredentialCardProps) {
   return (
     <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
       <View style={styles.textureRingOne} />
