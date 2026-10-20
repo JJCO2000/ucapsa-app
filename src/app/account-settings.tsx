@@ -139,8 +139,12 @@ export default function AccountSettingsScreen() {
     const contactChanged = normalizedPhone !== (profile?.phone ?? '').trim()
       || normalizedContactEmail !== (profile?.preregistration_contact_email ?? '').trim().toLowerCase()
       || normalizedEmail !== (user.email ?? '').trim().toLowerCase();
-    if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-      Alert.alert('Correo inválido', 'Escribe un correo válido antes de guardar.');
+    const currentAuthEmail = (user.email ?? '').trim().toLowerCase();
+    // Una cuenta iniciada solo con teléfono puede no tener correo de acceso.
+    // El correo para el primer preregistro es independiente de Auth.
+    if ((normalizedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail))
+      || (!normalizedEmail && currentAuthEmail)) {
+      Alert.alert('Correo inválido', 'Revisa el correo de acceso antes de guardar.');
       return;
     }
     if (preregistrationEnabled && normalizedContactEmail
@@ -151,7 +155,7 @@ export default function AccountSettingsScreen() {
 
     setSaving(true);
     try {
-      const emailChanged = normalizedEmail !== (user.email ?? '').trim().toLowerCase();
+      const emailChanged = Boolean(normalizedEmail) && normalizedEmail !== currentAuthEmail;
       const emailChange = emailChanged ? await requestMyEmailChange(normalizedEmail) : null;
 
       const savedProfile = await withOperationTimeout(
