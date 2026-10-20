@@ -48,8 +48,8 @@ export default function AccountSettingsScreen() {
     try {
       setCheckingPreregistration(true);
       const status = await reviewPreregistrationLink();
-      // Si hay coincidencia, el diálogo global muestra "Sí, vincular" o
-      // "Ahora no". La consulta nunca vincula automáticamente.
+      // El primer expediente puede vincularse automáticamente.
+      // Las vinculaciones posteriores muestran la invitación y exigen aprobación.
       if (status === 'available') return;
       const detail = status === 'requested'
         ? 'Tu solicitud de revisión se envió a Administración. El expediente actual no cambiará mientras se revisa.'
@@ -61,7 +61,7 @@ export default function AccountSettingsScreen() {
           ? 'Agrega tu celular al perfil o inicia sesión con el correo asociado al preregistro y vuelve a consultar.'
           : status === 'not_applicable'
             ? 'Inicia sesión con una cuenta conectada para consultar expedientes.'
-            : 'Por ahora no hay expedientes pendientes asociados a tus contactos confirmados.';
+            : 'Por ahora no hay expedientes pendientes asociados al celular o correo de tu cuenta.';
       Alert.alert('Preinscripciones', detail);
     } catch (cause) {
       Alert.alert('No se pudo consultar',
