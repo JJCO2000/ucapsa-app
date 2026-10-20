@@ -25,7 +25,7 @@ for (const [name, text] of screens) {
 }
 
 for (const token of [
-  'AUTH_PASSWORD_MIN_LENGTH = 12',
+  'AUTH_PASSWORD_MIN_LENGTH = 6',
   'normalizeAuthEmail',
   'validateNewPassword',
   'signInWithEmail',
@@ -151,7 +151,7 @@ const signupSegment = service.split('export async function signUpWithEmail(')[1]
 assert.ok(signupSegment.includes('const passwordError = validateNewPassword(password);')
   && signupSegment.includes('if (passwordError) throw new Error(passwordError);')
   && signupSegment.indexOf('validateNewPassword(password)') < signupSegment.indexOf('supabase.auth.signUp('),
-  'Sign-up must enforce the 12-character policy in the canonical auth service');
-assert.ok(service.includes('export const AUTH_PASSWORD_MIN_LENGTH = 12;'),
-  'The password policy should not regress to six characters');
-console.log('UCAPSA new-password policy 12 characters and service-boundary validation: PASS');
+  'Sign-up must enforce the 6-character policy in the canonical auth service');
+assert.ok(service.includes('export const AUTH_PASSWORD_MIN_LENGTH = 6;'),
+  'The password policy must reflect the six-character decision');
+console.log('UCAPSA new-password policy 6 characters and service-boundary validation: PASS');

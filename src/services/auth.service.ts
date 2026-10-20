@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { normalizeContactPhone } from '../utils/phone-contact';
 
-export const AUTH_PASSWORD_MIN_LENGTH = 12;
+export const AUTH_PASSWORD_MIN_LENGTH = 6;
 export const PASSWORD_RECOVERY_REDIRECT_URL = 'ucapsaapp://auth/update-password';
 
 // Web reset links return to the SAME current origin (preview/local/prod).
