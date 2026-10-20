@@ -134,7 +134,7 @@ console.log('UCAPSA secure initial auto-link and repeat authorization: PASS');
 
 
 // MVP typed email matches only for first unclaimed preregistration.
-const mvpSql = fs.readFileSync('supabase/migrations/20261020040100_mvp_unverified_contact_email_first_claim.sql', 'utf8');
+const mvpSql = fs.readFileSync('supabase/migrations/20261020040444_mvp_unverified_contact_email_first_claim.sql', 'utf8');
 const mvpProfile = fs.readFileSync('src/services/profiles.service.ts', 'utf8');
 const mvpSettings = fs.readFileSync('src/app/account-settings.tsx', 'utf8');
 for (const [label, passed] of [
