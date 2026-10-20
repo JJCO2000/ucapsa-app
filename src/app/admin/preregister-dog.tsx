@@ -92,21 +92,26 @@ export default function AdminPreregisterDogScreen() {
     setIncludeDates(false); setDatesText(''); setSourceNote('');
   }
 
+  function reportCardError(title: string, message: string) {
+    if (Platform.OS === 'web') setSubmissionNotice({ kind: 'error', message });
+    else Alert.alert(title, message);
+  }
+
   async function save() {
     if (saving) return;
     setSubmissionNotice(null);
     if (!ownerName.trim() || !dogName.trim() || (!ownerPhone.trim() && !ownerEmail.trim())) {
-      Alert.alert('Faltan datos', 'Escribe tutor, perro y celular o correo de contacto. Prioriza el celular.');
+      reportCardError('Faltan datos', 'Escribe tutor, perro y celular o correo de contacto. Prioriza el celular.');
       return;
     }
     if (ownerEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail.trim())) {
-      Alert.alert('Correo inválido', 'Escribe un correo electrónico válido para vincular la cuenta.');
+      reportCardError('Correo inválido', 'Escribe un correo electrónico válido para vincular la cuenta.');
       return;
     }
     if (ownerPhone.trim()) {
       try { normalizeContactPhone(ownerPhone); }
       catch (error) {
-        Alert.alert('Celular inválido', error instanceof Error ? error.message : 'Revisa el celular.');
+        reportCardError('Celular inválido', error instanceof Error ? error.message : 'Revisa el celular.');
         return;
       }
     }
