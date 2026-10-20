@@ -25,7 +25,7 @@ export default function AccountSettingsScreen() {
   const { loading, user, profile, role, isAdmin, isTrainer, isStaff, signOut, refreshProfile, acceptProfile, isOfflineFallback, lastProfileSyncAt, reviewPreregistrationLink } = useSession();
   const params = useLocalSearchParams<{ section?: string; from?: string }>();
   const fromProfile = params.from === 'profile';
-  const section = normalizeSection(params.section, isAdmin, isTrainer);
+  const section = normalizeSection(params.section, isAdmin, isTrainer, role === 'member');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [contactEmail, setContactEmail] = useState('');
@@ -535,9 +535,9 @@ export default function AccountSettingsScreen() {
   );
 }
 
-function normalizeSection(value: string | undefined, isAdmin: boolean, isTrainer: boolean): SettingsSection | null {
+function normalizeSection(value: string | undefined, isAdmin: boolean, isTrainer: boolean, isMember: boolean): SettingsSection | null {
   if (value === 'profile' || value === 'notifications') return value;
-  if (value === 'appearance' && !isAdmin && !isTrainer) return value;
+  if (value === 'appearance' && isMember && !isAdmin && !isTrainer) return value;
   if (value === 'delete' && !isAdmin && !isTrainer) return value;
   return null;
 }
