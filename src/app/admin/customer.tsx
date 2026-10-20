@@ -51,7 +51,7 @@ export default function AdminCustomerScreen() {
     if (!record) return 0;
     const paid = new Map<string, number>();
     for (const payment of record.payments) {
-      if (!payment.obligation_id || payment.status !== 'paid') continue;
+      if (!payment.obligation_id || payment.status !== 'paid' || payment.voided_at) continue;
       paid.set(payment.obligation_id, (paid.get(payment.obligation_id) ?? 0) + Number(payment.amount ?? 0));
     }
     return record.obligations

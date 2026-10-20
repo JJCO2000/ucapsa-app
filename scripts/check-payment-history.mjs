@@ -142,3 +142,15 @@ if (!adminService.includes("from('payment_obligations')")
   throw new Error('Admin payment attention must be grounded in official unpaid obligations.');
 }
 console.log('UCAPSA Admin Home payment attention SSOT (real balance only): PASS');
+
+
+// La ficha administrativa debe usar el mismo ledger efectivo que los reportes:
+// un pago anulado NO disminuye saldo pendiente.
+const customerDetail = fs.readFileSync('src/app/admin/customer.tsx','utf8');
+if (!customerDetail.includes("payment.status !== 'paid' || payment.voided_at")) {
+  throw new Error('Admin customer balance counts a voided payment as real money.');
+}
+if (!customerDetail.includes('.filter((item) => !item.cancelled_at)')) {
+  throw new Error('Admin customer balance counts cancelled obligations.');
+}
+console.log('UCAPSA customer effective balance excludes voided payments: PASS');
