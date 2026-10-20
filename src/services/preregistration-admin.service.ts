@@ -118,8 +118,27 @@ export function preregistrationLevelLabel(record: AdminPreregistrationRecord): s
 }
 
 export function preregistrationMemberLabel(record: AdminPreregistrationRecord): string {
+  if (record.membershipStatus === 'preapproved') return 'Socio autorizado · pendiente de vincular cuenta';
   if (!record.linkedUserId) return 'Membresía no verificable antes de vincular cuenta';
   if (record.membershipStatus === 'active') return 'Socio activo';
   if (record.membershipStatus) return 'Membresía ' + record.membershipStatus;
   return 'Sin membresía registrada';
+}
+
+// La membresía provisional no crea perfiles, pagos ni roles. Solo Admin
+// autoriza el estado que el backend convertirá a membresía real al vincular.
+export async function adminSetPreregisteredMembership(
+  intakeDogId: string, isMember: boolean,
+): Promise<void> {
+  if (!preregistrationDirectoryEnabled) {
+    throw new Error('Directorio de preinscripciones no disponible.');
+  }
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
+    name: 'admin_set_preregistered_membership',
+    args: {p_intake_dog_id: string; p_is_member: boolean},
+  ) => PromiseLike<{error:{message:string}|null}>;
+  const {error} = await rpc('admin_set_preregistered_membership',{
+    p_intake_dog_id:intakeDogId,p_is_member:isMember,
+  });
+  if(error) throw new Error(error.message);
 }
