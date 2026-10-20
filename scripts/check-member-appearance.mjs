@@ -25,7 +25,7 @@ for (const path of [
 ]) {
   assert.ok(read(path).includes('memberTheme'), `Theme not used by ${path}`);
 }
-assert.ok(read('src/components/domain/MemberCredentialCard.tsx').includes('format: UcapsaFormat'),
+assert.ok(read('src/components/domain/MemberCredentialCard.tsx').includes('format?: UcapsaFormat'),
   'Membership card must consume the selected colors.');
 const auth = read('src/services/auth.service.ts');
 assert.ok(auth.includes('export const AUTH_PASSWORD_MIN_LENGTH = 6;'),
