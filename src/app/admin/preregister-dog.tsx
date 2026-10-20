@@ -73,6 +73,9 @@ export default function AdminPreregisterDogScreen() {
   function confirmManualLink() {
     const selected = linkPreview;
     if (!selected?.personId || !selected.userId || linkBusy) return;
+    const personId = selected.personId;
+    const userId = selected.userId;
+    const evidence = linkReason.trim();
     setLinkNotice(null);
     if (linkReason.trim().length < 12) {
       reportLinkNotice('error', 'Falta evidencia',
@@ -88,7 +91,7 @@ export default function AdminPreregisterDogScreen() {
     async function approve() {
       try {
         setLinkBusy(true);
-        await adminApprovePreregistrationOwnerLink(selected.personId!, selected.userId!, linkReason);
+        await adminApprovePreregistrationOwnerLink(personId, userId, evidence);
         setLinkPreview(null);
         setLinkReason('');
         reportLinkNotice('success', 'Autorización guardada',
