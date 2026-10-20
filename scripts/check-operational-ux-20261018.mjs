@@ -48,7 +48,7 @@ function loadPureFunctions(code, globals = {}) {
   return mod.exports;
 }
 const domain = loadPureFunctions(fs.readFileSync('src/services/programs.domain.ts', 'utf8'));
-const start = sources.admin.indexOf('function groupTomorrowClasses(');
+const start = sources.admin.indexOf('function commandsLevelLabel(');
 const end = sources.admin.indexOf('\nconst emptyStats:', start);
 assert.ok(start >= 0 && end > start, 'Admin tomorrow grouping function missing');
 const grouping = loadPureFunctions(
