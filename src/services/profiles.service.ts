@@ -41,7 +41,7 @@ export async function requestMyEmailChange(nextEmail: string): Promise<EmailChan
   return {
     requestedEmail: normalizedEmail,
     currentEmail,
-    confirmationRequired: currentEmail?.toLowerCase() !== normalizedEmail,
+    confirmationRequired: currentEmail?.toLowerCase() !== normalizedEmail || !data.user?.email_confirmed_at,
   };
 }
 
