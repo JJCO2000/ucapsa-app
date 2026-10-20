@@ -1,7 +1,7 @@
 import { ucapsaBrand } from '../../constants/brand';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { signInWithVerifiedContact } from '../../services/auth.service';
 import { DEFAULT_WRITE_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
@@ -12,10 +12,12 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [missingContact, setMissingContact] = useState(false);
   const [missingPassword, setMissingPassword] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   async function handleLogin() {
     const cleanContact = contact.trim();
 
+    setLoginError(null);
     setMissingContact(!cleanContact);
     setMissingPassword(!password);
     if (!cleanContact || !password) return;
@@ -29,6 +31,10 @@ export default function LoginScreen() {
       );
 
       if (error) {
+        if (Platform.OS === 'web') {
+          setLoginError('No pudimos iniciar sesión. Revisa tu correo o celular registrado y contraseña.');
+          return;
+        }
         Alert.alert(
           'No pudimos iniciar sesión',
           'Revisa tu correo o celular registrado y contraseña. Para entrar por celular, primero debe estar asociado a tu cuenta de Supabase.',
@@ -43,7 +49,8 @@ export default function LoginScreen() {
 
       router.replace('/home');
     } catch {
-      Alert.alert('No se pudo conectar', 'Revisa tu conexion e intenta de nuevo.');
+      if (Platform.OS === 'web') setLoginError('No se pudo conectar. Revisa tu conexión e intenta de nuevo.');
+      else Alert.alert('No se pudo conectar', 'Revisa tu conexion e intenta de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -93,6 +100,7 @@ export default function LoginScreen() {
           <Text accessibilityRole="alert" style={styles.inlineError}>Escribe tu contraseña.</Text>
         ) : null}
 
+        {loginError ? <Text accessibilityRole="alert" style={styles.inlineError}>{loginError}</Text> : null}
         <Pressable style={[styles.button, loading && styles.buttonDisabled]} onPress={handleLogin} disabled={loading}>
           <Text style={styles.buttonText}>{loading ? 'Entrando...' : 'Entrar'}</Text>
         </Pressable>
