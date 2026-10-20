@@ -237,3 +237,21 @@ assert.ok(preregList.includes("router.push('/admin/link-review-requests' as neve
   && preregList.includes('style={styles.secondaryAction}'),
   'Solicitudes de otras cuentas debe ser secundaria, sin perder navegación');
 console.log('UCAPSA preinscripciones general → particular, una acción principal: PASS');
+
+// Recapturar la misma tarjeta puede reemplazar evidencia provisional. El
+// historial no se toca sin consulta del expediente, motivo y confirmación.
+const preRegisterUi = fs.readFileSync('src/app/admin/preregister-dog.tsx', 'utf8');
+for (const token of [
+  'getAdminPreregistrationRecords()',
+  'confirmHistoryCorrection(',
+  'sameDogProgram.length > 1',
+  'existing.status !== \'pending\'',
+  'sourceNote.trim().length < 12',
+  'if (!confirmed) return;',
+  'adminPreregisterDogWithProgram({',
+]) assert.ok(preRegisterUi.includes(token),
+  'Falta bloqueo ante recaptura que reemplaza historial: ' + token);
+assert.ok(preRegisterUi.indexOf('if (!confirmed) return;') <
+  preRegisterUi.indexOf('await adminPreregisterDogWithProgram({'),
+  'La confirmación de corrección debe ocurrir antes de la escritura');
+console.log('UCAPSA tarjeta repetida: requiere motivo, revisión y confirmación: PASS');
