@@ -3,7 +3,7 @@
  * International numbers must already include their country prefix.
  */
 export function normalizeContactPhone(raw: string): string {
-  const input = raw.trim().replace(/[\s().-]/g, '');
+  const input = raw.trim().replace(/[\s(),.-]/g, '');
   if (/^[0-9]{10}$/.test(input)) return '+52' + input;
   if (/^52[0-9]{10}$/.test(input)) return '+' + input;
   if (/^\+[1-9][0-9]{7,14}$/.test(input)) return input;
