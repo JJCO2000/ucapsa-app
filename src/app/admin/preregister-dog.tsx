@@ -147,9 +147,11 @@ export default function AdminPreregisterDogScreen() {
       <Text style={styles.eyebrow}>Administración</Text>
       <Text style={styles.heading}>Preinscribir perro</Text>
       <Text style={styles.description}>
-        Registra al perro sin crear una cuenta ficticia. El primer expediente se vincula automáticamente cuando hay un contacto de Auth
-        confirmado o Administración autorizó previamente la cuenta exacta.
-        Un teléfono escrito sin verificar no permite reclamar el historial de otra persona.
+        Registra al perro sin crear una cuenta ficticia. La primera cuenta que coincida
+        por correo o celular puede vincular automáticamente el expediente, sin SMS.
+        Comprueba que el contacto esté escrito correctamente: esa primera coincidencia
+        no demuestra por sí sola quién es el titular. Los reclamos posteriores requieren
+        revisión de Administración.
       </Text>
 
       <View style={styles.card}>
@@ -168,7 +170,7 @@ export default function AdminPreregisterDogScreen() {
         <TextInput style={styles.input} value={ownerPhone} onChangeText={setOwnerPhone}
           keyboardType="phone-pad" maxLength={16} placeholder="+525512345678"
           placeholderTextColor={ucapsaBrand.colors.muted} />
-        <Text style={styles.helper}>Usa formato internacional: +52 y los 10 dígitos de México. El celular es el contacto prioritario. El correo es opcional. Sin contactos verificados, Administración puede autorizar una vinculación asistida a la cuenta real del tutor.</Text>
+        <Text style={styles.helper}>Usa +52 y los 10 dígitos de México. El celular es prioritario y el correo opcional. Revisa ambos antes de guardar: el primer enlace se hace por coincidencia de contacto, y los siguientes requieren revisión administrativa.</Text>
 
         <Text style={styles.label}>Nombre del perro</Text>
         <TextInput style={styles.input} value={dogName} onChangeText={setDogName}
