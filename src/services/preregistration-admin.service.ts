@@ -123,3 +123,28 @@ export function preregistrationMemberLabel(record: AdminPreregistrationRecord): 
   if (record.membershipStatus) return 'Membresía ' + record.membershipStatus;
   return 'Sin membresía registrada';
 }
+
+/**
+ * Completes missing contact(s) on a pending provisional person.
+ * Server checks role, uniqueness, and linked status; never edits official records.
+ */
+export async function adminCompletePreregistrationContact(
+  personId: string,
+  contacts: { email?: string; phone?: string },
+): Promise<void> {
+  if (!preregistrationDirectoryEnabled) throw new Error('Preinscripciones no habilitadas.');
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
+    name: 'admin_complete_preregistration_contact',
+    args: { p_person_id: string; p_owner_email: string | null; p_owner_phone: string | null },
+  ) => PromiseLike<{ data: unknown; error: { message: string } | null }>;
+  const { data, error } = await rpc('admin_complete_preregistration_contact', {
+    p_person_id: personId,
+    p_owner_email: contacts.email?.trim().toLowerCase() || null,
+    p_owner_phone: contacts.phone?.trim() || null,
+  });
+  if (error) throw new Error(error.message);
+  if (!data || typeof data !== 'object' || Array.isArray(data)
+      || (data as Record<string, unknown>).status !== 'updated') {
+    throw new Error('Supabase no confirmó la actualización de contacto.');
+  }
+}

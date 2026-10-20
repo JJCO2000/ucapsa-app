@@ -154,3 +154,28 @@ for (const [label, passed] of [
   ['repeat approval and consent retained', firstSql.includes('if not v_manual and exists')],
 ]) assert.ok(passed, 'MVP first-email matching regression: '+label);
 console.log('UCAPSA first-claim profile-contact email MVP contract: PASS');
+
+
+// Admin can only append missing contact to a pending provisional record.
+// Never update linked owners, official programs, attendances, memberships or Auth.
+const completeSql = fs.readFileSync(
+  'supabase/migrations/20261020045901_admin_complete_preregistration_contact.sql', 'utf8');
+const directoryUi = fs.readFileSync('src/app/admin/preregistration.tsx', 'utf8');
+const directoryService = fs.readFileSync('src/services/preregistration-admin.service.ts', 'utf8');
+for (const [label, passed] of [
+  ['Admin role checked server-side', completeSql.includes('not public.is_ucapsa_admin()')],
+  ['Pending-only update', completeSql.includes("v_person.status <> 'pending'")],
+  ['Linked owner cannot be modified', completeSql.includes('v_person.linked_user_id is not null')],
+  ['Prevents overwrite of stored contacts', completeSql.includes('v_person.email_key is not null')
+    && completeSql.includes('v_person.phone_e164 is not null')],
+  ['Rejects duplicate contact across provisional records', completeSql.includes('p.id <> v_person.id')],
+  ['Rejects already-claimed contact', completeSql.includes('ucapsa_intake.claimed_contacts')],
+  ['Atomic audit', completeSql.includes("'preregistration.contact_completed'")],
+  ['No writes to program or attendance tables', !/\b(update|insert into|delete from)\s+(public\.(dogs|programs|memberships)|ucapsa_intake\.(dogs|programs|attendance_evidence))/i.test(completeSql)],
+  ['Client uses authenticated Admin RPC', directoryService.includes("rpc('admin_complete_preregistration_contact'")],
+  ['UI exposes action on pending contacts only', directoryUi.includes("record.status === 'pending' && (!record.ownerEmail || !record.ownerPhone)")],
+  ['UI only submits currently missing fields', directoryUi.includes("record.ownerEmail ? '' : newEmail")],
+  ['UI refreshes after saving', directoryUi.includes('await adminCompletePreregistrationContact(')
+    && directoryUi.includes('await load();')],
+]) assert.ok(passed, 'Admin contact completion regression: ' + label);
+console.log('UCAPSA guarded admin contact completion contract: PASS');
