@@ -5,6 +5,19 @@ import { ucapsaBrand } from './brand';
 
 export type UcapsaFormatKey = 'visitor' | 'client' | 'member' | 'trainer' | 'admin';
 
+// Preferencia puramente visual: nunca modifica roles, derechos ni membresías.
+export const memberThemeChoices = [
+  { key: 'classic', label: 'Clásico marfil' },
+  { key: 'red', label: 'Rojo UCAPSA' },
+  { key: 'blue', label: 'Azul' },
+  { key: 'green', label: 'Verde' },
+] as const;
+export type MemberThemeKey = (typeof memberThemeChoices)[number]['key'];
+export const DEFAULT_MEMBER_THEME: MemberThemeKey = 'classic';
+export function isMemberThemeKey(value: unknown): value is MemberThemeKey {
+  return memberThemeChoices.some((choice) => choice.key === value);
+}
+
 export type UcapsaFormat = {
   key: UcapsaFormatKey;
   label: string;
@@ -183,12 +196,48 @@ export const ucapsaFormats: Record<UcapsaFormatKey, UcapsaFormat> = {
   },
 };
 
+/** Única definición de las variantes visuales de Socio; colores tomados de brand.ts. */
+export function getMemberThemeFormat(theme: MemberThemeKey): UcapsaFormat {
+  if (theme === 'classic') return ucapsaFormats.member;
+  const palettes = {
+    red: { accent: ucapsaBrand.colors.redDark, soft: ucapsaBrand.colors.redSoft, background: ucapsaBrand.colors.redPale, border: ucapsaBrand.colors.redBorder },
+    blue: { accent: ucapsaBrand.colors.blueDark, soft: ucapsaBrand.colors.blueSoft, background: ucapsaBrand.colors.blueSoft, border: ucapsaBrand.colors.borderNeutral },
+    green: { accent: ucapsaBrand.colors.greenDark, soft: ucapsaBrand.colors.greenSoft, background: ucapsaBrand.colors.greenSoft, border: ucapsaBrand.colors.borderNeutral },
+  } as const;
+  const color = palettes[theme];
+  return {
+    ...ucapsaFormats.member,
+    accent: color.accent,
+    accentDark: color.accent,
+    accentSoft: color.soft,
+    background: color.background,
+    surface: ucapsaBrand.colors.surface,
+    surfaceAlt: color.soft,
+    border: color.border,
+    text: ucapsaBrand.colors.text,
+    muted: ucapsaBrand.colors.mutedNeutral,
+    heroBackground: color.soft,
+    heroText: ucapsaBrand.colors.text,
+    heroMuted: ucapsaBrand.colors.mutedNeutral,
+    primaryButton: color.accent,
+    primaryButtonText: ucapsaBrand.colors.surface,
+    secondaryButton: color.soft,
+    secondaryButtonText: color.accent,
+    cardBackground: ucapsaBrand.colors.surface,
+    cardBorder: color.border,
+    cardText: ucapsaBrand.colors.text,
+    pillBackground: color.soft,
+    pillText: color.accent,
+  };
+}
+
 export function resolveUcapsaFormat(input: {
   user?: unknown | null;
   role?: AppRole | null;
   isAdmin?: boolean;
   membershipStatus?: MembershipStatus | null;
   hasActivePrograms?: boolean;
+  memberTheme?: MemberThemeKey;
 }): UcapsaFormat {
   // Visual presentation derives from the existing actual role and membership.
   // Never use a preview role to grant operational capabilities.
@@ -199,7 +248,7 @@ export function resolveUcapsaFormat(input: {
   });
   if (input.isAdmin || input.role === 'admin' || input.role === 'super_admin') return ucapsaFormats.admin;
   if (input.role === 'trainer') return ucapsaFormats.trainer;
-  if (input.role === 'member' || access.commercial.hasActiveSocioMembership) return ucapsaFormats.member;
+  if (input.role === 'member' || access.commercial.hasActiveSocioMembership) return getMemberThemeFormat(input.memberTheme ?? DEFAULT_MEMBER_THEME);
   if (input.user || input.hasActivePrograms || input.membershipStatus === 'pending') return ucapsaFormats.client;
   return ucapsaFormats.visitor;
 }
