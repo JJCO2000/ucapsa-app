@@ -263,7 +263,7 @@ begin
       'link_method',case when v_manual then 'admin_approved' when v_used_unverified then 'first_contact_unverified' else 'verified_contact' end));
   return pg_catalog.jsonb_build_object('status','linked','linked_dogs',v_linked,'linked_programs',v_linked_programs);
 end;
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION public.preview_my_preregistered_dogs()
  RETURNS jsonb
@@ -403,4 +403,4 @@ begin
       select 1 from ucapsa_intake.people p where p.linked_user_id=v_user
     ));
 end;
-$function$
+$function$;
