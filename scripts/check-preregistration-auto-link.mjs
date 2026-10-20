@@ -227,3 +227,13 @@ for (const [label, fragment] of [
     'A failed profile refresh must not hide a completed claim: '+label);
 }
 console.log('UCAPSA membership role refreshed after manual/settings claims: PASS');
+
+
+// Pantalla de listado: UNA acción principal, resto secundario.
+const preregList = fs.readFileSync('src/app/admin/preregistrations.tsx', 'utf8');
+assert.equal((preregList.match(/style=\{styles\.primary\}/g) ?? []).length, 1,
+  'Solo Registrar perro debe ocupar la acción primaria en Preinscripciones');
+assert.ok(preregList.includes("router.push('/admin/link-review-requests' as never)")
+  && preregList.includes('style={styles.secondaryAction}'),
+  'Solicitudes de otras cuentas debe ser secundaria, sin perder navegación');
+console.log('UCAPSA preinscripciones general → particular, una acción principal: PASS');
