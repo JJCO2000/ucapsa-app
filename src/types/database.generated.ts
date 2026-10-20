@@ -1959,6 +1959,7 @@ export type Database = {
           full_name: string | null
           id: string
           phone: string | null
+          preregistration_contact_email: string | null
           role: Database["public"]["Enums"]["app_role"]
           updated_at: string
           user_id: string
@@ -1973,6 +1974,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           phone?: string | null
+          preregistration_contact_email?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
           user_id: string
@@ -1987,6 +1989,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           phone?: string | null
+          preregistration_contact_email?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
           user_id?: string
@@ -5149,6 +5152,14 @@ export type Database = {
           total_points: number
         }[]
       }
+      admin_approve_preregistration_link_request: {
+        Args: { p_request_id: string }
+        Returns: Json
+      }
+      admin_approve_preregistration_owner_link: {
+        Args: { p_person_id: string; p_reason: string; p_user_id: string }
+        Returns: Json
+      }
       admin_archive_notification_campaign: {
         Args: { p_campaign_id: string }
         Returns: {
@@ -5190,6 +5201,10 @@ export type Database = {
         }
         Returns: string
       }
+      admin_close_preregistration_link_request: {
+        Args: { p_decision: string; p_request_id: string }
+        Returns: Json
+      }
       admin_close_ucapsa_competition_season: {
         Args: { p_season_id: string }
         Returns: string
@@ -5230,6 +5245,14 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      admin_complete_preregistration_contact: {
+        Args: {
+          p_owner_email?: string
+          p_owner_phone?: string
+          p_person_id: string
+        }
+        Returns: Json
       }
       admin_correct_payment: {
         Args: { p_patch: Json; p_payment_id: string }
@@ -5356,6 +5379,7 @@ export type Database = {
         Args: { p_achievement_code: string; p_dog_id: string }
         Returns: string
       }
+      admin_list_preregistration_link_requests: { Args: never; Returns: Json }
       admin_prepare_notification_campaign: {
         Args: {
           p_audience: string
@@ -5397,6 +5421,23 @@ export type Database = {
         }
         Returns: string
       }
+      admin_preregister_dog_with_membership: {
+        Args: {
+          p_card_number: string
+          p_card_started_on: string
+          p_dog_name: string
+          p_known_dates: string[]
+          p_member_authorized: boolean
+          p_note: string
+          p_owner_email: string
+          p_owner_name: string
+          p_owner_phone: string
+          p_program_code: string
+          p_program_level: string
+          p_total_attendances: number
+        }
+        Returns: string
+      }
       admin_preregister_dog_with_program: {
         Args: {
           p_card_number: string
@@ -5412,6 +5453,10 @@ export type Database = {
           p_total_attendances: number
         }
         Returns: string
+      }
+      admin_preview_preregistration_owner_link: {
+        Args: { p_account_email: string; p_owner_contact: string }
+        Returns: Json
       }
       admin_publish_privacy_notice: {
         Args: { p_id: string }
@@ -5621,6 +5666,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      admin_set_preregistered_membership: {
+        Args: { p_intake_dog_id: string; p_is_member: boolean }
+        Returns: boolean
+      }
       admin_set_restaurant_menu_published: {
         Args: { p_published: boolean }
         Returns: boolean
@@ -5748,6 +5797,7 @@ export type Database = {
         Args: { p_dog_id: string }
         Returns: boolean
       }
+      claim_my_first_preregistered_dogs: { Args: never; Returns: Json }
       claim_my_preregistered_dogs: { Args: never; Returns: Json }
       correct_member_visit_admin: {
         Args: { p_notes?: string; p_visit_id: string; p_visited_at: string }
@@ -6295,6 +6345,7 @@ export type Database = {
       is_ucapsa_admin: { Args: never; Returns: boolean }
       is_ucapsa_staff: { Args: never; Returns: boolean }
       is_ucapsa_trainer: { Args: never; Returns: boolean }
+      preview_my_preregistered_dogs: { Args: never; Returns: Json }
       program_schedule_occurs_on_date: {
         Args: { p_date: string; p_schedule_id: string }
         Returns: boolean
@@ -6446,6 +6497,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      request_my_preregistration_link_review: { Args: never; Returns: Json }
       rotate_attendance_qr_code: {
         Args: { p_program_code: string }
         Returns: string
