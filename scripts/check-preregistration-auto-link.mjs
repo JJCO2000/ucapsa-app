@@ -269,6 +269,8 @@ for (const token of [
   "showFeedback('No se pudo actualizar'",
   "accessibilityRole={feedback.kind === 'error' ? 'alert' : 'text'}",
 ]) assert.ok(preregDetailFeedback.includes(token), 'Falta feedback web para ficha de preinscripción: '+token);
+assert.ok(preregDetailFeedback.includes('phone = normalizeContactPhone(phone)'),
+  'Teléfonos nuevos deben seguir la normalización MX canónica de la preinscripción.');
 assert.equal((preregDetailFeedback.match(/Alert\.alert/g) ?? []).length, 1,
   'Toda alerta de detalle de preinscripción debe pasar por showFeedback web/nativo');
 console.log('UCAPSA preinscripción Admin feedback web/nativo: PASS');
