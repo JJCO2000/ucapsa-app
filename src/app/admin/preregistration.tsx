@@ -8,6 +8,7 @@ import { ucapsaBrand } from '../../constants/brand';
 import { preregistrationDirectoryEnabled } from '../../constants/preregistrationFeature';
 import { useSession } from '../../hooks/useSession';
 import { devWarn } from '../../lib/client-diagnostics';
+import { normalizeContactPhone } from '../../utils/phone-contact';
 import {
   adminCompletePreregistrationContact,
   getAdminPreregistrationRecords,
@@ -67,7 +68,7 @@ export default function AdminPreregistrationDetailScreen() {
     if (!record || savingContact || record.status !== 'pending') return;
     setFeedback(null);
     const email = record.ownerEmail ? '' : newEmail.trim().toLowerCase();
-    const phone = record.ownerPhone ? '' : newPhone.trim();
+    let phone = record.ownerPhone ? '' : newPhone.trim();
     if (!email && !phone) {
       showFeedback('Falta un dato', 'Escribe al menos un contacto que todavía no esté registrado.');
       return;
@@ -76,9 +77,13 @@ export default function AdminPreregistrationDetailScreen() {
       showFeedback('Correo inválido', 'Revisa el formato del correo electrónico.');
       return;
     }
-    if (phone && !/^\+[1-9][0-9]{7,14}$/.test(phone)) {
-      showFeedback('Celular inválido', 'Usa formato internacional, por ejemplo +525512345678.');
-      return;
+    if (phone) {
+      try { phone = normalizeContactPhone(phone); }
+      catch (cause) {
+        showFeedback('Celular inválido', cause instanceof Error ? cause.message
+          : 'Usa diez dígitos mexicanos o formato internacional +52.');
+        return;
+      }
     }
     try {
       setSavingContact(true);
@@ -179,7 +184,7 @@ export default function AdminPreregistrationDetailScreen() {
                       <Text style={styles.fieldLabel}>Celular (faltante)</Text>
                       <TextInput style={styles.input} value={newPhone} onChangeText={setNewPhone}
                         accessibilityLabel="Agregar celular del tutor" keyboardType="phone-pad"
-                        maxLength={16} editable={!savingContact} placeholder="+525512345678"
+                        maxLength={16} editable={!savingContact} placeholder="5535100214 o +525535100214"
                         placeholderTextColor={ucapsaBrand.colors.muted} />
                     </>
                   ) : null}
