@@ -7,6 +7,7 @@ import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { preregistrationEnabled, preregistrationDirectoryEnabled } from '../../constants/preregistrationFeature';
 import { normalizeContactPhone } from '../../utils/phone-contact';
+import { devWarn } from '../../lib/client-diagnostics';
 import { getAdminPreregistrationRecords } from '../../services/preregistration-admin.service';
 import { useSession } from '../../hooks/useSession';
 import {
@@ -38,15 +39,22 @@ export default function AdminPreregisterDogScreen() {
   const [linkReason, setLinkReason] = useState('');
   const [linkPreview, setLinkPreview] = useState<ManualLinkPreview | null>(null);
   const [linkBusy, setLinkBusy] = useState(false);
+  const [linkNotice, setLinkNotice] = useState<{kind:'success'|'error';message:string}|null>(null);
+
+  function reportLinkNotice(kind: 'success' | 'error', title: string, message: string) {
+    if (Platform.OS === 'web') setLinkNotice({ kind, message: title + ': ' + message });
+    else Alert.alert(title, message);
+  }
 
   async function previewManualLink() {
     if (linkBusy) return;
     setLinkPreview(null);
+    setLinkNotice(null);
     try {
       setLinkBusy(true);
       const found = await adminPreviewPreregistrationOwnerLink(linkContact, linkAccountEmail);
       if (found.status !== 'available') {
-        Alert.alert('No se encontró una vinculación única',
+        reportLinkNotice('error', 'No se encontró una vinculación única',
           found.status === 'account_not_found' ? 'No hay una cuenta registrada con ese correo.' :
           found.status === 'conflict' ? 'Hay coincidencias ambiguas: revisa los datos con la persona.' :
           'No existe una preinscripción pendiente para ese contacto.');
@@ -54,7 +62,9 @@ export default function AdminPreregisterDogScreen() {
       }
       setLinkPreview(found);
     } catch (error) {
-      Alert.alert('No se pudo revisar', error instanceof Error ? error.message : 'Inténtalo de nuevo.');
+      devWarn('admin-preregister-dog: preview assisted link failed.', error);
+      reportLinkNotice('error', 'No se pudo revisar',
+        error instanceof Error ? error.message : 'Inténtalo de nuevo.');
     } finally {
       setLinkBusy(false);
     }
@@ -63,28 +73,44 @@ export default function AdminPreregisterDogScreen() {
   function confirmManualLink() {
     const selected = linkPreview;
     if (!selected?.personId || !selected.userId || linkBusy) return;
+    setLinkNotice(null);
     if (linkReason.trim().length < 12) {
-      Alert.alert('Falta evidencia', 'Describe cómo comprobaste la identidad del tutor (mínimo 12 caracteres).');
+      reportLinkNotice('error', 'Falta evidencia',
+        'Describe cómo comprobaste la identidad del tutor (mínimo 12 caracteres).');
       return;
     }
-    Alert.alert('Confirmar vinculación asistida',
-      `¿Comprobaste que ${selected.ownerName} es el titular de la cuenta ${selected.accountName || selected.accountEmail}?\n\nSe autorizará ${selected.dogCount} perro(s). El cliente todavía deberá aceptar desde su perfil.`,
-      [{ text: 'Cancelar', style: 'cancel' }, { text: 'Sí, autorizar', onPress: () => {
-        void (async () => {
-          try {
-            setLinkBusy(true);
-            await adminApprovePreregistrationOwnerLink(selected.personId!, selected.userId!, linkReason);
-            setLinkPreview(null);
-            setLinkReason('');
-            Alert.alert('Autorización guardada',
-              'Indica al titular que abra Mi perfil → Ajustes → Buscar mis preinscripciones y pulse «Sí, vincular expedientes». No necesita verificar correo ni SMS.');
-          } catch (error) {
-            Alert.alert('No se pudo autorizar', error instanceof Error ? error.message : 'Revisa el expediente.');
-          } finally {
-            setLinkBusy(false);
-          }
-        })();
-      }}]);
+
+    const message = '¿Comprobaste que ' + selected.ownerName +
+      ' es el titular de la cuenta ' + (selected.accountName || selected.accountEmail) +
+      '?\n\nSe autorizará ' + selected.dogCount +
+      ' perro(s). El cliente todavía deberá aceptar desde su perfil.';
+
+    async function approve() {
+      try {
+        setLinkBusy(true);
+        await adminApprovePreregistrationOwnerLink(selected.personId!, selected.userId!, linkReason);
+        setLinkPreview(null);
+        setLinkReason('');
+        reportLinkNotice('success', 'Autorización guardada',
+          'Indica al titular que abra Mi perfil → Ajustes → Buscar mis preinscripciones y pulse «Sí, vincular expedientes». No necesita verificar correo ni SMS.');
+      } catch (error) {
+        devWarn('admin-preregister-dog: assisted link approval failed.', error);
+        reportLinkNotice('error', 'No se pudo autorizar',
+          error instanceof Error ? error.message : 'Revisa el expediente.');
+      } finally {
+        setLinkBusy(false);
+      }
+    }
+
+    // Browser confirmation must work without React Native Alert.
+    if (Platform.OS === 'web') {
+      if (window.confirm(message)) void approve();
+      return;
+    }
+    Alert.alert('Confirmar vinculación asistida', message, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Sí, autorizar', onPress: () => { void approve(); } },
+    ]);
   }
 
   function clearCardForm() {
@@ -341,6 +367,15 @@ export default function AdminPreregisterDogScreen() {
       </Pressable>
       <View style={styles.card}>
         <Text style={styles.heading}>Vinculación asistida</Text>
+        {linkNotice ? (
+          <View style={styles.noticeBox}>
+            <Text accessibilityRole={linkNotice.kind === 'error' ? 'alert' : 'text'}
+              style={[styles.helper, { color: linkNotice.kind === 'error'
+                ? ucapsaBrand.colors.danger : ucapsaBrand.colors.greenDark }]}>
+              {linkNotice.message}
+            </Text>
+          </View>
+        ) : null}
         <Text style={styles.description}>
           Sin SMS ni verificación de correo. Primero comprueba presencialmente la identidad del tutor.
           Este proceso no permite reclamar expedientes por escribir un teléfono ajeno.
