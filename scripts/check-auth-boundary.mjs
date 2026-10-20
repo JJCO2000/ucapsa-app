@@ -136,4 +136,8 @@ assert.ok(settings.includes('Correo de acceso (Supabase)')
   && settings.includes('Teléfono de contacto (no es acceso)')
   && settings.includes('no habilita el acceso por ese correo'),
   'Contact email and phone must never be advertised as login credentials.');
+const adminForm = fs.readFileSync('src/app/admin/preregister-dog.tsx', 'utf8');
+assert.ok(adminForm.includes("Platform.OS === 'web'") && adminForm.includes('setSubmissionNotice')
+  && adminForm.includes('clearCardForm()') && adminForm.includes('Otro registro'),
+  'Web preregistration needs visible success/error and fast next-entry flow.');
 console.log('UCAPSA auth Mexican national phone formatting and credential separation: PASS');
