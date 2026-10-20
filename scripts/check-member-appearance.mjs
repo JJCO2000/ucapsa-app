@@ -4,15 +4,17 @@ import fs from 'node:fs';
 const read = (path) => fs.readFileSync(path, 'utf8');
 const formats = read('src/constants/ucapsaFormats.ts');
 const appearance = read('src/hooks/useMemberAppearance.tsx');
+const storage = read('src/services/member-appearance.service.ts');
 for (const theme of ['classic', 'red', 'blue', 'green']) {
   assert.ok(formats.includes(`key: '${theme}'`), `Missing Socio palette ${theme}`);
 }
 assert.ok(formats.includes('getMemberThemeFormat(input.memberTheme ?? DEFAULT_MEMBER_THEME)'),
   'Member theme must not influence admin or trainer permissions.');
-assert.ok(appearance.includes('@ucapsa/member-appearance/') && appearance.includes('userId'),
+assert.ok(storage.includes('@ucapsa/member-appearance/') && storage.includes('userId'),
   'A visual preference must be scoped to the local user.');
-assert.ok(appearance.includes('AsyncStorage.setItem') && appearance.includes('AsyncStorage.getItem'),
+assert.ok(storage.includes('AsyncStorage.setItem') && storage.includes('AsyncStorage.getItem'),
   'The visual preference must persist and restore.');
+assert.ok(appearance.includes('readMemberAppearance(userId)') && appearance.includes('saveMemberAppearance(userId, theme)'), 'Hook must call the service boundary.');
 assert.ok(read('src/app/_layout.tsx').includes('<MemberAppearanceProvider>'),
   'Appearance provider is missing from the authenticated app.');
 const settings = read('src/app/account-settings.tsx');

@@ -1,13 +1,12 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-import { DEFAULT_MEMBER_THEME, isMemberThemeKey, type MemberThemeKey } from '../constants/ucapsaFormats';
+import { DEFAULT_MEMBER_THEME, type MemberThemeKey } from '../constants/ucapsaFormats';
 import { devWarn } from '../lib/client-diagnostics';
+import { readMemberAppearance, saveMemberAppearance } from '../services/member-appearance.service';
 import { useSession } from './useSession';
 
 type Appearance = { memberTheme: MemberThemeKey; setMemberTheme: (theme: MemberThemeKey) => Promise<void> };
 const Context = createContext<Appearance | null>(null);
-const keyFor = (userId: string) => `@ucapsa/member-appearance/${userId}`;
 
 // Preferencia visual guardada por usuario y dispositivo; no altera permisos.
 export function MemberAppearanceProvider({ children }: { children: ReactNode }) {
@@ -17,9 +16,9 @@ export function MemberAppearanceProvider({ children }: { children: ReactNode }) 
   useEffect(() => {
     let active = true;
     if (userId) {
-      void AsyncStorage.getItem(keyFor(userId))
+      void readMemberAppearance(userId)
         .then((saved) => {
-          if (active) setLoaded({ userId, theme: isMemberThemeKey(saved) ? saved : DEFAULT_MEMBER_THEME });
+          if (active) setLoaded({ userId, theme: saved });
         })
         .catch((error) => {
           devWarn('Could not restore local member appearance.', error);
@@ -30,8 +29,8 @@ export function MemberAppearanceProvider({ children }: { children: ReactNode }) 
   }, [userId]);
   const memberTheme = userId && loaded?.userId === userId ? loaded.theme : DEFAULT_MEMBER_THEME;
   const setMemberTheme = useCallback(async (theme: MemberThemeKey) => {
-    if (!userId || !isMemberThemeKey(theme)) throw new Error('Paleta no disponible.');
-    await AsyncStorage.setItem(keyFor(userId), theme);
+    if (!userId) throw new Error('Paleta no disponible.');
+    await saveMemberAppearance(userId, theme);
     setLoaded({ userId, theme });
   }, [userId]);
   const value = useMemo(() => ({ memberTheme, setMemberTheme }), [memberTheme, setMemberTheme]);
