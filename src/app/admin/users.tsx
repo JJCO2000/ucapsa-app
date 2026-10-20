@@ -136,8 +136,9 @@ export default function AdminUsersScreen() {
       setActiveMemberIds(new Set(memberUserIds));
       setSelectedAdmin(nextProfiles.find((item) => item.user_id === profile.user_id) ?? null);
     } catch (cause) {
+      // La interfaz ya comunica el error; no propagar una promesa rechazada
+      // desde la confirmación de Alert (sin controlador de excepciones).
       Alert.alert('No se pudo cambiar el rol', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
-      throw cause;
     }
   }
 
@@ -245,7 +246,8 @@ export default function AdminUsersScreen() {
                   setSelectedAdmin(item);
                 }}
               >
-                <MaterialCommunityIcons name="shield-account-outline" size={20} color={ucapsaBrand.colors.purpleDark} />
+                <MaterialCommunityIcons name="shield-account-outline" size={18} color={ucapsaBrand.colors.purpleDark} />
+                <Text style={styles.roleActionLabel}>Rol</Text>
               </Pressable>
             ) : null}
             <MaterialCommunityIcons name="chevron-right" size={22} color={ucapsaBrand.colors.red} />
@@ -423,7 +425,8 @@ const styles = StyleSheet.create({
   userName: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900' },
   userEmail: { color: ucapsaBrand.colors.muted, fontSize: 13, marginTop: 2 },
   userRole: { color: ucapsaBrand.colors.red, fontSize: 12, fontWeight: '900', marginTop: 4 },
-  roleButton: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.purpleSoft },
+  roleButton: { minWidth: 61, height: 40, paddingHorizontal: 8, borderRadius: 13, flexDirection: 'row', gap: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: ucapsaBrand.colors.purpleSoft },
+  roleActionLabel: { fontSize: 11, fontWeight: '900', color: ucapsaBrand.colors.purpleDark },
   modalBackdrop: { flex: 1, backgroundColor: withAlpha(ucapsaBrand.colors.text, 0.35) },
   modalContent: { backgroundColor: ucapsaBrand.colors.background, marginTop: 40, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingBottom: 40 },
   modalTitle: { color: ucapsaBrand.colors.text, fontSize: 28, fontWeight: '900', marginTop: 4 },
