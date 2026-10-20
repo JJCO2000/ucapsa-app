@@ -37,7 +37,7 @@ const clubPaws: Array<{ top: number; left?: number; right?: number; rotate: stri
 export function UcapsaAmbientBackground({ format, variant = 'home' }: Props) {
   const club = format.key === 'member';
   const shift = shifts[variant];
-  const accent = format.accentDark;
+  const accent = club ? format.accentDark : format.accent;
   const wash = withAlpha(accent, club ? 0.09 : 0.035);
   const washStrong = withAlpha(accent, club ? 0.055 : 0.05);
   const ring = withAlpha(accent, club ? 0.18 : 0.075);
