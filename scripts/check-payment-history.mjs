@@ -154,3 +154,26 @@ if (!customerDetail.includes('.filter((item) => !item.cancelled_at)')) {
   throw new Error('Admin customer balance counts cancelled obligations.');
 }
 console.log('UCAPSA customer effective balance excludes voided payments: PASS');
+
+
+// SSOT: no afirmar que existe un comprobante "en revisión" por un flag
+// de membresía sin registro financiero que lo sustente.
+const paymentRead = fs.readFileSync('src/services/payments-read.service.ts','utf8');
+const paymentClient = fs.readFileSync('src/app/(tabs)/payments.tsx','utf8');
+if (paymentRead.includes("from('memberships')")
+  || paymentRead.includes('current_payment_status')) {
+  throw new Error('Client payment overview must not infer payment evidence from memberships.');
+}
+if (!paymentRead.includes('legacy_membership_pending: false')) {
+  throw new Error('Legacy review flag must stay off without formal payment evidence.');
+}
+if (paymentClient.includes('Comprobante en revisión')
+  || paymentClient.includes('overview.legacy_membership_pending')) {
+  throw new Error('Client payment screen must not claim a receipt is under review without records.');
+}
+if (!paymentRead.includes("from('payment_obligations')")
+  || !paymentRead.includes("from('payments')")
+  || !paymentRead.includes("is('voided_at', null)")) {
+  throw new Error('Official payment obligations and valid payments must remain the SSOT.');
+}
+console.log('UCAPSA client payments: no unproven review claims, official ledger SSOT: PASS');
