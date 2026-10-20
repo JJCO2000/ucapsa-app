@@ -31,6 +31,7 @@ export function PreregistrationLinkPrompt() {
   }
 
   return (
+    <>
     <Modal transparent visible={visible} animationType="fade"
       onRequestClose={dismissPreregistrationLink}>
       <View style={styles.overlay}>
@@ -84,6 +85,7 @@ export function PreregistrationLinkPrompt() {
         </View>
       </View>
     </Modal>
+    </>
   );
 }
 const styles = StyleSheet.create({
