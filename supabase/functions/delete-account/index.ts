@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.108.2';
+import { edgeError, edgeWarn } from '../_shared/diagnostics.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -73,7 +74,7 @@ Deno.serve(async (req) => {
   // tendrá una sesión renovable y las filas propiedad del usuario se eliminan por FK.
   const { error: signOutError } = await admin.auth.admin.signOut(jwt);
   if (signOutError) {
-    console.warn('delete-account: no se pudieron revocar todas las sesiones antes del borrado', signOutError);
+    edgeWarn('delete-account.sign_out_failed', signOutError);
   }
 
   const { error: deleteError } = await admin.auth.admin.deleteUser(user.id);
@@ -110,7 +111,7 @@ Deno.serve(async (req) => {
     .eq('id', requestRow.id);
 
   if (completionError) {
-    console.error('delete-account: la cuenta fue eliminada pero falló el cierre del ledger', completionError);
+    edgeError('delete-account.ledger_completion_failed', completionError);
   } else {
     const { error: eventError } = await admin.from('account_deletion_request_events').insert({
       request_id: requestRow.id,
@@ -125,7 +126,7 @@ Deno.serve(async (req) => {
       created_at: now,
     });
     if (eventError) {
-      console.error('delete-account: no se pudo escribir el evento final', eventError);
+      edgeError('delete-account.final_event_failed', eventError);
     }
   }
 
