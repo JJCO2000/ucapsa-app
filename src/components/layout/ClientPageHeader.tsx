@@ -26,10 +26,10 @@ export function ClientPageHeader({
   backLabel?: string;
 }) {
   const club = format.key === 'member';
-  const accent = club ? ucapsaBrand.colors.redDeep : format.accentDark;
+  const accent = format.accentDark;
 
   return (
-    <View style={[styles.header, club && styles.clubHeader]}>
+    <View style={[styles.header, club && styles.clubHeader, club && { borderColor: format.border, backgroundColor: format.heroBackground, shadowColor: format.accentDark }]}>
       <View style={styles.topRow}>
         {onBack ? (
           <Pressable
@@ -48,7 +48,7 @@ export function ClientPageHeader({
           </View>
         )}
         <View style={styles.copy}>
-          <Text style={[styles.eyebrow, { color: club ? ucapsaBrand.colors.premiumAction : accent }]}>{club ? 'CLUB UCAPSA' : eyebrow}</Text>
+          <Text style={[styles.eyebrow, { color: accent }]}>{club ? 'CLUB UCAPSA' : eyebrow}</Text>
           <Text style={[styles.title, { color: format.text }]}>{title}</Text>
         </View>
         {right}
@@ -56,9 +56,9 @@ export function ClientPageHeader({
       {subtitle ? <Text style={[styles.subtitle, { color: format.muted }]}>{subtitle}</Text> : null}
       {club ? (
         <View style={styles.clubSignatureRow}>
-          <View style={[styles.clubSignatureDot, { backgroundColor: ucapsaBrand.colors.premiumAction }]} />
-          <Text style={styles.clubSignatureText}>Experiencia de socio</Text>
-          <View style={[styles.clubSignatureLine, { backgroundColor: withAlpha(ucapsaBrand.colors.premiumAction, 0.22) }]} />
+          <View style={[styles.clubSignatureDot, { backgroundColor: format.accentDark }]} />
+          <Text style={[styles.clubSignatureText, { color: format.accentDark }]}>Experiencia de socio</Text>
+          <View style={[styles.clubSignatureLine, { backgroundColor: withAlpha(format.accentDark, 0.22) }]} />
         </View>
       ) : (
         <View style={[styles.rule, { backgroundColor: format.border }]} />

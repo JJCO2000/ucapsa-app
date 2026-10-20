@@ -34,4 +34,18 @@ assert.ok(auth.includes('export const AUTH_PASSWORD_MIN_LENGTH = 6;'),
   'Requested six-character password policy must be retained.');
 assert.ok(auth.includes('password.length < AUTH_PASSWORD_MIN_LENGTH'),
   'Password policy must be checked in the auth service.');
+// Guard against regressions that silently reintroduce the old fixed club colors.
+const ambient = read('src/components/layout/UcapsaAmbientBackground.tsx');
+assert.ok(!ambient.includes('ucapsaBrand.colors.premiumAction') && !ambient.includes('ucapsaBrand.colors.redDeep'),
+  'Club ambient decoration must derive from the active palette.');
+const header = read('src/components/layout/ClientPageHeader.tsx');
+assert.ok(header.includes('backgroundColor: format.heroBackground') && header.includes('backgroundColor: format.accentDark'),
+  'Club header must follow the selected palette.');
+const credential = read('src/components/domain/MemberCredentialCard.tsx');
+assert.ok(credential.includes('color: format.cardText') && credential.includes('color: format.accentDark'),
+  'Member credential text must follow selected colors.');
+assert.ok(settings.includes('getMyMembership()') && settings.includes("getMembershipEffectiveStatus(membership) === 'active'"),
+  'Appearance access must reflect active Socio membership as well as member role.');
+assert.ok(settings.includes('membershipVisualAccess?.userId === user?.id'),
+  'Appearance status may not carry over across accounts.');
 console.log('UCAPSA member appearance and six-character auth boundary: PASS');

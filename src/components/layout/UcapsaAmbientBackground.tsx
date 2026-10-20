@@ -1,7 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { StyleSheet, View } from 'react-native';
 
-import { ucapsaBrand, withAlpha } from '../../constants/brand';
+import { withAlpha } from '../../constants/brand';
 import type { UcapsaFormat } from '../../constants/ucapsaFormats';
 
 type AmbientVariant = 'home' | 'services' | 'classes' | 'payments' | 'dog';
@@ -37,9 +37,9 @@ const clubPaws: Array<{ top: number; left?: number; right?: number; rotate: stri
 export function UcapsaAmbientBackground({ format, variant = 'home' }: Props) {
   const club = format.key === 'member';
   const shift = shifts[variant];
-  const accent = club ? ucapsaBrand.colors.premiumAction : format.accent;
+  const accent = format.accentDark;
   const wash = withAlpha(accent, club ? 0.09 : 0.035);
-  const washStrong = withAlpha(club ? ucapsaBrand.colors.redDeep : accent, club ? 0.055 : 0.05);
+  const washStrong = withAlpha(accent, club ? 0.055 : 0.05);
   const ring = withAlpha(accent, club ? 0.18 : 0.075);
 
   return (
@@ -51,8 +51,8 @@ export function UcapsaAmbientBackground({ format, variant = 'home' }: Props) {
 
       {club ? (
         <>
-          <View style={[styles.clubLine, styles.clubLineOne, { borderColor: withAlpha(ucapsaBrand.colors.premiumAction, 0.10) }]} />
-          <View style={[styles.clubLine, styles.clubLineTwo, { borderColor: withAlpha(ucapsaBrand.colors.redDeep, 0.055) }]} />
+          <View style={[styles.clubLine, styles.clubLineOne, { borderColor: withAlpha(accent, 0.10) }]} />
+          <View style={[styles.clubLine, styles.clubLineTwo, { borderColor: withAlpha(accent, 0.055) }]} />
           {clubPaws.map((paw, index) => (
             <View
               key={`club-paw-${index}`}
@@ -69,7 +69,7 @@ export function UcapsaAmbientBackground({ format, variant = 'home' }: Props) {
               <MaterialCommunityIcons
                 name="paw"
                 size={paw.size}
-                color={withAlpha(index % 2 === 0 ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.redDeep, 0.075)}
+                color={withAlpha(format.accentDark, 0.075)}
               />
             </View>
           ))}
