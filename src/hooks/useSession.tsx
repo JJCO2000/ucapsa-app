@@ -43,6 +43,8 @@ type SessionContextValue = {
   isOfflineFallback: boolean;
   preregistrationSyncVersion: number;
   preregistrationLinkOffer: number | null;
+  preregistrationLinkedNotice: number | null;
+  dismissPreregistrationLinkedNotice: () => void;
   preregistrationLinkBusy: boolean;
   confirmPreregistrationLink: () => Promise<void>;
   dismissPreregistrationLink: () => void;
@@ -79,6 +81,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
   const [preregistrationSyncVersion, setPreregistrationSyncVersion] = useState(0);
   const [preregistrationLinkOffer, setPreregistrationLinkOffer] = useState<{ userId: string; count: number } | null>(null);
   const [preregistrationLinkBusy, setPreregistrationLinkBusy] = useState(false);
+  const [preregistrationLinkedNotice, setPreregistrationLinkedNotice] = useState<{ userId: string; count: number } | null>(null);
   const claimAttemptKeyRef = useRef<string | null>(null);
   const [startupAttempt, setStartupAttempt] = useState(0);
   const startupRunRef = useRef(0);
@@ -412,6 +415,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
     if (!userId) {
       claimAttemptKeyRef.current = null;
       setPreregistrationLinkOffer(null);
+      setPreregistrationLinkedNotice(null);
       return;
     }
     if (isOfflineFallback || usingCachedProfile || profile?.user_id !== userId) return;
@@ -441,6 +445,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
           await Promise.all([clearClientReadCache(userId), clearHomeCache(userId)]);
           if (active && claimAttemptKeyRef.current === attemptKey) {
             setPreregistrationLinkOffer(null);
+            setPreregistrationLinkedNotice({ userId, count: claimed.linkedDogs });
             setPreregistrationSyncVersion((value) => value + 1);
           }
           return;
@@ -484,6 +489,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       setPreregistrationLinkOffer(null);
       if (result.linkedDogs > 0) {
         await Promise.all([clearClientReadCache(offer.userId), clearHomeCache(offer.userId)]);
+        setPreregistrationLinkedNotice({ userId: offer.userId, count: result.linkedDogs });
         setPreregistrationSyncVersion((value) => value + 1);
       }
     } finally {
@@ -493,6 +499,10 @@ export function SessionProvider({ children }: SessionProviderProps) {
 
   function dismissPreregistrationLink() {
     setPreregistrationLinkOffer(null);
+  }
+
+  function dismissPreregistrationLinkedNotice() {
+    setPreregistrationLinkedNotice(null);
   }
 
   // Reapertura tras "Ahora no" y vinculo automático inicial.
@@ -514,6 +524,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       if (claimed.status === 'linked' && claimed.linkedDogs > 0) {
         await Promise.all([clearClientReadCache(userId), clearHomeCache(userId)]);
         setPreregistrationLinkOffer(null);
+        setPreregistrationLinkedNotice({ userId, count: claimed.linkedDogs });
         setPreregistrationSyncVersion((value) => value + 1);
         return 'linked';
       }
@@ -605,6 +616,9 @@ export function SessionProvider({ children }: SessionProviderProps) {
       preregistrationLinkOffer: preregistrationLinkOffer && preregistrationLinkOffer.userId === user?.id
         ? preregistrationLinkOffer.count : null,
       preregistrationLinkBusy,
+      preregistrationLinkedNotice: preregistrationLinkedNotice && preregistrationLinkedNotice.userId === user?.id
+        ? preregistrationLinkedNotice.count : null,
+      dismissPreregistrationLinkedNotice,
       confirmPreregistrationLink,
       dismissPreregistrationLink,
       reviewPreregistrationLink,
@@ -630,6 +644,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       preregistrationSyncVersion,
       preregistrationLinkOffer,
       preregistrationLinkBusy,
+      preregistrationLinkedNotice,
       isAdmin,
       isTrainer,
       isStaff,
