@@ -7,7 +7,7 @@ import { NotificationSettingsCard } from '../components/domain/NotificationSetti
 import { KeyboardAwareModal } from '../components/ui/KeyboardAwareModal';
 import { KeyboardAwareScreen } from '../components/ui/KeyboardAwareScreen';
 import { OfflineDataNotice } from '../components/ui/OfflineDataNotice';
-import { getMemberThemeFormat, memberThemeChoices, resolveUcapsaFormat } from '../constants/ucapsaFormats';
+import { getMemberThemeFormat, memberThemeChoices, resolveUcapsaFormat, type UcapsaFormat } from '../constants/ucapsaFormats';
 import { useMemberAppearance } from '../hooks/useMemberAppearance';
 import { ucapsaBrand, withAlpha } from '../constants/brand';
 import { UCAPSA_ACCOUNT_DELETION_PUBLIC_URL } from '../constants/legal';
@@ -17,6 +17,7 @@ import { useSession } from '../hooks/useSession';
 import { devWarn } from '../lib/client-diagnostics';
 import { deleteMyAccount, getAccountDeletionStatusLabel, getMyAccountDeletionRequest, isAccountDeletionOpen, type AccountDeletionRequest } from '../services/account-deletion.service';
 import { requestMyEmailChange, updateMyProfile } from '../services/profiles.service';
+import { getMyMembership, getMembershipEffectiveStatus } from '../services/memberships.service';
 import { DEFAULT_WRITE_TIMEOUT_MS, friendlyWriteError, withOperationTimeout } from '../utils/async.utils';
 
 type SettingsSection = 'notifications' | 'profile' | 'appearance' | 'delete';
@@ -25,7 +26,24 @@ export default function AccountSettingsScreen() {
   const { loading, user, profile, role, isAdmin, isTrainer, isStaff, signOut, refreshProfile, acceptProfile, isOfflineFallback, lastProfileSyncAt, reviewPreregistrationLink } = useSession();
   const params = useLocalSearchParams<{ section?: string; from?: string }>();
   const fromProfile = params.from === 'profile';
-  const section = normalizeSection(params.section, isAdmin, isTrainer, role === 'member');
+  const [membershipVisualAccess, setMembershipVisualAccess] = useState<{ userId: string; active: boolean } | null>(null);
+  // Consulta comercial de solo lectura; la apariencia nunca concede permisos.
+  useEffect(() => {
+    const userId = user?.id;
+    if (!userId || isStaff || role === 'member') return;
+    let active = true;
+    void getMyMembership()
+      .then((membership) => {
+        if (active) setMembershipVisualAccess({ userId, active: getMembershipEffectiveStatus(membership) === 'active' });
+      })
+      .catch((error) => {
+        devWarn('Could not verify Socio appearance access.', error);
+        if (active) setMembershipVisualAccess({ userId, active: false });
+      });
+    return () => { active = false; };
+  }, [user?.id, isStaff, role]);
+  const hasSocioAppearance = role === 'member' || (membershipVisualAccess?.userId === user?.id && membershipVisualAccess?.active === true);
+  const section = normalizeSection(params.section, isAdmin, isTrainer, hasSocioAppearance);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [contactEmail, setContactEmail] = useState('');
@@ -40,7 +58,7 @@ export default function AccountSettingsScreen() {
   const [appearanceError, setAppearanceError] = useState<string | null>(null);
   const [appearanceSaving, setAppearanceSaving] = useState(false);
 
-  const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin, memberTheme }), [user, role, isAdmin, memberTheme]);
+  const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin, memberTheme, membershipStatus: hasSocioAppearance ? 'active' : null }), [user, role, isAdmin, memberTheme, hasSocioAppearance]);
   const premium = Boolean(user) && format.key === 'member' && !isStaff;
   const deletionOpen = isAccountDeletionOpen(deletionRequest);
   const deletionCompleted = deletionRequest?.status === 'completed';
@@ -254,7 +272,7 @@ export default function AccountSettingsScreen() {
   if (!user) {
     return (
       <KeyboardAwareScreen>
-        <Header title="Ajustes" subtitle="Inicia sesión para gestionar tu cuenta." onBack={() => router.back()} premium={false} />
+        <Header title="Ajustes" subtitle="Inicia sesión para gestionar tu cuenta." onBack={() => router.back()} premium={false} format={format} />
         <Pressable style={styles.primaryButton} onPress={() => router.replace('/auth/login' as never)}><Text style={styles.primaryButtonText}>Iniciar sesión</Text></Pressable>
       </KeyboardAwareScreen>
     );
@@ -286,7 +304,7 @@ export default function AccountSettingsScreen() {
       contentContainerStyle={premium ? { backgroundColor: format.background } : undefined}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={format.accent} />}
     >
-      <Header title={pageTitle} subtitle={pageSubtitle} onBack={back} premium={premium} />
+      <Header title={pageTitle} subtitle={pageSubtitle} onBack={back} premium={premium} format={format} />
 
       {isOfflineFallback && profile ? (
         <OfflineDataNotice savedAt={lastProfileSyncAt} onRetry={() => void handleRefresh()} premium={premium} label="Mostrando tu perfil guardado" />
@@ -294,7 +312,7 @@ export default function AccountSettingsScreen() {
 
       {!section ? (
         <View style={styles.menuStack}>
-          <SettingsButton
+          <SettingsButton format={format}
             icon="person"
             title={isStaff ? 'Mis datos del equipo' : 'Mis datos'}
             subtitle={profileComplete ? 'Nombre, correo y teléfono.' : 'Falta completar información de contacto.'}
@@ -303,7 +321,7 @@ export default function AccountSettingsScreen() {
             onPress={() => openSection('profile')}
           />
           {!isStaff ? (
-            <SettingsButton
+            <SettingsButton format={format}
               icon="pets"
               title="Mis perros"
               subtitle="Agrega, elige o edita los perros de tu cuenta."
@@ -312,25 +330,25 @@ export default function AccountSettingsScreen() {
             />
           ) : null}
           {premium ? (
-            <SettingsButton icon="palette" title="Colores de socio"
+            <SettingsButton format={format} icon="palette" title="Colores de socio"
               subtitle="Personaliza Club UCAPSA en este dispositivo."
               premium={premium} onPress={() => openSection('appearance')} />
           ) : null}
-          <SettingsButton
+          <SettingsButton format={format}
             icon="notifications-none"
             title="Notificaciones"
             subtitle={isTrainer ? 'Resumen de clases y aforo esperado.' : 'Clases, membresía, anuncios y logros.'}
             premium={premium}
             onPress={() => openSection('notifications')}
           />
-          <SettingsButton
+          <SettingsButton format={format}
             icon="policy"
             title="Aviso de privacidad"
             subtitle="Consulta cómo UCAPSA trata y protege tus datos."
             premium={premium}
             onPress={() => router.push('/privacy' as never)}
           />
-          <SettingsButton
+          <SettingsButton format={format}
             icon="description"
             title="Términos de uso"
             subtitle="Consulta las reglas vigentes de UCAPSA App."
@@ -338,7 +356,7 @@ export default function AccountSettingsScreen() {
             onPress={() => router.push('/terms' as never)}
           />
           {!isStaff ? (
-            <SettingsButton
+            <SettingsButton format={format}
               icon="delete-outline"
               title="Eliminar cuenta"
               subtitle={deletionLoading ? 'Procesando...' : deletionRequest ? deletionStatusLabel : 'Elimina tu cuenta y los datos asociados.'}
@@ -349,7 +367,7 @@ export default function AccountSettingsScreen() {
             />
           ) : null}
           <Pressable style={[styles.signOutButton, premium && styles.signOutButtonPremium]} onPress={handleSignOut}>
-            <MaterialIcons name="logout" size={20} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.redDark} />
+            <MaterialIcons name="logout" size={20} color={premium ? format.accentDark : ucapsaBrand.colors.redDark} />
             <Text style={[styles.signOutText, premium && styles.signOutTextPremium]}>Cerrar sesión</Text>
           </Pressable>
         </View>
@@ -393,16 +411,16 @@ export default function AccountSettingsScreen() {
             <Text style={[styles.sectionIntro, premium && styles.premiumText]}>Nombre, correo y teléfono.</Text>
             <Pressable style={[styles.smallButton, premium && styles.premiumSmallButton]} onPress={() => setEditing(true)}><Text style={[styles.smallButtonText, premium && styles.premiumSmallButtonText]}>{profileComplete ? 'Editar' : 'Completar'}</Text></Pressable>
           </View>
-          <ReadonlyRow label="Nombre" value={profile?.full_name || 'Pendiente'} premium={premium} />
-          <ReadonlyRow label="Correo de acceso (Supabase)" value={user.email || 'Sin registrar'} premium={premium} />
-          <ReadonlyRow label="Verificación del correo"
+          <ReadonlyRow format={format} label="Nombre" value={profile?.full_name || 'Pendiente'} premium={premium} />
+          <ReadonlyRow format={format} label="Correo de acceso (Supabase)" value={user.email || 'Sin registrar'} premium={premium} />
+          <ReadonlyRow format={format} label="Verificación del correo"
             value={user.email_confirmed_at ? 'Confirmado por Supabase' : 'Sin confirmar'} premium={premium} />
-          <ReadonlyRow label="Teléfono de contacto (no es acceso)" value={profile?.phone || 'Pendiente'} premium={premium} />
+          <ReadonlyRow format={format} label="Teléfono de contacto (no es acceso)" value={profile?.phone || 'Pendiente'} premium={premium} />
           {preregistrationEnabled ? (
-            <ReadonlyRow label="Correo de contacto para preinscripción"
+            <ReadonlyRow format={format} label="Correo de contacto para preinscripción"
               value={profile?.preregistration_contact_email || 'No agregado'} premium={premium} />
           ) : null}
-          <ReadonlyRow label="Teléfono de acceso verificado en Supabase"
+          <ReadonlyRow format={format} label="Teléfono de acceso verificado en Supabase"
             value={user.phone_confirmed_at && user.phone ? user.phone : 'Sin verificar'} premium={premium} />
           {!user.phone_confirmed_at && !phoneVerificationEnabled ? (
             <Text style={[styles.muted, premium && styles.premiumText]}>
@@ -441,9 +459,9 @@ export default function AccountSettingsScreen() {
           <NotificationSettingsCard premium={premium} mode={isTrainer ? 'trainer' : 'client'} />
           {isAdmin ? (
             <Pressable style={[styles.adminNoticeButton, premium && styles.adminNoticeButtonPremium]} onPress={() => router.push('/admin/notifications' as never)}>
-              <MaterialIcons name="send" size={22} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.redDark} />
+              <MaterialIcons name="send" size={22} color={premium ? format.accentDark : ucapsaBrand.colors.redDark} />
               <View style={{ flex: 1 }}><Text style={[styles.adminNoticeTitle, premium && styles.premiumTitle]}>Enviar notificacion manual</Text><Text style={[styles.muted, premium && styles.premiumText]}>Crear aviso para socios, clientes o admins.</Text></View>
-              <MaterialIcons name="chevron-right" size={23} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.redDark} />
+              <MaterialIcons name="chevron-right" size={23} color={premium ? format.accentDark : ucapsaBrand.colors.redDark} />
             </Pressable>
           ) : null}
         </View>
@@ -484,7 +502,7 @@ export default function AccountSettingsScreen() {
               });
             }}
           >
-            <MaterialIcons name="open-in-new" size={18} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.redDark} />
+            <MaterialIcons name="open-in-new" size={18} color={premium ? format.accentDark : ucapsaBrand.colors.redDark} />
             <Text style={[styles.externalDeleteText, premium && styles.premiumSmallButtonText]}>Solicitar desde la web</Text>
           </Pressable>
           <Text style={[styles.externalDeleteHint, premium && styles.premiumText]}>
@@ -542,22 +560,22 @@ function normalizeSection(value: string | undefined, isAdmin: boolean, isTrainer
   return null;
 }
 
-function Header({ title, subtitle, onBack, premium }: { title: string; subtitle: string; onBack: () => void; premium: boolean }) {
-  return <View style={styles.headerRow}><Pressable accessibilityRole="button" accessibilityLabel="Volver" style={[styles.backButton, premium && styles.premiumSmallButton]} onPress={onBack}><MaterialIcons name="arrow-back" size={22} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.redDark} /></Pressable><View style={{ flex: 1 }}><Text style={[styles.title, premium && styles.premiumTitle]}>{title}</Text><Text style={[styles.muted, premium && styles.premiumText]}>{subtitle}</Text></View></View>;
+function Header({ title, subtitle, onBack, premium, format }: { title: string; subtitle: string; onBack: () => void; premium: boolean; format: UcapsaFormat }) {
+  return <View style={styles.headerRow}><Pressable accessibilityRole="button" accessibilityLabel="Volver" style={[styles.backButton, premium && styles.premiumSmallButton, premium && { backgroundColor: format.accentSoft, borderColor: format.cardBorder }]} onPress={onBack}><MaterialIcons name="arrow-back" size={22} color={premium ? format.accentDark : ucapsaBrand.colors.redDark} /></Pressable><View style={{ flex: 1 }}><Text style={[styles.title, premium && styles.premiumTitle, premium && { color: format.text }]}>{title}</Text><Text style={[styles.muted, premium && styles.premiumText, premium && { color: format.muted }]}>{subtitle}</Text></View></View>;
 }
 
-function SettingsButton({ icon, title, subtitle, onPress, premium, badge, danger = false }: { icon: keyof typeof MaterialIcons.glyphMap; title: string; subtitle: string; onPress: () => void; premium: boolean; badge?: string; danger?: boolean }) {
+function SettingsButton({ icon, title, subtitle, onPress, premium, badge, danger = false, format }: { icon: keyof typeof MaterialIcons.glyphMap; title: string; subtitle: string; onPress: () => void; premium: boolean; badge?: string; danger?: boolean; format: UcapsaFormat }) {
   return (
-    <Pressable accessibilityRole="button" style={[styles.settingsButton, premium && styles.premiumCard, danger && styles.dangerSettingsButton]} onPress={onPress}>
-      <View style={[styles.settingsIcon, premium && styles.premiumSmallButton, danger && styles.dangerIcon]}><MaterialIcons name={icon} size={23} color={premium ? ucapsaBrand.colors.premiumAction : danger ? ucapsaBrand.colors.red : ucapsaBrand.colors.redDark} /></View>
-      <View style={{ flex: 1 }}><View style={styles.settingsTitleRow}><Text style={[styles.settingsTitle, premium && styles.premiumTitle, danger && styles.dangerTitle]}>{title}</Text>{badge ? <Text style={[styles.badge, premium && styles.premiumPill]}>{badge}</Text> : null}</View><Text style={[styles.settingsSubtitle, premium && styles.premiumText]}>{subtitle}</Text></View>
-      <MaterialIcons name="chevron-right" size={26} color={premium ? ucapsaBrand.colors.premiumAction : danger ? ucapsaBrand.colors.red : ucapsaBrand.colors.redDark} />
+    <Pressable accessibilityRole="button" style={[styles.settingsButton, premium && styles.premiumCard, premium && { backgroundColor: format.cardBackground, borderColor: format.cardBorder }, danger && styles.dangerSettingsButton]} onPress={onPress}>
+      <View style={[styles.settingsIcon, premium && styles.premiumSmallButton, premium && { backgroundColor: format.accentSoft, borderColor: format.cardBorder }, danger && styles.dangerIcon]}><MaterialIcons name={icon} size={23} color={premium ? format.accentDark : danger ? ucapsaBrand.colors.red : ucapsaBrand.colors.redDark} /></View>
+      <View style={{ flex: 1 }}><View style={styles.settingsTitleRow}><Text style={[styles.settingsTitle, premium && styles.premiumTitle, premium && { color: format.cardText }, danger && styles.dangerTitle]}>{title}</Text>{badge ? <Text style={[styles.badge, premium && styles.premiumPill]}>{badge}</Text> : null}</View><Text style={[styles.settingsSubtitle, premium && styles.premiumText, premium && { color: format.muted }]}>{subtitle}</Text></View>
+      <MaterialIcons name="chevron-right" size={26} color={premium ? format.accentDark : danger ? ucapsaBrand.colors.red : ucapsaBrand.colors.redDark} />
     </Pressable>
   );
 }
 
-function ReadonlyRow({ label, value, premium = false }: { label: string; value: string; premium?: boolean }) {
-  return <View style={[styles.readonlyRow, premium && styles.readonlyRowPremium]}><Text style={[styles.readonlyLabel, premium && styles.premiumReadonlyLabel]}>{label}</Text><Text style={[styles.readonlyValue, premium && styles.premiumReadonlyValue]}>{value}</Text></View>;
+function ReadonlyRow({ label, value, premium = false, format }: { label: string; value: string; premium?: boolean; format: UcapsaFormat }) {
+  return <View style={[styles.readonlyRow, premium && styles.readonlyRowPremium]}><Text style={[styles.readonlyLabel, premium && styles.premiumReadonlyLabel, premium && { color: format.accentDark }]}>{label}</Text><Text style={[styles.readonlyValue, premium && styles.premiumReadonlyValue, premium && { color: format.cardText }]}>{value}</Text></View>;
 }
 
 const styles = StyleSheet.create({

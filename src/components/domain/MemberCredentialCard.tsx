@@ -18,14 +18,14 @@ type MemberCredentialCardProps = {
 export function MemberCredentialCard({ membership, profile: _profile, displayName, format = ucapsaFormats.member }: MemberCredentialCardProps) {
   return (
     <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
-      <View style={styles.textureRingOne} />
-      <View style={styles.textureRingTwo} />
+      <View style={[styles.textureRingOne, { borderColor: withAlpha(format.accentDark, 0.11) }]} />
+      <View style={[styles.textureRingTwo, { borderColor: withAlpha(format.accentDark, 0.055) }]} />
       <View style={styles.texturePawOne}><MaterialCommunityIcons name="paw" size={34} color={withAlpha(format.accentDark, 0.08)} /></View>
-      <View style={styles.texturePawTwo}><MaterialCommunityIcons name="paw" size={26} color={withAlpha(ucapsaBrand.colors.redDeep, 0.055)} /></View>
+      <View style={styles.texturePawTwo}><MaterialCommunityIcons name="paw" size={26} color={withAlpha(format.accentDark, 0.055)} /></View>
 
       <View style={[styles.band, { backgroundColor: format.primaryButton }]}>
         <View style={styles.bandCopy}>
-          <Text style={styles.bandEyebrow}>SOCIO UCAPSA</Text>
+          <Text style={[styles.bandEyebrow, { color: format.primaryButtonText }]}>SOCIO UCAPSA</Text>
           <Text style={styles.bandTitle}>Club UCAPSA</Text>
         </View>
         <MemberClubCrest />
@@ -36,8 +36,8 @@ export function MemberCredentialCard({ membership, profile: _profile, displayNam
           <Text style={[styles.memberName, { color: format.cardText }]}>{displayName}</Text>
           <View style={styles.memberMetaRow}>
             <View style={[styles.memberNumberPill, { backgroundColor: format.accentSoft, borderColor: format.cardBorder }]}>
-              <Text style={styles.memberNumberLabel}>SOCIO</Text>
-              <Text style={styles.memberNumber}>{membership.member_number || 'Pendiente'}</Text>
+              <Text style={[styles.memberNumberLabel, { color: format.accentDark }]}>SOCIO</Text>
+              <Text style={[styles.memberNumber, { color: format.cardText }]}>{membership.member_number || 'Pendiente'}</Text>
             </View>
             <View style={[styles.statusPill, { backgroundColor: format.heroBackground, borderColor: format.cardBorder }]}>
               <View style={[styles.statusDot, { backgroundColor: format.accentDark }]} />
