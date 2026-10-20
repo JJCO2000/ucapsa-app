@@ -93,7 +93,7 @@ La app continúa en desarrollo, pero la arquitectura crítica ya tiene guards de
 Antes de considerar una salida a producción todavía deben resolverse o verificarse explícitamente:
 
 - **Aviso de privacidad:** Supabase tiene publicada la versión `1.2-appstores-2026-09-27` (comprobación de BD del 20-oct-2026). Verificar aparte aprobación jurídica de su contenido; la publicación técnica no sustituye esa revisión.
-- Activar en Supabase Auth la **protección contra contraseñas filtradas** y revisar que la política de contraseña del servidor esté alineada con la regla de cliente.
+- La aplicación exige al menos **12 caracteres en contraseñas nuevas**, incluido el servicio de registro. Configurar el mismo mínimo en **Supabase Auth**, habilitar la **protección contra contraseñas filtradas** y verificar recuperación real (issue #251). Las contraseñas existentes siguen válidas hasta que se cambien.
 - Ejecutar la validación operativa final por rol en dispositivos reales: visitante, cliente, socio, entrenador, admin y super_admin; comprobar flujo real de preinscripción y vinculación (0 expedientes provisionales al 20-oct-2026).
 - Completar inicio de sesión por celular como credencial de **Supabase Auth** sin confundirlo con `profiles.phone`: actualmente 0 teléfonos Auth registrados. Ver [issue #415](https://github.com/JJCO2000/ucapsa-app/issues/415).
 - Validar assets finales de icono/splash y comportamiento Android/iOS.
