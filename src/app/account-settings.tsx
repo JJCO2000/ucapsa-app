@@ -272,7 +272,7 @@ export default function AccountSettingsScreen() {
   if (!user) {
     return (
       <KeyboardAwareScreen>
-        <Header title="Ajustes" subtitle="Inicia sesión para gestionar tu cuenta." onBack={() => router.back()} premium={false} />
+        <Header title="Ajustes" subtitle="Inicia sesión para gestionar tu cuenta." onBack={() => router.back()} premium={false} format={format} />
         <Pressable style={styles.primaryButton} onPress={() => router.replace('/auth/login' as never)}><Text style={styles.primaryButtonText}>Iniciar sesión</Text></Pressable>
       </KeyboardAwareScreen>
     );
