@@ -349,15 +349,15 @@ export default function AccountSettingsScreen() {
             <Pressable style={[styles.smallButton, premium && styles.premiumSmallButton]} onPress={() => setEditing(true)}><Text style={[styles.smallButtonText, premium && styles.premiumSmallButtonText]}>{profileComplete ? 'Editar' : 'Completar'}</Text></Pressable>
           </View>
           <ReadonlyRow label="Nombre" value={profile?.full_name || 'Pendiente'} premium={premium} />
-          <ReadonlyRow label="Correo" value={profile?.email || user.email || 'Pendiente'} premium={premium} />
+          <ReadonlyRow label="Correo de acceso (Supabase)" value={user.email || 'Sin registrar'} premium={premium} />
           <ReadonlyRow label="Verificación del correo"
             value={user.email_confirmed_at ? 'Confirmado por Supabase' : 'Sin confirmar'} premium={premium} />
-          <ReadonlyRow label="Teléfono de contacto" value={profile?.phone || 'Pendiente'} premium={premium} />
+          <ReadonlyRow label="Teléfono de contacto (no es acceso)" value={profile?.phone || 'Pendiente'} premium={premium} />
           {preregistrationEnabled ? (
             <ReadonlyRow label="Correo de contacto para preinscripción"
               value={profile?.preregistration_contact_email || 'No agregado'} premium={premium} />
           ) : null}
-          <ReadonlyRow label="Celular verificado en Supabase"
+          <ReadonlyRow label="Teléfono de acceso verificado en Supabase"
             value={user.phone_confirmed_at && user.phone ? user.phone : 'Sin verificar'} premium={premium} />
           {!user.phone_confirmed_at && !phoneVerificationEnabled ? (
             <Text style={[styles.muted, premium && styles.premiumText]}>
@@ -457,7 +457,7 @@ export default function AccountSettingsScreen() {
         <View style={styles.modalHeader}><Text style={[styles.modalTitle, premium && styles.premiumTitle]}>{isStaff ? 'Editar datos del equipo' : 'Editar mis datos'}</Text><Pressable onPress={() => setEditing(false)}><MaterialIcons name="close" size={24} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.text} /></Pressable></View>
         <Text style={[styles.label, premium && styles.premiumLabel]}>Nombre completo</Text>
         <TextInput value={fullName} onChangeText={setFullName} placeholder="Nombre" placeholderTextColor={premium ? ucapsaBrand.colors.redBorder : ucapsaBrand.colors.gray} style={[styles.input, premium && styles.premiumInput]} />
-        <Text style={[styles.label, premium && styles.premiumLabel]}>Correo</Text>
+        <Text style={[styles.label, premium && styles.premiumLabel]}>Correo para iniciar sesión (Supabase)</Text>
         <TextInput
           value={email}
           onChangeText={setEmail}
@@ -477,12 +477,12 @@ export default function AccountSettingsScreen() {
               placeholderTextColor={premium ? ucapsaBrand.colors.redBorder : ucapsaBrand.colors.gray}
               style={[styles.input, premium && styles.premiumInput]} />
             <Text style={[styles.muted, premium && styles.premiumText]}>
-              Sirve para encontrar tu primer expediente aunque no sea tu correo de acceso.
+              Sirve para encontrar tu primer expediente, pero no habilita el acceso por ese correo.
               En este MVP no se verifica su titularidad: revisa que esté correcto.
             </Text>
           </>
         ) : null}
-        <Text style={[styles.label, premium && styles.premiumLabel]}>Teléfono</Text>
+        <Text style={[styles.label, premium && styles.premiumLabel]}>Teléfono de contacto (para preinscripción)</Text>
         <TextInput value={phone} onChangeText={setPhone} placeholder="Teléfono" keyboardType="phone-pad" placeholderTextColor={premium ? ucapsaBrand.colors.redBorder : ucapsaBrand.colors.gray} style={[styles.input, premium && styles.premiumInput]} />
         <Pressable disabled={saving} style={[styles.primaryButton, { backgroundColor: format.primaryButton }, saving && styles.disabled]} onPress={handleSaveProfile}><Text style={[styles.primaryButtonText, { color: format.primaryButtonText }]}>{saving ? 'Guardando...' : 'Guardar cambios'}</Text></Pressable>
       </KeyboardAwareModal>
