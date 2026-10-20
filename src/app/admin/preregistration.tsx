@@ -62,11 +62,11 @@ export default function AdminPreregistrationDetailScreen() {
       Alert.alert('Falta un dato', 'Escribe al menos un contacto que todavía no esté registrado.');
       return;
     }
-    if (email && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       Alert.alert('Correo inválido', 'Revisa el formato del correo electrónico.');
       return;
     }
-    if (phone && !/^\\+[1-9][0-9]{7,14}$/.test(phone)) {
+    if (phone && !/^\+[1-9][0-9]{7,14}$/.test(phone)) {
       Alert.alert('Celular inválido', 'Usa formato internacional, por ejemplo +525512345678.');
       return;
     }
