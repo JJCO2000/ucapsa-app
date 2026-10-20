@@ -66,10 +66,10 @@ export default function AdminPreregistrationsScreen() {
         <MaterialIcons name="add" size={20} color={ucapsaBrand.colors.surface} />
         <Text style={styles.primaryText}>Registrar perro sin cuenta</Text>
       </Pressable>
-      <Pressable accessibilityRole="button" style={styles.primary}
+      <Pressable accessibilityRole="button" style={styles.secondaryAction}
         onPress={() => router.push('/admin/link-review-requests' as never)}>
-        <MaterialIcons name="assignment" size={20} color={ucapsaBrand.colors.surface} />
-        <Text style={styles.primaryText}>Solicitudes de otras cuentas</Text>
+        <MaterialIcons name="assignment" size={20} color={ucapsaBrand.colors.redDark} />
+        <Text style={styles.secondaryActionText}>Solicitudes de otras cuentas</Text>
       </Pressable>
       <TextInput style={styles.search} value={filter} onChangeText={setFilter}
         accessibilityLabel="Buscar preinscripciones"
@@ -122,6 +122,10 @@ const styles = StyleSheet.create({
   primary: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8,
     minHeight: 50, backgroundColor: ucapsaBrand.colors.greenDark, borderRadius: 13 },
   primaryText: { color: ucapsaBrand.colors.surface, fontWeight: '900', fontSize: 14 },
+  secondaryAction: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8,
+    minHeight: 48, paddingHorizontal: 12, marginTop: 8, borderRadius: 13,
+    borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface },
+  secondaryActionText: { color: ucapsaBrand.colors.redDark, fontWeight: '800', fontSize: 13 },
   search: { borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface,
     borderRadius: 12, minHeight: 48, paddingHorizontal: 13, color: ucapsaBrand.colors.text, marginTop: 15, marginBottom: 14 },
   center: { padding: 15, alignItems: 'center', gap: 8 },
