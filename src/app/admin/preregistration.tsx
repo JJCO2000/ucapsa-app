@@ -1,12 +1,14 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { preregistrationDirectoryEnabled } from '../../constants/preregistrationFeature';
 import { useSession } from '../../hooks/useSession';
+import { devWarn } from '../../lib/client-diagnostics';
+import { normalizeContactPhone } from '../../utils/phone-contact';
 import {
   adminCompletePreregistrationContact,
   getAdminPreregistrationRecords,
@@ -36,6 +38,12 @@ export default function AdminPreregistrationDetailScreen() {
   const [newEmail, setNewEmail] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [savingContact, setSavingContact] = useState(false);
+  const [feedback, setFeedback] = useState<{ kind: 'success' | 'error'; title: string; message: string } | null>(null);
+
+  function showFeedback(title: string, message: string, kind: 'success' | 'error' = 'error') {
+    if (Platform.OS === 'web') setFeedback({ kind, title, message });
+    else Alert.alert(title, message);
+  }
 
   const load = useCallback(async () => {
     try {
@@ -58,19 +66,25 @@ export default function AdminPreregistrationDetailScreen() {
 
   async function saveMissingContact() {
     if (!record || savingContact || record.status !== 'pending') return;
+    setFeedback(null);
     const email = record.ownerEmail ? '' : newEmail.trim().toLowerCase();
-    const phone = record.ownerPhone ? '' : newPhone.trim();
+    let phone = record.ownerPhone ? '' : newPhone.trim();
     if (!email && !phone) {
-      Alert.alert('Falta un dato', 'Escribe al menos un contacto que todavía no esté registrado.');
+      showFeedback('Falta un dato', 'Escribe al menos un contacto que todavía no esté registrado.');
       return;
     }
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      Alert.alert('Correo inválido', 'Revisa el formato del correo electrónico.');
+      showFeedback('Correo inválido', 'Revisa el formato del correo electrónico.');
       return;
     }
-    if (phone && !/^\+[1-9][0-9]{7,14}$/.test(phone)) {
-      Alert.alert('Celular inválido', 'Usa formato internacional, por ejemplo +525512345678.');
-      return;
+    if (phone) {
+      try { phone = normalizeContactPhone(phone); }
+      catch (cause) {
+        devWarn('admin-preregistration: invalid contact phone format.', cause);
+        showFeedback('Celular inválido', cause instanceof Error ? cause.message
+          : 'Usa diez dígitos mexicanos o formato internacional +52.');
+        return;
+      }
     }
     try {
       setSavingContact(true);
@@ -79,9 +93,10 @@ export default function AdminPreregistrationDetailScreen() {
       setEditingContact(false);
       setNewEmail('');
       setNewPhone('');
-      Alert.alert('Contacto completado', 'El expediente ya tiene el nuevo dato. La vinculación se evaluará al revisar la cuenta.');
+      showFeedback('Contacto completado', 'El expediente ya tiene el nuevo dato. La vinculación se evaluará al revisar la cuenta.', 'success');
     } catch (cause) {
-      Alert.alert('No se pudo guardar', cause instanceof Error ? cause.message : 'Revisa el dato y vuelve a intentar.');
+      devWarn('admin-preregistration: could not complete missing contact.', cause);
+      showFeedback('No se pudo guardar', cause instanceof Error ? cause.message : 'Revisa el dato y vuelve a intentar.');
     } finally {
       setSavingContact(false);
     }
@@ -89,15 +104,17 @@ export default function AdminPreregistrationDetailScreen() {
 
   async function changeMember(isMember:boolean) {
     if(!record || savingMember || record.status!=='pending') return;
+    setFeedback(null);
     try {
       setSavingMember(true);
       await adminSetPreregisteredMembership(record.intakeDogId,isMember);
       await load();
-      Alert.alert('Autorización actualizada',isMember
+      showFeedback('Autorización actualizada',isMember
         ? 'Socio autorizado. La membresía oficial se creará al vincular la cuenta, sin generar pagos.'
-        : 'Se retiró la autorización provisional de Socio.');
+        : 'Se retiró la autorización provisional de Socio.', 'success');
     } catch(cause) {
-      Alert.alert('No se pudo actualizar',cause instanceof Error
+      devWarn('admin-preregistration: could not update provisional Socio authorization.', cause);
+      showFeedback('No se pudo actualizar',cause instanceof Error
         ? cause.message:'Revisa el expediente.');
     } finally { setSavingMember(false); }
   }
@@ -113,6 +130,15 @@ export default function AdminPreregistrationDetailScreen() {
       </Pressable>
       <Text style={styles.kicker}>Administración · Expediente</Text>
       <Text style={styles.heading}>{record?.dogName || 'Ficha de preinscripción'}</Text>
+      {feedback ? (
+        <View style={styles.feedbackBox}>
+          <Text accessibilityRole={feedback.kind === 'error' ? 'alert' : 'text'}
+            style={[styles.feedbackTitle, { color: feedback.kind === 'error' ? ucapsaBrand.colors.danger : ucapsaBrand.colors.greenDark }]}>
+            {feedback.title}
+          </Text>
+          <Text style={styles.hint}>{feedback.message}</Text>
+        </View>
+      ) : null}
       {loading ? <ActivityIndicator style={styles.loading} color={ucapsaBrand.colors.red} /> : null}
       {error ? <View style={styles.card}><Text style={styles.warning}>{error}</Text>
         <Pressable accessibilityRole="button" onPress={() => { setLoading(true); void load(); }}>
@@ -159,7 +185,7 @@ export default function AdminPreregistrationDetailScreen() {
                       <Text style={styles.fieldLabel}>Celular (faltante)</Text>
                       <TextInput style={styles.input} value={newPhone} onChangeText={setNewPhone}
                         accessibilityLabel="Agregar celular del tutor" keyboardType="phone-pad"
-                        maxLength={16} editable={!savingContact} placeholder="+525512345678"
+                        maxLength={16} editable={!savingContact} placeholder="5535100214 o +525535100214"
                         placeholderTextColor={ucapsaBrand.colors.muted} />
                     </>
                   ) : null}
@@ -231,6 +257,9 @@ const styles = StyleSheet.create({
   kicker: { color: ucapsaBrand.colors.redDark, fontSize: 11, fontWeight: '900' },
   heading: { color: ucapsaBrand.colors.text, fontSize: 27, fontWeight: '900', marginTop: 5, marginBottom: 15 },
   loading: { marginTop: 20 },
+  feedbackBox: { padding: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.border,
+    backgroundColor: ucapsaBrand.colors.surface, borderRadius: 12, marginBottom: 12 },
+  feedbackTitle: { fontWeight: '900', fontSize: 13 },
   card: { backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border,
     borderRadius: 17, padding: 16, marginBottom: 12 },
   groupTitle: { color: ucapsaBrand.colors.text, fontWeight: '900', fontSize: 16, marginBottom: 6 },

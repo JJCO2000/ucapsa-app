@@ -255,3 +255,38 @@ assert.ok(preRegisterUi.indexOf('if (!confirmed) return;') <
   preRegisterUi.indexOf('await adminPreregisterDogWithProgram({'),
   'La confirmación de corrección debe ocurrir antes de la escritura');
 console.log('UCAPSA tarjeta repetida: requiere motivo, revisión y confirmación: PASS');
+
+
+// Administración web: la confirmación de contactos y membresías no puede
+// depender de React Native Alert (no se implementa como modal en navegador).
+const preregDetailFeedback = fs.readFileSync('src/app/admin/preregistration.tsx', 'utf8');
+for (const token of [
+  "Platform.OS === 'web'",
+  "setFeedback({ kind, title, message })",
+  "showFeedback('Contacto completado'",
+  "showFeedback('Autorización actualizada'",
+  "showFeedback('No se pudo guardar'",
+  "showFeedback('No se pudo actualizar'",
+  "accessibilityRole={feedback.kind === 'error' ? 'alert' : 'text'}",
+]) assert.ok(preregDetailFeedback.includes(token), 'Falta feedback web para ficha de preinscripción: '+token);
+assert.ok(preregDetailFeedback.includes('phone = normalizeContactPhone(phone)'),
+  'Teléfonos nuevos deben seguir la normalización MX canónica de la preinscripción.');
+assert.equal((preregDetailFeedback.match(/Alert\.alert/g) ?? []).length, 1,
+  'Toda alerta de detalle de preinscripción debe pasar por showFeedback web/nativo');
+console.log('UCAPSA preinscripción Admin feedback web/nativo: PASS');
+
+
+// Browser Admin must be able to complete assisted linking without native Alert.
+const preregManual = fs.readFileSync('src/app/admin/preregister-dog.tsx', 'utf8');
+for (const token of [
+  "if (window.confirm(message)) void approve()",
+  "reportLinkNotice('success', 'Autorización guardada'",
+  "reportLinkNotice('error', 'No se pudo autorizar'",
+  "setLinkNotice({ kind, message: title + ': ' + message })",
+  "adminApprovePreregistrationOwnerLink(personId, userId, evidence)",
+  "Alert.alert('Confirmar vinculación asistida'",
+  "accessibilityRole={linkNotice.kind === 'error' ? 'alert' : 'text'}",
+]) assert.ok(preregManual.includes(token), 'Falta vinculación asistida en navegador: '+token);
+assert.ok(preregManual.includes("linkReason.trim().length < 12"),
+  'No eliminar evidencia del Admin en aprobación asistida');
+console.log('UCAPSA vinculación asistida web/nativo, confirmación y avisos: PASS');
