@@ -1,10 +1,8 @@
-import { File, Paths } from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
+import { downloadTrainingReport } from './training-report-download';
 import { strToU8, zipSync } from 'fflate';
 
 import { supabase } from '../lib/supabase';
 
-const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const XML_SELF_CLOSE = '/' + '>';
 type CellValue = string | number | boolean | { formula: string; cached: number | null };
 
@@ -245,16 +243,5 @@ export async function exportStaffExamReportXlsx(
 ) {
   const safe = examCode.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 55) || 'examen';
   const name = `UCAPSA_comparativo_${safe}.xlsx`;
-  const file = new File(Paths.cache, name);
-  if (file.exists) file.delete();
-  file.create();
-  await file.write(buildStaffExamWorkbookBytes(rows, selectedDogIds));
-  if (await Sharing.isAvailableAsync()) {
-    await Sharing.shareAsync(file.uri, {
-      dialogTitle: 'Exportar exámenes UCAPSA',
-      mimeType: XLSX_MIME,
-      UTI: 'org.openxmlformats.spreadsheetml.sheet',
-    });
-  }
-  return file.uri;
+  return downloadTrainingReport(buildStaffExamWorkbookBytes(rows, selectedDogIds), name);
 }
