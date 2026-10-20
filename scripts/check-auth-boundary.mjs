@@ -56,8 +56,14 @@ if (!forgot.includes('resetPasswordForEmail')) {
   throw new Error('Forgot-password is not using the canonical auth boundary.');
 }
 
-if (!/resetPasswordForEmail[\s\S]{0,260}redirectTo:\s*PASSWORD_RECOVERY_REDIRECT_URL/.test(service)) {
-  throw new Error('Password recovery email lost its mobile redirect target.');
+// Recovery links must preserve Android/iOS deep links while using the
+// browser's current HTTPS origin for web. Never accept a URL from user input.
+if (!/resetPasswordForEmail[\s\S]{0,260}redirectTo:\s*passwordRecoveryRedirectUrl\(\)/.test(service)) {
+  throw new Error('Password recovery email must use the platform-specific redirect.');
+}
+if (!service.includes("if (Platform.OS !== 'web') return PASSWORD_RECOVERY_REDIRECT_URL;") ||
+    !service.includes("new URL('/auth/update-password', window.location.origin)")) {
+  throw new Error('Password recovery lost native deep-link or same-origin web redirect.');
 }
 
 const recoveryStart = service.indexOf('export async function establishPasswordRecoverySession');
