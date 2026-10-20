@@ -248,20 +248,20 @@ for (const file of files) {
   }
 
   if (file === edgeDiagnostics) {
-    const edgeConsoleCalls = countMatches(text, /\\bconsole\\.(?:warn|error)\\s*\\(/g);
+    const edgeConsoleCalls = countMatches(text, /\bconsole\.(?:warn|error)\s*\(/g);
     if (edgeConsoleCalls !== 2) {
-      addCritical(file, 'Edge diagnostics must use exactly two canonical output functions.');
+      addCritical(file, `Diagnóstico Edge esperaba 2 salidas canónicas y encontró ${edgeConsoleCalls}.`);
     }
     for (const pattern of [
-      /sanitizeEdgeDiagnostic\\s*\\(/,
+      /sanitizeEdgeDiagnostic\s*\(/,
       /SAFE_KEYS/,
-      /console\\.warn\\(trim\\(event\\), sanitizeEdgeDiagnostic\\(details\\)\\)/,
-      /console\\.error\\(trim\\(event\\), sanitizeEdgeDiagnostic\\(details\\)\\)/,
+      /console\.warn\(trim\(event\), sanitizeEdgeDiagnostic\(details\)\)/,
+      /console\.error\(trim\(event\), sanitizeEdgeDiagnostic\(details\)\)/,
     ]) {
-      if (!pattern.test(text)) addCritical(file, 'Edge diagnostic sanitization contract missing.');
+      if (!pattern.test(text)) addCritical(file, 'Diagnóstico Edge perdió su contrato de sanitización.');
     }
     if (/expo_push_token|authorization|service_role|access_token/i.test(text)) {
-      addCritical(file, 'Edge diagnostic sanitizer contains sensitive field names.');
+      addCritical(file, 'Diagnóstico Edge empezó a aceptar campos sensibles.');
     }
   }
 
