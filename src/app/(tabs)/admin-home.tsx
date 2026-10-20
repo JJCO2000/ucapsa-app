@@ -8,6 +8,10 @@ import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import { devWarn } from '../../lib/client-diagnostics';
 import { getAdminClassRsvpSummary, tomorrowDateKey, type AdminClassRsvpSummary } from '../../services/class-rsvp.service';
+import { getProgramClassCancellations } from '../../services/program-cancellations.service';
+import { getPrograms, getProgramSchedules } from '../../services/program-schedules.service';
+import { isProgramScheduleActiveOnDate } from '../../services/programs.domain';
+import type { ProgramClassCancellation, ProgramSchedule, UcapsaProgram } from '../../types/app.types';
 import { getAdminMembershipRows } from '../../services/memberships.service';
 import { getAdminClientFollowupRows } from '../../services/admin-client-followups.service';
 import { getAdminProgramInterestRequests } from '../../services/program-interest.service';
@@ -42,7 +46,13 @@ function commandsLevelLabel(level: string) {
   return 'Básico';
 }
 
-function groupTomorrowClasses(rows: AdminClassRsvpSummary[]): TomorrowClassGroup[] {
+function groupTomorrowClasses(
+  rows: AdminClassRsvpSummary[],
+  schedules: ProgramSchedule[],
+  programs: UcapsaProgram[],
+  cancellations: ProgramClassCancellation[],
+  dateKey: string,
+): TomorrowClassGroup[] {
   const groups = new Map<string, TomorrowClassGroup>();
   for (const row of rows) {
     const key = `${row.scheduleId}:${row.programCode}:${row.startTime}`;
@@ -80,6 +90,33 @@ function groupTomorrowClasses(rows: AdminClassRsvpSummary[]): TomorrowClassGroup
     });
   }
 
+  // RSVP solo devuelve horarios con inscripciones elegibles. Agregar los horarios
+  // oficiales sin inscritos para no afirmar falsamente que mañana no hay clases.
+  const knownScheduleIds = new Set([...groups.values()].map((group) => group.scheduleId));
+  const programsById = new Map(programs.map((program) => [program.id, program]));
+  const cancelledScheduleIds = new Set(cancellations
+    .filter((item) => !item.restored_at && item.cancellation_date === dateKey)
+    .map((item) => item.schedule_id));
+
+  for (const schedule of schedules) {
+    const program = programsById.get(schedule.program_id);
+    if (!program || !program.is_active || !['puppy', 'comandos'].includes(program.code)) continue;
+    if (!isProgramScheduleActiveOnDate(schedule, dateKey)) continue;
+    if (cancelledScheduleIds.has(schedule.id) || knownScheduleIds.has(schedule.id)) continue;
+    groups.set(`${schedule.id}:${program.code}:${String(schedule.start_time).slice(0, 5)}`, {
+      scheduleId: schedule.id,
+      programCode: program.code,
+      programName: program.name,
+      scheduleName: schedule.name,
+      startTime: String(schedule.start_time).slice(0, 5),
+      eligibleCount: 0,
+      confirmedCount: 0,
+      declinedCount: 0,
+      noResponseCount: 0,
+      levels: [],
+    });
+  }
+
   const levelOrder = new Map([['Básico', 0], ['Intermedio', 1], ['Avanzado', 2]]);
   return [...groups.values()]
     .map((group) => ({
@@ -101,6 +138,11 @@ export default function AdminHomeTab() {
   const { user, profile, role, isAdmin } = useSession();
   const [stats, setStats] = useState<DashboardStats>(emptyStats);
   const [tomorrowClasses, setTomorrowClasses] = useState<AdminClassRsvpSummary[]>([]);
+  const [tomorrowOfficial, setTomorrowOfficial] = useState<{
+    schedules: ProgramSchedule[];
+    programs: UcapsaProgram[];
+    cancellations: ProgramClassCancellation[];
+  } | null>(null);
   const [tomorrowSummaryFailed, setTomorrowSummaryFailed] = useState(false);
   const [interestRequestsUnavailable, setInterestRequestsUnavailable] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -114,7 +156,13 @@ export default function AdminHomeTab() {
   );
   const roleLabel = role === 'super_admin' ? 'Superadmin' : 'Admin';
   const pendingTotal = stats.trainingDecisions + stats.pendingRequests + stats.paymentAttention + stats.clientFollowups + stats.programInterests;
-  const groupedTomorrowClasses = useMemo(() => groupTomorrowClasses(tomorrowClasses), [tomorrowClasses]);
+  const groupedTomorrowClasses = useMemo(() => groupTomorrowClasses(
+    tomorrowClasses,
+    tomorrowOfficial?.schedules ?? [],
+    tomorrowOfficial?.programs ?? [],
+    tomorrowOfficial?.cancellations ?? [],
+    tomorrowDateKey(),
+  ), [tomorrowClasses, tomorrowOfficial]);
 
   const load = useCallback(async () => {
     if (!isAdmin) return;
@@ -150,16 +198,24 @@ export default function AdminHomeTab() {
     });
 
     try {
-      const tomorrowSummary = await withOperationTimeout(
-        getAdminClassRsvpSummary(),
+      const tomorrow = tomorrowDateKey();
+      const [tomorrowSummary, schedules, programs, cancellations] = await withOperationTimeout(
+        Promise.all([
+          getAdminClassRsvpSummary(tomorrow),
+          getProgramSchedules(tomorrow),
+          getPrograms(),
+          getProgramClassCancellations(),
+        ]),
         DEFAULT_READ_TIMEOUT_MS,
-        'admin-home-class-rsvp',
+        'admin-home-class-rsvp-and-schedules',
       );
       setTomorrowClasses(tomorrowSummary);
+      setTomorrowOfficial({ schedules, programs, cancellations });
       setTomorrowSummaryFailed(false);
     } catch (cause) {
       devWarn('admin-home: could not load tomorrow class RSVP summary; showing unavailable state.', cause);
       setTomorrowClasses([]);
+      setTomorrowOfficial(null);
       setTomorrowSummaryFailed(true);
     }
 
@@ -267,7 +323,7 @@ export default function AdminHomeTab() {
                 <Pressable
                   key={`${item.scheduleId}:${item.programCode}:${item.startTime}`}
                   style={styles.tomorrowRow}
-                  onPress={() => router.push(`/admin/classes?program=${encodeURIComponent(item.programCode)}&status=active` as never)}
+                  onPress={() => router.push(`/trainer-classes?date=${encodeURIComponent(tomorrowDateKey())}&scheduleId=${encodeURIComponent(item.scheduleId)}` as never)}
                 >
                   <View style={[
                     styles.tomorrowIcon,
@@ -290,7 +346,9 @@ export default function AdminHomeTab() {
                       </Text>
                     ) : null}
                     <Text style={styles.tomorrowMeta}>
-                      {item.declinedCount} no irá · {item.noResponseCount} sin responder
+                      {item.eligibleCount === 0
+                        ? 'Sin alumnos inscritos aún'
+                        : `${item.declinedCount} no irá · ${item.noResponseCount} sin responder`}
                     </Text>
                   </View>
                   <MaterialIcons name="chevron-right" size={22} color={ucapsaBrand.colors.redDark} />
