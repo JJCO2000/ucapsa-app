@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import type { Database } from '../types/database.types';
 import { preregistrationEnabled } from '../constants/preregistrationFeature';
+import { normalizeContactPhone } from '../utils/phone-contact';
 
 export type PreregisteredProgramInput = {
   ownerName: string;
@@ -47,7 +48,7 @@ export async function adminPreregisterDogWithProgram(input: PreregisteredProgram
   const { data } = await callPreregistrationRpc('admin_preregister_dog_with_program', {
     p_owner_name: input.ownerName.trim(),
     p_owner_email: input.ownerEmail.trim().toLowerCase(),
-    p_owner_phone: input.ownerPhone.trim(),
+    p_owner_phone: input.ownerPhone.trim() ? normalizeContactPhone(input.ownerPhone) : '',
     p_dog_name: input.dogName.trim(),
     p_program_code: input.programCode,
     p_program_level: input.programLevel,

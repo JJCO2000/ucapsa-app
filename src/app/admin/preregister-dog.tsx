@@ -1,11 +1,12 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { preregistrationEnabled } from '../../constants/preregistrationFeature';
+import { normalizeContactPhone } from '../../utils/phone-contact';
 import { useSession } from '../../hooks/useSession';
 import {
   adminPreregisterDogWithProgram,
@@ -29,6 +30,7 @@ export default function AdminPreregisterDogScreen() {
   const [datesText, setDatesText] = useState('');
   const [sourceNote, setSourceNote] = useState('');
   const [saving, setSaving] = useState(false);
+  const [submissionNotice, setSubmissionNotice] = useState<{kind:'success'|'error';message:string}|null>(null);
   const [linkContact, setLinkContact] = useState('');
   const [linkAccountEmail, setLinkAccountEmail] = useState('');
   const [linkReason, setLinkReason] = useState('');
@@ -83,19 +85,37 @@ export default function AdminPreregisterDogScreen() {
       }}]);
   }
 
+  function clearCardForm() {
+    setOwnerName(''); setOwnerEmail(''); setOwnerPhone('');
+    setDogName(''); setProgramCode('puppy'); setLevel('principiante');
+    setCardNumber(''); setCardStartedOn(''); setTotalAttendances('0');
+    setIncludeDates(false); setDatesText(''); setSourceNote('');
+  }
+
+  function reportCardError(title: string, message: string) {
+    if (Platform.OS === 'web') setSubmissionNotice({ kind: 'error', message });
+    else Alert.alert(title, message);
+  }
+
   async function save() {
     if (saving) return;
+    setSubmissionNotice(null);
     if (!ownerName.trim() || !dogName.trim() || (!ownerPhone.trim() && !ownerEmail.trim())) {
-      Alert.alert('Faltan datos', 'Escribe tutor, perro y celular o correo de contacto. Prioriza el celular.');
+      reportCardError('Faltan datos', 'Escribe tutor, perro y celular o correo de contacto. Prioriza el celular.');
       return;
     }
     if (ownerEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail.trim())) {
-      Alert.alert('Correo inválido', 'Escribe un correo electrónico válido para vincular la cuenta.');
+      reportCardError('Correo inválido', 'Escribe un correo electrónico válido para vincular la cuenta.');
       return;
     }
-    if (ownerPhone.trim() && !/^\+[1-9][0-9]{7,14}$/.test(ownerPhone.trim())) {
-      Alert.alert('Celular inválido', 'Escribe el teléfono con código internacional, por ejemplo +525512345678.');
-      return;
+    if (ownerPhone.trim()) {
+      try { normalizeContactPhone(ownerPhone); }
+      catch (error) {
+        const message = error instanceof Error ? error.message : 'Revisa el celular.';
+        if (Platform.OS === 'web') setSubmissionNotice({ kind: 'error', message });
+        else Alert.alert('Celular inválido', message);
+        return;
+      }
     }
     try {
       setSaving(true);
@@ -120,12 +140,20 @@ export default function AdminPreregisterDogScreen() {
         cardStartedOn: programCode === 'puppy' ? (cardStartedOn.trim() || null) : null,
         totalAttendances: count, knownAttendanceDates: dates, sourceNote,
       });
-      Alert.alert('Perro preinscrito',
-        'El primer expediente se vinculará automáticamente si coincide celular o correo, sin OTP. Si otra cuenta intenta reclamarlo después, se solicitará revisión de Administración.',
-        [{ text: 'Listo', onPress: () => router.back() }]);
+      const savedMessage = 'El perro quedó preinscrito. La primera coincidencia de correo o celular puede vincularlo sin SMS de preinscripción.';
+      if (Platform.OS === 'web') {
+        clearCardForm();
+        setSubmissionNotice({ kind: 'success', message: savedMessage + ' Puedes registrar otra tarjeta.' });
+      } else {
+        Alert.alert('Perro preinscrito', savedMessage, [
+          { text: 'Otro registro', onPress: clearCardForm },
+          { text: 'Finalizar', onPress: () => router.back() },
+        ]);
+      }
     } catch (cause) {
-      Alert.alert('No se pudo preinscribir',
-        cause instanceof Error ? cause.message : 'Revisa la información e inténtalo nuevamente.');
+      const message = cause instanceof Error ? cause.message : 'Revisa la información e inténtalo nuevamente.';
+      if (Platform.OS === 'web') setSubmissionNotice({ kind: 'error', message });
+      else Alert.alert('No se pudo preinscribir', message);
     } finally {
       setSaving(false);
     }
@@ -146,6 +174,14 @@ export default function AdminPreregisterDogScreen() {
       </Pressable>
       <Text style={styles.eyebrow}>Administración</Text>
       <Text style={styles.heading}>Preinscribir perro</Text>
+      {submissionNotice ? (
+        <View style={styles.noticeBox}>
+          <Text accessibilityRole={submissionNotice.kind === 'error' ? 'alert' : 'text'}
+            style={[styles.helper, { color: submissionNotice.kind === 'error' ? ucapsaBrand.colors.danger : ucapsaBrand.colors.greenDark }]}>
+            {submissionNotice.message}
+          </Text>
+        </View>
+      ) : null}
       <Text style={styles.description}>
         Registra al perro sin crear una cuenta ficticia. La primera cuenta que coincida
         por correo o celular puede vincular automáticamente el expediente, sin SMS.
@@ -168,9 +204,9 @@ export default function AdminPreregisterDogScreen() {
 
         <Text style={styles.label}>Celular del tutor (principal)</Text>
         <TextInput style={styles.input} value={ownerPhone} onChangeText={setOwnerPhone}
-          keyboardType="phone-pad" maxLength={16} placeholder="+525512345678"
+          keyboardType="phone-pad" maxLength={16} placeholder="5535100214 o +525535100214"
           placeholderTextColor={ucapsaBrand.colors.muted} />
-        <Text style={styles.helper}>Usa +52 y los 10 dígitos de México. El celular es prioritario y el correo opcional. Revisa ambos antes de guardar: el primer enlace se hace por coincidencia de contacto, y los siguientes requieren revisión administrativa.</Text>
+        <Text style={styles.helper}>Puedes escribir diez dígitos de México o el número completo con +52. UCAPSA los guarda en formato internacional. Comprueba bien el contacto: el primer vínculo del MVP se hace por coincidencia; los siguientes requieren revisión.</Text>
 
         <Text style={styles.label}>Nombre del perro</Text>
         <TextInput style={styles.input} value={dogName} onChangeText={setDogName}
@@ -295,6 +331,7 @@ export default function AdminPreregisterDogScreen() {
 }
 
 const styles = StyleSheet.create({
+  noticeBox: { borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 12, padding: 10, marginVertical: 10 },
   back: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
   backText: { color: ucapsaBrand.colors.redDark, fontWeight: '800', fontSize: 13 },
   eyebrow: { fontSize: 11, fontWeight: '900', color: ucapsaBrand.colors.redDark },
