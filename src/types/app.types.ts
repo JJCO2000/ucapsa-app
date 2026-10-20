@@ -39,6 +39,7 @@ export type Profile = {
   full_name: string | null;
   email: string | null;
   phone: string | null;
+  preregistration_contact_email?: string | null;
   role: AppRole;
   dog_name?: string | null;
   avatar_color?: string | null;
