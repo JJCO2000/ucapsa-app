@@ -10,6 +10,7 @@ import { useSession } from '../../hooks/useSession';
 import {
   adminCompletePreregistrationContact,
   getAdminPreregistrationRecords,
+  adminSetPreregisteredMembership,
   preregistrationLevelLabel,
   preregistrationMemberLabel,
   type AdminPreregistrationRecord,
@@ -30,6 +31,7 @@ export default function AdminPreregistrationDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [savingMember, setSavingMember] = useState(false);
   const [editingContact, setEditingContact] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [newPhone, setNewPhone] = useState('');
@@ -83,6 +85,21 @@ export default function AdminPreregistrationDetailScreen() {
     } finally {
       setSavingContact(false);
     }
+  }
+
+  async function changeMember(isMember:boolean) {
+    if(!record || savingMember || record.status!=='pending') return;
+    try {
+      setSavingMember(true);
+      await adminSetPreregisteredMembership(record.intakeDogId,isMember);
+      await load();
+      Alert.alert('Autorización actualizada',isMember
+        ? 'Socio autorizado. La membresía oficial se creará al vincular la cuenta, sin generar pagos.'
+        : 'Se retiró la autorización provisional de Socio.');
+    } catch(cause) {
+      Alert.alert('No se pudo actualizar',cause instanceof Error
+        ? cause.message:'Revisa el expediente.');
+    } finally { setSavingMember(false); }
   }
 
   if (!isAdmin || !preregistrationDirectoryEnabled) return <Redirect href="/home" />;
@@ -170,6 +187,21 @@ export default function AdminPreregistrationDetailScreen() {
             {record.programCode === 'puppy' ?
               <Detail label="Referencia física Puppy" value={record.physicalCardReference || 'No registrada'} /> : null}
             <Detail label="Membresía de Socio" value={preregistrationMemberLabel(record)} />
+            {record.status === 'pending' ? (
+              <Pressable accessibilityRole="button" disabled={savingMember}
+                style={styles.secondary}
+                onPress={() => void changeMember(record.membershipStatus !== 'preapproved')}>
+                <MaterialIcons name={record.membershipStatus === 'preapproved'
+                  ? 'person-remove' : 'verified-user'} size={18}
+                  color={ucapsaBrand.colors.redDark} />
+                <Text style={styles.secondaryText}>{savingMember ? 'Guardando…'
+                  : record.membershipStatus === 'preapproved'
+                    ? 'Retirar autorización de Socio' : 'Autorizar como Socio'}</Text>
+              </Pressable>
+            ) : null}
+            <Text style={styles.hint}>El teléfono o correo de la ficha sirven para
+              la primera vinculación. La verificación adicional del contacto queda
+              como pendiente y no se exige un SMS para este proceso.</Text>
           </View>
           <View style={styles.card}>
             <Text style={styles.groupTitle}>Asistencias reconocidas</Text>

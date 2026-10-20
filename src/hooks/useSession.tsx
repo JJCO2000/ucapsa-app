@@ -442,7 +442,12 @@ export function SessionProvider({ children }: SessionProviderProps) {
         const claimed = await claimMyFirstPreregisteredDogs();
         if (!active || claimAttemptKeyRef.current !== attemptKey) return;
         if (claimed.status === 'linked' && claimed.linkedDogs > 0) {
+          // Vincular una preinscripción también puede activar una membresía
+          // autorizada: volver a cargar el rol del backend en esta misma sesión.
           await Promise.all([clearClientReadCache(userId), clearHomeCache(userId)]);
+          const nextProfile = await getProfileByUserId(userId);
+          if (!active || claimAttemptKeyRef.current !== attemptKey) return;
+          await applyFreshProfile(userId, nextProfile);
           if (active && claimAttemptKeyRef.current === attemptKey) {
             setPreregistrationLinkOffer(null);
             setPreregistrationLinkedNotice({ userId, count: claimed.linkedDogs });

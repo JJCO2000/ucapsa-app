@@ -18,6 +18,7 @@ on:
       - 'supabase/migrations/20261020001000_preregistration_second_claim_requests.sql'
       - 'supabase/migrations/20261020002000_admin_approved_competing_link_transfer.sql'
       - 'supabase/migrations/20261020045901_admin_complete_preregistration_contact.sql'
+      - 'supabase/migrations/20261020060000_preregistered_membership_authorization.sql'
       - 'scripts/isolated-db/**'
       - '.github/workflows/ucapsa-preregistration-db.yml'
   workflow_dispatch:
@@ -89,3 +90,9 @@ jobs:
         run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/ucapsa-late-phone-first-match-e2e.sql
       - name: Admin may only complete missing contacts without touching historical program data
         run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/ucapsa-admin-complete-contact-e2e.sql
+      - name: Install canonical Socio fixture and preapproved membership migration
+        run: |
+          psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/ucapsa-member-lifecycle-fixture.sql
+          psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261020060000_preregistered_membership_authorization.sql
+      - name: Test Socio authorization with Comandos and Puppy history
+        run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/ucapsa-preregistered-membership-e2e.sql
