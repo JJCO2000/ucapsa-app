@@ -75,7 +75,7 @@ export default function AccountSettingsScreen() {
 
   useEffect(() => {
     setFullName(profile?.full_name ?? '');
-    setEmail(profile?.email ?? user?.email ?? '');
+    setEmail(user?.email ?? profile?.email ?? '');
     setContactEmail(profile?.preregistration_contact_email ?? '');
     setPhone(profile?.phone ?? '');
   }, [profile, user?.email]);
