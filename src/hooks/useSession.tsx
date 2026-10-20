@@ -422,7 +422,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
     const emailConfirmed = session?.user.email_confirmed_at ?? '';
     const phoneConfirmed = session?.user.phone_confirmed_at ?? '';
     const attemptKey = [userId, phoneConfirmed, emailConfirmed,
-      profile?.phone ?? '', profile?.email ?? ''].join('|');
+      profile?.phone ?? '', profile?.email ?? '', profile?.preregistration_contact_email ?? ''].join('|');
     if (claimAttemptKeyRef.current === attemptKey) return;
     claimAttemptKeyRef.current = attemptKey;
     let active = true;
@@ -470,7 +470,8 @@ export function SessionProvider({ children }: SessionProviderProps) {
     return () => { active = false; };
   }, [session?.user.id, session?.user.phone_confirmed_at,
     session?.user.email_confirmed_at, profile?.user_id,
-    profile?.phone, profile?.email, usingCachedProfile, isOfflineFallback]);
+    profile?.phone, profile?.email, profile?.preregistration_contact_email,
+    usingCachedProfile, isOfflineFallback]);
 
   async function confirmPreregistrationLink() {
     const offer = preregistrationLinkOffer;
