@@ -283,7 +283,7 @@ for (const token of [
   "reportLinkNotice('success', 'Autorización guardada'",
   "reportLinkNotice('error', 'No se pudo autorizar'",
   "setLinkNotice({ kind, message: title + ': ' + message })",
-  "adminApprovePreregistrationOwnerLink(selected.personId!, selected.userId!, linkReason)",
+  "adminApprovePreregistrationOwnerLink(personId, userId, evidence)",
   "Alert.alert('Confirmar vinculación asistida'",
   "accessibilityRole={linkNotice.kind === 'error' ? 'alert' : 'text'}",
 ]) assert.ok(preregManual.includes(token), 'Falta vinculación asistida en navegador: '+token);
