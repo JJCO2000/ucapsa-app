@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 
 import { PreregistrationLinkPrompt } from '../components/domain/PreregistrationLinkPrompt';
+import { WebAppShell } from '../components/layout/WebAppShell';
 import { LoadingScreen } from '../components/ui/LoadingScreen';
 import { devWarn } from '../lib/client-diagnostics';
 import { useNotificationNavigation } from '../hooks/useNotificationNavigation';
@@ -59,10 +60,10 @@ function RootNavigator() {
   }
 
   return (
-    <>
+    <WebAppShell>
       <Stack screenOptions={{ headerShown: false }} />
       <PreregistrationLinkPrompt />
-    </>
+    </WebAppShell>
   );
 }
 
