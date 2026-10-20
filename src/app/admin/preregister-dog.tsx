@@ -6,6 +6,7 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { preregistrationEnabled } from '../../constants/preregistrationFeature';
+import { normalizeContactPhone } from '../../utils/phone-contact';
 import { useSession } from '../../hooks/useSession';
 import {
   adminPreregisterDogWithProgram,
@@ -93,9 +94,12 @@ export default function AdminPreregisterDogScreen() {
       Alert.alert('Correo inválido', 'Escribe un correo electrónico válido para vincular la cuenta.');
       return;
     }
-    if (ownerPhone.trim() && !/^\+[1-9][0-9]{7,14}$/.test(ownerPhone.trim())) {
-      Alert.alert('Celular inválido', 'Escribe el teléfono con código internacional, por ejemplo +525512345678.');
-      return;
+    if (ownerPhone.trim()) {
+      try { normalizeContactPhone(ownerPhone); }
+      catch (error) {
+        Alert.alert('Celular inválido', error instanceof Error ? error.message : 'Revisa el celular.');
+        return;
+      }
     }
     try {
       setSaving(true);
@@ -122,7 +126,15 @@ export default function AdminPreregisterDogScreen() {
       });
       Alert.alert('Perro preinscrito',
         'El primer expediente se vinculará automáticamente si coincide celular o correo, sin OTP. Si otra cuenta intenta reclamarlo después, se solicitará revisión de Administración.',
-        [{ text: 'Listo', onPress: () => router.back() }]);
+        [
+          { text: 'Otro registro', onPress: () => {
+            setOwnerName(''); setOwnerEmail(''); setOwnerPhone('');
+            setDogName(''); setProgramCode('puppy'); setLevel('principiante');
+            setCardNumber(''); setCardStartedOn(''); setTotalAttendances('0');
+            setIncludeDates(false); setDatesText(''); setSourceNote('');
+          }},
+          { text: 'Finalizar', onPress: () => router.back() },
+        ]);
     } catch (cause) {
       Alert.alert('No se pudo preinscribir',
         cause instanceof Error ? cause.message : 'Revisa la información e inténtalo nuevamente.');
@@ -168,9 +180,9 @@ export default function AdminPreregisterDogScreen() {
 
         <Text style={styles.label}>Celular del tutor (principal)</Text>
         <TextInput style={styles.input} value={ownerPhone} onChangeText={setOwnerPhone}
-          keyboardType="phone-pad" maxLength={16} placeholder="+525512345678"
+          keyboardType="phone-pad" maxLength={16} placeholder="5535100214 o +525535100214"
           placeholderTextColor={ucapsaBrand.colors.muted} />
-        <Text style={styles.helper}>Usa +52 y los 10 dígitos de México. El celular es prioritario y el correo opcional. Revisa ambos antes de guardar: el primer enlace se hace por coincidencia de contacto, y los siguientes requieren revisión administrativa.</Text>
+        <Text style={styles.helper}>Puedes escribir diez dígitos de México o el número completo con +52. UCAPSA los guarda en formato internacional. Comprueba bien el contacto: el primer vínculo del MVP se hace por coincidencia; los siguientes requieren revisión.</Text>
 
         <Text style={styles.label}>Nombre del perro</Text>
         <TextInput style={styles.input} value={dogName} onChangeText={setDogName}
