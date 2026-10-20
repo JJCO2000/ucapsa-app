@@ -22,6 +22,7 @@ export default function AdminPreregisterDogScreen() {
   const [ownerPhone, setOwnerPhone] = useState('');
   const [dogName, setDogName] = useState('');
   const [programCode, setProgramCode] = useState<'puppy'|'comandos'>('puppy');
+  const [memberAuthorized, setMemberAuthorized] = useState(false);
   const [level, setLevel] = useState<'principiante'|'medio'|'avanzado'>('principiante');
   const [cardNumber, setCardNumber] = useState('');
   const [cardStartedOn, setCardStartedOn] = useState('');
@@ -88,6 +89,7 @@ export default function AdminPreregisterDogScreen() {
   function clearCardForm() {
     setOwnerName(''); setOwnerEmail(''); setOwnerPhone('');
     setDogName(''); setProgramCode('puppy'); setLevel('principiante');
+    setMemberAuthorized(false);
     setCardNumber(''); setCardStartedOn(''); setTotalAttendances('0');
     setIncludeDates(false); setDatesText(''); setSourceNote('');
   }
@@ -139,8 +141,11 @@ export default function AdminPreregisterDogScreen() {
         physicalCardNumber: programCode === 'puppy' ? cardNumber : '',
         cardStartedOn: programCode === 'puppy' ? (cardStartedOn.trim() || null) : null,
         totalAttendances: count, knownAttendanceDates: dates, sourceNote,
+        memberAuthorized,
       });
-      const savedMessage = 'El perro quedó preinscrito. La primera coincidencia de correo o celular puede vincularlo sin SMS de preinscripción.';
+      const savedMessage = memberAuthorized
+        ? 'Preinscripción y autorización de Socio guardadas. La membresía y el nivel se activarán al vincular la cuenta.'
+        : 'El perro quedó preinscrito. La primera coincidencia de correo o celular puede vincularlo sin SMS de preinscripción.';
       if (Platform.OS === 'web') {
         clearCardForm();
         setSubmissionNotice({ kind: 'success', message: savedMessage + ' Puedes registrar otra tarjeta.' });
@@ -248,6 +253,17 @@ export default function AdminPreregisterDogScreen() {
               maxLength={10} placeholder="AAAA-MM-DD" placeholderTextColor={ucapsaBrand.colors.muted} />
           </>
         ) : null}
+        <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: memberAuthorized }}
+          onPress={() => setMemberAuthorized((value) => !value)} style={styles.choiceLine}>
+          <MaterialIcons name={memberAuthorized ? 'check-box' : 'check-box-outline-blank'}
+            size={23} color={ucapsaBrand.colors.greenDark} />
+          <Text style={styles.choiceText}>Autorizar también como Socio (clases ilimitadas)</Text>
+        </Pressable>
+        <Text style={styles.helper}>
+          {memberAuthorized
+            ? 'Administración autoriza la membresía. Se vuelve oficial al vincular la cuenta, conservando el nivel y el historial. No se registra ningún pago.'
+            : 'La inscripción se autoriza sin membresía. Puedes marcar Socio si corresponde.'}
+        </Text>
         <Text style={styles.helper}>Administración autoriza la inscripción. No se inventan pagos ni fechas históricas.</Text>
         <Text style={styles.label}>Asistencias históricas totales</Text>
         <TextInput style={styles.input} value={totalAttendances} onChangeText={setTotalAttendances}
