@@ -18,17 +18,14 @@ export type PreregisteredProgramInput = {
   memberAuthorized?: boolean;
 };
 
-// Nuevos RPC aún no instalados: el adaptador acepta únicamente estos dos
-// nombres pendientes. No se falsifican definiciones en database.generated.ts;
-// se regenerarán sus tipos oficiales desde Supabase tras instalar la migración.
-export type PreregistrationRpcName =
-  | Extract<keyof Database['public']['Functions'],
-      | 'admin_preregister_dog_with_program'
-      | 'claim_my_preregistered_dogs'
-      | 'get_staff_preregistered_class_roster'
-      | 'staff_register_preregistered_attendance'>
+// RPC disponibles en el esquema oficial de Supabase.
+export type PreregistrationRpcName = Extract<keyof Database['public']['Functions'],
+  | 'admin_preregister_dog_with_program'
   | 'admin_preregister_dog_with_membership'
-  | 'admin_set_preregistered_membership';
+  | 'admin_set_preregistered_membership'
+  | 'claim_my_preregistered_dogs'
+  | 'get_staff_preregistered_class_roster'
+  | 'staff_register_preregistered_attendance'>;
 type RpcOutcome = {
   data: unknown;
   error: { message: string } | null;
