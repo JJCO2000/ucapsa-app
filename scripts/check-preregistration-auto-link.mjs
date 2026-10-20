@@ -204,3 +204,26 @@ for (const [label, passed] of [
   ['La sesión recarga el rol luego de vincular', socioSession.includes('await applyFreshProfile(userId, nextProfile)')],
 ]) if (!passed) throw new Error('Regresión autorización Socio provisional: '+label);
 console.log('UCAPSA preapproved Socio, canonical membership and historical levels: static contract PASS');
+
+
+// Regresión: reclamar una ficha puede activar Socio desde el trigger de
+// Supabase; tanto el flujo confirmado como Ajustes deben refrescar el rol.
+// El aviso de éxito debe persistir aunque falle esa segunda lectura.
+const confirmClaimSection = sessionHook.split('async function confirmPreregistrationLink() {')[1]
+  ?.split('function dismissPreregistrationLink()')[0] ?? '';
+const settingsClaimSection = sessionHook.split('async function reviewPreregistrationLink():')[1]
+  ?.split('  // On returning to the foreground')[0] ?? '';
+for (const [label, fragment] of [
+  ['vinculación aprobada',confirmClaimSection],
+  ['vinculación desde Ajustes',settingsClaimSection],
+]) {
+  assert.ok(fragment.includes('setPreregistrationLinkedNotice('),
+    'Missing successful link acknowledgement: '+label);
+  assert.ok(fragment.includes('await getProfileByUserId(')
+    && fragment.includes('await applyFreshProfile('),
+    'Missing official role reload after membership activation: '+label);
+  assert.ok(fragment.indexOf('setPreregistrationLinkedNotice(')
+    < fragment.indexOf('await getProfileByUserId('),
+    'A failed profile refresh must not hide a completed claim: '+label);
+}
+console.log('UCAPSA membership role refreshed after manual/settings claims: PASS');
