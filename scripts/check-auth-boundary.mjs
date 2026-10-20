@@ -126,7 +126,12 @@ assert.ok(service.includes('supabase.auth.signInWithPassword({ phone, password }
 const staged = fs.readFileSync('src/services/dog-preregistration.service.ts', 'utf8');
 assert.ok(staged.includes('normalizeContactPhone(input.ownerPhone)'),
   'Admin preregistration must persist canonical phone contact.');
+const accountProfileService = fs.readFileSync('src/services/profiles.service.ts', 'utf8');
+assert.ok(accountProfileService.includes("|| !data.user?.email_confirmed_at"),
+  'Adding email to Auth must not report ready-for-login before confirmation.');
 const settings = fs.readFileSync('src/app/account-settings.tsx', 'utf8');
+assert.ok(settings.includes("setEmail(user?.email ?? profile?.email ?? '')"),
+  'Auth email must take priority over possibly stale profile email.');
 assert.ok(settings.includes('Correo de acceso (Supabase)')
   && settings.includes('Teléfono de contacto (no es acceso)')
   && settings.includes('no habilita el acceso por ese correo'),
