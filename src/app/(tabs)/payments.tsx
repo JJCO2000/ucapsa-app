@@ -271,16 +271,6 @@ export default function PaymentsTab() {
             </View>
           ) : null}
 
-          {overview.legacy_membership_pending ? (
-            <View style={[styles.notice, premium && styles.cardPremium]}>
-              <MaterialIcons name="hourglass-top" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.rowTitle, premium && styles.textPremium]}>Comprobante en revisión</Text>
-                <Text style={[styles.muted, premium && styles.mutedPremium]}>UCAPSA está revisando un pago de membresía.</Text>
-              </View>
-            </View>
-          ) : null}
-
           {detailsAvailable ? (
             <>
               <SectionHeader
