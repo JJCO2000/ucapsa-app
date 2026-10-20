@@ -1,7 +1,7 @@
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
@@ -19,6 +19,7 @@ export default function UpdatePasswordScreen() {
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -53,13 +54,17 @@ export default function UpdatePasswordScreen() {
   }, [recoveryUrl]);
 
   async function savePassword() {
+    setSubmitError(null);
+    if (!linkReady) return;
     const validationError = validateNewPassword(password);
     if (validationError) {
-      Alert.alert('Contraseña no válida', validationError);
+      if (Platform.OS === 'web') setSubmitError(validationError);
+      else Alert.alert('Contraseña no válida', validationError);
       return;
     }
     if (password !== confirmation) {
-      Alert.alert('Las contraseñas no coinciden', 'Escribe la misma contraseña en ambos campos.');
+      if (Platform.OS === 'web') setSubmitError('Las contraseñas no coinciden.');
+      else Alert.alert('Las contraseñas no coinciden', 'Escribe la misma contraseña en ambos campos.');
       return;
     }
 
@@ -68,13 +73,12 @@ export default function UpdatePasswordScreen() {
       const { error } = await updateCurrentUserPassword(password);
       if (error) throw error;
 
-      Alert.alert('Contraseña actualizada', 'Tu nueva contraseña ya está activa.');
+      if (Platform.OS !== 'web') Alert.alert('Contraseña actualizada', 'Tu nueva contraseña ya está activa.');
       router.replace('/home');
     } catch (error) {
-      Alert.alert(
-        'No se pudo actualizar',
-        error instanceof Error ? error.message : 'Solicita un nuevo enlace e intenta otra vez.',
-      );
+      const message = error instanceof Error ? error.message : 'Solicita un nuevo enlace e intenta otra vez.';
+      if (Platform.OS === 'web') setSubmitError(message);
+      else Alert.alert('No se pudo actualizar', message);
     } finally {
       setSaving(false);
     }
@@ -134,6 +138,7 @@ export default function UpdatePasswordScreen() {
               onSubmitEditing={savePassword}
             />
 
+            {submitError ? <Text accessibilityRole="alert" style={styles.errorText}>{submitError}</Text> : null}
             <Pressable
               disabled={saving}
               style={[styles.primaryButton, saving && styles.disabled]}
