@@ -179,3 +179,28 @@ for (const [label, passed] of [
     && directoryUi.includes('await load();')],
 ]) assert.ok(passed, 'Admin contact completion regression: ' + label);
 console.log('UCAPSA guarded admin contact completion contract: PASS');
+
+
+const socioSql = fs.readFileSync(
+  'supabase/migrations/20261020060000_preregistered_membership_authorization.sql','utf8');
+const socioUi = fs.readFileSync('src/app/admin/preregister-dog.tsx','utf8');
+const socioDetail = fs.readFileSync('src/app/admin/preregistration.tsx','utf8');
+const socioSession = fs.readFileSync('src/hooks/useSession.tsx','utf8');
+const socioService = fs.readFileSync('src/services/dog-preregistration.service.ts','utf8');
+const memberFixture = fs.readFileSync('scripts/isolated-db/ucapsa-preregistered-membership-e2e.sql','utf8');
+for (const [label, passed] of [
+  ['Solo Admin autoriza Socio previo', socioSql.includes('not public.is_ucapsa_admin()')],
+  ['Socio previo no crea perfiles Auth', !/insert\s+into\s+auth\.users/i.test(socioSql)],
+  ['Socio previo no genera pagos', !/insert\s+into\s+public\.(payments|payment_obligations)/i.test(socioSql)],
+  ['Autorización asociada al tutor', socioSql.includes('member_preapproved_by uuid references auth.users(id)')],
+  ['Conversión canónica al vincular', socioSql.includes('after update of status on ucapsa_intake.people')],
+  ['Socio real desde memberships', socioSql.includes('insert into public.memberships(')],
+  ['Sin repetir membresía', socioSql.includes('where m.user_id=new.linked_user_id for update')],
+  ['Controles DB comprueban histórico Comandos y Puppy', memberFixture.includes('Original Comandos attendance')
+    && memberFixture.includes('Puppy attendance was lost')],
+  ['Admin puede elegir Socio', socioUi.includes('setMemberAuthorized')],
+  ['RPC atómica si socio', socioService.includes("'admin_preregister_dog_with_membership'")],
+  ['La ficha muestra autorización', socioDetail.includes("membershipStatus !== 'preapproved'")],
+  ['La sesión recarga el rol luego de vincular', socioSession.includes('await applyFreshProfile(userId, nextProfile)')],
+]) if (!passed) throw new Error('Regresión autorización Socio provisional: '+label);
+console.log('UCAPSA preapproved Socio, canonical membership and historical levels: static contract PASS');
