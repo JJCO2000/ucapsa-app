@@ -13,6 +13,7 @@ const rootFiles = ['app.json', 'package.json', 'tsconfig.json', 'eas.json'];
 const extensions = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.sql', '.yml', '.yaml', '.json']);
 const self = 'scripts/audit-full-source.mjs';
 const clientDiagnostics = 'src/lib/client-diagnostics.ts';
+const edgeDiagnostics = 'supabase/functions/_shared/diagnostics.ts';
 
 function walk(rel) {
   const absolute = path.join(root, rel);
@@ -246,6 +247,24 @@ for (const file of files) {
     }
   }
 
+  if (file === edgeDiagnostics) {
+    const edgeConsoleCalls = countMatches(text, /\\bconsole\\.(?:warn|error)\\s*\\(/g);
+    if (edgeConsoleCalls !== 2) {
+      addCritical(file, 'Edge diagnostics must use exactly two canonical output functions.');
+    }
+    for (const pattern of [
+      /sanitizeEdgeDiagnostic\\s*\\(/,
+      /SAFE_KEYS/,
+      /console\\.warn\\(trim\\(event\\), sanitizeEdgeDiagnostic\\(details\\)\\)/,
+      /console\\.error\\(trim\\(event\\), sanitizeEdgeDiagnostic\\(details\\)\\)/,
+    ]) {
+      if (!pattern.test(text)) addCritical(file, 'Edge diagnostic sanitization contract missing.');
+    }
+    if (/expo_push_token|authorization|service_role|access_token/i.test(text)) {
+      addCritical(file, 'Edge diagnostic sanitizer contains sensitive field names.');
+    }
+  }
+
   if (file === self) continue;
 
   const runtimeCode = file.startsWith('src/') || file.startsWith('supabase/functions/');
@@ -253,7 +272,7 @@ for (const file of files) {
   const anyCasts = runtimeCode ? countMatches(text, /\bas\s+any\b|:\s*any\b/g) : 0;
   if (anyCasts) addReview(file, 'Uso de any', anyCasts);
 
-  const consoles = (file.startsWith('supabase/functions/') || (file.startsWith('src/') && file !== clientDiagnostics))
+  const consoles = ((file.startsWith('supabase/functions/') && file !== edgeDiagnostics) || (file.startsWith('src/') && file !== clientDiagnostics))
     ? countMatches(text, /\bconsole\.(?:log|warn|error|debug)\s*\(/g)
     : 0;
   if (consoles) addReview(file, 'Console call', consoles);
