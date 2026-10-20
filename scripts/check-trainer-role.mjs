@@ -311,6 +311,20 @@ for (const token of [
   if (!users.includes(token)) throw new Error('Superadmin trainer management missing: ' + token);
 }
 
+// Superadmin changes roles without leaving an unhandled promise rejection
+// when Supabase refuses the update; the rejection is shown in the UI.
+const changeRoleHandler = users.slice(
+  users.indexOf('async function changeStaffRole('),
+  users.indexOf('\n  return (', users.indexOf('async function changeStaffRole(')),
+);
+if (!changeRoleHandler.includes('Alert.alert(\'No se pudo cambiar el rol\'')
+    || changeRoleHandler.includes('throw cause;')) {
+  throw new Error('Superadmin role errors are not handled safely.');
+}
+if (!users.includes('<Text style={styles.roleActionLabel}>Rol</Text>')
+    || !users.includes('accessibilityLabel={`Gestionar rol de')) {
+  throw new Error('Superadmin role action lost visible or accessible label.');
+}
 for (const token of [
   'groupTomorrowClasses',
   "item.programCode === 'comandos'",
