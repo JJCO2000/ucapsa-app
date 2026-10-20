@@ -1,13 +1,14 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { preregistrationDirectoryEnabled } from '../../constants/preregistrationFeature';
 import { useSession } from '../../hooks/useSession';
 import {
+  adminCompletePreregistrationContact,
   getAdminPreregistrationRecords,
   preregistrationLevelLabel,
   preregistrationMemberLabel,
@@ -29,6 +30,10 @@ export default function AdminPreregistrationDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editingContact, setEditingContact] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [newPhone, setNewPhone] = useState('');
+  const [savingContact, setSavingContact] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -48,6 +53,37 @@ export default function AdminPreregistrationDetailScreen() {
     setLoading(true);
     void load();
   }, [isAdmin, recordId, load]));
+
+  async function saveMissingContact() {
+    if (!record || savingContact || record.status !== 'pending') return;
+    const email = record.ownerEmail ? '' : newEmail.trim().toLowerCase();
+    const phone = record.ownerPhone ? '' : newPhone.trim();
+    if (!email && !phone) {
+      Alert.alert('Falta un dato', 'Escribe al menos un contacto que todavía no esté registrado.');
+      return;
+    }
+    if (email && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+      Alert.alert('Correo inválido', 'Revisa el formato del correo electrónico.');
+      return;
+    }
+    if (phone && !/^\\+[1-9][0-9]{7,14}$/.test(phone)) {
+      Alert.alert('Celular inválido', 'Usa formato internacional, por ejemplo +525512345678.');
+      return;
+    }
+    try {
+      setSavingContact(true);
+      await adminCompletePreregistrationContact(record.personId, { email, phone });
+      await load();
+      setEditingContact(false);
+      setNewEmail('');
+      setNewPhone('');
+      Alert.alert('Contacto completado', 'El expediente ya tiene el nuevo dato. La vinculación se evaluará al revisar la cuenta.');
+    } catch (cause) {
+      Alert.alert('No se pudo guardar', cause instanceof Error ? cause.message : 'Revisa el dato y vuelve a intentar.');
+    } finally {
+      setSavingContact(false);
+    }
+  }
 
   if (!isAdmin || !preregistrationDirectoryEnabled) return <Redirect href="/home" />;
 
@@ -79,6 +115,52 @@ export default function AdminPreregistrationDetailScreen() {
             <Detail label="Perro" value={record.dogName} />
             <Detail label="Cuenta" value={record.status === 'linked' ? 'Vinculada' : 'Pendiente de vinculación'} />
           </View>
+          {record.status === 'pending' && (!record.ownerEmail || !record.ownerPhone) ? (
+            <View style={styles.card}>
+              <Text style={styles.groupTitle}>Completar contacto faltante</Text>
+              <Text style={styles.hint}>Solo puedes añadir datos que estén vacíos. Los contactos existentes no se sustituyen; tampoco se modifican asistencias, programas ni niveles.</Text>
+              {!editingContact ? (
+                <Pressable accessibilityRole="button" style={styles.secondary}
+                  onPress={() => setEditingContact(true)}>
+                  <MaterialIcons name="edit" size={18} color={ucapsaBrand.colors.redDark} />
+                  <Text style={styles.secondaryText}>Completar contacto</Text>
+                </Pressable>
+              ) : (
+                <>
+                  {!record.ownerEmail ? (
+                    <>
+                      <Text style={styles.fieldLabel}>Correo electrónico (faltante)</Text>
+                      <TextInput style={styles.input} value={newEmail} onChangeText={setNewEmail}
+                        accessibilityLabel="Agregar correo del tutor" autoCapitalize="none"
+                        autoCorrect={false} keyboardType="email-address" maxLength={254}
+                        editable={!savingContact} placeholder="correo@ejemplo.com"
+                        placeholderTextColor={ucapsaBrand.colors.muted} />
+                    </>
+                  ) : null}
+                  {!record.ownerPhone ? (
+                    <>
+                      <Text style={styles.fieldLabel}>Celular (faltante)</Text>
+                      <TextInput style={styles.input} value={newPhone} onChangeText={setNewPhone}
+                        accessibilityLabel="Agregar celular del tutor" keyboardType="phone-pad"
+                        maxLength={16} editable={!savingContact} placeholder="+525512345678"
+                        placeholderTextColor={ucapsaBrand.colors.muted} />
+                    </>
+                  ) : null}
+                  <Pressable accessibilityRole="button" style={styles.primary}
+                    disabled={savingContact} onPress={() => { void saveMissingContact(); }}>
+                    {savingContact ? <ActivityIndicator color={ucapsaBrand.colors.surface} /> :
+                      <Text style={styles.primaryText}>Guardar contacto</Text>}
+                  </Pressable>
+                  <Pressable accessibilityRole="button" style={styles.cancel}
+                    disabled={savingContact} onPress={() => {
+                      setEditingContact(false); setNewEmail(''); setNewPhone('');
+                    }}>
+                    <Text style={styles.secondaryText}>Cancelar</Text>
+                  </Pressable>
+                </>
+              )}
+            </View>
+          ) : null}
           <View style={styles.card}>
             <Text style={styles.groupTitle}>Programa y nivel</Text>
             <Detail label="Programa" value={record.programCode === 'puppy' ? 'Puppy' : 'Comandos'} />
@@ -129,4 +211,13 @@ const styles = StyleSheet.create({
   primary: { backgroundColor: ucapsaBrand.colors.greenDark, borderRadius: 13, minHeight: 52,
     flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 },
   primaryText: { color: ucapsaBrand.colors.surface, fontWeight: '900', fontSize: 13 },
+  secondary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    borderRadius: 12, borderWidth: 1, borderColor: ucapsaBrand.colors.border,
+    padding: 12, marginTop: 12 },
+  secondaryText: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '800' },
+  fieldLabel: { color: ucapsaBrand.colors.text, fontWeight: '700', fontSize: 13, marginTop: 15, marginBottom: 7 },
+  input: { borderWidth: 1, borderColor: ucapsaBrand.colors.border, borderRadius: 12,
+    backgroundColor: ucapsaBrand.colors.background, minHeight: 48, paddingHorizontal: 12,
+    color: ucapsaBrand.colors.text, fontSize: 14, marginBottom: 9 },
+  cancel: { alignItems: 'center', padding: 12 },
 });
