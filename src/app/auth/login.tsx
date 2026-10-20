@@ -37,7 +37,7 @@ export default function LoginScreen() {
         }
         Alert.alert(
           'No pudimos iniciar sesión',
-          'Revisa tu correo o celular registrado y contraseña. Para entrar por celular, primero debe estar asociado a tu cuenta de Supabase.',
+          'Revisa tus credenciales. Para entrar por teléfono, debe estar asociado a tu cuenta de Supabase Auth; escribirlo en el perfil no habilita el acceso.',
           [
             { text: 'Reintentar', style: 'cancel' },
             { text: 'Recuperar contraseña', onPress: () => router.push('/auth/forgot-password' as never) },
@@ -48,9 +48,10 @@ export default function LoginScreen() {
       }
 
       router.replace('/home');
-    } catch {
-      if (Platform.OS === 'web') setLoginError('No se pudo conectar. Revisa tu conexión e intenta de nuevo.');
-      else Alert.alert('No se pudo conectar', 'Revisa tu conexion e intenta de nuevo.');
+    } catch (cause) {
+      const detail = cause instanceof Error ? cause.message : 'No se pudo conectar. Revisa tu conexión.';
+      if (Platform.OS === 'web') setLoginError(detail);
+      else Alert.alert('No se pudo iniciar sesión', detail);
     } finally {
       setLoading(false);
     }
@@ -71,7 +72,7 @@ export default function LoginScreen() {
           onChangeText={(value) => { setContact(value); if (value.trim()) setMissingContact(false); }}
           accessibilityLabel="Correo o celular para iniciar sesión"
           accessibilityHint="Ingresa tu correo o celular ya registrado en Supabase"
-          placeholder="correo@ejemplo.com o +525512345678"
+          placeholder="correo@ejemplo.com o 5535100214"
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="default"
