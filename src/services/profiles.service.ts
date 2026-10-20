@@ -13,6 +13,7 @@ function logProfileMutationError(operation: string, error: unknown) {
 export type ProfileUpdateInput = {
   full_name?: string | null;
   phone?: string | null;
+  preregistration_contact_email?: string | null;
   dog_name?: string | null;
   avatar_color?: string | null;
 };
@@ -102,6 +103,8 @@ export async function updateMyProfile(input: ProfileUpdateInput): Promise<Profil
 
   if (input.full_name !== undefined) payload.full_name = input.full_name?.trim() || null;
   if (input.phone !== undefined) payload.phone = input.phone?.trim() || null;
+  if (input.preregistration_contact_email !== undefined)
+    payload.preregistration_contact_email = input.preregistration_contact_email?.trim().toLowerCase() || null;
   if (input.dog_name !== undefined) payload.dog_name = input.dog_name?.trim() || null;
   if (input.avatar_color !== undefined) payload.avatar_color = input.avatar_color || ucapsaBrand.colors.red;
 

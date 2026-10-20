@@ -131,3 +131,26 @@ for (const [label,ok] of [
  if (!ok) throw new Error('First-auto/second-consent regression: '+label);
 }
 console.log('UCAPSA secure initial auto-link and repeat authorization: PASS');
+
+
+// MVP typed email matches only for first unclaimed preregistration.
+const mvpSql = fs.readFileSync('supabase/migrations/20261020040444_mvp_unverified_contact_email_first_claim.sql', 'utf8');
+const mvpProfile = fs.readFileSync('src/services/profiles.service.ts', 'utf8');
+const mvpSettings = fs.readFileSync('src/app/account-settings.tsx', 'utf8');
+for (const [label, passed] of [
+  ['separate contact-email column', mvpSql.includes('add column if not exists preregistration_contact_email text')],
+  ['only first claim uses profile contacts', mvpSql.includes('if not v_manual and not exists')],
+  ['both server RPCs accept manually entered contact email',
+    (mvpSql.match(/p\.preregistration_contact_email/g) ?? []).length >= 2],
+  ['typed contact email takes priority over unrelated login email',
+    (mvpSql.match(/v_email := coalesce\(v_first_email,v_email\)/g) ?? []).length === 2],
+  ['first claim reserves the unverified contact',
+    mvpSql.includes('v_first_email is distinct from v_email')],
+  ['profile persistence for typed email', mvpProfile.includes('payload.preregistration_contact_email')],
+  ['screen saves typed email', mvpSettings.includes('preregistration_contact_email: normalizedContactEmail')],
+  ['phone-only accounts can skip login email', mvpSettings.includes('Boolean(normalizedEmail) && normalizedEmail !== currentAuthEmail')],
+  ['screen labels typed email as not verified', mvpSettings.includes('En este MVP no se verifica su titularidad')],
+  ['session rechecks a changed contact email', sessionHook.includes('profile?.preregistration_contact_email')],
+  ['repeat approval and consent retained', firstSql.includes('if not v_manual and exists')],
+]) assert.ok(passed, 'MVP first-email matching regression: '+label);
+console.log('UCAPSA first-claim profile-contact email MVP contract: PASS');
