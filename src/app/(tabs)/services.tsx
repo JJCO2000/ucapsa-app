@@ -13,6 +13,7 @@ import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useReturnToProfile } from '../../hooks/useReturnToProfile';
 import { useSession } from '../../hooks/useSession';
+import { useMemberAppearance } from '../../hooks/useMemberAppearance';
 import { clientReadKeys, createMembershipOfflineSummary, readClientResource, writeClientResource, type MembershipOfflineSummary } from '../../services/client-read-cache.service';
 import { getMembershipEffectiveStatus, getMyMembership, type MembershipEffectiveStatus } from '../../services/memberships.service';
 import { DEFAULT_READ_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
@@ -107,9 +108,10 @@ export default function ServicesTab() {
   }
 
   const membershipFormatStatus = membershipStatus === 'scheduled' ? 'none' : membershipStatus;
+  const { memberTheme } = useMemberAppearance();
   const format = useMemo(
-    () => resolveUcapsaFormat({ user, role, isAdmin, membershipStatus: membershipFormatStatus }),
-    [isAdmin, membershipFormatStatus, role, user],
+    () => resolveUcapsaFormat({ user, role, isAdmin, memberTheme, membershipStatus: membershipFormatStatus }),
+    [memberTheme, isAdmin, membershipFormatStatus, role, user],
   );
   const premium = format.key === 'member';
 
@@ -166,7 +168,7 @@ export default function ServicesTab() {
     <KeyboardAwareScreen
       backgroundColor={format.background}
       style={{ backgroundColor: format.background }}
-      contentContainerStyle={[styles.screenContent, premium && styles.premiumContent]}
+      contentContainerStyle={[styles.screenContent, premium && styles.premiumContent, { backgroundColor: format.background }]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={format.accent} />}
     >
       <UcapsaAmbientBackground format={format} variant="services" />

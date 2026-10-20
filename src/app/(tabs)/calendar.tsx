@@ -11,6 +11,7 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { CalendarActivityRing } from '../../components/calendar/CalendarActivityRing';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
+import { useMemberAppearance } from '../../hooks/useMemberAppearance';
 import { getVisibleAnnouncements } from '../../services/announcements.service';
 import { getVisibleEventOccurrenceCancellations } from '../../services/event-occurrence-cancellations.service';
 import { getVisibleEvents } from '../../services/events.service';
@@ -175,7 +176,8 @@ export default function CalendarScreen() {
   const [partialLoadWarning, setPartialLoadWarning] = useState<string | null>(null);
   const [usingSavedData, setUsingSavedData] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
-  const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [user, role, isAdmin]);
+  const { memberTheme } = useMemberAppearance();
+  const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin, memberTheme }), [memberTheme, user, role, isAdmin]);
   const isPremium = format.key === 'member';
 
   useEffect(() => {
@@ -623,7 +625,7 @@ export default function CalendarScreen() {
       >
         <View style={styles.pageHeader}>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={[styles.pageEyebrow, { color: isPremium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>UCAPSA</Text>
+            <Text style={[styles.pageEyebrow, { color: format.accentDark }]}>UCAPSA</Text>
             <Text style={[styles.pageTitle, { color: format.text }]}>Agenda</Text>
             <Text style={[styles.pageSubtitle, { color: format.muted }]}>Selecciona un día y revisa su horario.</Text>
           </View>
@@ -682,7 +684,7 @@ export default function CalendarScreen() {
             <View onLayout={(e) => { calendarCardYRef.current = e.nativeEvent.layout.y; }} style={[styles.calendarCard, { borderColor: isPremium ? ucapsaBrand.colors.premiumBorderStrong : format.cardBorder }]}>
               <View style={styles.agendaTopBar}>
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={[styles.agendaDateEyebrow, { color: isPremium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>AGENDA</Text>
+                  <Text style={[styles.agendaDateEyebrow, { color: format.accentDark }]}>AGENDA</Text>
                   <Text style={[styles.agendaDateTitle, { color: format.cardText }]}>{formatDateKey(selectedDate)}</Text>
                 </View>
                 {selectedDate !== todayKey() ? (

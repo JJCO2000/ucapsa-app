@@ -10,6 +10,7 @@ import { UcapsaDetailModal } from '../../components/ui/UcapsaDetailModal';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
+import { useMemberAppearance } from '../../hooks/useMemberAppearance';
 import { getVisibleAnnouncements } from '../../services/announcements.service';
 import { clientReadKeys, readClientResource, writeClientResource } from '../../services/client-read-cache.service';
 import { readHomeCache } from '../../services/home-cache.service';
@@ -27,7 +28,8 @@ export default function AnnouncementsScreen() {
   const [usingSavedData, setUsingSavedData] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [offlineEmpty, setOfflineEmpty] = useState(false);
-  const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [user, role, isAdmin]);
+  const { memberTheme } = useMemberAppearance();
+  const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin, memberTheme }), [memberTheme, user, role, isAdmin]);
   const isPremium = format.key === 'member';
   const importantAnnouncements = useMemo(
     () => announcements.filter((item) => item.is_pinned || item.priority === 'urgent' || item.priority === 'high'),
@@ -153,7 +155,7 @@ export default function AnnouncementsScreen() {
 
         <View style={styles.sectionHeader}>
           <View style={styles.sectionCopy}>
-            <Text style={[styles.sectionKicker, { color: isPremium ? ucapsaBrand.colors.premiumAction : format.muted }]}>Lista</Text>
+            <Text style={[styles.sectionKicker, { color: format.accentDark }]}>Lista</Text>
             <Text style={[styles.sectionTitle, { color: format.text }]}>Tus avisos</Text>
           </View>
           <View style={[styles.countPill, { backgroundColor: format.pillBackground }]}>

@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
+import { useMemberAppearance } from '../../hooks/useMemberAppearance';
 
 function TabIcon({
   name,
@@ -39,7 +40,8 @@ function TabIcon({
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const { user, role, isAdmin, isTrainer, isStaff } = useSession();
-  const format = resolveUcapsaFormat({ user, role, isAdmin });
+  const { memberTheme } = useMemberAppearance();
+  const format = resolveUcapsaFormat({ user, role, isAdmin, memberTheme });
   const systemBottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 20 : 10);
   const navigationBreathingRoom = Platform.OS === 'android' ? 8 : 4;
   const tabBottomInset = systemBottomInset + navigationBreathingRoom;
@@ -50,29 +52,29 @@ export default function TabsLayout() {
   const tabBackground = isStaff
     ? ucapsaBrand.colors.surface
     : isPremium
-      ? ucapsaBrand.colors.premiumSurface
+      ? format.surface
       : ucapsaBrand.colors.surface;
   const tabBorder = isStaff
     ? ucapsaBrand.colors.border
     : isPremium
-      ? ucapsaBrand.colors.premiumBorder
+      ? format.border
       : ucapsaBrand.colors.border;
   const inactiveTint = isStaff
     ? ucapsaBrand.colors.mutedNeutral
     : isPremium
-      ? ucapsaBrand.colors.premiumMuted
+      ? format.muted
       : ucapsaBrand.colors.muted;
   const activeTint = trainerWorkspace
     ? ucapsaBrand.colors.greenDark
     : isStaff
       ? ucapsaBrand.colors.red
-      : isPremium ? ucapsaBrand.colors.premiumActionText : format.accent;
+      : isPremium ? format.accentDark : format.accent;
   const activeSurface = trainerWorkspace
     ? ucapsaBrand.colors.greenSoft
     : isStaff
       ? ucapsaBrand.colors.redSoft
       : isPremium
-      ? ucapsaBrand.colors.premiumSurfaceAlt
+      ? format.accentSoft
       : ucapsaBrand.colors.redSoft;
   const isClient = Boolean(user) && !isStaff;
   const isGuest = !user && !isStaff;

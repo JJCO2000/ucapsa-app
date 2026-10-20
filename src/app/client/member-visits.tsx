@@ -10,6 +10,7 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
+import { useMemberAppearance } from '../../hooks/useMemberAppearance';
 import { getCachedMyMemberVisits, getMyMemberVisits } from '../../services/client-activity.service';
 import type { MemberVisitOfflineSummary } from '../../services/client-read-cache.service';
 
@@ -28,7 +29,8 @@ export default function MemberVisitsScreen() {
   const [usingSavedData, setUsingSavedData] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const loadRunRef = useRef(0);
-  const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
+  const { memberTheme } = useMemberAppearance();
+  const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin, memberTheme }), [memberTheme, isAdmin, role, user]);
   const premium = format.key === 'member';
 
   const load = useCallback(async () => {
@@ -89,7 +91,7 @@ export default function MemberVisitsScreen() {
   return (
     <KeyboardAwareScreen
       style={{ backgroundColor: format.background }}
-      contentContainerStyle={premium ? styles.premiumContent : undefined}
+      contentContainerStyle={premium ? { backgroundColor: format.background } : undefined}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={format.accent} />}
     >
       <UcapsaAmbientBackground format={format} variant="services" />
@@ -108,11 +110,11 @@ export default function MemberVisitsScreen() {
       <View style={styles.summaryRow}>
         <View style={[styles.summaryCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
           <Text style={[styles.summaryValue, { color: format.cardText }]}>{visits.length}</Text>
-          <Text style={[styles.summaryLabel, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>visitas totales</Text>
+          <Text style={[styles.summaryLabel, { color: format.muted }]}>visitas totales</Text>
         </View>
         <View style={[styles.summaryCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
           <Text style={[styles.summaryValue, { color: format.cardText }]}>{thisMonth}</Text>
-          <Text style={[styles.summaryLabel, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>este mes</Text>
+          <Text style={[styles.summaryLabel, { color: format.muted }]}>este mes</Text>
         </View>
       </View>
 
@@ -123,7 +125,7 @@ export default function MemberVisitsScreen() {
         <View style={[styles.stateCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
           <MaterialIcons name="badge" size={28} color={format.accentDark} />
           <Text style={[styles.stateTitle, { color: format.cardText }]}>Aún no hay visitas registradas</Text>
-          <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Cuando uses tu acceso de socio, tus visitas aparecerán aquí.</Text>
+          <Text style={[styles.muted, { color: format.muted }]}>Cuando uses tu acceso de socio, tus visitas aparecerán aquí.</Text>
         </View>
       ) : null}
 
@@ -135,7 +137,7 @@ export default function MemberVisitsScreen() {
               <View style={[styles.visitIcon, { backgroundColor: format.pillBackground }]}><MaterialIcons name="login" size={19} color={format.pillText} /></View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={[styles.visitTitle, { color: format.cardText }]}>{formatVisitDate(visit.visited_at)}</Text>
-                <Text style={[styles.visitMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{visit.source === 'qr_member' ? 'Acceso con QR de socio' : 'Registro UCAPSA'}</Text>
+                <Text style={[styles.visitMeta, { color: format.muted }]}>{visit.source === 'qr_member' ? 'Acceso con QR de socio' : 'Registro UCAPSA'}</Text>
               </View>
             </View>
           ))}

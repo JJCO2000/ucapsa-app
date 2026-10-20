@@ -10,6 +10,7 @@ import { UcapsaDetailModal } from '../../components/ui/UcapsaDetailModal';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
+import { useMemberAppearance } from '../../hooks/useMemberAppearance';
 import { devWarn } from '../../lib/client-diagnostics';
 import { getMyDogs } from '../../services/dogs.service';
 import { getHomeAnnouncements, rankHomeAnnouncements } from '../../services/announcements.service';
@@ -49,6 +50,7 @@ type SnapshotState = 'idle' | 'hydrated' | 'fresh' | 'cached' | 'partial' | 'err
 
 export default function HomeExperienceScreen() {
   const { user, profile, role, isAdmin, isTrainer, isStaff, preregistrationSyncVersion } = useSession();
+  const { memberTheme } = useMemberAppearance();
   const [snapshot, setSnapshot] = useState<CustomerValueSnapshot | null>(null);
   const [snapshotState, setSnapshotState] = useState<SnapshotState>('idle');
   const [practice, setPractice] = useState<PracticeActivitySnapshot | null>(null);
@@ -213,8 +215,8 @@ export default function HomeExperienceScreen() {
   const membershipStatus = snapshot?.whatIHave.membership?.status ?? null;
   const hasActivePrograms = Boolean(mainProgram);
   const format = useMemo(
-    () => resolveUcapsaFormat({ user, role, isAdmin, membershipStatus, hasActivePrograms }),
-    [hasActivePrograms, isAdmin, membershipStatus, role, user],
+    () => resolveUcapsaFormat({ user, role, isAdmin, membershipStatus, hasActivePrograms, memberTheme }),
+    [hasActivePrograms, isAdmin, membershipStatus, memberTheme, role, user],
   );
   const premium = format.key === 'member';
   const displayName = profile?.full_name || snapshot?.identity.displayName || profile?.email || user?.email || 'Visitante';
@@ -309,12 +311,12 @@ export default function HomeExperienceScreen() {
             <Image source={mark} style={styles.mark} resizeMode="contain" />
             {premium ? (
               <View style={styles.crownBadge}>
-                <MaterialCommunityIcons name="crown" size={12} color={ucapsaBrand.colors.premiumAction} />
+                <MaterialCommunityIcons name="crown" size={12} color={format.accentDark} />
               </View>
             ) : null}
           </View>
           <View style={styles.identityCopy}>
-            <Text style={[styles.headerEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>
+            <Text style={[styles.headerEyebrow, { color: format.accentDark }]}>
               {user ? 'HOLA' : 'UCAPSA'}
             </Text>
             <Text numberOfLines={1} style={[styles.headerTitle, { color: premium ? format.heroText : format.text }]}>
@@ -334,12 +336,12 @@ export default function HomeExperienceScreen() {
               style={[
                 styles.headerQuickAction,
                 {
-                  borderColor: premium ? ucapsaBrand.colors.premiumBorderStrong : ucapsaBrand.colors.purple,
-                  backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : ucapsaBrand.colors.purpleSoft,
+                  borderColor: premium ? format.cardBorder : ucapsaBrand.colors.purple,
+                  backgroundColor: premium ? format.accentSoft : ucapsaBrand.colors.purpleSoft,
                 },
               ]}
             >
-              <MaterialIcons name="leaderboard" size={18} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.purpleDark} />
+              <MaterialIcons name="leaderboard" size={18} color={premium ? format.accentDark : ucapsaBrand.colors.purpleDark} />
             </Pressable>
           ) : null}
           <Pressable
@@ -349,13 +351,13 @@ export default function HomeExperienceScreen() {
             style={[
               styles.headerQuickAction,
               {
-                borderColor: premium ? ucapsaBrand.colors.premiumBorderStrong : format.border,
-                backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft,
+                borderColor: format.cardBorder,
+                backgroundColor: format.accentSoft,
               },
             ]}
           >
             <MaterialIcons name="restaurant-menu" size={19}
-              color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+              color={format.accentDark} />
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -364,12 +366,12 @@ export default function HomeExperienceScreen() {
             style={[
               styles.accountButton,
               {
-                borderColor: premium ? ucapsaBrand.colors.premiumBorderStrong : format.border,
-                backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft,
+                borderColor: format.cardBorder,
+                backgroundColor: format.accentSoft,
               },
             ]}
           >
-            <MaterialIcons name={user ? 'person' : 'login'} size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+            <MaterialIcons name={user ? 'person' : 'login'} size={20} color={format.accentDark} />
           </Pressable>
         </View>
       </View>
