@@ -13,7 +13,8 @@ export function PreregistrationLinkPrompt() {
   const {
     user, isOfflineFallback, preregistrationLinkOffer: count,
     preregistrationLinkBusy: busy, confirmPreregistrationLink,
-    dismissPreregistrationLink,
+    dismissPreregistrationLink, preregistrationLinkedNotice: linkedCount,
+    dismissPreregistrationLinkedNotice,
   } = useSession();
   const [error, setError] = useState<string | null>(null);
   useEffect(() => { if (count === null) setError(null); }, [count]);
@@ -57,6 +58,28 @@ export function PreregistrationLinkPrompt() {
           <Pressable accessibilityRole="button" disabled={busy} style={styles.secondary}
             onPress={dismissPreregistrationLink}>
             <Text style={styles.secondaryText}>Ahora no</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+    <Modal transparent visible={Boolean(user && !isOfflineFallback && linkedCount !== null && linkedCount > 0)}
+      animationType="fade" onRequestClose={dismissPreregistrationLinkedNotice}>
+      <View style={styles.overlay}>
+        <View style={styles.dialog}>
+          <View style={styles.head}>
+            <MaterialIcons name="check-circle" size={22} color={ucapsaBrand.colors.greenDark} />
+            <Text style={styles.title}>Preinscripción vinculada</Text>
+          </View>
+          <Text style={styles.body}>
+            {linkedCount === 1 ? 'Un perro quedó vinculado' : `${linkedCount ?? 0} perros quedaron vinculados`}
+            {' '}a tu cuenta UCAPSA.
+          </Text>
+          <Text style={styles.note}>
+            Ya puedes consultar sus programas, niveles y asistencias. No se crearon pagos ni membresías.
+          </Text>
+          <Pressable accessibilityRole="button" style={styles.primary}
+            onPress={dismissPreregistrationLinkedNotice}>
+            <Text style={styles.primaryText}>Entendido</Text>
           </Pressable>
         </View>
       </View>
