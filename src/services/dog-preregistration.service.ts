@@ -15,10 +15,13 @@ export type PreregisteredProgramInput = {
   totalAttendances: number;
   knownAttendanceDates: string[];
   sourceNote: string;
+  memberAuthorized?: boolean;
 };
 
 export type PreregistrationRpcName = Extract<keyof Database['public']['Functions'],
   | 'admin_preregister_dog_with_program'
+  | 'admin_preregister_dog_with_membership'
+  | 'admin_set_preregistered_membership'
   | 'claim_my_preregistered_dogs'
   | 'get_staff_preregistered_class_roster'
   | 'staff_register_preregistered_attendance'>;
@@ -45,7 +48,8 @@ export async function callPreregistrationRpc(
 }
 
 export async function adminPreregisterDogWithProgram(input: PreregisteredProgramInput): Promise<string> {
-  const { data } = await callPreregistrationRpc('admin_preregister_dog_with_program', {
+  const { data } = await callPreregistrationRpc(
+    input.memberAuthorized ? 'admin_preregister_dog_with_membership' : 'admin_preregister_dog_with_program', {
     p_owner_name: input.ownerName.trim(),
     p_owner_email: input.ownerEmail.trim().toLowerCase(),
     p_owner_phone: input.ownerPhone.trim() ? normalizeContactPhone(input.ownerPhone) : '',
@@ -57,6 +61,7 @@ export async function adminPreregisterDogWithProgram(input: PreregisteredProgram
     p_total_attendances: input.totalAttendances,
     p_known_dates: input.knownAttendanceDates,
     p_note: input.sourceNote.trim() || null,
+    ...(input.memberAuthorized ? { p_member_authorized: true } : {}),
   });
   if (typeof data !== 'string' || !data) {
     throw new Error('Supabase no confirmó la preinscripción.');
