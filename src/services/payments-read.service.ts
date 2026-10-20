@@ -27,7 +27,7 @@ export async function getMyPaymentOverview(): Promise<MyPaymentOverview> {
     };
   }
 
-  const [obligationsResult, paymentsResult, membershipResult] = await Promise.all([
+  const [obligationsResult, paymentsResult] = await Promise.all([
     supabase
       .from('payment_obligations')
       .select('*')
@@ -41,18 +41,10 @@ export async function getMyPaymentOverview(): Promise<MyPaymentOverview> {
       .eq('status', 'paid')
       .is('voided_at', null)
       .order('paid_at', { ascending: false }),
-    supabase
-      .from('memberships')
-      .select('current_payment_status')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
   ]);
 
   if (obligationsResult.error) throw obligationsResult.error;
   if (paymentsResult.error) throw paymentsResult.error;
-  if (membershipResult.error) throw membershipResult.error;
 
   const payments = (paymentsResult.data ?? []) as Payment[];
   const paidByObligation = new Map<string, number>();
@@ -127,8 +119,8 @@ export async function getMyPaymentOverview(): Promise<MyPaymentOverview> {
     overdue_count: openObligations.filter(
       (item) => item.display_status === 'overdue',
     ).length,
-    legacy_membership_pending:
-      membershipResult.data?.current_payment_status === 'pending'
-      && openObligations.length === 0,
+    // Compatibilidad con el contrato existente: sin comprobante oficial no
+    // inferimos revisión de pago desde el estado comercial de membresía.
+    legacy_membership_pending: false,
   };
 }
