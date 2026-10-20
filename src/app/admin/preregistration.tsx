@@ -7,6 +7,7 @@ import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { preregistrationDirectoryEnabled } from '../../constants/preregistrationFeature';
 import { useSession } from '../../hooks/useSession';
+import { devWarn } from '../../lib/client-diagnostics';
 import {
   adminCompletePreregistrationContact,
   getAdminPreregistrationRecords,
@@ -88,6 +89,7 @@ export default function AdminPreregistrationDetailScreen() {
       setNewPhone('');
       showFeedback('Contacto completado', 'El expediente ya tiene el nuevo dato. La vinculación se evaluará al revisar la cuenta.', 'success');
     } catch (cause) {
+      devWarn('admin-preregistration: could not complete missing contact.', cause);
       showFeedback('No se pudo guardar', cause instanceof Error ? cause.message : 'Revisa el dato y vuelve a intentar.');
     } finally {
       setSavingContact(false);
@@ -105,6 +107,7 @@ export default function AdminPreregistrationDetailScreen() {
         ? 'Socio autorizado. La membresía oficial se creará al vincular la cuenta, sin generar pagos.'
         : 'Se retiró la autorización provisional de Socio.', 'success');
     } catch(cause) {
+      devWarn('admin-preregistration: could not update provisional Socio authorization.', cause);
       showFeedback('No se pudo actualizar',cause instanceof Error
         ? cause.message:'Revisa el expediente.');
     } finally { setSavingMember(false); }
