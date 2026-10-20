@@ -274,3 +274,19 @@ assert.ok(preregDetailFeedback.includes('phone = normalizeContactPhone(phone)'),
 assert.equal((preregDetailFeedback.match(/Alert\.alert/g) ?? []).length, 1,
   'Toda alerta de detalle de preinscripción debe pasar por showFeedback web/nativo');
 console.log('UCAPSA preinscripción Admin feedback web/nativo: PASS');
+
+
+// Browser Admin must be able to complete assisted linking without native Alert.
+const preregManual = fs.readFileSync('src/app/admin/preregister-dog.tsx', 'utf8');
+for (const token of [
+  "if (window.confirm(message)) void approve()",
+  "reportLinkNotice('success', 'Autorización guardada'",
+  "reportLinkNotice('error', 'No se pudo autorizar'",
+  "setLinkNotice({ kind, message: title + ': ' + message })",
+  "adminApprovePreregistrationOwnerLink(selected.personId!, selected.userId!, linkReason)",
+  "Alert.alert('Confirmar vinculación asistida'",
+  "accessibilityRole={linkNotice.kind === 'error' ? 'alert' : 'text'}",
+]) assert.ok(preregManual.includes(token), 'Falta vinculación asistida en navegador: '+token);
+assert.ok(preregManual.includes("linkReason.trim().length < 12"),
+  'No eliminar evidencia del Admin en aprobación asistida');
+console.log('UCAPSA vinculación asistida web/nativo, confirmación y avisos: PASS');
