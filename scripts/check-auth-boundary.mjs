@@ -25,7 +25,7 @@ for (const [name, text] of screens) {
 }
 
 for (const token of [
-  'AUTH_PASSWORD_MIN_LENGTH = 6',
+  'AUTH_PASSWORD_MIN_LENGTH = 12',
   'normalizeAuthEmail',
   'validateNewPassword',
   'signInWithEmail',
@@ -142,3 +142,16 @@ assert.ok(adminForm.includes("Platform.OS === 'web'") && adminForm.includes('set
   && adminForm.includes('clearCardForm()') && adminForm.includes('Otro registro'),
   'Web preregistration needs visible success/error and fast next-entry flow.');
 console.log('UCAPSA auth Mexican national phone formatting and credential separation: PASS');
+
+
+// Password policy is enforced at the service boundary as well as the UI.
+// Existing sessions/password logins are deliberately unaffected.
+const signupSegment = service.split('export async function signUpWithEmail(')[1]
+  ?.split('export async function resetPasswordForEmail(')[0] ?? '';
+assert.ok(signupSegment.includes('const passwordError = validateNewPassword(password);')
+  && signupSegment.includes('if (passwordError) throw new Error(passwordError);')
+  && signupSegment.indexOf('validateNewPassword(password)') < signupSegment.indexOf('supabase.auth.signUp('),
+  'Sign-up must enforce the 12-character policy in the canonical auth service');
+assert.ok(service.includes('export const AUTH_PASSWORD_MIN_LENGTH = 12;'),
+  'The password policy should not regress to six characters');
+console.log('UCAPSA new-password policy 12 characters and service-boundary validation: PASS');
