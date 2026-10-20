@@ -4,6 +4,7 @@ import QRCode from 'react-native-qrcode-svg';
 
 import { MemberClubCrest } from './MemberClubCrest';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
+import type { UcapsaFormat } from '../../constants/ucapsaFormats';
 import { formatDate } from '../../services/memberships.service';
 import type { Membership, Profile } from '../../types/app.types';
 
@@ -11,17 +12,18 @@ type MemberCredentialCardProps = {
   membership: Membership;
   profile: Profile | null;
   displayName: string;
+  format: UcapsaFormat;
 };
 
-export function MemberCredentialCard({ membership, profile: _profile, displayName }: MemberCredentialCardProps) {
+export function MemberCredentialCard({ membership, profile: _profile, displayName, format }: MemberCredentialCardProps) {
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
       <View style={styles.textureRingOne} />
       <View style={styles.textureRingTwo} />
-      <View style={styles.texturePawOne}><MaterialCommunityIcons name="paw" size={34} color={withAlpha(ucapsaBrand.colors.premiumAction, 0.08)} /></View>
+      <View style={styles.texturePawOne}><MaterialCommunityIcons name="paw" size={34} color={withAlpha(format.accentDark, 0.08)} /></View>
       <View style={styles.texturePawTwo}><MaterialCommunityIcons name="paw" size={26} color={withAlpha(ucapsaBrand.colors.redDeep, 0.055)} /></View>
 
-      <View style={styles.band}>
+      <View style={[styles.band, { backgroundColor: format.primaryButton }]}>
         <View style={styles.bandCopy}>
           <Text style={styles.bandEyebrow}>SOCIO UCAPSA</Text>
           <Text style={styles.bandTitle}>Club UCAPSA</Text>
@@ -31,37 +33,37 @@ export function MemberCredentialCard({ membership, profile: _profile, displayNam
 
       <View style={styles.body}>
         <View style={styles.identityBlock}>
-          <Text style={styles.memberName}>{displayName}</Text>
+          <Text style={[styles.memberName, { color: format.cardText }]}>{displayName}</Text>
           <View style={styles.memberMetaRow}>
-            <View style={styles.memberNumberPill}>
+            <View style={[styles.memberNumberPill, { backgroundColor: format.accentSoft, borderColor: format.cardBorder }]}>
               <Text style={styles.memberNumberLabel}>SOCIO</Text>
               <Text style={styles.memberNumber}>{membership.member_number || 'Pendiente'}</Text>
             </View>
-            <View style={styles.statusPill}>
-              <View style={[styles.statusDot, { backgroundColor: ucapsaBrand.colors.premiumAction }]} />
-              <Text style={styles.statusText}>Socio activo</Text>
+            <View style={[styles.statusPill, { backgroundColor: format.heroBackground, borderColor: format.cardBorder }]}>
+              <View style={[styles.statusDot, { backgroundColor: format.accentDark }]} />
+              <Text style={[styles.statusText, { color: format.accentDark }]}>Socio activo</Text>
             </View>
           </View>
         </View>
 
         <View style={styles.infoGrid}>
-          <Info label="Inicio" value={formatDate(membership.start_date)} />
-          <Info label="Duración" value="Toda la vida de tu perro" />
+          <Info label="Inicio" value={formatDate(membership.start_date)} format={format} />
+          <Info label="Duración" value="Toda la vida de tu perro" format={format} />
         </View>
 
         <View style={styles.accessDivider}>
-          <View style={styles.accessDividerLine} />
-          <Text style={styles.accessDividerText}>CREDENCIAL DIGITAL</Text>
-          <View style={styles.accessDividerLine} />
+          <View style={[styles.accessDividerLine, { backgroundColor: format.cardBorder }]} />
+          <Text style={[styles.accessDividerText, { color: format.accentDark }]}>CREDENCIAL DIGITAL</Text>
+          <View style={[styles.accessDividerLine, { backgroundColor: format.cardBorder }]} />
         </View>
 
         <View style={styles.qrPanel}>
-          <View style={styles.qrWhiteBox}>
+          <View style={[styles.qrWhiteBox, { borderColor: format.cardBorder }]}>
             <QRCode value={`ucapsa-member:${membership.qr_token}`} size={164} />
           </View>
           <View style={styles.qrCopy}>
-            <Text style={styles.qrTitle}>QR de identificación</Text>
-            <Text style={styles.qrSubtitle}>Este QR identifica tu membresía. Para registrar una visita, abre “Registrar visita” y escanea el QR oficial de Socios en UCAPSA.</Text>
+            <Text style={[styles.qrTitle, { color: format.cardText }]}>QR de identificación</Text>
+            <Text style={[styles.qrSubtitle, { color: format.muted }]}>Este QR identifica tu membresía. Para registrar una visita, abre “Registrar visita” y escanea el QR oficial de Socios en UCAPSA.</Text>
           </View>
         </View>
       </View>
@@ -69,11 +71,11 @@ export function MemberCredentialCard({ membership, profile: _profile, displayNam
   );
 }
 
-function Info({ label, value }: { label: string; value: string }) {
+function Info({ label, value, format }: { label: string; value: string; format: UcapsaFormat }) {
   return (
-    <View style={styles.infoBox}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
+    <View style={[styles.infoBox, { backgroundColor: format.heroBackground, borderColor: format.cardBorder }]}>
+      <Text style={[styles.infoLabel, { color: format.muted }]}>{label}</Text>
+      <Text style={[styles.infoValue, { color: format.cardText }]}>{value}</Text>
     </View>
   );
 }
