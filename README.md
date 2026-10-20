@@ -82,15 +82,20 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=
 
 No subir `.env` ni llaves privadas al repositorio.
 
+## Arquitectura y fuente de verdad
+
+Consultar [Reglas y fuentes canónicas del sistema](docs/UCAPSA_SYSTEM_SSOT.md) antes de modificar roles, socios, preinscripciones, asistencias o pagos. Seguir [principios UX](docs/UX_PRINCIPLES.md): resumen → listado → ficha → acción, una acción principal por pantalla.
+
 ## Estado
 
 La app continúa en desarrollo, pero la arquitectura crítica ya tiene guards de CI y migraciones versionadas para RLS, roles, historial, pagos, membresías, competencia, continuidad y bajas de cuenta.
 
 Antes de considerar una salida a producción todavía deben resolverse o verificarse explícitamente:
 
-- Publicar en la app una versión **real y jurídicamente aprobada** del aviso de privacidad. El sistema de versiones ya existe, pero producción no tiene una versión publicada.
+- **Aviso de privacidad:** Supabase tiene publicada la versión `1.2-appstores-2026-09-27` (comprobación de BD del 20-oct-2026). Verificar aparte aprobación jurídica de su contenido; la publicación técnica no sustituye esa revisión.
 - Activar en Supabase Auth la **protección contra contraseñas filtradas** y revisar que la política de contraseña del servidor esté alineada con la regla de cliente.
-- Ejecutar la validación final por rol en dispositivos reales: visitante, cliente, socio, admin y super_admin.
+- Ejecutar la validación operativa final por rol en dispositivos reales: visitante, cliente, socio, entrenador, admin y super_admin; comprobar flujo real de preinscripción y vinculación (0 expedientes provisionales al 20-oct-2026).
+- Completar inicio de sesión por celular como credencial de **Supabase Auth** sin confundirlo con `profiles.phone`: actualmente 0 teléfonos Auth registrados. Ver [issue #415](https://github.com/JJCO2000/ucapsa-app/issues/415).
 - Validar assets finales de icono/splash y comportamiento Android/iOS.
 - Generar builds o publicar en tiendas **sólo por instrucción explícita**; CI no debe disparar EAS Build/Update automáticamente.
 
