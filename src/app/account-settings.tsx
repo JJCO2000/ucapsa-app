@@ -7,7 +7,8 @@ import { NotificationSettingsCard } from '../components/domain/NotificationSetti
 import { KeyboardAwareModal } from '../components/ui/KeyboardAwareModal';
 import { KeyboardAwareScreen } from '../components/ui/KeyboardAwareScreen';
 import { OfflineDataNotice } from '../components/ui/OfflineDataNotice';
-import { resolveUcapsaFormat } from '../constants/ucapsaFormats';
+import { getMemberThemeFormat, memberThemeChoices, resolveUcapsaFormat } from '../constants/ucapsaFormats';
+import { useMemberAppearance } from '../hooks/useMemberAppearance';
 import { ucapsaBrand, withAlpha } from '../constants/brand';
 import { UCAPSA_ACCOUNT_DELETION_PUBLIC_URL } from '../constants/legal';
 import { phoneVerificationEnabled } from '../constants/phoneVerification';
@@ -18,7 +19,7 @@ import { deleteMyAccount, getAccountDeletionStatusLabel, getMyAccountDeletionReq
 import { requestMyEmailChange, updateMyProfile } from '../services/profiles.service';
 import { DEFAULT_WRITE_TIMEOUT_MS, friendlyWriteError, withOperationTimeout } from '../utils/async.utils';
 
-type SettingsSection = 'notifications' | 'profile' | 'delete';
+type SettingsSection = 'notifications' | 'profile' | 'appearance' | 'delete';
 
 export default function AccountSettingsScreen() {
   const { loading, user, profile, role, isAdmin, isTrainer, isStaff, signOut, refreshProfile, acceptProfile, isOfflineFallback, lastProfileSyncAt, reviewPreregistrationLink } = useSession();
@@ -35,8 +36,11 @@ export default function AccountSettingsScreen() {
   const [checkingPreregistration, setCheckingPreregistration] = useState(false);
   const [deletionRequest, setDeletionRequest] = useState<AccountDeletionRequest | null>(null);
   const [deletionLoading, setDeletionLoading] = useState(false);
+  const { memberTheme, setMemberTheme } = useMemberAppearance();
+  const [appearanceError, setAppearanceError] = useState<string | null>(null);
+  const [appearanceSaving, setAppearanceSaving] = useState(false);
 
-  const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [user, role, isAdmin]);
+  const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin, memberTheme }), [user, role, isAdmin, memberTheme]);
   const premium = Boolean(user) && format.key === 'member' && !isStaff;
   const deletionOpen = isAccountDeletionOpen(deletionRequest);
   const deletionCompleted = deletionRequest?.status === 'completed';
@@ -258,7 +262,9 @@ export default function AccountSettingsScreen() {
 
   const pageTitle = section === 'profile'
     ? (isStaff ? 'Mis datos del equipo' : 'Mis datos')
-    : section === 'notifications'
+    : section === 'appearance'
+      ? 'Colores de socio'
+      : section === 'notifications'
       ? 'Notificaciones'
       : section === 'delete'
         ? 'Eliminar cuenta'
@@ -266,7 +272,9 @@ export default function AccountSettingsScreen() {
   const pageSubtitle = section
     ? section === 'profile'
       ? 'Revisa o edita tu información de cuenta.'
-      : section === 'notifications'
+      : section === 'appearance'
+        ? 'Elige una paleta para tu experiencia de socio.'
+        : section === 'notifications'
         ? 'Elige qué recordatorios quieres recibir.'
         : 'Elimina tu cuenta y los datos asociados de forma directa.'
     : 'Elige qué quieres gestionar.';
@@ -275,7 +283,7 @@ export default function AccountSettingsScreen() {
     <KeyboardAwareScreen
       backgroundColor={format.background}
       style={{ backgroundColor: format.background }}
-      contentContainerStyle={premium ? styles.premiumContent : undefined}
+      contentContainerStyle={premium ? { backgroundColor: format.background } : undefined}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={format.accent} />}
     >
       <Header title={pageTitle} subtitle={pageSubtitle} onBack={back} premium={premium} />
@@ -302,6 +310,11 @@ export default function AccountSettingsScreen() {
               premium={premium}
               onPress={() => router.push('/dog' as never)}
             />
+          ) : null}
+          {premium ? (
+            <SettingsButton icon="palette" title="Colores de socio"
+              subtitle="Personaliza Club UCAPSA en este dispositivo."
+              premium={premium} onPress={() => openSection('appearance')} />
           ) : null}
           <SettingsButton
             icon="notifications-none"
@@ -342,6 +355,38 @@ export default function AccountSettingsScreen() {
         </View>
       ) : null}
 
+      {section === 'appearance' && premium ? (
+        <View style={[styles.sectionCard, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
+          <Text style={[styles.sectionTitle, { color: format.cardText }]}>Elige tus colores</Text>
+          <Text style={[styles.sectionIntro, { color: format.muted }]}>Solo cambia el aspecto visual, no tu membresía. Puedes volver al estilo clásico.</Text>
+          {memberThemeChoices.map((option) => {
+            const preview = getMemberThemeFormat(option.key);
+            const selected = memberTheme === option.key;
+            return (
+              <Pressable key={option.key} accessibilityRole="radio"
+                accessibilityState={{ selected, disabled: appearanceSaving }}
+                accessibilityLabel={option.label} disabled={appearanceSaving}
+                onPress={() => {
+                  setAppearanceError(null);
+                  setAppearanceSaving(true);
+                  void setMemberTheme(option.key)
+                    .catch(() => setAppearanceError('No se pudo guardar la paleta. Intenta de nuevo.'))
+                    .finally(() => setAppearanceSaving(false));
+                }}
+                style={[styles.appearanceOption, { backgroundColor: preview.cardBackground, borderColor: selected ? preview.accentDark : preview.cardBorder }]}>
+                <View style={[styles.appearanceDot, { backgroundColor: preview.accentDark }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingsTitle, { color: preview.cardText }]}>{option.label}</Text>
+                  <Text style={[styles.settingsSubtitle, { color: preview.muted }]}>Vista previa</Text>
+                </View>
+                <MaterialIcons name={selected ? 'radio-button-checked' : 'radio-button-unchecked'} size={24} color={preview.accentDark} />
+              </Pressable>
+            );
+          })}
+          {appearanceError ? <Text accessibilityRole="alert" style={styles.appearanceError}>{appearanceError}</Text> : null}
+          <Text style={[styles.settingsSubtitle, { color: format.muted }]}>Se guarda para esta cuenta en este dispositivo. No cambia los colores de otros socios.</Text>
+        </View>
+      ) : null}
       {section === 'profile' ? (
         <View style={[styles.sectionCard, premium && styles.premiumCard]}>
           <View style={styles.sectionHeaderRow}>
@@ -492,6 +537,7 @@ export default function AccountSettingsScreen() {
 
 function normalizeSection(value: string | undefined, isAdmin: boolean, isTrainer: boolean): SettingsSection | null {
   if (value === 'profile' || value === 'notifications') return value;
+  if (value === 'appearance' && !isAdmin && !isTrainer) return value;
   if (value === 'delete' && !isAdmin && !isTrainer) return value;
   return null;
 }
@@ -562,6 +608,9 @@ const styles = StyleSheet.create({
   modalTitle: { color: ucapsaBrand.colors.text, fontSize: 21, fontWeight: '900' },
   label: { color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '900', marginTop: 3 },
   input: { borderRadius: 15, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 13, paddingVertical: 11, color: ucapsaBrand.colors.text, fontSize: 15 },
+  appearanceOption: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 2, borderRadius: 18, padding: 12 },
+  appearanceDot: { width: 32, height: 32, borderRadius: 16 },
+  appearanceError: { color: ucapsaBrand.colors.danger, fontSize: 13, fontWeight: '800' },
   colorRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap', marginVertical: 5 },
   colorDot: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: ucapsaBrand.colors.surface },
   colorDotActive: { borderColor: ucapsaBrand.colors.cameraDark, transform: [{ scale: 1.08 }] },
