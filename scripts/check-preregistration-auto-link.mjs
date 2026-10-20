@@ -269,6 +269,6 @@ for (const token of [
   "showFeedback('No se pudo actualizar'",
   "accessibilityRole={feedback.kind === 'error' ? 'alert' : 'text'}",
 ]) assert.ok(preregDetailFeedback.includes(token), 'Falta feedback web para ficha de preinscripción: '+token);
-assert.equal((preregDetailFeedback.match(/Alert\\.alert/g) ?? []).length, 1,
+assert.equal((preregDetailFeedback.match(/Alert\.alert/g) ?? []).length, 1,
   'Toda alerta de detalle de preinscripción debe pasar por showFeedback web/nativo');
 console.log('UCAPSA preinscripción Admin feedback web/nativo: PASS');
