@@ -1,4 +1,7 @@
 import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import ts from 'typescript';
 
 const service = fs.readFileSync('src/services/auth.service.ts', 'utf8');
 const register = fs.readFileSync('src/app/auth/register.tsx', 'utf8');
@@ -98,3 +101,34 @@ if (!pkg.includes('"check:auth-boundary"')) {
 }
 
 console.log('UCAPSA auth boundary + client password policy: PASS');
+
+// Mexican national phone login guard: normalization never verifies ownership.
+const phoneModule = { exports: {} };
+const phoneCode = ts.transpileModule(
+  fs.readFileSync('src/utils/phone-contact.ts', 'utf8'),
+  { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
+).outputText;
+vm.runInNewContext(phoneCode, { module: phoneModule, exports: phoneModule.exports });
+const normalizeContactPhone = phoneModule.exports.normalizeContactPhone;
+for (const [raw, expected] of [
+  ['5535100214', '+525535100214'],
+  ['55 35 100 214', '+525535100214'],
+  ['52 55 35 100 214', '+525535100214'],
+  ['+52 (55) 3510-0214', '+525535100214'],
+  ['+34911222333', '+34911222333'],
+]) assert.equal(normalizeContactPhone(raw), expected);
+for (const invalid of ['123', 'abc', '+0012345678', '12345678901234567']) {
+  assert.throws(() => normalizeContactPhone(invalid));
+}
+assert.ok(service.includes('normalizeContactPhone(value)'), 'Phone login must use the normalizer.');
+assert.ok(service.includes('supabase.auth.signInWithPassword({ phone, password })'),
+  'Phone login must still use Supabase Auth, not profile lookup.');
+const staged = fs.readFileSync('src/services/dog-preregistration.service.ts', 'utf8');
+assert.ok(staged.includes('normalizeContactPhone(input.ownerPhone)'),
+  'Admin preregistration must persist canonical phone contact.');
+const settings = fs.readFileSync('src/app/account-settings.tsx', 'utf8');
+assert.ok(settings.includes('Correo de acceso (Supabase)')
+  && settings.includes('Teléfono de contacto (no es acceso)')
+  && settings.includes('no habilita el acceso por ese correo'),
+  'Contact email and phone must never be advertised as login credentials.');
+console.log('UCAPSA auth Mexican national phone formatting and credential separation: PASS');
