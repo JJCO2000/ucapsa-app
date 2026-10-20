@@ -132,6 +132,9 @@ export default function AccountSettingsScreen() {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPhone = phone.trim();
+    const contactChanged = normalizedPhone !== (profile?.phone ?? '').trim()
+      || normalizedEmail !== (user.email ?? '').trim().toLowerCase();
     if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       Alert.alert('Correo inválido', 'Escribe un correo válido antes de guardar.');
       return;
@@ -156,7 +159,9 @@ export default function AccountSettingsScreen() {
       if (emailChange?.confirmationRequired) {
         Alert.alert('Confirma tu nuevo correo', `Enviamos la confirmación a ${emailChange.requestedEmail}. El cambio se reflejará al confirmarlo.`);
       } else {
-        Alert.alert('Datos guardados', 'Tu información se actualizó correctamente.');
+        Alert.alert('Datos guardados', contactChanged && preregistrationEnabled
+          ? 'Tu contacto se actualizó. UCAPSA buscará preinscripciones coincidentes; te avisará si vincula tu primer expediente o si necesita autorización.'
+          : 'Tu información se actualizó correctamente.');
       }
     } catch (error) {
       Alert.alert('No se pudo guardar', friendlyWriteError(error));
