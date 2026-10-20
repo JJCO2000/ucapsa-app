@@ -62,3 +62,6 @@ ucapsa-*package*/
 ucapsa-*shell*/
 supabase/.temp/
 *.log
+
+# Local static output used only by private GitHub Codespaces
+/dist-github-preview/
