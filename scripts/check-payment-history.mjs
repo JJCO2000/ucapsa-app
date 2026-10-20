@@ -124,3 +124,21 @@ if (!pkg.includes('"check:payment-history"')) {
 }
 
 console.log('UCAPSA payment void workflow + effective balances + UI: PASS');
+
+
+// No declarar deuda por una membresía con payment_status='pending':
+// solo obligaciones oficiales con saldo representan pagos por revisar.
+const adminHome = fs.readFileSync('src/app/(tabs)/admin-home.tsx','utf8');
+if (!adminHome.includes('paymentAttention: paymentAttentionRows.length')) {
+  throw new Error('Admin Home must count only users with outstanding payment obligations.');
+}
+if (/membership\.current_payment_status\s*===\s*['"]pending['"]/.test(adminHome)
+  || /attentionUsers\.add\(row\.membership\.user_id\)/.test(adminHome)) {
+  throw new Error('Admin Home is treating membership state as proof of debt.');
+}
+if (!adminService.includes("from('payment_obligations')")
+  || !adminService.includes("is('cancelled_at', null)")
+  || !adminService.includes('balance <= 0.005')) {
+  throw new Error('Admin payment attention must be grounded in official unpaid obligations.');
+}
+console.log('UCAPSA Admin Home payment attention SSOT (real balance only): PASS');

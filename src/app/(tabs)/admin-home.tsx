@@ -183,15 +183,13 @@ export default function AdminHomeTab() {
       'admin-home-load',
     );
 
-    const attentionUsers = new Set(paymentAttentionRows.map((row) => row.userId));
-    for (const row of memberships) {
-      if (row.membership.current_payment_status === 'pending') attentionUsers.add(row.membership.user_id);
-    }
+    // La condición de Socio y la deuda acreditada son fuentes distintas.
+    // Únicamente una obligación vigente con saldo real requiere revisión de pago.
 
     setInterestRequestsUnavailable(programInterests === null);
     setStats({
       pendingRequests: memberships.filter((item) => item.membership.status === 'pending').length,
-      paymentAttention: attentionUsers.size,
+      paymentAttention: paymentAttentionRows.length,
       trainingDecisions: trainingDecisions.length,
       clientFollowups: clientFollowups.length,
       programInterests: programInterests?.length ?? 0,
