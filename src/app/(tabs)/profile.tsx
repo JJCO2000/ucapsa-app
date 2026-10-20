@@ -7,12 +7,14 @@ import { SocialLinksRow } from '../../components/ui/SocialLinksRow';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
+import { useMemberAppearance } from '../../hooks/useMemberAppearance';
 
 const wordmark = require('../../../assets/images/brand/ucapsa-wordmark.png');
 
 export default function ProfileScreen() {
   const { loading, user, profile, role, isAdmin } = useSession();
-  const format = resolveUcapsaFormat({ user, role, isAdmin });
+  const { memberTheme } = useMemberAppearance();
+  const format = resolveUcapsaFormat({ user, role, isAdmin, memberTheme });
   const premium = Boolean(user) && format.key === 'member';
 
   if (loading) {
@@ -36,20 +38,20 @@ export default function ProfileScreen() {
         style={{ backgroundColor: format.background }}
         contentContainerStyle={styles.clientContent}
       >
-        <View style={[styles.profileHero, premium && styles.profileHeroPremium, { borderColor: format.cardBorder }]}>
+        <View style={[styles.profileHero, premium && styles.profileHeroPremium, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
           <View style={[styles.avatar, { backgroundColor: profile?.avatar_color || format.accent }]}>
             <Text style={styles.avatarText}>{initial}</Text>
           </View>
           <View style={styles.profileHeroCopy}>
-            <Text style={[styles.eyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>TU CUENTA UCAPSA</Text>
+            <Text style={[styles.eyebrow, { color: format.accentDark }]}>TU CUENTA UCAPSA</Text>
             <Text numberOfLines={1} style={[styles.clientTitle, { color: format.cardText }]}>{displayName}</Text>
-            <Text style={[styles.clientSubtitle, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
+            <Text style={[styles.clientSubtitle, { color: format.muted }]}>
               Perfil, perros, pagos, notificaciones y accesos en un solo lugar.
             </Text>
           </View>
         </View>
 
-        <Text style={[styles.sectionTitle, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Perfil y cuenta</Text>
+        <Text style={[styles.sectionTitle, { color: format.accentDark }]}>Perfil y cuenta</Text>
         <HubRow
           icon="person"
           title="Mis datos"
@@ -67,7 +69,7 @@ export default function ProfileScreen() {
           onPress={() => router.push('/dog?from=profile' as never)}
         />
 
-        <Text style={[styles.sectionTitle, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Mi progreso</Text>
+        <Text style={[styles.sectionTitle, { color: format.accentDark }]}>Mi progreso</Text>
         <HubRow
           icon="emoji-events"
           title="Mis logros"
@@ -85,7 +87,7 @@ export default function ProfileScreen() {
           onPress={() => router.push('/client/activity-achievements?from=profile' as never)}
         />
 
-        <Text style={[styles.sectionTitle, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Cuenta y servicios</Text>
+        <Text style={[styles.sectionTitle, { color: format.accentDark }]}>Cuenta y servicios</Text>
         <HubRow
           icon="account-balance-wallet"
           title="Pagos"
@@ -192,14 +194,14 @@ function HubRow({
         pressed && styles.pressed,
       ]}
     >
-      <View style={[styles.hubIcon, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft }]}>
-        <MaterialIcons name={icon} size={22} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+      <View style={[styles.hubIcon, { backgroundColor: format.accentSoft }]}>
+        <MaterialIcons name={icon} size={22} color={format.accentDark} />
       </View>
       <View style={styles.hubCopy}>
         <Text style={[styles.hubTitle, { color: format.cardText }]}>{title}</Text>
-        <Text style={[styles.hubSubtitle, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{subtitle}</Text>
+        <Text style={[styles.hubSubtitle, { color: format.muted }]}>{subtitle}</Text>
       </View>
-      <MaterialIcons name="chevron-right" size={23} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
+      <MaterialIcons name="chevron-right" size={23} color={format.accentDark} />
     </Pressable>
   );
 }

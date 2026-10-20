@@ -12,6 +12,7 @@ import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { useReturnToProfile } from '../../hooks/useReturnToProfile';
 import { useSession } from '../../hooks/useSession';
+import { useMemberAppearance } from '../../hooks/useMemberAppearance';
 import { devWarn } from '../../lib/client-diagnostics';
 import { getMembershipEffectiveStatus, getMembershipStatusLabel, getMyMembership, getMyMembershipEligibility, requestMembership, type MembershipEligibility } from '../../services/memberships.service';
 import { clientReadKeys, createMembershipOfflineSummary, readClientResource, sanitizeProgramRowsForCache, writeClientResource, type MembershipOfflineSummary } from '../../services/client-read-cache.service';
@@ -173,7 +174,8 @@ export default function ClientMembershipScreen() {
       : effectiveMembershipStatus === 'expired'
         ? 'expired'
         : membershipStatus;
-  const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin, membershipStatus: membershipFormatStatus, hasActivePrograms: programs.some((item) => item.enrollment.status === 'active') }), [isAdmin, membershipFormatStatus, programs, role, user]);
+  const { memberTheme } = useMemberAppearance();
+  const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin, membershipStatus: membershipFormatStatus, hasActivePrograms: programs.some((item) => item.enrollment.status === 'active'), memberTheme }), [isAdmin, memberTheme, membershipFormatStatus, programs, role, user]);
   const premium = format.key === 'member';
 
   if (!user) return <Redirect href="/auth/login" />;
@@ -196,7 +198,7 @@ export default function ClientMembershipScreen() {
     <KeyboardAwareScreen
       backgroundColor={format.background}
       style={{ backgroundColor: format.background }}
-      contentContainerStyle={[styles.screenContent, premium && styles.premiumContent]}
+      contentContainerStyle={[styles.screenContent, premium && styles.premiumContent, { backgroundColor: format.background }]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={format.accent} />}
     >
       <UcapsaAmbientBackground format={format} variant="services" />
@@ -246,8 +248,8 @@ export default function ClientMembershipScreen() {
 
       {pending ? (
         <View style={[styles.noticeCard, premium && styles.noticeCardPremium]}>
-          <Text style={[styles.cardTitle, { color: premium ? ucapsaBrand.colors.premiumText : format.text }]}>Solicitud pendiente</Text>
-          <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Administracion esta revisando tu solicitud. La credencial aparecera aqui cuando sea aprobada.</Text>
+          <Text style={[styles.cardTitle, { color: format.text }]}>Solicitud pendiente</Text>
+          <Text style={[styles.muted, { color: format.muted }]}>Administracion esta revisando tu solicitud. La credencial aparecera aqui cuando sea aprobada.</Text>
         </View>
       ) : null}
 
@@ -267,7 +269,7 @@ export default function ClientMembershipScreen() {
 
       {active && membership && membershipFresh ? (
         <>
-          <MemberCredentialCard membership={membership} profile={profile} displayName={displayName} />
+          <MemberCredentialCard membership={membership} profile={profile} displayName={displayName} format={format} />
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Registrar visita de socio"
