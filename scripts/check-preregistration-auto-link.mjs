@@ -171,7 +171,7 @@ for (const [label, passed] of [
   ['Rejects duplicate contact across provisional records', completeSql.includes('p.id <> v_person.id')],
   ['Rejects already-claimed contact', completeSql.includes('ucapsa_intake.claimed_contacts')],
   ['Atomic audit', completeSql.includes("'preregistration.contact_completed'")],
-  ['No writes to program or attendance tables', !/\\b(update|insert into|delete from)\\s+(public\\.(dogs|programs|memberships)|ucapsa_intake\\.(dogs|programs|attendance_evidence))/i.test(completeSql)],
+  ['No writes to program or attendance tables', !/\b(update|insert into|delete from)\s+(public\.(dogs|programs|memberships)|ucapsa_intake\.(dogs|programs|attendance_evidence))/i.test(completeSql)],
   ['Client uses authenticated Admin RPC', directoryService.includes("rpc('admin_complete_preregistration_contact'")],
   ['UI exposes action on pending contacts only', directoryUi.includes("record.status === 'pending' && (!record.ownerEmail || !record.ownerPhone)")],
   ['UI only submits currently missing fields', directoryUi.includes("record.ownerEmail ? '' : newEmail")],
