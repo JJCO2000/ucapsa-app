@@ -10,10 +10,15 @@ const js = ts.transpileModule(raw, {
 }).outputText;
 const module = { exports: {} };
 const fflate = await import('fflate');
+const downloadCalls = [];
 function mockRequire(name) {
   if (name === 'fflate') return fflate;
-  if (name === 'expo-file-system') return { File: class File {}, Paths: {} };
-  if (name === 'expo-sharing') return {};
+  if (name === './training-report-download') return {
+    downloadTrainingReport: async (bytes, fileName) => {
+      downloadCalls.push({ bytes, fileName });
+      return 'downloaded:' + fileName;
+    },
+  };
   if (name === '../lib/supabase') return { supabase: {} };
   throw new Error('Dependencia inesperada: ' + name);
 }
@@ -71,3 +76,12 @@ function xmlOf(bytes) { return strFromU8(unzipSync(bytes)['xl/worksheets/sheet1.
 assert.ok(onlyA.includes('Luna') && !onlyA.includes('Rocky'), 'El filtro por perro usa UUID');
 assert.throws(()=>module.exports.buildStaffExamWorkbookBytes(rows,['dogD']), /No hay resultados oficiales/);
 console.log('UCAPSA matriz cruzada, promedio dinámico, reintentos, perros homónimos y selección: PASS');
+
+const downloaded = await module.exports.exportStaffExamReportXlsx(rows, 'EX1', ['dogA']);
+assert.equal(downloaded, 'downloaded:UCAPSA_comparativo_EX1.xlsx');
+assert.equal(downloadCalls.length, 1, 'Un solo descargador para escritorio y móvil');
+assert.equal(downloadCalls[0].fileName, 'UCAPSA_comparativo_EX1.xlsx');
+const downloadXml = strFromU8(unzipSync(downloadCalls[0].bytes)['xl/worksheets/sheet1.xml']);
+assert.ok(downloadXml.includes('Luna') && !downloadXml.includes('Rocky'),
+  'La descarga debe respetar exactamente la selección oficial de perros');
+console.log('UCAPSA Excel exámenes usa el descargador multiplataforma SSOT: PASS');

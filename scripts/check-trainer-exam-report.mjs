@@ -4,6 +4,8 @@ const read = (path) => fs.readFileSync(path,'utf8');
 const source = read('supabase/sql/ucapsa-staff-exam-report.sql');
 const migration = read('supabase/migrations/20261018193000_staff_exam_report.sql');
 const service = read('src/services/exam-report-export.service.ts');
+const nativeDownload = read('src/services/training-report-download.ts');
+const webDownload = read('src/services/training-report-download.web.ts');
 const screen = read('src/app/staff/exam-report.tsx');
 const catalog = read('src/app/(tabs)/trainer-exams.tsx');
 const types = read('src/types/database.generated.ts');
@@ -50,3 +52,13 @@ assert.ok(types.includes('get_staff_exam_report:'), 'Faltan tipos de RPC');
 assert.ok(!screen.includes('Rango máximo: 366 días'), 'No conservar filtros innecesarios');
 assert.ok(!service.includes('p_start_date:'), 'No mezclar varios exámenes por periodo');
 console.log('UCAPSA Excel de exámenes: permisos por perro, SSOT y calificaciones verificadas: PASS');
+
+assert.ok(service.includes("import { downloadTrainingReport } from './training-report-download';"),
+  'Excel exámenes no reutiliza el descargador SSOT compartido');
+assert.ok(service.includes('return downloadTrainingReport(buildStaffExamWorkbookBytes(rows, selectedDogIds), name)'),
+  'El Excel de exámenes no entrega el libro por canal multiplataforma');
+assert.ok(!/expo-file-system|expo-sharing/.test(service),
+  'El generador de exámenes no debe importar librerías nativas de exportación');
+assert.ok(nativeDownload.includes('Sharing.shareAsync') && webDownload.includes('URL.createObjectURL'),
+  'Falta una de las entregas oficiales por plataforma');
+console.log('UCAPSA Excel exámenes con entrega nativa/web SSOT: PASS');
