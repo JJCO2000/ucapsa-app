@@ -3,6 +3,7 @@ import { Redirect, router } from 'expo-router';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
+import { ContextualHelpTip } from '../../components/ui/ContextualHelpTip';
 import { SocialLinksRow } from '../../components/ui/SocialLinksRow';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
@@ -51,6 +52,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        <ContextualHelpTip tab="profile" userId={user.id} format={format} />
         <Text style={[styles.sectionTitle, { color: format.accentDark }]}>Perfil y cuenta</Text>
         <HubRow
           icon="person"
@@ -115,7 +117,7 @@ export default function ProfileScreen() {
         <HubRow
         icon="help-outline"
         title="Cómo usar UCAPSA"
-        subtitle="Guía rápida de clases, calendario y restaurante."
+        subtitle="Consejos por pestaña y acciones útiles."
         premium={premium}
         format={format}
         onPress={() => router.push('/client/quick-help' as never)}
