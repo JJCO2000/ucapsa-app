@@ -15,6 +15,8 @@ const guard = fs.readFileSync('scripts/ensure-production-aab-version.mjs', 'utf8
 const verified = fs.readFileSync('scripts/verify-production-aab-version.mjs', 'utf8');
 for (const token of [
   'npm run verify:release',
+  'node scripts/check-expo-validated-deps.mjs',
+  'EXPO_DOCTOR_SKIP_DEPENDENCY_VERSION_CHECK=1 npx --yes expo-doctor@1.20.4',
   'npm run audit:critical',
   'node scripts/ensure-production-aab-version.mjs',
   'eas build --platform android --profile production --non-interactive --wait',
@@ -24,6 +26,9 @@ for (const token of [
 ]) {
   assert.ok(workflow.includes(token), `Missing production AAB guard: ${token}`);
 }
+assert.ok(workflow.indexOf('node scripts/check-expo-validated-deps.mjs') < workflow.indexOf('EXPO_DOCTOR_SKIP_DEPENDENCY_VERSION_CHECK=1 npx --yes expo-doctor@1.20.4'),
+  'Production must validate the fixed Expo lockfile baseline before pinning Doctor');
+assert.ok(workflow.indexOf('EXPO_DOCTOR_SKIP_DEPENDENCY_VERSION_CHECK=1 npx --yes expo-doctor@1.20.4') < workflow.indexOf('eas build --platform android'));
 assert.ok(workflow.indexOf('node scripts/ensure-production-aab-version.mjs') < workflow.indexOf('eas build --platform android'));
 assert.ok(workflow.indexOf('eas build --platform android') < workflow.indexOf('node scripts/verify-production-aab-version.mjs'));
 assert.ok(guard.includes('latestAppVersionByPlatformAndApplicationIdentifier'));
