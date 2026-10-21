@@ -602,9 +602,14 @@ function Header({ title, subtitle, onBack, premium, format }: { title: string; s
 }
 
 function SettingsButton({ icon, title, subtitle, onPress, premium, badge, danger = false, format }: { icon: keyof typeof MaterialIcons.glyphMap; title: string; subtitle: string; onPress: () => void; premium: boolean; badge?: string; danger?: boolean; format: UcapsaFormat }) {
+  const tone = icon === 'person' ? { soft: ucapsaBrand.colors.blueSoft, text: ucapsaBrand.colors.blueDark }
+    : icon === 'pets' ? { soft: ucapsaBrand.colors.greenSoft, text: ucapsaBrand.colors.greenDark }
+    : icon === 'palette' ? { soft: ucapsaBrand.colors.purpleSoft, text: ucapsaBrand.colors.purpleDark }
+    : icon === 'notifications-none' ? { soft: ucapsaBrand.colors.goldPale, text: ucapsaBrand.colors.goldDark }
+    : { soft: format.accentSoft, text: format.accentDark };
   return (
     <Pressable accessibilityRole="button" style={[styles.settingsButton, premium && styles.premiumCard, premium && { backgroundColor: format.cardBackground, borderColor: format.cardBorder }, danger && styles.dangerSettingsButton]} onPress={onPress}>
-      <View style={[styles.settingsIcon, premium && styles.premiumSmallButton, premium && { backgroundColor: format.accentSoft, borderColor: format.cardBorder }, danger && styles.dangerIcon]}><MaterialIcons name={icon} size={23} color={premium ? format.accentDark : danger ? ucapsaBrand.colors.red : ucapsaBrand.colors.redDark} /></View>
+      <View style={[styles.settingsIcon, premium && styles.premiumSmallButton, { backgroundColor: danger ? ucapsaBrand.colors.dangerSoft : tone.soft, borderColor: format.cardBorder }, danger && styles.dangerIcon]}><MaterialIcons name={icon} size={23} color={danger ? ucapsaBrand.colors.danger : tone.text} /></View>
       <View style={{ flex: 1 }}><View style={styles.settingsTitleRow}><Text style={[styles.settingsTitle, premium && styles.premiumTitle, premium && { color: format.cardText }, danger && styles.dangerTitle]}>{title}</Text>{badge ? <Text style={[styles.badge, premium && styles.premiumPill]}>{badge}</Text> : null}</View><Text style={[styles.settingsSubtitle, premium && styles.premiumText, premium && { color: format.muted }]}>{subtitle}</Text></View>
       <MaterialIcons name="chevron-right" size={26} color={premium ? format.accentDark : danger ? ucapsaBrand.colors.red : ucapsaBrand.colors.redDark} />
     </Pressable>
