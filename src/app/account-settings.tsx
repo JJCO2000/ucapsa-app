@@ -578,7 +578,7 @@ export default function AccountSettingsScreen() {
               placeholderTextColor={premium ? ucapsaBrand.colors.redBorder : ucapsaBrand.colors.gray}
               style={[styles.input, premium && styles.premiumInput]} />
             <Text style={[styles.muted, premium && styles.premiumText]}>
-              Este correo ayuda a encontrar registros anteriores. No cambia el correo con el que inicias sesión.
+              Este correo ayuda a encontrar registros anteriores. No verificamos que sea tuyo y no sirve para iniciar sesión.
             </Text>
           </>
         ) : null}
