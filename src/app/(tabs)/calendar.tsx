@@ -744,7 +744,7 @@ export default function CalendarScreen() {
                   { label: 'Puppy', color: ucapsaBrand.colors.gold },
                   { label: 'Comandos', color: ucapsaBrand.colors.blue },
                   { label: 'Otras actividades', color: ucapsaBrand.colors.red },
-                  { label: 'Noticia (color elegible)', color: ucapsaColorKeyPalette[announcementColorsByDate[selectedDate] ?? 'gray'].accent },
+                  { label: 'Avisos', color: ucapsaColorKeyPalette[announcementColorsByDate[selectedDate] ?? 'gray'].accent },
                 ]).map((item) => (
                   <View key={item.label} style={styles.ringLegendItem}>
                     <View style={[styles.ringLegendCircle, { borderColor: item.color }]} />
@@ -752,9 +752,6 @@ export default function CalendarScreen() {
                   </View>
                 ))}
               </View>
-              <Text style={[styles.calendarHint, { color: format.muted }]}>
-                El anillo se reparte por partes iguales entre servicios y noticias. El color de la noticia lo define Administración.
-              </Text>
               {calendarDataIncomplete ? (
                 <View style={styles.calendarDataWarning}>
                   <MaterialIcons name="cloud-off" size={16} color={ucapsaBrand.colors.warning} />
