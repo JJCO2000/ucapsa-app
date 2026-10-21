@@ -7,6 +7,7 @@ import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { preregistrationEnabled } from '../../constants/preregistrationFeature';
 import { useSession } from '../../hooks/useSession';
+import { devWarn } from '../../lib/client-diagnostics';
 import { staffPreregisterDogWithProgram } from '../../services/dog-preregistration.service';
 import { normalizeContactPhone } from '../../utils/phone-contact';
 
@@ -47,7 +48,11 @@ export default function StaffPreregisterDogScreen() {
     }
     if (ownerPhone.trim()) {
       try { normalizeContactPhone(ownerPhone); }
-      catch (error) { fail(error instanceof Error ? error.message : 'Celular inválido.'); return; }
+      catch (error) {
+        devWarn('staff-preregister-dog: invalid phone entry.', error);
+        fail(error instanceof Error ? error.message : 'Celular inválido.');
+        return;
+      }
     }
     try {
       setSaving(true);
@@ -66,6 +71,7 @@ export default function StaffPreregisterDogScreen() {
         ]);
       }
     } catch (error) {
+      devWarn('staff-preregister-dog: failed to save preregistration.', error);
       fail(error instanceof Error ? error.message : 'Revisa los datos e inténtalo de nuevo.');
     } finally {
       setSaving(false);
