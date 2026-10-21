@@ -16,6 +16,7 @@ export type AdminProgramInterestRequest = InterestRow & {
   customerName: string;
   dogName: string;
   customerPhone: string | null;
+  customerEmail: string | null;
 };
 
 export async function getMyProgramInterestRequests(userId: string): Promise<ProgramInterestRequest[]> {
@@ -53,7 +54,7 @@ export async function getAdminProgramInterestRequests(): Promise<AdminProgramInt
   const ownerIds = [...new Set(records.map((row) => row.user_id))];
   const dogIds = [...new Set(records.map((row) => row.dog_id))];
   const [owners, dogs] = await Promise.all([
-    supabase.from('profiles').select('user_id,full_name,phone').in('user_id', ownerIds),
+    supabase.from('profiles').select('user_id,full_name,phone,email').in('user_id', ownerIds),
     supabase.from('dogs').select('id,name').in('id', dogIds),
   ]);
   if (owners.error) throw owners.error;
@@ -64,6 +65,7 @@ export async function getAdminProgramInterestRequests(): Promise<AdminProgramInt
     ...row,
     customerName: byOwner.get(row.user_id)?.full_name || 'Cliente UCAPSA',
     customerPhone: byOwner.get(row.user_id)?.phone ?? null,
+    customerEmail: byOwner.get(row.user_id)?.email ?? null,
     dogName: byDog.get(row.dog_id)?.name || 'Perro',
   })));
 }
