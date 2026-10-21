@@ -42,11 +42,11 @@ for (const [label, contents, needles] of [
     'set_program_interest_updated_at', 'new.updated_at := clock_timestamp()',
     'on delete cascade',
   ]],
-  ['Servicio acotado', service, ['sortProgramInterestsByAttention', 'requestProgramInterest', 'getMyProgramInterestRequests',
+  ['Servicio acotado', service, ['sortProgramInterestsByAttention', 'requestProgramInterest', 'customerEmail', 'getMyProgramInterestRequests',
     'getAdminProgramInterestRequests', 'updateAdminProgramInterestRequest', "error?.code === '23505'", "['pending', 'contacted']"]],
   ['Cliente + alternativa', client, ['Promise.allSettled', 'Contactar a UCAPSA por WhatsApp',
-    'no crea automáticamente un registro administrativo', 'alreadyEnrolled', 'current', 'requestProgramInterest']],
-  ['Admin', admin, ['changeStatus', 'Cerrar seguimiento', 'Abrir cliente']],
+    'Me interesa, quiero que me contacten', 'el mensaje por sí solo no registra la solicitud', 'alreadyEnrolled', 'current', 'requestProgramInterest']],
+  ['Admin', admin, ['changeStatus', 'Cerrar seguimiento', 'Abrir cliente', "Linking.openURL", "'tel:'", "'mailto:'"]],
   ['Inicio admin', home, ['interestRequestsUnavailable', 'Solicitudes de entrenamiento sin verificar',
     'programInterests?.length ?? 0', '!interestRequestsUnavailable']],
   ['Clases', classes, ["'/client/program-interest?program=puppy'", "'/client/program-interest?program=comandos'"]],
@@ -73,6 +73,9 @@ assert.match(schema, /new\.status <> 'closed'/);
 assert.match(client, /disabled=\{loading \|\| Boolean\(error\)/);
 assert.ok(client.includes('contactWhatsapp(true)'), 'La confirmación de WhatsApp debe conservar el registro recién guardado.');
 assert.ok(client.includes('confirmedRecord || saved || current'), 'No usar el estado React obsoleto tras guardar.');
+assert.ok(client.includes('(Boolean(current) || saved || Boolean(error))'), 'WhatsApp debe ser alternativo tras captar el interés o cuando el registro falle.');
+assert.ok(client.includes('No es una inscripción.'), 'No confundir intención con inscripción real.');
+assert.ok(!client.includes('Enviar solicitud</Text>'), 'El llamado a la acción debe expresar intención de contacto.');
 assert.ok(!client.includes('Tu solicitud registrada permanece disponible en Administración.'), 'WhatsApp no puede afirmar un registro sin verificar.');
 assert.ok(admin.includes('setRequests((current) => status'), 'Un cambio administrativo confirmado debe actualizar la UI sin depender de red.');
 assert.ok(!admin.includes('La solicitud no se ha modificado.'), 'No afirmar fallo definitivo ante timeout o problema de recarga.');
