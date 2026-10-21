@@ -288,3 +288,26 @@ if (!helpStorage.includes("'ucapsa-tab-help-v1:' + userId + ':' + tab") ||
   throw new Error('La preferencia de cada guía debe persistir por cuenta y pestaña.');
 }
 if (!helpPage.includes('clientHelpGuides.map')) throw new Error('Ayuda y pestañas sin fuente única.');
+
+const clientLayout = read('src/app/client/_layout.tsx');
+if (!calendar.includes('key={visibleMonth}') ||
+    !calendar.includes("current={visibleMonth + '-01'}") ||
+    !calendar.includes('if (nextMonth === visibleMonth) return;') ||
+    !calendar.includes('setSelectedDate(today);') ||
+    !calendar.includes('setVisibleMonth(today.slice(0, 7));') ||
+    !calendar.includes('calendarScrollRef.current?.scrollTo({')) {
+  throw new Error('Agenda: Hoy debe regresar al mes y día locales sin perder sincronización.');
+}
+if (!calendar.includes('!isStaff && user ? <ContextualHelpTip') ||
+    !contextualHelp.includes("role === 'client' || role === 'member'") ||
+    !contextualHelp.includes('!loading && user?.id === userId') ||
+    !helpPage.includes('if (isTrainer) return <Redirect href="/trainer-home" />;') ||
+    !helpPage.includes('if (isAdmin) return <Redirect href="/admin-home" />;') ||
+    !helpPage.includes("if (role !== 'client' && role !== 'member')")) {
+  throw new Error('El tutorial no debe mostrarse a Superadmin, Admin ni Entrenador.');
+}
+if (!helpStorage.includes("tabHelpKey(userId, tab)") ||
+    !helpStorage.includes('AsyncStorage.getItem') ||
+    !helpStorage.includes('AsyncStorage.setItem')) {
+  throw new Error('Marca local por cuenta y pestaña inválida.');
+}
