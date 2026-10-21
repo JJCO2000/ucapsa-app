@@ -6,6 +6,7 @@ import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native'
 import { TrainingAttendanceStamps } from '../../components/domain/TrainingAttendanceStamps';
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
+import { ContextualHelpTip } from '../../components/ui/ContextualHelpTip';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { ucapsaBrand } from '../../constants/brand';
@@ -158,6 +159,7 @@ export default function ClassesTab() {
     >
       <UcapsaAmbientBackground format={format} variant="classes" />
       <CompactClassesHeader premium={premium} format={format} />
+      <ContextualHelpTip tab="classes" userId={user.id} format={format} />
 
       {usingSavedData ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} label="Mostrando clases guardadas" /> : null}
 
