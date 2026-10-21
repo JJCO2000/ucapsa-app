@@ -9,9 +9,12 @@ import { useSession } from '../../hooks/useSession';
 import { markQuickHelpSeen } from '../../services/quick-help.service';
 
 export default function QuickHelpScreen() {
-  const { user, isAdmin } = useSession();
+  const { loading, user, role, isAdmin, isTrainer } = useSession();
+  if (loading) return <KeyboardAwareScreen><Text>Preparando guía…</Text></KeyboardAwareScreen>;
   if (!user) return <Redirect href="/auth/login" />;
   if (isAdmin) return <Redirect href="/admin-home" />;
+  if (isTrainer) return <Redirect href="/trainer-home" />;
+  if (role !== 'client' && role !== 'member') return <Redirect href="/home" />;
 
   function go(route?: string) {
     void markQuickHelpSeen(user!.id);
