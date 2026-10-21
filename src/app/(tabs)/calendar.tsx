@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { devWarn } from '../../lib/client-diagnostics';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
+import { ContextualHelpTip } from '../../components/ui/ContextualHelpTip';
 import { CalendarActivityRing } from '../../components/calendar/CalendarActivityRing';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
@@ -639,6 +640,7 @@ export default function CalendarScreen() {
             <Text style={[styles.noticeShortcutText, { color: format.accentDark }]}>Avisos</Text>
           </Pressable>
         </View>
+        {!isAdmin && user ? <ContextualHelpTip tab="calendar" userId={user.id} format={format} /> : null}
 
         {isAdmin ? (
           <View style={styles.adminRow}>
