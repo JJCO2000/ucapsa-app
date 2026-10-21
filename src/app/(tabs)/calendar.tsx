@@ -126,7 +126,7 @@ function practiceTimeLabel(value: string) {
 export default function CalendarScreen() {
   const { date: dateParam } = useLocalSearchParams<{ date?: string | string[] }>();
   const requestedDate = Array.isArray(dateParam) ? dateParam[0] ?? null : dateParam ?? null;
-  const { user, role, isAdmin } = useSession();
+  const { user, role, isAdmin, isStaff } = useSession();
   const calendarScrollRef = useRef<ScrollView>(null);
   const calendarCardYRef = useRef(0);
   const agendaYRef = useRef(0);
@@ -640,7 +640,7 @@ export default function CalendarScreen() {
             <Text style={[styles.noticeShortcutText, { color: format.accentDark }]}>Avisos</Text>
           </Pressable>
         </View>
-        {!isAdmin && user ? <ContextualHelpTip tab="calendar" userId={user.id} format={format} /> : null}
+        {!isStaff && user ? <ContextualHelpTip tab="calendar" userId={user.id} format={format} /> : null}
 
         {isAdmin ? (
           <View style={styles.adminRow}>
@@ -691,8 +691,14 @@ export default function CalendarScreen() {
                 </View>
                 {selectedDate !== todayKey() ? (
                   <Pressable accessibilityRole="button" accessibilityLabel="Ir a hoy" style={[styles.compactAction, { borderColor: format.cardBorder }]} onPress={() => {
-                      setSelectedDate(todayKey());
-                      setVisibleMonth(todayKey().slice(0, 7));
+                      const today = todayKey();
+                      setSelectedDate(today);
+                      setVisibleMonth(today.slice(0, 7));
+                      // Regresar al calendario, sin desplazarse al detalle de otro día.
+                      calendarScrollRef.current?.scrollTo({
+                        y: Math.max(0, calendarCardYRef.current - 12),
+                        animated: !reduceMotion,
+                      });
                     }}>
                     <Text style={[styles.compactActionText, { color: format.accentDark }]}>Hoy</Text>
                   </Pressable>
@@ -700,13 +706,15 @@ export default function CalendarScreen() {
               </View>
 
               <Calendar
-                current={selectedDate}
+                // La librería inicializa su mes internamente desde "current";
+                // remontar al cambiar de mes sincroniza el botón Hoy y las flechas.
+                key={visibleMonth}
+                current={visibleMonth + '-01'}
                 onMonthChange={(month: DateData) => {
                   const nextMonth = month.dateString.slice(0, 7);
+                  if (nextMonth === visibleMonth) return;
                   setVisibleMonth(nextMonth);
-                  setSelectedDate((current) =>
-                    current.slice(0, 7) === nextMonth ? current : month.dateString,
-                  );
+                  setSelectedDate(month.dateString);
                 }}
                 onDayPress={(day: DateData) => selectCalendarDay(day.dateString)}
                 dayComponent={({ date, state }) => {
