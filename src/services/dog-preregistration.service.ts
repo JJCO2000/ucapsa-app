@@ -70,6 +70,29 @@ export async function adminPreregisterDogWithProgram(input: PreregisteredProgram
   return data;
 }
 
+/** Captura rápida de Entrenador: sin Socio, pagos, corrección de historial ni vinculación. */
+export type StaffPreregistrationInput = Pick<PreregisteredProgramInput,
+  'ownerName' | 'ownerEmail' | 'ownerPhone' | 'dogName' | 'programCode' | 'programLevel'>;
+
+export async function staffPreregisterDogWithProgram(input: StaffPreregistrationInput): Promise<string> {
+  if (!preregistrationEnabled) throw new Error('La preinscripción todavía no está habilitada.');
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
+    name: 'staff_preregister_dog_with_program',
+    args: Record<string, unknown>,
+  ) => PromiseLike<RpcOutcome>;
+  const { data, error } = await rpc('staff_preregister_dog_with_program', {
+    p_owner_name: input.ownerName.trim(),
+    p_owner_email: input.ownerEmail.trim().toLowerCase(),
+    p_owner_phone: input.ownerPhone.trim() ? normalizeContactPhone(input.ownerPhone) : '',
+    p_dog_name: input.dogName.trim(),
+    p_program_code: input.programCode,
+    p_program_level: input.programLevel,
+  });
+  if (error) throw new Error(error.message);
+  if (typeof data !== 'string' || !data) throw new Error('Supabase no confirmó la preinscripción.');
+  return data;
+}
+
 export type DogClaimPreview = {
   status: 'available' | 'none' | 'unverified' | 'not_applicable' | 'conflict';
   count: number;
