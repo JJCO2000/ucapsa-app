@@ -1,21 +1,26 @@
-/** UI normalization, not phone ownership proof or an Auth link.
- * Mexican 10-digit numbers can be entered without +52.
- * International numbers must already include their country prefix.
+/** Normalización de contacto, no prueba de propiedad ni de identidad Auth.
+ * Los números nacionales de México pueden escribirse con diez dígitos.
+ * Otros países requieren el prefijo internacional.
  */
-export function normalizeContactPhone(raw: string): string {
+function canonicalPhoneOrNull(raw: string): string | null {
   const input = raw.trim().replace(/[\s(),.-]/g, '');
   if (/^[0-9]{10}$/.test(input)) return '+52' + input;
   if (/^52[0-9]{10}$/.test(input)) return '+' + input;
   if (/^\+[1-9][0-9]{7,14}$/.test(input)) return input;
-  throw new Error('Escribe 10 dígitos de México o un número internacional con + y código de país.');
+  return null;
 }
 
-/** Compara contactos en formatos legados o E.164; no acredita su titularidad. */
+export function normalizeContactPhone(raw: string): string {
+  const phone = canonicalPhoneOrNull(raw);
+  if (!phone) throw new Error('Escribe 10 dígitos de México o un número internacional con + y código de país.');
+  return phone;
+}
+
+/** Comparación segura del mismo número en formato local, legado o E.164.
+ * No acredita la titularidad ni habilita acceso por teléfono.
+ */
 export function sameContactPhone(left: string | null | undefined, right: string | null | undefined): boolean {
   if (!left?.trim() || !right?.trim()) return false;
-  try {
-    return normalizeContactPhone(left) === normalizeContactPhone(right);
-  } catch {
-    return false;
-  }
+  const normalizedLeft = canonicalPhoneOrNull(left);
+  return normalizedLeft !== null && normalizedLeft === canonicalPhoneOrNull(right);
 }
