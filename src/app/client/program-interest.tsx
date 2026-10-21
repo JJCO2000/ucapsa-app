@@ -76,8 +76,8 @@ export default function ProgramInterestScreen() {
 
   async function contactWhatsapp(confirmedRecord = false) {
     const message = (confirmedRecord || saved || current
-      ? 'Hola UCAPSA, registré una solicitud de '
-      : 'Hola UCAPSA, quiero información para inscribir a mi perro en ')
+      ? 'Hola UCAPSA, ya solicité que me contacten sobre '
+      : 'Hola UCAPSA, me interesa entrenar con ustedes en ')
       + (program === 'puppy' ? 'Puppy School' : 'Comandos')
       + ' para ' + (selectedDog?.name || 'mi perro')
       + '. ¿Podemos coordinar el seguimiento?';
@@ -96,12 +96,12 @@ export default function ProgramInterestScreen() {
       const request = await requestProgramInterest(user.id, dogId, program);
       setOpenRequests((rows) => [request, ...rows.filter((row) => row.id !== request.id)]);
       setSaved(true);
-      Alert.alert('Solicitud registrada', 'Administración recibió tu solicitud como urgente. Ahora puedes enviar también un mensaje a UCAPSA.', [
-        { text: 'Después', style: 'cancel' },
-        { text: 'Abrir WhatsApp', onPress: () => void contactWhatsapp(true) },
+      Alert.alert('Interés registrado', `Recibimos tu interés en ${program === 'puppy' ? 'Puppy School' : 'Comandos'} para ${selectedDog?.name || 'tu perro'}. UCAPSA podrá contactarte para continuar.`, [
+        { text: 'Listo', style: 'cancel' },
+        { text: 'Escribir ahora', onPress: () => void contactWhatsapp(true) },
       ]);
     } catch {
-      Alert.alert('No se confirmó tu solicitud', 'No hay constancia de registro. Reintenta más tarde o comunícate por WhatsApp sin perder el seguimiento.');
+      Alert.alert('No pudimos registrar tu interés', 'No tenemos confirmación de que se haya enviado. Revisa tu conexión e inténtalo de nuevo.');
     } finally {
       setSending(false);
     }
@@ -110,25 +110,35 @@ export default function ProgramInterestScreen() {
   const optionStyle = (active: boolean) => ({
     borderRadius: 16, borderWidth: 2, borderColor: active ? ucapsaBrand.colors.red : ucapsaBrand.colors.border,
     backgroundColor: active ? ucapsaBrand.colors.redSoft : ucapsaBrand.colors.surface,
-    padding: 16, marginBottom: 10, minHeight: 54,
+    padding: 16, marginBottom: 10, minHeight: 72,
   });
 
   return (
     <KeyboardAwareScreen>
-      <Text style={{ color: ucapsaBrand.colors.text, fontSize: 28, fontWeight: '900', marginBottom: 8 }}>Solicitar entrenamiento</Text>
-      <Text style={{ color: ucapsaBrand.colors.muted, fontSize: 15, marginBottom: 16 }}>
-        Elige un programa y el perro. Administración revisará tu solicitud; esto todavía no te inscribe en una clase.
+      <Text style={{ color: ucapsaBrand.colors.text, fontSize: 28, fontWeight: '900', marginBottom: 8 }}>Entrena con UCAPSA</Text>
+      <Text style={{ color: ucapsaBrand.colors.muted, fontSize: 15, lineHeight: 22, marginBottom: 16 }}>
+        Da el primer paso. Elige el programa que te interesa y pide que UCAPSA te contacte.
       </Text>
-      <Text style={{ color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '800', marginBottom: 10 }}>1. Programa</Text>
+      <Text style={{ color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '800', marginBottom: 10 }}>¿Qué entrenamiento te interesa?</Text>
       {(['puppy', 'comandos'] as const).map((option) => (
-        <Pressable key={option} accessibilityRole="button" accessibilityState={{ selected: program === option }}
+        <Pressable key={option} accessibilityRole="radio" accessibilityState={{ checked: program === option }}
           onPress={() => { setProgram(option); setSaved(false); }} style={optionStyle(program === option)}>
-          <Text style={{ color: ucapsaBrand.colors.text, fontSize: 17, fontWeight: '800' }}>
-            {option === 'puppy' ? '🐶 Puppy School' : '🐕 Comandos'}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <MaterialIcons name={option === 'puppy' ? 'pets' : 'school'} size={27} color={ucapsaBrand.colors.redDark} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: ucapsaBrand.colors.text, fontSize: 17, fontWeight: '800' }}>
+                {option === 'puppy' ? 'Puppy School' : 'Comandos'}
+              </Text>
+              <Text style={{ color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 19, marginTop: 3 }}>
+                {option === 'puppy' ? 'Primeros pasos de entrenamiento para tu cachorro.' : 'Entrenamiento por niveles: básico, intermedio y avanzado.'}
+              </Text>
+            </View>
+            <MaterialIcons name={program === option ? 'radio-button-checked' : 'radio-button-unchecked'}
+              size={24} color={program === option ? ucapsaBrand.colors.redDark : ucapsaBrand.colors.gray} />
+          </View>
         </Pressable>
       ))}
-      <Text style={{ color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '800', marginBottom: 10, marginTop: 8 }}>2. Tu perro</Text>
+      <Text style={{ color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '800', marginBottom: 10, marginTop: 8 }}>¿Con cuál de tus perros?</Text>
       {loading ? <Text accessibilityLiveRegion="polite">Cargando perros y solicitudes…</Text> : null}
       {error ? (
         <View style={{ gap: 6, marginBottom: 12 }}>
@@ -149,8 +159,13 @@ export default function ProgramInterestScreen() {
           <Text style={{ color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '800' }}>{dog.name}</Text>
         </Pressable>
       ))}
-      {alreadyEnrolled ? <Text accessibilityLiveRegion="polite" style={{ fontSize: 15 }}>Este perro ya tiene el programa activo. Revisa la pestaña Clases.</Text> : null}
-      {current ? <Text accessibilityLiveRegion="polite" style={{ fontSize: 15, marginBottom: 14 }}>Tu solicitud ya está registrada y está {current.status === 'pending' ? 'pendiente de atención' : 'en seguimiento'}.</Text> : null}
+      {alreadyEnrolled ? <Text accessibilityLiveRegion="polite" style={{ fontSize: 15, marginBottom: 14 }}>Tu perro ya está inscrito en este programa. Revisa sus clases.</Text> : null}
+      {current ? <Text accessibilityLiveRegion="polite" style={{ fontSize: 15, marginBottom: 14 }}>Ya pediste que te contacten. Estado: {current.status === 'pending' ? 'solicitud recibida' : 'en seguimiento'}.</Text> : null}
+      {!loading && !error && !current && !alreadyEnrolled && dogId ? (
+        <Text style={{ color: ucapsaBrand.colors.muted, fontSize: 13, lineHeight: 19, marginTop: 10 }}>
+          Al enviar, UCAPSA recibirá tu interés y podrá contactarte con los datos de tu cuenta. No es una inscripción.
+        </Text>
+      ) : null}
       <Pressable
         accessibilityRole="button" disabled={loading || Boolean(error) || !dogId || Boolean(current) || alreadyEnrolled || sending}
         onPress={() => void submit()}
@@ -158,23 +173,22 @@ export default function ProgramInterestScreen() {
           backgroundColor: ucapsaBrand.colors.red, opacity: loading || Boolean(error) || !dogId || current || alreadyEnrolled || sending ? 0.5 : 1 }}
       >
         <Text style={{ color: ucapsaBrand.colors.surface, fontSize: 17, fontWeight: '900' }}>
-          {sending ? 'Registrando…' : current ? 'Solicitud en seguimiento' : alreadyEnrolled ? 'Ya estás inscrito' : 'Enviar solicitud'}
+          {sending ? 'Enviando interés…' : current ? 'Solicitud recibida' : alreadyEnrolled ? 'Ya estás inscrito' : 'Me interesa, quiero que me contacten'}
         </Text>
       </Pressable>
-      <Pressable accessibilityRole="button" onPress={() => void contactWhatsapp()}
+      {(Boolean(current) || saved || Boolean(error)) ? (
+        <Pressable accessibilityRole="button" onPress={() => void contactWhatsapp()}
           style={{ minHeight: 52, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border,
             marginTop: 12, justifyContent: 'center', alignItems: 'center', flexDirection: 'row', gap: 8 }}>
           <MaterialIcons name="chat" size={21} color={ucapsaBrand.colors.redDark} />
           <Text style={{ fontWeight: '800', color: ucapsaBrand.colors.redDark }}>Contactar a UCAPSA por WhatsApp</Text>
         </Pressable>
-      {!saved && !current ? (
-        <Text style={{ color: ucapsaBrand.colors.muted, fontSize: 12, marginTop: 5 }}>
-          Si usas WhatsApp antes de enviar la solicitud en la app, el mensaje no crea automáticamente un registro administrativo.
+      ) : null}
+      {error ? (
+        <Text style={{ color: ucapsaBrand.colors.muted, fontSize: 12, marginTop: 8 }}>
+          Si nos escribes directamente, avísanos que quieres seguimiento: el mensaje por sí solo no registra la solicitud en la app.
         </Text>
       ) : null}
-      <Text style={{ color: ucapsaBrand.colors.muted, fontSize: 12, marginTop: 12 }}>
-        Solicitar no genera pago, asistencia, horario ni inscripción. Espera confirmación oficial.
-      </Text>
     </KeyboardAwareScreen>
   );
 }
