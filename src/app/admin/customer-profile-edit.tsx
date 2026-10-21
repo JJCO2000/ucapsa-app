@@ -7,9 +7,13 @@ import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../comp
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { getProfileByUserId, updateAdminCustomerProfile } from '../../services/profiles.service';
+import { activateCustomerPhoneLogin } from '../../services/admin-phone-login.service';
+import { useSession } from '../../hooks/useSession';
+import { sameContactPhone } from '../../utils/phone-contact';
 import type { Profile } from '../../types/app.types';
 
 export default function CustomerProfileEditScreen() {
+  const { role } = useSession();
   const params = useLocalSearchParams<{ userId?: string }>();
   const userId = typeof params.userId === 'string' ? params.userId.trim() : '';
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -18,6 +22,9 @@ export default function CustomerProfileEditScreen() {
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [phoneActivating, setPhoneActivating] = useState(false);
+  const [staffConfirmedPhone, setStaffConfirmedPhone] = useState(false);
+  const [phoneAccessMessage, setPhoneAccessMessage] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -26,6 +33,8 @@ export default function CustomerProfileEditScreen() {
     setName(row?.full_name ?? '');
     setEmail(row?.email ?? '');
     setPhone(row?.phone ?? '');
+    setStaffConfirmedPhone(false);
+    setPhoneAccessMessage(null);
   }, [userId]);
 
   useFocusEffect(useCallback(() => {
@@ -51,6 +60,28 @@ export default function CustomerProfileEditScreen() {
     }
   }
 
+  const canActivatePhone = role === 'super_admin' && !!profile &&
+    (profile.role === 'client' || profile.role === 'member') && !!profile.phone &&
+    sameContactPhone(profile.phone, phone);
+  async function activatePhone() {
+    if (!canActivatePhone || !staffConfirmedPhone || phoneActivating || saving) return;
+    setPhoneActivating(true);
+    setPhoneAccessMessage(null);
+    try {
+      const result = await activateCustomerPhoneLogin(userId);
+      setPhoneAccessMessage(result.alreadyActive
+        ? 'El celular ya estaba habilitado para entrar con la contraseña de esta cuenta.'
+        : result.auditPending
+          ? 'Celular asociado a la cuenta. Administración debe revisar el cierre de auditoría.'
+          : 'Celular asociado a la misma cuenta de Auth. Puede iniciar sesión con celular y contraseña si el proveedor telefónico está habilitado.');
+      setStaffConfirmedPhone(false);
+    } catch (cause) {
+      setPhoneAccessMessage(cause instanceof Error ? cause.message : 'No fue posible activar el celular.');
+    } finally {
+      setPhoneActivating(false);
+    }
+  }
+
   return (
     <KeyboardAwareScreen>
       <AdminCustomerContextHeader customerName={adminCustomerDisplayName(profile)} section="Editar datos" subtitle="Información de contacto del cliente seleccionado." member={profile?.role === 'member'} onBack={() => router.back()} />
@@ -72,7 +103,29 @@ export default function CustomerProfileEditScreen() {
             <View style={styles.readonlyField}><Text style={styles.readonlyText}>{email || 'Sin correo'}</Text></View>
             <Text style={styles.helper}>El cliente cambia este correo desde su propia cuenta para mantenerlo sincronizado con el inicio de sesión.</Text>
           </View>
-          <Field label="Teléfono" value={phone} onChangeText={setPhone} placeholder="Teléfono" keyboardType="phone-pad" />
+          <Field label="Celular principal" value={phone} onChangeText={(value) => {
+            setPhone(value);
+            setStaffConfirmedPhone(false);
+            setPhoneAccessMessage(null);
+          }} placeholder="Celular" keyboardType="phone-pad" />
+          {role === 'super_admin' && (profile.role === 'client' || profile.role === 'member') ? (
+            <View style={styles.phoneActivation}>
+              <Text style={styles.label}>Acceso con celular (MVP, solo Superadmin)</Text>
+              <Text style={styles.helper}>Usa la misma cuenta y contraseña. No envía SMS ni crea otro usuario. Guarda primero el celular. Si otra cuenta lo utiliza, UCAPSA bloqueará la activación.</Text>
+              <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: staffConfirmedPhone, disabled: !canActivatePhone }}
+                disabled={!canActivatePhone || phoneActivating} style={styles.confirmationRow}
+                onPress={() => setStaffConfirmedPhone(value => !value)}>
+                <MaterialIcons name={staffConfirmedPhone ? 'check-box' : 'check-box-outline-blank'} size={24} color={ucapsaBrand.colors.redDark} />
+                <Text style={[styles.helper, { flex: 1 }]}>Confirmé con el cliente que este es su celular y que debo habilitarlo para acceso.</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" disabled={!canActivatePhone || !staffConfirmedPhone || phoneActivating || saving}
+                style={[styles.secondary, (!canActivatePhone || !staffConfirmedPhone || phoneActivating || saving) && styles.disabled]}
+                onPress={() => void activatePhone()}>
+                <Text style={styles.secondaryText}>{phoneActivating ? 'Activando...' : 'Habilitar acceso con celular'}</Text>
+              </Pressable>
+              {phoneAccessMessage ? <Text accessibilityRole="alert" style={styles.helper}>{phoneAccessMessage}</Text> : null}
+            </View>
+          ) : null}
         </View>
       ) : null}
 
@@ -116,4 +169,7 @@ const styles = StyleSheet.create({
   primaryText: { color: ucapsaBrand.colors.surface, fontWeight: '900', fontSize: 14 },
   secondary: { borderRadius: 15, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, alignItems: 'center', paddingVertical: 13 },
   secondaryText: { color: ucapsaBrand.colors.redDark, fontWeight: '900', fontSize: 14 },
+  phoneActivation: { gap: 9, paddingTop: 9, borderTopWidth: 1, borderTopColor: ucapsaBrand.colors.border },
+  confirmationRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7 },
+  disabled: { opacity: 0.5 },
 });
