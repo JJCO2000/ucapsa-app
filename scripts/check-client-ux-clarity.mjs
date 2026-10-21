@@ -263,3 +263,27 @@ if (!home.includes('accessibilityLabel="Consultar menú del restaurante UCAPSA"'
 }
 
 console.log('UCAPSA client UX clarity: PASS');
+
+const dogService = read('src/services/dogs.service.ts');
+for (const token of [
+  'updateMyDogAvatar(dogId,',
+  'avatarWriteBusy.current',
+  'while (desiredAvatar.current.key !== persistedAvatar.current.key',
+  'persistedAvatar.current = { key: saved.avatar_key, color: saved.avatar_color }',
+  'desiredAvatar.current = previous;',
+  'setAvatarExpanded((open) => !open)',
+  'setAvatarColorsExpanded((open) => !open)',
+  'onPress={() => { selectAvatar({ key: option.key }); setAvatarExpanded(false); }}',
+  'onPress={() => { selectAvatar({ color }); setAvatarColorsExpanded(false); }}',
+  'disabled={saving || avatarSaving}',
+]) {
+  if (!dogProfile.includes(token)) throw new Error('Avatar automatico perdió control: ' + token);
+}
+if (!dogService.includes(".from('dogs')") ||
+    !dogService.includes('.update({ avatar_key: avatarKey, avatar_color: avatarColor })') ||
+    !dogService.includes(".eq('is_active', true)")) {
+  throw new Error('El avatar debe actualizar exclusivamente sus dos preferencias bajo RLS.');
+}
+if (dogService.includes('.update({ avatar_key: avatarKey, avatar_color: avatarColor, name')) {
+  throw new Error('El guardado de avatar no debe sobrescribir el borrador de identificacion.');
+}
