@@ -52,6 +52,7 @@ export default function AccountSettingsScreen() {
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [showLinkingHelp, setShowLinkingHelp] = useState(false);
   const [checkingPreregistration, setCheckingPreregistration] = useState(false);
   const [deletionRequest, setDeletionRequest] = useState<AccountDeletionRequest | null>(null);
   const [deletionLoading, setDeletionLoading] = useState(false);
@@ -396,7 +397,7 @@ export default function AccountSettingsScreen() {
       {section === 'appearance' && premium ? (
         <View style={[styles.sectionCard, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
           <Text style={[styles.sectionTitle, { color: format.cardText }]}>Elige tus colores</Text>
-          <Text style={[styles.sectionIntro, { color: format.muted }]}>Solo cambia el aspecto visual, no tu membresía. Puedes volver al estilo clásico.</Text>
+          <Text style={[styles.sectionIntro, { color: format.muted }]}>Elige cómo quieres ver UCAPSA.</Text>
           {memberThemeChoices.map((option) => {
             const preview = getMemberThemeFormat(option.key);
             const selected = memberTheme === option.key;
@@ -415,14 +416,17 @@ export default function AccountSettingsScreen() {
                 <View style={[styles.appearanceDot, { backgroundColor: preview.accentDark }]} />
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.settingsTitle, { color: preview.cardText }]}>{option.label}</Text>
-                  <Text style={[styles.settingsSubtitle, { color: preview.muted }]}>Vista previa</Text>
+                  <View style={{ borderRadius: 9, padding: 7, marginTop: 6, backgroundColor: preview.background, borderColor: preview.cardBorder, borderWidth: 1, gap: 4 }}>
+                    <View style={{ height: 9, width: 52, borderRadius: 5, backgroundColor: preview.accentDark }} />
+                    <View style={{ height: 12, width: 86, borderRadius: 6, backgroundColor: preview.accentSoft }} />
+                  </View>
                 </View>
                 <MaterialIcons name={selected ? 'radio-button-checked' : 'radio-button-unchecked'} size={24} color={preview.accentDark} />
               </Pressable>
             );
           })}
           {appearanceError ? <Text accessibilityRole="alert" style={styles.appearanceError}>{appearanceError}</Text> : null}
-          <Text style={[styles.settingsSubtitle, { color: format.muted }]}>Se guarda para esta cuenta en este dispositivo. No cambia los colores de otros socios.</Text>
+          <Text style={[styles.settingsSubtitle, { color: format.muted }]}>Se aplica al instante en este dispositivo.</Text>
         </View>
       ) : null}
       {section === 'profile' ? (
@@ -432,9 +436,9 @@ export default function AccountSettingsScreen() {
             <Pressable style={[styles.smallButton, premium && styles.premiumSmallButton]} onPress={() => setEditing(true)}><Text style={[styles.smallButtonText, premium && styles.premiumSmallButtonText]}>{profileComplete ? 'Editar' : 'Completar'}</Text></Pressable>
           </View>
           <ReadonlyRow format={format} label="Nombre" value={profile?.full_name || 'Pendiente'} premium={premium} />
-          <ReadonlyRow format={format} label="Correo de acceso (Supabase)" value={user.email || 'Sin registrar'} premium={premium} />
+          <ReadonlyRow format={format} label="Correo para iniciar sesión" value={user.email || 'Sin registrar'} premium={premium} />
           <ReadonlyRow format={format} label="Verificación del correo"
-            value={user.email_confirmed_at ? 'Confirmado por Supabase' : 'Sin confirmar'} premium={premium} />
+            value={user.email_confirmed_at ? 'Verificado' : 'Sin confirmar'} premium={premium} />
           <ReadonlyRow format={format} label="Celular principal" value={mainPhone || 'Pendiente'} premium={premium} />
           {preregistrationEnabled ? (
             <ReadonlyRow format={format} label="Correo de contacto para preinscripción"
@@ -442,20 +446,27 @@ export default function AccountSettingsScreen() {
           ) : null}
           <Text style={[styles.muted, premium && styles.premiumText]}>
             {verifiedPhoneMismatch
-              ? 'El celular de acceso verificado no coincide con el contacto principal. Solicita revisión antes de modificarlo.'
+              ? 'Tus números no coinciden. Contacta a UCAPSA antes de cambiarlos.'
               : mainPhoneHasInvalidFormat
-                ? 'El celular guardado tiene un formato que UCAPSA no reconoce para iniciar sesión. Puedes editar tus otros datos sin cambiarlo; corrige el celular cuando conozcas el número correcto.'
+                ? 'Revisa el formato de tu celular. Puedes guardar los demás datos sin cambiarlo.'
               : verifiedPhoneMatches
-                ? 'Verificado en Supabase Auth: puedes iniciar sesión con este celular y tu contraseña.'
-                : 'El celular también sirve para iniciar sesión con la misma contraseña de tu correo, si es válido y no lo comparten otras cuentas. No hace falta SMS.'}
+                ? 'Celular verificado. Puedes iniciar sesión con él.'
+                : 'Si tu celular es válido y exclusivo, también puedes usarlo para iniciar sesión.'}
           </Text>
           {!user.phone_confirmed_at && !phoneVerificationEnabled ? (
-            <Text style={[styles.muted, premium && styles.premiumText]}>
-              UCAPSA puede vincular automáticamente tu primer expediente cuando
-              tu celular o correo coincida con una preinscripción todavía libre.
-              No se necesita SMS para esa primera vinculación.
-              Si el contacto ya está vinculado a otra cuenta, Administración deberá revisarlo.
-            </Text>
+            <>
+              <Pressable accessibilityRole="button" accessibilityState={{ expanded: showLinkingHelp }}
+                onPress={() => setShowLinkingHelp((open) => !open)}
+                style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                <Text style={{ color: format.accentDark, fontWeight: '800' }}>¿Cómo encuentro mis registros anteriores?</Text>
+                <MaterialIcons name={showLinkingHelp ? 'expand-less' : 'expand-more'} size={20} color={format.accentDark} />
+              </Pressable>
+              {showLinkingHelp ? (
+                <Text style={[styles.muted, premium && styles.premiumText]}>
+                  UCAPSA buscará coincidencias con tu correo o celular. Si un registro ya pertenece a otra cuenta, Administración revisará la solicitud.
+                </Text>
+              ) : null}
+            </>
           ) : null}
           {preregistrationEnabled && !isOfflineFallback ? (
             <Pressable accessibilityRole="button"
@@ -547,7 +558,7 @@ export default function AccountSettingsScreen() {
         <View style={styles.modalHeader}><Text style={[styles.modalTitle, premium && styles.premiumTitle]}>{isStaff ? 'Editar datos del equipo' : 'Editar mis datos'}</Text><Pressable onPress={() => setEditing(false)}><MaterialIcons name="close" size={24} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.text} /></Pressable></View>
         <Text style={[styles.label, premium && styles.premiumLabel]}>Nombre completo</Text>
         <TextInput value={fullName} onChangeText={setFullName} placeholder="Nombre" placeholderTextColor={premium ? ucapsaBrand.colors.redBorder : ucapsaBrand.colors.gray} style={[styles.input, premium && styles.premiumInput]} />
-        <Text style={[styles.label, premium && styles.premiumLabel]}>Correo para iniciar sesión (Supabase)</Text>
+        <Text style={[styles.label, premium && styles.premiumLabel]}>Correo para iniciar sesión</Text>
         <TextInput
           value={email}
           onChangeText={setEmail}
@@ -560,19 +571,18 @@ export default function AccountSettingsScreen() {
         />
         {preregistrationEnabled ? (
           <>
-            <Text style={[styles.label, premium && styles.premiumLabel]}>Correo de contacto para vincular preinscripción (MVP)</Text>
+            <Text style={[styles.label, premium && styles.premiumLabel]}>Correo de contacto (si es diferente)</Text>
             <TextInput value={contactEmail} onChangeText={setContactEmail}
               placeholder="correo del preregistro (opcional)"
               keyboardType="email-address" autoCapitalize="none" autoCorrect={false}
               placeholderTextColor={premium ? ucapsaBrand.colors.redBorder : ucapsaBrand.colors.gray}
               style={[styles.input, premium && styles.premiumInput]} />
             <Text style={[styles.muted, premium && styles.premiumText]}>
-              Sirve para encontrar tu primer expediente, pero no habilita el acceso por ese correo.
-              En este MVP no se verifica su titularidad: revisa que esté correcto.
+              Este correo ayuda a encontrar registros anteriores. No cambia el correo con el que inicias sesión.
             </Text>
           </>
         ) : null}
-        <Text style={[styles.label, premium && styles.premiumLabel]}>Celular principal (contacto y preinscripción)</Text>
+        <Text style={[styles.label, premium && styles.premiumLabel]}>Número de celular</Text>
         <TextInput value={phone} onChangeText={setPhone} placeholder="Teléfono" keyboardType="phone-pad" placeholderTextColor={premium ? ucapsaBrand.colors.redBorder : ucapsaBrand.colors.gray} style={[styles.input, premium && styles.premiumInput]} />
         <Pressable disabled={saving} style={[styles.primaryButton, { backgroundColor: format.primaryButton }, saving && styles.disabled]} onPress={handleSaveProfile}><Text style={[styles.primaryButtonText, { color: format.primaryButtonText }]}>{saving ? 'Guardando...' : 'Guardar cambios'}</Text></Pressable>
       </KeyboardAwareModal>
