@@ -115,7 +115,6 @@ export default function ProgramInterestScreen() {
 
   return (
     <KeyboardAwareScreen>
-      <Text style={{ color: ucapsaBrand.colors.text, fontSize: 28, fontWeight: '900', marginBottom: 8 }}>Entrena con UCAPSA</Text>
       <Text style={{ color: ucapsaBrand.colors.muted, fontSize: 15, lineHeight: 22, marginBottom: 16 }}>
         Da el primer paso. Elige el programa que te interesa y pide que UCAPSA te contacte.
       </Text>
