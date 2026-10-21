@@ -51,7 +51,9 @@ if (!register.includes('signUpWithEmail') || !register.includes('validateNewPass
 if (!login.includes('signInWithVerifiedContact') ||
     !service.includes('export async function signInWithVerifiedContact') ||
     !service.includes('return signInWithEmail(value, password)') ||
-    !service.includes('supabase.auth.signInWithPassword({ phone, password })')) {
+    !service.includes("supabase.functions.invoke<{") ||
+    !service.includes("'phone-password-login'") ||
+    !service.includes('supabase.auth.setSession({')) {
   throw new Error('Login must use the canonical email/phone password auth boundary.');
 }
 
@@ -122,8 +124,10 @@ for (const invalid of ['123', 'abc', '+0012345678', '12345678901234567']) {
   assert.throws(() => normalizeContactPhone(invalid));
 }
 assert.ok(service.includes('normalizeContactPhone(value)'), 'Phone login must use the normalizer.');
-assert.ok(service.includes('supabase.auth.signInWithPassword({ phone, password })'),
-  'Phone login must still use Supabase Auth, not profile lookup.');
+assert.ok(service.includes("'phone-password-login'") && service.includes('supabase.auth.setSession({'),
+  'Phone alias must establish the same real Supabase Auth session.');
+assert.ok(!service.includes('supabase.auth.signInWithPassword({ phone, password })'),
+  'Profile phone must not be falsely presented as a verified Auth phone.');
 const staged = fs.readFileSync('src/services/dog-preregistration.service.ts', 'utf8');
 assert.ok(staged.includes('normalizeContactPhone(input.ownerPhone)'),
   'Admin preregistration must persist canonical phone contact.');
@@ -173,3 +177,6 @@ assert.ok(signupSegment.includes('const passwordError = validateNewPassword(pass
 assert.ok(service.includes('export const AUTH_PASSWORD_MIN_LENGTH = 6;'),
   'The password policy must reflect the six-character decision');
 console.log('UCAPSA new-password policy 6 characters and service-boundary validation: PASS');
+
+// Exercise server-side alias resolution with mocked Auth and zero live account writes.
+await import('./test-phone-password-login.mjs');
