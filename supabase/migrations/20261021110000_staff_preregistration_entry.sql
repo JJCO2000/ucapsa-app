@@ -109,7 +109,7 @@ begin
   end if;
   return v_dog_id;
 end;
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION public.admin_save_preregistered_program_history(p_intake_dog_id uuid, p_program_code text, p_program_level text, p_card_number text, p_card_started_on date, p_total_attendances integer, p_known_dates date[], p_note text DEFAULT NULL::text)
  RETURNS uuid
@@ -256,7 +256,7 @@ begin
     ));
   return v_stage.id;
 end;
-$function$
+$function$;
 
 
 revoke execute on function public.admin_preregister_dog(text,text,text,text) from public, anon, authenticated;
