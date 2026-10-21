@@ -1,12 +1,10 @@
 import { supabase } from '../lib/supabase';
 import { phoneVerificationEnabled } from '../constants/phoneVerification';
+import { normalizeContactPhone } from '../utils/phone-contact';
+import { updateMyProfile } from './profiles.service';
 
 export function normalizePhoneE164(input: string): string {
-  const phone = input.trim().replace(/[ ()-]/g, '');
-  if (!/^\+[1-9][0-9]{7,14}$/.test(phone)) {
-    throw new Error('Usa el formato internacional, por ejemplo +525512345678.');
-  }
-  return phone;
+  return normalizeContactPhone(input);
 }
 
 /** Solo la cuenta ya autenticada puede iniciar el cambio de teléfono. */
@@ -56,6 +54,8 @@ export async function confirmVerifiedPhoneCode(
       !after.data.user.phone_confirmed_at) {
     throw new Error('La verificación no quedó asociada a esta cuenta. Solicita revisión; no se vincularon expedientes.');
   }
+  // Sólo después de que Auth haya verificado el número se sincroniza el contacto.
+  await updateMyProfile({ phone: verifiedPhone });
   // Actualiza los datos Auth usados por el listener de sesión y su intento
   // posterior de reclamar el expediente por teléfono confirmado.
   const refresh = await supabase.auth.refreshSession();
