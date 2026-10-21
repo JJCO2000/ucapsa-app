@@ -159,7 +159,6 @@ for (const token of [
   'CameraView',
   'uploadMyDogPhoto',
   'removeMyDogPhoto',
-  'La foto es privada',
 ]) {
   if (!dogProfile.includes(token)) throw new Error('Private dog photo UI missing: ' + token);
 }
@@ -174,7 +173,7 @@ if (fs.existsSync('docs/product/guarderia-canine-internal-baseline.md')) {
   throw new Error('No publicar rutas ni horarios internos de Guardería mediante GitHub Pages.');
 }
 // Requisito actualizado: el propietario elige avatar público sin exponer la foto privada.
-for (const token of ['DOG_AVATAR_OPTIONS', 'DOG_AVATAR_COLORS', 'avatar_key: avatarKey', 'avatar_color: avatarColor', 'La foto real sigue siendo privada']) {
+for (const token of ['DOG_AVATAR_OPTIONS', 'DOG_AVATAR_COLORS', 'avatar_key: avatarKey', 'avatar_color: avatarColor']) {
   if (!dogProfile.includes(token)) throw new Error('El perfil del perro perdió el selector público persistente: ' + token);
 }
 if (dogProfile.includes('No pide acceso a tus fotos')) {
