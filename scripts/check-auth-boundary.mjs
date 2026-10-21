@@ -163,6 +163,17 @@ assert.equal(sameContactPhone('55 35 100 214', '+525535100214'), true);
 assert.equal(sameContactPhone('5535100214', '+525535100215'), false);
 assert.equal(sameContactPhone('abc', '+525535100214'), false);
 assert.equal(sameContactPhone(null, '+525535100214'), false);
+const isSupportedContactPhone = phoneModule.exports.isSupportedContactPhone;
+assert.equal(isSupportedContactPhone('55 35 100 214'), true);
+assert.equal(isSupportedContactPhone('+525535100214'), true);
+assert.equal(isSupportedContactPhone('tel sin validar'), false);
+assert.equal(isSupportedContactPhone(null), false);
+assert.ok(settings.includes('const phoneChanged = phone.trim() !== (profile?.phone ?? \'\').trim()'),
+  'Unchanged legacy contact must never block independent profile edits.');
+assert.ok(settings.includes("...(phoneChanged ? { phone: normalizedPhone } : {})"),
+  'Unchanged phone must be omitted from the profile update payload.');
+assert.ok(settings.includes('mainPhoneHasInvalidFormat'),
+  'Invalid legacy contact must have a visible correction hint, not silently fail.');
 console.log('UCAPSA auth Mexican national phone formatting and credential separation: PASS');
 
 
