@@ -10,6 +10,11 @@ function canonicalPhoneOrNull(raw: string): string | null {
   return null;
 }
 
+/** Evalúa formato, no comprueba la propiedad de un número. */
+export function isSupportedContactPhone(raw: string | null | undefined): boolean {
+  return Boolean(raw?.trim() && canonicalPhoneOrNull(raw));
+}
+
 export function normalizeContactPhone(raw: string): string {
   const phone = canonicalPhoneOrNull(raw);
   if (!phone) throw new Error('Escribe 10 dígitos de México o un número internacional con + y código de país.');

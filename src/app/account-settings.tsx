@@ -17,7 +17,7 @@ import { useSession } from '../hooks/useSession';
 import { devWarn } from '../lib/client-diagnostics';
 import { deleteMyAccount, getAccountDeletionStatusLabel, getMyAccountDeletionRequest, isAccountDeletionOpen, type AccountDeletionRequest } from '../services/account-deletion.service';
 import { requestMyEmailChange, updateMyProfile } from '../services/profiles.service';
-import { normalizeContactPhone, sameContactPhone } from '../utils/phone-contact';
+import { isSupportedContactPhone, normalizeContactPhone, sameContactPhone } from '../utils/phone-contact';
 import { getMyMembership, getMembershipEffectiveStatus } from '../services/memberships.service';
 import { DEFAULT_WRITE_TIMEOUT_MS, friendlyWriteError, withOperationTimeout } from '../utils/async.utils';
 
@@ -66,6 +66,7 @@ export default function AccountSettingsScreen() {
   const deletionLocked = deletionCompleted || deletionRequest?.status === 'blocked';
   const deletionStatusLabel = getAccountDeletionStatusLabel(deletionRequest?.status);
   const mainPhone = profile?.phone || (user?.phone_confirmed_at ? user.phone : null) || null;
+  const mainPhoneHasInvalidFormat = Boolean(mainPhone && !isSupportedContactPhone(mainPhone));
   const verifiedPhoneMatches = Boolean(user?.phone_confirmed_at && sameContactPhone(mainPhone, user.phone));
   const verifiedPhoneMismatch = Boolean(user?.phone_confirmed_at && user.phone && mainPhone && !verifiedPhoneMatches);
   const profileComplete = Boolean((profile?.full_name ?? '').trim() && (mainPhone ?? '').trim());
@@ -160,19 +161,24 @@ export default function AccountSettingsScreen() {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-    let normalizedPhone: string | null;
-    try {
-      normalizedPhone = phone.trim() ? normalizeContactPhone(phone) : null;
-    } catch (error) {
-      Alert.alert('Celular inválido', error instanceof Error ? error.message : 'Revisa el número.');
-      return;
-    }
-    if (user.phone_confirmed_at && user.phone && !sameContactPhone(normalizedPhone, user.phone)) {
-      Alert.alert('Celular verificado', 'Para usar un número diferente, primero actualiza la verificación de tu celular de acceso.');
-      return;
+    // No bloquear modificaciones de nombre o correo por un contacto legado
+    // inválido que NO se está editando; se conserva hasta que lo corrijan.
+    const phoneChanged = phone.trim() !== (profile?.phone ?? '').trim();
+    let normalizedPhone: string | null | undefined;
+    if (phoneChanged) {
+      try {
+        normalizedPhone = phone.trim() ? normalizeContactPhone(phone) : null;
+      } catch (error) {
+        Alert.alert('Celular inválido', error instanceof Error ? error.message : 'Revisa el número.');
+        return;
+      }
+      if (user.phone_confirmed_at && user.phone && !sameContactPhone(normalizedPhone, user.phone)) {
+        Alert.alert('Celular verificado', 'Para usar un número diferente, primero actualiza la verificación de tu celular de acceso.');
+        return;
+      }
     }
     const normalizedContactEmail = contactEmail.trim().toLowerCase();
-    const contactChanged = (!sameContactPhone(normalizedPhone, profile?.phone) && Boolean(normalizedPhone || profile?.phone))
+    const contactChanged = (phoneChanged && !sameContactPhone(normalizedPhone, profile?.phone))
       || normalizedContactEmail !== (profile?.preregistration_contact_email ?? '').trim().toLowerCase()
       || normalizedEmail !== (user.email ?? '').trim().toLowerCase();
     const currentAuthEmail = (user.email ?? '').trim().toLowerCase();
@@ -197,7 +203,7 @@ export default function AccountSettingsScreen() {
       const savedProfile = await withOperationTimeout(
         updateMyProfile({
           full_name: fullName,
-          phone: normalizedPhone,
+          ...(phoneChanged ? { phone: normalizedPhone } : {}),
           ...(preregistrationEnabled ? { preregistration_contact_email: normalizedContactEmail } : {}),
         }),
         DEFAULT_WRITE_TIMEOUT_MS,
@@ -437,6 +443,8 @@ export default function AccountSettingsScreen() {
           <Text style={[styles.muted, premium && styles.premiumText]}>
             {verifiedPhoneMismatch
               ? 'El celular de acceso verificado no coincide con el contacto principal. Solicita revisión antes de modificarlo.'
+              : mainPhoneHasInvalidFormat
+                ? 'El celular guardado tiene un formato que UCAPSA no reconoce para iniciar sesión. Puedes editar tus otros datos sin cambiarlo; corrige el celular cuando conozcas el número correcto.'
               : verifiedPhoneMatches
                 ? 'Verificado en Supabase Auth: puedes iniciar sesión con este celular y tu contraseña.'
                 : 'El celular también sirve para iniciar sesión con la misma contraseña de tu correo, si es válido y no lo comparten otras cuentas. No hace falta SMS.'}
