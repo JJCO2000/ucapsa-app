@@ -134,13 +134,31 @@ const settings = fs.readFileSync('src/app/account-settings.tsx', 'utf8');
 assert.ok(settings.includes("setEmail(user?.email ?? profile?.email ?? '')"),
   'Auth email must take priority over possibly stale profile email.');
 assert.ok(settings.includes('Correo de acceso (Supabase)')
-  && settings.includes('Teléfono de contacto (no es acceso)')
+  && settings.includes('Celular principal')
   && settings.includes('no habilita el acceso por ese correo'),
   'Contact email and phone must never be advertised as login credentials.');
 const adminForm = fs.readFileSync('src/app/admin/preregister-dog.tsx', 'utf8');
 assert.ok(adminForm.includes("Platform.OS === 'web'") && adminForm.includes('setSubmissionNotice')
   && adminForm.includes('clearCardForm()') && adminForm.includes('Otro registro'),
   'Web preregistration needs visible success/error and fast next-entry flow.');
+// The canonical contact format is shared without treating profile phone as Auth proof.
+assert.ok(accountProfileService.includes('normalizeContactPhone(input.phone)'),
+  'Profile writes must share preregistration and Auth phone normalization.');
+assert.ok(accountProfileService.includes('verifiedPhone && normalizedPhone !== verifiedPhone'),
+  'Verified login phone must not silently diverge from client contact.');
+const phoneVerification = fs.readFileSync('src/services/phone-verification.service.ts', 'utf8');
+assert.ok(phoneVerification.includes('return normalizeContactPhone(input)'),
+  'SMS confirmation must reuse the canonical phone normalizer.');
+assert.ok(phoneVerification.includes('await updateMyProfile({ phone: verifiedPhone });'),
+  'Auth-verified phone must be synced to the same principal profile contact.');
+assert.ok(settings.includes('sameContactPhone(mainPhone, user.phone)')
+  && !settings.includes('Teléfono de acceso verificado en Supabase'),
+  'Account settings must display one primary mobile with verification status.');
+const sameContactPhone = phoneModule.exports.sameContactPhone;
+assert.equal(sameContactPhone('55 35 100 214', '+525535100214'), true);
+assert.equal(sameContactPhone('5535100214', '+525535100215'), false);
+assert.equal(sameContactPhone('abc', '+525535100214'), false);
+assert.equal(sameContactPhone(null, '+525535100214'), false);
 console.log('UCAPSA auth Mexican national phone formatting and credential separation: PASS');
 
 

@@ -17,6 +17,7 @@ import { useSession } from '../hooks/useSession';
 import { devWarn } from '../lib/client-diagnostics';
 import { deleteMyAccount, getAccountDeletionStatusLabel, getMyAccountDeletionRequest, isAccountDeletionOpen, type AccountDeletionRequest } from '../services/account-deletion.service';
 import { requestMyEmailChange, updateMyProfile } from '../services/profiles.service';
+import { normalizeContactPhone, sameContactPhone } from '../utils/phone-contact';
 import { getMyMembership, getMembershipEffectiveStatus } from '../services/memberships.service';
 import { DEFAULT_WRITE_TIMEOUT_MS, friendlyWriteError, withOperationTimeout } from '../utils/async.utils';
 
@@ -64,7 +65,10 @@ export default function AccountSettingsScreen() {
   const deletionCompleted = deletionRequest?.status === 'completed';
   const deletionLocked = deletionCompleted || deletionRequest?.status === 'blocked';
   const deletionStatusLabel = getAccountDeletionStatusLabel(deletionRequest?.status);
-  const profileComplete = Boolean((profile?.full_name ?? '').trim() && (profile?.phone ?? '').trim());
+  const mainPhone = profile?.phone || (user?.phone_confirmed_at ? user.phone : null) || null;
+  const verifiedPhoneMatches = Boolean(user?.phone_confirmed_at && sameContactPhone(mainPhone, user.phone));
+  const verifiedPhoneMismatch = Boolean(user?.phone_confirmed_at && user.phone && mainPhone && !verifiedPhoneMatches);
+  const profileComplete = Boolean((profile?.full_name ?? '').trim() && (mainPhone ?? '').trim());
 
   async function checkMyPreregistrations() {
     if (checkingPreregistration || isOfflineFallback) return;
@@ -99,7 +103,7 @@ export default function AccountSettingsScreen() {
     setFullName(profile?.full_name ?? '');
     setEmail(user?.email ?? profile?.email ?? '');
     setContactEmail(profile?.preregistration_contact_email ?? '');
-    setPhone(profile?.phone ?? '');
+    setPhone(profile?.phone ?? (user?.phone_confirmed_at ? user.phone ?? '' : ''));
   }, [profile, user?.email]);
 
   const refreshDeletionRequest = useCallback(async () => {
@@ -156,9 +160,19 @@ export default function AccountSettingsScreen() {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-    const normalizedPhone = phone.trim();
+    let normalizedPhone: string | null;
+    try {
+      normalizedPhone = phone.trim() ? normalizeContactPhone(phone) : null;
+    } catch (error) {
+      Alert.alert('Celular inválido', error instanceof Error ? error.message : 'Revisa el número.');
+      return;
+    }
+    if (user.phone_confirmed_at && user.phone && !sameContactPhone(normalizedPhone, user.phone)) {
+      Alert.alert('Celular verificado', 'Para usar un número diferente, primero actualiza la verificación de tu celular de acceso.');
+      return;
+    }
     const normalizedContactEmail = contactEmail.trim().toLowerCase();
-    const contactChanged = normalizedPhone !== (profile?.phone ?? '').trim()
+    const contactChanged = (!sameContactPhone(normalizedPhone, profile?.phone) && Boolean(normalizedPhone || profile?.phone))
       || normalizedContactEmail !== (profile?.preregistration_contact_email ?? '').trim().toLowerCase()
       || normalizedEmail !== (user.email ?? '').trim().toLowerCase();
     const currentAuthEmail = (user.email ?? '').trim().toLowerCase();
@@ -183,7 +197,7 @@ export default function AccountSettingsScreen() {
       const savedProfile = await withOperationTimeout(
         updateMyProfile({
           full_name: fullName,
-          phone,
+          phone: normalizedPhone,
           ...(preregistrationEnabled ? { preregistration_contact_email: normalizedContactEmail } : {}),
         }),
         DEFAULT_WRITE_TIMEOUT_MS,
@@ -415,13 +429,18 @@ export default function AccountSettingsScreen() {
           <ReadonlyRow format={format} label="Correo de acceso (Supabase)" value={user.email || 'Sin registrar'} premium={premium} />
           <ReadonlyRow format={format} label="Verificación del correo"
             value={user.email_confirmed_at ? 'Confirmado por Supabase' : 'Sin confirmar'} premium={premium} />
-          <ReadonlyRow format={format} label="Teléfono de contacto (no es acceso)" value={profile?.phone || 'Pendiente'} premium={premium} />
+          <ReadonlyRow format={format} label="Celular principal" value={mainPhone || 'Pendiente'} premium={premium} />
           {preregistrationEnabled ? (
             <ReadonlyRow format={format} label="Correo de contacto para preinscripción"
               value={profile?.preregistration_contact_email || 'No agregado'} premium={premium} />
           ) : null}
-          <ReadonlyRow format={format} label="Teléfono de acceso verificado en Supabase"
-            value={user.phone_confirmed_at && user.phone ? user.phone : 'Sin verificar'} premium={premium} />
+          <Text style={[styles.muted, premium && styles.premiumText]}>
+            {verifiedPhoneMismatch
+              ? 'El celular de acceso verificado no coincide con el contacto principal. Solicita revisión antes de modificarlo.'
+              : verifiedPhoneMatches
+                ? 'Verificado en Supabase Auth: puedes iniciar sesión con este celular y tu contraseña.'
+                : 'Sirve como contacto y para encontrar tu primera preinscripción. Para iniciar sesión por celular debe asociarse y verificarse en Supabase Auth.'}
+          </Text>
           {!user.phone_confirmed_at && !phoneVerificationEnabled ? (
             <Text style={[styles.muted, premium && styles.premiumText]}>
               UCAPSA puede vincular automáticamente tu primer expediente cuando
@@ -545,7 +564,7 @@ export default function AccountSettingsScreen() {
             </Text>
           </>
         ) : null}
-        <Text style={[styles.label, premium && styles.premiumLabel]}>Teléfono de contacto (para preinscripción)</Text>
+        <Text style={[styles.label, premium && styles.premiumLabel]}>Celular principal (contacto y preinscripción)</Text>
         <TextInput value={phone} onChangeText={setPhone} placeholder="Teléfono" keyboardType="phone-pad" placeholderTextColor={premium ? ucapsaBrand.colors.redBorder : ucapsaBrand.colors.gray} style={[styles.input, premium && styles.premiumInput]} />
         <Pressable disabled={saving} style={[styles.primaryButton, { backgroundColor: format.primaryButton }, saving && styles.disabled]} onPress={handleSaveProfile}><Text style={[styles.primaryButtonText, { color: format.primaryButtonText }]}>{saving ? 'Guardando...' : 'Guardar cambios'}</Text></Pressable>
       </KeyboardAwareModal>

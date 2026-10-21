@@ -9,3 +9,13 @@ export function normalizeContactPhone(raw: string): string {
   if (/^\+[1-9][0-9]{7,14}$/.test(input)) return input;
   throw new Error('Escribe 10 dígitos de México o un número internacional con + y código de país.');
 }
+
+/** Compara contactos en formatos legados o E.164; no acredita su titularidad. */
+export function sameContactPhone(left: string | null | undefined, right: string | null | undefined): boolean {
+  if (!left?.trim() || !right?.trim()) return false;
+  try {
+    return normalizeContactPhone(left) === normalizeContactPhone(right);
+  } catch {
+    return false;
+  }
+}

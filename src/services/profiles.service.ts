@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import type { TableUpdate } from '../types/database.helpers';
 import type { AppRole, Profile } from '../types/app.types';
 import { requestMyAccountDeletion } from './account-deletion.service';
+import { normalizeContactPhone } from '../utils/phone-contact';
 
 
 function logProfileMutationError(operation: string, error: unknown) {
@@ -102,7 +103,15 @@ export async function updateMyProfile(input: ProfileUpdateInput): Promise<Profil
   const payload: Record<string, string | null> = { updated_at: new Date().toISOString() };
 
   if (input.full_name !== undefined) payload.full_name = input.full_name?.trim() || null;
-  if (input.phone !== undefined) payload.phone = input.phone?.trim() || null;
+  if (input.phone !== undefined) {
+    const normalizedPhone = input.phone?.trim() ? normalizeContactPhone(input.phone) : null;
+    const verifiedPhone = authData.user?.phone_confirmed_at && authData.user.phone
+      ? normalizeContactPhone(authData.user.phone) : null;
+    if (verifiedPhone && normalizedPhone !== verifiedPhone) {
+      throw new Error('Tu celular verificado es el número de acceso. Actualízalo mediante verificación antes de modificar el contacto.');
+    }
+    payload.phone = normalizedPhone;
+  }
   if (input.preregistration_contact_email !== undefined)
     payload.preregistration_contact_email = input.preregistration_contact_email?.trim().toLowerCase() || null;
   if (input.dog_name !== undefined) payload.dog_name = input.dog_name?.trim() || null;
@@ -127,7 +136,7 @@ export async function updateAdminCustomerProfile(userId: string, input: ProfileU
   const payload: Record<string, string | null> = { updated_at: new Date().toISOString() };
 
   if (input.full_name !== undefined) payload.full_name = input.full_name?.trim() || null;
-  if (input.phone !== undefined) payload.phone = input.phone?.trim() || null;
+  if (input.phone !== undefined) payload.phone = input.phone?.trim() ? normalizeContactPhone(input.phone) : null;
   if (input.dog_name !== undefined) payload.dog_name = input.dog_name?.trim() || null;
   if (input.avatar_color !== undefined) payload.avatar_color = input.avatar_color || ucapsaBrand.colors.red;
 
