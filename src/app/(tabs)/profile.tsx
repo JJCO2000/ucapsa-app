@@ -182,6 +182,17 @@ function HubRow({
   format: ReturnType<typeof resolveUcapsaFormat>;
   onPress: () => void;
 }) {
+  const tone = icon === 'pets'
+    ? { soft: ucapsaBrand.colors.greenSoft, text: ucapsaBrand.colors.greenDark }
+    : icon === 'emoji-events' || icon === 'workspace-premium'
+      ? { soft: ucapsaBrand.colors.goldPale, text: ucapsaBrand.colors.goldDark }
+      : icon === 'stars' || icon === 'help-outline'
+        ? { soft: ucapsaBrand.colors.purpleSoft, text: ucapsaBrand.colors.purpleDark }
+        : icon === 'person' || icon === 'notifications-none'
+          ? { soft: ucapsaBrand.colors.blueSoft, text: ucapsaBrand.colors.blueDark }
+          : icon === 'account-balance-wallet'
+            ? { soft: ucapsaBrand.colors.greenSoft, text: ucapsaBrand.colors.greenDark }
+            : { soft: format.accentSoft, text: format.accentDark };
   return (
     <Pressable
       accessibilityRole="button"
@@ -196,8 +207,8 @@ function HubRow({
         pressed && styles.pressed,
       ]}
     >
-      <View style={[styles.hubIcon, { backgroundColor: format.accentSoft }]}>
-        <MaterialIcons name={icon} size={22} color={format.accentDark} />
+      <View style={[styles.hubIcon, { backgroundColor: tone.soft }]}>
+        <MaterialIcons name={icon} size={22} color={tone.text} />
       </View>
       <View style={styles.hubCopy}>
         <Text style={[styles.hubTitle, { color: format.cardText }]}>{title}</Text>
