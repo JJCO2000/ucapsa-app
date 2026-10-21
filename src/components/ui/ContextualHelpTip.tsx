@@ -6,10 +6,13 @@ import { Pressable, Text, View } from 'react-native';
 import { getClientHelpGuide, type ClientHelpTab } from '../../constants/clientHelp';
 import type { UcapsaFormat } from '../../constants/ucapsaFormats';
 import { hasSeenTabHelp, markTabHelpSeen } from '../../services/quick-help.service';
+import { useSession } from '../../hooks/useSession';
 
 type Props = { tab: ClientHelpTab; userId: string | null; format: UcapsaFormat };
 
 export function ContextualHelpTip({ tab, userId, format }: Props) {
+  const { user, role, loading } = useSession();
+  const canShow = !loading && user?.id === userId && (role === 'client' || role === 'member');
   const [visibleFor, setVisibleFor] = useState<string | null>(null);
   const key = userId ? userId + ':' + tab : null;
   const guide = getClientHelpGuide(tab);
@@ -17,15 +20,15 @@ export function ContextualHelpTip({ tab, userId, format }: Props) {
   useEffect(() => {
     let active = true;
     setVisibleFor(null);
-    if (userId) {
+    if (canShow && userId) {
       void hasSeenTabHelp(userId, tab).then((seen) => {
         if (active && !seen) setVisibleFor(userId + ':' + tab);
       });
     }
     return () => { active = false; };
-  }, [userId, tab]);
+  }, [canShow, userId, tab]);
 
-  if (!userId || visibleFor !== key) return null;
+  if (!canShow || !userId || visibleFor !== key) return null;
 
   function dismiss() {
     setVisibleFor(null);
