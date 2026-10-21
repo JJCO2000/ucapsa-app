@@ -7,9 +7,11 @@ import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../comp
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { getProfileByUserId, updateAdminCustomerProfile } from '../../services/profiles.service';
+import { useSession } from '../../hooks/useSession';
 import type { Profile } from '../../types/app.types';
 
 export default function CustomerProfileEditScreen() {
+  const { role } = useSession();
   const params = useLocalSearchParams<{ userId?: string }>();
   const userId = typeof params.userId === 'string' ? params.userId.trim() : '';
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -74,6 +76,12 @@ export default function CustomerProfileEditScreen() {
           </View>
           <Field label="Teléfono" value={phone} onChangeText={setPhone} placeholder="Teléfono" keyboardType="phone-pad" />
         </View>
+      ) : null}
+
+      {profile && role === 'super_admin' && (profile.role === 'client' || profile.role === 'member') ? (
+        <Pressable accessibilityRole="button" style={styles.secondary} onPress={() => router.push(`/admin/customer-phone-access?userId=${encodeURIComponent(userId)}` as never)}>
+          <Text style={styles.secondaryText}>Habilitar acceso con celular</Text>
+        </Pressable>
       ) : null}
 
       {profile ? (
