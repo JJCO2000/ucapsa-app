@@ -10,6 +10,7 @@ for (const clause of [
   "admin.auth.getUser(token)", "actor?.role !== 'super_admin'",
   "!['member','client'].includes(target.role)", "userId === actorId",
   "admin.auth.admin.getUserById(userId)", "samePhone(entry.phone, phone)",
+  "can_request_my_phone_verification", "if (canReserve !== true)",
   "payload.verifiedByOutboundCall !== true", "admin_audit_logs",
   "'phone_auth_bind_authorized'", "if (preAuditError)",
   "admin.auth.admin.updateUserById(", "phone_confirm: true",

@@ -24,8 +24,10 @@ Deno.serve(async (request: Request) => {
   if (!token) return reply({ error: 'Sesión requerida.' }, 401);
   const url = Deno.env.get('SUPABASE_URL');
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  if (!url || !serviceKey) return reply({ error: 'Configuración de servidor incompleta.' }, 503);
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  if (!url || !serviceKey || !anonKey) return reply({ error: 'Configuración de servidor incompleta.' }, 503);
   const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  const userClient = createClient(url, anonKey, { global: { headers: { Authorization: authHeader } }, auth: { persistSession: false, autoRefreshToken: false } });
 
   try {
     const { data: identity, error: identityError } = await admin.auth.getUser(token);
@@ -48,6 +50,14 @@ Deno.serve(async (request: Request) => {
     if (!raw) return reply({ status: 'missing', phone: null });
     if (!/^\+[1-9][0-9]{7,14}$/.test(raw)) return reply({ status: 'invalid', phone: null });
     const phone = raw;
+
+    // Reuse the existing server-side guard for confirmed Auth phones AND
+    // outstanding phone_change reservations (Supabase's ambiguous OTP edge case).
+    const { data: canReserve, error: reservationError } = await userClient.rpc(
+      'can_request_my_phone_verification', { p_phone: phone },
+    );
+    if (reservationError) return reply({ error: 'No se pudo comprobar la reserva del celular.' }, 503);
+    if (canReserve !== true) return reply({ status: 'conflict', phone });
 
     const { data: account, error: accountError } = await admin.auth.admin.getUserById(userId);
     if (accountError || !account.user) return reply({ error: 'La identidad Auth no está disponible.' }, 503);
