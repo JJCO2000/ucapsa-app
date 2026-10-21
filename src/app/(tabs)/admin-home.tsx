@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } 
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
+import { preregistrationEnabled } from '../../constants/preregistrationFeature';
 import { useSession } from '../../hooks/useSession';
 import { devWarn } from '../../lib/client-diagnostics';
 import { getAdminClassRsvpSummary, tomorrowDateKey, type AdminClassRsvpSummary } from '../../services/class-rsvp.service';
@@ -272,6 +273,22 @@ export default function AdminHomeTab() {
         </View>
         <Text style={styles.subtitle}>Inicio sólo muestra lo que necesita una decisión tuya.</Text>
       </View>
+      {preregistrationEnabled ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Preinscribir persona y perro"
+          style={styles.preregistrationShortcut}
+          onPress={() => router.push('/admin/preregister-dog' as never)}
+        >
+          <MaterialIcons name="person-add" size={25} color={ucapsaBrand.colors.surface} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.preregistrationShortcutTitle}>Preinscribir</Text>
+            <Text style={styles.preregistrationShortcutDetail}>Registrar tutor, perro y programa</Text>
+          </View>
+          <MaterialIcons name="chevron-right" size={24} color={ucapsaBrand.colors.surface} />
+        </Pressable>
+      ) : null}
+
 
       {loading ? (
         <View style={styles.loading}>
@@ -504,6 +521,14 @@ function DecisionCard({
 }
 
 const styles = StyleSheet.create({
+  preregistrationShortcut: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 72,
+    borderRadius: 20, backgroundColor: ucapsaBrand.colors.greenDark,
+    paddingHorizontal: 16, paddingVertical: 12, marginBottom: 18,
+  },
+  preregistrationShortcutTitle: { color: ucapsaBrand.colors.surface, fontSize: 17, fontWeight: '900' },
+  preregistrationShortcutDetail: { color: ucapsaBrand.colors.surface, fontSize: 11, marginTop: 2, fontWeight: '700' },
+
   hero: {
     backgroundColor: ucapsaBrand.colors.red,
     borderRadius: 26,
