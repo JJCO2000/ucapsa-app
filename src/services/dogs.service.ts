@@ -178,6 +178,29 @@ export async function updateMyDogProfile(dogId: string, input: DogProfileInput):
   return { ...profile, photo_path: photoPaths[profile.id] ?? null };
 }
 
+/**
+ * Solo modifica preferencias visuales: nunca envía nombre, raza, fecha,
+ * nivel, asistencia ni otros campos del borrador de la ficha.
+ * dogs_owner_update_enabled + dogs_owner_select_enabled validan propiedad en RLS.
+ */
+export async function updateMyDogAvatar(dogId: string, avatarKey: DogAvatarKey, avatarColor: DogAvatarColor):
+  Promise<Pick<BasicDog, 'avatar_key' | 'avatar_color'>> {
+  const id = dogId.trim();
+  if (!id) throw new Error('No se encontró el perro.');
+  const { data, error } = await supabase.from('dogs')
+    .update({ avatar_key: avatarKey, avatar_color: avatarColor })
+    .eq('id', id)
+    .eq('is_active', true)
+    .select('avatar_key,avatar_color')
+    .single();
+  if (error) throw error;
+  if (!data) throw new Error('No se pudo guardar el avatar.');
+  return {
+    avatar_key: normalizeDogAvatarKey(data.avatar_key),
+    avatar_color: normalizeDogAvatarColor(data.avatar_color),
+  };
+}
+
 export async function createDogForUserAdmin(userId: string, name: string): Promise<BasicDog> {
   const cleanUserId = userId.trim();
   const cleanName = name.trim();
