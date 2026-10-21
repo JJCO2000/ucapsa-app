@@ -137,9 +137,9 @@ assert.ok(accountProfileService.includes("|| !data.user?.email_confirmed_at"),
 const settings = fs.readFileSync('src/app/account-settings.tsx', 'utf8');
 assert.ok(settings.includes("setEmail(user?.email ?? profile?.email ?? '')"),
   'Auth email must take priority over possibly stale profile email.');
-assert.ok(settings.includes('Correo de acceso (Supabase)')
-  && settings.includes('Celular principal')
-  && settings.includes('no habilita el acceso por ese correo'),
+assert.ok(settings.includes('Correo para iniciar sesión')
+  && settings.includes('Número de celular')
+  && settings.includes('No verificamos que sea tuyo y no sirve para iniciar sesión.'),
   'Contact email and phone must never be advertised as login credentials.');
 const adminForm = fs.readFileSync('src/app/admin/preregister-dog.tsx', 'utf8');
 assert.ok(adminForm.includes("Platform.OS === 'web'") && adminForm.includes('setSubmissionNotice')
