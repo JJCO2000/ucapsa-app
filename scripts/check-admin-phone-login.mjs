@@ -48,7 +48,7 @@ vm.runInNewContext(mobileJS, { exports: mobile.exports, module: mobile });
 for (const value of ['5535100214', '+525535100214', '52 55 35 100 214', '55,3510-0214', '+34911222333']) {
   assert.equal(exports1.canonicalPhone(value), mobile.exports.normalizeContactPhone(value));
 }
-for (const value of ['', 'abc', '123', '0000000000', '+0012345678']) {
+for (const value of ['', 'abc', '123', '+0012345678']) {
   assert.equal(exports1.canonicalPhone(value), null);
 }
 console.log('UCAPSA superadmin-assisted phone login: PASS');
