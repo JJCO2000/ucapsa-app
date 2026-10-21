@@ -15,6 +15,8 @@ const guard = fs.readFileSync('scripts/ensure-production-aab-version.mjs', 'utf8
 const verified = fs.readFileSync('scripts/verify-production-aab-version.mjs', 'utf8');
 for (const token of [
   'npm run verify:release',
+  'node scripts/check-expo-validated-deps.mjs',
+  'EXPO_DOCTOR_SKIP_DEPENDENCY_VERSION_CHECK=1 npx --yes expo-doctor@1.20.4',
   'npm run audit:critical',
   'node scripts/ensure-production-aab-version.mjs',
   'eas build --platform android --profile production --non-interactive --wait',
