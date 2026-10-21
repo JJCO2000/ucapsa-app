@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } 
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
+import { preregistrationEnabled } from '../../constants/preregistrationFeature';
 import { useSession } from '../../hooks/useSession';
 import { getProgramClassCancellations } from '../../services/program-cancellations.service';
 import { getPrograms, getProgramSchedules } from '../../services/program-schedules.service';
@@ -180,6 +181,22 @@ export default function TrainerHomeTab() {
           <MaterialIcons name="person" size={21} color={ucapsaBrand.colors.surface} />
         </Pressable>
       </View>
+      {preregistrationEnabled ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Preinscribir persona y perro"
+          style={styles.preregistrationShortcut}
+          onPress={() => router.push('/staff/preregister-dog' as never)}
+        >
+          <MaterialIcons name="person-add" size={25} color={ucapsaBrand.colors.surface} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.preregistrationShortcutTitle}>Preinscribir</Text>
+            <Text style={styles.preregistrationShortcutDetail}>Registrar tutor, perro y programa</Text>
+          </View>
+          <MaterialIcons name="chevron-right" size={24} color={ucapsaBrand.colors.surface} />
+        </Pressable>
+      ) : null}
+
 
       {loading ? (
         <View style={styles.loadingRow}>
@@ -268,6 +285,14 @@ function QuickAction({ icon, title, subtitle, onPress }: { icon: keyof typeof Ma
 }
 
 const styles = StyleSheet.create({
+  preregistrationShortcut: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 72,
+    borderRadius: 20, backgroundColor: ucapsaBrand.colors.greenDark,
+    paddingHorizontal: 16, paddingVertical: 12, marginBottom: 18,
+  },
+  preregistrationShortcutTitle: { color: ucapsaBrand.colors.surface, fontSize: 17, fontWeight: '900' },
+  preregistrationShortcutDetail: { color: ucapsaBrand.colors.surface, fontSize: 11, marginTop: 2, fontWeight: '700' },
+
   hero: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: ucapsaBrand.colors.red, borderRadius: 26, padding: 18, marginBottom: 18 },
   kicker: { color: ucapsaBrand.colors.redSoftStrong, fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.7 },
   title: { color: ucapsaBrand.colors.surface, fontSize: 27, lineHeight: 32, fontWeight: '900' },
