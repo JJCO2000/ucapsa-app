@@ -37,7 +37,7 @@ export default function LoginScreen() {
         }
         Alert.alert(
           'No pudimos iniciar sesión',
-          'Revisa tus credenciales. Para entrar por teléfono, debe estar asociado a tu cuenta de Supabase Auth; escribirlo en el perfil no habilita el acceso.',
+          'Revisa tus credenciales. Para entrar por celular debe ser un número válido y no estar repetido en otras cuentas.',
           [
             { text: 'Reintentar', style: 'cancel' },
             { text: 'Recuperar contraseña', onPress: () => router.push('/auth/forgot-password' as never) },
@@ -71,7 +71,7 @@ export default function LoginScreen() {
           value={contact}
           onChangeText={(value) => { setContact(value); if (value.trim()) setMissingContact(false); }}
           accessibilityLabel="Correo o celular para iniciar sesión"
-          accessibilityHint="Ingresa tu correo o celular ya registrado en Supabase"
+          accessibilityHint="Escribe tu correo o el celular principal de Perfil y la misma contraseña"
           placeholder="correo@ejemplo.com o 5535100214"
           autoCapitalize="none"
           autoCorrect={false}

@@ -44,12 +44,36 @@ export async function signInWithEmail(email: string, password: string) {
   });
 }
 
-/** Password login does not send SMS. Phone must already belong to the Auth user. */
+/** MVP: el celular de Perfil es un identificador; Supabase valida la contraseña.
+ * No se generan cuentas, no se envía SMS ni se marca la línea como verificada.
+ */
 export async function signInWithVerifiedContact(contact: string, password: string) {
   const value = contact.trim();
   if (value.includes('@')) return signInWithEmail(value, password);
   const phone = normalizeContactPhone(value);
-  return supabase.auth.signInWithPassword({ phone, password });
+  const { data, error } = await supabase.functions.invoke<{
+    access_token?: string;
+    refresh_token?: string;
+    user_id?: string;
+  }>('phone-password-login', { body: { phone, password } });
+  if (error || !data?.access_token || !data.refresh_token || !data.user_id) {
+    return {
+      data: { user: null, session: null },
+      error: new Error('No pudimos iniciar sesión. Revisa el celular y la contraseña.'),
+    };
+  }
+  const session = await supabase.auth.setSession({
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+  });
+  if (!session.error && session.data.user?.id !== data.user_id) {
+    await supabase.auth.signOut({ scope: 'local' });
+    return {
+      data: { user: null, session: null },
+      error: new Error('No pudimos confirmar la identidad. Vuelve a intentarlo.'),
+    };
+  }
+  return session;
 }
 
 export async function signUpWithEmail({

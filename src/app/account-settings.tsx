@@ -439,7 +439,7 @@ export default function AccountSettingsScreen() {
               ? 'El celular de acceso verificado no coincide con el contacto principal. Solicita revisión antes de modificarlo.'
               : verifiedPhoneMatches
                 ? 'Verificado en Supabase Auth: puedes iniciar sesión con este celular y tu contraseña.'
-                : 'Sirve como contacto y para encontrar tu primera preinscripción. Para iniciar sesión por celular debe asociarse y verificarse en Supabase Auth.'}
+                : 'El celular también sirve para iniciar sesión con la misma contraseña de tu correo, si es válido y no lo comparten otras cuentas. No hace falta SMS.'}
           </Text>
           {!user.phone_confirmed_at && !phoneVerificationEnabled ? (
             <Text style={[styles.muted, premium && styles.premiumText]}>
