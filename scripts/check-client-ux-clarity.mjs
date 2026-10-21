@@ -262,3 +262,29 @@ if (!home.includes('accessibilityLabel="Consultar menú del restaurante UCAPSA"'
 }
 
 console.log('UCAPSA client UX clarity: PASS');
+
+const contextualHelp = read('src/components/ui/ContextualHelpTip.tsx');
+const guideContent = read('src/constants/clientHelp.ts');
+const helpStorage = read('src/services/quick-help.service.ts');
+const helpPage = read('src/app/client/quick-help.tsx');
+for (const [tab, screen] of [
+  ['home', 'src/screens/home/HomeExperienceScreen.tsx'],
+  ['classes', 'src/app/(tabs)/classes.tsx'],
+  ['calendar', 'src/app/(tabs)/calendar.tsx'],
+  ['dog', 'src/app/(tabs)/dog.tsx'],
+  ['profile', 'src/app/(tabs)/profile.tsx'],
+]) {
+  if (!guideContent.includes("tab: '" + tab + "'") || !read(screen).includes('tab="' + tab + '"')) {
+    throw new Error('Falta el consejo de ' + tab);
+  }
+}
+if (!contextualHelp.includes('markTabHelpSeen(userId!, tab)') ||
+    !contextualHelp.includes('router.push(guide.route as never)') ||
+    !contextualHelp.includes('accessibilityLabel="Cerrar consejo"')) {
+  throw new Error('El consejo debe poder cerrarse o iniciar una acción real.');
+}
+if (!helpStorage.includes("'ucapsa-tab-help-v1:' + userId + ':' + tab") ||
+    !helpStorage.includes('AsyncStorage.setItem(tabHelpKey(userId, tab)')) {
+  throw new Error('La preferencia de cada guía debe persistir por cuenta y pestaña.');
+}
+if (!helpPage.includes('clientHelpGuides.map')) throw new Error('Ayuda y pestañas sin fuente única.');
