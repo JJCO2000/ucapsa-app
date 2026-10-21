@@ -463,7 +463,7 @@ export default function AccountSettingsScreen() {
               </Pressable>
               {showLinkingHelp ? (
                 <Text style={[styles.muted, premium && styles.premiumText]}>
-                  UCAPSA buscará coincidencias con tu correo o celular. Si un registro ya pertenece a otra cuenta, Administración revisará la solicitud.
+                  UCAPSA buscará coincidencias con tu correo o celular. No necesitas SMS para la primera vinculación. Si un registro ya pertenece a otra cuenta, Administración revisará la solicitud.
                 </Text>
               ) : null}
             </>
