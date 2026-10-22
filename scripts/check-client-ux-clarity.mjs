@@ -326,7 +326,7 @@ for (const token of [
   'updateMyDogAvatar(dogId,',
   'avatarWriteBusy.current',
   'while (desiredAvatar.current.key !== persistedAvatar.current.key',
-  'persistedAvatar.current = { key: saved.avatar_key, color: saved.avatar_color }',
+  'persistedAvatar.current = { key: saved.avatar_key, color: saved.avatar_color, ink: saved.avatar_foreground_color }',
   'desiredAvatar.current = previous;',
   'setAvatarExpanded((open) => !open)',
   'setAvatarColorsExpanded((open) => !open)',
@@ -337,9 +337,9 @@ for (const token of [
   if (!dogProfile.includes(token)) throw new Error('Avatar automatico perdió control: ' + token);
 }
 if (!dogService.includes(".from('dogs')") ||
-    !dogService.includes('.update({ avatar_key: avatarKey, avatar_color: avatarColor })') ||
+    !dogService.includes('.update({ avatar_key: avatarKey, avatar_color: avatarColor, avatar_foreground_color: foreground })') ||
     !dogService.includes(".eq('is_active', true)")) {
-  throw new Error('El avatar debe actualizar exclusivamente sus dos preferencias bajo RLS.');
+  throw new Error('El avatar debe actualizar exclusivamente sus tres preferencias visuales bajo RLS.');
 }
 if (dogService.includes('.update({ avatar_key: avatarKey, avatar_color: avatarColor, name')) {
   throw new Error('El guardado de avatar no debe sobrescribir el borrador de identificacion.');
