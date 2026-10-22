@@ -319,6 +319,7 @@ export default function DogProfileScreen() {
                 <DogAvatar
                   avatarKey={profile?.avatar_key}
                   avatarColor={profile?.avatar_color}
+                  avatarForegroundColor={profile?.avatar_foreground_color}
                   size={86}
                   accessibilityLabel={`Avatar de ${draft.name || 'tu perro'}`}
                 />
