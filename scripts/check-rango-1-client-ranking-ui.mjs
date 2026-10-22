@@ -140,7 +140,7 @@ if (/\.sort\(|row_number|dense_rank|percent_rank|competitive_score\s*[+\-*/]/.te
   failures.push('Ranking cliente no debe recalcular orden, posición, percentiles ni score.');
 }
 
-if (!/puntaje total → Comandos → puntos de Exámenes → dog_id técnico/.test(ranking)) {
+if (!/Desempate: puntos, asistencias de Comandos y exámenes; si persiste, se utiliza un orden fijo\./.test(ranking)) {
   failures.push('Ranking cliente dejó de explicar el desempate canónico.');
 }
 
