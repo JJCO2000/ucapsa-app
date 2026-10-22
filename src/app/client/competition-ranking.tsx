@@ -64,7 +64,7 @@ export default function ClientCompetitionRankingScreen() {
   const [myCompetition, setMyCompetition] = useState<ClientAccountCompetitionSnapshot | null>(null);
   const [scoreUnavailable, setScoreUnavailable] = useState(false);
   const [requiredExams, setRequiredExams] = useState<RequiredCompetitionExam[] | null>(null);
-  const [myDogs, setMyDogs] = useState<Array<{ id: string; name: string; avatarKey: string; avatarColor: string; photoUrl: string | null }>>([]);
+  const [myDogs, setMyDogs] = useState<Array<{ id: string; name: string; avatarKey: string; avatarColor: string; avatarInk: string | null; photoUrl: string | null }>>([]);
   const [localReady, setLocalReady] = useState(false);
   const [usingSavedData, setUsingSavedData] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
@@ -99,6 +99,7 @@ export default function ClientCompetitionRankingScreen() {
         name: dog.dog_name,
         avatarKey: DEFAULT_DOG_AVATAR_KEY,
         avatarColor: DEFAULT_DOG_AVATAR_COLOR,
+        avatarInk: null,
         photoUrl: null,
       })));
     }
@@ -129,6 +130,7 @@ export default function ClientCompetitionRankingScreen() {
         name: dog.name,
         avatarKey: dog.avatar_key,
         avatarColor: dog.avatar_color,
+        avatarInk: dog.avatar_foreground_color,
         photoUrl: photoUrls[dog.id] ?? null,
       })));
     }
@@ -267,7 +269,7 @@ export default function ClientCompetitionRankingScreen() {
                 <Text style={[styles.sectionTitle, { color: format.cardText }]}>Puntos acumulados de tus perros</Text>
                 {myRows.map(({ dog, season }) => (
                   <View key={dog.id} style={[styles.myCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
-                    <RankingDogAvatar name={dog.name} photoUrl={dog.photoUrl} avatarKey={dog.avatarKey} avatarColor={dog.avatarColor} size={52} />
+                    <RankingDogAvatar name={dog.name} photoUrl={dog.photoUrl} avatarKey={dog.avatarKey} avatarColor={dog.avatarColor} avatarForegroundColor={dog.avatarInk} size={52} />
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.myLabel, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>SIN POSICIÓN OFICIAL</Text>
                       <Text style={[styles.cardTitle, { color: format.cardText }]}>
@@ -332,6 +334,7 @@ export default function ClientCompetitionRankingScreen() {
                       photoUrl={mine && row.dog_id ? myDogs.find((dog) => dog.id === row.dog_id)?.photoUrl ?? null : null}
                       avatarKey={row.dog_avatar_key}
                       avatarColor={row.dog_avatar_color}
+                      avatarForegroundColor={row.dog_avatar_foreground_color}
                       size={38}
                     />
                     <View style={{ flex: 1, minWidth: 0 }}>
@@ -361,6 +364,7 @@ export default function ClientCompetitionRankingScreen() {
                       photoUrl={dog.photoUrl}
                       avatarKey={dog.avatarKey}
                       avatarColor={dog.avatarColor}
+                      avatarForegroundColor={dog.avatarInk}
                       size={52}
                     />
                     <View style={{ flex: 1 }}>
@@ -397,7 +401,7 @@ export default function ClientCompetitionRankingScreen() {
         <Text style={[styles.myLabel, { color: format.accentDark }]}>TU POSICIÓN</Text>
         {footerDogs.slice(0, 2).map(({ dog, row, season }) => (
           <View key={dog.id} style={styles.footerRow}>
-            <RankingDogAvatar name={dog.name} photoUrl={dog.photoUrl} avatarKey={dog.avatarKey} avatarColor={dog.avatarColor} size={30} />
+            <RankingDogAvatar name={dog.name} photoUrl={dog.photoUrl} avatarKey={dog.avatarKey} avatarColor={dog.avatarColor} avatarForegroundColor={dog.avatarInk} size={30} />
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text numberOfLines={1} style={[styles.dogName, { color: format.cardText }]}>
                 {dog.name} · {row ? '#' + Number(row.ranking_position) : 'SIN POSICIÓN OFICIAL'}
@@ -425,12 +429,14 @@ function RankingDogAvatar({
   photoUrl,
   avatarKey,
   avatarColor,
+  avatarForegroundColor,
   size,
 }: {
   name: string;
   photoUrl: string | null;
   avatarKey: string | null | undefined;
   avatarColor: string | null | undefined;
+  avatarForegroundColor?: string | null;
   size: number;
 }) {
   if (photoUrl) {
@@ -449,6 +455,7 @@ function RankingDogAvatar({
     <DogAvatar
       avatarKey={avatarKey}
       avatarColor={avatarColor}
+      avatarForegroundColor={avatarForegroundColor}
       size={size}
       accessibilityLabel={`Avatar de ${name}`}
     />
