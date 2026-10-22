@@ -209,14 +209,14 @@ export default function ServicesTab() {
         premium={premium}
         icon="pets"
         title="Puppy School"
-        subtitle="Conoce el programa y solicita tu inscripción."
+        subtitle="Primeros pasos con tu cachorro. Pide que te contactemos."
         onPress={() => router.push('/client/program-interest?program=puppy' as never)}
       />
       <ServiceRow
         premium={premium}
         icon="school"
         title="Curso de Comandos"
-        subtitle="Entrenamiento y niveles en un horario compartido."
+        subtitle="Entrenamiento por niveles. Pide que te contactemos."
         onPress={() => router.push('/client/program-interest?program=comandos' as never)}
       />
       <ServiceRow

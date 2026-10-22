@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, RefreshControl, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, RefreshControl, Text, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
@@ -61,6 +61,14 @@ export default function AdminProgramInterestsScreen() {
     }
   }
 
+  async function openContact(url: string) {
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('No se pudo abrir', 'Revisa si tu dispositivo tiene una aplicación disponible para este contacto.');
+    }
+  }
+
   if (!isAdmin) return <Redirect href="/home" />;
 
   return (
@@ -94,8 +102,28 @@ export default function AdminProgramInterestsScreen() {
             </Text>
           </View>
           <Text style={{ color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '800' }}>{row.dogName}</Text>
-          <Text style={{ color: ucapsaBrand.colors.muted, fontSize: 14 }}>{row.customerName} · {row.customerPhone ?? 'Teléfono no registrado'}</Text>
+          <Text style={{ color: ucapsaBrand.colors.muted, fontSize: 14 }}>{row.customerName} · {row.customerPhone ?? row.customerEmail ?? 'Sin contacto registrado'}</Text>
           <Text style={{ color: ucapsaBrand.colors.muted, fontSize: 12 }}>Recibida: {new Date(row.created_at).toLocaleDateString('es-MX')}</Text>
+          {(row.customerPhone || row.customerEmail) ? (
+            <View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
+              {row.customerPhone ? (
+                <Pressable accessibilityRole="button" accessibilityLabel={'Llamar a ' + row.customerName}
+                  onPress={() => void openContact('tel:' + row.customerPhone!.replace(/[^\d+]/g, ''))}
+                  style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 12, borderRadius: 12, backgroundColor: ucapsaBrand.colors.redSoft }}>
+                  <MaterialIcons name="phone" size={18} color={ucapsaBrand.colors.redDark} />
+                  <Text style={{ color: ucapsaBrand.colors.redDark, fontWeight: '800' }}>Llamar</Text>
+                </Pressable>
+              ) : null}
+              {row.customerEmail ? (
+                <Pressable accessibilityRole="button" accessibilityLabel={'Escribir a ' + row.customerName}
+                  onPress={() => void openContact('mailto:' + encodeURIComponent(row.customerEmail!))}
+                  style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 12, borderRadius: 12, backgroundColor: ucapsaBrand.colors.redSoft }}>
+                  <MaterialIcons name="email" size={18} color={ucapsaBrand.colors.redDark} />
+                  <Text style={{ color: ucapsaBrand.colors.redDark, fontWeight: '800' }}>Correo</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : null}
           <Pressable accessibilityRole="button" onPress={() => router.push(('/admin/customer?userId=' + encodeURIComponent(row.user_id)) as never)}
             style={{ paddingVertical: 12, minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <MaterialIcons name="person-search" size={20} color={ucapsaBrand.colors.redDark} />

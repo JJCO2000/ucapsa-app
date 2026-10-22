@@ -165,16 +165,16 @@ export default function ClassesTab() {
         <View style={[styles.emptyCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
           <MaterialIcons name={offlineEmpty ? 'cloud-off' : 'school'} size={30} color={offlineEmpty ? format.accentDark : format.accent} />
           <Text style={[styles.sectionTitle, { color: format.cardText }]}>{offlineEmpty ? 'Clases aún no guardadas' : 'Sin clases activas'}</Text>
-          <Text style={[styles.muted, { color: format.muted }]}>{offlineEmpty ? 'Conéctate una vez para guardar tus clases y asistencias en este dispositivo.' : 'Aquí verás tus clases y asistencias cuando UCAPSA confirme tu inscripción. Puedes solicitar Puppy o Comandos ahora.'}</Text>
+          <Text style={[styles.muted, { color: format.muted }]}>{offlineEmpty ? 'Conéctate una vez para guardar tus clases y asistencias en este dispositivo.' : 'Aquí verás tus clases después de inscribirte. ¿Te interesa entrenar con UCAPSA?'}</Text>
           {!offlineEmpty ? (
             <View style={{ gap: 9, width: '100%' }}>
               <Pressable accessibilityRole="button" onPress={() => router.push('/client/program-interest?program=puppy' as never)}
                 style={[styles.secondaryButton, { backgroundColor: format.primaryButton, borderColor: format.primaryButton, minHeight: 54 }]}>
-                <Text style={[styles.secondaryButtonText, { color: format.primaryButtonText }]}>Solicitar Puppy School</Text>
+                <Text style={[styles.secondaryButtonText, { color: format.primaryButtonText }]}>Me interesa Puppy School</Text>
               </Pressable>
               <Pressable accessibilityRole="button" onPress={() => router.push('/client/program-interest?program=comandos' as never)}
                 style={[styles.secondaryButton, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder, minHeight: 54 }]}>
-                <Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>Solicitar Comandos</Text>
+                <Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>Me interesa Comandos</Text>
               </Pressable>
             </View>
           ) : null}
