@@ -17,6 +17,7 @@ import { useSession } from '../hooks/useSession';
 import { devWarn } from '../lib/client-diagnostics';
 import { deleteMyAccount, getAccountDeletionStatusLabel, getMyAccountDeletionRequest, isAccountDeletionOpen, type AccountDeletionRequest } from '../services/account-deletion.service';
 import { requestMyEmailChange, updateMyProfile } from '../services/profiles.service';
+import { resendEmailConfirmation } from '../services/auth.service';
 import { isSupportedContactPhone, normalizeContactPhone, sameContactPhone } from '../utils/phone-contact';
 import { getMyMembership, getMembershipEffectiveStatus } from '../services/memberships.service';
 import { DEFAULT_WRITE_TIMEOUT_MS, friendlyWriteError, withOperationTimeout } from '../utils/async.utils';
@@ -54,6 +55,7 @@ export default function AccountSettingsScreen() {
   const [editing, setEditing] = useState(false);
   const [showLinkingHelp, setShowLinkingHelp] = useState(false);
   const [checkingPreregistration, setCheckingPreregistration] = useState(false);
+  const [resendingEmail, setResendingEmail] = useState(false);
   const [deletionRequest, setDeletionRequest] = useState<AccountDeletionRequest | null>(null);
   const [deletionLoading, setDeletionLoading] = useState(false);
   const { memberTheme, setMemberTheme } = useMemberAppearance();
@@ -154,6 +156,24 @@ export default function AccountSettingsScreen() {
       setRefreshing(false);
     }
   }, [refreshDeletionRequest, refreshProfile]);
+
+  async function handleResendEmailVerification() {
+    // Solo el correo de acceso en Auth, nunca el correo de contacto de un preregistro.
+    if (!user?.email || user.email_confirmed_at || isOfflineFallback || resendingEmail) return;
+    setResendingEmail(true);
+    try {
+      await withOperationTimeout(
+        resendEmailConfirmation(user.email),
+        DEFAULT_WRITE_TIMEOUT_MS,
+        'email-confirmation-resend',
+      );
+      Alert.alert('Solicitud enviada', 'Revisa tu correo de acceso y la carpeta de spam. El correo solo quedará verificado cuando abras el enlace de confirmación.');
+    } catch (error) {
+      Alert.alert('No se pudo solicitar la verificación', friendlyWriteError(error));
+    } finally {
+      setResendingEmail(false);
+    }
+  }
 
   async function handleSaveProfile() {
     if (!user) {
@@ -439,6 +459,20 @@ export default function AccountSettingsScreen() {
           <ReadonlyRow format={format} label="Correo para iniciar sesión" value={user.email || 'Sin registrar'} premium={premium} />
           <ReadonlyRow format={format} label="Verificación del correo"
             value={user.email_confirmed_at ? 'Verificado' : 'Sin confirmar'} premium={premium} />
+          {user.email && !user.email_confirmed_at ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Reenviar confirmación a mi correo de acceso"
+              accessibilityState={{ disabled: resendingEmail || isOfflineFallback }}
+              disabled={resendingEmail || isOfflineFallback}
+              style={[styles.smallButton, premium && styles.premiumSmallButton,
+                (resendingEmail || isOfflineFallback) && styles.disabled]}
+              onPress={() => void handleResendEmailVerification()}>
+              <Text style={[styles.smallButtonText, premium && styles.premiumSmallButtonText]}>
+                {resendingEmail ? 'Solicitando verificación…' : 'Reenviar confirmación de correo'}
+              </Text>
+            </Pressable>
+          ) : null}
           <ReadonlyRow format={format} label="Celular principal" value={mainPhone || 'Pendiente'} premium={premium} />
           {preregistrationEnabled ? (
             <ReadonlyRow format={format} label="Correo de contacto"
