@@ -30,7 +30,7 @@ export function ExpandablePhoto({
         accessibilityLabel={`Ampliar ${title.toLowerCase()}`}
         accessibilityHint="Abre la imagen completa. Puedes volver con Cerrar."
         disabled={disabled}
-        onPress={() => setOpen(true)}
+        onPress={(event) => { event.stopPropagation(); setOpen(true); }}
         style={styles.thumbnail}
       >
         {children}
