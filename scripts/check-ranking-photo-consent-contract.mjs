@@ -8,7 +8,8 @@ const config = fs.readFileSync('supabase/config.toml', 'utf8');
 for (const guard of [
   'ENABLE ROW LEVEL SECURITY', 'REVOKE ALL ON public.dog_ranking_photo_consents',
   'v_dog.user_id IS DISTINCT FROM v_user',
-  "version LIKE '1.4%'", "position('foto pública' IN lower(integral_notice))",
+  "version LIKE '1.4%'", "ranking_photo_publication_approved IS TRUE",
+  "DEFAULT false", "position('foto pública' IN lower(integral_notice))",
   'v_dog.photo_path IS NULL', 'REVOKE ALL ON FUNCTION public.set_my_dog_ranking_photo_consent',
   "action IN ('grant', 'revoke', 'photo_changed')",
   'AFTER UPDATE OF photo_path, user_id, is_active',
