@@ -336,10 +336,25 @@ for (const token of [
 ]) {
   if (!dogProfile.includes(token)) throw new Error('Avatar automatico perdió control: ' + token);
 }
-if (!dogService.includes(".from('dogs')") ||
-    !dogService.includes('.update({ avatar_key: avatarKey, avatar_color: avatarColor })') ||
-    !dogService.includes(".eq('is_active', true)")) {
-  throw new Error('El avatar debe actualizar exclusivamente sus dos preferencias bajo RLS.');
+if (!dogService.includes(".rpc('set_my_dog_avatar_preferences'") ||
+    !dogService.includes('p_dog_id: id') ||
+    !dogService.includes('p_avatar_key: avatarKey') ||
+    !dogService.includes('p_avatar_color: avatarColor') ||
+    !dogService.includes('p_avatar_foreground_color: null')) {
+  throw new Error('El avatar debe guardar solo la selección y un color mediante RPC propietaria.');
+}
+if (dogProfile.includes('Color del dibujo') || dogProfile.includes('avatarInkExpanded')) {
+  throw new Error('No agregar controles de color independientes por cada dibujo o emoji.');
+}
+if (!read('src/components/domain/DogAvatar.tsx').includes('dogAvatarForeground(normalizedColor)')) {
+  throw new Error('Los iconos deben conservar contraste automatico.');
+}
+for (const p of [
+  'supabase/migrations/20261022023507_dog_avatar_foreground_and_leaderboard.sql',
+  'supabase/migrations/20261022024837_owned_avatar_preferences_rpc.sql',
+  'supabase/migrations/20261022025241_restore_competition_leaderboard_security_invoker.sql',
+]) {
+  read(p);
 }
 if (dogService.includes('.update({ avatar_key: avatarKey, avatar_color: avatarColor, name')) {
   throw new Error('El guardado de avatar no debe sobrescribir el borrador de identificacion.');
