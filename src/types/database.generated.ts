@@ -6540,7 +6540,7 @@ export type Database = {
       set_my_dog_avatar_preferences: {
         Args: {
           p_avatar_color: string
-          p_avatar_foreground_color: string
+          p_avatar_foreground_color?: string
           p_avatar_key: string
           p_dog_id: string
         }
