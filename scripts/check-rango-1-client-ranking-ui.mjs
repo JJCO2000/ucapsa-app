@@ -101,7 +101,6 @@ for (const token of [
   'command_attendances_count',
   'exam_points',
   'range_name',
-  'rows.slice(0, 3)',
   'myDogIds.has(row.dog_id)',
   'Tus perros',
   'Tuyo',
@@ -112,18 +111,26 @@ for (const token of [
   if (!ranking.includes(token)) failures.push('Ranking cliente perdió dato/identidad canónica: ' + token);
 }
 
-// La distribución visual 2-1-3 nunca reordena ni recalcula la clasificación
-// original; fotos privadas siguen resolviéndose únicamente para perros propios.
+// El mismo componente se usa en las dos pantallas, sin recalcular el ranking.
+// La foto sigue limitada a la cuenta propietaria, no al ranking público.
+const podium = read('src/components/domain/CompetitionPodium.tsx');
 for (const token of [
-  'const podiumDisplay = [podium[1], podium[0], podium[2]]',
-  'podiumDisplay.map((row)',
-  'position === 1 && styles.podiumChampion',
-  'position === 1 ? 52 : 42',
-  'podiumPedestalChampion',
-  'mine && row.dog_id ? myDogs.find',
-  'const podium = rows.slice(0, 3)',
+  'const PLACES = [2, 1, 3]',
+  'row.ranking_position',
+  'row.competitive_score',
+  'myDogIds?.has(dogId)',
+  'photoUrlForDog?.(dogId)',
+  'compact = false',
 ]) {
-  if (!ranking.includes(token)) failures.push('Podio visual perdió regla de datos o privacidad: ' + token);
+  if (!podium.includes(token)) failures.push('Podio compartido perdió regla de datos o privacidad: ' + token);
+}
+if (!ranking.includes('<CompetitionPodium')
+  || !summary.includes('<CompetitionPodium rows={rows} compact />')
+  || !ranking.includes('photoUrlForDog={(id) => myDogs.find')) {
+  failures.push('Ranking y Competencia deben reutilizar un podio con foto propia autorizada.');
+}
+if (/\.sort\(|row_number|dense_rank|percent_rank|competitive_score\s*[+\-*/]/.test(podium)) {
+  failures.push('El podio no debe reordenar ni recalcular datos oficiales.');
 }
 
 if (/row\.dog_id === dogId/.test(ranking)) {
