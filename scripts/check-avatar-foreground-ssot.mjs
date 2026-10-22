@@ -5,6 +5,7 @@ const read = (path) => fs.readFileSync(path, 'utf8');
 const migration = read('supabase/migrations/20261022023507_dog_avatar_foreground_and_leaderboard.sql');
 const service = read('src/services/dogs.service.ts');
 const guardMigration = read('supabase/migrations/20261022024837_owned_avatar_preferences_rpc.sql');
+const securityMigration = read('supabase/migrations/20261022025241_restore_competition_leaderboard_security_invoker.sql');
 const avatar = read('src/components/domain/DogAvatar.tsx');
 const constants = read('src/constants/dogAvatar.ts');
 const profile = read('src/app/client/dog-profile.tsx');
@@ -31,6 +32,7 @@ for (const token of [
   'REVOKE ALL ON FUNCTION public.set_my_dog_avatar_preferences',
   'GRANT EXECUTE ON FUNCTION public.set_my_dog_avatar_preferences',
 ]) assert.ok(guardMigration.includes(token), 'Falta guard propietario RPC '+token);
+assert.ok(securityMigration.includes('security_invoker = true'), 'Ranking debe conservar RLS del consultante.');
 for (const token of [
   'isAccessibleDogAvatarForeground','DOG_AVATAR_FOREGROUND_COLORS',
   'availableDogAvatarForegrounds','>= 3',
