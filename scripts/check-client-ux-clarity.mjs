@@ -336,10 +336,23 @@ for (const token of [
 ]) {
   if (!dogProfile.includes(token)) throw new Error('Avatar automatico perdió control: ' + token);
 }
-if (!dogService.includes(".from('dogs')") ||
-    !dogService.includes('.update({ avatar_key: avatarKey, avatar_color: avatarColor })') ||
-    !dogService.includes(".eq('is_active', true)")) {
-  throw new Error('El avatar debe actualizar exclusivamente sus dos preferencias bajo RLS.');
+if (!dogService.includes(".rpc('set_my_dog_avatar_preferences'") ||
+    !dogService.includes('p_dog_id: id') ||
+    !dogService.includes('p_avatar_key: avatarKey') ||
+    !dogService.includes('p_avatar_color: avatarColor') ||
+    !dogService.includes('p_avatar_foreground_color: null')) {
+  throw new Error('El avatar debe guardar solamente dibujo y fondo usando RPC de propietario.');
+}
+if (dogProfile.includes('Color del dibujo') || dogProfile.includes('avatarInkExpanded')) {
+  throw new Error('No crear un segundo selector: basta con avatar y un color.');
+}
+const ownerRpcMigration = read('supabase/migrations/20261022024837_owned_avatar_preferences_rpc.sql');
+if (!ownerRpcMigration.includes('d.id=p_dog_id AND d.user_id=v_user AND d.is_active=true')) {
+  throw new Error('La RPC debe validar titularidad del perro en Supabase.');
+}
+const viewSecurity = read('supabase/migrations/20261022025241_restore_competition_leaderboard_security_invoker.sql');
+if (!viewSecurity.includes('security_invoker = true')) {
+  throw new Error('El Ranking debe conservar los permisos de invocador.');
 }
 if (dogService.includes('.update({ avatar_key: avatarKey, avatar_color: avatarColor, name')) {
   throw new Error('El guardado de avatar no debe sobrescribir el borrador de identificacion.');
