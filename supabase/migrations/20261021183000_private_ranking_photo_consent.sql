@@ -3,6 +3,11 @@
 -- El consentimiento no puede ser escrito directamente por cliente.
 BEGIN;
 
+-- Bloqueo explícito, por defecto FALSE: la mera mención del término "foto pública"
+-- en un aviso publicado NO significa aprobación de la finalidad opcional.
+ALTER TABLE public.privacy_notices
+  ADD COLUMN IF NOT EXISTS ranking_photo_publication_approved boolean NOT NULL DEFAULT false;
+
 CREATE TABLE IF NOT EXISTS public.dog_ranking_photo_consents (
   dog_id uuid PRIMARY KEY REFERENCES public.dogs(id) ON DELETE CASCADE,
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -74,6 +79,7 @@ BEGIN
     FROM public.privacy_notices
    WHERE status = 'published'
      AND version LIKE '1.4%'
+     AND ranking_photo_publication_approved IS TRUE
      AND position('foto pública' IN lower(integral_notice)) > 0
    ORDER BY published_at DESC LIMIT 1;
   IF v_notice IS NULL THEN
