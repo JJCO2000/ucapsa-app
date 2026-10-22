@@ -6,6 +6,7 @@ import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, Text, View 
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
+import { ContextualHelpTip } from '../../components/ui/ContextualHelpTip';
 import { UcapsaDetailModal } from '../../components/ui/UcapsaDetailModal';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
@@ -33,7 +34,6 @@ import {
 import { getCachedMyPracticeActivity, getMyPracticeActivity, type PracticeActivitySnapshot } from '../../services/practice.service';
 import type { Announcement } from '../../types/app.types';
 import { DEFAULT_READ_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
-import { hasSeenQuickHelp, markQuickHelpSeen } from '../../services/quick-help.service';
 import { ActivityCard, ClassRsvpPrompt, ContextNotice, ContextStrip, NextActionCard, ProgramCard } from './HomeCards';
 import {
   firstName,
@@ -60,7 +60,6 @@ export default function HomeExperienceScreen() {
   const [classRsvp, setClassRsvp] = useState<ClassRsvpResponse | null>(null);
   const [classRsvpSaving, setClassRsvpSaving] = useState(false);
   const [dogCount, setDogCount] = useState<number | null>(null);
-  const [offerQuickHelp, setOfferQuickHelp] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const cacheScopeRef = useRef<string | null>(null);
@@ -181,23 +180,6 @@ export default function HomeExperienceScreen() {
     });
     return () => { active = false; };
   }, [isStaff, user, preregistrationSyncVersion]));
-
-  useFocusEffect(useCallback(() => {
-    let active = true;
-    if (!user || isStaff) {
-      setOfferQuickHelp(false);
-      return () => { active = false; };
-    }
-    void hasSeenQuickHelp(user.id)
-      .then((seen) => { if (active) setOfferQuickHelp(!seen); });
-    return () => { active = false; };
-  }, [isStaff, user]));
-
-  function dismissQuickHelp() {
-    if (!user) return;
-    setOfferQuickHelp(false);
-    void markQuickHelpSeen(user.id);
-  }
 
   async function refresh() {
     setRefreshing(true);
@@ -376,23 +358,7 @@ export default function HomeExperienceScreen() {
         </View>
       </View>
 
-      {user && !isStaff && offerQuickHelp ? (
-        <View style={{ borderColor: format.cardBorder, backgroundColor: format.surfaceAlt,
-          borderWidth: 1, borderRadius: 18, padding: 14, marginBottom: 12, gap: 8 }}>
-          <Text style={{ color: format.cardText, fontSize: 16, fontWeight: '900' }}>¿Primera vez en UCAPSA?</Text>
-          <Text style={{ color: format.muted, fontSize: 13 }}>Descubre clases, agenda y restaurante en una guía rápida.</Text>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
-            <Pressable accessibilityRole="button" onPress={() => router.push('/client/quick-help' as never)}
-              style={{ minHeight: 48, justifyContent: 'center', paddingHorizontal: 12 }}>
-              <Text style={{ color: format.accentDark, fontWeight: '900' }}>Ver guía →</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={dismissQuickHelp}
-              style={{ minHeight: 48, justifyContent: 'center', paddingHorizontal: 12 }}>
-              <Text style={{ color: format.muted, fontWeight: '700' }}>Ahora no</Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : null}
+      {user && !isStaff ? <ContextualHelpTip tab="home" userId={user.id} format={format} /> : null}
 
       {user && !isStaff && (dogCount === 0 || (!profileComplete && dogCount !== null)) ? (
         <Pressable accessibilityRole="button"
@@ -506,13 +472,6 @@ export default function HomeExperienceScreen() {
         />
       ) : null}
 
-      {!loading && user ? (
-        <Pressable style={styles.noticeLinkOnly} onPress={() => router.push('/announcements' as never)}>
-          <MaterialIcons name="campaign" size={17} color={format.accentDark} />
-          <Text style={[styles.noticeLinkOnlyText, { color: format.accentDark }]}>Ver avisos UCAPSA</Text>
-        </Pressable>
-      ) : null}
-
       {!loading && contextKind === 'notice' && homeNotice ? (
         <ContextNotice
           announcement={homeNotice}
@@ -520,6 +479,13 @@ export default function HomeExperienceScreen() {
           onOpen={() => setSelectedAnnouncement(homeNotice)}
           onOpenAll={() => router.push('/announcements' as never)}
         />
+      ) : null}
+
+      {!loading && user ? (
+        <Pressable style={styles.noticeLinkOnly} onPress={() => router.push('/announcements' as never)}>
+          <MaterialIcons name="campaign" size={17} color={format.accentDark} />
+          <Text style={[styles.noticeLinkOnlyText, { color: format.accentDark }]}>Ver avisos UCAPSA</Text>
+        </Pressable>
       ) : null}
 
       {!loading && contextKind === 'profile' ? (
