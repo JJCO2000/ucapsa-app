@@ -5993,6 +5993,13 @@ export type Database = {
           response: string
         }[]
       }
+      get_my_dog_avatar_foregrounds: {
+        Args: never
+        Returns: {
+          avatar_foreground_color: string
+          dog_id: string
+        }[]
+      }
       get_my_dog_photo_paths: {
         Args: never
         Returns: {
@@ -6528,6 +6535,19 @@ export type Database = {
           enrollment_id: string
           responded_at: string
           response: string
+        }[]
+      }
+      set_my_dog_avatar_preferences: {
+        Args: {
+          p_avatar_color: string
+          p_avatar_foreground_color: string
+          p_avatar_key: string
+          p_dog_id: string
+        }
+        Returns: {
+          avatar_color: string
+          avatar_foreground_color: string
+          avatar_key: string
         }[]
       }
       set_my_dog_photo_path: {
