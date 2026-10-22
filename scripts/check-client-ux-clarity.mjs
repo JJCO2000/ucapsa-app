@@ -344,3 +344,29 @@ if (!dogService.includes(".from('dogs')") ||
 if (dogService.includes('.update({ avatar_key: avatarKey, avatar_color: avatarColor, name')) {
   throw new Error('El guardado de avatar no debe sobrescribir el borrador de identificacion.');
 }
+
+const expandable = read('src/components/ui/ExpandablePhoto.tsx');
+if (!expandable.includes('resizeMode="contain"')
+  || !expandable.includes('onRequestClose={close}')
+  || !expandable.includes('event.stopPropagation()')
+  || !expandable.includes('accessibilityLabel="Cerrar foto"')
+  || !expandable.includes('no-store') && expandable.includes('createSignedUrl(')) {
+  throw new Error('Visor de fotografía perdió cierre, imagen completa o aislamiento de acceso.');
+}
+for (const path of [
+  'src/app/client/dog-profile.tsx',
+  'src/app/client/competition-ranking.tsx',
+  'src/components/domain/CompetitionPodium.tsx',
+  'src/app/(tabs)/dog.tsx',
+]) {
+  if (!read(path).includes('ExpandablePhoto')) throw new Error('Falta imagen ampliable: ' + path);
+}
+if (!read('src/app/(tabs)/dog.tsx').includes('onPress={openEditProfile}')) {
+  throw new Error('Ver foto no debe eliminar edición del perfil.');
+}
+if (!read('src/components/domain/CompetitionPodium.tsx').includes('myDogIds?.has(dogId)')) {
+  throw new Error('El podio no puede exponer fotografías privadas de otros usuarios.');
+}
+if (read('src/app/account-settings.tsx').includes('Correo de contacto para preinscripción')) {
+  throw new Error('Datos de contacto: no mostrar procesos internos.');
+}
