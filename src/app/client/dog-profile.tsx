@@ -10,7 +10,7 @@ import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { ExpandablePhoto } from '../../components/ui/ExpandablePhoto';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
-import { DOG_AVATAR_OPTIONS, DOG_AVATAR_COLORS, DEFAULT_DOG_AVATAR_KEY, DEFAULT_DOG_AVATAR_COLOR, type DogAvatarKey, type DogAvatarColor } from '../../constants/dogAvatar';
+import { DOG_AVATAR_OPTIONS, DOG_AVATAR_COLORS, DEFAULT_DOG_AVATAR_KEY, DEFAULT_DOG_AVATAR_COLOR, availableDogAvatarForegrounds, isAccessibleDogAvatarForeground, type DogAvatarKey, type DogAvatarColor, type DogAvatarForegroundColor } from '../../constants/dogAvatar';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import { getPrivateDogPhotoUrl, removeMyDogPhoto, uploadMyDogPhoto } from '../../services/dog-photos.service';
@@ -72,10 +72,12 @@ export default function DogProfileScreen() {
   const [avatarColor, setAvatarColor] = useState<DogAvatarColor>(DEFAULT_DOG_AVATAR_COLOR);
   const [avatarExpanded, setAvatarExpanded] = useState(false);
   const [avatarColorsExpanded, setAvatarColorsExpanded] = useState(false);
+  const [avatarInkExpanded, setAvatarInkExpanded] = useState(false);
+  const [avatarInk, setAvatarInk] = useState<DogAvatarForegroundColor | null>(null);
   const [avatarSaving, setAvatarSaving] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
-  const desiredAvatar = useRef({ key: DEFAULT_DOG_AVATAR_KEY as DogAvatarKey, color: DEFAULT_DOG_AVATAR_COLOR as DogAvatarColor });
-  const persistedAvatar = useRef({ key: DEFAULT_DOG_AVATAR_KEY as DogAvatarKey, color: DEFAULT_DOG_AVATAR_COLOR as DogAvatarColor });
+  const desiredAvatar = useRef({ key: DEFAULT_DOG_AVATAR_KEY as DogAvatarKey, color: DEFAULT_DOG_AVATAR_COLOR as DogAvatarColor, ink: null as DogAvatarForegroundColor | null });
+  const persistedAvatar = useRef({ key: DEFAULT_DOG_AVATAR_KEY as DogAvatarKey, color: DEFAULT_DOG_AVATAR_COLOR as DogAvatarColor, ink: null as DogAvatarForegroundColor | null });
   const avatarWriteBusy = useRef(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -96,7 +98,8 @@ export default function DogProfileScreen() {
       setDraft(draftFromProfile(nextProfile));
       setAvatarKey(nextProfile.avatar_key);
       setAvatarColor(nextProfile.avatar_color);
-      desiredAvatar.current = { key: nextProfile.avatar_key, color: nextProfile.avatar_color };
+      setAvatarInk(nextProfile.avatar_foreground_color);
+      desiredAvatar.current = { key: nextProfile.avatar_key, color: nextProfile.avatar_color, ink: nextProfile.avatar_foreground_color };
       persistedAvatar.current = { ...desiredAvatar.current };
       setAvatarError(null);
       setPhotoUrl(await getPrivateDogPhotoUrl(nextProfile.photo_path));
@@ -122,12 +125,13 @@ export default function DogProfileScreen() {
     try {
       // Las pulsaciones rápidas se serializan: sólo queda la última combinación elegida.
       while (desiredAvatar.current.key !== persistedAvatar.current.key
-        || desiredAvatar.current.color !== persistedAvatar.current.color) {
+        || desiredAvatar.current.color !== persistedAvatar.current.color
+        || desiredAvatar.current.ink !== persistedAvatar.current.ink) {
         const requested = { ...desiredAvatar.current };
-        const saved = await updateMyDogAvatar(dogId, requested.key, requested.color);
-        persistedAvatar.current = { key: saved.avatar_key, color: saved.avatar_color };
+        const saved = await updateMyDogAvatar(dogId, requested.key, requested.color, requested.ink);
+        persistedAvatar.current = { key: saved.avatar_key, color: saved.avatar_color, ink: saved.avatar_foreground_color };
         setProfile((current) => current
-          ? { ...current, avatar_key: saved.avatar_key, avatar_color: saved.avatar_color }
+          ? { ...current, avatar_key: saved.avatar_key, avatar_color: saved.avatar_color, avatar_foreground_color: saved.avatar_foreground_color }
           : current);
       }
     } catch (cause) {
@@ -136,6 +140,7 @@ export default function DogProfileScreen() {
       desiredAvatar.current = previous;
       setAvatarKey(previous.key);
       setAvatarColor(previous.color);
+      setAvatarInk(previous.ink);
       setAvatarError(friendlyWriteError(cause, 'Revisa tu conexión e inténtalo otra vez.'));
     } finally {
       avatarWriteBusy.current = false;
@@ -143,12 +148,16 @@ export default function DogProfileScreen() {
     }
   }
 
-  function selectAvatar(next: { key?: DogAvatarKey; color?: DogAvatarColor }) {
+  function selectAvatar(next: { key?: DogAvatarKey; color?: DogAvatarColor; ink?: DogAvatarForegroundColor | null }) {
     if (saving || !profile) return;
     const updated = { ...desiredAvatar.current, ...next };
+    if (updated.ink && !isAccessibleDogAvatarForeground(updated.color, updated.ink)) {
+      updated.ink = null;
+    }
     desiredAvatar.current = updated;
     setAvatarKey(updated.key);
     setAvatarColor(updated.color);
+    setAvatarInk(updated.ink);
     setAvatarError(null);
     void persistAvatar();
   }
@@ -234,7 +243,7 @@ export default function DogProfileScreen() {
       );
       setProfile(saved);
       setDraft(draftFromProfile(saved));
-      persistedAvatar.current = { key: saved.avatar_key, color: saved.avatar_color };
+      persistedAvatar.current = { key: saved.avatar_key, color: saved.avatar_color, ink: saved.avatar_foreground_color };
       desiredAvatar.current = { ...persistedAvatar.current };
       Alert.alert('Datos guardados', `El perfil de ${saved.name} se actualizó correctamente.`);
     } catch (cause) {
@@ -349,7 +358,7 @@ export default function DogProfileScreen() {
               onPress={() => setAvatarExpanded((open) => !open)}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 68,
                 borderWidth: 1, borderColor: format.cardBorder, borderRadius: 14, padding: 10 }}>
-              <DogAvatar avatarKey={avatarKey} avatarColor={avatarColor} size={48} />
+              <DogAvatar avatarKey={avatarKey} avatarColor={avatarColor} avatarForegroundColor={avatarInk} size={48} />
               <View style={{ flex: 1 }}>
                 <Text style={{ color: format.cardText, fontSize: 16, fontWeight: '800' }}>
                   {DOG_AVATAR_OPTIONS.find((option) => option.key === avatarKey)?.label ?? 'Mi avatar'}
@@ -368,7 +377,7 @@ export default function DogProfileScreen() {
                     style={{ width: 69, minHeight: 78, borderRadius: 13, borderWidth: avatarKey === option.key ? 2 : 1,
                       borderColor: avatarKey === option.key ? format.accent : format.cardBorder,
                       alignItems: 'center', justifyContent: 'center', padding: 5, gap: 4 }}>
-                    <DogAvatar avatarKey={option.key} avatarColor={avatarColor} size={42} accessibilityLabel={option.label} />
+                    <DogAvatar avatarKey={option.key} avatarColor={avatarColor} avatarForegroundColor={avatarInk} size={42} accessibilityLabel={option.label} />
                     <Text style={{ fontSize: 10, textAlign: 'center', color: format.cardText }} numberOfLines={1}>{option.label}</Text>
                   </Pressable>
                 ))}
@@ -394,6 +403,35 @@ export default function DogProfileScreen() {
                       borderColor: avatarColor === color ? format.accent : format.cardBorder,
                       borderWidth: avatarColor === color ? 3 : 1, justifyContent: 'center', alignItems: 'center' }}>
                     {avatarColor === color ? <MaterialIcons name="check" size={18} color={color === DOG_AVATAR_COLORS[0] || color === DOG_AVATAR_COLORS[2] ? ucapsaBrand.colors.dogAvatarDark : ucapsaBrand.colors.surface} /> : null}
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+            <Pressable accessibilityRole="button" accessibilityLabel="Elegir color del dibujo"
+              accessibilityState={{ expanded: avatarInkExpanded }}
+              onPress={() => setAvatarInkExpanded((open) => !open)}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56,
+                borderWidth: 1, borderColor: format.cardBorder, borderRadius: 14, padding: 10 }}>
+              <DogAvatar avatarKey={avatarKey} avatarColor={avatarColor} avatarForegroundColor={avatarInk} size={32} />
+              <Text style={{ color: format.cardText, fontSize: 15, fontWeight: '800', flex: 1 }}>Color del dibujo</Text>
+              <MaterialIcons name={avatarInkExpanded ? 'expand-less' : 'expand-more'} size={24} color={format.accentDark} />
+            </Pressable>
+            {avatarInkExpanded ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                <Pressable accessibilityRole="button" accessibilityLabel="Color automático del dibujo"
+                  accessibilityState={{ selected: avatarInk === null }}
+                  onPress={() => { selectAvatar({ ink: null }); setAvatarInkExpanded(false); }}
+                  style={{ minHeight: 48, paddingHorizontal: 12, justifyContent: 'center', borderWidth: 1,
+                    borderRadius: 20, borderColor: avatarInk === null ? format.accent : format.cardBorder }}>
+                  <Text style={{ color: format.cardText, fontWeight: '700' }}>Automático</Text>
+                </Pressable>
+                {availableDogAvatarForegrounds(avatarColor).map((ink) => (
+                  <Pressable key={ink} accessibilityRole="button" accessibilityLabel={'Color del dibujo ' + ink}
+                    accessibilityState={{ selected: avatarInk === ink }}
+                    onPress={() => { selectAvatar({ ink }); setAvatarInkExpanded(false); }}
+                    style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: ink, borderWidth: avatarInk === ink ? 3 : 1,
+                      borderColor: avatarInk === ink ? format.accent : format.cardBorder, alignItems: 'center', justifyContent: 'center' }}>
+                    {avatarInk === ink ? <MaterialIcons name="check" size={20} color={ink === '#FFFFFF' ? ucapsaBrand.colors.dogAvatarDark : ucapsaBrand.colors.surface} /> : null}
                   </Pressable>
                 ))}
               </View>
