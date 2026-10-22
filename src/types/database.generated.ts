@@ -533,6 +533,7 @@ export type Database = {
         Row: {
           allergies: string | null
           avatar_color: string
+          avatar_foreground_color: string | null
           avatar_key: string
           behavior_notes: string | null
           birth_date: string | null
@@ -557,6 +558,7 @@ export type Database = {
         Insert: {
           allergies?: string | null
           avatar_color?: string
+          avatar_foreground_color?: string | null
           avatar_key?: string
           behavior_notes?: string | null
           birth_date?: string | null
@@ -581,6 +583,7 @@ export type Database = {
         Update: {
           allergies?: string | null
           avatar_color?: string
+          avatar_foreground_color?: string | null
           avatar_key?: string
           behavior_notes?: string | null
           birth_date?: string | null
@@ -4405,6 +4408,7 @@ export type Database = {
           constancy_points: number | null
           constancy_population_count: number | null
           dog_avatar_color: string | null
+          dog_avatar_foreground_color: string | null
           dog_avatar_key: string | null
           dog_id: string | null
           dog_is_active: boolean | null
@@ -5989,6 +5993,13 @@ export type Database = {
           response: string
         }[]
       }
+      get_my_dog_avatar_foregrounds: {
+        Args: never
+        Returns: {
+          avatar_foreground_color: string
+          dog_id: string
+        }[]
+      }
       get_my_dog_photo_paths: {
         Args: never
         Returns: {
@@ -6227,6 +6238,7 @@ export type Database = {
           constancy_points: number | null
           constancy_population_count: number | null
           dog_avatar_color: string | null
+          dog_avatar_foreground_color: string | null
           dog_avatar_key: string | null
           dog_id: string | null
           dog_is_active: boolean | null
@@ -6525,16 +6537,23 @@ export type Database = {
           response: string
         }[]
       }
+      set_my_dog_avatar_basic: {
+        Args: { p_avatar_color: string; p_avatar_key: string; p_dog_id: string }
+        Returns: {
+          avatar_color: string
+          avatar_key: string
+        }[]
+      }
       set_my_dog_avatar_preferences: {
         Args: {
           p_avatar_color: string
-          p_avatar_foreground_color: string | null
+          p_avatar_foreground_color?: string
           p_avatar_key: string
           p_dog_id: string
         }
         Returns: {
           avatar_color: string
-          avatar_foreground_color: string | null
+          avatar_foreground_color: string
           avatar_key: string
         }[]
       }
@@ -6558,6 +6577,17 @@ export type Database = {
           p_enrollment_id: string
           p_notes?: string
           p_schedule_id: string
+        }
+        Returns: string
+      }
+      staff_preregister_dog_with_program: {
+        Args: {
+          p_dog_name: string
+          p_owner_email: string
+          p_owner_name: string
+          p_owner_phone: string
+          p_program_code: string
+          p_program_level: string
         }
         Returns: string
       }
