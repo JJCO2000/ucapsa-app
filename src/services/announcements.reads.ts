@@ -102,9 +102,10 @@ function daysBetweenDateKeys(fromKey: string, toKey: string) {
 }
 
 function isHomeRelevantAnnouncement(announcement: Announcement, now = new Date()) {
-  if (!isCurrentHomeAnnouncement(announcement, now)) return false;
-  if (announcement.is_pinned || announcement.priority === 'urgent' || announcement.priority === 'high') return true;
+  if (!announcement.is_published || !isCurrentHomeAnnouncement(announcement, now)) return false;
 
+  // Un aviso fijado no implica que requiera atención inmediata:
+  // una cancelación prevista dentro de meses pertenece a la agenda, no al Inicio de hoy.
   const today = localDateKey(now);
   const scheduled = scheduledDateKey(announcement);
   if (scheduled) {
@@ -112,6 +113,9 @@ function isHomeRelevantAnnouncement(announcement: Announcement, now = new Date()
     return daysAway >= 0 && daysAway <= HOME_ANNOUNCEMENT_WINDOW_DAYS;
   }
 
+  // Sin fecha de actividad, sólo una publicación prioritaria reciente merece una
+  // tarjeta de atención. El resto sigue disponible en el listado de Avisos.
+  if (!announcement.is_pinned && announcement.priority !== 'urgent' && announcement.priority !== 'high') return false;
   const createdAt = new Date(announcement.created_at).getTime();
   if (!Number.isFinite(createdAt)) return false;
   const ageDays = (now.getTime() - createdAt) / (24 * 60 * 60 * 1000);
