@@ -336,10 +336,11 @@ for (const token of [
 ]) {
   if (!dogProfile.includes(token)) throw new Error('Avatar automatico perdió control: ' + token);
 }
-if (!dogService.includes(".from('dogs')") ||
-    !dogService.includes('.update({ avatar_key: avatarKey, avatar_color: avatarColor, avatar_foreground_color: foreground })') ||
-    !dogService.includes(".eq('is_active', true)")) {
-  throw new Error('El avatar debe actualizar exclusivamente sus tres preferencias visuales bajo RLS.');
+if (!dogService.includes(".rpc('set_my_dog_avatar_preferences'") ||
+    !dogService.includes(".rpc('get_my_dog_avatar_foregrounds'") ||
+    !dogService.includes('p_dog_id: id') ||
+    !dogService.includes('p_avatar_foreground_color: foreground')) {
+  throw new Error('El avatar debe operar por RPC con guard interno de propietario.');
 }
 if (dogService.includes('.update({ avatar_key: avatarKey, avatar_color: avatarColor, name')) {
   throw new Error('El guardado de avatar no debe sobrescribir el borrador de identificacion.');
