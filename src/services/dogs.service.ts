@@ -179,25 +179,27 @@ export async function updateMyDogProfile(dogId: string, input: DogProfileInput):
 }
 
 /**
- * Solo modifica preferencias visuales: nunca envía nombre, raza, fecha,
- * nivel, asistencia ni otros campos del borrador de la ficha.
- * dogs_owner_update_enabled + dogs_owner_select_enabled validan propiedad en RLS.
+ * Guarda únicamente el avatar seleccionado y su color de fondo.
+ * La operación en Supabase valida auth.uid() y que el perro pertenezca
+ * a esa cuenta; no habilita la edición general de dogs ni necesita
+ * activar la función avanzada dog_profiles.
  */
 export async function updateMyDogAvatar(dogId: string, avatarKey: DogAvatarKey, avatarColor: DogAvatarColor):
   Promise<Pick<BasicDog, 'avatar_key' | 'avatar_color'>> {
   const id = dogId.trim();
   if (!id) throw new Error('No se encontró el perro.');
-  const { data, error } = await supabase.from('dogs')
-    .update({ avatar_key: avatarKey, avatar_color: avatarColor })
-    .eq('id', id)
-    .eq('is_active', true)
-    .select('avatar_key,avatar_color')
-    .single();
+  const { data, error } = await supabase.rpc('set_my_dog_avatar_preferences', {
+    p_dog_id: id,
+    p_avatar_key: avatarKey,
+    p_avatar_color: avatarColor,
+    p_avatar_foreground_color: null,
+  });
   if (error) throw error;
-  if (!data) throw new Error('No se pudo guardar el avatar.');
+  const saved = data?.[0];
+  if (!saved) throw new Error('No se pudo guardar el avatar.');
   return {
-    avatar_key: normalizeDogAvatarKey(data.avatar_key),
-    avatar_color: normalizeDogAvatarColor(data.avatar_color),
+    avatar_key: normalizeDogAvatarKey(saved.avatar_key),
+    avatar_color: normalizeDogAvatarColor(saved.avatar_color),
   };
 }
 
