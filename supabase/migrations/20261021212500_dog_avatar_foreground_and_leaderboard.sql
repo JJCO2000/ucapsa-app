@@ -8,7 +8,7 @@ ALTER TABLE public.dogs
 ALTER TABLE public.dogs
   ADD CONSTRAINT dogs_avatar_foreground_allowed CHECK (
     avatar_foreground_color IS NULL OR avatar_foreground_color IN (
-      '#171C26','#FFFFFF','#7A151E','#3C6FC9','#4D857A','#D4A62A'
+      '#4B2C20','#FFFFFF','#7A151E','#3C6FC9','#4D857A','#D4A62A'
     )
   );
 -- Existing owner-based RLS remains effective; no cross-user grants.
