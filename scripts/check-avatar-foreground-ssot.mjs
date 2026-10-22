@@ -4,6 +4,7 @@ const read = (path) => fs.readFileSync(path, 'utf8');
 
 const migration = read('supabase/migrations/20261022023507_dog_avatar_foreground_and_leaderboard.sql');
 const service = read('src/services/dogs.service.ts');
+const guardMigration = read('supabase/migrations/20261022024837_owned_avatar_preferences_rpc.sql');
 const avatar = read('src/components/domain/DogAvatar.tsx');
 const constants = read('src/constants/dogAvatar.ts');
 const profile = read('src/app/client/dog-profile.tsx');
@@ -20,10 +21,16 @@ for (const token of [
   'coalesce(r.exam_points,0::numeric) DESC', 'r.dog_id',
 ]) assert.ok(migration.includes(token), 'Falta contrato SQL ' + token);
 for (const token of [
-  "select('id,avatar_foreground_color')", 'getForegroundsForDogs',
-  '.update({ avatar_key: avatarKey, avatar_color: avatarColor, avatar_foreground_color: foreground })',
-  'normalizeDogAvatarForegroundColor(data.avatar_foreground_color)',
+  "rpc('get_my_dog_avatar_foregrounds')", 'getForegroundsForDogs',
+  "rpc('set_my_dog_avatar_preferences'",
+  'normalizeDogAvatarForegroundColor(saved.avatar_foreground_color)',
 ]) assert.ok(service.includes(token), 'Falta persistencia ' + token);
+for (const token of [
+  'SECURITY DEFINER', 'd.user_id = (SELECT auth.uid())',
+  'd.id=p_dog_id AND d.user_id=v_user AND d.is_active=true',
+  'REVOKE ALL ON FUNCTION public.set_my_dog_avatar_preferences',
+  'GRANT EXECUTE ON FUNCTION public.set_my_dog_avatar_preferences',
+]) assert.ok(guardMigration.includes(token), 'Falta guard propietario RPC '+token);
 for (const token of [
   'isAccessibleDogAvatarForeground','DOG_AVATAR_FOREGROUND_COLORS',
   'availableDogAvatarForegrounds','>= 3',
