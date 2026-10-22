@@ -386,7 +386,7 @@ export default function ClientCompetitionRankingScreen() {
 
             <View style={[styles.noteCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
               <MaterialIcons name="rule" size={19} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-              <Text style={[styles.noteText, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Desempate: puntaje total → Comandos → puntos de Exámenes → dog_id técnico.</Text>
+              <Text style={[styles.noteText, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Si hay empate, se comparan puntos, asistencias de Comandos y exámenes.</Text>
             </View>
           </>
         )
