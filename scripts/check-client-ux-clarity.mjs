@@ -384,3 +384,32 @@ if (!read('src/components/domain/CompetitionPodium.tsx').includes('myDogIds?.has
 if (read('src/app/account-settings.tsx').includes('Correo de contacto para preinscripción')) {
   throw new Error('Datos de contacto: no mostrar procesos internos.');
 }
+
+const quickStart = read('src/app/client/quick-help.tsx');
+for (const token of [
+  "const TOUR_TABS = ['home', 'classes', 'dog'] as const;",
+  "getClientHelpGuide(TOUR_TABS[stepIndex])",
+  "clientHelpGuides.map((guide)",
+  'setTourOpen(true)',
+  'accessibilityLabel="Omitir recorrido"',
+  "stepIndex === TOUR_TABS.length - 1 ? endTour()",
+  'accessibilityLabel="Paso anterior"',
+  'markQuickHelpSeen(user!.id)',
+  "if (isAdmin) return <Redirect href=\"/admin-home\" />",
+  "if (isTrainer) return <Redirect href=\"/trainer-home\" />",
+  "if (role !== 'client' && role !== 'member')",
+]) {
+  if (!quickStart.includes(token)) throw new Error('Recorrido general opcional perdió su control: ' + token);
+}
+if (!quickStart.includes('Ver recorrido general de tres pasos')
+  || quickStart.includes('router.push(guide.route')) {
+  throw new Error('La ayuda general debe ser opcional, sin interferir en la navegación existente.');
+}
+const existingAvatar = read('src/components/domain/DogAvatar.tsx');
+const avatarService = read('src/services/dogs.service.ts');
+if (!existingAvatar.includes("option.kind === 'emoji'")
+  || !avatarService.includes("rpc('set_my_dog_avatar_basic'")
+  || !dogProfile.includes('setAvatarColorsExpanded((open) => !open)')
+  || dogProfile.includes('Color del dibujo')) {
+  throw new Error('Avatares existentes: mantener emoji y un solo selector desplegable de color.');
+}
