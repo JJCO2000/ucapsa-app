@@ -33,6 +33,28 @@ export const DOG_AVATAR_COLORS = [
 
 export type DogAvatarColor = (typeof DOG_AVATAR_COLORS)[number];
 
+export const DOG_AVATAR_FOREGROUND_COLORS = [
+  ucapsaBrand.colors.dogAvatarDark, ucapsaBrand.colors.surface,
+  ucapsaBrand.colors.dogAvatarBurgundy, ucapsaBrand.colors.dogAvatarBlue,
+  ucapsaBrand.colors.dogAvatarTeal, ucapsaBrand.colors.dogAvatarGold,
+] as const;
+export type DogAvatarForegroundColor = (typeof DOG_AVATAR_FOREGROUND_COLORS)[number];
+export function normalizeDogAvatarForegroundColor(value: unknown): DogAvatarForegroundColor | null {
+  return DOG_AVATAR_FOREGROUND_COLORS.includes(value as DogAvatarForegroundColor)
+    ? value as DogAvatarForegroundColor : null;
+}
+function avatarLuminance(color: string): number {
+  const channel = [1, 3, 5].map((start) => parseInt(color.slice(start, start + 2), 16) / 255)
+    .map((v) => v <= .04045 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4));
+  return channel[0] * .2126 + channel[1] * .7152 + channel[2] * .0722;
+}
+export function isAccessibleDogAvatarForeground(background: string, foreground: string) {
+  const a = avatarLuminance(background), b = avatarLuminance(foreground);
+  return (Math.max(a,b)+.05)/(Math.min(a,b)+.05) >= 3;
+}
+export function availableDogAvatarForegrounds(background: string) {
+  return DOG_AVATAR_FOREGROUND_COLORS.filter((color) => isAccessibleDogAvatarForeground(background,color));
+}
 export const DEFAULT_DOG_AVATAR_KEY: DogAvatarKey = 'dog_face';
 export const DEFAULT_DOG_AVATAR_COLOR: DogAvatarColor = ucapsaBrand.colors.dogAvatarIvory;
 
