@@ -6525,6 +6525,19 @@ export type Database = {
           response: string
         }[]
       }
+      set_my_dog_avatar_preferences: {
+        Args: {
+          p_avatar_color: string
+          p_avatar_foreground_color: string | null
+          p_avatar_key: string
+          p_dog_id: string
+        }
+        Returns: {
+          avatar_color: string
+          avatar_foreground_color: string | null
+          avatar_key: string
+        }[]
+      }
       set_my_dog_photo_path: {
         Args: { p_dog_id: string; p_photo_path: string }
         Returns: undefined
