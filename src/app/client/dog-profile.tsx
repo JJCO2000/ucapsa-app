@@ -432,7 +432,7 @@ export default function DogProfileScreen() {
                     onPress={() => { selectAvatar({ ink }); setAvatarInkExpanded(false); }}
                     style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: ink, borderWidth: avatarInk === ink ? 3 : 1,
                       borderColor: avatarInk === ink ? format.accent : format.cardBorder, alignItems: 'center', justifyContent: 'center' }}>
-                    {avatarInk === ink ? <MaterialIcons name="check" size={20} color={ink === '#FFFFFF' ? ucapsaBrand.colors.dogAvatarDark : ucapsaBrand.colors.surface} /> : null}
+                    {avatarInk === ink ? <MaterialIcons name="check" size={20} color={ink === ucapsaBrand.colors.surface ? ucapsaBrand.colors.dogAvatarDark : ucapsaBrand.colors.surface} /> : null}
                   </Pressable>
                 ))}
               </View>
