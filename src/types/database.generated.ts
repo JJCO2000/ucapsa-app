@@ -6553,6 +6553,17 @@ export type Database = {
         }
         Returns: string
       }
+      staff_preregister_dog_with_program: {
+        Args: {
+          p_dog_name: string
+          p_owner_email: string
+          p_owner_name: string
+          p_owner_phone: string
+          p_program_code: string
+          p_program_level: string
+        }
+        Returns: string
+      }
       staff_publish_ucapsa_exam: {
         Args: { p_exam_id: string }
         Returns: string
