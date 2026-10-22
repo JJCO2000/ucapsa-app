@@ -7,6 +7,7 @@ import { Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'reac
 import { DogAvatar } from '../../components/domain/DogAvatar';
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
+import { ExpandablePhoto } from '../../components/ui/ExpandablePhoto';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { DOG_AVATAR_OPTIONS, DOG_AVATAR_COLORS, DEFAULT_DOG_AVATAR_KEY, DEFAULT_DOG_AVATAR_COLOR, type DogAvatarKey, type DogAvatarColor } from '../../constants/dogAvatar';
@@ -302,7 +303,9 @@ export default function DogProfileScreen() {
           <View style={[styles.photoCard, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
             <View style={styles.photoRow}>
               {photoUrl ? (
-                <Image source={{ uri: photoUrl }} style={styles.dogPhoto} resizeMode="cover" accessibilityLabel={`Foto de ${draft.name || 'tu perro'}`} />
+                <ExpandablePhoto uri={photoUrl} name={draft.name || 'tu perro'}>
+                  <Image source={{ uri: photoUrl }} style={styles.dogPhoto} resizeMode="cover" accessibilityLabel={`Foto de ${draft.name || 'tu perro'}`} />
+                </ExpandablePhoto>
               ) : (
                 <DogAvatar
                   avatarKey={profile?.avatar_key}
