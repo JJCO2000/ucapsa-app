@@ -163,12 +163,6 @@ export default function ClientCompetitionRankingScreen() {
   if (!user) return <Redirect href="/auth/login" />;
   if (isAdmin) return <Redirect href="/admin-home" />;
 
-  const podium = rows.slice(0, 3);
-  // La API ya ordena la clasificación. Únicamente mostramos 2.º, 1.º, 3.º
-  // como podio visual, sin recalcular puestos, puntos ni desempates.
-  const podiumDisplay = [podium[1], podium[0], podium[2]].filter(
-    (row): row is ClientCompetitionLeaderboardRow => Boolean(row),
-  );
   const myDogIds = new Set(myDogs.map((dog) => dog.id));
   const myRows = myDogs.map((dog) => ({
     dog,
