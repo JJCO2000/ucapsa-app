@@ -13,7 +13,7 @@ import { DOG_AVATAR_OPTIONS, DOG_AVATAR_COLORS, DEFAULT_DOG_AVATAR_KEY, DEFAULT_
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import { getPrivateDogPhotoUrl, removeMyDogPhoto, uploadMyDogPhoto } from '../../services/dog-photos.service';
-import { getMyDogProfile, updateMyDogProfile, type DogProfile } from '../../services/dogs.service';
+import { getMyDogProfile, updateMyDogAvatar, updateMyDogProfile, type DogProfile } from '../../services/dogs.service';
 import { DEFAULT_READ_TIMEOUT_MS, DEFAULT_WRITE_TIMEOUT_MS, friendlyWriteError, withOperationTimeout } from '../../utils/async.utils';
 
 type DogSex = DogProfile['sex'];
@@ -69,6 +69,13 @@ export default function DogProfileScreen() {
   const [profile, setProfile] = useState<DogProfile | null>(null);
   const [avatarKey, setAvatarKey] = useState<DogAvatarKey>(DEFAULT_DOG_AVATAR_KEY);
   const [avatarColor, setAvatarColor] = useState<DogAvatarColor>(DEFAULT_DOG_AVATAR_COLOR);
+  const [avatarExpanded, setAvatarExpanded] = useState(false);
+  const [avatarColorsExpanded, setAvatarColorsExpanded] = useState(false);
+  const [avatarSaving, setAvatarSaving] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const desiredAvatar = useRef({ key: DEFAULT_DOG_AVATAR_KEY as DogAvatarKey, color: DEFAULT_DOG_AVATAR_COLOR as DogAvatarColor });
+  const persistedAvatar = useRef({ key: DEFAULT_DOG_AVATAR_KEY as DogAvatarKey, color: DEFAULT_DOG_AVATAR_COLOR as DogAvatarColor });
+  const avatarWriteBusy = useRef(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -88,6 +95,9 @@ export default function DogProfileScreen() {
       setDraft(draftFromProfile(nextProfile));
       setAvatarKey(nextProfile.avatar_key);
       setAvatarColor(nextProfile.avatar_color);
+      desiredAvatar.current = { key: nextProfile.avatar_key, color: nextProfile.avatar_color };
+      persistedAvatar.current = { ...desiredAvatar.current };
+      setAvatarError(null);
       setPhotoUrl(await getPrivateDogPhotoUrl(nextProfile.photo_path));
     } catch {
       setLoadError(true);
@@ -102,6 +112,44 @@ export default function DogProfileScreen() {
 
   function setField<K extends keyof ProfileDraft>(key: K, value: ProfileDraft[K]) {
     setDraft((current) => ({ ...current, [key]: value }));
+  }
+
+  async function persistAvatar() {
+    if (avatarWriteBusy.current || !profile || !dogId || !user || isAdmin) return;
+    avatarWriteBusy.current = true;
+    setAvatarSaving(true);
+    try {
+      // Las pulsaciones rápidas se serializan: sólo queda la última combinación elegida.
+      while (desiredAvatar.current.key !== persistedAvatar.current.key
+        || desiredAvatar.current.color !== persistedAvatar.current.color) {
+        const requested = { ...desiredAvatar.current };
+        const saved = await updateMyDogAvatar(dogId, requested.key, requested.color);
+        persistedAvatar.current = { key: saved.avatar_key, color: saved.avatar_color };
+        setProfile((current) => current
+          ? { ...current, avatar_key: saved.avatar_key, avatar_color: saved.avatar_color }
+          : current);
+      }
+    } catch (cause) {
+      // No presentar como guardada una preferencia que la base rechazó.
+      const previous = { ...persistedAvatar.current };
+      desiredAvatar.current = previous;
+      setAvatarKey(previous.key);
+      setAvatarColor(previous.color);
+      setAvatarError(friendlyWriteError(cause, 'Revisa tu conexión e inténtalo otra vez.'));
+    } finally {
+      avatarWriteBusy.current = false;
+      setAvatarSaving(false);
+    }
+  }
+
+  function selectAvatar(next: { key?: DogAvatarKey; color?: DogAvatarColor }) {
+    if (saving || !profile) return;
+    const updated = { ...desiredAvatar.current, ...next };
+    desiredAvatar.current = updated;
+    setAvatarKey(updated.key);
+    setAvatarColor(updated.color);
+    setAvatarError(null);
+    void persistAvatar();
   }
 
   async function openCamera() {
@@ -167,6 +215,7 @@ export default function DogProfileScreen() {
       return;
     }
 
+    if (avatarWriteBusy.current) return;
     setSaving(true);
     try {
       const saved = await withOperationTimeout(
@@ -184,6 +233,8 @@ export default function DogProfileScreen() {
       );
       setProfile(saved);
       setDraft(draftFromProfile(saved));
+      persistedAvatar.current = { key: saved.avatar_key, color: saved.avatar_color };
+      desiredAvatar.current = { ...persistedAvatar.current };
       Alert.alert('Datos guardados', `El perfil de ${saved.name} se actualizó correctamente.`);
     } catch (cause) {
       Alert.alert('No se pudo guardar', friendlyWriteError(cause, 'Conéctate a internet y vuelve a intentar.'));
@@ -289,32 +340,63 @@ export default function DogProfileScreen() {
           </View>
 
           <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
-            <Text style={[styles.sectionTitle, { color: format.cardText }]}>Avatar público del perro</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {DOG_AVATAR_OPTIONS.map((option) => (
-                <Pressable key={option.key} accessibilityRole="button"
-                  accessibilityLabel={'Seleccionar avatar ' + option.label}
-                  accessibilityState={{ selected: avatarKey === option.key }}
-                  onPress={() => setAvatarKey(option.key)}
-                  style={{ width: 63, minHeight: 75, borderRadius: 13, borderWidth: avatarKey === option.key ? 2 : 1,
-                    borderColor: avatarKey === option.key ? format.accent : format.cardBorder,
-                    alignItems: 'center', justifyContent: 'center', padding: 5, gap: 4 }}>
-                  <DogAvatar avatarKey={option.key} avatarColor={avatarColor} size={42} accessibilityLabel={option.label} />
-                  <Text style={{ fontSize: 9, textAlign: 'center', color: format.cardText }} numberOfLines={1}>{option.label}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <Text style={[styles.label, { color: format.cardText }]}>Color del avatar</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {DOG_AVATAR_COLORS.map((color) => (
-                <Pressable key={color} accessibilityRole="button" accessibilityLabel={'Seleccionar color ' + color}
-                  accessibilityState={{ selected: avatarColor === color }}
-                  onPress={() => setAvatarColor(color)}
-                  style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: color,
-                    borderColor: avatarColor === color ? format.accent : format.cardBorder,
-                    borderWidth: avatarColor === color ? 3 : 1 }} />
-              ))}
-            </View>
+            <Text style={[styles.sectionTitle, { color: format.cardText }]}>Avatar del perro</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Cambiar avatar"
+              accessibilityState={{ expanded: avatarExpanded }}
+              onPress={() => setAvatarExpanded((open) => !open)}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 68,
+                borderWidth: 1, borderColor: format.cardBorder, borderRadius: 14, padding: 10 }}>
+              <DogAvatar avatarKey={avatarKey} avatarColor={avatarColor} size={48} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: format.cardText, fontSize: 16, fontWeight: '800' }}>
+                  {DOG_AVATAR_OPTIONS.find((option) => option.key === avatarKey)?.label ?? 'Mi avatar'}
+                </Text>
+                <Text style={{ color: format.muted, fontSize: 13 }}>Cambiar avatar</Text>
+              </View>
+              <MaterialIcons name={avatarExpanded ? 'expand-less' : 'expand-more'} size={24} color={format.accentDark} />
+            </Pressable>
+            {avatarExpanded ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+                {DOG_AVATAR_OPTIONS.map((option) => (
+                  <Pressable key={option.key} accessibilityRole="button"
+                    accessibilityLabel={'Seleccionar avatar ' + option.label}
+                    accessibilityState={{ selected: avatarKey === option.key }}
+                    onPress={() => { selectAvatar({ key: option.key }); setAvatarExpanded(false); }}
+                    style={{ width: 69, minHeight: 78, borderRadius: 13, borderWidth: avatarKey === option.key ? 2 : 1,
+                      borderColor: avatarKey === option.key ? format.accent : format.cardBorder,
+                      alignItems: 'center', justifyContent: 'center', padding: 5, gap: 4 }}>
+                    <DogAvatar avatarKey={option.key} avatarColor={avatarColor} size={42} accessibilityLabel={option.label} />
+                    <Text style={{ fontSize: 10, textAlign: 'center', color: format.cardText }} numberOfLines={1}>{option.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+            <Pressable accessibilityRole="button" accessibilityLabel="Elegir color del avatar"
+              accessibilityState={{ expanded: avatarColorsExpanded }}
+              onPress={() => setAvatarColorsExpanded((open) => !open)}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56,
+                marginTop: 12, borderWidth: 1, borderColor: format.cardBorder, borderRadius: 14, padding: 10 }}>
+              <View style={{ width: 29, height: 29, borderRadius: 15, backgroundColor: avatarColor,
+                borderWidth: 1, borderColor: format.cardBorder }} />
+              <Text style={{ color: format.cardText, fontSize: 15, fontWeight: '800', flex: 1 }}>Color del avatar</Text>
+              <MaterialIcons name={avatarColorsExpanded ? 'expand-less' : 'expand-more'} size={24} color={format.accentDark} />
+            </Pressable>
+            {avatarColorsExpanded ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 12 }}>
+                {DOG_AVATAR_COLORS.map((color) => (
+                  <Pressable key={color} accessibilityRole="button" accessibilityLabel={'Seleccionar color ' + color}
+                    accessibilityState={{ selected: avatarColor === color }}
+                    onPress={() => { selectAvatar({ color }); setAvatarColorsExpanded(false); }}
+                    style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: color,
+                      borderColor: avatarColor === color ? format.accent : format.cardBorder,
+                      borderWidth: avatarColor === color ? 3 : 1, justifyContent: 'center', alignItems: 'center' }}>
+                    {avatarColor === color ? <MaterialIcons name="check" size={18} color={color === DOG_AVATAR_COLORS[0] || color === DOG_AVATAR_COLORS[2] ? ucapsaBrand.colors.dogAvatarDark : ucapsaBrand.colors.surface} /> : null}
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+            {avatarSaving ? <Text accessibilityLiveRegion="polite" style={{ color: format.muted, marginTop: 9 }}>Guardando avatar…</Text> : null}
+            {avatarError ? <Text accessibilityRole="alert" style={{ color: ucapsaBrand.colors.danger, marginTop: 9 }}>{avatarError}</Text> : null}
           </View>
 
           <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
@@ -341,7 +423,7 @@ export default function DogProfileScreen() {
               accessibilityRole="button"
               style={[styles.secondaryButton, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}
               onPress={() => router.back()}
-              disabled={saving}
+              disabled={saving || avatarSaving}
             >
               <Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>Cancelar</Text>
             </Pressable>
@@ -349,9 +431,9 @@ export default function DogProfileScreen() {
               accessibilityRole="button"
               style={[styles.primaryButton, { backgroundColor: format.primaryButton }]}
               onPress={() => void save()}
-              disabled={saving}
+              disabled={saving || avatarSaving}
             >
-              <Text style={[styles.primaryButtonText, { color: format.primaryButtonText }]}>{saving ? 'Guardando…' : 'Guardar cambios'}</Text>
+              <Text style={[styles.primaryButtonText, { color: format.primaryButtonText }]}>{saving ? 'Guardando…' : 'Guardar datos'}</Text>
             </Pressable>
           </View>
         </>
