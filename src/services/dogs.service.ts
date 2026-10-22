@@ -111,7 +111,7 @@ async function getForegroundsForDogs(ids: string[]): Promise<Record<string, DogA
   const { data, error } = await supabase.rpc('get_my_dog_avatar_foregrounds');
   if (error) throw error;
   return Object.fromEntries((data ?? []).map((row) =>
-    [row.id,normalizeDogAvatarForegroundColor(row.avatar_foreground_color)]));
+    [row.dog_id,normalizeDogAvatarForegroundColor(row.avatar_foreground_color)]));
 }
 
 export async function getMyDogs(): Promise<BasicDog[]> {
