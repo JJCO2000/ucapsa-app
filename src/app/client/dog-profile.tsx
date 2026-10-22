@@ -262,9 +262,6 @@ export default function DogProfileScreen() {
               )}
               <View style={styles.photoCopy}>
                 <Text style={[styles.sectionTitle, { color: format.cardText }]}>Foto de {draft.name || 'tu perro'}</Text>
-                <Text style={[styles.avatarHint, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
-                  Opcional. La foto es privada y sólo se usa en tu cuenta y en tu propia posición del Ranking.
-                </Text>
               </View>
             </View>
             <View style={styles.photoActions}>
@@ -293,9 +290,6 @@ export default function DogProfileScreen() {
 
           <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
             <Text style={[styles.sectionTitle, { color: format.cardText }]}>Avatar público del perro</Text>
-            <Text style={[styles.avatarHint, { color: format.muted }]}>
-              Elige cómo se verá en el Ranking. La foto real sigue siendo privada.
-            </Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {DOG_AVATAR_OPTIONS.map((option) => (
                 <Pressable key={option.key} accessibilityRole="button"
@@ -340,7 +334,7 @@ export default function DogProfileScreen() {
           </View>
 
 
-          <Text style={[styles.safetyNote, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Solo pedimos datos básicos del perro. Guardar aquí no cambia clases, logros, historial ni otros perros de tu cuenta.</Text>
+          <Text style={[styles.safetyNote, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Tus clases y logros no cambian al editar estos datos.</Text>
 
           <View style={styles.buttonRow}>
             <Pressable

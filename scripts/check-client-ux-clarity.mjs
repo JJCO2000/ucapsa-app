@@ -159,7 +159,6 @@ for (const token of [
   'CameraView',
   'uploadMyDogPhoto',
   'removeMyDogPhoto',
-  'La foto es privada',
 ]) {
   if (!dogProfile.includes(token)) throw new Error('Private dog photo UI missing: ' + token);
 }
@@ -174,7 +173,7 @@ if (fs.existsSync('docs/product/guarderia-canine-internal-baseline.md')) {
   throw new Error('No publicar rutas ni horarios internos de Guardería mediante GitHub Pages.');
 }
 // Requisito actualizado: el propietario elige avatar público sin exponer la foto privada.
-for (const token of ['DOG_AVATAR_OPTIONS', 'DOG_AVATAR_COLORS', 'avatar_key: avatarKey', 'avatar_color: avatarColor', 'La foto real sigue siendo privada']) {
+for (const token of ['DOG_AVATAR_OPTIONS', 'DOG_AVATAR_COLORS', 'avatar_key: avatarKey', 'avatar_color: avatarColor']) {
   if (!dogProfile.includes(token)) throw new Error('El perfil del perro perdió el selector público persistente: ' + token);
 }
 if (dogProfile.includes('No pide acceso a tus fotos')) {
@@ -272,3 +271,52 @@ if (!home.includes('accessibilityLabel="Consultar menú del restaurante UCAPSA"'
 }
 
 console.log('UCAPSA client UX clarity: PASS');
+
+const contextualHelp = read('src/components/ui/ContextualHelpTip.tsx');
+const guideContent = read('src/constants/clientHelp.ts');
+const helpStorage = read('src/services/quick-help.service.ts');
+const helpPage = read('src/app/client/quick-help.tsx');
+for (const [tab, screen] of [
+  ['home', 'src/screens/home/HomeExperienceScreen.tsx'],
+  ['classes', 'src/app/(tabs)/classes.tsx'],
+  ['calendar', 'src/app/(tabs)/calendar.tsx'],
+  ['dog', 'src/app/(tabs)/dog.tsx'],
+  ['profile', 'src/app/(tabs)/profile.tsx'],
+]) {
+  if (!guideContent.includes("tab: '" + tab + "'") || !read(screen).includes('tab="' + tab + '"')) {
+    throw new Error('Falta el consejo de ' + tab);
+  }
+}
+if (!contextualHelp.includes('markTabHelpSeen(userId!, tab)') ||
+    !contextualHelp.includes('router.push(guide.route as never)') ||
+    !contextualHelp.includes('accessibilityLabel="Cerrar consejo"')) {
+  throw new Error('El consejo debe poder cerrarse o iniciar una acción real.');
+}
+if (!helpStorage.includes("'ucapsa-tab-help-v1:' + userId + ':' + tab") ||
+    !helpStorage.includes('AsyncStorage.setItem(tabHelpKey(userId, tab)')) {
+  throw new Error('La preferencia de cada guía debe persistir por cuenta y pestaña.');
+}
+if (!helpPage.includes('clientHelpGuides.map')) throw new Error('Ayuda y pestañas sin fuente única.');
+
+const clientLayout = read('src/app/client/_layout.tsx');
+if (!calendar.includes('key={visibleMonth}') ||
+    !calendar.includes("current={visibleMonth + '-01'}") ||
+    !calendar.includes('if (nextMonth === visibleMonth) return;') ||
+    !calendar.includes('setSelectedDate(today);') ||
+    !calendar.includes('setVisibleMonth(today.slice(0, 7));') ||
+    !calendar.includes('calendarScrollRef.current?.scrollTo({')) {
+  throw new Error('Agenda: Hoy debe regresar al mes y día locales sin perder sincronización.');
+}
+if (!calendar.includes('!isStaff && user ? <ContextualHelpTip') ||
+    !contextualHelp.includes("role === 'client' || role === 'member'") ||
+    !contextualHelp.includes('!loading && user?.id === userId') ||
+    !helpPage.includes('if (isTrainer) return <Redirect href="/trainer-home" />;') ||
+    !helpPage.includes('if (isAdmin) return <Redirect href="/admin-home" />;') ||
+    !helpPage.includes("if (role !== 'client' && role !== 'member')")) {
+  throw new Error('El tutorial no debe mostrarse a Superadmin, Admin ni Entrenador.');
+}
+if (!helpStorage.includes("tabHelpKey(userId, tab)") ||
+    !helpStorage.includes('AsyncStorage.getItem') ||
+    !helpStorage.includes('AsyncStorage.setItem')) {
+  throw new Error('Marca local por cuenta y pestaña inválida.');
+}

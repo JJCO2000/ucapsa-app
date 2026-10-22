@@ -3,6 +3,7 @@ import { Redirect, router } from 'expo-router';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
+import { ContextualHelpTip } from '../../components/ui/ContextualHelpTip';
 import { SocialLinksRow } from '../../components/ui/SocialLinksRow';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
@@ -51,6 +52,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        <ContextualHelpTip tab="profile" userId={user.id} format={format} />
         <Text style={[styles.sectionTitle, { color: format.accentDark }]}>Perfil y cuenta</Text>
         <HubRow
           icon="person"
@@ -115,7 +117,7 @@ export default function ProfileScreen() {
         <HubRow
         icon="help-outline"
         title="Cómo usar UCAPSA"
-        subtitle="Guía rápida de clases, calendario y restaurante."
+        subtitle="Consejos por pestaña y acciones útiles."
         premium={premium}
         format={format}
         onPress={() => router.push('/client/quick-help' as never)}
@@ -180,6 +182,17 @@ function HubRow({
   format: ReturnType<typeof resolveUcapsaFormat>;
   onPress: () => void;
 }) {
+  const tone = icon === 'pets'
+    ? { soft: ucapsaBrand.colors.greenSoft, text: ucapsaBrand.colors.greenDark }
+    : icon === 'emoji-events' || icon === 'workspace-premium'
+      ? { soft: ucapsaBrand.colors.goldPale, text: ucapsaBrand.colors.goldDark }
+      : icon === 'stars' || icon === 'help-outline'
+        ? { soft: ucapsaBrand.colors.purpleSoft, text: ucapsaBrand.colors.purpleDark }
+        : icon === 'person' || icon === 'notifications-none'
+          ? { soft: ucapsaBrand.colors.blueSoft, text: ucapsaBrand.colors.blueDark }
+          : icon === 'account-balance-wallet'
+            ? { soft: ucapsaBrand.colors.greenSoft, text: ucapsaBrand.colors.greenDark }
+            : { soft: format.accentSoft, text: format.accentDark };
   return (
     <Pressable
       accessibilityRole="button"
@@ -194,8 +207,8 @@ function HubRow({
         pressed && styles.pressed,
       ]}
     >
-      <View style={[styles.hubIcon, { backgroundColor: format.accentSoft }]}>
-        <MaterialIcons name={icon} size={22} color={format.accentDark} />
+      <View style={[styles.hubIcon, { backgroundColor: tone.soft }]}>
+        <MaterialIcons name={icon} size={22} color={tone.text} />
       </View>
       <View style={styles.hubCopy}>
         <Text style={[styles.hubTitle, { color: format.cardText }]}>{title}</Text>

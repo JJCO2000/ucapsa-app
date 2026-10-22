@@ -149,7 +149,7 @@ for (const [label, passed] of [
   ['profile persistence for typed email', mvpProfile.includes('payload.preregistration_contact_email')],
   ['screen saves typed email', mvpSettings.includes('preregistration_contact_email: normalizedContactEmail')],
   ['phone-only accounts can skip login email', mvpSettings.includes('Boolean(normalizedEmail) && normalizedEmail !== currentAuthEmail')],
-  ['screen labels typed email as not verified', mvpSettings.includes('En este MVP no se verifica su titularidad')],
+  ['screen labels typed email as not verified', mvpSettings.includes('No verificamos que sea tuyo y no sirve para iniciar sesión.')],
   ['session rechecks a changed contact email', sessionHook.includes('profile?.preregistration_contact_email')],
   ['repeat approval and consent retained', firstSql.includes('if not v_manual and exists')],
 ]) assert.ok(passed, 'MVP first-email matching regression: '+label);

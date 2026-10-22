@@ -47,8 +47,12 @@ if (adminAnnouncements.includes('function localDateKey')) {
 
 for (const token of [
   'accessibilityLabel="Ir a hoy"',
-  'setSelectedDate(todayKey());',
-  "setVisibleMonth(todayKey().slice(0, 7));",
+  'const today = todayKey();',
+  'setSelectedDate(today);',
+  "setVisibleMonth(today.slice(0, 7));",
+  'key={visibleMonth}',
+  "current={visibleMonth + '-01'}",
+  'if (nextMonth === visibleMonth) return;',
   '>Hoy</Text>',
 ]) {
   if (!calendar.includes(token)) {

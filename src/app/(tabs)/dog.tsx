@@ -8,6 +8,7 @@ import { DogAvatar } from '../../components/domain/DogAvatar';
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
+import { ContextualHelpTip } from '../../components/ui/ContextualHelpTip';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { activityAchievementCategoryMeta, buildActivityAchievementCollections } from '../../constants/activityAchievements';
 import {
@@ -387,6 +388,7 @@ export default function DogTab() {
         onBack={fromProfile ? backToProfile : undefined}
         onAdd={openCreate}
       />
+      <ContextualHelpTip tab="dog" userId={user.id} format={format} />
 
       {usingSavedData ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} label="Mostrando información guardada" /> : null}
 
