@@ -336,16 +336,24 @@ for (const token of [
 ]) {
   if (!dogProfile.includes(token)) throw new Error('Avatar automatico perdió control: ' + token);
 }
-// El usuario elige sólo avatar + color. La RPC verifica propiedad en el servidor.
-if (!dogService.includes(".rpc('set_my_dog_avatar_preferences'") ||
+if (!dogService.includes(".rpc('set_my_dog_avatar_basic'") ||
     !dogService.includes('p_dog_id: id') ||
     !dogService.includes('p_avatar_key: avatarKey') ||
     !dogService.includes('p_avatar_color: avatarColor') ||
-    !dogService.includes('p_avatar_foreground_color: null')) {
-  throw new Error('El avatar debe guardarse por RPC propietaria y un único color.');
+    dogService.includes('p_avatar_foreground_color:')) {
+  throw new Error('El avatar debe guardar solo dibujo y un color mediante RPC sencilla.');
 }
 if (dogProfile.includes('Color del dibujo') || dogProfile.includes('avatarInkExpanded')) {
-  throw new Error('No añadir controles de color independientes por emoji o dibujo.');
+  throw new Error('No crear un segundo selector: basta con avatar y un color.');
+}
+const ownerRpcMigration = read('supabase/migrations/20261022061447_simplify_avatar_selection_rpc.sql');
+if (!ownerRpcMigration.includes('d.id=p_dog_id AND d.user_id=v_owner AND d.is_active=true') ||
+    !ownerRpcMigration.includes('REVOKE EXECUTE ON FUNCTION public.set_my_dog_avatar_preferences')) {
+  throw new Error('La RPC debe validar titularidad y desactivar la tinta independiente.');
+}
+const viewSecurity = read('supabase/migrations/20261022025241_restore_competition_leaderboard_security_invoker.sql');
+if (!viewSecurity.includes('security_invoker = true')) {
+  throw new Error('El Ranking debe conservar los permisos de invocador.');
 }
 if (dogService.includes('.update({ avatar_key: avatarKey, avatar_color: avatarColor, name')) {
   throw new Error('El guardado de avatar no debe sobrescribir el borrador de identificacion.');

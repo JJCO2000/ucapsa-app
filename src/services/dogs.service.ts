@@ -179,22 +179,19 @@ export async function updateMyDogProfile(dogId: string, input: DogProfileInput):
 }
 
 /**
- * Un avatar y un color. El contraste del dibujo se calcula automáticamente
- * en DogAvatar; los emojis conservan sus colores nativos.
- *
- * La RPC comprueba auth.uid(), propiedad del perro y que esté activo.
- * No requiere habilitar la edición general del perfil en RLS y nunca
- * modifica nombre, raza, horarios, niveles, exámenes ni asistencias.
+ * Guarda únicamente el avatar seleccionado y su color de fondo.
+ * La operación en Supabase valida auth.uid() y que el perro pertenezca
+ * a esa cuenta; no habilita la edición general de dogs ni necesita
+ * activar la función avanzada dog_profiles.
  */
 export async function updateMyDogAvatar(dogId: string, avatarKey: DogAvatarKey, avatarColor: DogAvatarColor):
   Promise<Pick<BasicDog, 'avatar_key' | 'avatar_color'>> {
   const id = dogId.trim();
   if (!id) throw new Error('No se encontró el perro.');
-  const { data, error } = await supabase.rpc('set_my_dog_avatar_preferences', {
+  const { data, error } = await supabase.rpc('set_my_dog_avatar_basic', {
     p_dog_id: id,
     p_avatar_key: avatarKey,
     p_avatar_color: avatarColor,
-    p_avatar_foreground_color: null,
   });
   if (error) throw error;
   const saved = data?.[0];
