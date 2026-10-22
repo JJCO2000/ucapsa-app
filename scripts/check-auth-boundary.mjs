@@ -135,6 +135,15 @@ const accountProfileService = fs.readFileSync('src/services/profiles.service.ts'
 assert.ok(accountProfileService.includes("|| !data.user?.email_confirmed_at"),
   'Adding email to Auth must not report ready-for-login before confirmation.');
 const settings = fs.readFileSync('src/app/account-settings.tsx', 'utf8');
+assert.ok(service.includes("export async function resendEmailConfirmation(email: string)")
+  && service.includes("supabase.auth.resend({")
+  && service.includes("type: 'signup'"),
+  'The email confirmation action must use Supabase Auth through the canonical service.');
+assert.ok(settings.includes("user.email && !user.email_confirmed_at")
+  && settings.includes("resendEmailConfirmation(user.email)")
+  && settings.includes("resendingEmail || isOfflineFallback")
+  && !settings.includes("resendEmailConfirmation(contactEmail)"),
+  'Only an unverified Auth email may request resend, never the preregistration contact email.');
 assert.ok(settings.includes("setEmail(user?.email ?? profile?.email ?? '')"),
   'Auth email must take priority over possibly stale profile email.');
 assert.ok(settings.includes('Correo para iniciar sesión')
