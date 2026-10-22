@@ -689,7 +689,7 @@ function DogTabPortrait({ dog, photoUrl, size }: { dog: BasicDog; photoUrl: stri
       />
     );
   }
-  return <DogAvatar avatarKey={dog.avatar_key} avatarColor={dog.avatar_color} size={size} accessibilityLabel={`Avatar de ${dog.name}`} />;
+  return <DogAvatar avatarKey={dog.avatar_key} avatarColor={dog.avatar_color} avatarForegroundColor={dog.avatar_foreground_color} size={size} accessibilityLabel={`Avatar de ${dog.name}`} />;
 }
 
 function CompactDogHeader({
