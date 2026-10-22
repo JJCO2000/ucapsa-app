@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 const read = (path) => fs.readFileSync(path, 'utf8');
 
-const migration = read('supabase/migrations/20261021212500_dog_avatar_foreground_and_leaderboard.sql');
+const migration = read('supabase/migrations/20261022023507_dog_avatar_foreground_and_leaderboard.sql');
 const service = read('src/services/dogs.service.ts');
 const avatar = read('src/components/domain/DogAvatar.tsx');
 const constants = read('src/constants/dogAvatar.ts');
