@@ -195,7 +195,9 @@ export async function updateMyDogAvatar(dogId: string, avatarKey: DogAvatarKey, 
     p_dog_id: id,
     p_avatar_key: avatarKey,
     p_avatar_color: avatarColor,
-    p_avatar_foreground_color: null,
+    // Postgres accepts NULL (ink automatic); the generated TS signature
+    // describes the SQL text argument as string instead of nullable.
+    p_avatar_foreground_color: null as unknown as string,
   });
   if (error) throw error;
   const saved = data?.[0];
