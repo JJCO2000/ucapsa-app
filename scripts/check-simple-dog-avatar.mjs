@@ -13,6 +13,8 @@ const types = read('src/types/database.generated.ts');
 
 // El producto ofrece únicamente avatar actual + paleta de fondo, sin editor por emoji.
 assert.ok(options.includes("kind: 'emoji' | 'icon'"));
+const keys = options.match(/export const DOG_AVATAR_KEYS = \[([\s\S]*?)\] as const;/)?.[1] ?? '';
+assert.equal((keys.match(/'[^']+'/g) ?? []).length, 15, 'Conservar exactamente los 15 avatares existentes.');
 assert.ok(options.includes('DOG_AVATAR_COLORS'));
 assert.ok(options.includes("'dog_face'"));
 assert.ok(options.includes("'dog_play'"));
