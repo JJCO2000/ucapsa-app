@@ -17,8 +17,8 @@ export const clientHelpGuides = [
   },
   {
     tab: 'dog', icon: 'pets', title: 'Mis perros', headline: 'Todo el progreso de tu perro',
-    description: 'Consulta su nivel, sus logros y el historial de entrenamiento.',
-    action: 'Ver clases', route: '/classes',
+    description: 'Consulta sus logros y su nivel. En Datos del perro puedes elegir avatar y color.',
+    action: 'Ver mis perros', route: '/dog',
   },
   {
     tab: 'profile', icon: 'person', title: 'Perfil', headline: 'Tu cuenta, a tu manera',
