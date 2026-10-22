@@ -297,6 +297,24 @@ if (!helpStorage.includes("'ucapsa-tab-help-v1:' + userId + ':' + tab") ||
   throw new Error('La preferencia de cada guía debe persistir por cuenta y pestaña.');
 }
 if (!helpPage.includes('clientHelpGuides.map')) throw new Error('Ayuda y pestañas sin fuente única.');
+for (const feature of [
+  'const [step, setStep] = useState(0)',
+  'const guide = clientHelpGuides[step]',
+  'clientHelpGuides.map',
+  'accessibilityLabel="Omitir tutorial"',
+  'accessibilityLabel="Paso anterior"',
+  "'Terminar' : 'Siguiente'",
+  'onPress={() => finish(guide.route)}',
+  'markQuickHelpSeen(user!.id)',
+  'if (isAdmin) return <Redirect href="/admin-home" />',
+  'if (isTrainer) return <Redirect href="/trainer-home" />',
+]) {
+  if (!helpPage.includes(feature)) throw new Error('Tutorial voluntario perdió navegación o permisos: ' + feature);
+}
+if (helpPage.includes('require(') || helpPage.includes('Image source')) {
+  throw new Error('Tutorial general no debe depender de capturas fijas de otras apps.');
+}
+
 
 const clientLayout = read('src/app/client/_layout.tsx');
 if (!calendar.includes('key={visibleMonth}') ||
