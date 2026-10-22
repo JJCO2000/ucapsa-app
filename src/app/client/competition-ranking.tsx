@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { DogAvatar } from '../../components/domain/DogAvatar';
+import { CompetitionPodium } from '../../components/domain/CompetitionPodium';
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
@@ -162,12 +163,6 @@ export default function ClientCompetitionRankingScreen() {
   if (!user) return <Redirect href="/auth/login" />;
   if (isAdmin) return <Redirect href="/admin-home" />;
 
-  const podium = rows.slice(0, 3);
-  // La API ya ordena la clasificación. Únicamente mostramos 2.º, 1.º, 3.º
-  // como podio visual, sin recalcular puestos, puntos ni desempates.
-  const podiumDisplay = [podium[1], podium[0], podium[2]].filter(
-    (row): row is ClientCompetitionLeaderboardRow => Boolean(row),
-  );
   const myDogIds = new Set(myDogs.map((dog) => dog.id));
   const myRows = myDogs.map((dog) => ({
     dog,
@@ -299,45 +294,11 @@ export default function ClientCompetitionRankingScreen() {
               </View>
               <MaterialIcons name="emoji-events" size={27} color={ucapsaBrand.colors.goldDark} />
             </View>
-            <View style={styles.podiumRow}>
-              {podiumDisplay.map((row) => {
-                const position = Number(row.ranking_position ?? 0);
-                const tone = podiumTone(position);
-                const mine = Boolean(row.dog_id && myDogIds.has(row.dog_id));
-                return (
-                  <View
-                    key={row.dog_id ?? String(row.ranking_position)}
-                    style={[
-                      styles.podiumCard,
-                      position === 1 && styles.podiumChampion,
-                      {
-                        backgroundColor: tone.background,
-                        borderColor: tone.border,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.podiumPlacement, { color: tone.text }]}>
-                      {position === 1 ? 'CAMPEÓN' : `PUESTO ${position}`}
-                    </Text>
-                    <Text style={[styles.medal, position === 1 && styles.medalChampion]}>{medal(position)}</Text>
-                    <RankingDogAvatar
-                      name={row.dog_name ?? 'perro'}
-                      photoUrl={mine && row.dog_id ? myDogs.find((dog) => dog.id === row.dog_id)?.photoUrl ?? null : null}
-                      avatarKey={row.dog_avatar_key}
-                      avatarColor={row.dog_avatar_color}
-                      size={position === 1 ? 52 : 42}
-                    />
-                    <Text style={[styles.podiumPosition, { color: tone.text }]}>#{position}</Text>
-                    <Text numberOfLines={1} style={[styles.podiumName, { color: format.cardText }]}>{row.dog_name || 'Perro'}</Text>
-                    <Text style={[styles.podiumScore, { color: tone.text }]}>{numberLabel(row.competitive_score)} pts</Text>
-                    {mine ? <Text style={[styles.podiumMine, { color: tone.text }]}>TUYO</Text> : null}
-                    <View style={[styles.podiumPedestal, position === 1 ? styles.podiumPedestalChampion : position === 2 ? styles.podiumPedestalSecond : styles.podiumPedestalThird, { backgroundColor: tone.border }]}>
-                      <Text style={styles.podiumPedestalNumber}>{position}</Text>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
+            <CompetitionPodium
+              rows={rows}
+              myDogIds={myDogIds}
+              photoUrlForDog={(id) => myDogs.find((dog) => dog.id === id)?.photoUrl ?? null}
+            />
 
             <Text style={[styles.sectionTitle, { color: format.cardText }]}>Clasificación</Text>
             <View style={styles.list}>

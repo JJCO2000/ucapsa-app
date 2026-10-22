@@ -61,9 +61,15 @@ for (const token of [
   if (!clientRanking.includes(token)) failures.push('Ranking Cliente perdió dato canónico: ' + token);
 }
 
-if (!/rows\.slice\(0, 3\)/.test(clientRanking)
+const sharedPodium = read('src/components/domain/CompetitionPodium.tsx');
+const clientOverview = read('src/app/client/competition.tsx');
+if (!sharedPodium.includes('const PLACES = [2, 1, 3]')
+  || !sharedPodium.includes('row.ranking_position')
+  || !sharedPodium.includes('official.set(position, row)')
+  || !clientRanking.includes('<CompetitionPodium')
+  || !clientOverview.includes('<CompetitionPodium rows={rows} compact />')
   || !/overview\.rows\.slice\(0, 3\)/.test(adminRanking)) {
-  failures.push('Podio dejó de derivarse como top 3 del Ranking.');
+  failures.push('Podio cliente/admin perdió derivación de puestos oficiales.');
 }
 
 if (!/ucapsa_competition_scores/.test(scoreSql)
