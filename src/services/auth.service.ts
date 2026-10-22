@@ -110,6 +110,17 @@ export async function signUpWithEmail({
   });
 }
 
+// Reenvío del correo pendiente de confirmación de Supabase Auth.
+export async function resendEmailConfirmation(email: string): Promise<void> {
+  const normalizedEmail = normalizeAuthEmail(email);
+  if (!normalizedEmail) throw new Error('Agrega un correo de acceso antes de verificarlo.');
+  const { error } = await supabase.auth.resend({
+    type: 'signup',
+    email: normalizedEmail,
+  });
+  if (error) throw error;
+}
+
 export async function resetPasswordForEmail(email: string) {
   return supabase.auth.resetPasswordForEmail(normalizeAuthEmail(email), {
     redirectTo: passwordRecoveryRedirectUrl(),
