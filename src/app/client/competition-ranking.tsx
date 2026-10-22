@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { DogAvatar } from '../../components/domain/DogAvatar';
+import { ExpandablePhoto } from '../../components/ui/ExpandablePhoto';
 import { CompetitionPodium } from '../../components/domain/CompetitionPodium';
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -434,12 +435,14 @@ function RankingDogAvatar({
 }) {
   if (photoUrl) {
     return (
-      <Image
-        source={{ uri: photoUrl }}
-        style={{ width: size, height: size, borderRadius: Math.round(size * 0.34) }}
-        resizeMode="cover"
-        accessibilityLabel={`Foto de ${name}`}
-      />
+      <ExpandablePhoto uri={photoUrl} name={name}>
+        <Image
+          source={{ uri: photoUrl }}
+          style={{ width: size, height: size, borderRadius: Math.round(size * 0.34) }}
+          resizeMode="cover"
+          accessibilityLabel={`Foto de ${name}`}
+        />
+      </ExpandablePhoto>
     );
   }
   return (

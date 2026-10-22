@@ -4,6 +4,7 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 import { ucapsaBrand } from '../../constants/brand';
 import type { ClientCompetitionLeaderboardRow } from '../../services/client-competition.service';
 import { DogAvatar } from './DogAvatar';
+import { ExpandablePhoto } from '../ui/ExpandablePhoto';
 
 type Props = {
   rows: ClientCompetitionLeaderboardRow[];
@@ -58,9 +59,11 @@ export function CompetitionPodium({ rows, myDogIds, photoUrlForDog, compact = fa
             <Text style={[styles.placeLabel, { color: tone.edge }]}>{tone.label}</Text>
             <View style={[styles.avatarShell, { backgroundColor: tone.fill, borderColor: tone.edge }]}>
               {row ? (photoUrl ? (
-                <Image source={{ uri: photoUrl }} resizeMode="cover"
-                  style={{ width: size, height: size, borderRadius: Math.round(size * 0.3) }}
-                  accessibilityLabel={'Foto de ' + name} />
+                <ExpandablePhoto uri={photoUrl} name={name}>
+                  <Image source={{ uri: photoUrl }} resizeMode="cover"
+                    style={{ width: size, height: size, borderRadius: Math.round(size * 0.3) }}
+                    accessibilityLabel={'Foto de ' + name} />
+                </ExpandablePhoto>
               ) : (
                 <DogAvatar avatarKey={row.dog_avatar_key} avatarColor={row.dog_avatar_color}
                   size={size} accessibilityLabel={'Avatar de ' + name} />

@@ -441,7 +441,7 @@ export default function AccountSettingsScreen() {
             value={user.email_confirmed_at ? 'Verificado' : 'Sin confirmar'} premium={premium} />
           <ReadonlyRow format={format} label="Celular principal" value={mainPhone || 'Pendiente'} premium={premium} />
           {preregistrationEnabled ? (
-            <ReadonlyRow format={format} label="Correo de contacto para preinscripción"
+            <ReadonlyRow format={format} label="Correo de contacto"
               value={profile?.preregistration_contact_email || 'No agregado'} premium={premium} />
           ) : null}
           <Text style={[styles.muted, premium && styles.premiumText]}>
@@ -573,7 +573,7 @@ export default function AccountSettingsScreen() {
           <>
             <Text style={[styles.label, premium && styles.premiumLabel]}>Correo de contacto (si es diferente)</Text>
             <TextInput value={contactEmail} onChangeText={setContactEmail}
-              placeholder="correo del preregistro (opcional)"
+              placeholder="correo@ejemplo.com (opcional)"
               keyboardType="email-address" autoCapitalize="none" autoCorrect={false}
               placeholderTextColor={premium ? ucapsaBrand.colors.redBorder : ucapsaBrand.colors.gray}
               style={[styles.input, premium && styles.premiumInput]} />

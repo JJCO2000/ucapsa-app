@@ -7,6 +7,7 @@ import { Alert, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, V
 import { DogAvatar } from '../../components/domain/DogAvatar';
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
+import { ExpandablePhoto } from '../../components/ui/ExpandablePhoto';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ContextualHelpTip } from '../../components/ui/ContextualHelpTip';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
@@ -489,17 +490,23 @@ export default function DogTab() {
           {selectedDog ? (
             <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
               <View style={styles.sectionHeader}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Editar perfil de ${selectedDog.name}`}
-                  style={styles.dogPortraitButton}
-                  onPress={openEditProfile}
-                >
-                  <DogTabPortrait dog={selectedDog} photoUrl={photoUrls[selectedDog.id] ?? null} size={52} />
-                  <View style={[styles.dogPortraitEditBadge, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
-                    <MaterialIcons name="edit" size={12} color={format.accentDark} />
-                  </View>
-                </Pressable>
+                {photoUrls[selectedDog.id] ? (
+                  <ExpandablePhoto uri={photoUrls[selectedDog.id]!} name={selectedDog.name}>
+                    <DogTabPortrait dog={selectedDog} photoUrl={photoUrls[selectedDog.id] ?? null} size={52} />
+                  </ExpandablePhoto>
+                ) : (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Editar perfil de ${selectedDog.name}`}
+                    style={styles.dogPortraitButton}
+                    onPress={openEditProfile}
+                  >
+                    <DogTabPortrait dog={selectedDog} photoUrl={null} size={52} />
+                    <View style={[styles.dogPortraitEditBadge, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
+                      <MaterialIcons name="edit" size={12} color={format.accentDark} />
+                    </View>
+                  </Pressable>
+                )}
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <View style={styles.dogNameRow}>
                     <Text style={[styles.sectionTitle, { color: format.cardText }]}>{selectedDog.name}</Text>
@@ -515,6 +522,14 @@ export default function DogTab() {
                   </Text>
                 </View>
                 <View style={styles.dogHeaderActions}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Editar perfil de ${selectedDog.name}`}
+                    style={[styles.pencilButton, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}
+                    onPress={openEditProfile}
+                  >
+                    <MaterialIcons name="edit" size={20} color={format.accentDark} />
+                  </Pressable>
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel="Abrir ranking"
