@@ -533,6 +533,7 @@ export type Database = {
         Row: {
           allergies: string | null
           avatar_color: string
+          avatar_foreground_color: string | null
           avatar_key: string
           behavior_notes: string | null
           birth_date: string | null
@@ -557,6 +558,7 @@ export type Database = {
         Insert: {
           allergies?: string | null
           avatar_color?: string
+          avatar_foreground_color?: string | null
           avatar_key?: string
           behavior_notes?: string | null
           birth_date?: string | null
@@ -581,6 +583,7 @@ export type Database = {
         Update: {
           allergies?: string | null
           avatar_color?: string
+          avatar_foreground_color?: string | null
           avatar_key?: string
           behavior_notes?: string | null
           birth_date?: string | null
@@ -4405,6 +4408,7 @@ export type Database = {
           constancy_points: number | null
           constancy_population_count: number | null
           dog_avatar_color: string | null
+          dog_avatar_foreground_color: string | null
           dog_avatar_key: string | null
           dog_id: string | null
           dog_is_active: boolean | null
@@ -6227,6 +6231,7 @@ export type Database = {
           constancy_points: number | null
           constancy_population_count: number | null
           dog_avatar_color: string | null
+          dog_avatar_foreground_color: string | null
           dog_avatar_key: string | null
           dog_id: string | null
           dog_is_active: boolean | null
