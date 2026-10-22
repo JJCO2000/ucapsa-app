@@ -71,12 +71,14 @@ export default function QuickHelpScreen() {
               <Text style={{ color: ucapsaBrand.colors.muted, fontWeight: '800' }}>Omitir</Text>
             </Pressable>
             <View style={{ flex: 1 }} />
-            <Pressable accessibilityRole="button" accessibilityLabel="Paso anterior"
-              onPress={() => stepIndex > 0 ? setStepIndex((index) => index - 1) : endTour()}
-              style={{ minHeight: 50, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border,
-                paddingHorizontal: 15, justifyContent: 'center' }}>
-              <Text style={{ color: ucapsaBrand.colors.redDark, fontWeight: '900' }}>Anterior</Text>
-            </Pressable>
+            {stepIndex > 0 ? (
+              <Pressable accessibilityRole="button" accessibilityLabel="Paso anterior"
+                onPress={() => setStepIndex((index) => index - 1)}
+                style={{ minHeight: 50, borderRadius: 18, borderWidth: 1, borderColor: ucapsaBrand.colors.border,
+                  paddingHorizontal: 15, justifyContent: 'center' }}>
+                <Text style={{ color: ucapsaBrand.colors.redDark, fontWeight: '900' }}>Anterior</Text>
+              </Pressable>
+            ) : null}
             <Pressable accessibilityRole="button"
               accessibilityLabel={stepIndex === TOUR_TABS.length - 1 ? 'Explorar UCAPSA' : 'Siguiente paso'}
               onPress={() => stepIndex === TOUR_TABS.length - 1 ? endTour() : setStepIndex((index) => index + 1)}
