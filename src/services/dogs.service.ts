@@ -188,11 +188,10 @@ export async function updateMyDogAvatar(dogId: string, avatarKey: DogAvatarKey, 
   Promise<Pick<BasicDog, 'avatar_key' | 'avatar_color'>> {
   const id = dogId.trim();
   if (!id) throw new Error('No se encontró el perro.');
-  const { data, error } = await supabase.rpc('set_my_dog_avatar_preferences', {
+  const { data, error } = await supabase.rpc('set_my_dog_avatar_basic', {
     p_dog_id: id,
     p_avatar_key: avatarKey,
     p_avatar_color: avatarColor,
-    p_avatar_foreground_color: null,
   });
   if (error) throw error;
   const saved = data?.[0];
