@@ -183,8 +183,17 @@ if (dogProfile.includes('No pide acceso a tus fotos')) {
 for (const token of ['dog-photos', 'createSignedUrl', 'set_my_dog_photo_path']) {
   if (!dogPhotoService.includes(token)) throw new Error('Private dog photo service missing: ' + token);
 }
-for (const token of ['getPrivateDogPhotoUrls', 'RankingDogAvatar', 'photoUrl={mine && row.dog_id']) {
+for (const token of ['getPrivateDogPhotoUrls', 'RankingDogAvatar', 'photoUrlForDog={(id) => myDogs.find']) {
   if (!ranking.includes(token)) throw new Error('Own dog photo is not preserved in Ranking: ' + token);
+}
+const competitionPodium = read('src/components/domain/CompetitionPodium.tsx');
+const competitionOverview = read('src/app/client/competition.tsx');
+for (const token of ['const PLACES = [2, 1, 3]', 'row.ranking_position', 'row.competitive_score', 'myDogIds?.has(dogId)', 'photoUrlForDog?.(dogId)', 'DogAvatar', 'Sin clasificar']) {
+  if (!competitionPodium.includes(token)) throw new Error('El podio compartido perdió integridad: ' + token);
+}
+if (!competitionOverview.includes('<CompetitionPodium rows={rows} compact />')
+  || !ranking.includes('<CompetitionPodium')) {
+  throw new Error('Competencia y Ranking deben compartir el mismo podio oficial.');
 }
 if (!activityAchievements.includes("code: 'attendance_100'")) {
   throw new Error('Profile activity achievements lost the 100-class milestone.');
