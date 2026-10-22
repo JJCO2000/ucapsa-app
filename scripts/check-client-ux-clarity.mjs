@@ -336,10 +336,16 @@ for (const token of [
 ]) {
   if (!dogProfile.includes(token)) throw new Error('Avatar automatico perdió control: ' + token);
 }
-if (!dogService.includes(".from('dogs')") ||
-    !dogService.includes('.update({ avatar_key: avatarKey, avatar_color: avatarColor })') ||
-    !dogService.includes(".eq('is_active', true)")) {
-  throw new Error('El avatar debe actualizar exclusivamente sus dos preferencias bajo RLS.');
+// El usuario elige sólo avatar + color. La RPC verifica propiedad en el servidor.
+if (!dogService.includes(".rpc('set_my_dog_avatar_preferences'") ||
+    !dogService.includes('p_dog_id: id') ||
+    !dogService.includes('p_avatar_key: avatarKey') ||
+    !dogService.includes('p_avatar_color: avatarColor') ||
+    !dogService.includes('p_avatar_foreground_color: null')) {
+  throw new Error('El avatar debe guardarse por RPC propietaria y un único color.');
+}
+if (dogProfile.includes('Color del dibujo') || dogProfile.includes('avatarInkExpanded')) {
+  throw new Error('No añadir controles de color independientes por emoji o dibujo.');
 }
 if (dogService.includes('.update({ avatar_key: avatarKey, avatar_color: avatarColor, name')) {
   throw new Error('El guardado de avatar no debe sobrescribir el borrador de identificacion.');
