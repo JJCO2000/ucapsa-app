@@ -3,8 +3,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated';
-import { DogAvatar } from '../../components/domain/DogAvatar';
+import { CompetitionPodium } from '../../components/domain/CompetitionPodium';
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -282,8 +281,8 @@ export default function ClientCompetitionScreen() {
                   style={[
                     styles.rankingCard,
                     {
-                      backgroundColor: premium ? ucapsaBrand.colors.premiumHero : format.accent,
-                      borderColor: premium ? ucapsaBrand.colors.premiumBorderStrong : format.accent,
+                      backgroundColor: format.cardBackground,
+                      borderColor: premium ? ucapsaBrand.colors.premiumBorderStrong : format.cardBorder,
                     },
                   ]}
                   onPress={() => {
@@ -296,44 +295,29 @@ export default function ClientCompetitionScreen() {
                       <MaterialIcons name="emoji-events" size={25} color={format.accentDark} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.rankingEyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.primaryButtonText }]}>RANKING UCAPSA</Text>
-                      <Text style={[styles.rankingTitle, { color: premium ? ucapsaBrand.colors.premiumText : format.primaryButtonText }]}>Top 3 de la temporada</Text>
+                      <Text style={[styles.rankingEyebrow, { color: format.accentDark }]}>RANKING UCAPSA</Text>
+                      <Text style={[styles.rankingTitle, { color: format.cardText }]}>Top 3 de la temporada</Text>
                     </View>
-                    <MaterialIcons name="chevron-right" size={24} color={premium ? ucapsaBrand.colors.premiumAction : format.primaryButtonText} />
+                    <MaterialIcons name="chevron-right" size={24} color={format.accentDark} />
                   </View>
 
-                  <View style={styles.myPositions}>
-                    {!rankingReady ? (
-                      <Text style={[styles.rankingMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.primaryButtonText }]}>Actualizando Top 3…</Text>
-                    ) : rows.length > 0 ? (
-                      rows.slice(0, 3).map((row, index) => (
-                        <Animated.View key={row.dog_id ?? String(row.ranking_position)}
-                          entering={FadeInDown.duration(220).delay(index * 65).reduceMotion(ReduceMotion.System)}
-                          style={[styles.positionPill, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.cardBackground }]}>
-                          <DogAvatar avatarKey={row.dog_avatar_key} avatarColor={row.dog_avatar_color} size={35}
-                            accessibilityLabel={'Avatar de ' + (row.dog_name || 'perro')} />
-                          <Text style={[styles.positionName, { color: premium ? ucapsaBrand.colors.premiumText : format.cardText }]} numberOfLines={1}>
-                            {Number(row.ranking_position) === 1 ? '🥇' : Number(row.ranking_position) === 2 ? '🥈' : '🥉'} {row.dog_name || 'Perro'}
+                  {!rankingReady ? (
+                    <Text style={[styles.rankingMeta, { color: format.muted }]}>Actualizando clasificación…</Text>
+                  ) : rows.length > 0 ? (
+                    <CompetitionPodium rows={rows} compact />
+                  ) : (
+                    <View style={{ gap: 5 }}>
+                      <Text style={[styles.rankingMeta, { color: format.muted }]}>Sin posiciones oficiales todavía.</Text>
+                      {snapshot.dogs.map((dog) => {
+                        const season = dog.seasons.find((item) => item.season_id === selectedSeasonId);
+                        return season ? (
+                          <Text key={dog.dog_id} style={[styles.rankingMeta, { color: format.muted }]}>
+                            {dog.dog_name}: {numberLabel(season.competitive_score)} pts
                           </Text>
-                          <Text style={[styles.positionValue, { color: format.accentDark }]}>#{Number(row.ranking_position)}</Text>
-                        </Animated.View>
-                      ))
-                    ) : (
-                      <View style={{ gap: 5 }}>
-                        <Text style={[styles.rankingMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.primaryButtonText }]}>
-                          Sin posiciones oficiales todavía. Tus puntos ya se acumulan:
-                        </Text>
-                        {snapshot.dogs.map((dog) => {
-                          const season = dog.seasons.find((item) => item.season_id === selectedSeasonId);
-                          return season ? (
-                            <Text key={dog.dog_id} style={[styles.rankingMeta, { color: premium ? ucapsaBrand.colors.premiumMuted : format.primaryButtonText }]}>
-                              {dog.dog_name}: {numberLabel(season.competitive_score)} pts
-                            </Text>
-                          ) : null;
-                        })}
-                      </View>
-                    )}
-                  </View>
+                        ) : null;
+                      })}
+                    </View>
+                  )}
                 </Pressable>
 
                 <Text style={[styles.sectionTitle, { color: format.cardText }]}>Tus perros esta temporada</Text>
