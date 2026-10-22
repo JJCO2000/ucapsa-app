@@ -65,7 +65,7 @@ export function CompetitionPodium({ rows, myDogIds, photoUrlForDog, compact = fa
                     accessibilityLabel={'Foto de ' + name} />
                 </ExpandablePhoto>
               ) : (
-                <DogAvatar avatarKey={row.dog_avatar_key} avatarColor={row.dog_avatar_color} avatarForegroundColor={row.dog_avatar_foreground_color}
+                <DogAvatar avatarKey={row.dog_avatar_key} avatarColor={row.dog_avatar_color}
                   size={size} accessibilityLabel={'Avatar de ' + name} />
               )) : (
                 <MaterialIcons name="pets" size={26} color={tone.edge} />

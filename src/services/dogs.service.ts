@@ -1,11 +1,9 @@
 import {
   DEFAULT_DOG_AVATAR_COLOR,
   DEFAULT_DOG_AVATAR_KEY,
-  normalizeDogAvatarForegroundColor,
   normalizeDogAvatarColor,
   normalizeDogAvatarKey,
   type DogAvatarColor,
-  type DogAvatarForegroundColor,
   type DogAvatarKey,
 } from '../constants/dogAvatar';
 import { supabase } from '../lib/supabase';
@@ -16,7 +14,6 @@ export type BasicDog = {
   name: string;
   avatar_key: DogAvatarKey;
   avatar_color: DogAvatarColor;
-  avatar_foreground_color: DogAvatarForegroundColor | null;
   photo_path: string | null;
   is_active: boolean;
   created_at: string;
@@ -59,7 +56,6 @@ function normalizeRows(data: unknown): BasicDog[] {
       name: String(item.name),
       avatar_key: normalizeDogAvatarKey(item.avatar_key ?? DEFAULT_DOG_AVATAR_KEY),
       avatar_color: normalizeDogAvatarColor(item.avatar_color ?? DEFAULT_DOG_AVATAR_COLOR),
-      avatar_foreground_color: normalizeDogAvatarForegroundColor(item.avatar_foreground_color),
       photo_path: item.photo_path ? String(item.photo_path) : null,
       is_active: item.is_active !== false,
       created_at: String(item.created_at ?? ''),
@@ -85,7 +81,6 @@ function normalizeDogProfile(data: unknown): DogProfile {
     name: String(item.name),
     avatar_key: normalizeDogAvatarKey(item.avatar_key ?? DEFAULT_DOG_AVATAR_KEY),
     avatar_color: normalizeDogAvatarColor(item.avatar_color ?? DEFAULT_DOG_AVATAR_COLOR),
-    avatar_foreground_color: normalizeDogAvatarForegroundColor(item.avatar_foreground_color),
     photo_path: item.photo_path ? String(item.photo_path) : null,
     breed: normalizeNullableText(item.breed),
     birth_date: normalizeNullableText(item.birth_date),
@@ -106,26 +101,13 @@ function normalizeDogProfile(data: unknown): DogProfile {
   };
 }
 
-async function getForegroundsForDogs(ids: string[]): Promise<Record<string, DogAvatarForegroundColor | null>> {
-  if (!ids.length) return {};
-  const { data, error } = await supabase.rpc('get_my_dog_avatar_foregrounds');
-  if (error) throw error;
-  return Object.fromEntries((data ?? []).map((row) =>
-    [row.dog_id,normalizeDogAvatarForegroundColor(row.avatar_foreground_color)]));
-}
-
 export async function getMyDogs(): Promise<BasicDog[]> {
   const [{ data, error }, photoPaths] = await Promise.all([
     supabase.rpc('get_my_basic_dogs'),
     getMyDogPhotoPaths(),
   ]);
   if (error) throw error;
-  const dogs = normalizeRows(data);
-  const foregrounds = await getForegroundsForDogs(dogs.map((dog) => dog.id));
-  return dogs.map((dog) => ({
-    ...dog, avatar_foreground_color: foregrounds[dog.id] ?? null,
-    photo_path: photoPaths[dog.id] ?? null,
-  }));
+  return normalizeRows(data).map((dog) => ({ ...dog, photo_path: photoPaths[dog.id] ?? null }));
 }
 
 export async function getMyDogProfile(dogId: string): Promise<DogProfile> {
@@ -139,9 +121,7 @@ export async function getMyDogProfile(dogId: string): Promise<DogProfile> {
   if (!data?.[0]) throw new Error('No se encontro el perro.');
   const profile = normalizeDogProfile(data[0]);
   const photoPaths = await getMyDogPhotoPaths();
-  const foregrounds = await getForegroundsForDogs([profile.id]);
-  return { ...profile, avatar_foreground_color: foregrounds[profile.id] ?? null,
-    photo_path: photoPaths[profile.id] ?? null };
+  return { ...profile, photo_path: photoPaths[profile.id] ?? null };
 }
 
 export async function createMyDog(name: string): Promise<BasicDog> {
@@ -195,9 +175,7 @@ export async function updateMyDogProfile(dogId: string, input: DogProfileInput):
   if (!data?.[0]) throw new Error('No se pudo actualizar el perro.');
   const profile = normalizeDogProfile(data[0]);
   const photoPaths = await getMyDogPhotoPaths();
-  const foregrounds = await getForegroundsForDogs([profile.id]);
-  return { ...profile, avatar_foreground_color: foregrounds[profile.id] ?? null,
-    photo_path: photoPaths[profile.id] ?? null };
+  return { ...profile, photo_path: photoPaths[profile.id] ?? null };
 }
 
 /**
@@ -205,24 +183,22 @@ export async function updateMyDogProfile(dogId: string, input: DogProfileInput):
  * nivel, asistencia ni otros campos del borrador de la ficha.
  * dogs_owner_update_enabled + dogs_owner_select_enabled validan propiedad en RLS.
  */
-export async function updateMyDogAvatar(dogId: string, avatarKey: DogAvatarKey, avatarColor: DogAvatarColor,
-  foreground: DogAvatarForegroundColor | null):
-  Promise<Pick<BasicDog, 'avatar_key' | 'avatar_color' | 'avatar_foreground_color'>> {
+export async function updateMyDogAvatar(dogId: string, avatarKey: DogAvatarKey, avatarColor: DogAvatarColor):
+  Promise<Pick<BasicDog, 'avatar_key' | 'avatar_color'>> {
   const id = dogId.trim();
   if (!id) throw new Error('No se encontró el perro.');
+  // La función valida titularidad en el servidor; nunca modificamos otros datos del perro.
+  // El cuarto argumento tiene DEFAULT NULL: no se configura tinta por emoji.
   const { data, error } = await supabase.rpc('set_my_dog_avatar_preferences', {
     p_dog_id: id,
     p_avatar_key: avatarKey,
     p_avatar_color: avatarColor,
-    p_avatar_foreground_color: foreground,
   });
   if (error) throw error;
   if (!data?.[0]) throw new Error('No se pudo guardar el avatar.');
-  const saved = data[0];
   return {
-    avatar_key: normalizeDogAvatarKey(saved.avatar_key),
-    avatar_color: normalizeDogAvatarColor(saved.avatar_color),
-    avatar_foreground_color: normalizeDogAvatarForegroundColor(saved.avatar_foreground_color),
+    avatar_key: normalizeDogAvatarKey(data[0].avatar_key),
+    avatar_color: normalizeDogAvatarColor(data[0].avatar_color),
   };
 }
 
@@ -270,7 +246,7 @@ export async function getDogsForUser(userId: string): Promise<BasicDog[]> {
 
   const { data, error } = await supabase
     .from('dogs')
-    .select('id,name,avatar_key,avatar_color,avatar_foreground_color,photo_path,is_active,created_at,updated_at')
+    .select('id,name,avatar_key,avatar_color,photo_path,is_active,created_at,updated_at')
     .eq('user_id', cleanUserId)
     .eq('is_active', true)
     .order('created_at', { ascending: true });

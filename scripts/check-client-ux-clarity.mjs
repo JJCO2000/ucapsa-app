@@ -326,7 +326,7 @@ for (const token of [
   'updateMyDogAvatar(dogId,',
   'avatarWriteBusy.current',
   'while (desiredAvatar.current.key !== persistedAvatar.current.key',
-  'persistedAvatar.current = { key: saved.avatar_key, color: saved.avatar_color, ink: saved.avatar_foreground_color }',
+  'persistedAvatar.current = { key: saved.avatar_key, color: saved.avatar_color }',
   'desiredAvatar.current = previous;',
   'setAvatarExpanded((open) => !open)',
   'setAvatarColorsExpanded((open) => !open)',
@@ -337,10 +337,10 @@ for (const token of [
   if (!dogProfile.includes(token)) throw new Error('Avatar automatico perdió control: ' + token);
 }
 if (!dogService.includes(".rpc('set_my_dog_avatar_preferences'") ||
-    !dogService.includes(".rpc('get_my_dog_avatar_foregrounds'") ||
     !dogService.includes('p_dog_id: id') ||
-    !dogService.includes('p_avatar_foreground_color: foreground')) {
-  throw new Error('El avatar debe operar por RPC con guard interno de propietario.');
+    !dogService.includes('p_avatar_key: avatarKey') ||
+    !dogService.includes('p_avatar_color: avatarColor')) {
+  throw new Error('El avatar debe guardar sólo elección y fondo bajo autorización del servidor.');
 }
 if (dogService.includes('.update({ avatar_key: avatarKey, avatar_color: avatarColor, name')) {
   throw new Error('El guardado de avatar no debe sobrescribir el borrador de identificacion.');
