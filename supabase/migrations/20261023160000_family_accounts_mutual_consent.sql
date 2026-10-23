@@ -172,7 +172,7 @@ CREATE OR REPLACE FUNCTION public.get_my_family_account_links()
 RETURNS TABLE(
   id uuid,other_name text,my_role text,
   my_accepted boolean,other_accepted boolean,active boolean,
-  notice_available boolean
+  notice_available boolean, my_consent_recorded boolean
 )
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
 AS $function$
@@ -191,7 +191,9 @@ AS $function$
     (l.head_consented_at IS NOT NULL AND l.relative_consented_at IS NOT NULL
       AND n.version IS NOT NULL
       AND l.head_notice_version=n.version AND l.relative_notice_version=n.version) AS active,
-    (n.version IS NOT NULL) AS notice_available
+    (n.version IS NOT NULL) AS notice_available,
+    CASE WHEN auth.uid()=l.head_user_id THEN l.head_consented_at IS NOT NULL
+      ELSE l.relative_consented_at IS NOT NULL END AS my_consent_recorded
   FROM ucapsa_intake.family_account_links l
     JOIN ucapsa_intake.family_members f ON f.id=l.family_member_id
     JOIN ucapsa_intake.people p ON p.id=f.person_id
