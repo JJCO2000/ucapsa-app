@@ -4,6 +4,9 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
+import { PreregistrationFamilyEditor } from '../../components/domain/PreregistrationFamilyEditor';
+import { getAdminPreregisteredFamily, addAdminPreregisteredFamily,
+  type FamilyMemberInput, type FamilyMemberSaved } from '../../services/preregistration-family.service';
 import { ucapsaBrand } from '../../constants/brand';
 import { preregistrationDirectoryEnabled } from '../../constants/preregistrationFeature';
 import { useSession } from '../../hooks/useSession';
@@ -30,6 +33,9 @@ export default function AdminPreregistrationDetailScreen() {
   const { intakeProgramId } = useLocalSearchParams<{ intakeProgramId?: string }>();
   const recordId = typeof intakeProgramId === 'string' ? intakeProgramId : '';
   const [record, setRecord] = useState<AdminPreregistrationRecord | null>(null);
+  const [family, setFamily] = useState<FamilyMemberSaved[]>([]);
+  const [newFamily, setNewFamily] = useState<FamilyMemberInput[]>([]);
+  const [savingFamily, setSavingFamily] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,8 +54,11 @@ export default function AdminPreregistrationDetailScreen() {
   const load = useCallback(async () => {
     try {
       setError(null);
-      const rows = await getAdminPreregistrationRecords(recordId);
+      const [rows, members] = await Promise.all([
+        getAdminPreregistrationRecords(recordId), getAdminPreregisteredFamily(recordId),
+      ]);
       setRecord(rows[0] ?? null);
+      setFamily(members);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No fue posible abrir el expediente.');
     } finally {
@@ -119,6 +128,26 @@ export default function AdminPreregistrationDetailScreen() {
     } finally { setSavingMember(false); }
   }
 
+  async function saveFamily() {
+    if (!record || record.status !== 'pending' || savingFamily || !newFamily.length) return;
+    setFeedback(null);
+    try {
+      setSavingFamily(true);
+      const added = await addAdminPreregisteredFamily(record.intakeProgramId, newFamily);
+      await load();
+      setNewFamily([]);
+      showFeedback('Familia actualizada', added > 0
+        ? 'Se añadieron ' + added + ' integrantes al expediente.'
+        : 'Estas personas ya estaban registradas en la familia.', 'success');
+    } catch (cause) {
+      devWarn('admin-preregistration: could not add family.', cause);
+      showFeedback('No se pudo guardar la familia',
+        cause instanceof Error ? cause.message : 'Revisa los datos e inténtalo de nuevo.');
+    } finally {
+      setSavingFamily(false);
+    }
+  }
+
   if (!isAdmin || !preregistrationDirectoryEnabled) return <Redirect href="/home" />;
 
   return (
@@ -158,6 +187,33 @@ export default function AdminPreregistrationDetailScreen() {
             <Detail label="Perro" value={record.dogName} />
             <Detail label="Cuenta" value={record.status === 'linked' ? 'Vinculada' : 'Pendiente de vinculación'} />
           </View>
+          <View style={styles.card}>
+            <Text style={styles.groupTitle}>Familia del titular</Text>
+            {family.length ? family.map((member) => (
+              <View key={member.id} style={styles.detail}>
+                <Text style={styles.value}>{member.fullName}</Text>
+                <Text style={styles.hint}>
+                  {[member.phone, member.email].filter(Boolean).join(' · ') || 'Sin contacto adicional'}
+                </Text>
+              </View>
+            )) : <Text style={styles.hint}>No hay otros integrantes registrados.</Text>}
+            <Text style={styles.hint}>
+              Este listado es provisional. No permite entrar a cuentas, utilizar la membresía
+              ni consultar fotografías de otras personas.
+            </Text>
+          </View>
+          {record.status === 'pending' ? (
+            <>
+              <PreregistrationFamilyEditor value={newFamily} onChange={setNewFamily} disabled={savingFamily} />
+              {newFamily.length > 0 ? (
+                <Pressable accessibilityRole="button" style={styles.primary} disabled={savingFamily}
+                  onPress={() => { void saveFamily(); }}>
+                  {savingFamily ? <ActivityIndicator color={ucapsaBrand.colors.surface} /> :
+                    <Text style={styles.primaryText}>Guardar nuevos integrantes</Text>}
+                </Pressable>
+              ) : null}
+            </>
+          ) : null}
           {record.status === 'pending' && (!record.ownerEmail || !record.ownerPhone) ? (
             <View style={styles.card}>
               <Text style={styles.groupTitle}>Completar contacto faltante</Text>
@@ -225,9 +281,7 @@ export default function AdminPreregistrationDetailScreen() {
                     ? 'Retirar autorización de Socio' : 'Autorizar como Socio'}</Text>
               </Pressable>
             ) : null}
-            <Text style={styles.hint}>El teléfono o correo de la ficha sirven para
-              la primera vinculación. La verificación adicional del contacto queda
-              como pendiente y no se exige un SMS para este proceso.</Text>
+            <Text style={styles.hint}>La primera vinculación utiliza los datos del titular. Los familiares no se vinculan por aparecer en este expediente.</Text>
           </View>
           <View style={styles.card}>
             <Text style={styles.groupTitle}>Asistencias reconocidas</Text>
@@ -243,7 +297,7 @@ export default function AdminPreregistrationDetailScreen() {
               <Text style={styles.primaryText}>Abrir ficha oficial del cliente</Text>
             </Pressable>
           ) : (
-            <Text style={styles.hint}>La membresía y el perfil oficial se administran cuando el titular tenga una cuenta verificada.</Text>
+            <Text style={styles.hint}>La membresía y los accesos se administran cuando el titular vincule su cuenta.</Text>
           )}
         </>
       ) : null}
