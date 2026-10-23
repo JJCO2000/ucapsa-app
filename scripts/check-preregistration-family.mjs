@@ -85,8 +85,9 @@ vm.runInNewContext(transpiled, {
 const normalize = moduleRef.exports.normalizeFamilyMembers;
 assert.deepEqual(JSON.parse(JSON.stringify(normalize([{fullName:'  María Pérez  ', email:' MARIA@EXAMPLE.COM ', phone:'5535100214'}]))),
   [{full_name:'María Pérez',email:'maria@example.com',phone:'+525535100214'}]);
-assert.deepEqual(JSON.parse(JSON.stringify(normalize([{fullName:'Ana Ruiz',email:'',phone:''}]))),
-  [{full_name:'Ana Ruiz',email:'',phone:''}]);
+assert.deepEqual(JSON.parse(JSON.stringify(normalize([{fullName:'Ana Ruiz',email:'ana@ejemplo.mx',phone:''}]))),
+  [{full_name:'Ana Ruiz',email:'ana@ejemplo.mx',phone:''}]);
+assert.throws(() => normalize([{fullName:'Ana Ruiz',email:'',phone:''}]), /correo o celular/i);
 assert.throws(() => normalize([{fullName:'',email:'',phone:''}]));
 assert.throws(() => normalize([{fullName:'Ana Ruiz',email:'bad',phone:''}]));
 assert.throws(() => normalize([{fullName:'Ana Ruiz',email:'',phone:'123'}]));
