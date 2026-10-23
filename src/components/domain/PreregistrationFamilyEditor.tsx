@@ -65,7 +65,7 @@ export function PreregistrationFamilyEditor({ value, onChange, disabled = false 
       <Text style={styles.title}>Familia (opcional)</Text>
       <Text style={styles.hint}>
         El titular es la persona registrada arriba. Añade otros integrantes sin crearles una cuenta.
-        El parentesco o la membresía se autorizarán después.
+        Añade correo o celular para poder identificar al integrante. La vinculación se autorizará después.
       </Text>
       {value.map((member, index) => (
         <View key={index} style={styles.memberCard}>
@@ -83,12 +83,12 @@ export function PreregistrationFamilyEditor({ value, onChange, disabled = false 
                 style={styles.input} maxLength={120} autoCapitalize="words" editable={!disabled}
                 accessibilityLabel={'Nombre del integrante ' + (index + 1)}
                 placeholder="Nombre y apellidos" placeholderTextColor={ucapsaBrand.colors.muted} />
-              <Text style={styles.label}>Celular (opcional)</Text>
+              <Text style={styles.label}>Celular (correo o celular obligatorio)</Text>
               <TextInput value={member.phone} onChangeText={(text) => update(index, 'phone', text)}
                 style={styles.input} maxLength={20} keyboardType="phone-pad" editable={!disabled}
                 accessibilityLabel={'Celular del integrante ' + (index + 1)}
                 placeholder="Número de contacto" placeholderTextColor={ucapsaBrand.colors.muted} />
-              <Text style={styles.label}>Correo (opcional)</Text>
+              <Text style={styles.label}>Correo (correo o celular obligatorio)</Text>
               <TextInput value={member.email} onChangeText={(text) => update(index, 'email', text)}
                 style={styles.input} maxLength={254} keyboardType="email-address"
                 autoCapitalize="none" autoCorrect={false} editable={!disabled}
