@@ -108,7 +108,7 @@ declare result jsonb;
 begin
   result:=public.claim_my_first_preregistered_dogs();
   if result->>'status' not in ('none','unverified','not_applicable') then
-    raise exception 'Optional family email acquired primary dog's account: %',result;
+    raise exception 'Optional family email acquired primary account: %',result;
   end if;
 end $no_auto_claim$;
 reset role;
