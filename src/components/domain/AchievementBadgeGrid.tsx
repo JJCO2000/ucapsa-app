@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
+import { AchievementShareAction } from './AchievementShareAction';
 import { formatAchievementDate, type AchievementWithState } from '../../services/achievements.service';
 
 const colorMap = {
@@ -238,11 +239,14 @@ export function AchievementDetailModal({
     <Modal visible={Boolean(item)} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalBackdrop}>
         <View style={[styles.modalCard, premium && styles.modalCardPremium]}>
+          {item.unlocked ? (
+            <MaterialCommunityIcons name="star-four-points" size={23} color={tone.dark} accessibilityElementsHidden />
+          ) : null}
           <View style={[styles.modalIcon, { backgroundColor: item.unlocked ? tone.soft : ucapsaBrand.colors.graySoft, borderColor: item.unlocked ? tone.main : ucapsaBrand.colors.textLight }]}>
             <MaterialCommunityIcons name={item.definition.icon as keyof typeof MaterialCommunityIcons.glyphMap} size={54} color={item.unlocked ? tone.dark : ucapsaBrand.colors.gray} />
           </View>
 
-          <Text style={[styles.modalKicker, premium && styles.modalKickerPremium]}>{item.unlocked ? 'Logro desbloqueado' : 'Logro pendiente'}</Text>
+          <Text style={[styles.modalKicker, premium && styles.modalKickerPremium]}>{item.unlocked ? '¡Felicidades! Medalla conseguida' : 'Medalla pendiente'}</Text>
           <Text style={[styles.modalTitle, premium && styles.modalTitlePremium]}>{item.unlocked ? unlockedTitle : lockedTitle}</Text>
           {item.progressTarget != null && item.progressCurrent != null ? (
             <View style={[styles.modalProgressPill, { backgroundColor: item.unlocked ? tone.soft : ucapsaBrand.colors.graySoft }]}>
@@ -263,8 +267,10 @@ export function AchievementDetailModal({
             </View>
           ) : null}
 
-          <Pressable style={[styles.closeButton, premium && styles.closeButtonPremium]} onPress={onClose}>
-            <Text style={[styles.closeButtonText, premium && styles.closeButtonTextPremium]}>Cerrar</Text>
+          {item.unlocked ? <AchievementShareAction title={unlockedTitle} premium={premium} /> : null}
+          <Pressable accessibilityRole="button" accessibilityLabel="Continuar a mis logros"
+            style={[styles.closeButton, premium && styles.closeButtonPremium]} onPress={onClose}>
+            <Text style={[styles.closeButtonText, premium && styles.closeButtonTextPremium]}>CONTINUAR</Text>
           </Pressable>
         </View>
       </View>
