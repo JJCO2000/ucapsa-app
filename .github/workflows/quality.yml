@@ -26,6 +26,10 @@ jobs:
       # la versión remota de dependencias por el gate reproducible anterior.
       - run: EXPO_DOCTOR_SKIP_DEPENDENCY_VERSION_CHECK=1 npx --yes expo-doctor@1.20.4
       - run: npm run audit:critical
+      # Known unpatched Expo/Metro high advisories remain visible, but new high
+      # or critical exposures must fail CI rather than silently accumulating.
+      - run: node scripts/check-known-high-security-advisories.mjs --self-test
+      - run: node scripts/check-known-high-security-advisories.mjs
       - run: npx expo config --type introspect --json > /tmp/ucapsa-expo-introspect.json
       - run: npx expo export --platform android --source-maps --output-dir dist-ci-android --clear
       # El bundle Android no debe incluir módulos exclusivos del navegador.
