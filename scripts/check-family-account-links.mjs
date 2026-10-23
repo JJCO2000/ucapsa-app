@@ -29,6 +29,7 @@ for (const fragment of [
   'head_notice_version text',
   'relative_notice_version text',
   'notice_available boolean',
+  'my_consent_recorded boolean',
   'ucapsa_intake.current_family_progress_notice_version()',
   "position('progreso familiar' IN lower(coalesce(p.integral_notice,'')))",
   "position('revocar' IN lower(coalesce(p.integral_notice,'')))",
@@ -54,7 +55,10 @@ for (const forbidden of ['email_key AS', 'phone_e164 AS', 'payment_amount',
 }
 assert.ok(client.includes('!link.noticeAvailable')
   && client.includes('Consulta familiar aún no disponible')
-  && svc.includes('noticeAvailable: r.notice_available === true'),
+  && svc.includes('noticeAvailable: r.notice_available === true')
+  && svc.includes('myConsentRecorded: r.my_consent_recorded === true')
+  && client.includes('Retirar autorización anterior')
+  && client.includes('changeConsent(link, false)'),
   'Client must not offer consent until notice is approved on the server.');
 assert.ok(client.includes("router.push('/privacy' as never)")
   && client.includes('tendrás')
@@ -81,7 +85,7 @@ assert.ok(svc.includes("'admin_preview_family_account'")
   && svc.includes("'set_my_family_progress_consent'")
   && svc.includes("'get_my_family_progress'"),
   'App must use official RPC for family links, not directly access private tables.');
-for (const name of ['reject_old_notice','invalidate_old_consent','no_partial_renewal',
+for (const name of ['reject_old_notice','invalidate_old_consent','revoke_obsolete_notice','no_partial_renewal',
   'client_denied','no_claim','head_approval','relative_approval',
   'read_relative','read_head','stranger','withdrawn','final']) {
   assert.ok(e2e.includes(name), 'Missing test case: '+name);
