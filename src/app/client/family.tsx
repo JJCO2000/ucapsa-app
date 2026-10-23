@@ -58,12 +58,12 @@ export default function MyFamilyScreen() {
     return () => { requestIdRef.current += 1; };
   }, [load, sessionLoading, user?.id]);
 
-  async function changeConsent(link: FamilyAccountLink) {
+  async function changeConsent(link: FamilyAccountLink, accept: boolean) {
     if (busyId) return;
     setBusyId(link.id);
     setNotice('');
     try {
-      await setMyFamilyConsent(link.id, !link.myAccepted);
+      await setMyFamilyConsent(link.id, accept);
       await load();
     } catch (error) {
       devWarn('family: consent update failed.', error);
@@ -132,12 +132,22 @@ export default function MyFamilyScreen() {
                 accessibilityLabel={(link.myAccepted ? 'Dejar de compartir progreso con ' :
                   'Autorizar compartir progreso con ') + link.otherName}
                 disabled={Boolean(busyId)} style={[styles.button, Boolean(busyId) && styles.disabled]}
-                onPress={() => { void changeConsent(link); }}>
+                onPress={() => { void changeConsent(link, !link.myAccepted); }}>
                 <Text style={styles.buttonText}>
                   {busyId === link.id ? 'Guardando…' :
-                    link.myAccepted ? 'Dejar de compartir' : 'Autorizar compartir progreso'}
+                    link.myAccepted ? 'Dejar de compartir' :
+                      link.myConsentRecorded ? 'Renovar autorización' : 'Autorizar compartir progreso'}
                 </Text>
               </Pressable>
+              ) : null}
+              {link.myConsentRecorded && !link.myAccepted ? (
+                <Pressable accessibilityRole="button"
+                  accessibilityLabel={'Retirar autorización anterior de ' + link.otherName}
+                  disabled={Boolean(busyId)}
+                  onPress={() => { void changeConsent(link, false); }}
+                  style={styles.privacyLink}>
+                  <Text style={styles.privacyLinkText}>Retirar autorización anterior</Text>
+                </Pressable>
               ) : null}
               <Text style={styles.hint}>
                 {link.myAccepted
