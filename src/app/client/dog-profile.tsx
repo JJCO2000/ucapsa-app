@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { DogAvatar } from '../../components/domain/DogAvatar';
+import { RankingPhotoChoice } from '../../components/domain/RankingPhotoChoice';
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { ExpandablePhoto } from '../../components/ui/ExpandablePhoto';
@@ -343,6 +344,17 @@ export default function DogProfileScreen() {
                 </Pressable>
               ) : null}
             </View>
+          </View>
+
+          <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
+            <RankingPhotoChoice
+              dogId={dogId}
+              dogName={profile.name}
+              photoUrl={photoUrl}
+              photoPath={profile.photo_path}
+              avatarKey={avatarKey}
+              avatarColor={avatarColor}
+            />
           </View>
 
           <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
