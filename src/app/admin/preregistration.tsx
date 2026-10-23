@@ -36,6 +36,8 @@ export default function AdminPreregistrationDetailScreen() {
   const [loadedForRecordId, setLoadedForRecordId] = useState<string | null>(null);
   // Ignore responses from an older expediente after route/focus changes.
   const requestIdRef = useRef(0);
+  const activeRecordIdRef = useRef(recordId);
+  activeRecordIdRef.current = recordId;
   const record = loadedForRecordId === recordId ? loadedRecord : null;
   const [family, setFamily] = useState<FamilyMemberSaved[]>([]);
   const [newFamily, setNewFamily] = useState<FamilyMemberInput[]>([]);
@@ -56,25 +58,26 @@ export default function AdminPreregistrationDetailScreen() {
   }
 
   const load = useCallback(async () => {
+    if (!recordId || activeRecordIdRef.current !== recordId) return;
     const requestId = ++requestIdRef.current;
     try {
       setError(null);
       const [rows, members] = await Promise.all([
         getAdminPreregistrationRecords(recordId), getAdminPreregisteredFamily(recordId),
       ]);
-      if (requestId !== requestIdRef.current) return;
+      if (requestId !== requestIdRef.current || activeRecordIdRef.current !== recordId) return;
       const result = rows.find((row) => row.intakeProgramId === recordId) ?? null;
       setLoadedRecord(result);
       setFamily(result ? members : []);
       setLoadedForRecordId(recordId);
     } catch (cause) {
-      if (requestId !== requestIdRef.current) return;
+      if (requestId !== requestIdRef.current || activeRecordIdRef.current !== recordId) return;
       setLoadedRecord(null);
       setFamily([]);
       setLoadedForRecordId(recordId);
       setError(cause instanceof Error ? cause.message : 'No fue posible abrir el expediente.');
     } finally {
-      if (requestId === requestIdRef.current) {
+      if (requestId === requestIdRef.current && activeRecordIdRef.current === recordId) {
         setLoading(false);
         setRefreshing(false);
       }
@@ -84,6 +87,7 @@ export default function AdminPreregistrationDetailScreen() {
   useFocusEffect(useCallback(() => {
     // Reset form and prior private data before showing a different expediente.
     requestIdRef.current += 1;
+    activeRecordIdRef.current = recordId;
     setLoadedRecord(null);
     setLoadedForRecordId(null);
     setFamily([]);
@@ -96,7 +100,7 @@ export default function AdminPreregistrationDetailScreen() {
       setLoading(true);
       void load();
     }
-    return () => { requestIdRef.current += 1; };
+    return () => { requestIdRef.current += 1; activeRecordIdRef.current = ''; };
   }, [isAdmin, recordId, load]));
 
   async function saveMissingContact() {
@@ -124,7 +128,9 @@ export default function AdminPreregistrationDetailScreen() {
     try {
       setSavingContact(true);
       await adminCompletePreregistrationContact(record.personId, { email, phone });
+      if (activeRecordIdRef.current !== recordId) return;
       await load();
+      if (activeRecordIdRef.current !== recordId) return;
       setEditingContact(false);
       setNewEmail('');
       setNewPhone('');
@@ -143,7 +149,9 @@ export default function AdminPreregistrationDetailScreen() {
     try {
       setSavingMember(true);
       await adminSetPreregisteredMembership(record.intakeDogId,isMember);
+      if (activeRecordIdRef.current !== recordId) return;
       await load();
+      if (activeRecordIdRef.current !== recordId) return;
       showFeedback('Autorización actualizada',isMember
         ? 'Socio autorizado. La membresía oficial se creará al vincular la cuenta, sin generar pagos.'
         : 'Se retiró la autorización provisional de Socio.', 'success');
@@ -160,7 +168,9 @@ export default function AdminPreregistrationDetailScreen() {
     try {
       setSavingFamily(true);
       const added = await addAdminPreregisteredFamily(record.intakeProgramId, newFamily);
+      if (activeRecordIdRef.current !== recordId) return;
       await load();
+      if (activeRecordIdRef.current !== recordId) return;
       setNewFamily([]);
       showFeedback('Familia actualizada', added > 0
         ? 'Se añadieron ' + added + ' integrantes al expediente.'
