@@ -1,11 +1,12 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { Calendar, type DateData } from 'react-native-calendars';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
+import { showStaffDialog } from '../../utils/staff-dialog';
 import { preregistrationEnabled } from '../../constants/preregistrationFeature';
 import { getStaffIntroAgendaPlans, type StaffIntroVisit } from '../../services/intro-class-agenda.service';
 import { getProgramClassCancellations } from '../../services/program-cancellations.service';
@@ -205,7 +206,7 @@ export default function TrainerClassesTab() {
 
   async function markAttendance(row: StaffRosterRow) {
     if (row.attended || busyId) return;
-    Alert.alert(
+    showStaffDialog(
       'Registrar asistencia',
       `¿Confirmas que ${row.dogName} asistió a la clase de hoy?`,
       [
@@ -222,7 +223,7 @@ export default function TrainerClassesTab() {
               });
               await load();
             } catch (cause) {
-              Alert.alert('No se pudo registrar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+              showStaffDialog('No se pudo registrar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
             } finally {
               setBusyId(null);
             }
@@ -234,7 +235,7 @@ export default function TrainerClassesTab() {
 
   function markStagedAttendance(row: StaffPreregisteredRosterRow) {
     if (busyId || row.attended || row.authorizationStatus !== 'valid' || dateKey !== localDateKey()) return;
-    Alert.alert('Registrar asistencia',
+    showStaffDialog('Registrar asistencia',
       `¿Confirmas que ${row.dogName} asistió hoy? La fecha se conservará cuando el propietario vincule su cuenta.`,
       [
         { text: 'Cancelar', style: 'cancel' },
@@ -249,7 +250,7 @@ export default function TrainerClassesTab() {
               });
               await load();
             } catch (cause) {
-              Alert.alert('No se pudo registrar',
+              showStaffDialog('No se pudo registrar',
                 cause instanceof Error ? cause.message : 'Solicita revisión a Administración.');
             } finally {
               setBusyId(null);
@@ -262,7 +263,7 @@ export default function TrainerClassesTab() {
 
   async function markAbsent(row: StaffRosterRow) {
     if (row.absent || row.attended || busyId) return;
-    Alert.alert(
+    showStaffDialog(
       'Registrar ausencia',
       `¿Confirmas que ${row.dogName} no asistió a esta clase?`,
       [
@@ -280,7 +281,7 @@ export default function TrainerClassesTab() {
               });
               await load();
             } catch (cause) {
-              Alert.alert('No se pudo registrar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+              showStaffDialog('No se pudo registrar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
             } finally {
               setBusyId(null);
             }
@@ -292,7 +293,7 @@ export default function TrainerClassesTab() {
 
   async function requestMembership(row: StaffRosterRow) {
     if (busyId) return;
-    Alert.alert(
+    showStaffDialog(
       'Enviar a revisión de socio',
       `Administración recibirá una solicitud para revisar a ${row.clientName}. El entrenador no aprueba la membresía.`,
       [
@@ -303,9 +304,9 @@ export default function TrainerClassesTab() {
             try {
               setBusyId(row.userId);
               await requestMembershipReviewFromStaff(row.userId, `Solicitud enviada desde clase con ${row.dogName}.`);
-              Alert.alert('Solicitud enviada', 'Administración la verá en la cola de membresías pendientes.');
+              showStaffDialog('Solicitud enviada', 'Administración la verá en la cola de membresías pendientes.');
             } catch (cause) {
-              Alert.alert('No se pudo enviar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+              showStaffDialog('No se pudo enviar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
             } finally {
               setBusyId(null);
             }
