@@ -28,6 +28,7 @@ for (const fragment of [
   'admin_audit_logs',
   'head_notice_version text',
   'relative_notice_version text',
+  'notice_available boolean',
   'ucapsa_intake.current_family_progress_notice_version()',
   "position('progreso familiar' IN lower(coalesce(p.integral_notice,'')))",
   "position('revocar' IN lower(coalesce(p.integral_notice,'')))",
@@ -51,6 +52,10 @@ for (const forbidden of ['email_key AS', 'phone_e164 AS', 'payment_amount',
   'photo_path AS','update public.dogs','UPDATE public.program_enrollments']) {
   assert.ok(!sql.includes(forbidden), 'Read-only boundary breached: '+forbidden);
 }
+assert.ok(client.includes('!link.noticeAvailable')
+  && client.includes('Consulta familiar aún no disponible')
+  && svc.includes('noticeAvailable: r.notice_available === true'),
+  'Client must not offer consent until notice is approved on the server.');
 assert.ok(client.includes("router.push('/privacy' as never)")
   && client.includes('tendrás')
   && client.includes('volver a autorizarlo'),
