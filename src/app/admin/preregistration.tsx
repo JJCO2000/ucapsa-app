@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -32,7 +32,13 @@ export default function AdminPreregistrationDetailScreen() {
   const { isAdmin } = useSession();
   const { intakeProgramId } = useLocalSearchParams<{ intakeProgramId?: string }>();
   const recordId = typeof intakeProgramId === 'string' ? intakeProgramId : '';
-  const [record, setRecord] = useState<AdminPreregistrationRecord | null>(null);
+  const [loadedRecord, setLoadedRecord] = useState<AdminPreregistrationRecord | null>(null);
+  const [loadedForRecordId, setLoadedForRecordId] = useState<string | null>(null);
+  // Ignore responses from an older expediente after route/focus changes.
+  const requestIdRef = useRef(0);
+  const activeRecordIdRef = useRef(recordId);
+  activeRecordIdRef.current = recordId;
+  const record = loadedForRecordId === recordId ? loadedRecord : null;
   const [family, setFamily] = useState<FamilyMemberSaved[]>([]);
   const [newFamily, setNewFamily] = useState<FamilyMemberInput[]>([]);
   const [savingFamily, setSavingFamily] = useState(false);
@@ -52,29 +58,53 @@ export default function AdminPreregistrationDetailScreen() {
   }
 
   const load = useCallback(async () => {
+    if (!recordId || activeRecordIdRef.current !== recordId) return;
+    const requestId = ++requestIdRef.current;
     try {
       setError(null);
       const [rows, members] = await Promise.all([
         getAdminPreregistrationRecords(recordId), getAdminPreregisteredFamily(recordId),
       ]);
-      setRecord(rows[0] ?? null);
-      setFamily(members);
+      if (requestId !== requestIdRef.current || activeRecordIdRef.current !== recordId) return;
+      const result = rows.find((row) => row.intakeProgramId === recordId) ?? null;
+      setLoadedRecord(result);
+      setFamily(result ? members : []);
+      setLoadedForRecordId(recordId);
     } catch (cause) {
+      if (requestId !== requestIdRef.current || activeRecordIdRef.current !== recordId) return;
+      setLoadedRecord(null);
+      setFamily([]);
+      setLoadedForRecordId(recordId);
       setError(cause instanceof Error ? cause.message : 'No fue posible abrir el expediente.');
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (requestId === requestIdRef.current && activeRecordIdRef.current === recordId) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, [recordId]);
 
   useFocusEffect(useCallback(() => {
-    if (!isAdmin || !preregistrationDirectoryEnabled || !recordId) return;
-    setLoading(true);
-    void load();
+    // Reset form and prior private data before showing a different expediente.
+    requestIdRef.current += 1;
+    activeRecordIdRef.current = recordId;
+    setLoadedRecord(null);
+    setLoadedForRecordId(null);
+    setFamily([]);
+    setNewFamily([]);
+    setEditingContact(false);
+    setNewEmail('');
+    setNewPhone('');
+    setFeedback(null);
+    if (isAdmin && preregistrationDirectoryEnabled && recordId) {
+      setLoading(true);
+      void load();
+    }
+    return () => { requestIdRef.current += 1; activeRecordIdRef.current = ''; };
   }, [isAdmin, recordId, load]));
 
   async function saveMissingContact() {
-    if (!record || savingContact || record.status !== 'pending') return;
+    if (!record || loading || error || savingContact || record.status !== 'pending') return;
     setFeedback(null);
     const email = record.ownerEmail ? '' : newEmail.trim().toLowerCase();
     let phone = record.ownerPhone ? '' : newPhone.trim();
@@ -98,12 +128,15 @@ export default function AdminPreregistrationDetailScreen() {
     try {
       setSavingContact(true);
       await adminCompletePreregistrationContact(record.personId, { email, phone });
+      if (activeRecordIdRef.current !== recordId) return;
       await load();
+      if (activeRecordIdRef.current !== recordId) return;
       setEditingContact(false);
       setNewEmail('');
       setNewPhone('');
       showFeedback('Contacto completado', 'El expediente ya tiene el nuevo dato. La vinculación se evaluará al revisar la cuenta.', 'success');
     } catch (cause) {
+      if (activeRecordIdRef.current !== recordId) return;
       devWarn('admin-preregistration: could not complete missing contact.', cause);
       showFeedback('No se pudo guardar', cause instanceof Error ? cause.message : 'Revisa el dato y vuelve a intentar.');
     } finally {
@@ -112,16 +145,19 @@ export default function AdminPreregistrationDetailScreen() {
   }
 
   async function changeMember(isMember:boolean) {
-    if(!record || savingMember || record.status!=='pending') return;
+    if(!record || loading || error || savingMember || record.status!=='pending') return;
     setFeedback(null);
     try {
       setSavingMember(true);
       await adminSetPreregisteredMembership(record.intakeDogId,isMember);
+      if (activeRecordIdRef.current !== recordId) return;
       await load();
+      if (activeRecordIdRef.current !== recordId) return;
       showFeedback('Autorización actualizada',isMember
         ? 'Socio autorizado. La membresía oficial se creará al vincular la cuenta, sin generar pagos.'
         : 'Se retiró la autorización provisional de Socio.', 'success');
     } catch(cause) {
+      if (activeRecordIdRef.current !== recordId) return;
       devWarn('admin-preregistration: could not update provisional Socio authorization.', cause);
       showFeedback('No se pudo actualizar',cause instanceof Error
         ? cause.message:'Revisa el expediente.');
@@ -129,17 +165,20 @@ export default function AdminPreregistrationDetailScreen() {
   }
 
   async function saveFamily() {
-    if (!record || (record.status !== 'pending' && record.status !== 'linked') || savingFamily || !newFamily.length) return;
+    if (!record || loading || error || (record.status !== 'pending' && record.status !== 'linked') || savingFamily || !newFamily.length) return;
     setFeedback(null);
     try {
       setSavingFamily(true);
       const added = await addAdminPreregisteredFamily(record.intakeProgramId, newFamily);
+      if (activeRecordIdRef.current !== recordId) return;
       await load();
+      if (activeRecordIdRef.current !== recordId) return;
       setNewFamily([]);
       showFeedback('Familia actualizada', added > 0
         ? 'Se añadieron ' + added + ' integrantes al expediente.'
         : 'Estas personas ya estaban registradas en la familia.', 'success');
     } catch (cause) {
+      if (activeRecordIdRef.current !== recordId) return;
       devWarn('admin-preregistration: could not add family.', cause);
       showFeedback('No se pudo guardar la familia',
         cause instanceof Error ? cause.message : 'Revisa los datos e inténtalo de nuevo.');
@@ -177,7 +216,7 @@ export default function AdminPreregistrationDetailScreen() {
       {!loading && !error && !record ? (
         <View style={styles.card}><Text style={styles.value}>Este expediente no existe o no está disponible.</Text></View>
       ) : null}
-      {record && !loading ? (
+      {record && !loading && !error ? (
         <>
           <View style={styles.card}>
             <Text style={styles.groupTitle}>Tutor y perro</Text>
