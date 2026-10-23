@@ -23,6 +23,7 @@ on:
       - 'supabase/migrations/20261023040000_preregistration_family_capture.sql'
       - 'supabase/migrations/20261023053000_require_family_contact.sql'
       - 'supabase/migrations/20261023113000_family_capture_after_link.sql'
+      - 'supabase/migrations/20261023160000_family_accounts_mutual_consent.sql'
       - 'scripts/isolated-db/**'
       - '.github/workflows/ucapsa-preregistration-db.yml'
   workflow_dispatch:
@@ -111,3 +112,9 @@ jobs:
         run: psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261023113000_family_capture_after_link.sql
       - name: Prove linked titular remains owner and Admin can add relatives
         run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/ucapsa-family-after-link-e2e.sql
+      - name: Seed synthetic current privacy notice for family authorization tests
+        run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/ucapsa-family-privacy-fixture.sql
+      - name: Install family account associations with mutual authorization
+        run: psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261023160000_family_accounts_mutual_consent.sql
+      - name: Test two accounts, consent, read-only data, withdrawal and revocation
+        run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/ucapsa-family-account-links-e2e.sql
