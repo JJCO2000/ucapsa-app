@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
+import { PreregistrationFamilyEditor } from '../../components/domain/PreregistrationFamilyEditor';
+import type { FamilyMemberInput } from '../../services/preregistration-family.service';
 import { ucapsaBrand } from '../../constants/brand';
 import { preregistrationEnabled, preregistrationDirectoryEnabled } from '../../constants/preregistrationFeature';
 import { normalizeContactPhone } from '../../utils/phone-contact';
@@ -22,6 +24,7 @@ export default function AdminPreregisterDogScreen() {
   const [ownerName, setOwnerName] = useState('');
   const [ownerEmail, setOwnerEmail] = useState('');
   const [ownerPhone, setOwnerPhone] = useState('');
+  const [familyMembers, setFamilyMembers] = useState<FamilyMemberInput[]>([]);
   const [dogName, setDogName] = useState('');
   const [programCode, setProgramCode] = useState<'puppy'|'comandos'>('puppy');
   const [memberAuthorized, setMemberAuthorized] = useState(false);
@@ -118,6 +121,7 @@ export default function AdminPreregisterDogScreen() {
 
   function clearCardForm() {
     setOwnerName(''); setOwnerEmail(''); setOwnerPhone('');
+    setFamilyMembers([]);
     setDogName(''); setProgramCode('puppy'); setLevel('principiante');
     setMemberAuthorized(false);
     setCardNumber(''); setCardStartedOn(''); setTotalAttendances('0');
@@ -212,16 +216,17 @@ export default function AdminPreregisterDogScreen() {
         physicalCardNumber: programCode === 'puppy' ? cardNumber : '',
         cardStartedOn: programCode === 'puppy' ? (cardStartedOn.trim() || null) : null,
         totalAttendances: count, knownAttendanceDates: dates, sourceNote,
-        memberAuthorized,
+        memberAuthorized, familyMembers,
       });
       const savedMessage = memberAuthorized
-        ? 'Preinscripción y autorización de Socio guardadas. La membresía y el nivel se activarán al vincular la cuenta.'
-        : 'El perro quedó preinscrito. La primera coincidencia de correo o celular puede vincularlo sin SMS de preinscripción.';
+        ? 'Preinscripción y autorización de Socio guardadas. La membresía se activará cuando se vincule la cuenta.'
+        : 'El perro quedó preinscrito y podrá vincularse a la cuenta del titular.';
+      const familyNotice = familyMembers.length ? ' Familia registrada: ' + familyMembers.length + ' integrante(s), sin acceso automático.' : '';
       if (Platform.OS === 'web') {
         clearCardForm();
-        setSubmissionNotice({ kind: 'success', message: savedMessage + ' Puedes registrar otra tarjeta.' });
+        setSubmissionNotice({ kind: 'success', message: savedMessage + familyNotice + ' Puedes registrar otra tarjeta.' });
       } else {
-        Alert.alert('Perro preinscrito', savedMessage, [
+        Alert.alert('Perro preinscrito', savedMessage + familyNotice, [
           { text: 'Otro registro', onPress: clearCardForm },
           { text: 'Finalizar', onPress: () => router.back() },
         ]);
@@ -259,11 +264,8 @@ export default function AdminPreregisterDogScreen() {
         </View>
       ) : null}
       <Text style={styles.description}>
-        Registra al perro sin crear una cuenta ficticia. La primera cuenta que coincida
-        por correo o celular puede vincular automáticamente el expediente, sin SMS.
-        Comprueba que el contacto esté escrito correctamente: esa primera coincidencia
-        no demuestra por sí sola quién es el titular. Los reclamos posteriores requieren
-        revisión de Administración.
+        Registra al titular y su perro. Revisa el correo o celular cuidadosamente:
+        la primera vinculación se realiza con los datos del titular.
       </Text>
 
       <View style={styles.card}>
@@ -282,7 +284,7 @@ export default function AdminPreregisterDogScreen() {
         <TextInput style={styles.input} value={ownerPhone} onChangeText={setOwnerPhone}
           keyboardType="phone-pad" maxLength={16} placeholder="5535100214 o +525535100214"
           placeholderTextColor={ucapsaBrand.colors.muted} />
-        <Text style={styles.helper}>Puedes escribir diez dígitos de México o el número completo con +52. UCAPSA los guarda en formato internacional. Comprueba bien el contacto: el primer vínculo del MVP se hace por coincidencia; los siguientes requieren revisión.</Text>
+        <Text style={styles.helper}>Puedes escribir diez dígitos o el número con +52. Comprueba que sea el contacto correcto del titular.</Text>
 
         <Text style={styles.label}>Nombre del perro</Text>
         <TextInput style={styles.input} value={dogName} onChangeText={setDogName}
@@ -362,6 +364,8 @@ export default function AdminPreregisterDogScreen() {
           placeholderTextColor={ucapsaBrand.colors.muted} />
       </View>
 
+      <PreregistrationFamilyEditor value={familyMembers} onChange={setFamilyMembers} disabled={saving} />
+
       <Pressable style={[styles.saveButton, saving && styles.disabled]} disabled={saving}
         accessibilityRole="button" onPress={() => void save()}>
         {saving ? <ActivityIndicator color={ucapsaBrand.colors.surface} /> :
@@ -380,8 +384,8 @@ export default function AdminPreregisterDogScreen() {
           </View>
         ) : null}
         <Text style={styles.description}>
-          Sin SMS ni verificación de correo. Primero comprueba presencialmente la identidad del tutor.
-          Este proceso no permite reclamar expedientes por escribir un teléfono ajeno.
+          Comprueba presencialmente la identidad del tutor antes de autorizar la vinculación.
+          Los familiares registrados no reciben acceso a cuentas por este procedimiento.
         </Text>
         <Text style={styles.label}>Teléfono o correo de la preinscripción</Text>
         <TextInput style={styles.input} value={linkContact}
