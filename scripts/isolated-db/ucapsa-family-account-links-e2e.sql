@@ -233,8 +233,26 @@ BEGIN
  IF EXISTS (SELECT 1 FROM public.get_my_family_account_links() WHERE active OR my_accepted) THEN
   RAISE EXCEPTION 'Old notice consent still appears active';
  END IF;
+ IF NOT EXISTS (SELECT 1 FROM public.get_my_family_account_links() WHERE my_consent_recorded) THEN
+  RAISE EXCEPTION 'Old revocable consent was hidden';
+ END IF;
 END $invalidate_old_consent$;
 RESET ROLE;
+-- A user can withdraw the old consent, even after the notice was replaced.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000972',false);
+DO $revoke_obsolete_notice$
+DECLARE v_id uuid;
+BEGIN
+ SELECT id INTO v_id FROM public.get_my_family_account_links() LIMIT 1;
+ PERFORM public.set_my_family_progress_consent(v_id,false);
+ IF EXISTS (SELECT 1 FROM public.get_my_family_account_links()
+            WHERE my_consent_recorded) THEN
+  RAISE EXCEPTION 'Old consent could not be revoked';
+ END IF;
+END $revoke_obsolete_notice$;
+RESET ROLE;
+
 -- Re-accept new version individually; one side alone cannot reveal anything.
 SET ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000971',false);
