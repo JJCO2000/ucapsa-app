@@ -22,6 +22,7 @@ on:
       - 'supabase/migrations/20261021110000_staff_preregistration_entry.sql'
       - 'supabase/migrations/20261023040000_preregistration_family_capture.sql'
       - 'supabase/migrations/20261023053000_require_family_contact.sql'
+      - 'supabase/migrations/20261023113000_family_capture_after_link.sql'
       - 'scripts/isolated-db/**'
       - '.github/workflows/ucapsa-preregistration-db.yml'
   workflow_dispatch:
@@ -106,3 +107,7 @@ jobs:
           psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261023053000_require_family_contact.sql
       - name: Verify family staging, Admin/Trainer permissions and no claim leakage
         run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/ucapsa-family-preregistration-e2e.sql
+      - name: Enable family additions after titular link
+        run: psql -X --set ON_ERROR_STOP=on -f supabase/migrations/20261023113000_family_capture_after_link.sql
+      - name: Prove linked titular remains owner and Admin can add relatives
+        run: psql -X --set ON_ERROR_STOP=on -f scripts/isolated-db/ucapsa-family-after-link-e2e.sql
