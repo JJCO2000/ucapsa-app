@@ -8,10 +8,11 @@ import { spawnSync } from 'node:child_process';
 const known = new Map([
   ['image-size', new Set(['GHSA-5p2g-fcmc-qvqq','GHSA-w3rx-r6r6-pgpr'])],
   ['node-forge', new Set(['GHSA-86w9-cpqp-85rv'])],
+  ['zod', new Set(['GHSA-mrhx-c7xc-m3w5'])],
 ]);
 const inherited = new Set(['@expo/cli','@expo/code-signing-certificates','expo','expo-updates']);
 const knownKeys = new Set([...known.keys(),...inherited]);
-const MAX_KNOWN_HIGH_FINDINGS = 6;
+const MAX_KNOWN_HIGH_FINDINGS = 7;
 
 function review(report) {
   if (!report || typeof report !== 'object' || !report.vulnerabilities
@@ -51,7 +52,7 @@ function review(report) {
 
 function runSelfTest() {
   const base = {
-    metadata:{vulnerabilities:{high:6,critical:0}},
+    metadata:{vulnerabilities:{high:7,critical:0}},
     vulnerabilities:{
       'image-size':{severity:'high',via:[
         {url:'https://github.com/advisories/GHSA-5p2g-fcmc-qvqq'},
@@ -60,20 +61,23 @@ function runSelfTest() {
       'node-forge':{severity:'high',via:[
         {url:'https://github.com/advisories/GHSA-86w9-cpqp-85rv'},
       ]},
+      'zod':{severity:'high',via:[{url:'https://github.com/advisories/GHSA-mrhx-c7xc-m3w5'}]},
       '@expo/code-signing-certificates':{severity:'high',via:['node-forge']},
       '@expo/cli':{severity:'high',via:['node-forge','@expo/code-signing-certificates']},
       'expo':{severity:'high',via:['@expo/cli']},
       'expo-updates':{severity:'high',via:['@expo/code-signing-certificates']},
     },
   };
-  assert.deepEqual(review(base),{high:6,critical:0});
+  assert.deepEqual(review(base),{high:7,critical:0});
   assert.deepEqual(review({metadata:{vulnerabilities:{high:0,critical:0}},vulnerabilities:{}}),{high:0,critical:0});
-  assert.throws(() => review({...base,metadata:{vulnerabilities:{high:7,critical:0}}}),/additional high/);
-  assert.throws(() => review({...base,metadata:{vulnerabilities:{high:6,critical:1}}}),/Critical/);
+  assert.throws(() => review({...base,metadata:{vulnerabilities:{high:8,critical:0}}}),/additional high/);
+  assert.throws(() => review({...base,metadata:{vulnerabilities:{high:7,critical:1}}}),/Critical/);
   assert.throws(() => review({...base,vulnerabilities:{...base.vulnerabilities,
     'unrelated':{severity:'high',via:[{url:'https://example.invalid'}]}}}),/New high/);
   assert.throws(() => review({...base,vulnerabilities:{...base.vulnerabilities,
     'node-forge':{severity:'high',via:[{url:'https://github.com/advisories/GHSA-NEW-2026'}]}}}),/Unreviewed/);
+  assert.throws(() => review({...base,vulnerabilities:{...base.vulnerabilities,
+    'zod':{severity:'high',via:[{url:'https://github.com/advisories/GHSA-UNREVIEWED-2026'}]}}}),/Unreviewed/);
   assert.throws(() => review({...base,vulnerabilities:{...base.vulnerabilities,
     '@expo/cli':{severity:'high',via:[{url:'https://github.com/advisories/GHSA-NEW-2026'}]}}}),/New direct/);
   assert.throws(() => review({}),/incomplete/);
@@ -96,5 +100,5 @@ if (process.argv.includes('--self-test')) {
   catch { throw new Error('npm audit did not return valid JSON; security gate fails closed.'); }
   const { high, critical } = review(report);
   console.log('DEPENDENCY HIGH REGRESSION: '+high+' known high, '+critical+' critical; no unreviewed high advisory.');
-  if (high) console.warn('ATTENTION: '+high+' HIGH vulnerabilities remain UNPATCHED in Expo/Metro dependency chain. This is NOT a security approval. Reassess before production release.');
+  if (high) console.warn('ATTENTION: '+high+' HIGH vulnerabilities remain UNPATCHED in Expo/Metro tooling dependency chain. This is NOT a security approval. Reassess before production release.');
 }
