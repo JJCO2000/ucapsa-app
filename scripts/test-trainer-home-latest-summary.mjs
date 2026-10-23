@@ -90,7 +90,7 @@ function harness(){
   h.calls[0].reject(new Error('network error'));
   for(let i=1;i<6;i++)h.calls[i].resolve([]);
   await p;
-  assert.deepEqual(h.state.days,[]);
+  assert.equal(h.state.days.length,0);
   assert.equal(h.state.error,'network error');
   assert.equal(h.state.loading,false);
 }
