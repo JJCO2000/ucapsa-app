@@ -221,7 +221,7 @@ RESET ROLE;
 UPDATE public.privacy_notices SET status='retired' WHERE version='1.4-family-test';
 INSERT INTO public.privacy_notices(version,status,integral_notice,simplified_notice,published_at)
 VALUES ('1.5-family-test','published',
-  'Seguimos permitiendo consultar el progreso familiar con autorización revocable de ambas cuentas.',
+  'Seguimos permitiendo consultar el progreso familiar con autorización de ambas cuentas; puedes revocar el permiso.',
   'La consulta del progreso familiar es opcional.',now()+interval '1 second');
 SET ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000971',false);
