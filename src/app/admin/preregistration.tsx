@@ -5,6 +5,8 @@ import { ActivityIndicator, Alert, Platform, Pressable, RefreshControl, StyleShe
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { PreregistrationFamilyEditor } from '../../components/domain/PreregistrationFamilyEditor';
+import { previewAdminFamilyAccount,authorizeAdminFamilyAccount,revokeAdminFamilyAccount,
+  type FamilyAccountPreview } from '../../services/family-account-links.service';
 import { getAdminPreregisteredFamily, addAdminPreregisteredFamily,
   type FamilyMemberInput, type FamilyMemberSaved } from '../../services/preregistration-family.service';
 import { ucapsaBrand } from '../../constants/brand';
@@ -36,6 +38,10 @@ export default function AdminPreregistrationDetailScreen() {
   const [family, setFamily] = useState<FamilyMemberSaved[]>([]);
   const [newFamily, setNewFamily] = useState<FamilyMemberInput[]>([]);
   const [savingFamily, setSavingFamily] = useState(false);
+  const [linkMemberId, setLinkMemberId] = useState<string | null>(null);
+  const [accountPreview, setAccountPreview] = useState<FamilyAccountPreview | null>(null);
+  const [linkEvidence, setLinkEvidence] = useState('');
+  const [linkFamilyBusy, setLinkFamilyBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -148,6 +154,41 @@ export default function AdminPreregistrationDetailScreen() {
     }
   }
 
+  async function previewFamilyAccount(id: string) {
+    setLinkMemberId(id);
+    setAccountPreview(null);
+    setLinkEvidence('');
+    setLinkFamilyBusy(true);
+    try {
+      setAccountPreview(await previewAdminFamilyAccount(id));
+    } catch (cause) {
+      devWarn('admin-preregistration: unable to check family account.', cause);
+      showFeedback('No se pudo revisar', 'Revisa la conexión y vuelve a intentarlo.');
+    } finally { setLinkFamilyBusy(false); }
+  }
+
+  async function changeFamilyAccount(revoke: boolean) {
+    if (!linkMemberId || linkFamilyBusy || linkEvidence.trim().length < 12) {
+      showFeedback('Falta comprobación', 'Explica cómo revisaste las identidades o por qué debes retirar el vínculo (mínimo 12 caracteres).');
+      return;
+    }
+    setLinkFamilyBusy(true);
+    try {
+      if (revoke) await revokeAdminFamilyAccount(linkMemberId, linkEvidence);
+      else await authorizeAdminFamilyAccount(linkMemberId, linkEvidence);
+      setAccountPreview(null);
+      setLinkMemberId(null);
+      setLinkEvidence('');
+      showFeedback(revoke ? 'Vinculación retirada' : 'Invitación familiar enviada',
+        revoke ? 'Ambas cuentas dejaron de compartir su progreso.'
+          : 'Las dos personas deben autorizar el acceso desde Perfil → Mi familia.', 'success');
+    } catch (cause) {
+      devWarn('admin-preregistration: could not manage family account.', cause);
+      showFeedback('No se pudo actualizar la familia',
+        cause instanceof Error ? cause.message : 'Revisa la información y vuelve a intentarlo.');
+    } finally { setLinkFamilyBusy(false); }
+  }
+
   if (!isAdmin || !preregistrationDirectoryEnabled) return <Redirect href="/home" />;
 
   return (
@@ -195,12 +236,57 @@ export default function AdminPreregistrationDetailScreen() {
                 <Text style={styles.hint}>
                   {[member.phone, member.email].filter(Boolean).join(' · ') || 'Sin contacto adicional'}
                 </Text>
+                {record.status === 'linked' ? (
+                  <Pressable accessibilityRole="button" style={styles.secondary}
+                    disabled={linkFamilyBusy} onPress={() => { void previewFamilyAccount(member.id); }}>
+                    <Text style={styles.secondaryText}>Revisar cuenta de {member.fullName}</Text>
+                  </Pressable>
+                ) : null}
               </View>
             )) : <Text style={styles.hint}>No hay otros integrantes registrados.</Text>}
             <Text style={styles.hint}>
               Este listado es provisional. No permite entrar a cuentas, utilizar la membresía
               ni consultar fotografías de otras personas.
             </Text>
+            {linkMemberId && accountPreview ? (
+              <View style={styles.card}>
+                <Text style={styles.groupTitle}>Vincular familiar</Text>
+                <Text style={styles.hint}>
+                  {accountPreview.status === 'available'
+                    ? 'Cuenta encontrada: ' + accountPreview.accountName +
+                      '. Confirma personalmente la identidad de las dos personas.'
+                    : accountPreview.status === 'already_requested'
+                      ? 'Ya existe una invitación vinculada. Puedes retirarla si es incorrecta.'
+                      : accountPreview.status === 'head_not_linked'
+                        ? 'Primero el titular debe vincular su propia cuenta.'
+                        : accountPreview.status === 'no_account'
+                          ? 'El familiar todavía no tiene una cuenta coincidente.'
+                          : 'Los contactos apuntan a varias cuentas o a la cuenta del titular. Revisa con Administración.'}
+                </Text>
+                {accountPreview.status === 'available' || accountPreview.status === 'already_requested' ? (
+                  <>
+                    <Text style={styles.fieldLabel}>Comprobación presencial o motivo de corrección</Text>
+                    <TextInput multiline style={styles.input} maxLength={400}
+                      value={linkEvidence} onChangeText={setLinkEvidence}
+                      editable={!linkFamilyBusy} placeholder="Cómo comprobaste ambas identidades"
+                      placeholderTextColor={ucapsaBrand.colors.muted} />
+                    <Pressable accessibilityRole="button" disabled={linkFamilyBusy}
+                      style={styles.primary} onPress={() => {
+                        void changeFamilyAccount(accountPreview.status === 'already_requested');
+                      }}>
+                      <Text style={styles.primaryText}>{linkFamilyBusy ? 'Guardando…'
+                        : accountPreview.status === 'already_requested'
+                          ? 'Retirar vinculación' : 'Autorizar invitación familiar'}</Text>
+                    </Pressable>
+                  </>
+                ) : null}
+                <Pressable accessibilityRole="button" style={styles.cancel} onPress={() => {
+                  setLinkMemberId(null); setAccountPreview(null); setLinkEvidence('');
+                }}>
+                  <Text style={styles.secondaryText}>Cerrar</Text>
+                </Pressable>
+              </View>
+            ) : null}
           </View>
           {record.status === 'pending' ? (
             <>
