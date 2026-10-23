@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
+import { PreregistrationFamilyEditor } from '../../components/domain/PreregistrationFamilyEditor';
+import type { FamilyMemberInput } from '../../services/preregistration-family.service';
 import { ucapsaBrand } from '../../constants/brand';
 import { preregistrationEnabled } from '../../constants/preregistrationFeature';
 import { useSession } from '../../hooks/useSession';
@@ -19,6 +21,7 @@ export default function StaffPreregisterDogScreen() {
   const [ownerName, setOwnerName] = useState('');
   const [ownerPhone, setOwnerPhone] = useState('');
   const [ownerEmail, setOwnerEmail] = useState('');
+  const [familyMembers, setFamilyMembers] = useState<FamilyMemberInput[]>([]);
   const [dogName, setDogName] = useState('');
   const [programCode, setProgramCode] = useState<Program>('puppy');
   const [level, setLevel] = useState<Level>('principiante');
@@ -27,6 +30,7 @@ export default function StaffPreregisterDogScreen() {
 
   function clear() {
     setOwnerName(''); setOwnerPhone(''); setOwnerEmail('');
+    setFamilyMembers([]);
     setDogName(''); setProgramCode('puppy'); setLevel('principiante');
   }
 
@@ -58,9 +62,11 @@ export default function StaffPreregisterDogScreen() {
       setSaving(true);
       await staffPreregisterDogWithProgram({
         ownerName, ownerEmail, ownerPhone, dogName, programCode,
-        programLevel: programCode === 'puppy' ? 'base' : level,
+        programLevel: programCode === 'puppy' ? 'base' : level, familyMembers,
       });
-      const message = 'Preinscripción guardada. No se creó una cuenta ni se registraron pagos o asistencias históricas.';
+      const message = 'Preinscripción guardada.' + (familyMembers.length
+        ? ' Familia: ' + familyMembers.length + ' integrante(s) añadido(s) sin acceso automático.' : '')
+        + ' No se crearon cuentas ni se registraron pagos.';
       if (Platform.OS === 'web') {
         clear();
         setNotice({ kind: 'success', message: message + ' Puedes registrar otra persona.' });
@@ -157,6 +163,8 @@ export default function StaffPreregisterDogScreen() {
           </>
         ) : null}
       </View>
+
+      <PreregistrationFamilyEditor value={familyMembers} onChange={setFamilyMembers} disabled={saving} />
 
       <Pressable accessibilityRole="button" disabled={saving}
         style={[styles.saveButton, saving && styles.disabled]} onPress={() => void save()}>
