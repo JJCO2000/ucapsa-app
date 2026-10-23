@@ -47,6 +47,10 @@ assert.ok(editor.includes('Añadir integrante') && editor.includes('Guardar inte
   && editor.includes('onChange([...value,') && editor.includes('remove(index)')
   && editor.includes('Celular (opcional)') && editor.includes('Correo (opcional)'),
   'Family UI needs repeatable editable cards, without mandatory contact.');
+assert.ok(editor.includes('if (value.length === 0)')
+  && editor.includes('setEditingIndex(null)')
+  && editor.includes('editingIndex !== null && value[editingIndex]'),
+  'New registration must not inherit a stale unsaved family editor.');
 assert.ok(admin.includes('PreregistrationFamilyEditor value={familyMembers}')
   && admin.includes('memberAuthorized, familyMembers,'),
   'Admin capture must persist family members through the canonical service.');

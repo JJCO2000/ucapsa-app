@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ucapsaBrand } from '../../constants/brand';
@@ -15,6 +15,14 @@ export function PreregistrationFamilyEditor({ value, onChange, disabled = false 
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [error, setError] = useState('');
 
+  // "Otro registro" limpia el formulario del titular: olvidar cualquier tarjeta abierta.
+  useEffect(() => {
+    if (value.length === 0) {
+      setEditingIndex(null);
+      setError('');
+    }
+  }, [value.length]);
+
   function update(index: number, key: keyof FamilyMemberInput, text: string) {
     onChange(value.map((item, current) => current === index ? { ...item, [key]: text } : item));
     setError('');
@@ -22,7 +30,7 @@ export function PreregistrationFamilyEditor({ value, onChange, disabled = false 
 
   function add() {
     if (disabled || value.length >= 30) return;
-    if (editingIndex !== null) {
+    if (editingIndex !== null && value[editingIndex]) {
       try { normalizeFamilyMembers([value[editingIndex]]); }
       catch (cause) {
         setError(cause instanceof Error ? cause.message : 'Revisa los datos del integrante.');
