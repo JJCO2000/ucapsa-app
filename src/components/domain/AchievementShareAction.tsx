@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Platform, Pressable, Share, StyleSheet, Text } from 'react-native';
 
 import { ucapsaBrand } from '../../constants/brand';
+import { devWarn } from '../../lib/client-diagnostics';
 import { buildAchievementShareMessage } from '../../utils/achievement-sharing';
 
 export function AchievementShareAction({ title, premium = false }: {
@@ -25,7 +26,8 @@ export function AchievementShareAction({ title, premium = false }: {
       } else {
         await Share.share({ message });
       }
-    } catch {
+    } catch (error) {
+      devWarn('achievement-share: could not open share sheet or copy text.', error);
       setNotice('No se pudo compartir. Inténtalo de nuevo.');
     } finally {
       setSharing(false);
