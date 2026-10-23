@@ -63,11 +63,17 @@ export default function DogProfileScreen() {
   const { user, role, isAdmin } = useSession();
   const params = useLocalSearchParams<{ dogId?: string | string[] }>();
   const dogId = getParam(params.dogId).trim();
+  const profileKey = user?.id && dogId ? user.id + ':' + dogId : '';
+  const activeProfileKeyRef = useRef(profileKey);
+  activeProfileKeyRef.current = profileKey;
+  const loadRunRef = useRef(0);
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
   const premium = Boolean(user) && format.key === 'member' && !isAdmin;
 
   const [draft, setDraft] = useState<ProfileDraft>(EMPTY_DRAFT);
-  const [profile, setProfile] = useState<DogProfile | null>(null);
+  const [storedProfile, setProfile] = useState<DogProfile | null>(null);
+  const [loadedProfileKey, setLoadedProfileKey] = useState<string | null>(null);
+  const profile = loadedProfileKey === profileKey ? storedProfile : null;
   const [avatarKey, setAvatarKey] = useState<DogAvatarKey>(DEFAULT_DOG_AVATAR_KEY);
   const [avatarColor, setAvatarColor] = useState<DogAvatarColor>(DEFAULT_DOG_AVATAR_COLOR);
   const [avatarExpanded, setAvatarExpanded] = useState(false);
@@ -87,28 +93,41 @@ export default function DogProfileScreen() {
   const cameraRef = useRef<CameraView>(null);
 
   const load = useCallback(async () => {
-    if (!user || isAdmin || !dogId) return;
+    const runId = ++loadRunRef.current;
+    const requestedKey = profileKey;
+    const isCurrentRun = () => runId === loadRunRef.current
+      && activeProfileKeyRef.current === requestedKey;
     setLoading(true);
     setLoadError(false);
+    setProfile(null);
+    setLoadedProfileKey(null);
+    setDraft(EMPTY_DRAFT);
+    setPhotoUrl(null);
+    setAvatarError(null);
+    if (!user?.id || isAdmin || !dogId) return;
     try {
       const nextProfile = await withOperationTimeout(getMyDogProfile(dogId), DEFAULT_READ_TIMEOUT_MS, 'dog-profile');
+      if (!isCurrentRun()) return;
+      const signedPhoto = await getPrivateDogPhotoUrl(nextProfile.photo_path);
+      if (!isCurrentRun()) return;
       setProfile(nextProfile);
+      setLoadedProfileKey(requestedKey);
       setDraft(draftFromProfile(nextProfile));
       setAvatarKey(nextProfile.avatar_key);
       setAvatarColor(nextProfile.avatar_color);
       desiredAvatar.current = { key: nextProfile.avatar_key, color: nextProfile.avatar_color };
       persistedAvatar.current = { ...desiredAvatar.current };
-      setAvatarError(null);
-      setPhotoUrl(await getPrivateDogPhotoUrl(nextProfile.photo_path));
+      setPhotoUrl(signedPhoto);
     } catch {
-      setLoadError(true);
+      if (isCurrentRun()) setLoadError(true);
     } finally {
-      setLoading(false);
+      if (isCurrentRun()) setLoading(false);
     }
-  }, [dogId, isAdmin, user]);
+  }, [dogId, isAdmin, profileKey, user?.id]);
 
   useEffect(() => {
     void load();
+    return () => { loadRunRef.current += 1; };
   }, [load]);
 
   function setField<K extends keyof ProfileDraft>(key: K, value: ProfileDraft[K]) {
@@ -117,6 +136,7 @@ export default function DogProfileScreen() {
 
   async function persistAvatar() {
     if (avatarWriteBusy.current || !profile || !dogId || !user || isAdmin) return;
+    const requestedKey = profileKey;
     avatarWriteBusy.current = true;
     setAvatarSaving(true);
     try {
@@ -125,12 +145,14 @@ export default function DogProfileScreen() {
         || desiredAvatar.current.color !== persistedAvatar.current.color) {
         const requested = { ...desiredAvatar.current };
         const saved = await updateMyDogAvatar(dogId, requested.key, requested.color);
+        if (activeProfileKeyRef.current !== requestedKey) return;
         persistedAvatar.current = { key: saved.avatar_key, color: saved.avatar_color };
         setProfile((current) => current
           ? { ...current, avatar_key: saved.avatar_key, avatar_color: saved.avatar_color }
           : current);
       }
     } catch (cause) {
+      if (activeProfileKeyRef.current !== requestedKey) return;
       // No presentar como guardada una preferencia que la base rechazó.
       const previous = { ...persistedAvatar.current };
       desiredAvatar.current = previous;
@@ -165,16 +187,19 @@ export default function DogProfileScreen() {
   }
 
   async function takeDogPhoto() {
-    if (!cameraRef.current || photoSaving) return;
+    if (!cameraRef.current || photoSaving || !profile) return;
+    const requestedKey = profileKey;
     setPhotoSaving(true);
     try {
       const picture = await cameraRef.current.takePictureAsync({ quality: 0.45, skipProcessing: false });
       if (!picture?.uri) throw new Error('No se pudo guardar la foto.');
       const uploaded = await uploadMyDogPhoto(dogId, picture.uri);
+      if (activeProfileKeyRef.current !== requestedKey) return;
       setPhotoUrl(uploaded.signedUrl);
       setProfile((current) => current ? { ...current, photo_path: uploaded.photoPath } : current);
       setCameraOpen(false);
     } catch (cause) {
+      if (activeProfileKeyRef.current !== requestedKey) return;
       Alert.alert('No se pudo guardar la foto', friendlyWriteError(cause, 'Intenta nuevamente con buena conexión.'));
     } finally {
       setPhotoSaving(false);
@@ -182,13 +207,16 @@ export default function DogProfileScreen() {
   }
 
   async function deleteDogPhoto() {
-    if (!dogId || photoSaving) return;
+    if (!dogId || photoSaving || !profile) return;
+    const requestedKey = profileKey;
     setPhotoSaving(true);
     try {
       await removeMyDogPhoto(dogId);
+      if (activeProfileKeyRef.current !== requestedKey) return;
       setPhotoUrl(null);
       setProfile((current) => current ? { ...current, photo_path: null } : current);
     } catch (cause) {
+      if (activeProfileKeyRef.current !== requestedKey) return;
       Alert.alert('No se pudo quitar la foto', friendlyWriteError(cause));
     } finally {
       setPhotoSaving(false);
@@ -196,7 +224,8 @@ export default function DogProfileScreen() {
   }
 
   async function save() {
-    if (!dogId || !user) return;
+    if (!dogId || !user || !profile || isAdmin) return;
+    const requestedKey = profileKey;
     const name = draft.name.trim();
     if (!name) {
       Alert.alert('Falta el nombre', 'Escribe el nombre de tu perro.');
@@ -232,12 +261,14 @@ export default function DogProfileScreen() {
         DEFAULT_WRITE_TIMEOUT_MS,
         'dog-profile-save',
       );
+      if (activeProfileKeyRef.current !== requestedKey) return;
       setProfile(saved);
       setDraft(draftFromProfile(saved));
       persistedAvatar.current = { key: saved.avatar_key, color: saved.avatar_color };
       desiredAvatar.current = { ...persistedAvatar.current };
       Alert.alert('Datos guardados', `El perfil de ${saved.name} se actualizó correctamente.`);
     } catch (cause) {
+      if (activeProfileKeyRef.current !== requestedKey) return;
       Alert.alert('No se pudo guardar', friendlyWriteError(cause, 'Conéctate a internet y vuelve a intentar.'));
     } finally {
       setSaving(false);
@@ -279,7 +310,7 @@ export default function DogProfileScreen() {
             <Text style={[styles.primaryButtonText, { color: format.primaryButtonText }]}>Volver</Text>
           </Pressable>
         </View>
-      ) : loading ? (
+      ) : loading || (!profile && !loadError) ? (
         <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
           <Text style={[styles.sectionTitle, { color: format.cardText }]}>Cargando datos…</Text>
           <Text style={[styles.helper, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Estamos verificando el perfil actualizado de este perro.</Text>
