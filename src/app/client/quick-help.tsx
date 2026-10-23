@@ -75,14 +75,37 @@ export default function QuickHelpScreen() {
       </Pressable>
 
       <View style={{ flex: 1, minHeight: 32 }} />
-      <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center',
-        justifyContent: 'center', marginVertical: 19 }}
-        accessibilityLabel={`Paso ${step + 1} de ${clientHelpGuides.length}`}>
-        {clientHelpGuides.map((item, index) => (
-          <View key={item.tab} style={{ height: 9, width: index === step ? 22 : 9,
-            borderRadius: 8,
-            backgroundColor: index === step ? ucapsaBrand.colors.red : ucapsaBrand.colors.border }} />
-        ))}
+      {/* Misma fuente de las cinco pestañas y de los consejos contextuales.
+          El usuario elige qué conocer, sin recorrer pasos obligatorios. */}
+      <View style={{ flexDirection: 'row', gap: 5, marginVertical: 17 }}
+        accessibilityLabel={`Pestaña ${step + 1} de ${clientHelpGuides.length}`}>
+        {clientHelpGuides.map((item, index) => {
+          const selected = index === step;
+          return (
+            <Pressable
+              key={item.tab}
+              accessibilityRole="tab"
+              accessibilityLabel={`Conocer ${item.title}`}
+              accessibilityState={{ selected }}
+              onPress={() => setStep(index)}
+              style={{
+                flex: 1, minWidth: 0, minHeight: 64, paddingVertical: 9, paddingHorizontal: 2,
+                alignItems: 'center', justifyContent: 'center', gap: 4,
+                borderWidth: 1, borderRadius: 12,
+                borderColor: selected ? ucapsaBrand.colors.redDark : ucapsaBrand.colors.border,
+                backgroundColor: selected ? ucapsaBrand.colors.redSoft : ucapsaBrand.colors.surface,
+              }}
+            >
+              <MaterialIcons name={item.icon} size={23}
+                color={selected ? ucapsaBrand.colors.redDark : ucapsaBrand.colors.muted} />
+              <Text numberOfLines={1} adjustsFontSizeToFit
+                style={{ fontSize: 11, fontWeight: selected ? '900' : '700',
+                  color: selected ? ucapsaBrand.colors.redDark : ucapsaBrand.colors.text }}>
+                {item.title}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
       <View style={{ flexDirection: 'row', gap: 12 }}>
         <Pressable accessibilityRole="button" accessibilityLabel="Paso anterior"
@@ -95,10 +118,10 @@ export default function QuickHelpScreen() {
         <Pressable accessibilityRole="button"
           accessibilityLabel={last ? 'Terminar tutorial' : 'Paso siguiente'}
           onPress={() => last ? finish() : setStep((value) => Math.min(value + 1, clientHelpGuides.length - 1))}
-          style={{ flex: 1, minHeight: 52, borderRadius: 17,
-            backgroundColor: ucapsaBrand.colors.red,
+          style={{ flex: 1, minHeight: 52, borderRadius: 17, borderWidth: 1,
+            borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface,
             alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontWeight: '900', color: ucapsaBrand.colors.surface }}>
+          <Text style={{ fontWeight: '800', color: ucapsaBrand.colors.redDark }}>
             {last ? 'Terminar' : 'Siguiente'}
           </Text>
         </Pressable>
