@@ -112,7 +112,7 @@ for (const token of [
 }
 
 // El mismo componente se usa en las dos pantallas, sin recalcular el ranking.
-// La foto sigue limitada a la cuenta propietaria, no al ranking público.
+// Mientras no exista consentimiento público verificado, todos ven el mismo avatar.
 const podium = read('src/components/domain/CompetitionPodium.tsx');
 for (const token of [
   'const PLACES = [2, 1, 3]',
@@ -126,13 +126,23 @@ for (const token of [
 }
 if (!ranking.includes('<CompetitionPodium')
   || !summary.includes('<CompetitionPodium rows={rows} compact />')
-  || !ranking.includes('photoUrlForDog={(id) => myDogs.find')) {
-  failures.push('Ranking y Competencia deben reutilizar un podio con foto propia autorizada.');
+  || !ranking.includes('photoUrlForDog={() => null}')) {
+  failures.push('Ranking y Competencia deben reutilizar el podio con avatar por defecto.');
 }
 if (/\.sort\(|row_number|dense_rank|percent_rank|competitive_score\s*[+\-*/]/.test(podium)) {
   failures.push('El podio no debe reordenar ni recalcular datos oficiales.');
 }
 
+if (/getPrivateDogPhotoUrls|createSignedUrl|photoUrl=\{dog\.photoUrl\}|photoUrl=\{mine/.test(ranking)) {
+  failures.push('Ranking no debe consultar ni mostrar fotos privadas sin consentimiento.');
+}
+if (!ranking.includes('photoUrlForDog={() => null}')) {
+  failures.push('El podio no debe revelar fotos privadas de ningún perro, ni propio.');
+}
+const dogProfile = read('src/app/client/dog-profile.tsx');
+if (!dogProfile.includes('Esta foto es privada. En Ranking y Competencia los demás ven su avatar.')) {
+  failures.push('Mi perro debe explicar con claridad qué imagen es visible en el Ranking.');
+}
 if (/row\.dog_id === dogId/.test(ranking)) {
   failures.push('Ranking volvió a reconocer sólo un perro como propio.');
 }
