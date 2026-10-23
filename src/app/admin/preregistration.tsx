@@ -136,6 +136,7 @@ export default function AdminPreregistrationDetailScreen() {
       setNewPhone('');
       showFeedback('Contacto completado', 'El expediente ya tiene el nuevo dato. La vinculación se evaluará al revisar la cuenta.', 'success');
     } catch (cause) {
+      if (activeRecordIdRef.current !== recordId) return;
       devWarn('admin-preregistration: could not complete missing contact.', cause);
       showFeedback('No se pudo guardar', cause instanceof Error ? cause.message : 'Revisa el dato y vuelve a intentar.');
     } finally {
@@ -156,6 +157,7 @@ export default function AdminPreregistrationDetailScreen() {
         ? 'Socio autorizado. La membresía oficial se creará al vincular la cuenta, sin generar pagos.'
         : 'Se retiró la autorización provisional de Socio.', 'success');
     } catch(cause) {
+      if (activeRecordIdRef.current !== recordId) return;
       devWarn('admin-preregistration: could not update provisional Socio authorization.', cause);
       showFeedback('No se pudo actualizar',cause instanceof Error
         ? cause.message:'Revisa el expediente.');
@@ -176,6 +178,7 @@ export default function AdminPreregistrationDetailScreen() {
         ? 'Se añadieron ' + added + ' integrantes al expediente.'
         : 'Estas personas ya estaban registradas en la familia.', 'success');
     } catch (cause) {
+      if (activeRecordIdRef.current !== recordId) return;
       devWarn('admin-preregistration: could not add family.', cause);
       showFeedback('No se pudo guardar la familia',
         cause instanceof Error ? cause.message : 'Revisa los datos e inténtalo de nuevo.');
