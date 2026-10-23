@@ -33,7 +33,7 @@ function makeHarness(recordId='A') {
     refreshing:true,error:null};
   const exports={};
   vm.runInNewContext(js,{
-    exports,recordId,...ids,
+    exports,recordId,Error,...ids,
     getAdminPreregistrationRecords:()=>{
       const call=deferred();adminCalls.push(call);return call.promise;
     },
