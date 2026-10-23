@@ -42,7 +42,7 @@ for(const token of [
   'visible={confirming}',
   'Sí, mostrar mi foto',
   'Cancelar',
-  'otros usuarios',
+  'Otros usuarios',
   'Puedes volver a mostrar el avatar',
   'setMyRankingPhotoChoice(dogId, nextEnabled)',
   '!imageEnabled',
