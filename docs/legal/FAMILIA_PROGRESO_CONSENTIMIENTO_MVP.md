@@ -11,6 +11,10 @@
 - Si cambia el aviso publicado, ambos deben **aceptar de nuevo** antes de reanudar el acceso.
 - No requiere SMS, correo de confirmación, un plan de pago nuevo ni la funcionalidad descartada de foto pública.
 
+## Reutilizar el borrador que ya existe
+
+UCAPSA ya tiene `docs/legal/BORRADOR_AVISO_PRIVACIDAD_UCAPSA_APP_1_4_NO_VIGENTE.md`. Incluye preinscripciones y contacto previo. **No redactar un aviso completamente nuevo**: comparar ese borrador con el texto realmente publicado y añadir solamente la finalidad voluntaria de consulta del progreso familiar. Debe seguir sin publicarse hasta que Administración compruebe el contenido completo.
+
 ## Textos propuestos para revisión del Superadmin y del responsable de privacidad
 
 ### Aviso simplificado — añadir a las finalidades
