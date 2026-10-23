@@ -206,7 +206,7 @@ export default function TrainerClassesTab() {
   }
 
   async function markAttendance(row: StaffRosterRow) {
-    if (row.attended || busyId) return;
+    if (row.attended || busyId || loading || error || dateKey !== localDateKey()) return;
     showStaffDialog(
       'Registrar asistencia',
       `¿Confirmas que ${row.dogName} asistió a la clase de hoy?`,
@@ -236,7 +236,7 @@ export default function TrainerClassesTab() {
   }
 
   function markStagedAttendance(row: StaffPreregisteredRosterRow) {
-    if (busyId || row.attended || row.authorizationStatus !== 'valid' || dateKey !== localDateKey()) return;
+    if (busyId || loading || error || stagedWarning || row.attended || row.authorizationStatus !== 'valid' || dateKey !== localDateKey()) return;
     showStaffDialog('Registrar asistencia',
       `¿Confirmas que ${row.dogName} asistió hoy? La fecha se conservará cuando el propietario vincule su cuenta.`,
       [
@@ -265,7 +265,7 @@ export default function TrainerClassesTab() {
   }
 
   async function markAbsent(row: StaffRosterRow) {
-    if (row.absent || row.attended || busyId) return;
+    if (row.absent || row.attended || busyId || loading || error || dateKey !== localDateKey()) return;
     showStaffDialog(
       'Registrar ausencia',
       `¿Confirmas que ${row.dogName} no asistió a esta clase?`,
@@ -326,7 +326,7 @@ export default function TrainerClassesTab() {
   const today = localDateKey();
   const tomorrow = tomorrowKey();
   // Fechas históricas son de consulta; correcciones usan el flujo administrativo auditado.
-  const canMarkAttendance = dateKey === today;
+  const canMarkAttendance = dateKey === today && !loading && !error;
 
   return (
     <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={ucapsaBrand.colors.red} />}>
