@@ -1,11 +1,13 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
+import { showStaffDialog } from '../../utils/staff-dialog';
+import { devWarn } from '../../lib/client-diagnostics';
 import { useSession } from '../../hooks/useSession';
 import {
   createTrainerExamAttempt,
@@ -66,6 +68,7 @@ export default function TrainerExamsTab() {
       setDrafts(draftRows);
       setDogs(dogRows);
     } catch (cause) {
+      devWarn('trainer-exams: could not complete requested operation.', cause);
       setError(cause instanceof Error ? cause.message : 'No se pudieron cargar los exámenes.');
     } finally {
       setLoading(false);
@@ -100,7 +103,8 @@ export default function TrainerExamsTab() {
       setDogQuery('');
       router.push(`/staff/exam-attempt?attemptId=${encodeURIComponent(String(attemptId))}` as never);
     } catch (cause) {
-      Alert.alert('No se pudo iniciar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+      devWarn('trainer-exams: could not complete requested operation.', cause);
+      showStaffDialog('No se pudo iniciar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     } finally {
       setSaving(false);
     }
@@ -120,13 +124,14 @@ export default function TrainerExamsTab() {
         rows: picked.rows,
       });
 
-      Alert.alert(
+      showStaffDialog(
         'Calificaciones subidas',
         `${result.rowsImported} resultado${result.rowsImported === 1 ? '' : 's'} quedaron revisados y listos para que Administración determine la oficialidad del resultado.`,
       );
       await load();
     } catch (cause) {
-      Alert.alert('No se pudo subir el Excel', cause instanceof Error ? cause.message : 'Revisa el archivo e intenta de nuevo.');
+      devWarn('trainer-exams: could not complete requested operation.', cause);
+      showStaffDialog('No se pudo subir el Excel', cause instanceof Error ? cause.message : 'Revisa el archivo e intenta de nuevo.');
     } finally {
       setSaving(false);
     }
@@ -160,7 +165,8 @@ export default function TrainerExamsTab() {
       setDraftItems(definition.items);
       setUploadOpen(true);
     } catch (cause) {
-      Alert.alert('No se pudo abrir el borrador',
+      devWarn('trainer-exams: could not complete requested operation.', cause);
+      showStaffDialog('No se pudo abrir el borrador',
         cause instanceof Error ? cause.message : 'Reintenta desde el listado.');
     } finally {
       setSaving(false);
@@ -183,7 +189,7 @@ export default function TrainerExamsTab() {
       applyMode();
       return;
     }
-    Alert.alert(
+    showStaffDialog(
       'Cambiar método',
       'Los ejercicios todavía no guardados se reemplazarán al cambiar de método.',
       [
@@ -199,15 +205,15 @@ export default function TrainerExamsTab() {
     const rawPoints = newItemPoints.trim().replace(',', '.');
     const maxPoints = Number(rawPoints);
     if (!title || title.length > 160) {
-      Alert.alert('Ejercicio inválido', 'Escribe un título de 1 a 160 caracteres.');
+      showStaffDialog('Ejercicio inválido', 'Escribe un título de 1 a 160 caracteres.');
       return;
     }
     if (!/^\d+(?:\.\d{1,2})?$/.test(rawPoints) || !Number.isFinite(maxPoints) || maxPoints <= 0 || maxPoints > 1000) {
-      Alert.alert('Puntos inválidos', 'Escribe un máximo mayor que cero y hasta 1000, con máximo 2 decimales.');
+      showStaffDialog('Puntos inválidos', 'Escribe un máximo mayor que cero y hasta 1000, con máximo 2 decimales.');
       return;
     }
     if (editingItemIndex === null && draftItems.length >= 100) {
-      Alert.alert('Límite de ejercicios', 'Puedes añadir hasta 100 ejercicios por examen.');
+      showStaffDialog('Límite de ejercicios', 'Puedes añadir hasta 100 ejercicios por examen.');
       return;
     }
     setDraftItems((items) => {
@@ -253,7 +259,8 @@ export default function TrainerExamsTab() {
       setDraftFileName(picked.fileName);
       setDraftItems(picked.items);
     } catch (cause) {
-      Alert.alert('No se pudo leer el examen', cause instanceof Error ? cause.message : 'Revisa el Excel e intenta de nuevo.');
+      devWarn('trainer-exams: could not complete requested operation.', cause);
+      showStaffDialog('No se pudo leer el examen', cause instanceof Error ? cause.message : 'Revisa el Excel e intenta de nuevo.');
     } finally {
       setSaving(false);
     }
@@ -266,19 +273,19 @@ export default function TrainerExamsTab() {
     const date = draftDate.trim();
 
     if (!code || !title) {
-      Alert.alert('Faltan datos', 'Escribe el código y nombre del examen.');
+      showStaffDialog('Faltan datos', 'Escribe el código y nombre del examen.');
       return;
     }
     if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      Alert.alert('Fecha inválida', 'Usa el formato AAAA-MM-DD.');
+      showStaffDialog('Fecha inválida', 'Usa el formato AAAA-MM-DD.');
       return;
     }
     if (draftItems.length === 0) {
-      Alert.alert('Faltan ejercicios', 'Agrega ejercicios manualmente o carga un Excel con la definición.');
+      showStaffDialog('Faltan ejercicios', 'Agrega ejercicios manualmente o carga un Excel con la definición.');
       return;
     }
     if (draftInputMode === 'manual' && (newItemTitle.trim() || newItemDescription.trim() || newItemPoints.trim())) {
-      Alert.alert('Ejercicio sin agregar', 'Agrega el ejercicio en edición antes de guardar el examen.');
+      showStaffDialog('Ejercicio sin agregar', 'Agrega el ejercicio en edición antes de guardar el examen.');
       return;
     }
 
@@ -306,14 +313,15 @@ export default function TrainerExamsTab() {
       resetDraftUpload();
       setCatalogView('drafts');
       await load();
-      Alert.alert(
+      showStaffDialog(
         wasEditing ? 'Borrador actualizado' : 'Examen cargado',
         wasEditing
           ? 'Los ejercicios del borrador quedaron actualizados.'
           : 'Quedó guardado como borrador. Puedes publicarlo desde esta misma pantalla.',
       );
     } catch (cause) {
-      Alert.alert(editingDraft ? 'No se pudo actualizar el borrador' : 'No se pudo cargar el examen',
+      devWarn('trainer-exams: could not complete requested operation.', cause);
+      showStaffDialog(editingDraft ? 'No se pudo actualizar el borrador' : 'No se pudo cargar el examen',
         cause instanceof Error ? cause.message : 'Revisa los datos e intenta de nuevo.');
     } finally {
       setSaving(false);
@@ -322,7 +330,7 @@ export default function TrainerExamsTab() {
 
   function confirmPublishDraft(draft: TrainerExamDraftRow) {
     if (saving || !capabilities.canPublishExamDefinition) return;
-    Alert.alert(
+    showStaffDialog(
       'Publicar examen',
       'Al publicarlo, la estructura del examen queda congelada. Podrás capturar y subir calificaciones después.',
       [
@@ -342,9 +350,10 @@ export default function TrainerExamsTab() {
       await publishTrainerExam(draft.examId);
       setCatalogView('published');
       await load();
-      Alert.alert('Examen publicado', `${draft.examTitle} ya está disponible para evaluación.`);
+      showStaffDialog('Examen publicado', `${draft.examTitle} ya está disponible para evaluación.`);
     } catch (cause) {
-      Alert.alert('No se pudo publicar', cause instanceof Error ? cause.message : 'Revisa el examen e intenta de nuevo.');
+      devWarn('trainer-exams: could not complete requested operation.', cause);
+      showStaffDialog('No se pudo publicar', cause instanceof Error ? cause.message : 'Revisa el examen e intenta de nuevo.');
     } finally {
       setSaving(false);
     }
