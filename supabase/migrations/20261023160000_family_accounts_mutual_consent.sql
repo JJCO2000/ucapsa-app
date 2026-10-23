@@ -171,7 +171,8 @@ GRANT EXECUTE ON FUNCTION public.admin_authorize_family_account(uuid,text) TO au
 CREATE OR REPLACE FUNCTION public.get_my_family_account_links()
 RETURNS TABLE(
   id uuid,other_name text,my_role text,
-  my_accepted boolean,other_accepted boolean,active boolean
+  my_accepted boolean,other_accepted boolean,active boolean,
+  notice_available boolean
 )
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
 AS $function$
@@ -189,7 +190,8 @@ AS $function$
       END AS other_accepted,
     (l.head_consented_at IS NOT NULL AND l.relative_consented_at IS NOT NULL
       AND n.version IS NOT NULL
-      AND l.head_notice_version=n.version AND l.relative_notice_version=n.version) AS active
+      AND l.head_notice_version=n.version AND l.relative_notice_version=n.version) AS active,
+    (n.version IS NOT NULL) AS notice_available
   FROM ucapsa_intake.family_account_links l
     JOIN ucapsa_intake.family_members f ON f.id=l.family_member_id
     JOIN ucapsa_intake.people p ON p.id=f.person_id
