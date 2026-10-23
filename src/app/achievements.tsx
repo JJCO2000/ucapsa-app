@@ -9,6 +9,7 @@ import { ClientPageHeader } from '../components/layout/ClientPageHeader';
 import { KeyboardAwareScreen } from '../components/ui/KeyboardAwareScreen';
 import { resolveUcapsaFormat } from '../constants/ucapsaFormats';
 import { useReturnToProfile } from '../hooks/useReturnToProfile';
+import { getNewlyAwardedAchievement } from '../services/achievement-celebration.domain';
 import { useSession } from '../hooks/useSession';
 import {
   getCachedAchievementsForUser,
@@ -61,6 +62,10 @@ export default function AchievementsScreen() {
       const fresh = await refreshAchievementsForUser(user.id);
       if (requestId !== requestIdRef.current) return;
       setAchievements(fresh);
+      // No felicitar por premios viejos al iniciar por primera vez: comparar
+      // exclusivamente asignaciones nuevas frente al historial local previo.
+      const newAward = !isAdmin ? getNewlyAwardedAchievement(cached, fresh) : null;
+      if (newAward) setSelectedAchievement((selected) => selected ?? newAward);
       setUsingCachedData(false);
       setError(false);
     } catch {
@@ -73,7 +78,7 @@ export default function AchievementsScreen() {
         setRefreshing(false);
       }
     }
-  }, [user]);
+  }, [isAdmin, user]);
 
   useFocusEffect(useCallback(() => {
     void loadAchievements(false);
