@@ -6,6 +6,7 @@ const allowedAdvisories = new Set([
   'GHSA-5P2G-FCMC-QVQQ', // image-size: JXL/HEIF parser DoS; no published patched release yet
   'GHSA-VFJ7-8CJW-P6XM', // braces <=3.0.3; no patched release as of 2026-10-05; constrained to Metro glob tooling
   'GHSA-86W9-CPQP-85RV', // node-forge 1.4.0 follow-up; no published patched npm version; constrained to Expo code-signing certificates
+  'GHSA-MRHX-C7XC-M3W5', // zod validation DoS; reviewed ONLY for pinned Expo CLI transitive path; no untrusted runtime parser
 ]);
 
 const baselineMaximums = {
@@ -67,6 +68,11 @@ const reviewedNoFixBoundaries = {
     version: '1.2.1',
     reviewBy: '2026-11-15',
     allowedDependents: ['node_modules/metro'],
+  },
+  zod: {
+    version: '3.25.76',
+    reviewBy: '2026-11-01',
+    allowedDependents: ['node_modules/expo/node_modules/@expo/cli'],
   },
 };
 
