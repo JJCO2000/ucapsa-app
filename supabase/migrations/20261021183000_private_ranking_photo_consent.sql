@@ -115,13 +115,18 @@ RETURNS TABLE(dog_id uuid, enabled boolean, notice_version text)
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
 AS $$
   WITH active_notice AS (
-    SELECT version FROM public.privacy_notices
-     WHERE status = 'published'
-       AND version LIKE '1.4%'
-       AND ranking_photo_publication_approved IS TRUE
-       AND position('foto pública' IN lower(integral_notice)) > 0
-       AND position('foto pública' IN lower(simplified_notice)) > 0
-     ORDER BY published_at DESC LIMIT 1
+    -- Only the most recently published notice can authorize visibility.
+    SELECT version FROM (
+      SELECT version, ranking_photo_publication_approved,
+        integral_notice, simplified_notice
+      FROM public.privacy_notices
+      WHERE status = 'published'
+      ORDER BY published_at DESC LIMIT 1
+    ) latest
+    WHERE version LIKE '1.4%'
+      AND ranking_photo_publication_approved IS TRUE
+      AND position('foto pública' IN lower(integral_notice)) > 0
+      AND position('foto pública' IN lower(simplified_notice)) > 0
   )
   SELECT d.id,
     (c.dog_id IS NOT NULL AND c.revoked_at IS NULL
