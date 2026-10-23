@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -19,27 +19,43 @@ export default function MyFamilyScreen() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
+  const [loadedForUserId, setLoadedForUserId] = useState<string | null>(null);
+  const requestIdRef = useRef(0);
 
   const load = useCallback(async () => {
+    const ownerId = user?.id;
+    if (!ownerId) return;
+    const requestId = ++requestIdRef.current;
     try {
       const [related, summary] = await Promise.all([
         getMyFamilyAccountLinks(), getMyFamilyProgress(),
       ]);
+      if (requestId !== requestIdRef.current) return;
       setLinks(related);
       setProgress(summary);
       setNotice('');
+      setLoadedForUserId(ownerId);
     } catch (error) {
+      if (requestId !== requestIdRef.current) return;
       devWarn('family: failed to read consent or progress.', error);
+      setLinks([]);
+      setProgress([]);
       setNotice('No pudimos actualizar la información familiar. Revisa tu conexión.');
+      setLoadedForUserId(ownerId);
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
+    requestIdRef.current += 1;
+    setLinks([]);
+    setProgress([]);
+    setLoadedForUserId(null);
     if (sessionLoading || !user) return;
     setLoading(true);
     void load();
+    return () => { requestIdRef.current += 1; };
   }, [load, sessionLoading, user?.id]);
 
   async function changeConsent(link: FamilyAccountLink) {
@@ -77,7 +93,7 @@ export default function MyFamilyScreen() {
         perros o inscripciones. Estar en una familia tampoco activa una membresía compartida.
       </Text>
       {notice ? <Text accessibilityRole="alert" style={styles.error}>{notice}</Text> : null}
-      {loading ? <ActivityIndicator color={ucapsaBrand.colors.red} style={{ marginTop: 16 }} /> : (
+      {loading || loadedForUserId !== user.id ? <ActivityIndicator color={ucapsaBrand.colors.red} style={{ marginTop: 16 }} /> : (
         <>
           {!links.length ? (
             <View style={styles.card}>
