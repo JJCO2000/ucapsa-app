@@ -129,6 +129,30 @@ BEGIN
 END $approve$;
 RESET ROLE;
 
+-- Published notice 1.2 does not permit this new cross-account purpose.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000971',false);
+DO $reject_old_notice$
+DECLARE v_link_id uuid; denied boolean:=false;
+BEGIN
+ SELECT id INTO v_link_id FROM public.get_my_family_account_links() LIMIT 1;
+ BEGIN
+   PERFORM public.set_my_family_progress_consent(v_link_id,true);
+ EXCEPTION WHEN invalid_parameter_value THEN denied:=true;
+ END;
+ IF NOT denied THEN RAISE EXCEPTION 'Old notice accidentally enabled family sharing'; END IF;
+ IF EXISTS (SELECT 1 FROM public.get_my_family_progress()) THEN
+   RAISE EXCEPTION 'Progress leaked under privacy notice 1.2';
+ END IF;
+END $reject_old_notice$;
+RESET ROLE;
+
+UPDATE public.privacy_notices SET status='retired' WHERE version='1.2-test';
+INSERT INTO public.privacy_notices(version,status,integral_notice,simplified_notice,published_at)
+VALUES ('1.4-family-test','published',
+  'La consulta del progreso familiar es voluntaria y podrás revocar el consentimiento desde Perfil.',
+  'Opcional: permitir consulta del progreso familiar entre dos cuentas que lo autoricen.',now());
+
 -- Head can see one pending request; nobody can see a dog yet.
 SET ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000971',false);
@@ -191,6 +215,42 @@ BEGIN
     RAISE EXCEPTION 'Unrelated user accessed family progress';
   END IF;
 END $stranger$;
+RESET ROLE;
+
+-- Publishing a NEW notice expires both earlier acceptances, even when purpose remains.
+UPDATE public.privacy_notices SET status='retired' WHERE version='1.4-family-test';
+INSERT INTO public.privacy_notices(version,status,integral_notice,simplified_notice,published_at)
+VALUES ('1.5-family-test','published',
+  'Seguimos permitiendo consultar el progreso familiar con autorización revocable de ambas cuentas.',
+  'La consulta del progreso familiar es opcional.',now()+interval '1 second');
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000971',false);
+DO $invalidate_old_consent$
+BEGIN
+ IF EXISTS (SELECT 1 FROM public.get_my_family_progress()) THEN
+  RAISE EXCEPTION 'Previously accepted policy permitted exposure after notice change';
+ END IF;
+ IF EXISTS (SELECT 1 FROM public.get_my_family_account_links() WHERE active OR my_accepted) THEN
+  RAISE EXCEPTION 'Old notice consent still appears active';
+ END IF;
+END $invalidate_old_consent$;
+RESET ROLE;
+-- Re-accept new version individually; one side alone cannot reveal anything.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000971',false);
+SELECT public.set_my_family_progress_consent(
+ (SELECT id FROM public.get_my_family_account_links() LIMIT 1),true);
+RESET ROLE;
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000972',false);
+DO $no_partial_renewal$
+BEGIN
+ IF EXISTS (SELECT 1 FROM public.get_my_family_progress()) THEN
+   RAISE EXCEPTION 'One renewed consent exposed another user after privacy change';
+ END IF;
+END $no_partial_renewal$;
+SELECT public.set_my_family_progress_consent(
+ (SELECT id FROM public.get_my_family_account_links() LIMIT 1),true);
 RESET ROLE;
 
 -- Withdrawal from either side immediately closes both directions.
