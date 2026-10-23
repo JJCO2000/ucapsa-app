@@ -10,6 +10,7 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
+import { getNewlyAwardedAchievement } from '../../services/achievement-celebration.domain';
 import {
   getCachedAchievementsForDog,
   getMyDogAchievements,
@@ -69,6 +70,8 @@ export default function DogAchievementsScreen() {
       });
       if (!isCurrentRun()) return;
       setItems(fresh);
+      const newAward = getNewlyAwardedAchievement(cachedAchievements, fresh);
+      if (newAward) setSelectedAchievement((selected) => selected ?? newAward);
       setUsingSavedData(false);
       setReady(true);
     } catch {
