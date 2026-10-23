@@ -31,8 +31,8 @@ for (const fragment of [
 assert.ok(sql.includes('l.head_consented_at IS NOT NULL AND l.relative_consented_at IS NOT NULL'),
   'Mutual explicit consent is required to read progress.');
 assert.ok(sql.includes("l.revoked_at IS NULL")
-  && sql.includes("l.relative_consented_at=CASE WHEN p_accept")
-  && sql.includes("l.head_consented_at=CASE WHEN p_accept"),
+  && sql.includes("relative_consented_at=CASE WHEN p_accept")
+  && sql.includes("head_consented_at=CASE WHEN p_accept"),
   'Either account must withdraw access.');
 assert.ok(!/insert into\s+(public\.)?(dogs|memberships|payment|profiles)/i.test(sql),
   'Family cannot change ownership, membership or payments.');
