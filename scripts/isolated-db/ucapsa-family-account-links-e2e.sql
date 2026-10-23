@@ -4,13 +4,7 @@ DO $$ BEGIN IF current_database()<>'ucapsa_test' THEN
   RAISE EXCEPTION 'Refusing production test';
 END IF; END $$;
 
--- The head and relative each own independent accounts.
-INSERT INTO auth.users(id,email,email_confirmed_at)
-VALUES ('00000000-0000-4000-8000-000000000971','family-head@test.invalid',now()),
-       ('00000000-0000-4000-8000-000000000972','family-other@test.invalid',now());
-INSERT INTO public.profiles(user_id,full_name,email,role)
-VALUES ('00000000-0000-4000-8000-000000000971','Head Person','family-head@test.invalid','client'),
-       ('00000000-0000-4000-8000-000000000972','Other Person','family-other@test.invalid','client');
+-- Preinscribe BEFORE creating separate Auth accounts (canonical invariant).
 
 SET ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
@@ -25,6 +19,14 @@ SELECT set_config('test.family_member_id',(
   JOIN ucapsa_intake.people p ON p.id=f.person_id
   WHERE p.email_key='family-head@test.invalid' LIMIT 1
 ),false);
+
+-- The head and relative each own independent accounts.
+INSERT INTO auth.users(id,email,email_confirmed_at)
+VALUES ('00000000-0000-4000-8000-000000000971','family-head@test.invalid',now()),
+       ('00000000-0000-4000-8000-000000000972','family-other@test.invalid',now());
+INSERT INTO public.profiles(user_id,full_name,email,role)
+VALUES ('00000000-0000-4000-8000-000000000971','Head Person','family-head@test.invalid','client'),
+       ('00000000-0000-4000-8000-000000000972','Other Person','family-other@test.invalid','client');
 
 -- Family name/contact alone is NOT permission to claim head's dogs.
 SET ROLE authenticated;
