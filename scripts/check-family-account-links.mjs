@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const sql = fs.readFileSync('supabase/migrations/20261023070000_family_accounts_mutual_consent.sql','utf8');
+const sql = fs.readFileSync('supabase/migrations/20261023160000_family_accounts_mutual_consent.sql','utf8');
 const svc = fs.readFileSync('src/services/family-account-links.service.ts','utf8');
 const client = fs.readFileSync('src/app/client/family.tsx','utf8');
 const admin = fs.readFileSync('src/app/admin/preregistration.tsx','utf8');
@@ -43,6 +43,11 @@ for (const forbidden of ['email_key AS', 'phone_e164 AS', 'payment_amount',
   'photo_path AS','update public.dogs','UPDATE public.program_enrollments']) {
   assert.ok(!sql.includes(forbidden), 'Read-only boundary breached: '+forbidden);
 }
+assert.ok(client.includes('loadedForUserId !== user.id')
+  && client.includes('requestId !== requestIdRef.current')
+  && client.includes('setLinks([])')
+  && client.includes('setProgress([])'),
+  'Do not show prior account data or accept stale async family results.');
 assert.ok(client.includes('Autorizar compartir progreso')
   && client.includes('Dejar de compartir')
   && client.includes('No se comparten pagos')
@@ -63,4 +68,6 @@ for (const name of ['client_denied','no_claim','head_approval','relative_approva
   'read_relative','read_head','stranger','withdrawn','final']) {
   assert.ok(e2e.includes(name), 'Missing test case: '+name);
 }
+assert.ok(!sql.includes('CREATE OR REPLACE FUNCTION ucapsa_intake.append_family_for_dog'),
+  'Never overwrite the already corrected family capture helper from main.');
 console.log('UCAPSA family mutual account relationship and read-only consent contract PASS');
