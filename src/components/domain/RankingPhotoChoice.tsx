@@ -22,12 +22,17 @@ type Props = {
 export function RankingPhotoChoice({ dogId, dogName, photoUrl, photoPath, avatarKey, avatarColor }: Props) {
   const [available, setAvailable] = useState(false);
   const [enabled, setEnabled] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [feedback, setFeedback] = useState('');
 
   useEffect(() => {
     let current = true;
+    setLoading(true);
+    setAvailable(false);
+    setEnabled(false);
+    setFeedback('');
     async function read() {
       try {
         const allowed = await isRankingPhotoChoiceAvailable();
@@ -46,6 +51,8 @@ export function RankingPhotoChoice({ dogId, dogName, photoUrl, photoPath, avatar
           setEnabled(false);
           setFeedback('No pudimos consultar esta opción. Tu foto sigue siendo privada.');
         }
+      } finally {
+        if (current) setLoading(false);
       }
     }
     void read();
@@ -75,16 +82,16 @@ export function RankingPhotoChoice({ dogId, dogName, photoUrl, photoPath, avatar
     }
   }
 
-  const imageEnabled = available && Boolean(photoPath);
+  const imageEnabled = !loading && available && Boolean(photoPath);
   return (
     <View style={styles.section}>
       <Text style={styles.heading}>Imagen en Ranking</Text>
       <Text style={styles.hint}>
         Elige qué pueden ver las demás personas. Tu foto privada no se publica por tomarla.
       </Text>
-      <Pressable accessibilityRole="radio" accessibilityState={{ selected: !enabled, disabled: saving }}
+      <Pressable accessibilityRole="radio" accessibilityState={{ selected: !enabled, disabled: loading || saving }}
         accessibilityLabel="Avatar, visible para todos"
-        disabled={saving} style={[styles.option, !enabled && styles.selected]}
+        disabled={loading || saving} style={[styles.option, !enabled && styles.selected]}
         onPress={() => { if (enabled) void choosePhoto(false); }}>
         <DogAvatar avatarKey={avatarKey} avatarColor={avatarColor} size={48} />
         <View style={styles.copy}>
@@ -95,9 +102,9 @@ export function RankingPhotoChoice({ dogId, dogName, photoUrl, photoPath, avatar
           size={24} color={ucapsaBrand.colors.greenDark} />
       </Pressable>
       <Pressable accessibilityRole="radio"
-        accessibilityState={{ selected: enabled, disabled: saving || !imageEnabled }}
+        accessibilityState={{ selected: enabled, disabled: loading || saving || !imageEnabled }}
         accessibilityLabel="Foto real visible en Ranking"
-        disabled={saving || !imageEnabled}
+        disabled={loading || saving || !imageEnabled}
         style={[styles.option, enabled && styles.selected, !imageEnabled && styles.disabled]}
         onPress={() => { if (!enabled) void choosePhoto(true); }}>
         {photoUrl && imageEnabled ?
