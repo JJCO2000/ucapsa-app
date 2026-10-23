@@ -86,12 +86,19 @@ export default function MyFamilyScreen() {
       <Text style={styles.title}>Mi familia</Text>
       <Text style={styles.intro}>
         Cada persona conserva su cuenta y sus perros. Compartir el progreso es opcional
-        y solo permite consultar nombres, programas, niveles y asistencias.
+        y solo permite consultar nombres de propietarios y perros, programas, niveles
+        y número de asistencias.
       </Text>
       <Text style={styles.hint}>
         No se comparten pagos, credenciales, fotos privadas ni la posibilidad de modificar
         perros o inscripciones. Estar en una familia tampoco activa una membresía compartida.
+        Tu permiso se registra bajo el aviso de privacidad vigente y, si cambia, tendrás
+        que volver a autorizarlo.
       </Text>
+      <Pressable accessibilityRole="link" accessibilityLabel="Consultar aviso de privacidad"
+        onPress={() => router.push('/privacy' as never)} style={styles.privacyLink}>
+        <Text style={styles.privacyLinkText}>Consultar aviso de privacidad</Text>
+      </Pressable>
       {notice ? <Text accessibilityRole="alert" style={styles.error}>{notice}</Text> : null}
       {loading || loadedForUserId !== user.id ? <ActivityIndicator color={ucapsaBrand.colors.red} style={{ marginTop: 16 }} /> : (
         <>
@@ -171,6 +178,8 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.6 },
   error: { color: ucapsaBrand.colors.danger, fontSize: 13, marginTop: 12 },
   section: { color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '900', marginTop: 20 },
+  privacyLink: { paddingVertical: 10, alignItems: 'flex-start' },
+  privacyLinkText: { fontSize: 13, fontWeight: '800', color: ucapsaBrand.colors.redDark },
   refresh: { paddingVertical: 16, alignItems: 'center' },
   refreshText: { color: ucapsaBrand.colors.redDark, fontWeight: '800', fontSize: 13 },
 });
