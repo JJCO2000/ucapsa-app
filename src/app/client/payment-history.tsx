@@ -16,7 +16,11 @@ const emptyOverview: MyPaymentOverview = { obligations: [], payments: [], outsta
 
 export default function PaymentHistoryScreen() {
   const { user, role, isAdmin } = useSession();
-  const [overview, setOverview] = useState<MyPaymentOverview>(emptyOverview);
+  const [storedOverview, setOverview] = useState<MyPaymentOverview>(emptyOverview);
+  const [loadedForUserId, setLoadedForUserId] = useState<string | null>(null);
+  const activeUserIdRef = useRef(user?.id ?? null);
+  activeUserIdRef.current = user?.id ?? null;
+  const overview = loadedForUserId === user?.id ? storedOverview : emptyOverview;
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,22 +31,29 @@ export default function PaymentHistoryScreen() {
   const load = useCallback(async () => {
     const runId = loadRunRef.current + 1;
     loadRunRef.current = runId;
-    const isCurrentRun = () => loadRunRef.current === runId;
-    if (!user || isAdmin) return;
+    const userId = user?.id;
+    const isCurrentRun = () => loadRunRef.current === runId
+      && activeUserIdRef.current === userId;
+    if (!userId || isAdmin) return;
     setError(null);
     try {
       const next = await withOperationTimeout(getMyPaymentOverview(), DEFAULT_READ_TIMEOUT_MS, 'payment-history');
       if (!isCurrentRun()) return;
       setOverview(next);
+      setLoadedForUserId(userId);
     } catch {
       if (!isCurrentRun()) return;
       setError(friendlyReadError('No se pudo cargar el historial de pagos.'));
     } finally {
       if (isCurrentRun()) setLoading(false);
     }
-  }, [isAdmin, user]);
+  }, [isAdmin, user?.id]);
 
   useFocusEffect(useCallback(() => {
+    setLoading(true);
+    setError(null);
+    setOverview(emptyOverview);
+    setLoadedForUserId(null);
     void load();
     return () => { loadRunRef.current += 1; };
   }, [load]));
@@ -62,7 +73,7 @@ export default function PaymentHistoryScreen() {
       {error ? <View style={[styles.empty, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}><Text style={[styles.rowTitle, { color: format.cardText }]}>Se necesita conexión</Text><Text style={[styles.muted, { color: format.muted }]}>El historial detallado no se guarda en el dispositivo. {error}</Text><Pressable style={[styles.retryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={() => void refresh()}><Text style={[styles.retryText, { color: format.secondaryButtonText }]}>Reintentar</Text></Pressable></View> : null}
       {!loading && !error && overview.payments.length === 0 ? <View style={[styles.empty, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}><Text style={[styles.muted, { color: format.muted }]}>Todavía no hay pagos registrados.</Text></View> : null}
 
-      {overview.payments.map((payment) => (
+      {!loading && !error && overview.payments.map((payment) => (
         <Pressable key={payment.id} accessibilityRole="button" accessibilityLabel={`Abrir pago ${payment.period_label || payment.concept}`} onPress={() => router.push(`/client/payment-detail?paymentId=${encodeURIComponent(payment.id)}` as never)} style={({ pressed }) => [styles.row, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }, pressed && styles.pressed]}>
           <View style={{ flex: 1 }}>
             <Text style={[styles.rowTitle, { color: format.cardText }]}>{payment.period_label || payment.concept}</Text>
