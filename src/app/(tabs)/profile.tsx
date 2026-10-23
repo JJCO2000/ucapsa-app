@@ -5,6 +5,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ContextualHelpTip } from '../../components/ui/ContextualHelpTip';
 import { SocialLinksRow } from '../../components/ui/SocialLinksRow';
+import { familyAccountLinksEnabled } from '../../constants/familyAccountLinksFeature';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
@@ -71,6 +72,7 @@ export default function ProfileScreen() {
           onPress={() => router.push('/dog?from=profile' as never)}
         />
 
+        {familyAccountLinksEnabled ? (
         <HubRow
           icon="family-restroom"
           title="Mi familia"
@@ -79,6 +81,7 @@ export default function ProfileScreen() {
           format={format}
           onPress={() => router.push('/client/family' as never)}
         />
+        ) : null}
 
         <Text style={[styles.sectionTitle, { color: format.accentDark }]}>Mi progreso</Text>
         <HubRow
