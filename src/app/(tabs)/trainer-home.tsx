@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -127,6 +127,7 @@ export default function TrainerHomeTab() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const loadRunRef = useRef(0);
 
   const today = localTodayKey();
   const tomorrow = tomorrowKey();
@@ -134,6 +135,7 @@ export default function TrainerHomeTab() {
 
   const load = useCallback(async () => {
     if (!capabilities.canUseTrainingWorkspace) return;
+    const runId = ++loadRunRef.current;
     setError(null);
     try {
       const [todayRows, tomorrowRows, todaySchedules, tomorrowSchedules, programs, cancellations] =
@@ -142,6 +144,7 @@ export default function TrainerHomeTab() {
           getProgramSchedules(today), getProgramSchedules(tomorrow),
           getPrograms(), getProgramClassCancellations(),
         ]);
+      if (runId !== loadRunRef.current) return;
       setDays([
         { label: 'HOY', dateKey: today,
           groups: mergeOfficialSchedules(todayRows, todaySchedules, programs, cancellations, today) },
@@ -149,16 +152,22 @@ export default function TrainerHomeTab() {
           groups: mergeOfficialSchedules(tomorrowRows, tomorrowSchedules, programs, cancellations, tomorrow) },
       ]);
     } catch (cause) {
+      if (runId !== loadRunRef.current) return;
+      setDays([]);
       setError(cause instanceof Error ? cause.message : 'No se pudieron cargar las clases.');
     } finally {
-      setLoading(false);
+      if (runId === loadRunRef.current) setLoading(false);
     }
   }, [capabilities.canUseTrainingWorkspace, today, tomorrow]);
 
   useFocusEffect(useCallback(() => {
+    // Prevent an older tab focus or different session from restoring stale data.
+    loadRunRef.current += 1;
+    setDays([]);
+    setError(null);
     setLoading(true);
     void load();
-    return undefined;
+    return () => { loadRunRef.current += 1; };
   }, [load]));
 
   async function refresh() {
