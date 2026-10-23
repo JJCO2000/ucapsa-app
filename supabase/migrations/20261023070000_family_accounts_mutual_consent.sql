@@ -51,7 +51,7 @@ BEGIN
   IF v_link_id IS NOT NULL AND v_existing_revoked IS NULL THEN
     RETURN jsonb_build_object('status','already_requested');
   END IF;
-  SELECT count(*),min(candidate_id) INTO v_count,v_candidate FROM (
+  SELECT count(*),min(candidate_id::text)::uuid INTO v_count,v_candidate FROM (
     SELECT u.id AS candidate_id FROM auth.users u
       WHERE v_email IS NOT NULL AND lower(btrim(u.email))=v_email
     UNION
@@ -109,7 +109,7 @@ BEGIN
   END IF;
   v_email := v_member.email_key;
   v_phone := v_member.phone_e164;
-  SELECT count(*),min(candidate_id) INTO v_count,v_candidate FROM (
+  SELECT count(*),min(candidate_id::text)::uuid INTO v_count,v_candidate FROM (
     SELECT u.id AS candidate_id FROM auth.users u
       WHERE v_email IS NOT NULL AND lower(btrim(u.email))=v_email
     UNION
