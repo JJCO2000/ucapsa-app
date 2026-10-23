@@ -349,9 +349,9 @@ export default function DogProfileScreen() {
           <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
             <RankingPhotoChoice
               dogId={dogId}
-              dogName={profile.name}
+              dogName={profile?.name || draft.name || 'tu perro'}
               photoUrl={photoUrl}
-              photoPath={profile.photo_path}
+              photoPath={profile?.photo_path ?? null}
               avatarKey={avatarKey}
               avatarColor={avatarColor}
             />
