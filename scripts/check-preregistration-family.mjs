@@ -5,13 +5,32 @@ import ts from 'typescript';
 
 const migration = fs.readFileSync('supabase/migrations/20261023040000_preregistration_family_capture.sql', 'utf8');
 const contactMigration = fs.readFileSync('supabase/migrations/20261023053000_require_family_contact.sql', 'utf8');
+const afterLinkMigration = fs.readFileSync('supabase/migrations/20261023113000_family_capture_after_link.sql', 'utf8');
+const linkedTest = fs.readFileSync('scripts/isolated-db/ucapsa-family-after-link-e2e.sql', 'utf8');
+
 assert.ok(contactMigration.includes('intake_family_contact_required')
   && contactMigration.includes('v_email IS NULL AND v_phone IS NULL')
   && contactMigration.includes('auth.uid()'), 'Family identity requires contact on server.');
 const service = fs.readFileSync('src/services/dog-preregistration.service.ts', 'utf8');
 const familyService = fs.readFileSync('src/services/preregistration-family.service.ts', 'utf8');
 const editor = fs.readFileSync('src/components/domain/PreregistrationFamilyEditor.tsx', 'utf8');
+assert.ok(afterLinkMigration.includes("v_status NOT IN ('pending', 'linked')")
+  && afterLinkMigration.includes("v_linked_user_id IS NULL")
+  && afterLinkMigration.includes("ucapsa_intake.append_family_for_dog")
+  && !afterLinkMigration.includes("GRANT EXECUTE"),
+  'Allow only valid linked or pending titular records; do not grant new privileges.');
+assert.ok(linkedTest.includes("Client added relative without Admin permission")
+  && linkedTest.includes("Adding family created an account")
+  && linkedTest.includes("Adding family created duplicate titular")
+  && linkedTest.includes("Duplicate was not ignored"),
+  'Test linked-user addition, permissions and no-duplicate guarantees.');
+
 const admin = fs.readFileSync('src/app/admin/preregister-dog.tsx', 'utf8');
+const adminDetail = fs.readFileSync('src/app/admin/preregistration.tsx', 'utf8');
+assert.ok(adminDetail.includes("record.status !== 'pending' && record.status !== 'linked'")
+  && adminDetail.includes("record.status === 'pending' || record.status === 'linked'"),
+  'Admin detail must allow family entry after titular links account.');
+
 const trainer = fs.readFileSync('src/app/staff/preregister-dog.tsx', 'utf8');
 const detail = fs.readFileSync('src/app/admin/preregistration.tsx', 'utf8');
 

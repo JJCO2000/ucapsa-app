@@ -129,7 +129,7 @@ export default function AdminPreregistrationDetailScreen() {
   }
 
   async function saveFamily() {
-    if (!record || record.status !== 'pending' || savingFamily || !newFamily.length) return;
+    if (!record || (record.status !== 'pending' && record.status !== 'linked') || savingFamily || !newFamily.length) return;
     setFeedback(null);
     try {
       setSavingFamily(true);
@@ -202,7 +202,7 @@ export default function AdminPreregistrationDetailScreen() {
               ni consultar fotografías de otras personas.
             </Text>
           </View>
-          {record.status === 'pending' ? (
+          {(record.status === 'pending' || record.status === 'linked') ? (
             <>
               <PreregistrationFamilyEditor value={newFamily} onChange={setNewFamily} disabled={savingFamily} />
               {newFamily.length > 0 ? (
