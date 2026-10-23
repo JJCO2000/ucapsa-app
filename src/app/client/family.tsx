@@ -1,0 +1,160 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { Redirect, router } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
+import { ucapsaBrand } from '../../constants/brand';
+import { useSession } from '../../hooks/useSession';
+import { devWarn } from '../../lib/client-diagnostics';
+import {
+  getMyFamilyAccountLinks, getMyFamilyProgress, setMyFamilyConsent,
+  type FamilyAccountLink, type FamilyProgress,
+} from '../../services/family-account-links.service';
+
+export default function MyFamilyScreen() {
+  const { user, loading: sessionLoading } = useSession();
+  const [links, setLinks] = useState<FamilyAccountLink[]>([]);
+  const [progress, setProgress] = useState<FamilyProgress[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [notice, setNotice] = useState('');
+
+  const load = useCallback(async () => {
+    try {
+      const [related, summary] = await Promise.all([
+        getMyFamilyAccountLinks(), getMyFamilyProgress(),
+      ]);
+      setLinks(related);
+      setProgress(summary);
+      setNotice('');
+    } catch (error) {
+      devWarn('family: failed to read consent or progress.', error);
+      setNotice('No pudimos actualizar la información familiar. Revisa tu conexión.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (sessionLoading || !user) return;
+    setLoading(true);
+    void load();
+  }, [load, sessionLoading, user?.id]);
+
+  async function changeConsent(link: FamilyAccountLink) {
+    if (busyId) return;
+    setBusyId(link.id);
+    setNotice('');
+    try {
+      await setMyFamilyConsent(link.id, !link.myAccepted);
+      await load();
+    } catch (error) {
+      devWarn('family: consent update failed.', error);
+      setNotice('No pudimos guardar tu decisión. Inténtalo de nuevo.');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  if (sessionLoading) {
+    return <KeyboardAwareScreen><ActivityIndicator /></KeyboardAwareScreen>;
+  }
+  if (!user) return <Redirect href="/auth/login" />;
+  return (
+    <KeyboardAwareScreen>
+      <Pressable accessibilityRole="button" style={styles.back} onPress={() => router.back()}>
+        <MaterialIcons name="arrow-back" size={21} color={ucapsaBrand.colors.redDark} />
+        <Text style={styles.backText}>Perfil</Text>
+      </Pressable>
+      <Text style={styles.title}>Mi familia</Text>
+      <Text style={styles.intro}>
+        Cada persona conserva su cuenta y sus perros. Compartir el progreso es opcional
+        y solo permite consultar nombres, programas, niveles y asistencias.
+      </Text>
+      <Text style={styles.hint}>
+        No se comparten pagos, credenciales, fotos privadas ni la posibilidad de modificar
+        perros o inscripciones. Estar en una familia tampoco activa una membresía compartida.
+      </Text>
+      {notice ? <Text accessibilityRole="alert" style={styles.error}>{notice}</Text> : null}
+      {loading ? <ActivityIndicator color={ucapsaBrand.colors.red} style={{ marginTop: 16 }} /> : (
+        <>
+          {!links.length ? (
+            <View style={styles.card}>
+              <Text style={styles.subtitle}>Sin vinculaciones</Text>
+              <Text style={styles.hint}>
+                Si Administración registró a tu familia, podrá autorizar el vínculo
+                cuando ambos tengan su cuenta. No es necesario verificar el correo.
+              </Text>
+            </View>
+          ) : links.map((link) => (
+            <View key={link.id} style={styles.card}>
+              <Text style={styles.subtitle}>{link.otherName}</Text>
+              <Text style={styles.hint}>
+                {link.myRole === 'titular' ? 'Integrante de tu familia' : 'Titular de la familia'}
+              </Text>
+              <Text style={styles.state}>
+                {link.active ? 'Progreso compartido' :
+                  link.myAccepted ? 'Esperando a la otra persona' : 'Esperando tu autorización'}
+              </Text>
+              <Pressable accessibilityRole="button"
+                accessibilityLabel={(link.myAccepted ? 'Dejar de compartir progreso con ' :
+                  'Autorizar compartir progreso con ') + link.otherName}
+                disabled={Boolean(busyId)} style={[styles.button, Boolean(busyId) && styles.disabled]}
+                onPress={() => { void changeConsent(link); }}>
+                <Text style={styles.buttonText}>
+                  {busyId === link.id ? 'Guardando…' :
+                    link.myAccepted ? 'Dejar de compartir' : 'Autorizar compartir progreso'}
+                </Text>
+              </Pressable>
+              <Text style={styles.hint}>
+                {link.myAccepted
+                  ? 'Puedes retirar tu autorización aquí cuando quieras.'
+                  : 'Solo verán el progreso cuando ambos acepten.'}
+              </Text>
+            </View>
+          ))}
+          {progress.length > 0 ? (
+            <>
+              <Text style={styles.section}>Progreso de familiares</Text>
+              {progress.map((item, index) => (
+                <View key={index} style={styles.card}>
+                  <Text style={styles.subtitle}>{item.dogName}</Text>
+                  <Text style={styles.hint}>De: {item.ownerName}</Text>
+                  <Text style={styles.state}>
+                    {item.programName
+                      ? item.programName + (item.programLevel ? ' · ' + item.programLevel : '') +
+                        (item.attendancesCount !== null ? ' · ' + item.attendancesCount + ' asistencias' : '')
+                      : 'Sin clases registradas'}
+                  </Text>
+                </View>
+              ))}
+            </>
+          ) : null}
+          <Pressable accessibilityRole="button" onPress={() => { setLoading(true); void load(); }}
+            style={styles.refresh}><Text style={styles.refreshText}>Actualizar familia</Text></Pressable>
+        </>
+      )}
+    </KeyboardAwareScreen>
+  );
+}
+const styles = StyleSheet.create({
+  back: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
+  backText: { color: ucapsaBrand.colors.redDark, fontWeight: '800' },
+  title: { color: ucapsaBrand.colors.text, fontSize: 28, fontWeight: '900' },
+  intro: { color: ucapsaBrand.colors.text, fontSize: 14, lineHeight: 21, marginTop: 12 },
+  hint: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 19, marginTop: 8 },
+  card: { backgroundColor: ucapsaBrand.colors.surface,
+    borderColor: ucapsaBrand.colors.border, borderWidth: 1,
+    borderRadius: 16, padding: 16, marginTop: 14 },
+  subtitle: { color: ucapsaBrand.colors.text, fontWeight: '900', fontSize: 16 },
+  state: { color: ucapsaBrand.colors.greenDark, fontWeight: '800', fontSize: 13, marginTop: 11 },
+  button: { backgroundColor: ucapsaBrand.colors.greenDark, minHeight: 49,
+    marginTop: 15, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  buttonText: { color: ucapsaBrand.colors.surface, fontSize: 14, fontWeight: '900' },
+  disabled: { opacity: 0.6 },
+  error: { color: ucapsaBrand.colors.danger, fontSize: 13, marginTop: 12 },
+  section: { color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '900', marginTop: 20 },
+  refresh: { paddingVertical: 16, alignItems: 'center' },
+  refreshText: { color: ucapsaBrand.colors.redDark, fontWeight: '800', fontSize: 13 },
+});
