@@ -28,6 +28,7 @@ export type FamilyAccountLink = {
   otherAccepted: boolean;
   active: boolean;
   noticeAvailable: boolean;
+  myConsentRecorded: boolean;
 };
 export type FamilyProgress = {
   ownerName: string;
@@ -77,6 +78,7 @@ export async function getMyFamilyAccountLinks(): Promise<FamilyAccountLink[]> {
       myAccepted: r.my_accepted === true,
       otherAccepted: r.other_accepted === true, active: r.active === true,
       noticeAvailable: r.notice_available === true,
+      myConsentRecorded: r.my_consent_recorded === true,
     };
   });
 }
