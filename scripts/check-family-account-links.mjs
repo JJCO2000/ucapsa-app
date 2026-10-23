@@ -26,6 +26,14 @@ for (const fragment of [
   'head_consented_at IS NOT NULL AND l.relative_consented_at IS NOT NULL',
   'ON ucapsa_intake.family_account_links',
   'admin_audit_logs',
+  'head_notice_version text',
+  'relative_notice_version text',
+  'ucapsa_intake.current_family_progress_notice_version()',
+  "position('progreso familiar' IN lower(coalesce(p.integral_notice,'')))",
+  "position('revocar' IN lower(coalesce(p.integral_notice,'')))",
+  'l.head_notice_version=n.version AND l.relative_notice_version=n.version',
+  'head_notice_version=CASE WHEN p_accept THEN v_notice_version ELSE NULL END',
+  'relative_notice_version=CASE WHEN p_accept THEN v_notice_version ELSE NULL END',
 ]) assert.ok(sql.includes(fragment),'Missing DB protection: '+fragment);
 
 assert.ok(sql.includes('l.head_consented_at IS NOT NULL AND l.relative_consented_at IS NOT NULL'),
@@ -43,6 +51,10 @@ for (const forbidden of ['email_key AS', 'phone_e164 AS', 'payment_amount',
   'photo_path AS','update public.dogs','UPDATE public.program_enrollments']) {
   assert.ok(!sql.includes(forbidden), 'Read-only boundary breached: '+forbidden);
 }
+assert.ok(client.includes("router.push('/privacy' as never)")
+  && client.includes('tendrás')
+  && client.includes('volver a autorizarlo'),
+  'Consent view must explain notice renewal and offer actual privacy notice.');
 assert.ok(client.includes('loadedForUserId !== user.id')
   && client.includes('requestId !== requestIdRef.current')
   && client.includes('setLinks([])')
@@ -64,7 +76,8 @@ assert.ok(svc.includes("'admin_preview_family_account'")
   && svc.includes("'set_my_family_progress_consent'")
   && svc.includes("'get_my_family_progress'"),
   'App must use official RPC for family links, not directly access private tables.');
-for (const name of ['client_denied','no_claim','head_approval','relative_approval',
+for (const name of ['reject_old_notice','invalidate_old_consent','no_partial_renewal',
+  'client_denied','no_claim','head_approval','relative_approval',
   'read_relative','read_head','stranger','withdrawn','final']) {
   assert.ok(e2e.includes(name), 'Missing test case: '+name);
 }
