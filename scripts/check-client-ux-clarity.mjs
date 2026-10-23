@@ -311,6 +311,18 @@ for (const feature of [
 ]) {
   if (!helpPage.includes(feature)) throw new Error('Tutorial voluntario perdió navegación o permisos: ' + feature);
 }
+for (const token of [
+  'accessibilityRole="tab"',
+  'accessibilityState={{ selected }}',
+  'onPress={() => setStep(index)}',
+  'clientHelpGuides.map((item, index)',
+  'accessibilityLabel={`Conocer ${item.title}`}',
+  'onPress={() => finish(guide.route)}',
+]) {
+  if (!helpPage.includes(token)) {
+    throw new Error('La guía debe permitir elegir las cinco pestañas y abrir una acción real: ' + token);
+  }
+}
 if (helpPage.includes('require(') || helpPage.includes('Image source')) {
   throw new Error('Tutorial general no debe depender de capturas fijas de otras apps.');
 }
