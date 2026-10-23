@@ -225,7 +225,6 @@ export default function TrainerClassesTab() {
               await load();
             } catch (cause) {
               devWarn('trainer-roster: could not register attendance.', cause);
-              devWarn('trainer-roster: could not mark absence.', cause);
               showStaffDialog('No se pudo registrar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
             } finally {
               setBusyId(null);
@@ -285,6 +284,7 @@ export default function TrainerClassesTab() {
               });
               await load();
             } catch (cause) {
+              devWarn('trainer-roster: could not mark absence.', cause);
               showStaffDialog('No se pudo registrar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
             } finally {
               setBusyId(null);
