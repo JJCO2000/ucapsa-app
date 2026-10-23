@@ -20,6 +20,9 @@ export function normalizeFamilyMembers(members: FamilyMemberInput[]) {
     if (full_name.length < 2 || full_name.length > 120 || /[\x00-\x1F\x7F]/.test(full_name)) {
       throw new Error('Escribe el nombre completo del integrante ' + (index + 1) + '.');
     }
+    if (!email && !phone) {
+      throw new Error('Agrega correo o celular del integrante ' + (index + 1) + '.');
+    }
     if (email && (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
       throw new Error('Revisa el correo del integrante ' + (index + 1) + '.');
     }
