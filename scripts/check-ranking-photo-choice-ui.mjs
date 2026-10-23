@@ -47,7 +47,7 @@ for(const token of [
   'setMyRankingPhotoChoice(dogId, nextEnabled)',
   '!imageEnabled',
 ]) assert.ok(component.includes(token),'Missing explicit choice guard: '+token);
-for(const token of ['<RankingPhotoChoice','photoPath={profile.photo_path}','avatarKey={avatarKey}','photoUrl={photoUrl}']) {
+for(const token of ['<RankingPhotoChoice','photoPath={profile?.photo_path ?? null}','avatarKey={avatarKey}','photoUrl={photoUrl}']) {
   assert.ok(profile.includes(token),'Profile must connect choice to owned dog: '+token);
 }
 assert.ok(!svc.includes('createSignedUrl(') && !component.includes('getPublicUrl('),
