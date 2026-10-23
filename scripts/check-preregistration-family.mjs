@@ -4,6 +4,10 @@ import vm from 'node:vm';
 import ts from 'typescript';
 
 const migration = fs.readFileSync('supabase/migrations/20261023040000_preregistration_family_capture.sql', 'utf8');
+const contactMigration = fs.readFileSync('supabase/migrations/20261023053000_require_family_contact.sql', 'utf8');
+assert.ok(contactMigration.includes('intake_family_contact_required')
+  && contactMigration.includes('v_email IS NULL AND v_phone IS NULL')
+  && contactMigration.includes('auth.uid()'), 'Family identity requires contact on server.');
 const service = fs.readFileSync('src/services/dog-preregistration.service.ts', 'utf8');
 const familyService = fs.readFileSync('src/services/preregistration-family.service.ts', 'utf8');
 const editor = fs.readFileSync('src/components/domain/PreregistrationFamilyEditor.tsx', 'utf8');
@@ -45,7 +49,8 @@ assert.ok(service.includes('normalizeFamilyMembers(input.familyMembers ?? [])')
   'Old and new role-specific preregistration paths must remain available.');
 assert.ok(editor.includes('Añadir integrante') && editor.includes('Guardar integrante')
   && editor.includes('onChange([...value,') && editor.includes('remove(index)')
-  && editor.includes('Celular (opcional)') && editor.includes('Correo (opcional)'),
+  && editor.includes('Celular (correo o celular obligatorio)')
+  && editor.includes('Correo (correo o celular obligatorio)'),
   'Family UI needs repeatable editable cards, without mandatory contact.');
 assert.ok(editor.includes('if (value.length === 0)')
   && editor.includes('setEditingIndex(null)')
@@ -85,8 +90,9 @@ vm.runInNewContext(transpiled, {
 const normalize = moduleRef.exports.normalizeFamilyMembers;
 assert.deepEqual(JSON.parse(JSON.stringify(normalize([{fullName:'  María Pérez  ', email:' MARIA@EXAMPLE.COM ', phone:'5535100214'}]))),
   [{full_name:'María Pérez',email:'maria@example.com',phone:'+525535100214'}]);
-assert.deepEqual(JSON.parse(JSON.stringify(normalize([{fullName:'Ana Ruiz',email:'',phone:''}]))),
-  [{full_name:'Ana Ruiz',email:'',phone:''}]);
+assert.deepEqual(JSON.parse(JSON.stringify(normalize([{fullName:'Ana Ruiz',email:'ana@ejemplo.mx',phone:''}]))),
+  [{full_name:'Ana Ruiz',email:'ana@ejemplo.mx',phone:''}]);
+assert.throws(() => normalize([{fullName:'Ana Ruiz',email:'',phone:''}]), /correo o celular/i);
 assert.throws(() => normalize([{fullName:'',email:'',phone:''}]));
 assert.throws(() => normalize([{fullName:'Ana Ruiz',email:'bad',phone:''}]));
 assert.throws(() => normalize([{fullName:'Ana Ruiz',email:'',phone:'123'}]));

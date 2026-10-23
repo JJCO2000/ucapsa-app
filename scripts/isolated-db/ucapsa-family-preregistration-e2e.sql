@@ -44,7 +44,7 @@ select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000005'
 select public.staff_preregister_dog_with_family(
   'Trainer Owner','trainer-family@test.invalid','+525555511111','Koda',
   'comandos','principiante',
-  '[{"full_name":"Paula Ruiz","email":"","phone":""},{"full_name":"Mario Ruiz","email":"mario@test.invalid","phone":"+525555522222"}]'::jsonb);
+  '[{"full_name":"Paula Ruiz","email":"paula@test.invalid","phone":""},{"full_name":"Mario Ruiz","email":"mario@test.invalid","phone":"+525555522222"}]'::jsonb);
 do $trainer_denied$
 declare denied boolean := false;
 begin
@@ -87,7 +87,7 @@ begin
     raise exception 'Admin family detail cannot read captured members';
   end if;
   if public.admin_add_preregistered_family_members(
-    v_id,'[{"full_name":"Andrea López","phone":"","email":"andrea@test.invalid"},{"full_name":"Ricardo López"}]'::jsonb)<>1 then
+    v_id,'[{"full_name":"Andrea López","phone":"","email":"andrea@test.invalid"},{"full_name":"Ricardo López","email":"ricardo@test.invalid"}]'::jsonb)<>1 then
     raise exception 'Append must deduplicate existing and insert one new person';
   end if;
   if (select count(*) from public.admin_get_preregistered_family_members(v_id))<>2 then
@@ -132,4 +132,21 @@ begin
     raise exception 'Unauthorized family insert was not rolled back';
   end if;
 end $final$;
+-- Invalid contacts are rejected by the database as well as by the UI.
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
+do $reject_empty_contact$
+declare v_id uuid; denied boolean := false;
+begin
+  select intake_program_id into v_id
+    from public.admin_get_preregistered_program_records(null::uuid)
+    where owner_email='admin-family@test.invalid' limit 1;
+  begin
+    perform public.admin_add_preregistered_family_members(
+      v_id,'[{"full_name":"Without Contact","email":"","phone":""}]'::jsonb);
+  exception when invalid_parameter_value or check_violation then denied:=true;
+  end;
+  if not denied then raise exception 'Family member without contact was accepted'; end if;
+end $reject_empty_contact$;
+reset role;
 select 'UCAPSA family pre-enrollment isolated e2e: PASS' as result;
