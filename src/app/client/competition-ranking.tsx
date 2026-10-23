@@ -354,6 +354,7 @@ export default function ClientCompetitionRankingScreen() {
             {myRows.length > 0 ? (
               <View style={styles.myDogsBlock}>
                 <Text style={[styles.sectionTitle, { color: format.cardText }]}>Tus perros</Text>
+                <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Solo tú ves sus fotos aquí. Los demás ven sus avatares.</Text>
                 {myRows.map(({ dog, row, season }) => (
                   <View key={dog.id} style={[styles.myCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
                     <RankingDogAvatar
