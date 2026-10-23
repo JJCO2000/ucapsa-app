@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
@@ -9,6 +9,7 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
+import { devWarn } from '../../lib/client-diagnostics';
 import {
   getCachedMyOfficialExamDetail,
   refreshMyOfficialExamDetail,
@@ -32,49 +33,80 @@ export default function ClientCompetitionExamResultScreen() {
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
   const premium = format.key === 'member';
 
-  const [detail, setDetail] = useState<ClientOfficialExamDetail | null>(null);
-  const [localReady, setLocalReady] = useState(false);
+  const userId = user?.id ?? '';
+  const resultKey = !isAdmin && userId && dogId && attemptId
+    ? [userId, dogId, attemptId].join(':') : '';
+  const activeResultKeyRef = useRef(resultKey);
+  activeResultKeyRef.current = resultKey;
+  const loadRunRef = useRef(0);
+  const [storedDetail, setStoredDetail] = useState<ClientOfficialExamDetail | null>(null);
+  const [loadedForKey, setLoadedForKey] = useState<string | null>(null);
+  const [readyForKey, setReadyForKey] = useState<string | null>(null);
   const [usingSavedData, setUsingSavedData] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Even on the first render after a route/account change, never paint old results.
+  const detail = resultKey && loadedForKey === resultKey ? storedDetail : null;
+  const localReady = readyForKey === resultKey;
 
   const load = useCallback(async () => {
-    if (!user || isAdmin || !dogId || !attemptId) {
-      setLocalReady(true);
+    const runId = ++loadRunRef.current;
+    const isCurrentRun = () => loadRunRef.current === runId
+      && activeResultKeyRef.current === resultKey;
+    if (!userId || isAdmin) return;
+
+    setStoredDetail(null);
+    setLoadedForKey(null);
+    setReadyForKey(null);
+    setError(null);
+    setUsingSavedData(false);
+    setSavedAt(null);
+
+    if (!dogId || !attemptId) {
+      setError('Falta identificar el examen oficial solicitado.');
+      setReadyForKey(resultKey);
       return;
     }
 
-    setError(null);
-    setUsingSavedData(false);
-
-    const cached = await getCachedMyOfficialExamDetail(user.id, dogId, attemptId);
+    let cached: Awaited<ReturnType<typeof getCachedMyOfficialExamDetail>> = null;
+    try {
+      cached = await getCachedMyOfficialExamDetail(userId, dogId, attemptId);
+    } catch (cause) {
+      devWarn('client-exam-result: local cache could not be read.', cause);
+    }
+    if (!isCurrentRun()) return;
     if (cached) {
-      setDetail(cached.data);
+      setStoredDetail(cached.data);
+      setLoadedForKey(resultKey);
       setSavedAt(cached.saved_at);
-      setLocalReady(true);
     }
 
     try {
-      const fresh = await refreshMyOfficialExamDetail(user.id, dogId, attemptId);
-      setDetail(fresh.data);
+      const fresh = await refreshMyOfficialExamDetail(userId, dogId, attemptId);
+      if (!isCurrentRun()) return;
+      setStoredDetail(fresh.data);
+      setLoadedForKey(resultKey);
       setSavedAt(fresh.saved_at);
       setUsingSavedData(false);
-      setLocalReady(true);
     } catch (cause) {
-      setLocalReady(true);
+      if (!isCurrentRun()) return;
       if (cached) {
         setUsingSavedData(true);
         setSavedAt(cached.saved_at);
       } else {
+        setStoredDetail(null);
+        setLoadedForKey(null);
         setError(cause instanceof Error ? cause.message : 'No se pudo cargar el examen.');
       }
+    } finally {
+      if (isCurrentRun()) setReadyForKey(resultKey);
     }
-  }, [attemptId, dogId, isAdmin, user]);
+  }, [attemptId, dogId, isAdmin, resultKey, userId]);
 
   useFocusEffect(useCallback(() => {
     void load();
-    return undefined;
+    return () => { loadRunRef.current += 1; };
   }, [load]));
 
   async function refresh() {
@@ -101,7 +133,7 @@ export default function ClientCompetitionExamResultScreen() {
         <Text style={[styles.subtitle, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{detail?.dog_name || 'Tu perro'}</Text>
       </View>
 
-      {usingSavedData ? (
+      {usingSavedData && detail ? (
         <OfflineDataNotice
           savedAt={savedAt}
           onRetry={() => void refresh()}
@@ -117,7 +149,7 @@ export default function ClientCompetitionExamResultScreen() {
         </View>
       ) : null}
 
-      {error ? (
+      {error && localReady ? (
         <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
           <MaterialIcons name="cloud-off" size={24} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
           <Text style={[styles.cardTitle, { color: format.cardText }]}>No pudimos cargar el resultado</Text>
