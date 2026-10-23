@@ -7,6 +7,7 @@ import { Calendar, type DateData } from 'react-native-calendars';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { showStaffDialog } from '../../utils/staff-dialog';
+import { devWarn } from '../../lib/client-diagnostics';
 import { preregistrationEnabled } from '../../constants/preregistrationFeature';
 import { getStaffIntroAgendaPlans, type StaffIntroVisit } from '../../services/intro-class-agenda.service';
 import { getProgramClassCancellations } from '../../services/program-cancellations.service';
@@ -223,6 +224,8 @@ export default function TrainerClassesTab() {
               });
               await load();
             } catch (cause) {
+              devWarn('trainer-roster: could not register attendance.', cause);
+              devWarn('trainer-roster: could not mark absence.', cause);
               showStaffDialog('No se pudo registrar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
             } finally {
               setBusyId(null);
@@ -250,6 +253,7 @@ export default function TrainerClassesTab() {
               });
               await load();
             } catch (cause) {
+              devWarn('trainer-roster: could not register preregistered attendance.', cause);
               showStaffDialog('No se pudo registrar',
                 cause instanceof Error ? cause.message : 'Solicita revisión a Administración.');
             } finally {
@@ -306,6 +310,7 @@ export default function TrainerClassesTab() {
               await requestMembershipReviewFromStaff(row.userId, `Solicitud enviada desde clase con ${row.dogName}.`);
               showStaffDialog('Solicitud enviada', 'Administración la verá en la cola de membresías pendientes.');
             } catch (cause) {
+              devWarn('trainer-roster: could not request membership review.', cause);
               showStaffDialog('No se pudo enviar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
             } finally {
               setBusyId(null);
