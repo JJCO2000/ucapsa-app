@@ -71,6 +71,15 @@ export default function ProfileScreen() {
           onPress={() => router.push('/dog?from=profile' as never)}
         />
 
+        <HubRow
+          icon="family-restroom"
+          title="Mi familia"
+          subtitle="Vinculación y progreso compartido con autorización."
+          premium={premium}
+          format={format}
+          onPress={() => router.push('/client/family' as never)}
+        />
+
         <Text style={[styles.sectionTitle, { color: format.accentDark }]}>Mi progreso</Text>
         <HubRow
           icon="emoji-events"
