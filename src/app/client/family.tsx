@@ -117,9 +117,17 @@ export default function MyFamilyScreen() {
                 {link.myRole === 'titular' ? 'Integrante de tu familia' : 'Titular de la familia'}
               </Text>
               <Text style={styles.state}>
-                {link.active ? 'Progreso compartido' :
+                {!link.noticeAvailable ? 'Consulta familiar aún no disponible' :
+                  link.active ? 'Progreso compartido' :
                   link.myAccepted ? 'Esperando a la otra persona' : 'Esperando tu autorización'}
               </Text>
+              {!link.noticeAvailable ? (
+                <Text style={styles.hint}>
+                  Cuando se publique el aviso correspondiente, podrás decidir si
+                  compartes el progreso. Ningún dato se comparte por ahora.
+                </Text>
+              ) : null}
+              {link.noticeAvailable ? (
               <Pressable accessibilityRole="button"
                 accessibilityLabel={(link.myAccepted ? 'Dejar de compartir progreso con ' :
                   'Autorizar compartir progreso con ') + link.otherName}
@@ -130,6 +138,7 @@ export default function MyFamilyScreen() {
                     link.myAccepted ? 'Dejar de compartir' : 'Autorizar compartir progreso'}
                 </Text>
               </Pressable>
+              ) : null}
               <Text style={styles.hint}>
                 {link.myAccepted
                   ? 'Puedes retirar tu autorización aquí cuando quieras.'
