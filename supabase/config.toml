@@ -13,3 +13,7 @@ verify_jwt = false
 # MVP: pública para permitir login antes de obtener JWT; GoTrue valida contraseña.
 [functions.phone-password-login]
 verify_jwt = false
+
+# Only authenticated clients may retrieve a consented Ranking thumbnail.
+[functions.dog-ranking-photo]
+verify_jwt = true
