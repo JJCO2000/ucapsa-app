@@ -246,3 +246,34 @@ AS $function$
 $function$;
 REVOKE ALL ON FUNCTION public.get_my_family_progress() FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.get_my_family_progress() TO authenticated;
+
+
+-- Administración revoca relaciones erróneas; nunca expone datos después de revocar.
+CREATE OR REPLACE FUNCTION public.admin_revoke_family_account(
+  p_family_member_id uuid,p_reason text
+)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
+AS $function$
+DECLARE v_id uuid;
+BEGIN
+  IF auth.uid() IS NULL OR NOT public.is_ucapsa_admin() THEN
+    RAISE EXCEPTION 'Solo Administración puede revocar esta vinculación.' USING errcode='42501';
+  END IF;
+  IF length(btrim(coalesce(p_reason,''))) NOT BETWEEN 12 AND 400 THEN
+    RAISE EXCEPTION 'Escribe el motivo de la corrección (mínimo 12 caracteres).' USING errcode='22023';
+  END IF;
+  UPDATE ucapsa_intake.family_account_links
+    SET revoked_at=clock_timestamp(),head_consented_at=NULL,relative_consented_at=NULL
+    WHERE family_member_id=p_family_member_id AND revoked_at IS NULL
+    RETURNING id INTO v_id;
+  IF v_id IS NULL THEN
+    RAISE EXCEPTION 'No existe una vinculación familiar activa para revocar.' USING errcode='22023';
+  END IF;
+  INSERT INTO public.admin_audit_logs(admin_user_id,action,entity_type,entity_id,details)
+    VALUES (auth.uid(),'family.account_revoked','family_account_link',v_id,
+      jsonb_build_object('reason',btrim(p_reason)));
+  RETURN jsonb_build_object('status','revoked');
+END;
+$function$;
+REVOKE ALL ON FUNCTION public.admin_revoke_family_account(uuid,text) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.admin_revoke_family_account(uuid,text) TO authenticated;
