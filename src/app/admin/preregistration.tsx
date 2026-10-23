@@ -9,6 +9,7 @@ import { previewAdminFamilyAccount,authorizeAdminFamilyAccount,revokeAdminFamily
   type FamilyAccountPreview } from '../../services/family-account-links.service';
 import { getAdminPreregisteredFamily, addAdminPreregisteredFamily,
   type FamilyMemberInput, type FamilyMemberSaved } from '../../services/preregistration-family.service';
+import { familyAccountLinksEnabled } from '../../constants/familyAccountLinksFeature';
 import { ucapsaBrand } from '../../constants/brand';
 import { preregistrationDirectoryEnabled } from '../../constants/preregistrationFeature';
 import { useSession } from '../../hooks/useSession';
@@ -236,7 +237,7 @@ export default function AdminPreregistrationDetailScreen() {
                 <Text style={styles.hint}>
                   {[member.phone, member.email].filter(Boolean).join(' · ') || 'Sin contacto adicional'}
                 </Text>
-                {record.status === 'linked' ? (
+                {familyAccountLinksEnabled && record.status === 'linked' ? (
                   <Pressable accessibilityRole="button" style={styles.secondary}
                     disabled={linkFamilyBusy} onPress={() => { void previewFamilyAccount(member.id); }}>
                     <Text style={styles.secondaryText}>Revisar cuenta de {member.fullName}</Text>
@@ -248,7 +249,7 @@ export default function AdminPreregistrationDetailScreen() {
               Este listado es provisional. No permite entrar a cuentas, utilizar la membresía
               ni consultar fotografías de otras personas.
             </Text>
-            {linkMemberId && accountPreview ? (
+            {familyAccountLinksEnabled && linkMemberId && accountPreview ? (
               <View style={styles.card}>
                 <Text style={styles.groupTitle}>Vincular familiar</Text>
                 <Text style={styles.hint}>
