@@ -316,6 +316,9 @@ export default function DogProfileScreen() {
               )}
               <View style={styles.photoCopy}>
                 <Text style={[styles.sectionTitle, { color: format.cardText }]}>Foto de {draft.name || 'tu perro'}</Text>
+                <Text style={{ color: format.muted, fontSize: 12, lineHeight: 17 }}>
+                  Esta foto es privada. En Ranking y Competencia los demás ven su avatar.
+                </Text>
               </View>
             </View>
             <View style={styles.photoActions}>
