@@ -94,7 +94,7 @@ export type StaffPreregistrationInput = Pick<PreregisteredProgramInput,
 export async function staffPreregisterDogWithProgram(input: StaffPreregistrationInput): Promise<string> {
   if (!preregistrationEnabled) throw new Error('La preinscripción todavía no está habilitada.');
   const rpc = supabase.rpc.bind(supabase) as unknown as (
-    name: 'staff_preregister_dog_with_program',
+    name: 'staff_preregister_dog_with_program' | 'staff_preregister_dog_with_family',
     args: Record<string, unknown>,
   ) => PromiseLike<RpcOutcome>;
   const family = normalizeFamilyMembers(input.familyMembers ?? []);
