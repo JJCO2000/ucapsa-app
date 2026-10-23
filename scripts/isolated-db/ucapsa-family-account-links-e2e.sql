@@ -54,6 +54,24 @@ BEGIN
 END $head_claim$;
 RESET ROLE;
 
+-- Even if the titular is already linked, Administración may add another relative.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
+DO $late_family$
+DECLARE v_id uuid; created integer;
+BEGIN
+  SELECT intake_program_id INTO v_id
+    FROM public.admin_get_preregistered_program_records(null::uuid)
+    WHERE owner_email='family-head@test.invalid' LIMIT 1;
+  created:=public.admin_add_preregistered_family_members(v_id,
+    '[{"full_name":"Late Relative","phone":"+525555533344"}]'::jsonb);
+  IF created<>1 OR
+     (SELECT count(*) FROM public.admin_get_preregistered_family_members(v_id))<>2 THEN
+    RAISE EXCEPTION 'Cannot add family after titular account linked';
+  END IF;
+END $late_family$;
+RESET ROLE;
+
 -- Relative can own a completely separate dog and progress history.
 INSERT INTO public.dogs(user_id,name)
 VALUES ('00000000-0000-4000-8000-000000000972','Rex');
