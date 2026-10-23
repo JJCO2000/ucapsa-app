@@ -26,6 +26,15 @@ const groupRoster = loadModule(excerpt, {
 }).groupRoster;
 assert.equal(typeof groupRoster, 'function');
 
+
+for (const token of [
+  "const canMarkAttendance = dateKey === today && !loading && !error",
+  "if (row.attended || busyId || loading || error || dateKey !== localDateKey()) return;",
+  "if (row.absent || row.attended || busyId || loading || error || dateKey !== localDateKey()) return;",
+  "if (busyId || loading || error || stagedWarning || row.attended",
+]) {
+  assert.ok(source.includes(token), 'Attendance must not mutate on stale/unverified roster: ' + token);
+}
 const date = '2026-10-18'; // Sunday
 const programs = [
   { id: 'puppy', code: 'puppy', is_active: true },
