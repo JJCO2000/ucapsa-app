@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -41,7 +41,13 @@ type AttendanceEntry = {
 export default function AttendanceHistoryScreen() {
   const { enrollmentId } = useLocalSearchParams<{ enrollmentId?: string }>();
   const { user, role, isAdmin } = useSession();
-  const [rows, setRows] = useState<ProgramEnrollmentWithDetails[]>([]);
+  const [storedRows, setRows] = useState<ProgramEnrollmentWithDetails[]>([]);
+  const [loadedForUserId, setLoadedForUserId] = useState<string | null>(null);
+  const loadRunRef = useRef(0);
+  const activeUserIdRef = useRef(user?.id ?? null);
+  activeUserIdRef.current = user?.id ?? null;
+  // Hide even cached rows synchronously when the signed-in account changes.
+  const rows = loadedForUserId === user?.id ? storedRows : [];
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,31 +66,50 @@ export default function AttendanceHistoryScreen() {
   const premium = format.key === 'member';
 
   const load = useCallback(async () => {
-    if (!user || isAdmin) return;
+    const runId = ++loadRunRef.current;
+    const userId = user?.id;
+    if (!userId || isAdmin) return;
+    const isCurrentRun = () => loadRunRef.current === runId
+      && activeUserIdRef.current === userId;
     setError(null);
     setUsingSavedData(false);
 
-    const cached = await readClientResource<ProgramEnrollmentWithDetails[]>(user.id, clientReadKeys.programs);
+    const cached = await readClientResource<ProgramEnrollmentWithDetails[]>(userId, clientReadKeys.programs);
+    if (!isCurrentRun()) return;
     if (cached) {
       setRows(cached.data);
+      setLoadedForUserId(userId);
       setSavedAt(cached.saved_at);
       setLoading(false);
     }
 
     try {
       const freshRows = await withOperationTimeout(getMyProgramEnrollments(), DEFAULT_READ_TIMEOUT_MS, 'attendance-history');
+      if (!isCurrentRun()) return;
       setRows(freshRows);
-      const stored = await writeClientResource(user.id, clientReadKeys.programs, sanitizeProgramRowsForCache(freshRows));
+      setLoadedForUserId(userId);
+      const stored = await writeClientResource(userId, clientReadKeys.programs, sanitizeProgramRowsForCache(freshRows));
+      if (!isCurrentRun()) return;
       setSavedAt(stored.saved_at);
     } catch {
+      if (!isCurrentRun()) return;
       if (cached) setUsingSavedData(true);
       else setError(friendlyReadError('No se pudieron cargar tus asistencias.'));
     } finally {
-      setLoading(false);
+      if (isCurrentRun()) setLoading(false);
     }
-  }, [isAdmin, user]);
+  }, [isAdmin, user?.id]);
 
-  useFocusEffect(useCallback(() => { void load(); return undefined; }, [load]));
+  useFocusEffect(useCallback(() => {
+    setLoading(true);
+    setError(null);
+    setUsingSavedData(false);
+    setRows([]);
+    setLoadedForUserId(null);
+    setSavedAt(null);
+    void load();
+    return () => { loadRunRef.current += 1; };
+  }, [load]));
 
   const attendances = useMemo<AttendanceEntry[]>(() => {
     const sourceRows = enrollmentId ? (item ? [item] : []) : rows;
@@ -116,7 +141,7 @@ export default function AttendanceHistoryScreen() {
 
       {!loading && !error && enrollmentId && !item ? <View style={styles.empty}><Text style={[styles.title, { color: format.text }]}>Clase no encontrada</Text></View> : null}
 
-      {!error && (aggregate || item) ? (
+      {!loading && !error && (aggregate || item) ? (
         <>
           <Text style={[styles.kicker, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>{aggregate ? 'TU UCAPSA' : getProgramCodeLabel(item?.program.code ?? 'puppy')}</Text>
           <Text style={[styles.title, { color: format.text }]}>{aggregate ? 'Historial de asistencias' : 'Asistencias'}</Text>
