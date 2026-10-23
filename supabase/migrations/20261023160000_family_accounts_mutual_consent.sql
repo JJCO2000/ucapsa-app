@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS ucapsa_intake.family_account_links (
   authorized_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   head_consented_at timestamptz,
   relative_consented_at timestamptz,
+  head_notice_version text,
+  relative_notice_version text,
   revoked_at timestamptz,
   CONSTRAINT family_link_distinct_accounts CHECK (head_user_id <> relative_user_id)
 );
@@ -22,6 +24,25 @@ CREATE INDEX IF NOT EXISTS family_links_by_relative
 ALTER TABLE ucapsa_intake.family_account_links ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON ucapsa_intake.family_account_links FROM PUBLIC, anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ucapsa_intake.family_account_links TO service_role;
+
+-- The notice actually published must disclose optional family progress viewing and
+-- how the user can revoke consent. No magic version number and no fake legal approval.
+CREATE OR REPLACE FUNCTION ucapsa_intake.current_family_progress_notice_version()
+RETURNS text LANGUAGE sql STABLE SECURITY INVOKER SET search_path = ''
+AS $family_notice$
+  SELECT p.version
+  FROM (
+    SELECT version,integral_notice,simplified_notice
+      FROM public.privacy_notices
+      WHERE status='published'
+      ORDER BY published_at DESC NULLS LAST LIMIT 1
+  ) p
+  WHERE position('progreso familiar' IN lower(coalesce(p.integral_notice,'')))>0
+    AND position('revocar' IN lower(coalesce(p.integral_notice,'')))>0
+    AND position('progreso familiar' IN lower(coalesce(p.simplified_notice,'')))>0;
+$family_notice$;
+REVOKE ALL ON FUNCTION ucapsa_intake.current_family_progress_notice_version()
+  FROM PUBLIC, anon, authenticated;
 
 -- Preview uses the exact contact of the invited family member, NOT the owner's contact
 -- and no client-provided Auth UID. In-person Admin verification must follow.
@@ -126,7 +147,8 @@ BEGIN
       SET head_user_id=v_head,relative_user_id=v_candidate,
           authorized_by=auth.uid(),verification_note=v_note,
           authorized_at=clock_timestamp(),head_consented_at=NULL,
-          relative_consented_at=NULL,revoked_at=NULL
+          relative_consented_at=NULL,head_notice_version=NULL,
+          relative_notice_version=NULL,revoked_at=NULL
       WHERE id=v_link_id;
   ELSE
     INSERT INTO ucapsa_intake.family_account_links (
@@ -157,14 +179,21 @@ AS $function$
     CASE WHEN auth.uid()=l.head_user_id THEN f.full_name
       ELSE p.owner_name END AS other_name,
     CASE WHEN auth.uid()=l.head_user_id THEN 'titular' ELSE 'familiar' END AS my_role,
-    CASE WHEN auth.uid()=l.head_user_id THEN l.head_consented_at IS NOT NULL
-      ELSE l.relative_consented_at IS NOT NULL END AS my_accepted,
-    CASE WHEN auth.uid()=l.head_user_id THEN l.relative_consented_at IS NOT NULL
-      ELSE l.head_consented_at IS NOT NULL END AS other_accepted,
-    (l.head_consented_at IS NOT NULL AND l.relative_consented_at IS NOT NULL) AS active
+    CASE WHEN auth.uid()=l.head_user_id
+      THEN l.head_consented_at IS NOT NULL AND l.head_notice_version=n.version
+      ELSE l.relative_consented_at IS NOT NULL AND l.relative_notice_version=n.version
+      END AS my_accepted,
+    CASE WHEN auth.uid()=l.head_user_id
+      THEN l.relative_consented_at IS NOT NULL AND l.relative_notice_version=n.version
+      ELSE l.head_consented_at IS NOT NULL AND l.head_notice_version=n.version
+      END AS other_accepted,
+    (l.head_consented_at IS NOT NULL AND l.relative_consented_at IS NOT NULL
+      AND n.version IS NOT NULL
+      AND l.head_notice_version=n.version AND l.relative_notice_version=n.version) AS active
   FROM ucapsa_intake.family_account_links l
     JOIN ucapsa_intake.family_members f ON f.id=l.family_member_id
     JOIN ucapsa_intake.people p ON p.id=f.person_id
+    CROSS JOIN LATERAL (SELECT ucapsa_intake.current_family_progress_notice_version() AS version) n
   WHERE auth.uid() IS NOT NULL AND l.revoked_at IS NULL
     AND p.linked_user_id=l.head_user_id AND p.status='linked'
     AND auth.uid() IN (l.head_user_id,l.relative_user_id)
@@ -178,8 +207,13 @@ CREATE OR REPLACE FUNCTION public.set_my_family_progress_consent(
 )
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
 AS $function$
-DECLARE v_link ucapsa_intake.family_account_links%ROWTYPE;
+DECLARE
+  v_link ucapsa_intake.family_account_links%ROWTYPE;
+  v_notice_version text;
 BEGIN
+  IF p_accept IS NULL THEN
+    RAISE EXCEPTION 'Indica si deseas autorizar o retirar el permiso.' USING errcode='22023';
+  END IF;
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'Inicia sesión para autorizar.' USING errcode='42501';
   END IF;
@@ -193,13 +227,21 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION 'No tienes acceso a esta solicitud familiar.' USING errcode='42501';
   END IF;
+  v_notice_version := ucapsa_intake.current_family_progress_notice_version();
+  -- Revocation is always allowed, even if the notice was unpublished or replaced.
+  IF p_accept AND v_notice_version IS NULL THEN
+    RAISE EXCEPTION 'Aún no está disponible el aviso de privacidad del progreso familiar.'
+      USING errcode='22023';
+  END IF;
   IF auth.uid()=v_link.head_user_id THEN
     UPDATE ucapsa_intake.family_account_links
-      SET head_consented_at=CASE WHEN p_accept THEN clock_timestamp() ELSE NULL END
+      SET head_consented_at=CASE WHEN p_accept THEN clock_timestamp() ELSE NULL END,
+          head_notice_version=CASE WHEN p_accept THEN v_notice_version ELSE NULL END
       WHERE id=p_link_id;
   ELSE
     UPDATE ucapsa_intake.family_account_links
-      SET relative_consented_at=CASE WHEN p_accept THEN clock_timestamp() ELSE NULL END
+      SET relative_consented_at=CASE WHEN p_accept THEN clock_timestamp() ELSE NULL END,
+          relative_notice_version=CASE WHEN p_accept THEN v_notice_version ELSE NULL END
       WHERE id=p_link_id;
   END IF;
   RETURN jsonb_build_object('status','updated');
@@ -227,6 +269,8 @@ AS $function$
       AND p.status='linked' AND p.linked_user_id=l.head_user_id
       AND auth.uid() IN (l.head_user_id,l.relative_user_id)
       AND l.head_consented_at IS NOT NULL AND l.relative_consented_at IS NOT NULL
+      AND l.head_notice_version=ucapsa_intake.current_family_progress_notice_version()
+      AND l.relative_notice_version=ucapsa_intake.current_family_progress_notice_version()
   )
   SELECT coalesce(nullif(btrim(pr.full_name),''),'Integrante') AS owner_name,
     d.name AS dog_name,pro.name AS program_name,
@@ -264,7 +308,8 @@ BEGIN
     RAISE EXCEPTION 'Escribe el motivo de la corrección (mínimo 12 caracteres).' USING errcode='22023';
   END IF;
   UPDATE ucapsa_intake.family_account_links
-    SET revoked_at=clock_timestamp(),head_consented_at=NULL,relative_consented_at=NULL
+    SET revoked_at=clock_timestamp(),head_consented_at=NULL,relative_consented_at=NULL,
+        head_notice_version=NULL,relative_notice_version=NULL
     WHERE family_member_id=p_family_member_id AND revoked_at IS NULL
     RETURNING id INTO v_id;
   IF v_id IS NULL THEN
