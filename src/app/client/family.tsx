@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
+import { familyAccountLinksEnabled } from '../../constants/familyAccountLinksFeature';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import { devWarn } from '../../lib/client-diagnostics';
@@ -48,6 +49,7 @@ export default function MyFamilyScreen() {
   }, [user?.id]);
 
   useEffect(() => {
+    if (!familyAccountLinksEnabled) return;
     requestIdRef.current += 1;
     setLinks([]);
     setProgress([]);
@@ -73,6 +75,8 @@ export default function MyFamilyScreen() {
     }
   }
 
+  // Deep links must not invoke missing RPCs in an unpublished MVP feature.
+  if (!familyAccountLinksEnabled) return <Redirect href="/profile" />;
   if (sessionLoading) {
     return <KeyboardAwareScreen><ActivityIndicator /></KeyboardAwareScreen>;
   }
