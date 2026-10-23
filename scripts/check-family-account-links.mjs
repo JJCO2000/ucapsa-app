@@ -8,6 +8,17 @@ const admin = fs.readFileSync('src/app/admin/preregistration.tsx','utf8');
 const profile = fs.readFileSync('src/app/(tabs)/profile.tsx','utf8');
 const e2e = fs.readFileSync('scripts/isolated-db/ucapsa-family-account-links-e2e.sql','utf8');
 
+const feature = fs.readFileSync('src/constants/familyAccountLinksFeature.ts','utf8');
+assert.ok(/familyAccountLinksEnabled:\s*boolean\s*=\s*false\b/.test(feature),
+  'MVP must keep cross-account progress disabled until the live privacy gate is approved.');
+assert.ok(profile.includes('familyAccountLinksEnabled ? (')
+  && admin.includes("familyAccountLinksEnabled && record.status === 'linked'")
+  && admin.includes('familyAccountLinksEnabled && linkMemberId && accountPreview')
+  && client.includes('if (!familyAccountLinksEnabled) return <Redirect href="/profile" />')
+  && client.includes('if (!familyAccountLinksEnabled) return;'),
+  'All client, admin and direct-link entry points must be gated before backend deployment.');
+
+
 for (const fragment of [
   'CREATE TABLE IF NOT EXISTS ucapsa_intake.family_account_links',
   'family_member_id uuid NOT NULL UNIQUE',
