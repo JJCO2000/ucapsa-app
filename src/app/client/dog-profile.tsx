@@ -103,6 +103,7 @@ export default function DogProfileScreen() {
     setLoadedProfileKey(null);
     setDraft(EMPTY_DRAFT);
     setPhotoUrl(null);
+    setCameraOpen(false);
     setAvatarError(null);
     if (!user?.id || isAdmin || !dogId) return;
     try {
@@ -176,8 +177,11 @@ export default function DogProfileScreen() {
   }
 
   async function openCamera() {
+    if (!profile) return;
+    const requestedKey = profileKey;
     if (!cameraPermission?.granted) {
       const nextPermission = await requestCameraPermission();
+      if (activeProfileKeyRef.current !== requestedKey) return;
       if (!nextPermission.granted) {
         Alert.alert('Cámara no disponible', 'Necesitamos permiso de cámara para tomar la foto de tu perro.');
         return;
@@ -193,6 +197,7 @@ export default function DogProfileScreen() {
     try {
       const picture = await cameraRef.current.takePictureAsync({ quality: 0.45, skipProcessing: false });
       if (!picture?.uri) throw new Error('No se pudo guardar la foto.');
+      if (activeProfileKeyRef.current !== requestedKey) return;
       const uploaded = await uploadMyDogPhoto(dogId, picture.uri);
       if (activeProfileKeyRef.current !== requestedKey) return;
       setPhotoUrl(uploaded.signedUrl);
