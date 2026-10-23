@@ -80,10 +80,9 @@ select public.admin_preregister_dog_with_family(
 do $admin_view$
 declare v_id uuid;
 begin
-  select ip.id into v_id from ucapsa_intake.programs ip
-    join ucapsa_intake.dogs d on d.id=ip.dog_id
-    join ucapsa_intake.people p on p.id=d.person_id
-    where p.email_key='admin-family@test.invalid' limit 1;
+  select intake_program_id into v_id
+    from public.admin_get_preregistered_program_records(null::uuid)
+    where owner_email='admin-family@test.invalid' limit 1;
   if (select count(*) from public.admin_get_preregistered_family_members(v_id))<>1 then
     raise exception 'Admin family detail cannot read captured members';
   end if;
