@@ -5,6 +5,7 @@ import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, StyleS
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
+import { AchievementShareAction } from '../../components/domain/AchievementShareAction';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { activityAchievementDefinitions, buildActivityAchievementCollections, type ActivityAchievementCollection, type ActivityAchievementMetric } from '../../constants/activityAchievements';
@@ -137,10 +138,13 @@ export default function ActivityAchievementsScreen() {
             <View style={{ flex: 1 }}>
               <Text style={[styles.collectionEyebrow, { color: format.accentDark }]}>COLECCIÓN UCAPSA</Text>
               <Text style={[styles.collectionTitle, { color: format.cardText }]}>Tus insignias</Text>
+              <Text style={[styles.collectionSubtitle, { color: format.muted }]}>Colecciones con logros desbloqueados</Text>
             </View>
             <View style={[styles.collectionCount, { backgroundColor: format.secondaryButton }]}>
               <MaterialIcons name="military-tech" size={22} color={format.accentDark} />
-              <Text style={[styles.collectionTotal, { color: format.cardText }]}>{collections.length}</Text>
+              <Text style={[styles.collectionTotal, { color: format.cardText }]}>
+                {collections.filter((item) => item.currentLevel > 0).length}/{collections.length}
+              </Text>
             </View>
           </View>
 
@@ -191,7 +195,7 @@ export default function ActivityAchievementsScreen() {
             <ScrollView contentContainerStyle={styles.detailScroll}>
               <AchievementCollectionDetail collection={selectedCollection} />
               <Pressable accessibilityRole="button" style={styles.detailCloseButton} onPress={() => setSelectedMetric(null)}>
-                <Text style={styles.detailCloseText}>VER MIS INSIGNIAS</Text>
+                <Text style={styles.detailCloseText}>CONTINUAR</Text>
               </Pressable>
             </ScrollView>
           ) : null}
@@ -213,11 +217,17 @@ function AchievementCollectionDetail({ collection }: { collection: ActivityAchie
           <MaterialIcons name={collection.icon} size={86} color={ucapsaBrand.colors.surface} />
         </View>
       </View>
-      <Text style={styles.detailTitle}>{collection.title}</Text>
-      <Text style={styles.detailLevel}>Nivel {collection.currentLevel} de {collection.totalLevels}</Text>
+      <Text style={styles.detailCelebrationLabel}>
+        {collection.earnedDefinition ? '¡Felicidades! Insignia conseguida' : 'Tu próxima insignia'}
+      </Text>
+      <Text style={styles.detailTitle}>{collection.earnedDefinition?.title ?? collection.title}</Text>
+      <Text style={styles.detailLevel}>{collection.title} · Nivel {collection.currentLevel} de {collection.totalLevels}</Text>
       <Text style={styles.detailDescription}>
         {collection.earnedDefinition?.description ?? 'Consigue tu primer nivel para desbloquear esta insignia.'}
       </Text>
+      {collection.earnedDefinition ? (
+        <AchievementShareAction title={collection.earnedDefinition.title} />
+      ) : null}
       <View style={styles.detailStats}>
         <View style={styles.detailStat}>
           <Text style={styles.detailStatValue}>{collection.value}</Text>
@@ -265,6 +275,7 @@ const styles = StyleSheet.create({
   collectionCard: { borderWidth: 1, borderRadius: 20, padding: 17, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
   collectionEyebrow: { fontSize: 11, fontWeight: '900', letterSpacing: 0.7 },
   collectionTitle: { fontSize: 25, fontWeight: '900', marginTop: 4 },
+  collectionSubtitle: { fontSize: 11, lineHeight: 16, fontWeight: '700', marginTop: 3 },
   collectionCount: { minWidth: 63, minHeight: 55, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
   collectionTotal: { fontSize: 16, fontWeight: '900' },
   badgeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginBottom: 24 },
@@ -283,6 +294,7 @@ const styles = StyleSheet.create({
   detailGlow: { width: 166, height: 166, borderRadius: 62, alignItems: 'center', justifyContent: 'center', marginTop: 9 },
   detailMedal: { width: 140, height: 140, borderRadius: 49, borderWidth: 5, alignItems: 'center', justifyContent: 'center' },
   detailTitle: { color: ucapsaBrand.colors.surface, fontSize: 27, lineHeight: 33, fontWeight: '900', textAlign: 'center', marginTop: 4 },
+  detailCelebrationLabel: { color: ucapsaBrand.colors.goldSoft, fontSize: 14, lineHeight: 19, fontWeight: '900', textAlign: 'center', marginTop: 3 },
   detailLevel: { color: ucapsaBrand.colors.goldSoft, fontSize: 16, fontWeight: '900' },
   detailDescription: { color: ucapsaBrand.colors.redSoft, fontSize: 13, lineHeight: 19, textAlign: 'center', fontWeight: '700' },
   detailStats: { flexDirection: 'row', alignSelf: 'stretch', gap: 10, marginTop: 9 },
