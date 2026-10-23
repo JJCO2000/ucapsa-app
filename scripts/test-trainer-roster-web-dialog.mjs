@@ -5,6 +5,7 @@ import ts from 'typescript';
 
 const source=fs.readFileSync('src/utils/staff-dialog.ts','utf8');
 const screen=fs.readFileSync('src/app/(tabs)/trainer-classes.tsx','utf8');
+const examsScreen=fs.readFileSync('src/app/(tabs)/trainer-exams.tsx','utf8');
 const rendered=ts.transpileModule(source,{
   compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022},
 }).outputText;
@@ -65,4 +66,17 @@ for(const token of [
   'markStaffAbsence',
   'requestMembershipReviewFromStaff',
 ])assert.ok(screen.includes(token),'The existing trainer actions must remain connected: '+token);
-console.log('UCAPSA Trainer roster dialogs: web reject/accept/notice and native buttons PASS');
+assert.ok((examsScreen.match(/showStaffDialog\(/g)||[]).length>=18,
+  'All trainer exam prompts and errors must use cross-platform dialogs.');
+assert.ok(!examsScreen.includes('Alert.alert('),
+  'Trainer exams must not call an unavailable browser Alert method.');
+assert.ok((examsScreen.match(/devWarn\('trainer-exams:/g)||[]).length>=7,
+  'Keep existing diagnostic visibility when replacing native alerts.');
+for(const token of [
+  'confirmPublishDraft', 'Publicar examen', 'publishTrainerExam(draft.examId)',
+  'Cambiar método', 'Guard ar', 'createTrainerExamDraft',
+  'updateStaffExamDraft', 'getTrainerExamDogs', 'uploadTrainerExamResults',
+].filter(item=>item!=='Guard ar')) {
+  assert.ok(examsScreen.includes(token),'Trainer exam action must survive: '+token);
+}
+console.log('UCAPSA trainer rosters and exams: web/native dialogs, confirmations and diagnostics PASS');
