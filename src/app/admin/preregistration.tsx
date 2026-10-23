@@ -135,7 +135,7 @@ export default function AdminPreregistrationDetailScreen() {
   }
 
   async function saveFamily() {
-    if (!record || record.status !== 'pending' || savingFamily || !newFamily.length) return;
+    if (!record || savingFamily || !newFamily.length) return;
     setFeedback(null);
     try {
       setSavingFamily(true);
@@ -288,8 +288,7 @@ export default function AdminPreregistrationDetailScreen() {
               </View>
             ) : null}
           </View>
-          {record.status === 'pending' ? (
-            <>
+          <>
               <PreregistrationFamilyEditor value={newFamily} onChange={setNewFamily} disabled={savingFamily} />
               {newFamily.length > 0 ? (
                 <Pressable accessibilityRole="button" style={styles.primary} disabled={savingFamily}
@@ -298,8 +297,7 @@ export default function AdminPreregistrationDetailScreen() {
                     <Text style={styles.primaryText}>Guardar nuevos integrantes</Text>}
                 </Pressable>
               ) : null}
-            </>
-          ) : null}
+          </>
           {record.status === 'pending' && (!record.ownerEmail || !record.ownerPhone) ? (
             <View style={styles.card}>
               <Text style={styles.groupTitle}>Completar contacto faltante</Text>
