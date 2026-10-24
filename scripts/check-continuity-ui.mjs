@@ -47,7 +47,8 @@ if (!/recordValueExposure\(user\.id, dogId, selectedSeasonId, 'constancy_summary
 if (!/setTimeout\([\s\S]{0,260}750/.test(summary) || !/screenFocused/.test(summary)) {
   failures.push('Resumen Cliente debe exigir foco estable durante 750 ms antes de registrar exposición.');
 }
-if (!/recordValueExposure\(user\.id, detail\.dog_id, season\.season_id, 'constancy_detail'\)/.test(detail)) {
+if (!/recordValueExposure\((?:user\.id|userId), detail\.dog_id, season\.season_id, 'constancy_detail'\)/.test(detail)
+  || !detail.includes('detail.dog_id !== dogId') || !detail.includes('season?.season_id !== seasonId')) {
   failures.push('Detalle Cliente no registra apertura durable de Constancia.');
 }
 if (
@@ -120,3 +121,6 @@ if (failures.length) {
 }
 
 console.log('UCAPSA continuity UI: PASS');
+
+// Exercise the actual Constancia load callback with simulated account and season changes.
+await import('./test-client-constancy-detail-isolation.mjs');
