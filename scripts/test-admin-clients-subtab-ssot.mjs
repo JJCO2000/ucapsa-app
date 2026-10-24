@@ -30,7 +30,7 @@ function harness() {
     getAdminClientProfiles:make('profiles'),
     getAdminActiveMembershipUserIds:make('members'),
     getAdminClientFollowupRows:make('followups'),
-    getActiveDogNamesByUserIds:make('dogs'),
+    getActiveDogNamesByUserIds:(ids)=>{const d=deferred();d.ids=ids;calls.dogs.push(d);return d.promise;},
     withOperationTimeout:p=>p,
     DEFAULT_READ_TIMEOUT_MS:3000,
     friendlyReadError:m=>m,
@@ -51,8 +51,9 @@ async function fulfill(h,i,rows,members,dogs) {
   h.calls.members[i].resolve(members);
   h.calls.followups[i].resolve([]);
   await flush();
-  assert.ok(h.calls.dogs[i]);
-  h.calls.dogs[i].resolve(dogs);
+  const dogCall = h.calls.dogs.find((item)=>item.ids.includes(rows[0].user_id));
+  assert.ok(dogCall);
+  dogCall.resolve(dogs);
 }
 async function tests(){
   {
