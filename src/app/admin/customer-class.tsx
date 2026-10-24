@@ -9,6 +9,7 @@ import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../comp
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { showStaffDialog } from '../../utils/staff-dialog';
+import { devWarn } from '../../lib/client-diagnostics';
 import { getAdminCustomerRecord, type AdminCustomerRecord } from '../../services/admin-customer.service';
 import { createDogForUserAdmin, getDogsForUser, type BasicDog } from '../../services/dogs.service';
 import {
@@ -111,6 +112,7 @@ export default function CustomerClassScreen() {
       await load();
       showStaffDialog('Clase guardada', 'La inscripcion se actualizo.');
     } catch (cause) {
+      devWarn('admin-customer-class: operation failed', cause);
       showStaffDialog('No se pudo guardar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     } finally {
       setSaving(false);
@@ -131,6 +133,7 @@ export default function CustomerClassScreen() {
           await load();
           if (status === 'completed') showStaffDialog('Tarjeta completada', 'El nivel no cambió. Si corresponde repetir o avanzar, resuélvelo desde Listos para evaluar.');
         } catch (cause) {
+          devWarn('admin-customer-class: operation failed', cause);
           showStaffDialog('No se pudo cambiar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
         } finally {
           setSaving(false);
