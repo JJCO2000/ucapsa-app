@@ -69,7 +69,7 @@ export default function CustomerSectionScreen() {
     if (!record) return { balance: 0, open: [] as Array<{ id: string; concept: string; dueDate: string; balance: number }> };
     const paid = new Map<string, number>();
     for (const payment of record.payments) {
-      if (!payment.obligation_id || payment.status !== 'paid') continue;
+      if (!payment.obligation_id || payment.status !== 'paid' || payment.voided_at) continue;
       paid.set(payment.obligation_id, (paid.get(payment.obligation_id) ?? 0) + Number(payment.amount ?? 0));
     }
     const open = record.obligations
@@ -162,7 +162,7 @@ export default function CustomerSectionScreen() {
           <Text style={styles.sectionTitle}>Cargos proximos</Text>
           {paymentSummary.open.length === 0 ? <Empty text="Sin cargos pendientes." /> : paymentSummary.open.slice(0, 3).map((item) => <View key={item.id} style={styles.item}><Text style={styles.itemTitle}>{item.concept}</Text><Text style={styles.itemMeta}>Vence {item.dueDate}</Text><Text style={styles.amount}>{money(item.balance)}</Text></View>)}
           <Text style={styles.sectionTitle}>Pagos recientes</Text>
-          {record.payments.length === 0 ? <Empty text="Sin pagos registrados." /> : <View style={styles.listCard}>{record.payments.slice(0, 3).map((payment, index) => <View key={payment.id} style={[styles.listRow, index === Math.min(record.payments.length, 3) - 1 && styles.listRowLast]}><View style={{ flex: 1 }}><Text style={styles.itemTitle}>{payment.concept}</Text><Text style={styles.itemMeta}>{formatDate(payment.paid_at || payment.created_at)}</Text></View><Text style={styles.amount}>{money(Number(payment.amount ?? 0))}</Text></View>)}</View>}
+          {record.payments.length === 0 ? <Empty text="Sin pagos registrados." /> : <View style={styles.listCard}>{record.payments.slice(0, 3).map((payment, index) => <View key={payment.id} style={[styles.listRow, index === Math.min(record.payments.length, 3) - 1 && styles.listRowLast]}><View style={{ flex: 1 }}><Text style={styles.itemTitle}>{payment.concept}</Text><Text style={styles.itemMeta}>{formatDate(payment.paid_at || payment.created_at)}{payment.voided_at ? ' · Anulado' : ''}</Text></View><Text style={[styles.amount, payment.voided_at && styles.voidedAmount]}>{money(Number(payment.amount ?? 0))}</Text></View>)}</View>}
           <Action label="Administrar pagos" icon="payments" onPress={() => router.push(`/admin/customer-payments?userId=${encodeURIComponent(userId)}` as never)} />
         </>
       ) : null}
@@ -212,6 +212,7 @@ const styles = StyleSheet.create({
   balanceLabel: { color: ucapsaBrand.colors.premiumMuted, fontSize: 11, fontWeight: '800' },
   balanceValue: { color: ucapsaBrand.colors.surface, fontSize: 23, fontWeight: '900', marginTop: 3 },
   amount: { color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '900', marginTop: 4 },
+  voidedAmount: { color: ucapsaBrand.colors.muted, textDecorationLine: 'line-through' },
   empty: { borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 15, marginBottom: 9 },
   sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '900', marginTop: 6, marginBottom: 8 },
 });
