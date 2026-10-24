@@ -142,7 +142,8 @@ export default function ProgramInterestScreen() {
       devWarn('client-program-interest: request failed.', cause);
       Alert.alert('No pudimos registrar tu interés', 'No tenemos confirmación de que se haya enviado. Revisa tu conexión e inténtalo de nuevo.');
     } finally {
-      if (isCurrentUser()) setSendingForUserId(null);
+      // Clear only this request's sending marker, even if the user switched away.
+      setSendingForUserId((current) => current === requestedUserId ? null : current);
     }
   }
 
