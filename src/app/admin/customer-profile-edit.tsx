@@ -7,6 +7,7 @@ import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../comp
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { showStaffDialog } from '../../utils/staff-dialog';
+import { devWarn } from '../../lib/client-diagnostics';
 import { getProfileByUserId, updateAdminCustomerProfile } from '../../services/profiles.service';
 import type { Profile } from '../../types/app.types';
 
@@ -75,6 +76,7 @@ export default function CustomerProfileEditScreen() {
       showStaffDialog('Datos guardados', 'La información del cliente se actualizó.');
       router.back();
     } catch (cause) {
+      devWarn('admin-customer-profile-edit: failed to save an edited profile.', cause);
       if (activeUserIdRef.current !== userId) return;
       showStaffDialog('No se pudo guardar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     } finally {
