@@ -9,6 +9,7 @@ import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../comp
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { showStaffDialog } from '../../utils/staff-dialog';
+import { devWarn } from '../../lib/client-diagnostics';
 import {
   getAdminCustomerRecord,
   type AdminCustomerPayment,
@@ -163,6 +164,7 @@ export default function CustomerPaymentsScreen() {
       await load();
       showStaffDialog(form.payment ? 'Pago corregido' : 'Pago registrado', 'El historial y el saldo se actualizaron.');
     } catch (cause) {
+      devWarn('admin-customer-payments: operation failed', cause);
       showStaffDialog('No se pudo guardar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     } finally {
       setSaving(false);
@@ -187,6 +189,7 @@ export default function CustomerPaymentsScreen() {
           await load();
           showStaffDialog('Pago anulado', 'El saldo fue recalculado y el registro histórico se conservó.');
         } catch (cause) {
+          devWarn('admin-customer-payments: operation failed', cause);
           showStaffDialog('No se pudo anular', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
         } finally {
           setSaving(false);
