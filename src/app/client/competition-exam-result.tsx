@@ -201,10 +201,7 @@ export default function ClientCompetitionExamResultScreen() {
             </View>
           )}
 
-          <View style={[styles.noteCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
-            <MaterialIcons name="info-outline" size={19} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-            <Text style={[styles.noteText, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>El total mostrado arriba es el resultado oficial publicado por UCAPSA; esta pantalla no recalcula otro total.</Text>
-          </View>
+
         </>
       ) : null}
     </KeyboardAwareScreen>
