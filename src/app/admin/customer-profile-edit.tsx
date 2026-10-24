@@ -26,6 +26,7 @@ export default function CustomerProfileEditScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [saveError, setSaveError] = useState('');
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -63,6 +64,7 @@ export default function CustomerProfileEditScreen() {
     setEmail('');
     setPhone('');
     setError('');
+    setSaveError('');
     setSaving(false);
     if (userId) {
       setLoading(true);
@@ -81,7 +83,7 @@ export default function CustomerProfileEditScreen() {
       && activeUserIdRef.current === boundUserId;
     try {
       setSaving(true);
-      setError('');
+      setSaveError('');
       await updateAdminCustomerProfile(boundUserId, { full_name: name, phone });
       if (!isCurrentSave()) return;
       if (Platform.OS !== 'web') Alert.alert('Datos guardados', 'La información del cliente se actualizó.');
@@ -89,7 +91,7 @@ export default function CustomerProfileEditScreen() {
     } catch (cause) {
       if (!isCurrentSave()) return;
       const message = cause instanceof Error ? cause.message : 'Intenta de nuevo.';
-      if (Platform.OS === 'web') setError('No se pudo guardar: ' + message);
+      if (Platform.OS === 'web') setSaveError('No se pudo guardar: ' + message);
       else Alert.alert('No se pudo guardar', message);
     } finally {
       if (isCurrentSave()) setSaving(false);
@@ -101,6 +103,8 @@ export default function CustomerProfileEditScreen() {
       <AdminCustomerContextHeader customerName={adminCustomerDisplayName(profile)} section="Editar datos" subtitle="Información de contacto del cliente seleccionado." member={profile?.role === 'member'} onBack={() => router.back()} />
 
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando...</Text></View> : null}
+
+      {saveError ? <Text accessibilityRole="alert" style={styles.error}>{saveError}</Text> : null}
 
       {error ? (
         <View style={styles.empty}>
