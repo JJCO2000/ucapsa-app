@@ -9,11 +9,17 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
+import { devWarn } from '../../lib/client-diagnostics';
 import { getCachedMyPracticeActivity, getMyPracticeActivity, type PracticeActivitySnapshot } from '../../services/practice.service';
 
 export default function PracticeHistoryScreen() {
   const { user, role, isAdmin } = useSession();
-  const [activity, setActivity] = useState<PracticeActivitySnapshot | null>(null);
+  const [storedActivity, setActivity] = useState<PracticeActivitySnapshot | null>(null);
+  const [loadedForUserId, setLoadedForUserId] = useState<string | null>(null);
+  const activeUserIdRef = useRef(user?.id ?? null);
+  activeUserIdRef.current = user?.id ?? null;
+  // Keep offline practice entries private when the signed-in account changes.
+  const activity = loadedForUserId === user?.id ? storedActivity : null;
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,40 +29,55 @@ export default function PracticeHistoryScreen() {
   const premium = format.key === 'member';
 
   const load = useCallback(async () => {
-    const runId = loadRunRef.current + 1;
-    loadRunRef.current = runId;
-    const isCurrentRun = () => loadRunRef.current === runId;
-    if (!user || isAdmin) return;
+    const runId = ++loadRunRef.current;
+    const userId = user?.id;
+    if (!userId || isAdmin) return;
+    const isCurrentRun = () => loadRunRef.current === runId
+      && activeUserIdRef.current === userId;
 
     setError(null);
     setUsingSavedData(false);
-
-    const cached = await getCachedMyPracticeActivity(user.id);
+    let cached: PracticeActivitySnapshot | null = null;
+    try {
+      cached = await getCachedMyPracticeActivity(userId);
+    } catch (cause) {
+      devWarn('practice-history: could not read local practice history.', cause);
+    }
     if (!isCurrentRun()) return;
     if (cached) {
       setActivity(cached);
+      setLoadedForUserId(userId);
       setLoading(false);
     }
 
     try {
-      const next = await getMyPracticeActivity(user.id);
+      const next = await getMyPracticeActivity(userId);
       if (!isCurrentRun()) return;
       setActivity(next);
+      setLoadedForUserId(userId);
       setUsingSavedData(next.source !== 'remote');
     } catch {
       if (!isCurrentRun()) return;
       if (cached) {
         setActivity(cached);
+        setLoadedForUserId(userId);
         setUsingSavedData(true);
       } else {
+        setActivity(null);
+        setLoadedForUserId(null);
         setError('No pudimos cargar tu historial de prácticas.');
       }
     } finally {
       if (isCurrentRun()) setLoading(false);
     }
-  }, [isAdmin, user]);
+  }, [isAdmin, user?.id]);
 
   useFocusEffect(useCallback(() => {
+    setLoading(true);
+    setError(null);
+    setUsingSavedData(false);
+    setActivity(null);
+    setLoadedForUserId(null);
     void load();
     return () => { loadRunRef.current += 1; };
   }, [load]));
@@ -77,7 +98,7 @@ export default function PracticeHistoryScreen() {
     >
       <UcapsaAmbientBackground format={format} variant="home" />
 
-      {usingSavedData && activity ? (
+      {usingSavedData && activity && !loading ? (
         <OfflineDataNotice savedAt={activity.savedAt} onRetry={() => void refresh()} premium={premium} label="Mostrando prácticas guardadas" />
       ) : null}
 
@@ -88,13 +109,13 @@ export default function PracticeHistoryScreen() {
         </View>
       ) : null}
 
-      {error ? (
+      {error && !loading ? (
         <View style={[styles.stateCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
           <Text style={[styles.stateTitle, { color: format.cardText }]}>{error}</Text>
         </View>
       ) : null}
 
-      {activity ? (
+      {activity && !loading && !error ? (
         <>
           <View style={styles.summaryRow}>
             <Text style={[styles.summaryValue, { color: format.text }]}>{activity.entries.length}</Text>
