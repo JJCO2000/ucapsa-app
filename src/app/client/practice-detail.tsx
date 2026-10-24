@@ -9,6 +9,7 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
+import { devWarn } from '../../lib/client-diagnostics';
 import { getCachedMyPracticeActivity, getMyPracticeActivity, type PracticeActivityEntry, type PracticeActivitySnapshot } from '../../services/practice.service';
 import { formatPracticeDate, practiceDifficultyLabel } from '../../utils/practicePresentation';
 
@@ -16,58 +17,88 @@ export default function PracticeDetailScreen() {
   const { practiceId: practiceIdParam } = useLocalSearchParams<{ practiceId?: string | string[] }>();
   const practiceId = Array.isArray(practiceIdParam) ? practiceIdParam[0] ?? null : practiceIdParam ?? null;
   const { user, role, isAdmin } = useSession();
-  const [entry, setEntry] = useState<PracticeActivityEntry | null>(null);
-  const [activity, setActivity] = useState<PracticeActivitySnapshot | null>(null);
+  const userId = user?.id ?? '';
+  const detailKey = !isAdmin && userId && practiceId ? [userId, practiceId].join(':') : '';
+  const activeDetailKeyRef = useRef(detailKey);
+  activeDetailKeyRef.current = detailKey;
+  const [storedEntry, setEntry] = useState<PracticeActivityEntry | null>(null);
+  const [storedActivity, setActivity] = useState<PracticeActivitySnapshot | null>(null);
+  const [loadedForKey, setLoadedForKey] = useState<string | null>(null);
+  const entry = detailKey && loadedForKey === detailKey ? storedEntry : null;
+  const activity = detailKey && loadedForKey === detailKey ? storedActivity : null;
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [usingSavedData, setUsingSavedData] = useState(false);
+  const [storedError, setError] = useState<string | null>(null);
+  const error = loadedForKey === detailKey ? storedError : null;
+  const [storedUsingSavedData, setUsingSavedData] = useState(false);
+  const usingSavedData = Boolean(activity && storedUsingSavedData);
   const loadRunRef = useRef(0);
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
   const premium = format.key === 'member';
 
   const load = useCallback(async () => {
-    const runId = loadRunRef.current + 1;
-    loadRunRef.current = runId;
-    const isCurrentRun = () => loadRunRef.current === runId;
-    if (!user || isAdmin) return;
-
+    const runId = ++loadRunRef.current;
+    const isCurrentRun = () => loadRunRef.current === runId
+      && activeDetailKeyRef.current === detailKey;
+    if (!userId || isAdmin) return;
+    setLoading(true);
     setError(null);
     setUsingSavedData(false);
+    setEntry(null);
+    setActivity(null);
+    setLoadedForKey(null);
 
-    const cached = await getCachedMyPracticeActivity(user.id);
+    if (!practiceId) {
+      setError('No se indicó qué práctica deseas consultar.');
+      setLoadedForKey(detailKey);
+      setLoading(false);
+      return;
+    }
+
+    let cached: PracticeActivitySnapshot | null = null;
+    try {
+      cached = await getCachedMyPracticeActivity(userId);
+    } catch (cause) {
+      devWarn('practice-detail: could not read offline cache.', cause);
+    }
     if (!isCurrentRun()) return;
-    const cachedEntry = practiceId ? cached?.entries.find((item) => item.id === practiceId) ?? null : null;
-    if (cached) {
+    const cachedEntry = cached?.entries.find((item) => item.id === practiceId) ?? null;
+    if (cachedEntry && cached) {
       setActivity(cached);
       setEntry(cachedEntry);
+      setLoadedForKey(detailKey);
       setLoading(false);
     }
 
     try {
-      const next = await getMyPracticeActivity(user.id);
+      const next = await getMyPracticeActivity(userId);
       if (!isCurrentRun()) return;
-      setActivity(next);
-      const found = practiceId ? next.entries.find((item) => item.id === practiceId) ?? null : null;
+      const found = next.entries.find((item) => item.id === practiceId) ?? null;
       setEntry(found);
+      setActivity(found ? next : null);
+      setLoadedForKey(detailKey);
       setUsingSavedData(next.source !== 'remote');
       if (!found) setError('No encontramos esta práctica en tu historial guardado.');
     } catch {
       if (!isCurrentRun()) return;
-      if (cachedEntry) {
+      if (cachedEntry && cached) {
         setActivity(cached);
         setEntry(cachedEntry);
+        setLoadedForKey(detailKey);
         setUsingSavedData(true);
       } else {
+        setActivity(null);
         setEntry(null);
+        setLoadedForKey(detailKey);
         setError('No pudimos cargar esta práctica.');
       }
     } finally {
       if (isCurrentRun()) setLoading(false);
     }
-  }, [isAdmin, practiceId, user]);
+  }, [detailKey, isAdmin, practiceId, userId]);
 
   useFocusEffect(useCallback(() => {
+    setLoading(true);
     void load();
     return () => { loadRunRef.current += 1; };
   }, [load]));
@@ -105,7 +136,7 @@ export default function PracticeDetailScreen() {
         </View>
       ) : null}
 
-      {entry ? (
+      {!loading && !error && entry ? (
         <View style={[styles.detailCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
           <View style={styles.detailHeader}>
             <View style={[styles.detailIcon, { backgroundColor: format.pillBackground }]}>
