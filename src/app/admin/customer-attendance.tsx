@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 
@@ -48,7 +48,15 @@ export default function CustomerAttendanceScreen() {
   const params = useLocalSearchParams<{ userId?: string; enrollmentId?: string }>();
   const userId = typeof params.userId === 'string' ? params.userId.trim() : '';
   const initialEnrollmentId = typeof params.enrollmentId === 'string' ? params.enrollmentId.trim() : '';
-  const [record, setRecord] = useState<AdminCustomerRecord | null>(null);
+  const [storedRecord, setStoredRecord] = useState<AdminCustomerRecord | null>(null);
+  const [loadedForKey, setLoadedForKey] = useState<string | null>(null);
+  const recordKey = userId + ':' + initialEnrollmentId;
+  const activeRecordKeyRef = useRef(recordKey);
+  activeRecordKeyRef.current = recordKey;
+  const loadRunRef = useRef(0);
+  const saveRunRef = useRef(0);
+  const record = loadedForKey === recordKey && storedRecord?.profile.user_id === userId ? storedRecord : null;
+  const [error, setError] = useState('');
   const [schedules, setSchedules] = useState<ProgramSchedule[]>([]);
   const [sessionScheduleById, setSessionScheduleById] = useState<Record<string, string>>({});
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState(initialEnrollmentId);
@@ -60,24 +68,64 @@ export default function CustomerAttendanceScreen() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    if (!userId) return;
-    const [nextRecord, nextSchedules] = await Promise.all([getAdminCustomerRecord(userId), getProgramScheduleTimeline()]);
-    setRecord(nextRecord);
-    setSchedules(nextSchedules);
-    const firstId = initialEnrollmentId || nextRecord.enrollments[0]?.enrollment.id || '';
-    setSelectedEnrollmentId((current) => current || firstId);
-
-    const sessionIds = [...new Set(nextRecord.enrollments.flatMap((item) => item.attendances.map((attendance) => attendance.session_id).filter(Boolean) as string[]))];
-    setSessionScheduleById(await getProgramSessionScheduleMap(sessionIds));
-  }, [initialEnrollmentId, userId]);
+    if (!userId || activeRecordKeyRef.current !== recordKey) return;
+    const runId = ++loadRunRef.current;
+    const isCurrentRun = () => loadRunRef.current === runId && activeRecordKeyRef.current === recordKey;
+    setLoading(true);
+    setError('');
+    try {
+      const [nextRecord, nextSchedules] = await Promise.all([
+        getAdminCustomerRecord(userId), getProgramScheduleTimeline(),
+      ]);
+      if (!isCurrentRun()) return;
+      if (nextRecord.profile.user_id !== userId
+          || nextRecord.enrollments.some((item) => item.enrollment.user_id !== userId)
+          || (initialEnrollmentId && !nextRecord.enrollments.some((item) => item.enrollment.id === initialEnrollmentId))) {
+        throw new Error('No se pudo verificar el historial de este cliente.');
+      }
+      const sessionIds = [...new Set(nextRecord.enrollments.flatMap(
+        (item) => item.attendances.map((attendance) => attendance.session_id).filter(Boolean) as string[],
+      ))];
+      const nextSessionSchedules = await getProgramSessionScheduleMap(sessionIds);
+      if (!isCurrentRun()) return;
+      setStoredRecord(nextRecord);
+      setLoadedForKey(recordKey);
+      setSchedules(nextSchedules);
+      setSessionScheduleById(nextSessionSchedules);
+      setSelectedEnrollmentId((current) => nextRecord.enrollments.some((item) => item.enrollment.id === current)
+        ? current : initialEnrollmentId || nextRecord.enrollments[0]?.enrollment.id || '');
+    } catch (cause) {
+      if (!isCurrentRun()) return;
+      setStoredRecord(null);
+      setLoadedForKey(null);
+      setSchedules([]);
+      setSessionScheduleById({});
+      setError(cause instanceof Error ? cause.message : 'No se pudo cargar el historial.');
+    } finally {
+      if (isCurrentRun()) setLoading(false);
+    }
+  }, [initialEnrollmentId, recordKey, userId]);
 
   useFocusEffect(useCallback(() => {
-    setLoading(true);
-    void load().finally(() => setLoading(false));
-    return undefined;
-  }, [load]));
+    loadRunRef.current += 1;
+    saveRunRef.current += 1;
+    setStoredRecord(null);
+    setLoadedForKey(null);
+    setSchedules([]);
+    setSessionScheduleById({});
+    setSelectedEnrollmentId(initialEnrollmentId);
+    setEdit(emptyEdit);
+    setModalOpen(false);
+    setCalendarOpen(false);
+    setError('');
+    if (userId) void load();
+    else { setLoading(false); setError('Falta seleccionar el cliente.'); }
+    return () => { loadRunRef.current += 1; saveRunRef.current += 1; };
+  }, [initialEnrollmentId, load, userId]));
 
-  const selectedEnrollment = useMemo(() => record?.enrollments.find((item) => item.enrollment.id === selectedEnrollmentId) ?? record?.enrollments[0] ?? null, [record, selectedEnrollmentId]);
+  const selectedEnrollment = useMemo(() => record?.enrollments.find(
+    (item) => item.enrollment.id === selectedEnrollmentId,
+  ) ?? null, [record, selectedEnrollmentId]);
   const attendanceRows = useMemo(() => selectedEnrollment ? [...selectedEnrollment.attendances].sort((a, b) => b.attendance_date.localeCompare(a.attendance_date)) : [], [selectedEnrollment]);
 
   const validSchedules = useMemo(() => {
@@ -96,14 +144,14 @@ export default function CustomerAttendanceScreen() {
   }, [edit.enrollment, edit.scheduleId, modalOpen, validSchedules]);
 
   function openNew() {
-    if (!selectedEnrollment) return;
+    if (!selectedEnrollment || loading || saving || error || selectedEnrollment.enrollment.user_id !== userId) return;
     setEdit({ attendance: null, enrollment: selectedEnrollment, date: todayKey(), scheduleId: selectedEnrollment.enrollment.schedule_id, notes: '' });
     setCalendarOpen(false);
     setModalOpen(true);
   }
 
   function openCorrection(attendance: ProgramAttendance) {
-    if (!selectedEnrollment) return;
+    if (!selectedEnrollment || loading || saving || error || selectedEnrollment.enrollment.user_id !== userId) return;
     setEdit({
       attendance,
       enrollment: selectedEnrollment,
@@ -116,10 +164,16 @@ export default function CustomerAttendanceScreen() {
   }
 
   async function saveAttendance() {
-    if (!edit.enrollment || !edit.scheduleId) {
+    if (!record || loading || saving || error || !edit.enrollment
+        || edit.enrollment.enrollment.user_id !== userId
+        || !record.enrollments.some((item) => item.enrollment.id === edit.enrollment?.enrollment.id)) return;
+    if (!edit.scheduleId || !validSchedules.some((schedule) => schedule.id === edit.scheduleId)) {
       showStaffDialog('Falta clase', 'Selecciona una fecha y horario reales.');
       return;
     }
+    const boundRecordKey = recordKey;
+    const saveRunId = ++saveRunRef.current;
+    const isCurrentSave = () => saveRunRef.current === saveRunId && activeRecordKeyRef.current === boundRecordKey;
     try {
       setSaving(true);
       if (edit.attendance) {
@@ -127,31 +181,41 @@ export default function CustomerAttendanceScreen() {
       } else {
         await registerProgramAttendance({ enrollmentId: edit.enrollment.enrollment.id, attendanceDate: edit.date, scheduleId: edit.scheduleId, notes: edit.notes });
       }
+      if (!isCurrentSave()) return;
       setModalOpen(false);
       await load();
-      showStaffDialog(edit.attendance ? 'Asistencia corregida' : 'Asistencia registrada', 'El historial y el avance quedaron actualizados.');
+      if (isCurrentSave()) showStaffDialog(edit.attendance ? 'Asistencia corregida' : 'Asistencia registrada', 'El historial y el avance quedaron actualizados.');
     } catch (cause) {
+      if (!isCurrentSave()) return;
       devWarn('admin-customer-attendance: operation failed', cause);
       showStaffDialog('No se pudo guardar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     } finally {
-      setSaving(false);
+      if (isCurrentSave()) setSaving(false);
     }
   }
 
   function removeAttendance(attendance: ProgramAttendance) {
-    if (!selectedEnrollment) return;
+    if (!selectedEnrollment || loading || saving || error || selectedEnrollment.enrollment.user_id !== userId) return;
+    if (!selectedEnrollment.attendances.some((item) => item.id === attendance.id)) return;
+    const boundRecordKey = recordKey;
+    const boundEnrollmentId = selectedEnrollment.enrollment.id;
     showStaffDialog('Eliminar asistencia', 'Se eliminara este registro real y el avance se recalculara.', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: async () => {
+        if (activeRecordKeyRef.current !== boundRecordKey) return;
+        const saveRunId = ++saveRunRef.current;
+        const isCurrentSave = () => saveRunRef.current === saveRunId && activeRecordKeyRef.current === boundRecordKey;
         try {
           setSaving(true);
-          await deleteProgramAttendance(attendance.id, selectedEnrollment.enrollment.id);
+          await deleteProgramAttendance(attendance.id, boundEnrollmentId);
+          if (!isCurrentSave()) return;
           await load();
         } catch (cause) {
+          if (!isCurrentSave()) return;
           devWarn('admin-customer-attendance: operation failed', cause);
           showStaffDialog('No se pudo eliminar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
         } finally {
-          setSaving(false);
+          if (isCurrentSave()) setSaving(false);
         }
       } },
     ]);
@@ -162,8 +226,9 @@ export default function CustomerAttendanceScreen() {
       <AdminCustomerContextHeader customerName={adminCustomerDisplayName(record?.profile)} section="Asistencias" subtitle="Registra, corrige o elimina asistencias reales sin tocar contadores." member={record?.membership?.status === 'active'} onBack={() => router.back()} />
 
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando...</Text></View> : null}
+      {error ? <View style={styles.empty}><Text accessibilityRole="alert" style={styles.muted}>{error}</Text><Pressable onPress={() => void load()}><Text style={styles.emptyTitle}>Reintentar</Text></Pressable></View> : null}
 
-      {record && record.enrollments.length > 1 ? (
+      {record && !loading && !error && record.enrollments.length > 1 ? (
         <View style={styles.programChooser}>
           {record.enrollments.map((item) => (
             <Pressable key={item.enrollment.id} style={[styles.programButton, selectedEnrollment?.enrollment.id === item.enrollment.id && styles.programButtonActive]} onPress={() => { setSelectedEnrollmentId(item.enrollment.id); setVisibleCount(8); }}>
@@ -173,7 +238,7 @@ export default function CustomerAttendanceScreen() {
         </View>
       ) : null}
 
-      {selectedEnrollment ? (
+      {selectedEnrollment && !loading && !error ? (
         <View style={styles.summary}>
           <View><Text style={styles.summaryTitle}>{selectedEnrollment.program.name}</Text><Text style={styles.muted}>{selectedEnrollment.enrollment.access_mode === 'membership' ? `${selectedEnrollment.enrollment.attendances_count} asistencias · socio sin límite` : `${selectedEnrollment.enrollment.attendances_count} de ${selectedEnrollment.program.required_attendances} contabilizadas`}</Text>
             {selectedEnrollment.enrollment.attendances_count > attendanceRows.length ? (
@@ -183,11 +248,11 @@ export default function CustomerAttendanceScreen() {
         </View>
       ) : null}
 
-      {!loading && !selectedEnrollment ? <View style={styles.empty}><Text style={styles.emptyTitle}>Sin clases</Text><Text style={styles.muted}>El cliente no tiene inscripciones.</Text></View> : null}
+      {!loading && !error && !selectedEnrollment ? <View style={styles.empty}><Text style={styles.emptyTitle}>Sin clases</Text><Text style={styles.muted}>El cliente no tiene inscripciones.</Text></View> : null}
 
-      {selectedEnrollment && attendanceRows.length === 0 ? <View style={styles.empty}><Text style={styles.emptyTitle}>Sin asistencias con fecha</Text><Text style={styles.muted}>{selectedEnrollment.enrollment.attendances_count > 0 ? 'La inscripción tiene asistencias históricas reconocidas sin fecha individual.' : 'Usa Registrar para agregar la primera asistencia real.'}</Text></View> : null}
+      {selectedEnrollment && !loading && !error && attendanceRows.length === 0 ? <View style={styles.empty}><Text style={styles.emptyTitle}>Sin asistencias con fecha</Text><Text style={styles.muted}>{selectedEnrollment.enrollment.attendances_count > 0 ? 'La inscripción tiene asistencias históricas reconocidas sin fecha individual.' : 'Usa Registrar para agregar la primera asistencia real.'}</Text></View> : null}
 
-      {selectedEnrollment ? (
+      {selectedEnrollment && !loading && !error ? (
         <View style={styles.list}>
           {attendanceRows.slice(0, visibleCount).map((attendance, index) => (
             <View key={attendance.id} style={[styles.row, index === Math.min(attendanceRows.length, visibleCount) - 1 && styles.rowLast]}>
@@ -205,9 +270,9 @@ export default function CustomerAttendanceScreen() {
         </View>
       ) : null}
 
-      {attendanceRows.length > visibleCount ? <Pressable style={styles.moreButton} onPress={() => setVisibleCount((value) => value + 8)}><Text style={styles.moreText}>Ver 8 mas</Text></Pressable> : null}
+      {!loading && !error && attendanceRows.length > visibleCount ? <Pressable style={styles.moreButton} onPress={() => setVisibleCount((value) => value + 8)}><Text style={styles.moreText}>Ver 8 mas</Text></Pressable> : null}
 
-      <KeyboardAwareModal visible={modalOpen} onClose={() => setModalOpen(false)}>
+      <KeyboardAwareModal visible={modalOpen && !!record && !loading && !error} onClose={() => setModalOpen(false)}>
         <Text style={styles.modalCustomerName}>{adminCustomerDisplayName(record?.profile)}</Text>
         <Text style={styles.modalKicker}>Asistencia manual</Text>
         <Text style={styles.modalTitle}>{edit.attendance ? 'Corregir asistencia' : 'Registrar asistencia'}</Text>
