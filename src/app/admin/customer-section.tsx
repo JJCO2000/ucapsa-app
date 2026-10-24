@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../components/domain/AdminCustomerContextHeader';
@@ -35,27 +35,54 @@ export default function CustomerSectionScreen() {
   const userId = typeof params.userId === 'string' ? params.userId.trim() : '';
   const rawSection = typeof params.section === 'string' ? params.section : 'profile';
   const section: SectionKey = ['profile', 'membership', 'classes', 'attendance', 'payments'].includes(rawSection) ? rawSection as SectionKey : 'profile';
-  const [record, setRecord] = useState<AdminCustomerRecord | null>(null);
+  const [storedRecord, setStoredRecord] = useState<AdminCustomerRecord | null>(null);
+  const [loadedForUserId, setLoadedForUserId] = useState<string | null>(null);
+  const loadRunRef = useRef(0);
+  const activeUserIdRef = useRef(userId);
+  activeUserIdRef.current = userId;
+  // A navigation change must never paint data from the previous client.
+  const record = loadedForUserId === userId ? storedRecord : null;
   const [loading, setLoading] = useState(Boolean(userId));
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     if (!userId) return;
+    const runId = ++loadRunRef.current;
+    const isCurrentRun = () => loadRunRef.current === runId
+      && activeUserIdRef.current === userId;
     try {
       setError('');
-      setRecord(await getAdminCustomerRecord(userId));
+      const next = await getAdminCustomerRecord(userId);
+      if (!isCurrentRun()) return;
+      if (next.profile.user_id !== userId) {
+        throw new Error('La respuesta no corresponde al cliente solicitado.');
+      }
+      setStoredRecord(next);
+      setLoadedForUserId(userId);
     } catch (cause) {
+      if (!isCurrentRun()) return;
+      setStoredRecord(null);
+      setLoadedForUserId(null);
       setError(cause instanceof Error ? cause.message : 'No se pudo cargar el cliente.');
-      setRecord(null);
+    } finally {
+      if (isCurrentRun()) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, [userId]);
 
   useFocusEffect(useCallback(() => {
-    if (!userId) return undefined;
-    setLoading(true);
-    void load().finally(() => setLoading(false));
-    return undefined;
+    loadRunRef.current += 1;
+    setStoredRecord(null);
+    setLoadedForUserId(null);
+    setError('');
+    if (userId) {
+      setLoading(true);
+      void load();
+    }
+    return () => { loadRunRef.current += 1; };
   }, [load, userId]));
 
   const attendanceRows = useMemo(() => {
@@ -69,7 +96,7 @@ export default function CustomerSectionScreen() {
     if (!record) return { balance: 0, open: [] as Array<{ id: string; concept: string; dueDate: string; balance: number }> };
     const paid = new Map<string, number>();
     for (const payment of record.payments) {
-      if (!payment.obligation_id || payment.status !== 'paid') continue;
+      if (!payment.obligation_id || payment.status !== 'paid' || payment.voided_at) continue;
       paid.set(payment.obligation_id, (paid.get(payment.obligation_id) ?? 0) + Number(payment.amount ?? 0));
     }
     const open = record.obligations
@@ -80,9 +107,9 @@ export default function CustomerSectionScreen() {
     return { balance: open.reduce((sum, item) => sum + item.balance, 0), open };
   }, [record]);
 
-  async function refresh() {
+  function refresh() {
     setRefreshing(true);
-    try { await load(); } finally { setRefreshing(false); }
+    void load();
   }
 
   if (!userId) return <KeyboardAwareScreen><View style={styles.center}><Text style={styles.title}>Cliente no disponible</Text><Pressable style={styles.primary} onPress={() => router.replace('/admin-clients' as never)}><Text style={styles.primaryText}>Ir a Clientes</Text></Pressable></View></KeyboardAwareScreen>;
@@ -94,7 +121,7 @@ export default function CustomerSectionScreen() {
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando...</Text></View> : null}
       {error ? <View style={styles.error}><Text style={styles.errorTitle}>No se pudo cargar</Text><Text style={styles.muted}>{error}</Text></View> : null}
 
-      {record && section === 'profile' ? (
+      {record && !loading && !error && section === 'profile' ? (
         <>
           <View style={styles.card}>
             <Detail label="Nombre" value={record.profile.full_name || 'Sin nombre'} />
@@ -106,7 +133,7 @@ export default function CustomerSectionScreen() {
         </>
       ) : null}
 
-      {record && section === 'membership' ? (
+      {record && !loading && !error && section === 'membership' ? (
         <>
           <View style={styles.card}>
             {record.membership ? (
@@ -123,7 +150,7 @@ export default function CustomerSectionScreen() {
         </>
       ) : null}
 
-      {record && section === 'classes' ? (
+      {record && !loading && !error && section === 'classes' ? (
         <>
           {record.enrollments.length === 0 ? <Empty text="Sin inscripciones." /> : null}
           {record.enrollments.slice(0, 5).map((item) => (
@@ -141,7 +168,7 @@ export default function CustomerSectionScreen() {
         </>
       ) : null}
 
-      {record && section === 'attendance' ? (
+      {record && !loading && !error && section === 'attendance' ? (
         <>
           {attendanceRows.length === 0 ? <Empty text="Sin asistencias registradas." /> : null}
           <View style={styles.listCard}>
@@ -156,13 +183,13 @@ export default function CustomerSectionScreen() {
         </>
       ) : null}
 
-      {record && section === 'payments' ? (
+      {record && !loading && !error && section === 'payments' ? (
         <>
           <View style={styles.balanceCard}><Text style={styles.balanceLabel}>Saldo pendiente</Text><Text style={styles.balanceValue}>{money(paymentSummary.balance)}</Text></View>
           <Text style={styles.sectionTitle}>Cargos proximos</Text>
           {paymentSummary.open.length === 0 ? <Empty text="Sin cargos pendientes." /> : paymentSummary.open.slice(0, 3).map((item) => <View key={item.id} style={styles.item}><Text style={styles.itemTitle}>{item.concept}</Text><Text style={styles.itemMeta}>Vence {item.dueDate}</Text><Text style={styles.amount}>{money(item.balance)}</Text></View>)}
           <Text style={styles.sectionTitle}>Pagos recientes</Text>
-          {record.payments.length === 0 ? <Empty text="Sin pagos registrados." /> : <View style={styles.listCard}>{record.payments.slice(0, 3).map((payment, index) => <View key={payment.id} style={[styles.listRow, index === Math.min(record.payments.length, 3) - 1 && styles.listRowLast]}><View style={{ flex: 1 }}><Text style={styles.itemTitle}>{payment.concept}</Text><Text style={styles.itemMeta}>{formatDate(payment.paid_at || payment.created_at)}</Text></View><Text style={styles.amount}>{money(Number(payment.amount ?? 0))}</Text></View>)}</View>}
+          {record.payments.length === 0 ? <Empty text="Sin pagos registrados." /> : <View style={styles.listCard}>{record.payments.slice(0, 3).map((payment, index) => <View key={payment.id} style={[styles.listRow, index === Math.min(record.payments.length, 3) - 1 && styles.listRowLast]}><View style={{ flex: 1 }}><Text style={styles.itemTitle}>{payment.concept}</Text><Text style={styles.itemMeta}>{payment.voided_at ? 'ANULADO · ' : ''}{formatDate(payment.paid_at || payment.created_at)}</Text></View><Text style={styles.amount}>{money(Number(payment.amount ?? 0))}</Text></View>)}</View>}
           <Action label="Administrar pagos" icon="payments" onPress={() => router.push(`/admin/customer-payments?userId=${encodeURIComponent(userId)}` as never)} />
         </>
       ) : null}
