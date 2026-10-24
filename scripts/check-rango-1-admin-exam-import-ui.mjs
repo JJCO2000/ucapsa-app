@@ -134,6 +134,24 @@ if (/ucapsa_points_/.test(parser + imports + importDetail)) {
   failures.push('Importación de exámenes no puede depender de UCAPSA Points legado.');
 }
 
+const adminMore = read('src/app/(tabs)/admin-more.tsx');
+const catalog = read('src/app/admin/competition-exams.tsx');
+for (const token of [
+  "/admin/competition-exams?intent=imports",
+  "title=\"Importar resultados Excel\"",
+]) if (!adminMore.includes(token)) failures.push('Falta acceso útil a importaciones: ' + token);
+for (const token of [
+  "const importMode = (Array.isArray(intent) ? intent[0] : intent) === 'imports'",
+  "exam.status !== 'published'",
+  "season.status === 'closed'",
+  "exam.itemCount < 1",
+  "/admin/competition-exam-imports?examId=",
+  "Ver todos los exámenes",
+]) if (!catalog.includes(token)) failures.push('Falta selección contextual para Excel: ' + token);
+if (adminMore.split("onPress={() => router.push('/admin/competition-exams' as never)}").length !== 2) {
+  failures.push('Exámenes general solo debe aparecer una vez; importar Excel requiere destino contextual.');
+}
+
 if (!pkg.scripts?.verify?.includes('check:rango-1-admin-exam-import-ui')) {
   failures.push('npm verify no incluye el guard de importación Excel.');
 }
