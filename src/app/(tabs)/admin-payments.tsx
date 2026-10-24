@@ -98,7 +98,7 @@ export default function AdminPaymentsTab() {
       </View>
 
       {error ? <View style={styles.errorBox}><Text style={styles.errorTitle}>No se pudo actualizar</Text><Text style={styles.muted}>{error}</Text><Pressable style={styles.retryButton} onPress={() => void refresh()}><Text style={styles.retryText}>Reintentar</Text></Pressable></View> : null}
-      {hasData && !error ? <View style={styles.metrics}>
+      {hasData && !loading && !error ? <View style={styles.metrics}>
         <Metric label="Con saldo" value={rows.length} />
         <Metric label="Vencidos" value={rows.filter((row) => row.overdue).length} />
         <Metric label="Parciales" value={rows.filter((row) => row.partial).length} />
@@ -133,7 +133,7 @@ export default function AdminPaymentsTab() {
           >
             <View style={{ flex: 1 }}>
               <Text style={styles.name}>{row.profile?.full_name || row.profile?.email || 'Cliente UCAPSA'}</Text>
-              <Text style={styles.meta}>`${row.obligations} obligación${row.obligations === 1 ? '' : 'es'} con saldo`</Text>
+              <Text style={styles.meta}>{`${row.obligations} obligación${row.obligations === 1 ? '' : 'es'} con saldo`}</Text>
               <View style={styles.statusRow}>
                 {row.overdue ? <AdminStatusPill label="Vencido" tone="danger" icon="error" /> : <AdminStatusPill label="Pendiente" tone="warning" icon="schedule" />}
                 {row.partial ? <AdminStatusPill label="Parcial" tone="info" icon="pie-chart" /> : null}
