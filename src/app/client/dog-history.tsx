@@ -47,7 +47,7 @@ export default function DogHistoryScreen() {
     setError(null);
     setUsingSavedData(false);
 
-    let cached: Awaited<ReturnType<typeof readClientResource<ProgramEnrollmentWithDetails[]>>> = null;
+    let cached: { data: ProgramEnrollmentWithDetails[]; saved_at: string } | null = null;
     try {
       cached = await readClientResource<ProgramEnrollmentWithDetails[]>(userId, clientReadKeys.programs);
     } catch (cause) {
