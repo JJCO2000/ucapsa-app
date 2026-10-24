@@ -138,6 +138,8 @@ async function tests() {
     'setStoredRecord(null)',
     'setResolvedForUserId(null)',
   ]) assert.ok(hook.includes(token),'Missing customer detail isolation: '+token);
+  assert.ok(section.includes("payment.voided_at ? ' · Anulado' : ''")
+    && section.includes('voidedAmount'), 'Cancelled payments must be visibly identified');
   for(const key of ['profile','membership','classes','attendance','payments']){
     assert.ok(section.includes("section === '"+key+"'"),'Missing Administration subsection: '+key);
   }
