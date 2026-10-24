@@ -74,7 +74,7 @@ async function tests(){
     finish(h,0,{dogs:[{id:'private-A'}]});
     await pending;
     assert.equal(h.state.loadedFor,null);
-    assert.deepEqual(h.state.dogs,[]);
+    assert.equal(h.state.dogs.length,0);
     assert.equal(h.state.loading,true);
   }
   {
@@ -97,7 +97,7 @@ async function tests(){
     h.calls.enrollments[0].resolve([]);
     await pending;
     assert.equal(h.state.loadedFor,null);
-    assert.deepEqual(h.state.dogs,[]);
+    assert.equal(h.state.dogs.length,0);
     assert.ok(h.state.error?.includes('No pudimos verificar'));
     assert.equal(h.state.loading,false);
   }
