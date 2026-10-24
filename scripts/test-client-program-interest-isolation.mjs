@@ -49,7 +49,7 @@ function harness(){
     setOpenRequests:v=>state.requests=typeof v==='function'?v(state.requests):v,
     setActiveByProgram:v=>state.programs=v,
     setSavedForUserId:v=>state.savedFor=v,
-    setSendingForUserId:v=>state.sendingFor=v,
+    setSendingForUserId:v=>state.sendingFor=typeof v==='function'?v(state.sendingFor):v,
     getMyDogs:()=>{const d=defer();calls.dogs.push(d);return d.promise;},
     getMyProgramInterestRequests:()=>{const d=defer();calls.requests.push(d);return d.promise;},
     getMyProgramEnrollments:()=>{const d=defer();calls.enrollments.push(d);return d.promise;},
