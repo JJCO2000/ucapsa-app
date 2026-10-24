@@ -1,12 +1,14 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../components/domain/AdminCustomerContextHeader';
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
+import { showStaffDialog } from '../../utils/staff-dialog';
+import { devWarn } from '../../lib/client-diagnostics';
 import { getAdminCustomerRecord, type AdminCustomerRecord } from '../../services/admin-customer.service';
 import {
   forceMembershipForProfile,
@@ -75,9 +77,10 @@ export default function CustomerMembershipScreen() {
       setSaving(true);
       await forceMembershipForProfile(record.profile);
       await load();
-      Alert.alert('Membresia creada', 'La membresia quedo activa y sin vencimiento por fecha.');
+      showStaffDialog('Membresia creada', 'La membresia quedo activa y sin vencimiento por fecha.');
     } catch (cause) {
-      Alert.alert('No se pudo crear', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+      devWarn('admin-customer-membership: operation failed', cause);
+      showStaffDialog('No se pudo crear', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     } finally {
       setSaving(false);
     }
@@ -86,7 +89,7 @@ export default function CustomerMembershipScreen() {
   async function save() {
     if (!record?.membership) return;
     if (startDate && !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
-      Alert.alert('Fecha invalida', 'Usa AAAA-MM-DD para la fecha de inicio.');
+      showStaffDialog('Fecha invalida', 'Usa AAAA-MM-DD para la fecha de inicio.');
       return;
     }
     try {
@@ -98,9 +101,10 @@ export default function CustomerMembershipScreen() {
       });
       setEditing(false);
       await load();
-      Alert.alert('Membresia guardada', 'Los cambios se actualizaron. La membresia no vence por fecha.');
+      showStaffDialog('Membresia guardada', 'Los cambios se actualizaron. La membresia no vence por fecha.');
     } catch (cause) {
-      Alert.alert('No se pudo guardar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+      devWarn('admin-customer-membership: operation failed', cause);
+      showStaffDialog('No se pudo guardar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     } finally {
       setSaving(false);
     }
@@ -158,14 +162,15 @@ export default function CustomerMembershipScreen() {
         });
         await load();
       } catch (cause) {
-        Alert.alert('No se pudo cambiar la cobertura', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+        devWarn('admin-customer-membership: operation failed', cause);
+        showStaffDialog('No se pudo cambiar la cobertura', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
       } finally {
         setSaving(false);
       }
     };
 
     if (!covered) {
-      Alert.alert(
+      showStaffDialog(
         'Quitar acceso de socio',
         item.dog.name + ' dejará de tener clases ilimitadas. Su nivel y su historial se conservan.',
         [
@@ -209,14 +214,15 @@ export default function CustomerMembershipScreen() {
         setStageDogId(null);
         await load();
       } catch (cause) {
-        Alert.alert('No se pudo cambiar la etapa', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+        devWarn('admin-customer-membership: operation failed', cause);
+        showStaffDialog('No se pudo cambiar la etapa', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
       } finally {
         setSaving(false);
       }
     };
 
     if (targetRank > currentRank + 1) {
-      Alert.alert(
+      showStaffDialog(
         'Salto de niveles',
         'Vas a mover a ' + (selectedStageDog?.name ?? 'este perro') + ' directamente a una etapa superior. Los logros previos coherentes se registrarán automáticamente.',
         [
