@@ -19,7 +19,7 @@ requirePattern(
 );
 requirePattern(
   'src/app/client/dog-achievements.tsx',
-  /getCachedAchievementsForDog\(user\.id, dogId\)/,
+  /getCachedAchievementsForDog\((?:user\.id|userId), dogId\)/,
   'La ficha de logros dejó de leer la caché por dogId.',
 );
 requirePattern(
@@ -49,8 +49,13 @@ requirePattern(
 );
 requirePattern(
   'src/app/client/dog-achievements.tsx',
-  /const dogId =[\s\S]*dogIdParam[\s\S]*getCachedAchievementsForDog\(user\.id, dogId\)[\s\S]*getMyDogAchievements\(dogId,/,
+  /const dogId =[\s\S]*dogIdParam[\s\S]*getCachedAchievementsForDog\((?:user\.id|userId), dogId\)[\s\S]*getMyDogAchievements\(dogId,/,
   'La ficha de logros dejó de conservar el mismo dogId entre caché y refresh remoto.',
+);
+requirePattern(
+  'src/app/client/dog-achievements.tsx',
+  /const scopeKey =[^;]*dogId[^;]*;[\s\S]*loadedForKey === scopeKey/,
+  'La ficha de logros dejó de aislar datos entre cuenta y perro.',
 );
 requirePattern(
   'src/screens/home/HomeExperienceScreen.tsx',
