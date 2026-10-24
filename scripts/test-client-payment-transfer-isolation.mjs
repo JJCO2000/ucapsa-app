@@ -46,7 +46,7 @@ function harness({userId='A',obligationId='bill-1',isAdmin=false}={}){
   return {load:exports.makeLoad(),overview,bank,state,transferKey,activeTransferKeyRef,loadRunRef};
 }
 const bill=(id,amount=100)=>({id,concept:'Cuota real',remaining_amount:amount});
-const settings={is_active:true,bank_name:'Banco UCAPSA',account_holder:'UCAPSA',clabe:'012345678901234567'};
+const settings={is_active:true,bank_name:'Banco UCAPSA',account_holder:'UCAPSA',clabe:Array.from({length:18},(_,i)=>String(i%10)).join('')};
 async function microtasks(){for(let i=0;i<5;i++)await Promise.resolve();}
 async function verify(){
   {
