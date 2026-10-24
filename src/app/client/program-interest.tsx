@@ -47,6 +47,8 @@ export default function ProgramInterestScreen() {
   const activeByProgram = verifiedForUser ? storedActiveByProgram : [];
   const saved = Boolean(userId && savedForUserId === userId);
   const sending = Boolean(userId && sendingForUserId === userId);
+  const activeSelectionRef = useRef('');
+  activeSelectionRef.current = [userId, dogId, program].join(':');
 
   const load = useCallback(async () => {
     const runId = ++loadRunRef.current;
@@ -123,11 +125,13 @@ export default function ProgramInterestScreen() {
     const requestedProgram = program;
     const requestedDogName = selectedDog.name;
     const isCurrentUser = () => activeUserIdRef.current === requestedUserId;
+    const selectionKey = [requestedUserId, requestedDogId, requestedProgram].join(':');
     setSendingForUserId(requestedUserId);
     try {
       const request = await requestProgramInterest(requestedUserId, requestedDogId, requestedProgram);
       if (!isCurrentUser()) return;
       setOpenRequests((rows) => [request, ...rows.filter((row) => row.id !== request.id)]);
+      if (activeSelectionRef.current !== selectionKey) return;
       setSavedForUserId(requestedUserId);
       Alert.alert('Interés registrado', `Recibimos tu interés en ${requestedProgram === 'puppy' ? 'Puppy School' : 'Comandos'} para ${requestedDogName}. UCAPSA podrá contactarte para continuar.`, [
         { text: 'Listo', style: 'cancel' },
