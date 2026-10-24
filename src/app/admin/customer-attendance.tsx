@@ -144,14 +144,14 @@ export default function CustomerAttendanceScreen() {
   }, [edit.enrollment, edit.scheduleId, modalOpen, validSchedules]);
 
   function openNew() {
-    if (!selectedEnrollment) return;
+    if (!selectedEnrollment || loading || saving || error || selectedEnrollment.enrollment.user_id !== userId) return;
     setEdit({ attendance: null, enrollment: selectedEnrollment, date: todayKey(), scheduleId: selectedEnrollment.enrollment.schedule_id, notes: '' });
     setCalendarOpen(false);
     setModalOpen(true);
   }
 
   function openCorrection(attendance: ProgramAttendance) {
-    if (!selectedEnrollment) return;
+    if (!selectedEnrollment || loading || saving || error || selectedEnrollment.enrollment.user_id !== userId) return;
     setEdit({
       attendance,
       enrollment: selectedEnrollment,
@@ -187,7 +187,7 @@ export default function CustomerAttendanceScreen() {
   }
 
   function removeAttendance(attendance: ProgramAttendance) {
-    if (!selectedEnrollment) return;
+    if (!selectedEnrollment || loading || saving || error || selectedEnrollment.enrollment.user_id !== userId) return;
     showStaffDialog('Eliminar asistencia', 'Se eliminara este registro real y el avance se recalculara.', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: async () => {
