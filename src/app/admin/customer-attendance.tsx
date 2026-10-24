@@ -1,13 +1,15 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../components/domain/AdminCustomerContextHeader';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
+import { showStaffDialog } from '../../utils/staff-dialog';
+import { devWarn } from '../../lib/client-diagnostics';
 import { getAdminCustomerRecord, type AdminCustomerRecord } from '../../services/admin-customer.service';
 import {
   correctProgramAttendance,
@@ -115,7 +117,7 @@ export default function CustomerAttendanceScreen() {
 
   async function saveAttendance() {
     if (!edit.enrollment || !edit.scheduleId) {
-      Alert.alert('Falta clase', 'Selecciona una fecha y horario reales.');
+      showStaffDialog('Falta clase', 'Selecciona una fecha y horario reales.');
       return;
     }
     try {
@@ -127,9 +129,10 @@ export default function CustomerAttendanceScreen() {
       }
       setModalOpen(false);
       await load();
-      Alert.alert(edit.attendance ? 'Asistencia corregida' : 'Asistencia registrada', 'El historial y el avance quedaron actualizados.');
+      showStaffDialog(edit.attendance ? 'Asistencia corregida' : 'Asistencia registrada', 'El historial y el avance quedaron actualizados.');
     } catch (cause) {
-      Alert.alert('No se pudo guardar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+      devWarn('admin-customer-attendance: operation failed', cause);
+      showStaffDialog('No se pudo guardar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     } finally {
       setSaving(false);
     }
@@ -137,7 +140,7 @@ export default function CustomerAttendanceScreen() {
 
   function removeAttendance(attendance: ProgramAttendance) {
     if (!selectedEnrollment) return;
-    Alert.alert('Eliminar asistencia', 'Se eliminara este registro real y el avance se recalculara.', [
+    showStaffDialog('Eliminar asistencia', 'Se eliminara este registro real y el avance se recalculara.', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: async () => {
         try {
@@ -145,7 +148,8 @@ export default function CustomerAttendanceScreen() {
           await deleteProgramAttendance(attendance.id, selectedEnrollment.enrollment.id);
           await load();
         } catch (cause) {
-          Alert.alert('No se pudo eliminar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+          devWarn('admin-customer-attendance: operation failed', cause);
+          showStaffDialog('No se pudo eliminar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
         } finally {
           setSaving(false);
         }
