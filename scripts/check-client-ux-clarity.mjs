@@ -454,3 +454,20 @@ for (const token of [
 ]) {
   if (!paymentTransferUi.includes(token)) throw new Error('Transferencia perdió aviso de seguridad o verificación: ' + token);
 }
+
+const competitionOverviewCopy = read('src/app/client/competition.tsx');
+const competitionDogCopy = read('src/app/client/competition-dog.tsx');
+const practiceDetailCopy = read('src/app/client/practice-detail.tsx');
+for (const [source, rejected, required] of [
+  [competitionOverviewCopy, 'Temporadas sin sincronizar', 'No pudimos actualizar las temporadas'],
+  [competitionDogCopy, 'No pudimos verificar el detalle competitivo', 'No pudimos cargar la competencia'],
+  [practiceDetailCopy, 'No pudo sincronizarse automáticamente.', 'No se pudo enviar esta práctica.'],
+]) {
+  if (source.includes(rejected) || !source.includes(required)) {
+    throw new Error('Cliente: mensaje técnico o poco claro volvió a mostrarse: ' + rejected);
+  }
+}
+if (!practiceDetailCopy.includes('Se enviará cuando tengas conexión.')
+    || !practiceDetailCopy.includes('entry.syncMessage')) {
+  throw new Error('La práctica offline debe explicar su entrega pendiente y conservar el motivo de rechazo.');
+}
