@@ -7,7 +7,6 @@ import { AdminStatusPill } from '../../components/admin/AdminStatusPill';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
-import { getAdminMembershipRows } from '../../services/memberships.service';
 import { getAdminPaymentAttentionRows } from '../../services/payments.service';
 import { getAdminClientProfiles } from '../../services/profiles.service';
 import type { Profile } from '../../types/app.types';
@@ -18,11 +17,10 @@ type PaymentView = 'attention' | 'overdue' | 'partial';
 type CustomerBalance = {
   userId: string;
   profile: Profile | null;
-  balance: number | null;
+  balance: number;
   overdue: boolean;
   partial: boolean;
   obligations: number;
-  legacyPending: boolean;
 };
 
 function money(value: number) {
@@ -42,10 +40,9 @@ export default function AdminPaymentsTab() {
   const load = useCallback(async () => {
     if (!isAdmin) return;
     setError(null);
-    const [attentionRows, profiles, memberships] = await withOperationTimeout(Promise.all([
+    const [attentionRows, profiles] = await withOperationTimeout(Promise.all([
       getAdminPaymentAttentionRows(),
       getAdminClientProfiles(),
-      getAdminMembershipRows(),
     ]), DEFAULT_READ_TIMEOUT_MS, 'admin-payments-load');
 
     const profileByUser = new Map(profiles.map((profile) => [profile.user_id, profile]));
@@ -58,30 +55,10 @@ export default function AdminPaymentsTab() {
         overdue: row.overdue,
         partial: row.partial,
         obligations: row.obligations,
-        legacyPending: false,
       });
     }
 
-    for (const membershipRow of memberships) {
-      if (membershipRow.membership.current_payment_status !== 'pending') continue;
-      const userId = membershipRow.membership.user_id;
-      const current = byUser.get(userId);
-      if (current) {
-        current.legacyPending = true;
-        continue;
-      }
-      byUser.set(userId, {
-        userId,
-        profile: membershipRow.profile ?? profileByUser.get(userId) ?? null,
-        balance: null,
-        overdue: false,
-        partial: false,
-        obligations: 0,
-        legacyPending: true,
-      });
-    }
-
-    setRows([...byUser.values()].sort((a, b) => Number(b.overdue) - Number(a.overdue) || (b.balance ?? 0) - (a.balance ?? 0)));
+    setRows([...byUser.values()].sort((a, b) => Number(b.overdue) - Number(a.overdue) || b.balance - a.balance));
     setHasData(true);
   }, [isAdmin]);
 
@@ -117,11 +94,11 @@ export default function AdminPaymentsTab() {
       <View style={styles.header}>
         <Text style={styles.kicker}>Admin</Text>
         <Text style={styles.title}>Pagos</Text>
-        <Text style={styles.subtitle}>Primero lo que requiere atencion. El detalle vive dentro de cada cliente.</Text>
+        <Text style={styles.subtitle}>Obligaciones oficiales con saldo pendiente. El detalle se gestiona desde cada cliente.</Text>
       </View>
 
       {error ? <View style={styles.errorBox}><Text style={styles.errorTitle}>No se pudo actualizar</Text><Text style={styles.muted}>{error}</Text><Pressable style={styles.retryButton} onPress={() => void refresh()}><Text style={styles.retryText}>Reintentar</Text></Pressable></View> : null}
-      {hasData ? <View style={styles.metrics}>
+      {hasData && !error ? <View style={styles.metrics}>
         <Metric label="Con saldo" value={rows.length} />
         <Metric label="Vencidos" value={rows.filter((row) => row.overdue).length} />
         <Metric label="Parciales" value={rows.filter((row) => row.partial).length} />
@@ -145,10 +122,10 @@ export default function AdminPaymentsTab() {
 
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Calculando saldos...</Text></View> : null}
 
-      {!loading && hasData && filtered.length === 0 ? <View style={styles.empty}><MaterialIcons name="check-circle" size={34} color={ucapsaBrand.colors.success} /><Text style={styles.emptyTitle}>Sin resultados</Text><Text style={styles.muted}>No hay clientes en este filtro.</Text></View> : null}
+      {!loading && !error && hasData && filtered.length === 0 ? <View style={styles.empty}><MaterialIcons name="check-circle" size={34} color={ucapsaBrand.colors.success} /><Text style={styles.emptyTitle}>Sin resultados</Text><Text style={styles.muted}>No hay clientes en este filtro.</Text></View> : null}
 
       <View style={styles.list}>
-        {filtered.map((row, index) => (
+        {!loading && !error && filtered.map((row, index) => (
           <Pressable
             key={row.userId}
             style={[styles.row, index === filtered.length - 1 && styles.rowLast]}
@@ -156,14 +133,13 @@ export default function AdminPaymentsTab() {
           >
             <View style={{ flex: 1 }}>
               <Text style={styles.name}>{row.profile?.full_name || row.profile?.email || 'Cliente UCAPSA'}</Text>
-              <Text style={styles.meta}>{row.obligations > 0 ? `${row.obligations} obligaciones abiertas` : 'Pago pendiente por revisar'}</Text>
+              <Text style={styles.meta}>`${row.obligations} obligación${row.obligations === 1 ? '' : 'es'} con saldo`</Text>
               <View style={styles.statusRow}>
                 {row.overdue ? <AdminStatusPill label="Vencido" tone="danger" icon="error" /> : <AdminStatusPill label="Pendiente" tone="warning" icon="schedule" />}
-                {row.legacyPending && row.obligations === 0 ? <AdminStatusPill label="Membresía" tone="purple" icon="workspace-premium" /> : null}
                 {row.partial ? <AdminStatusPill label="Parcial" tone="info" icon="pie-chart" /> : null}
               </View>
             </View>
-            <View style={styles.balanceBox}><Text style={styles.balanceLabel}>Saldo</Text><Text style={styles.balance}>{row.balance === null ? 'Revisar' : money(row.balance)}</Text></View>
+            <View style={styles.balanceBox}><Text style={styles.balanceLabel}>Saldo</Text><Text style={styles.balance}>{money(row.balance)}</Text></View>
             <MaterialIcons name="chevron-right" size={22} color={ucapsaBrand.colors.redDark} />
           </Pressable>
         ))}
