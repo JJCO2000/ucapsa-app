@@ -47,4 +47,28 @@ assert.ok(membershipService.includes(".eq('status', 'active')"),
   'Socio must come from actual active memberships');
 assert.ok(!screen.includes("members: profiles.filter((profile) => profile.role === 'member')"),
   'Legacy role-only Socio count is forbidden');
+
+// The operational Clients subtab must use the same active membership
+// source and label/filter domain as the Superadmin directory.
+const clientsTab=fs.readFileSync('src/app/(tabs)/admin-clients.tsx','utf8');
+for (const part of [
+  'getAdminActiveMembershipUserIds()',
+  'setActiveMemberIds(new Set(result.memberIds))',
+  "matchesDirectoryFilter(profile, filter === 'all' ? 'clients_and_members' : filter, activeMemberIds)",
+  'directoryStatusLabel(profile, activeMemberIds)',
+  'activeMemberIds.has(profile.user_id)',
+  '!loading && !error && rows.map',
+]) assert.ok(clientsTab.includes(part),'Admin Clients lost SSOT subtab protection: '+part);
+for(const old of [
+  "profile.role !== 'member'",
+  "profile.role !== 'client'",
+  "labelForRole(profile.role)",
+]) assert.ok(!clientsTab.includes(old),'Admin Clients returned to old role-as-membership shortcut: '+old);
+assert.equal(matchesDirectoryFilter(
+  {user_id:'c',role:'client'},'members',new Set(['c'])),true,
+  'Client role with real active membership must appear under Socios');
+assert.equal(matchesDirectoryFilter(
+  {user_id:'legacy',role:'member'},'clients',new Set()),true,
+  'Former member without active membership must appear under Clientes');
+
 console.log('UCAPSA directory counts: SSOT, overlap, cancelled, filters PASS');
