@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
@@ -59,51 +59,84 @@ export default function ClientCompetitionConstancyScreen() {
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
   const premium = format.key === 'member';
 
-  const [detail, setDetail] = useState<ClientConstancyDetail | null>(null);
-  const [localReady, setLocalReady] = useState(false);
+  const userId = user?.id ?? '';
+  const detailKey = !isAdmin && userId && dogId && seasonId
+    ? [userId, dogId, seasonId].join(':') : '';
+  const activeDetailKeyRef = useRef(detailKey);
+  activeDetailKeyRef.current = detailKey;
+  const loadRunRef = useRef(0);
+  const [storedDetail, setStoredDetail] = useState<ClientConstancyDetail | null>(null);
+  const [loadedForKey, setLoadedForKey] = useState<string | null>(null);
+  const [readyForKey, setReadyForKey] = useState<string | null>(null);
   const [usingSavedData, setUsingSavedData] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [storedError, setError] = useState<string | null>(null);
   const [screenFocused, setScreenFocused] = useState(false);
+  // Cached details are only visible for the currently signed-in user, dog and season.
+  const detail = detailKey && loadedForKey === detailKey ? storedDetail : null;
+  const localReady = readyForKey === detailKey;
+  const error = localReady ? storedError : null;
 
   const load = useCallback(async () => {
-    if (!user || isAdmin || !dogId || !seasonId) {
-      setLocalReady(true);
+    const runId = ++loadRunRef.current;
+    const isCurrentRun = () => loadRunRef.current === runId
+      && activeDetailKeyRef.current === detailKey;
+    if (!userId || isAdmin) return;
+
+    setStoredDetail(null);
+    setLoadedForKey(null);
+    setReadyForKey(null);
+    setError(null);
+    setUsingSavedData(false);
+    setSavedAt(null);
+    if (!dogId || !seasonId) {
+      setError('Falta identificar el perro o temporada de la constancia.');
+      setReadyForKey(detailKey);
       return;
     }
 
-    setError(null);
-    setUsingSavedData(false);
-
-    const cached = await getCachedMyConstancyDetail(user.id, dogId, seasonId);
-    if (cached) {
-      setDetail(cached.data);
-      setSavedAt(cached.saved_at);
-      setLocalReady(true);
-    }
-
+    let cached: Awaited<ReturnType<typeof getCachedMyConstancyDetail>> = null;
     try {
-      const fresh = await refreshMyConstancyDetail(user.id, dogId, seasonId);
-      setDetail(fresh.data);
+      cached = await getCachedMyConstancyDetail(userId, dogId, seasonId);
+    } catch (cause) {
+      devWarn('client-constancy: could not read local cache.', cause);
+    }
+    if (!isCurrentRun()) return;
+    if (cached) {
+      setStoredDetail(cached.data);
+      setLoadedForKey(detailKey);
+      setSavedAt(cached.saved_at);
+    }
+    try {
+      const fresh = await refreshMyConstancyDetail(userId, dogId, seasonId);
+      if (!isCurrentRun()) return;
+      setStoredDetail(fresh.data);
+      setLoadedForKey(detailKey);
       setSavedAt(fresh.saved_at);
       setUsingSavedData(false);
-      setLocalReady(true);
     } catch (cause) {
-      setLocalReady(true);
+      if (!isCurrentRun()) return;
       if (cached) {
         setUsingSavedData(true);
         setSavedAt(cached.saved_at);
       } else {
+        setStoredDetail(null);
+        setLoadedForKey(null);
         setError(cause instanceof Error ? cause.message : 'No se pudo cargar la constancia.');
       }
+    } finally {
+      if (isCurrentRun()) setReadyForKey(detailKey);
     }
-  }, [dogId, isAdmin, seasonId, user]);
+  }, [detailKey, dogId, isAdmin, seasonId, userId]);
 
   useFocusEffect(useCallback(() => {
     setScreenFocused(true);
     void load();
-    return () => setScreenFocused(false);
+    return () => {
+      setScreenFocused(false);
+      loadRunRef.current += 1;
+    };
   }, [load]));
 
   async function refresh() {
@@ -114,12 +147,13 @@ export default function ClientCompetitionConstancyScreen() {
   const season = detail?.season ?? null;
 
   useEffect(() => {
-    if (!user || isAdmin || !screenFocused || !localReady || error || !detail?.dog_id || !season?.season_id) return;
-    void recordValueExposure(user.id, detail.dog_id, season.season_id, 'constancy_detail')
+    if (!userId || isAdmin || !screenFocused || !localReady || error || !detail
+      || detail.dog_id !== dogId || season?.season_id !== seasonId) return;
+    void recordValueExposure(userId, detail.dog_id, season.season_id, 'constancy_detail')
       .catch((cause) => {
         devWarn('Could not persist constancy detail value exposure.', cause);
       });
-  }, [detail?.dog_id, error, isAdmin, localReady, screenFocused, season?.season_id, user]);
+  }, [detail?.dog_id, dogId, error, isAdmin, localReady, screenFocused, season?.season_id, seasonId, userId]);
 
   if (!user) return <Redirect href="/auth/login" />;
   if (isAdmin) return <Redirect href="/admin-home" />;
@@ -138,7 +172,7 @@ export default function ClientCompetitionConstancyScreen() {
         <Text style={[styles.subtitle, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{season?.season_name || 'Temporada'}</Text>
       </View>
 
-      {usingSavedData ? (
+      {usingSavedData && detail ? (
         <OfflineDataNotice
           savedAt={savedAt}
           onRetry={() => void refresh()}
@@ -154,7 +188,7 @@ export default function ClientCompetitionConstancyScreen() {
         </View>
       ) : null}
 
-      {error ? (
+      {error && localReady ? (
         <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
           <MaterialIcons name="cloud-off" size={24} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
           <Text style={[styles.cardTitle, { color: format.cardText }]}>No pudimos cargar la constancia</Text>
