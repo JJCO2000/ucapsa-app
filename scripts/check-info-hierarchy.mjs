@@ -34,7 +34,8 @@ mustNot('src/app/(tabs)/dog.tsx', /LOGROS UCAPSA|AchievementBadgeGrid|Tus perros
 must('src/app/(tabs)/profile.tsx', /title="Mis logros"/, 'Perfil perdió el acceso general a Mis logros.');
 must('src/app/(tabs)/profile.tsx', /title="Insignias de actividad"/, 'Perfil perdió hitos de actividad.');
 must('src/app/client/dog-achievements.tsx', /useLocalSearchParams<\{ dogId\?/, 'La ficha de logros dejó de resolver un perro concreto por dogId.');
-must('src/app/client/dog-achievements.tsx', /getCachedAchievementsForDog\(user\.id, dogId\)/, 'La ficha de logros dejó de hidratar caché por perro.');
+must('src/app/client/dog-achievements.tsx', /getCachedAchievementsForDog\((?:user\.id|userId), dogId\)/, 'La ficha de logros dejó de hidratar caché por perro y cuenta.');
+must('src/app/client/dog-achievements.tsx', /loadedForKey === scopeKey/,'La ficha de logros perdió aislamiento por cuenta y perro.');
 must('src/app/client/dog-achievements.tsx', /getMyDogAchievements\(dogId,/, 'La ficha de logros dejó de refrescar la progresión del perro seleccionado.');
 must('src/app/client/dog-achievements.tsx', /AchievementBadgeGrid items=\{items\}/, 'La ficha de logros perdió el roadmap completo de progresión.');
 
