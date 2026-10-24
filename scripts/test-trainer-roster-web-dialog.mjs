@@ -90,7 +90,7 @@ const adminSubtabs = [
 let adminDialogCount = 0;
 for (const [screen, expected, operation] of adminSubtabs) {
   const adminSource=fs.readFileSync('src/app/admin/'+screen+'.tsx','utf8');
-  const calls=(adminSource.match(/showStaffDialog\\(/g)||[]).length;
+  const calls=(adminSource.match(/showStaffDialog\(/g)||[]).length;
   adminDialogCount+=calls;
   assert.ok(calls>=expected, screen+': all previous alerts must use web/native helper.');
   assert.ok(!adminSource.includes('Alert.alert('), screen+': browser cannot use native Alert.alert.');
