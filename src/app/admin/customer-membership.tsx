@@ -8,6 +8,7 @@ import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { showStaffDialog } from '../../utils/staff-dialog';
+import { devWarn } from '../../lib/client-diagnostics';
 import { getAdminCustomerRecord, type AdminCustomerRecord } from '../../services/admin-customer.service';
 import {
   forceMembershipForProfile,
@@ -78,6 +79,7 @@ export default function CustomerMembershipScreen() {
       await load();
       showStaffDialog('Membresia creada', 'La membresia quedo activa y sin vencimiento por fecha.');
     } catch (cause) {
+      devWarn('admin-customer-membership: operation failed', cause);
       showStaffDialog('No se pudo crear', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     } finally {
       setSaving(false);
@@ -101,6 +103,7 @@ export default function CustomerMembershipScreen() {
       await load();
       showStaffDialog('Membresia guardada', 'Los cambios se actualizaron. La membresia no vence por fecha.');
     } catch (cause) {
+      devWarn('admin-customer-membership: operation failed', cause);
       showStaffDialog('No se pudo guardar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     } finally {
       setSaving(false);
@@ -159,6 +162,7 @@ export default function CustomerMembershipScreen() {
         });
         await load();
       } catch (cause) {
+        devWarn('admin-customer-membership: operation failed', cause);
         showStaffDialog('No se pudo cambiar la cobertura', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
       } finally {
         setSaving(false);
@@ -210,6 +214,7 @@ export default function CustomerMembershipScreen() {
         setStageDogId(null);
         await load();
       } catch (cause) {
+        devWarn('admin-customer-membership: operation failed', cause);
         showStaffDialog('No se pudo cambiar la etapa', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
       } finally {
         setSaving(false);
