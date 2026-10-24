@@ -167,12 +167,12 @@ export default function PracticeDetailScreen() {
           {entry.syncStatus === 'pending' ? (
             <View style={[styles.pending, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]}>
               <MaterialIcons name="sync" size={18} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-              <Text style={[styles.pendingText, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Guardada en este dispositivo. Se sincronizará cuando vuelva la conexión.</Text>
+              <Text style={[styles.pendingText, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Guardada en este teléfono. Se enviará cuando tengas conexión.</Text>
             </View>
           ) : entry.syncStatus === 'rejected' ? (
             <View style={[styles.pending, { borderColor: ucapsaBrand.colors.dangerBorder, backgroundColor: ucapsaBrand.colors.dangerSoft }]}>
               <MaterialIcons name="error-outline" size={18} color={ucapsaBrand.colors.danger} />
-              <Text style={[styles.pendingText, { color: ucapsaBrand.colors.danger }]}>No pudo sincronizarse automáticamente. {entry.syncMessage || 'Revisa la inscripción con UCAPSA.'}</Text>
+              <Text style={[styles.pendingText, { color: ucapsaBrand.colors.danger }]}>No se pudo enviar esta práctica. {entry.syncMessage || 'Pide ayuda a UCAPSA para revisarla.'}</Text>
             </View>
           ) : null}
         </View>
