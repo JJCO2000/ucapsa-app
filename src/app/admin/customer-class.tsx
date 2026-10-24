@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AdminDogPicker, type AdminDogMode } from '../../components/domain/AdminDogPicker';
@@ -34,7 +34,15 @@ export default function CustomerClassScreen() {
   const params = useLocalSearchParams<{ userId?: string; enrollmentId?: string }>();
   const userId = typeof params.userId === 'string' ? params.userId.trim() : '';
   const enrollmentId = typeof params.enrollmentId === 'string' ? params.enrollmentId.trim() : '';
-  const [record, setRecord] = useState<AdminCustomerRecord | null>(null);
+  const [storedRecord, setStoredRecord] = useState<AdminCustomerRecord | null>(null);
+  const [loadedForKey, setLoadedForKey] = useState<string | null>(null);
+  const recordKey = userId + ':' + enrollmentId;
+  const activeRecordKeyRef = useRef(recordKey);
+  activeRecordKeyRef.current = recordKey;
+  const loadRunRef = useRef(0);
+  const saveRunRef = useRef(0);
+  const record = loadedForKey === recordKey && storedRecord?.profile.user_id === userId ? storedRecord : null;
+  const [error, setError] = useState('');
   const [schedules, setSchedules] = useState<ProgramSchedule[]>([]);
   const [scheduleId, setScheduleId] = useState('');
   const [level, setLevel] = useState<ProgramLevel>('base');
@@ -50,40 +58,81 @@ export default function CustomerClassScreen() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    if (!userId) return;
-    const [nextRecord, nextSchedules, nextDogs] = await Promise.all([getAdminCustomerRecord(userId), getProgramSchedules(), getDogsForUser(userId)]);
-    setRecord(nextRecord);
-    setSchedules(nextSchedules);
-    setDogs(nextDogs);
-    const row = nextRecord.enrollments.find((item) => item.enrollment.id === enrollmentId) ?? nextRecord.enrollments[0] ?? null;
-    if (row) {
-      setScheduleId(row.enrollment.schedule_id);
-      setLevel(row.enrollment.program_level);
-      const linkedDog = nextDogs.find((dog) => dog.id === row.enrollment.dog_id) ?? nextDogs.find((dog) => dog.name.trim().toLowerCase() === (row.enrollment.dog_name ?? '').trim().toLowerCase()) ?? null;
-      setDogMode(linkedDog ? 'existing' : 'new');
-      setDogId(linkedDog?.id ?? '');
-      setDogName(linkedDog?.name ?? row.enrollment.dog_name ?? '');
-      setCardNumber(row.enrollment.physical_card_number ?? '');
-      setNotes(row.enrollment.notes ?? '');
+    if (!userId || activeRecordKeyRef.current !== recordKey) return;
+    const runId = ++loadRunRef.current;
+    const isCurrentRun = () => loadRunRef.current === runId && activeRecordKeyRef.current === recordKey;
+    setLoading(true);
+    setError('');
+    try {
+      const [nextRecord, nextSchedules, nextDogs] = await Promise.all([
+        getAdminCustomerRecord(userId), getProgramSchedules(), getDogsForUser(userId),
+      ]);
+      if (!isCurrentRun()) return;
+      const selected = enrollmentId
+        ? nextRecord.enrollments.find((item) => item.enrollment.id === enrollmentId) ?? null
+        : nextRecord.enrollments[0] ?? null;
+      if (nextRecord.profile.user_id !== userId
+          || (selected && selected.enrollment.user_id !== userId)
+          || (enrollmentId && !selected)) {
+        throw new Error('No se pudo verificar la inscripción de este cliente.');
+      }
+      setStoredRecord(nextRecord);
+      setLoadedForKey(recordKey);
+      setSchedules(nextSchedules);
+      setDogs(nextDogs);
+      if (selected) {
+        setScheduleId(selected.enrollment.schedule_id);
+        setLevel(selected.enrollment.program_level);
+        const linkedDog = nextDogs.find((dog) => dog.id === selected.enrollment.dog_id)
+          ?? nextDogs.find((dog) => dog.name.trim().toLowerCase() === (selected.enrollment.dog_name ?? '').trim().toLowerCase()) ?? null;
+        setDogMode(linkedDog ? 'existing' : 'new');
+        setDogId(linkedDog?.id ?? '');
+        setDogName(linkedDog?.name ?? selected.enrollment.dog_name ?? '');
+        setCardNumber(selected.enrollment.physical_card_number ?? '');
+        setNotes(selected.enrollment.notes ?? '');
+      }
+    } catch (cause) {
+      if (!isCurrentRun()) return;
+      setStoredRecord(null);
+      setLoadedForKey(null);
+      setSchedules([]);
+      setDogs([]);
+      setError(cause instanceof Error ? cause.message : 'No se pudo consultar la clase.');
+    } finally {
+      if (isCurrentRun()) setLoading(false);
     }
-  }, [enrollmentId, userId]);
+  }, [enrollmentId, recordKey, userId]);
 
   useFocusEffect(useCallback(() => {
-    setLoading(true);
-    void load().finally(() => setLoading(false));
-    return undefined;
-  }, [load]));
+    loadRunRef.current += 1;
+    saveRunRef.current += 1;
+    setStoredRecord(null);
+    setLoadedForKey(null);
+    setSchedules([]);
+    setDogs([]);
+    setEditing(false);
+    setStatusModalOpen(false);
+    setError('');
+    if (userId) void load();
+    else { setLoading(false); setError('Falta seleccionar el cliente.'); }
+    return () => { loadRunRef.current += 1; saveRunRef.current += 1; };
+  }, [load, userId]));
 
   const row = useMemo(() => {
     if (!record) return null;
-    return record.enrollments.find((item) => item.enrollment.id === enrollmentId) ?? record.enrollments[0] ?? null;
+    return enrollmentId
+      ? record.enrollments.find((item) => item.enrollment.id === enrollmentId) ?? null
+      : record.enrollments[0] ?? null;
   }, [enrollmentId, record]);
 
   const programSchedules = useMemo(() => row ? schedules.filter((item) => item.program_id === row.program.id) : [], [row, schedules]);
 
   async function save() {
-    if (!row) return;
-    if (!scheduleId) {
+    if (!row || row.enrollment.user_id !== userId || loading || saving || error) return;
+    const boundRecordKey = recordKey;
+    const saveRunId = ++saveRunRef.current;
+    const isCurrentSave = () => saveRunRef.current === saveRunId && activeRecordKeyRef.current === boundRecordKey;
+    if (!scheduleId || !programSchedules.some((schedule) => schedule.id === scheduleId)) {
       showStaffDialog('Falta horario', 'Selecciona un horario.');
       return;
     }
@@ -100,6 +149,7 @@ export default function CustomerClassScreen() {
         return;
       }
       const linkedDog = selectedDog ?? await createDogForUserAdmin(row.enrollment.user_id, resolvedDogName);
+      if (!isCurrentSave()) return;
       await updateProgramEnrollment(row.enrollment.id, {
         scheduleId,
         dogId: linkedDog.id,
@@ -108,35 +158,44 @@ export default function CustomerClassScreen() {
         programLevel: row.program.code === 'comandos' ? level : 'base',
         notes,
       });
+      if (!isCurrentSave()) return;
       setEditing(false);
       await load();
-      showStaffDialog('Clase guardada', 'La inscripcion se actualizo.');
+      if (isCurrentSave()) showStaffDialog('Clase guardada', 'La inscripción se actualizó.');
     } catch (cause) {
+      if (!isCurrentSave()) return;
       devWarn('admin-customer-class: operation failed', cause);
       showStaffDialog('No se pudo guardar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     } finally {
-      setSaving(false);
+      if (isCurrentSave()) setSaving(false);
     }
   }
 
   function changeStatus(status: ProgramEnrollmentStatus) {
-    if (!row) return;
+    if (!row || row.enrollment.user_id !== userId || loading || saving || error) return;
+    const boundRecordKey = recordKey;
+    const enrollmentToUpdate = row.enrollment.id;
     const progressionMessage = status === 'completed'
       ? ' Marcarla completada cierra esta tarjeta, pero no cambia el nivel. La promoción se resuelve desde Listos para evaluar.'
       : '';
     showStaffDialog('Confirmar', `La inscripcion quedara como ${getProgramStatusLabel(status).toLowerCase()}.${progressionMessage}`, [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Confirmar', onPress: async () => {
+        if (activeRecordKeyRef.current !== boundRecordKey) return;
+        const saveRunId = ++saveRunRef.current;
+        const isCurrentSave = () => saveRunRef.current === saveRunId && activeRecordKeyRef.current === boundRecordKey;
         try {
           setSaving(true);
-          await setProgramEnrollmentStatus(row.enrollment.id, status);
+          await setProgramEnrollmentStatus(enrollmentToUpdate, status);
+          if (!isCurrentSave()) return;
           await load();
-          if (status === 'completed') showStaffDialog('Tarjeta completada', 'El nivel no cambió. Si corresponde repetir o avanzar, resuélvelo desde Listos para evaluar.');
+          if (isCurrentSave() && status === 'completed') showStaffDialog('Tarjeta completada', 'El nivel no cambió. Si corresponde repetir o avanzar, resuélvelo desde Listos para evaluar.');
         } catch (cause) {
+          if (!isCurrentSave()) return;
           devWarn('admin-customer-class: operation failed', cause);
           showStaffDialog('No se pudo cambiar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
         } finally {
-          setSaving(false);
+          if (isCurrentSave()) setSaving(false);
         }
       } },
     ]);
@@ -147,10 +206,11 @@ export default function CustomerClassScreen() {
       <AdminCustomerContextHeader customerName={adminCustomerDisplayName(record?.profile)} section={row?.program.name || 'Clase'} subtitle="Inscripcion, perro, horario y asistencias del cliente seleccionado." member={record?.membership?.status === 'active'} onBack={() => router.back()} />
 
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando...</Text></View> : null}
+      {error ? <View style={styles.empty}><Text accessibilityRole="alert" style={styles.muted}>{error}</Text><Pressable onPress={() => void load()}><Text style={styles.emptyTitle}>Reintentar</Text></Pressable></View> : null}
 
-      {!loading && !row ? <View style={styles.empty}><MaterialIcons name="school" size={34} color={ucapsaBrand.colors.redDark} /><Text style={styles.emptyTitle}>Inscripcion no disponible</Text></View> : null}
+      {!loading && !error && !row ? <View style={styles.empty}><MaterialIcons name="school" size={34} color={ucapsaBrand.colors.redDark} /><Text style={styles.emptyTitle}>Inscripcion no disponible</Text></View> : null}
 
-      {row ? (
+      {row && !loading && !error ? (
         <>
           {!editing ? (
             <View style={styles.card}>
