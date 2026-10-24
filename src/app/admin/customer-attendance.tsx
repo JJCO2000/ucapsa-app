@@ -226,8 +226,9 @@ export default function CustomerAttendanceScreen() {
       <AdminCustomerContextHeader customerName={adminCustomerDisplayName(record?.profile)} section="Asistencias" subtitle="Registra, corrige o elimina asistencias reales sin tocar contadores." member={record?.membership?.status === 'active'} onBack={() => router.back()} />
 
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando...</Text></View> : null}
+      {error ? <View style={styles.empty}><Text accessibilityRole="alert" style={styles.muted}>{error}</Text><Pressable onPress={() => void load()}><Text style={styles.emptyTitle}>Reintentar</Text></Pressable></View> : null}
 
-      {record && record.enrollments.length > 1 ? (
+      {record && !loading && !error && record.enrollments.length > 1 ? (
         <View style={styles.programChooser}>
           {record.enrollments.map((item) => (
             <Pressable key={item.enrollment.id} style={[styles.programButton, selectedEnrollment?.enrollment.id === item.enrollment.id && styles.programButtonActive]} onPress={() => { setSelectedEnrollmentId(item.enrollment.id); setVisibleCount(8); }}>
@@ -237,7 +238,7 @@ export default function CustomerAttendanceScreen() {
         </View>
       ) : null}
 
-      {selectedEnrollment ? (
+      {selectedEnrollment && !loading && !error ? (
         <View style={styles.summary}>
           <View><Text style={styles.summaryTitle}>{selectedEnrollment.program.name}</Text><Text style={styles.muted}>{selectedEnrollment.enrollment.access_mode === 'membership' ? `${selectedEnrollment.enrollment.attendances_count} asistencias · socio sin límite` : `${selectedEnrollment.enrollment.attendances_count} de ${selectedEnrollment.program.required_attendances} contabilizadas`}</Text>
             {selectedEnrollment.enrollment.attendances_count > attendanceRows.length ? (
@@ -247,11 +248,11 @@ export default function CustomerAttendanceScreen() {
         </View>
       ) : null}
 
-      {!loading && !selectedEnrollment ? <View style={styles.empty}><Text style={styles.emptyTitle}>Sin clases</Text><Text style={styles.muted}>El cliente no tiene inscripciones.</Text></View> : null}
+      {!loading && !error && !selectedEnrollment ? <View style={styles.empty}><Text style={styles.emptyTitle}>Sin clases</Text><Text style={styles.muted}>El cliente no tiene inscripciones.</Text></View> : null}
 
-      {selectedEnrollment && attendanceRows.length === 0 ? <View style={styles.empty}><Text style={styles.emptyTitle}>Sin asistencias con fecha</Text><Text style={styles.muted}>{selectedEnrollment.enrollment.attendances_count > 0 ? 'La inscripción tiene asistencias históricas reconocidas sin fecha individual.' : 'Usa Registrar para agregar la primera asistencia real.'}</Text></View> : null}
+      {selectedEnrollment && !loading && !error && attendanceRows.length === 0 ? <View style={styles.empty}><Text style={styles.emptyTitle}>Sin asistencias con fecha</Text><Text style={styles.muted}>{selectedEnrollment.enrollment.attendances_count > 0 ? 'La inscripción tiene asistencias históricas reconocidas sin fecha individual.' : 'Usa Registrar para agregar la primera asistencia real.'}</Text></View> : null}
 
-      {selectedEnrollment ? (
+      {selectedEnrollment && !loading && !error ? (
         <View style={styles.list}>
           {attendanceRows.slice(0, visibleCount).map((attendance, index) => (
             <View key={attendance.id} style={[styles.row, index === Math.min(attendanceRows.length, visibleCount) - 1 && styles.rowLast]}>
@@ -269,9 +270,9 @@ export default function CustomerAttendanceScreen() {
         </View>
       ) : null}
 
-      {attendanceRows.length > visibleCount ? <Pressable style={styles.moreButton} onPress={() => setVisibleCount((value) => value + 8)}><Text style={styles.moreText}>Ver 8 mas</Text></Pressable> : null}
+      {!loading && !error && attendanceRows.length > visibleCount ? <Pressable style={styles.moreButton} onPress={() => setVisibleCount((value) => value + 8)}><Text style={styles.moreText}>Ver 8 mas</Text></Pressable> : null}
 
-      <KeyboardAwareModal visible={modalOpen} onClose={() => setModalOpen(false)}>
+      <KeyboardAwareModal visible={modalOpen && !!record && !loading && !error} onClose={() => setModalOpen(false)}>
         <Text style={styles.modalCustomerName}>{adminCustomerDisplayName(record?.profile)}</Text>
         <Text style={styles.modalKicker}>Asistencia manual</Text>
         <Text style={styles.modalTitle}>{edit.attendance ? 'Corregir asistencia' : 'Registrar asistencia'}</Text>
