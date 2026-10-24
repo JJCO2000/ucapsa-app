@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -28,6 +28,8 @@ function dateLabel(value: string | null) {
 }
 
 export default function AdminCompetitionExamsScreen() {
+  const { intent } = useLocalSearchParams<{ intent?: string | string[] }>();
+  const importMode = (Array.isArray(intent) ? intent[0] : intent) === 'imports';
   const [workspace, setWorkspace] = useState<AdminCompetitionExamWorkspace>(emptyWorkspace);
   const [seasonId, setSeasonId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -61,19 +63,33 @@ export default function AdminCompetitionExamsScreen() {
     const clean = query.trim().toLocaleLowerCase('es-MX');
     return workspace.exams.filter((exam) => {
       if (seasonId && exam.season_id !== seasonId) return false;
+      if (importMode) {
+        const season = workspace.seasons.find((item) => item.id === exam.season_id);
+        if (exam.status !== 'published' || !season || season.status === 'closed' || exam.itemCount < 1) return false;
+      }
       if (!clean) return true;
       return [exam.code, exam.title, exam.seasonName].some((value) => value.toLocaleLowerCase('es-MX').includes(clean));
     });
-  }, [query, seasonId, workspace.exams]);
+  }, [importMode, query, seasonId, workspace.exams, workspace.seasons]);
 
   return (
     <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={ucapsaBrand.colors.red} />}>
       <View style={styles.header}>
         <Text style={styles.kicker}>Competencia UCAPSA</Text>
-        <Text style={styles.title}>Exámenes</Text>
-        <Text style={styles.subtitle}>Define cada examen y su estructura de ejercicios. Los puntajes máximos viven aquí; los resultados pertenecen a los intentos.</Text>
+        <Text style={styles.title}>{importMode ? 'Importar resultados Excel' : 'Exámenes'}</Text>
+        <Text style={styles.subtitle}>{importMode
+          ? 'Elige un examen publicado de una temporada abierta y con ejercicios.'
+          : 'Define cada examen y su estructura de ejercicios. Los puntajes máximos viven aquí; los resultados pertenecen a los intentos.'}</Text>
       </View>
 
+      {importMode ? (
+        <Pressable accessibilityRole="button" style={{ paddingVertical: 12, alignSelf: 'flex-start' }}
+          onPress={() => router.replace('/admin/competition-exams' as never)}>
+          <Text style={{ color: ucapsaBrand.colors.redDark, fontWeight: '900' }}>Ver todos los exámenes</Text>
+        </Pressable>
+      ) : null}
+      {!importMode ? (
+      <>
       <Pressable style={styles.primaryButton} onPress={() => router.push('/admin/competition-quick-create' as never)}>
         <MaterialIcons name="add" size={20} color={ucapsaBrand.colors.surface} />
         <Text style={styles.primaryButtonText}>Nuevo examen rápido</Text>
@@ -85,6 +101,8 @@ export default function AdminCompetitionExamsScreen() {
       <Pressable onPress={() => router.push('/admin/competition-exam-form' as never)} style={{ paddingVertical: 12, alignSelf: 'center' }}>
         <Text style={{ color: ucapsaBrand.colors.redDark, fontWeight: '900' }}>Crear examen detallado por ejercicios</Text>
       </Pressable>
+      </>
+      ) : null}
 
       {loading ? <View style={styles.loadingRow}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando exámenes…</Text></View> : null}
       {error ? <View style={styles.errorCard}><Text style={styles.errorTitle}>No se pudo cargar</Text><Text style={styles.muted}>{error}</Text></View> : null}
@@ -115,8 +133,11 @@ export default function AdminCompetitionExamsScreen() {
             <View style={styles.emptyCard}>
               <MaterialIcons name="assignment" size={26} color={ucapsaBrand.colors.redDark} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.emptyTitle}>{query.trim() || seasonId ? 'Sin coincidencias' : 'Todavía no hay exámenes'}</Text>
-                <Text style={styles.muted}>Crea un examen para definir sus ejercicios y máximos de puntuación.</Text>
+                <Text style={styles.emptyTitle}>{query.trim() || seasonId ? 'Sin coincidencias'
+                  : importMode ? 'Sin exámenes listos para importar' : 'Todavía no hay exámenes'}</Text>
+                <Text style={styles.muted}>{importMode
+                  ? 'Publica un examen con ejercicios en una temporada no cerrada antes de importar.'
+                  : 'Crea un examen para definir sus ejercicios y máximos de puntuación.'}</Text>
               </View>
             </View>
           ) : (
@@ -126,9 +147,11 @@ export default function AdminCompetitionExamsScreen() {
                   key={exam.id}
                   style={styles.examRow}
                   onPress={() => router.push(
-                    exam.status === 'published'
-                      ? `/admin/competition-quick-grade?examId=${encodeURIComponent(exam.id)}` as never
-                      : `/admin/competition-exam-detail?examId=${encodeURIComponent(exam.id)}` as never,
+                    importMode
+                      ? `/admin/competition-exam-imports?examId=${encodeURIComponent(exam.id)}` as never
+                      : exam.status === 'published'
+                        ? `/admin/competition-quick-grade?examId=${encodeURIComponent(exam.id)}` as never
+                        : `/admin/competition-exam-detail?examId=${encodeURIComponent(exam.id)}` as never,
                   )}
                 >
                   <View style={styles.examIcon}><MaterialIcons name="assignment" size={21} color={ucapsaBrand.colors.redDark} /></View>

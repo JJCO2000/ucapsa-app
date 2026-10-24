@@ -43,9 +43,9 @@ export default function AdminMoreTab() {
         />
         <MenuRow
           icon="table-view"
-          title="Importación de exámenes"
-          subtitle="Administrar definiciones detalladas e importaciones Excel"
-          onPress={() => router.push('/admin/competition-exams' as never)}
+          title="Importar resultados Excel"
+          subtitle="Selecciona un examen publicado y carga sus resultados"
+          onPress={() => router.push('/admin/competition-exams?intent=imports' as never)}
         />
         <MenuRow
           icon="edit-note"
