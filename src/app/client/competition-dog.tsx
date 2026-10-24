@@ -167,8 +167,8 @@ export default function ClientDogCompetitionScreen() {
       {error ? (
         <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
           <MaterialIcons name="error-outline" size={24} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
-          <Text style={[styles.cardTitle, { color: format.cardText }]}>No pudimos verificar el detalle competitivo</Text>
-          <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Esto no significa que tu perro tenga cero puntos. Revisa tu conexión e intenta otra vez.</Text>
+          <Text style={[styles.cardTitle, { color: format.cardText }]}>No pudimos cargar la competencia</Text>
+          <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>No podemos mostrar sus puntos ahora. Revisa tu conexión e intenta de nuevo.</Text>
           <Pressable accessibilityRole="button" onPress={() => void refresh()}
             style={[styles.pendingCard, { backgroundColor: format.secondaryButton, borderColor: format.cardBorder }]}>
             <Text style={[styles.cardTitle, { color: format.cardText }]}>Reintentar</Text>
