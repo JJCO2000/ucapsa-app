@@ -1,13 +1,15 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AdminDogPicker, type AdminDogMode } from '../../components/domain/AdminDogPicker';
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../components/domain/AdminCustomerContextHeader';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
+import { showStaffDialog } from '../../utils/staff-dialog';
+import { devWarn } from '../../lib/client-diagnostics';
 import { getAdminCustomerRecord, type AdminCustomerRecord } from '../../services/admin-customer.service';
 import { createDogForUserAdmin, getDogsForUser, type BasicDog } from '../../services/dogs.service';
 import {
@@ -82,7 +84,7 @@ export default function CustomerClassScreen() {
   async function save() {
     if (!row) return;
     if (!scheduleId) {
-      Alert.alert('Falta horario', 'Selecciona un horario.');
+      showStaffDialog('Falta horario', 'Selecciona un horario.');
       return;
     }
     try {
@@ -90,11 +92,11 @@ export default function CustomerClassScreen() {
       const selectedDog = dogMode === 'existing' ? dogs.find((dog) => dog.id === dogId) ?? null : null;
       const resolvedDogName = selectedDog?.name ?? dogName.trim();
       if (dogMode === 'existing' && !selectedDog) {
-        Alert.alert('Selecciona perro', 'Elige uno de los perros registrados.');
+        showStaffDialog('Selecciona perro', 'Elige uno de los perros registrados.');
         return;
       }
       if (!resolvedDogName) {
-        Alert.alert('Falta perro', 'Escribe el nombre del nuevo perro.');
+        showStaffDialog('Falta perro', 'Escribe el nombre del nuevo perro.');
         return;
       }
       const linkedDog = selectedDog ?? await createDogForUserAdmin(row.enrollment.user_id, resolvedDogName);
@@ -108,9 +110,10 @@ export default function CustomerClassScreen() {
       });
       setEditing(false);
       await load();
-      Alert.alert('Clase guardada', 'La inscripcion se actualizo.');
+      showStaffDialog('Clase guardada', 'La inscripcion se actualizo.');
     } catch (cause) {
-      Alert.alert('No se pudo guardar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+      devWarn('admin-customer-class: operation failed', cause);
+      showStaffDialog('No se pudo guardar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     } finally {
       setSaving(false);
     }
@@ -121,16 +124,17 @@ export default function CustomerClassScreen() {
     const progressionMessage = status === 'completed'
       ? ' Marcarla completada cierra esta tarjeta, pero no cambia el nivel. La promoción se resuelve desde Listos para evaluar.'
       : '';
-    Alert.alert('Confirmar', `La inscripcion quedara como ${getProgramStatusLabel(status).toLowerCase()}.${progressionMessage}`, [
+    showStaffDialog('Confirmar', `La inscripcion quedara como ${getProgramStatusLabel(status).toLowerCase()}.${progressionMessage}`, [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Confirmar', onPress: async () => {
         try {
           setSaving(true);
           await setProgramEnrollmentStatus(row.enrollment.id, status);
           await load();
-          if (status === 'completed') Alert.alert('Tarjeta completada', 'El nivel no cambió. Si corresponde repetir o avanzar, resuélvelo desde Listos para evaluar.');
+          if (status === 'completed') showStaffDialog('Tarjeta completada', 'El nivel no cambió. Si corresponde repetir o avanzar, resuélvelo desde Listos para evaluar.');
         } catch (cause) {
-          Alert.alert('No se pudo cambiar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+          devWarn('admin-customer-class: operation failed', cause);
+          showStaffDialog('No se pudo cambiar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
         } finally {
           setSaving(false);
         }
