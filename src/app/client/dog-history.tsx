@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
@@ -13,7 +13,7 @@ import { devWarn } from '../../lib/client-diagnostics';
 import { clientReadKeys, readClientResource, sanitizeProgramRowsForCache, writeClientResource } from '../../services/client-read-cache.service';
 import { getMyProgramEnrollments, getProgramCodeLabel, getProgramEnrollmentDogName, getProgramLevelDisplayLabel } from '../../services/programs.service';
 import type { ProgramEnrollmentWithDetails } from '../../types/app.types';
-import { DEFAULT_READ_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
+import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
 
 function getParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] ?? '' : value ?? '';
@@ -25,35 +25,71 @@ export default function DogHistoryScreen() {
   const { user, role, isAdmin } = useSession();
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
   const premium = format.key === 'member';
-  const [rows, setRows] = useState<ProgramEnrollmentWithDetails[]>([]);
+  const [storedRows, setRows] = useState<ProgramEnrollmentWithDetails[]>([]);
+  const [loadedForUserId, setLoadedForUserId] = useState<string | null>(null);
+  const loadRunRef = useRef(0);
+  const activeUserIdRef = useRef(user?.id ?? null);
+  activeUserIdRef.current = user?.id ?? null;
+  // Never display another account's cached program or dog information.
+  const rows = loadedForUserId === user?.id ? storedRows : [];
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [usingSavedData, setUsingSavedData] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!user || isAdmin) return;
-    const cached = await readClientResource<ProgramEnrollmentWithDetails[]>(user.id, clientReadKeys.programs);
+    const runId = ++loadRunRef.current;
+    const userId = user?.id;
+    if (!userId || isAdmin) return;
+    const isCurrentRun = () => loadRunRef.current === runId
+      && activeUserIdRef.current === userId;
+    setError(null);
+    setUsingSavedData(false);
+
+    let cached: { data: ProgramEnrollmentWithDetails[]; saved_at: string } | null = null;
+    try {
+      cached = await readClientResource<ProgramEnrollmentWithDetails[]>(userId, clientReadKeys.programs);
+    } catch (cause) {
+      devWarn('dog-history: could not read offline cache.', cause);
+    }
+    if (!isCurrentRun()) return;
     if (cached) {
       setRows(cached.data);
+      setLoadedForUserId(userId);
       setSavedAt(cached.saved_at);
       setLoading(false);
     }
+
     try {
       const fresh = await withOperationTimeout(getMyProgramEnrollments(), DEFAULT_READ_TIMEOUT_MS, 'dog-history');
+      if (!isCurrentRun()) return;
       setRows(fresh);
-      const stored = await writeClientResource(user.id, clientReadKeys.programs, sanitizeProgramRowsForCache(fresh));
-      setSavedAt(stored.saved_at);
+      setLoadedForUserId(userId);
       setUsingSavedData(false);
+      const stored = await writeClientResource(userId, clientReadKeys.programs, sanitizeProgramRowsForCache(fresh));
+      if (!isCurrentRun()) return;
+      setSavedAt(stored.saved_at);
     } catch (cause) {
+      if (!isCurrentRun()) return;
       devWarn('dog-history: remote refresh failed; using cached history when available.', cause);
-      setUsingSavedData(Boolean(cached));
+      if (cached) setUsingSavedData(true);
+      else setError(friendlyReadError('No se pudo cargar el historial de tu perro.'));
     } finally {
-      setLoading(false);
+      if (isCurrentRun()) setLoading(false);
     }
-  }, [isAdmin, user]);
+  }, [isAdmin, user?.id]);
 
-  useFocusEffect(useCallback(() => { void load(); return undefined; }, [load]));
+  useFocusEffect(useCallback(() => {
+    setLoading(true);
+    setError(null);
+    setUsingSavedData(false);
+    setRows([]);
+    setLoadedForUserId(null);
+    setSavedAt(null);
+    void load();
+    return () => { loadRunRef.current += 1; };
+  }, [load]));
 
   const dogRows = useMemo(
     () => rows
@@ -90,10 +126,20 @@ export default function DogHistoryScreen() {
         </View>
       </View>
 
-      {usingSavedData ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} /> : null}
+      {usingSavedData && !loading ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} /> : null}
       {loading ? <View style={styles.loading}><ActivityIndicator color={format.accent} /><Text style={[styles.subtitle, { color: format.muted }]}>Cargando historial…</Text></View> : null}
 
-      {!loading && dogRows.length === 0 ? (
+      {error && !loading ? (
+        <View style={[styles.empty, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
+          <MaterialIcons name="cloud-off" size={24} color={format.muted} />
+          <Text style={[styles.cardTitle, { color: format.cardText }]}>{error}</Text>
+          <Pressable accessibilityRole="button" onPress={() => void refresh()}>
+            <Text style={[styles.subtitle, { color: format.accentDark }]}>Reintentar</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {!loading && !error && dogRows.length === 0 ? (
         <View style={[styles.empty, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
           <MaterialIcons name="history" size={24} color={format.muted} />
           <Text style={[styles.cardTitle, { color: format.cardText }]}>Sin historial todavía</Text>
@@ -101,7 +147,7 @@ export default function DogHistoryScreen() {
         </View>
       ) : null}
 
-      <View style={styles.list}>
+      {!loading && !error ? <View style={styles.list}>
         {dogRows.map((item) => {
           const level = getProgramLevelDisplayLabel(item.program.code, item.enrollment.program_level);
           const title = `${getProgramCodeLabel(item.program.code)}${level ? ` ${level}` : ''}`;
@@ -128,7 +174,7 @@ export default function DogHistoryScreen() {
             </Pressable>
           );
         })}
-      </View>
+      </View> : null}
     </KeyboardAwareScreen>
   );
 }
