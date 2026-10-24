@@ -1,11 +1,11 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useMemo } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
-import { getAdminCustomerRecord, type AdminCustomerRecord } from '../../services/admin-customer.service';
+import { useAdminCustomerDetail } from '../../hooks/useAdminCustomerDetail';
 
 function money(value: number) {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 }).format(value);
@@ -23,28 +23,7 @@ function membershipLabel(status: string | null | undefined) {
 export default function AdminCustomerScreen() {
   const params = useLocalSearchParams<{ userId?: string }>();
   const userId = typeof params.userId === 'string' ? params.userId.trim() : '';
-  const [record, setRecord] = useState<AdminCustomerRecord | null>(null);
-  const [loading, setLoading] = useState(Boolean(userId));
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
-
-  const load = useCallback(async () => {
-    if (!userId) return;
-    try {
-      setError('');
-      setRecord(await getAdminCustomerRecord(userId));
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'No se pudo cargar el cliente.');
-      setRecord(null);
-    }
-  }, [userId]);
-
-  useFocusEffect(useCallback(() => {
-    if (!userId) return undefined;
-    setLoading(true);
-    void load().finally(() => setLoading(false));
-    return undefined;
-  }, [load, userId]));
+  const { record, loading, refreshing, error, refresh } = useAdminCustomerDetail(userId);
 
   const actualAttendances = useMemo(() => record?.enrollments.reduce((sum, item) => sum + item.enrollment.attendances_count, 0) ?? 0, [record]);
   const pendingBalance = useMemo(() => {
@@ -58,11 +37,6 @@ export default function AdminCustomerScreen() {
       .filter((item) => !item.cancelled_at)
       .reduce((sum, item) => sum + Math.max(0, Number(item.amount ?? 0) - (paid.get(item.id) ?? 0)), 0);
   }, [record]);
-
-  async function refresh() {
-    setRefreshing(true);
-    try { await load(); } finally { setRefreshing(false); }
-  }
 
   if (!userId) {
     return (
@@ -80,9 +54,9 @@ export default function AdminCustomerScreen() {
   return (
     <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={ucapsaBrand.colors.red} />}>
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando cliente...</Text></View> : null}
-      {error ? <View style={styles.error}><Text style={styles.errorTitle}>No se pudo cargar</Text><Text style={styles.muted}>{error}</Text><Pressable style={styles.primary} onPress={() => { setLoading(true); void load().finally(() => setLoading(false)); }}><Text style={styles.primaryText}>Reintentar</Text></Pressable></View> : null}
+      {error ? <View style={styles.error}><Text style={styles.errorTitle}>No se pudo cargar</Text><Text style={styles.muted}>{error}</Text><Pressable style={styles.primary} onPress={() => void refresh()}><Text style={styles.primaryText}>Reintentar</Text></Pressable></View> : null}
 
-      {record ? (
+      {record && !loading && !error ? (
         <>
           <View style={styles.hero}>
             <Text style={styles.kicker}>{record.membership?.status === 'active' ? 'Socio' : 'Cliente'}</Text>
