@@ -154,3 +154,6 @@ if (!customerDetail.includes('.filter((item) => !item.cancelled_at)')) {
   throw new Error('Admin customer balance counts cancelled obligations.');
 }
 console.log('UCAPSA customer effective balance excludes voided payments: PASS');
+
+// Regressions in the Administration Payments queue must fail the existing payment gate.
+await import('./test-admin-payment-attention-ssot.mjs');
