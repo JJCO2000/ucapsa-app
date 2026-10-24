@@ -164,10 +164,16 @@ export default function CustomerAttendanceScreen() {
   }
 
   async function saveAttendance() {
-    if (!edit.enrollment || !edit.scheduleId) {
+    if (!record || loading || saving || error || !edit.enrollment
+        || edit.enrollment.enrollment.user_id !== userId
+        || !record.enrollments.some((item) => item.enrollment.id === edit.enrollment?.enrollment.id)) return;
+    if (!edit.scheduleId || !validSchedules.some((schedule) => schedule.id === edit.scheduleId)) {
       showStaffDialog('Falta clase', 'Selecciona una fecha y horario reales.');
       return;
     }
+    const boundRecordKey = recordKey;
+    const saveRunId = ++saveRunRef.current;
+    const isCurrentSave = () => saveRunRef.current === saveRunId && activeRecordKeyRef.current === boundRecordKey;
     try {
       setSaving(true);
       if (edit.attendance) {
@@ -175,14 +181,16 @@ export default function CustomerAttendanceScreen() {
       } else {
         await registerProgramAttendance({ enrollmentId: edit.enrollment.enrollment.id, attendanceDate: edit.date, scheduleId: edit.scheduleId, notes: edit.notes });
       }
+      if (!isCurrentSave()) return;
       setModalOpen(false);
       await load();
-      showStaffDialog(edit.attendance ? 'Asistencia corregida' : 'Asistencia registrada', 'El historial y el avance quedaron actualizados.');
+      if (isCurrentSave()) showStaffDialog(edit.attendance ? 'Asistencia corregida' : 'Asistencia registrada', 'El historial y el avance quedaron actualizados.');
     } catch (cause) {
+      if (!isCurrentSave()) return;
       devWarn('admin-customer-attendance: operation failed', cause);
       showStaffDialog('No se pudo guardar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     } finally {
-      setSaving(false);
+      if (isCurrentSave()) setSaving(false);
     }
   }
 
