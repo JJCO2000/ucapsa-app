@@ -70,7 +70,9 @@ assert.match(schema, /check \(priority = 'urgent'\)/);
 assert.match(schema, /old\.status = 'closed'/);
 assert.match(schema, /new\.status <> 'contacted'/);
 assert.match(schema, /new\.status <> 'closed'/);
-assert.match(client, /disabled=\{loading \|\| Boolean\(error\)/);
+assert.match(client, /disabled=\{loading \|\| !verifiedForUser \|\| Boolean\(error\)/);
+assert.ok(client.includes('const verifiedForUser = Boolean(userId && loadedForUserId === userId)'),
+  'La solicitud exige estado verificado de la cuenta actual.');
 assert.ok(client.includes('contactWhatsapp(true)'), 'La confirmación de WhatsApp debe conservar el registro recién guardado.');
 assert.ok(client.includes('confirmedRecord || saved || current'), 'No usar el estado React obsoleto tras guardar.');
 assert.ok(client.includes('(Boolean(current) || saved || Boolean(error))'), 'WhatsApp debe ser alternativo tras captar el interés o cuando el registro falle.');
