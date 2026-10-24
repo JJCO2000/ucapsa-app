@@ -212,8 +212,9 @@ must('src/app/(tabs)/calendar.tsx', /const staleSource =[\s\S]*if \(staleSource\
 
 must('src/app/achievements.tsx', /setUsingCachedData\(false\)[\s\S]*getCachedAchievementsForUser\(user\.id\)/, 'Logros globales volvió a marcar caché hidratada como offline antes del refresh.');
 must('src/app/achievements.tsx', /catch[\s\S]*setUsingCachedData\(Boolean\(cached\)\)/, 'Logros globales dejó de activar fallback sólo tras fallo remoto.');
-must('src/app/client/dog-achievements.tsx', /setUsingSavedData\(false\)[\s\S]*getCachedAchievementsForDog\(user\.id, dogId\)/, 'Logros del perro volvió a marcar caché hidratada como offline antes del refresh.');
+must('src/app/client/dog-achievements.tsx', /setUsingSavedData\(false\)[\s\S]*getCachedAchievementsForDog\((?:user\.id|userId), dogId\)/, 'Logros del perro volvió a marcar caché hidratada como offline antes del refresh.');
 must('src/app/client/dog-achievements.tsx', /catch[\s\S]*if \(cachedAchievements\)[\s\S]*setUsingSavedData\(true\)/, 'Logros del perro dejó de activar fallback sólo tras fallo remoto.');
+must('src/app/client/dog-achievements.tsx', /const items = loadedForKey === scopeKey \? storedItems : \[\]/, 'El fallback offline de logros debe permanecer aislado por cuenta y perro.');
 
 // Pantallas auditadas previamente: conservan caché y sólo comunican fallback tras fallo remoto.
 must('src/app/(tabs)/classes.tsx', /Mostrando clases guardadas/, 'Clases perdió su aviso offline.');
