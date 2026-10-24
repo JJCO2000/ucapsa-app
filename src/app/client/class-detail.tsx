@@ -9,6 +9,7 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { ucapsaBrand, withAlpha } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
+import { devWarn } from '../../lib/client-diagnostics';
 import {
   getMyProgramEnrollments,
   getProgramCodeLabel,
@@ -52,33 +53,54 @@ function scheduleLabel(item: ProgramEnrollmentWithDetails) {
 export default function ClientClassDetailScreen() {
   const { enrollmentId } = useLocalSearchParams<{ enrollmentId?: string }>();
   const { user, role, isAdmin } = useSession();
-  const [item, setItem] = useState<ProgramEnrollmentWithDetails | null>(null);
+  const userId = user?.id ?? '';
+  const detailKey = userId && !isAdmin && enrollmentId
+    ? userId + ':' + enrollmentId : '';
+  const activeDetailKeyRef = useRef(detailKey);
+  activeDetailKeyRef.current = detailKey;
+  const loadRunRef = useRef(0);
+  const [storedItem, setItem] = useState<ProgramEnrollmentWithDetails | null>(null);
+  const [loadedForKey, setLoadedForKey] = useState<string | null>(null);
+  const item = loadedForKey === detailKey ? storedItem : null;
   const [nextSession, setNextSession] = useState<ProgramNextSession | null>(null);
   const [sessionWarning, setSessionWarning] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loadingState, setLoading] = useState(true);
+  const loading = loadingState || loadedForKey !== detailKey;
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [usingSavedData, setUsingSavedData] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
-  const loadRunRef = useRef(0);
 
   const load = useCallback(async () => {
-    const runId = loadRunRef.current + 1;
-    loadRunRef.current = runId;
-    const isCurrentRun = () => loadRunRef.current === runId;
-    if (!user || isAdmin || !enrollmentId) return;
-
+    const runId = ++loadRunRef.current;
+    const isCurrentRun = () => loadRunRef.current === runId
+      && activeDetailKeyRef.current === detailKey;
+    if (!userId || isAdmin) return;
     setError(null);
     setUsingSavedData(false);
     setNextSession(null);
     setSessionWarning(false);
 
-    const cached = await readClientResource<ProgramEnrollmentWithDetails[]>(user.id, clientReadKeys.programs);
+    if (!enrollmentId) {
+      setItem(null);
+      setLoadedForKey(detailKey);
+      setError('No se indicó qué clase consultar.');
+      setLoading(false);
+      return;
+    }
+
+    let cached: Awaited<ReturnType<typeof readClientResource<ProgramEnrollmentWithDetails[]>>> = null;
+    try {
+      cached = await readClientResource<ProgramEnrollmentWithDetails[]>(userId, clientReadKeys.programs);
+    } catch (cause) {
+      devWarn('class-detail: could not read cached programs.', cause);
+    }
     if (!isCurrentRun()) return;
     const cachedItem = cached?.data.find((row) => row.enrollment.id === enrollmentId) ?? null;
     let resolvedItem = cachedItem;
     if (cachedItem) {
       setItem(cachedItem);
+      setLoadedForKey(detailKey);
       setSavedAt(cached?.saved_at ?? null);
       setLoading(false);
     }
@@ -88,15 +110,26 @@ export default function ClientClassDetailScreen() {
       if (!isCurrentRun()) return;
       resolvedItem = rows.find((row) => row.enrollment.id === enrollmentId) ?? null;
       setItem(resolvedItem);
-      const stored = await writeClientResource(user.id, clientReadKeys.programs, sanitizeProgramRowsForCache(rows));
-      if (!isCurrentRun()) return;
-      setSavedAt(stored.saved_at);
+      setLoadedForKey(detailKey);
+      setUsingSavedData(false);
+      try {
+        const stored = await writeClientResource(userId, clientReadKeys.programs, sanitizeProgramRowsForCache(rows));
+        if (!isCurrentRun()) return;
+        setSavedAt(stored.saved_at);
+      } catch (cause) {
+        devWarn('class-detail: could not write program cache.', cause);
+      }
     } catch {
       if (!isCurrentRun()) return;
       if (cachedItem) setUsingSavedData(true);
-      else setError(friendlyReadError('No se pudo cargar la clase.'));
+      else {
+        setItem(null);
+        setLoadedForKey(detailKey);
+        setError(friendlyReadError('No se pudo cargar la clase.'));
+      }
     }
 
+    if (!isCurrentRun()) return;
     if (resolvedItem?.enrollment.status === 'active') {
       try {
         const sessions = await withOperationTimeout(
@@ -113,15 +146,20 @@ export default function ClientClassDetailScreen() {
         setSessionWarning(true);
       }
     }
-
     if (isCurrentRun()) setLoading(false);
-  }, [enrollmentId, isAdmin, user]);
+  }, [detailKey, enrollmentId, isAdmin, userId]);
 
   useFocusEffect(useCallback(() => {
+    setLoading(true);
+    setItem(null);
+    setLoadedForKey(null);
+    setError(null);
+    setSavedAt(null);
+    setUsingSavedData(false);
+    setNextSession(null);
+    setSessionWarning(false);
     void load();
-    return () => {
-      loadRunRef.current += 1;
-    };
+    return () => { loadRunRef.current += 1; };
   }, [load]));
 
   const recent = useMemo(() => [...(item?.attendances ?? [])].sort((a, b) => b.attendance_date.localeCompare(a.attendance_date)).slice(0, 5), [item]);
@@ -146,12 +184,12 @@ export default function ClientClassDetailScreen() {
       contentContainerStyle={premium ? styles.premiumContent : undefined}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={format.accent} />}
     >
-      {usingSavedData ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} /> : null}
+      {usingSavedData && item && !loading ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} /> : null}
       {loading ? <View style={styles.loading}><ActivityIndicator color={format.accent} /><Text style={[styles.muted, { color: format.muted }]}>Cargando clase...</Text></View> : null}
       {error ? <View style={[styles.errorBox, premium && styles.errorBoxPremium]}><Text style={[styles.errorTitle, premium && styles.errorTitlePremium]}>No se pudo cargar</Text><Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{error}</Text><Pressable style={[styles.secondaryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={() => void refresh()}><Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>Reintentar</Text></Pressable></View> : null}
       {!loading && !error && !item ? <View style={styles.empty}><Text style={[styles.title, { color: format.text }]}>Clase no encontrada</Text><Text style={[styles.muted, { color: format.muted }]}>La inscripción ya no está disponible.</Text></View> : null}
 
-      {item ? (
+      {!loading && !error && item ? (
         <>
           <View style={[styles.classHeader, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
             <View style={[styles.heroIcon, { backgroundColor: format.pillBackground }]}><MaterialIcons name="school" size={26} color={format.pillText} /></View>
