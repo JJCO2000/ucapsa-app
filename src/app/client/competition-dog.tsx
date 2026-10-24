@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
@@ -51,63 +51,99 @@ export default function ClientDogCompetitionScreen() {
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
   const premium = format.key === 'member';
 
-  const [snapshot, setSnapshot] = useState<ClientDogCompetitionSnapshot | null>(null);
-  const [selectedSeasonId, setSelectedSeasonId] = useState<string | null>(null);
-  const [localReady, setLocalReady] = useState(false);
+  const userId = user?.id ?? '';
+  const scopeKey = !isAdmin && userId && dogId ? userId + ':' + dogId : '';
+  const activeScopeKeyRef = useRef(scopeKey);
+  activeScopeKeyRef.current = scopeKey;
+  const loadRunRef = useRef(0);
+  const [storedSnapshot, setStoredSnapshot] = useState<ClientDogCompetitionSnapshot | null>(null);
+  const [loadedForKey, setLoadedForKey] = useState<string | null>(null);
+  const [readyForKey, setReadyForKey] = useState<string | null>(null);
+  const [selectedSeason, setSelectedSeason] = useState<{ key: string; id: string | null } | null>(null);
   const [usingSavedData, setUsingSavedData] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [screenFocused, setScreenFocused] = useState(false);
 
+  // An old response must never paint competition facts for another account or dog.
+  const snapshot = scopeKey && loadedForKey === scopeKey ? storedSnapshot : null;
+  const localReady = readyForKey === scopeKey;
+  const selectedSeasonId = selectedSeason?.key === scopeKey ? selectedSeason.id : null;
+
   const applySnapshot = useCallback((next: ClientDogCompetitionSnapshot) => {
-    setSnapshot(next);
-    setSelectedSeasonId((current) => {
-      if (current && next.seasons.some((season) => season.season_id === current)) return current;
-      return next.seasons.find((season) => season.season_status === 'active')?.season_id
-        ?? next.seasons.find((season) => season.season_status === 'reopened')?.season_id
-        ?? next.seasons[0]?.season_id
-        ?? null;
+    setStoredSnapshot(next);
+    setLoadedForKey(scopeKey);
+    setSelectedSeason((current) => {
+      const currentId = current?.key === scopeKey ? current.id : null;
+      const id = currentId && next.seasons.some((season) => season.season_id === currentId)
+        ? currentId
+        : next.seasons.find((season) => season.season_status === 'active')?.season_id
+          ?? next.seasons.find((season) => season.season_status === 'reopened')?.season_id
+          ?? next.seasons[0]?.season_id ?? null;
+      return { key: scopeKey, id };
     });
-  }, []);
+  }, [scopeKey]);
 
   const load = useCallback(async () => {
-    if (!user || isAdmin || !dogId) {
-      setLocalReady(true);
+    const runId = ++loadRunRef.current;
+    const isCurrentRun = () => runId === loadRunRef.current
+      && activeScopeKeyRef.current === scopeKey;
+    if (!userId || isAdmin) return;
+
+    setStoredSnapshot(null);
+    setLoadedForKey(null);
+    setReadyForKey(null);
+    setError(null);
+    setUsingSavedData(false);
+    setSavedAt(null);
+
+    if (!dogId) {
+      setError('Falta identificar el perro solicitado.');
+      setReadyForKey(scopeKey);
       return;
     }
 
-    setError(null);
-    setUsingSavedData(false);
-
-    const cached = await getCachedMyDogCompetition(user.id, dogId);
+    let cached: Awaited<ReturnType<typeof getCachedMyDogCompetition>> = null;
+    try {
+      cached = await getCachedMyDogCompetition(userId, dogId);
+    } catch (cause) {
+      devWarn('client-competition-dog: could not read local cache.', cause);
+    }
+    if (!isCurrentRun()) return;
     if (cached) {
       applySnapshot(cached.data);
       setSavedAt(cached.saved_at);
-      setLocalReady(true);
     }
 
     try {
-      const fresh = await refreshMyDogCompetition(user.id, dogId);
+      const fresh = await refreshMyDogCompetition(userId, dogId);
+      if (!isCurrentRun()) return;
       applySnapshot(fresh.data);
       setSavedAt(fresh.saved_at);
       setUsingSavedData(false);
-      setLocalReady(true);
     } catch (cause) {
-      setLocalReady(true);
+      if (!isCurrentRun()) return;
       if (cached) {
         setUsingSavedData(true);
         setSavedAt(cached.saved_at);
       } else {
+        setStoredSnapshot(null);
+        setLoadedForKey(null);
         setError(cause instanceof Error ? cause.message : 'No se pudo cargar la competencia.');
       }
+    } finally {
+      if (isCurrentRun()) setReadyForKey(scopeKey);
     }
-  }, [applySnapshot, dogId, isAdmin, user]);
+  }, [applySnapshot, dogId, isAdmin, scopeKey, userId]);
 
   useFocusEffect(useCallback(() => {
     setScreenFocused(true);
     void load();
-    return () => setScreenFocused(false);
+    return () => {
+      loadRunRef.current += 1;
+      setScreenFocused(false);
+    };
   }, [load]));
 
   async function refresh() {
@@ -148,7 +184,7 @@ export default function ClientDogCompetitionScreen() {
         <Text style={[styles.subtitle, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Constancia, exámenes e historial competitivo de este perro.</Text>
       </View>
 
-      {usingSavedData ? (
+      {usingSavedData && snapshot ? (
         <OfflineDataNotice
           savedAt={savedAt}
           onRetry={() => void refresh()}
@@ -164,7 +200,7 @@ export default function ClientDogCompetitionScreen() {
         </View>
       ) : null}
 
-      {error ? (
+      {error && localReady ? (
         <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
           <MaterialIcons name="error-outline" size={24} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
           <Text style={[styles.cardTitle, { color: format.cardText }]}>No pudimos verificar el detalle competitivo</Text>
@@ -189,7 +225,7 @@ export default function ClientDogCompetitionScreen() {
                       styles.pill,
                       { borderColor: selected ? format.accent : format.cardBorder, backgroundColor: selected ? format.pillBackground : format.cardBackground },
                     ]}
-                    onPress={() => setSelectedSeasonId(season.season_id)}
+                    onPress={() => setSelectedSeason({ key: scopeKey, id: season.season_id })}
                   >
                     <Text style={[styles.pillText, { color: selected ? format.pillText : format.cardText }]}>{season.season_name || 'Temporada'} · {statusLabel(season.season_status)}</Text>
                   </Pressable>
