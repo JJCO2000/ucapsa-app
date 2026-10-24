@@ -1,51 +1,82 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../components/domain/AdminCustomerContextHeader';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
+import { showStaffDialog } from '../../utils/staff-dialog';
 import { getProfileByUserId, updateAdminCustomerProfile } from '../../services/profiles.service';
 import type { Profile } from '../../types/app.types';
 
 export default function CustomerProfileEditScreen() {
   const params = useLocalSearchParams<{ userId?: string }>();
   const userId = typeof params.userId === 'string' ? params.userId.trim() : '';
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [storedProfile, setStoredProfile] = useState<Profile | null>(null);
+  const [loadedForUserId, setLoadedForUserId] = useState<string | null>(null);
+  const loadRunRef = useRef(0);
+  const activeUserIdRef = useRef(userId);
+  activeUserIdRef.current = userId;
+  const profile = loadedForUserId === userId ? storedProfile : null;
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   const load = useCallback(async () => {
-    if (!userId) return;
-    const row = await getProfileByUserId(userId);
-    setProfile(row);
-    setName(row?.full_name ?? '');
-    setEmail(row?.email ?? '');
-    setPhone(row?.phone ?? '');
+    const runId = ++loadRunRef.current;
+    const isCurrentRun = () => loadRunRef.current === runId && activeUserIdRef.current === userId;
+    setLoading(true);
+    setError('');
+    setStoredProfile(null);
+    setLoadedForUserId(null);
+    setName('');
+    setEmail('');
+    setPhone('');
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+    try {
+      const row = await getProfileByUserId(userId);
+      if (!isCurrentRun()) return;
+      if (row && row.user_id !== userId) throw new Error('La ficha recibida no corresponde al cliente solicitado.');
+      setStoredProfile(row);
+      setLoadedForUserId(userId);
+      setName(row?.full_name ?? '');
+      setEmail(row?.email ?? '');
+      setPhone(row?.phone ?? '');
+    } catch (cause) {
+      if (!isCurrentRun()) return;
+      setError(cause instanceof Error ? cause.message : 'No se pudo cargar el perfil del cliente.');
+    } finally {
+      if (isCurrentRun()) setLoading(false);
+    }
   }, [userId]);
 
   useFocusEffect(useCallback(() => {
-    setLoading(true);
-    void load().finally(() => setLoading(false));
-    return undefined;
+    void load();
+    return () => { loadRunRef.current += 1; };
   }, [load]));
 
   async function save() {
-    if (!profile) return;
+    if (!profile || loading || saving || error || profile.user_id !== userId
+      || activeUserIdRef.current !== userId) return;
     try {
       setSaving(true);
       await updateAdminCustomerProfile(userId, {
         full_name: name,
         phone,
       });
-      Alert.alert('Datos guardados', 'La información del cliente se actualizó.');
+      if (activeUserIdRef.current !== userId) return;
+      showStaffDialog('Datos guardados', 'La información del cliente se actualizó.');
       router.back();
     } catch (cause) {
-      Alert.alert('No se pudo guardar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+      if (activeUserIdRef.current !== userId) return;
+      showStaffDialog('No se pudo guardar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     } finally {
       setSaving(false);
     }
@@ -53,18 +84,27 @@ export default function CustomerProfileEditScreen() {
 
   return (
     <KeyboardAwareScreen>
-      <AdminCustomerContextHeader customerName={adminCustomerDisplayName(profile)} section="Editar datos" subtitle="Información de contacto del cliente seleccionado." member={profile?.role === 'member'} onBack={() => router.back()} />
+      <AdminCustomerContextHeader customerName={adminCustomerDisplayName(profile)} section="Editar datos" subtitle="Información de contacto del cliente seleccionado." onBack={() => router.back()} />
 
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando...</Text></View> : null}
 
-      {!loading && !profile ? (
+      {error && !loading ? (
+        <View style={styles.empty}>
+          <Text style={styles.emptyTitle}>{error}</Text>
+          <Pressable style={styles.secondary} onPress={() => void load()}>
+            <Text style={styles.secondaryText}>Reintentar</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {!loading && !error && !profile ? (
         <View style={styles.empty}>
           <MaterialIcons name="person-off" size={32} color={ucapsaBrand.colors.redDark} />
           <Text style={styles.emptyTitle}>Cliente no disponible</Text>
         </View>
       ) : null}
 
-      {profile ? (
+      {!loading && !error && profile ? (
         <View style={styles.card}>
           <Field label="Nombre" value={name} onChangeText={setName} placeholder="Nombre completo" />
           <View style={styles.field}>
@@ -76,7 +116,7 @@ export default function CustomerProfileEditScreen() {
         </View>
       ) : null}
 
-      {profile ? (
+      {!loading && !error && profile ? (
         <View style={styles.actions}>
           <Pressable disabled={saving} style={styles.primary} onPress={save}><Text style={styles.primaryText}>{saving ? 'Guardando...' : 'Guardar'}</Text></Pressable>
           <Pressable disabled={saving} style={styles.secondary} onPress={() => router.back()}><Text style={styles.secondaryText}>Cancelar</Text></Pressable>
