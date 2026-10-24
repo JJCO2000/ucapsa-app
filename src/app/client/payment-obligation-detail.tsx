@@ -17,36 +17,55 @@ export default function PaymentObligationDetailScreen() {
   const { obligationId: rawObligationId } = useLocalSearchParams<{ obligationId?: string | string[] }>();
   const obligationId = Array.isArray(rawObligationId) ? rawObligationId[0] ?? null : rawObligationId ?? null;
   const { user, role, isAdmin } = useSession();
-  const [item, setItem] = useState<PaymentObligationWithBalance | null>(null);
+  const userId = user?.id ?? '';
+  const detailKey = !isAdmin && userId && obligationId ? [userId, obligationId].join(':') : '';
+  const activeDetailKeyRef = useRef(detailKey);
+  activeDetailKeyRef.current = detailKey;
+  const [storedItem, setItem] = useState<PaymentObligationWithBalance | null>(null);
+  const [loadedForKey, setLoadedForKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [storedError, setError] = useState<string | null>(null);
   const loadRunRef = useRef(0);
+  const item = detailKey && loadedForKey === detailKey ? storedItem : null;
+  const error = loadedForKey === detailKey ? storedError : null;
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
   const premium = format.key === 'member';
 
   const load = useCallback(async () => {
-    const runId = loadRunRef.current + 1;
-    loadRunRef.current = runId;
-    const isCurrentRun = () => loadRunRef.current === runId;
-    if (!user || isAdmin) return;
+    const runId = ++loadRunRef.current;
+    const isCurrentRun = () => loadRunRef.current === runId
+      && activeDetailKeyRef.current === detailKey;
+    if (!userId || isAdmin) return;
+    setLoading(true);
     setError(null);
+    setItem(null);
+    setLoadedForKey(null);
+    if (!obligationId) {
+      setError('No encontramos este cargo abierto. Puede haberse pagado, cancelado o actualizado.');
+      setLoadedForKey(detailKey);
+      setLoading(false);
+      return;
+    }
     try {
       const overview = await withOperationTimeout(getMyPaymentOverview(), DEFAULT_READ_TIMEOUT_MS, 'payment-obligation-detail');
       if (!isCurrentRun()) return;
-      const found = obligationId ? overview.obligations.find((candidate) => candidate.id === obligationId) ?? null : null;
+      const found = overview.obligations.find((candidate) => candidate.id === obligationId) ?? null;
       setItem(found);
+      setLoadedForKey(detailKey);
       if (!found) setError('No encontramos este cargo abierto. Puede haberse pagado, cancelado o actualizado.');
     } catch {
       if (!isCurrentRun()) return;
       setItem(null);
+      setLoadedForKey(detailKey);
       setError('Conéctate para verificar este cargo antes de pagar.');
     } finally {
       if (isCurrentRun()) setLoading(false);
     }
-  }, [isAdmin, obligationId, user]);
+  }, [detailKey, isAdmin, obligationId, userId]);
 
   useFocusEffect(useCallback(() => {
+    setLoading(true);
     void load();
     return () => { loadRunRef.current += 1; };
   }, [load]));
@@ -65,7 +84,7 @@ export default function PaymentObligationDetailScreen() {
       {loading ? <View style={styles.loading}><ActivityIndicator color={format.accent} /><Text style={[styles.meta, { color: format.muted }]}>Verificando cargo...</Text></View> : null}
       {error && !item ? <View style={[styles.card, premium && styles.cardPremium]}><Text style={[styles.cardTitle, premium && styles.textPremium]}>{error}</Text><Pressable onPress={() => void refresh()}><Text style={[styles.link, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Reintentar</Text></Pressable></View> : null}
 
-      {item ? (
+      {!loading && !error && item ? (
         <>
           <View style={[styles.card, premium && styles.cardPremium]}>
             <View style={styles.headerRow}>
