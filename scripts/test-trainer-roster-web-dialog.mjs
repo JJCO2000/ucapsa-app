@@ -79,4 +79,26 @@ for(const token of [
 ].filter(item=>item!=='Guard ar')) {
   assert.ok(examsScreen.includes(token),'Trainer exam action must survive: '+token);
 }
+
+const adminSubtabs = [
+  ['customer-class', 8, 'setProgramEnrollmentStatus'],
+  ['customer-attendance', 5, 'deleteProgramAttendance'],
+  ['customer-payments', 7, 'voidCustomerPayment'],
+  ['customer-membership', 9, 'setMembershipDogCoverageAdmin'],
+  ['customer-achievements', 7, 'grantTrainingAchievementToDog'],
+];
+let adminDialogCount = 0;
+for (const [screen, expected, operation] of adminSubtabs) {
+  const adminSource=fs.readFileSync('src/app/admin/'+screen+'.tsx','utf8');
+  const calls=(adminSource.match(/showStaffDialog\\(/g)||[]).length;
+  adminDialogCount+=calls;
+  assert.ok(calls>=expected, screen+': all previous alerts must use web/native helper.');
+  assert.ok(!adminSource.includes('Alert.alert('), screen+': browser cannot use native Alert.alert.');
+  assert.ok(adminSource.includes("import { showStaffDialog } from '../../utils/staff-dialog'"),
+    screen+': use canonical confirmation helper only.');
+  assert.ok(adminSource.includes(operation),
+    screen+': original verified operation must remain connected to its confirmation.');
+}
+assert.ok(adminDialogCount>=36,'All five Admin client subtabs must retain 36 operational notices/confirmations.');
+
 console.log('UCAPSA trainer rosters and exams: web/native dialogs, confirmations and diagnostics PASS');
