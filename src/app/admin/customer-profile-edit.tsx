@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../components/domain/AdminCustomerContextHeader';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -12,42 +12,89 @@ import type { Profile } from '../../types/app.types';
 export default function CustomerProfileEditScreen() {
   const params = useLocalSearchParams<{ userId?: string }>();
   const userId = typeof params.userId === 'string' ? params.userId.trim() : '';
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [storedProfile, setStoredProfile] = useState<Profile | null>(null);
+  const [loadedForUserId, setLoadedForUserId] = useState<string | null>(null);
+  const activeUserIdRef = useRef(userId);
+  activeUserIdRef.current = userId;
+  const loadRunRef = useRef(0);
+  const saveRunRef = useRef(0);
+  // The editor must not display or write a former customer's data.
+  const profile = loadedForUserId === userId ? storedProfile : null;
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [saveError, setSaveError] = useState('');
 
   const load = useCallback(async () => {
     if (!userId) return;
-    const row = await getProfileByUserId(userId);
-    setProfile(row);
-    setName(row?.full_name ?? '');
-    setEmail(row?.email ?? '');
-    setPhone(row?.phone ?? '');
+    const runId = ++loadRunRef.current;
+    const isCurrentRun = () => loadRunRef.current === runId
+      && activeUserIdRef.current === userId;
+    try {
+      setError('');
+      const row = await getProfileByUserId(userId);
+      if (!isCurrentRun()) return;
+      if (!row || row.user_id !== userId) {
+        throw new Error('No se pudo verificar el perfil de este cliente.');
+      }
+      setStoredProfile(row);
+      setLoadedForUserId(userId);
+      setName(row.full_name ?? '');
+      setEmail(row.email ?? '');
+      setPhone(row.phone ?? '');
+    } catch (cause) {
+      if (!isCurrentRun()) return;
+      setStoredProfile(null);
+      setLoadedForUserId(null);
+      setError(cause instanceof Error ? cause.message : 'No se pudo cargar el cliente.');
+    } finally {
+      if (isCurrentRun()) setLoading(false);
+    }
   }, [userId]);
 
   useFocusEffect(useCallback(() => {
-    setLoading(true);
-    void load().finally(() => setLoading(false));
-    return undefined;
-  }, [load]));
+    loadRunRef.current += 1;
+    saveRunRef.current += 1;
+    setStoredProfile(null);
+    setLoadedForUserId(null);
+    setName('');
+    setEmail('');
+    setPhone('');
+    setError('');
+    setSaveError('');
+    setSaving(false);
+    if (userId) {
+      setLoading(true);
+      void load();
+    } else {
+      setLoading(false);
+    }
+    return () => { loadRunRef.current += 1; saveRunRef.current += 1; };
+  }, [load, userId]));
 
   async function save() {
-    if (!profile) return;
+    if (!profile || profile.user_id !== userId || loading || saving || error) return;
+    const boundUserId = userId;
+    const saveRunId = ++saveRunRef.current;
+    const isCurrentSave = () => saveRunRef.current === saveRunId
+      && activeUserIdRef.current === boundUserId;
     try {
       setSaving(true);
-      await updateAdminCustomerProfile(userId, {
-        full_name: name,
-        phone,
-      });
-      Alert.alert('Datos guardados', 'La información del cliente se actualizó.');
+      setSaveError('');
+      await updateAdminCustomerProfile(boundUserId, { full_name: name, phone });
+      if (!isCurrentSave()) return;
+      if (Platform.OS !== 'web') Alert.alert('Datos guardados', 'La información del cliente se actualizó.');
       router.back();
     } catch (cause) {
-      Alert.alert('No se pudo guardar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+      if (!isCurrentSave()) return;
+      const message = cause instanceof Error ? cause.message : 'Intenta de nuevo.';
+      if (Platform.OS === 'web') setSaveError('No se pudo guardar: ' + message);
+      else Alert.alert('No se pudo guardar', message);
     } finally {
-      setSaving(false);
+      if (isCurrentSave()) setSaving(false);
     }
   }
 
@@ -57,14 +104,25 @@ export default function CustomerProfileEditScreen() {
 
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando...</Text></View> : null}
 
-      {!loading && !profile ? (
+      {saveError ? <Text accessibilityRole="alert" style={styles.error}>{saveError}</Text> : null}
+
+      {error ? (
+        <View style={styles.empty}>
+          <Text accessibilityRole="alert" style={styles.error}>{error}</Text>
+          {!profile ? <Pressable accessibilityRole="button" style={styles.secondary} onPress={() => { setLoading(true); void load(); }}>
+            <Text style={styles.secondaryText}>Reintentar</Text>
+          </Pressable> : null}
+        </View>
+      ) : null}
+
+      {!loading && !profile && !error ? (
         <View style={styles.empty}>
           <MaterialIcons name="person-off" size={32} color={ucapsaBrand.colors.redDark} />
           <Text style={styles.emptyTitle}>Cliente no disponible</Text>
         </View>
       ) : null}
 
-      {profile ? (
+      {profile && !loading && !error ? (
         <View style={styles.card}>
           <Field label="Nombre" value={name} onChangeText={setName} placeholder="Nombre completo" />
           <View style={styles.field}>
@@ -76,7 +134,7 @@ export default function CustomerProfileEditScreen() {
         </View>
       ) : null}
 
-      {profile ? (
+      {profile && !loading && !error ? (
         <View style={styles.actions}>
           <Pressable disabled={saving} style={styles.primary} onPress={save}><Text style={styles.primaryText}>{saving ? 'Guardando...' : 'Guardar'}</Text></Pressable>
           <Pressable disabled={saving} style={styles.secondary} onPress={() => router.back()}><Text style={styles.secondaryText}>Cancelar</Text></Pressable>
@@ -104,6 +162,7 @@ const styles = StyleSheet.create({
   muted: { color: ucapsaBrand.colors.muted, fontSize: 13, fontWeight: '700' },
   empty: { alignItems: 'center', gap: 8, paddingVertical: 36 },
   emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '900' },
+  error: { color: ucapsaBrand.colors.danger, fontSize: 13, fontWeight: '800' },
   card: { borderRadius: 20, backgroundColor: ucapsaBrand.colors.surface, borderWidth: 1, borderColor: ucapsaBrand.colors.border, padding: 14, gap: 12 },
   field: { gap: 6 },
   label: { color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '900' },
