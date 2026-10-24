@@ -17,7 +17,11 @@ const emptyOverview: MyPaymentOverview = { obligations: [], payments: [], outsta
 
 export default function PaymentObligationsScreen() {
   const { user, role, isAdmin } = useSession();
-  const [overview, setOverview] = useState<MyPaymentOverview>(emptyOverview);
+  const [storedOverview, setOverview] = useState<MyPaymentOverview>(emptyOverview);
+  const [loadedForUserId, setLoadedForUserId] = useState<string | null>(null);
+  const activeUserIdRef = useRef(user?.id ?? null);
+  activeUserIdRef.current = user?.id ?? null;
+  const overview = loadedForUserId === user?.id ? storedOverview : emptyOverview;
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,24 +30,32 @@ export default function PaymentObligationsScreen() {
   const premium = format.key === 'member';
 
   const load = useCallback(async () => {
-    const runId = loadRunRef.current + 1;
-    loadRunRef.current = runId;
-    const isCurrentRun = () => loadRunRef.current === runId;
-    if (!user || isAdmin) return;
+    const runId = ++loadRunRef.current;
+    const userId = user?.id;
+    const isCurrentRun = () => loadRunRef.current === runId
+      && activeUserIdRef.current === userId;
+    if (!userId || isAdmin) return;
     setError(null);
     try {
       const next = await withOperationTimeout(getMyPaymentOverview(), DEFAULT_READ_TIMEOUT_MS, 'payment-obligations');
       if (!isCurrentRun()) return;
       setOverview(next);
+      setLoadedForUserId(userId);
     } catch {
       if (!isCurrentRun()) return;
+      setOverview(emptyOverview);
+      setLoadedForUserId(null);
       setError('Conéctate para consultar el detalle de tus cargos.');
     } finally {
       if (isCurrentRun()) setLoading(false);
     }
-  }, [isAdmin, user]);
+  }, [isAdmin, user?.id]);
 
   useFocusEffect(useCallback(() => {
+    setLoading(true);
+    setError(null);
+    setOverview(emptyOverview);
+    setLoadedForUserId(null);
     void load();
     return () => { loadRunRef.current += 1; };
   }, [load]));
