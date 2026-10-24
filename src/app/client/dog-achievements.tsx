@@ -23,69 +23,89 @@ export default function DogAchievementsScreen() {
   const { dogId: dogIdParam } = useLocalSearchParams<{ dogId?: string | string[] }>();
   const dogId = Array.isArray(dogIdParam) ? dogIdParam[0] ?? null : dogIdParam ?? null;
   const { user, role, isAdmin } = useSession();
-  const [items, setItems] = useState<AchievementWithState[]>([]);
-  const [dogName, setDogName] = useState<string | null>(null);
-  const [selectedAchievement, setSelectedAchievement] = useState<AchievementWithState | null>(null);
-  const [ready, setReady] = useState(false);
+  const userId = user?.id ?? '';
+  const scopeKey = !isAdmin && userId && dogId ? userId + ':' + dogId : '';
+  const activeScopeKeyRef = useRef(scopeKey);
+  activeScopeKeyRef.current = scopeKey;
+  const loadRunRef = useRef(0);
+  const [storedItems, setItems] = useState<AchievementWithState[]>([]);
+  const [storedDogName, setDogName] = useState<string | null>(null);
+  const [loadedForKey, setLoadedForKey] = useState<string | null>(null);
+  const [readyForKey, setReadyForKey] = useState<string | null>(null);
+  const [selectedAward, setSelectedAchievement] = useState<{
+    key: string; item: AchievementWithState;
+  } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [usingSavedData, setUsingSavedData] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const loadRunRef = useRef(0);
+  // Render-time guard: switching account or dog never paints previous private achievements.
+  const items = loadedForKey === scopeKey ? storedItems : [];
+  const dogName = loadedForKey === scopeKey ? storedDogName : null;
+  const selectedAchievement = selectedAward?.key === scopeKey ? selectedAward.item : null;
+  const ready = Boolean(scopeKey) && readyForKey === scopeKey;
 
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
   const premium = format.key === 'member';
 
   const load = useCallback(async () => {
-    const runId = loadRunRef.current + 1;
-    loadRunRef.current = runId;
-    const isCurrentRun = () => loadRunRef.current === runId;
+    const runId = ++loadRunRef.current;
+    const isCurrentRun = () => loadRunRef.current === runId
+      && activeScopeKeyRef.current === scopeKey;
+    if (!scopeKey || !dogId || !userId || isAdmin) return;
 
-    if (!user || isAdmin || !dogId) {
-      setReady(true);
-      return;
-    }
-
+    setItems([]);
+    setDogName(null);
+    setLoadedForKey(null);
+    setReadyForKey(null);
     setError(null);
     setUsingSavedData(false);
     setSelectedAchievement(null);
 
-    const [cachedAchievements, dogCache] = await Promise.all([
-      getCachedAchievementsForDog(user.id, dogId),
-      readClientResource<BasicDog[]>(user.id, clientReadKeys.dogs),
+    // Offline cache failure should never suppress a successful official refresh.
+    const [achievementResult, dogResult] = await Promise.allSettled([
+      getCachedAchievementsForDog(userId, dogId),
+      readClientResource<BasicDog[]>(userId, clientReadKeys.dogs),
     ]);
     if (!isCurrentRun()) return;
-
+    const cachedAchievements = achievementResult.status === 'fulfilled'
+      ? achievementResult.value : null;
+    const dogCache = dogResult.status === 'fulfilled' ? dogResult.value : null;
     const cachedDog = dogCache?.data.find((dog) => dog.id === dogId) ?? null;
     setDogName(cachedDog?.name ?? null);
     if (cachedAchievements) {
       setItems(cachedAchievements);
-      setReady(true);
+      setLoadedForKey(scopeKey);
+      setReadyForKey(scopeKey);
     }
 
     try {
       const fresh = await getMyDogAchievements(dogId, {
-        userId: user.id,
+        userId,
         forceRefresh: true,
         allowCachedOnError: false,
       });
       if (!isCurrentRun()) return;
       setItems(fresh);
+      setLoadedForKey(scopeKey);
       const newAward = getNewlyAwardedAchievement(cachedAchievements, fresh);
-      if (newAward) setSelectedAchievement((selected) => selected ?? newAward);
+      if (newAward) setSelectedAchievement((selected) => selected?.key === scopeKey
+        ? selected : { key: scopeKey, item: newAward });
       setUsingSavedData(false);
-      setReady(true);
     } catch {
       if (!isCurrentRun()) return;
       if (cachedAchievements) {
         setItems(cachedAchievements);
+        setLoadedForKey(scopeKey);
         setUsingSavedData(true);
       } else {
         setItems([]);
+        setLoadedForKey(null);
         setError('No pudimos cargar los logros de este perro.');
       }
-      setReady(true);
+    } finally {
+      if (isCurrentRun()) setReadyForKey(scopeKey);
     }
-  }, [dogId, isAdmin, user]);
+  }, [dogId, isAdmin, scopeKey, userId]);
 
   useFocusEffect(useCallback(() => {
     void load();
@@ -116,7 +136,7 @@ export default function DogAchievementsScreen() {
         <Text style={[styles.title, { color: format.cardText }]}>Logros{dogName ? ` ${dogName}` : ''}</Text>
       </View>
 
-      {usingSavedData ? (
+      {usingSavedData && ready && items.length > 0 ? (
         <OfflineDataNotice onRetry={() => void refresh()} premium={premium} label="Mostrando logros guardados" />
       ) : null}
 
@@ -141,7 +161,7 @@ export default function DogAchievementsScreen() {
       ) : null}
 
       {ready && dogId && !error ? (
-        <AchievementBadgeGrid items={items} premium={premium} onSelect={setSelectedAchievement} />
+        <AchievementBadgeGrid items={items} premium={premium} onSelect={(item) => setSelectedAchievement({ key: scopeKey, item })} />
       ) : null}
 
       <AchievementDetailModal
