@@ -25,7 +25,7 @@ function deferred(){let resolve,reject;const promise=new Promise((a,b)=>{resolve
 function harness({userId='A',profile={user_id:'A',full_name:'A original',phone:'111'},loading=false,error='',saving=false}={}){
   const state={profile:null,loadedForUserId:null,loading,error,saving,name:'',email:'',phone:''};
   const loadRunRef={current:0},activeUserIdRef={current:userId};
-  const fetches=[],updates=[],notices=[],navigation=[];
+  const fetches=[],updates=[],notices=[],navigation=[],warnings=[];
   const exports={};
   vm.runInNewContext(compiled,{
     exports,Error,userId,profile,loading,saving,error,activeUserIdRef,loadRunRef,
@@ -33,6 +33,7 @@ function harness({userId='A',profile={user_id:'A',full_name:'A original',phone:'
     getProfileByUserId:()=>{const d=deferred();fetches.push(d);return d.promise;},
     updateAdminCustomerProfile:(id,data)=>{const d=deferred();updates.push({id,data,...d});return d.promise;},
     showStaffDialog:(...args)=>notices.push(args),
+    devWarn:(...args)=>warnings.push(args),
     router:{back:()=>navigation.push('back')},
     setStoredProfile:v=>state.profile=v,
     setLoadedForUserId:v=>state.loadedForUserId=v,
@@ -43,7 +44,7 @@ function harness({userId='A',profile={user_id:'A',full_name:'A original',phone:'
     setLoading:v=>state.loading=v,
     setSaving:v=>state.saving=v,
   });
-  return {load:exports.makeLoad(),save:exports.makeSave(),state,fetches,updates,notices,navigation,
+  return {load:exports.makeLoad(),save:exports.makeSave(),state,fetches,updates,notices,navigation,warnings,
     loadRunRef,activeUserIdRef};
 }
 async function tests(){
@@ -113,6 +114,16 @@ async function tests(){
     assert.equal(h.notices[0][0],'Datos guardados');
     assert.equal(h.state.saving,false);
   }
+  {
+    const h=harness();
+    const pending=h.save();
+    h.activeUserIdRef.current='B';
+    h.updates[0].reject(new Error('fallo remoto'));
+    await pending;
+    assert.equal(h.navigation.length,0);
+    assert.equal(h.notices.length,0,'Do not show a stale error to another user');
+    assert.equal(h.warnings.length,1,'Stale failures must remain diagnosable');
+  }
   for(const token of [
     'const profile = loadedForUserId === userId ? storedProfile : null',
     'activeUserIdRef.current === userId',
@@ -121,6 +132,7 @@ async function tests(){
     'if (activeUserIdRef.current !== userId) return;',
     '!loading && !error && profile',
     'showStaffDialog',
+    'devWarn',
   ])assert.ok(source.includes(token),'Admin client edit isolation contract missing: '+token);
   assert.ok(!source.includes("member={profile?.role === 'member'}"),
     'Do not infer Socio from legacy role in edit header');
