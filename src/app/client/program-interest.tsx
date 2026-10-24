@@ -1,11 +1,12 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Linking, Pressable, Text, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
+import { devWarn } from '../../lib/client-diagnostics';
 import { getMyDogs, type BasicDog } from '../../services/dogs.service';
 import { getMyProgramEnrollments } from '../../services/programs.service';
 import {
@@ -22,49 +23,76 @@ export default function ProgramInterestScreen() {
   const params = useLocalSearchParams<{ program?: string }>();
   const initial = params.program === 'comandos' ? 'comandos' : 'puppy';
   const { user, isAdmin } = useSession();
+  const userId = user?.id ?? null;
+  const activeUserIdRef = useRef(userId);
+  activeUserIdRef.current = userId;
+  const loadRunRef = useRef(0);
   const [program, setProgram] = useState<ProgramInterestCode>(initial);
   useEffect(() => {
     setProgram(initial);
-    setSaved(false);
+    setSavedForUserId(null);
   }, [initial]);
-  const [dogs, setDogs] = useState<BasicDog[]>([]);
+  const [storedDogs, setDogs] = useState<BasicDog[]>([]);
   const [dogId, setDogId] = useState<string | null>(null);
-  const [openRequests, setOpenRequests] = useState<ProgramInterestRequest[]>([]);
-  const [activeByProgram, setActiveByProgram] = useState<string[]>([]);
-  const [saved, setSaved] = useState(false);
+  const [storedRequests, setOpenRequests] = useState<ProgramInterestRequest[]>([]);
+  const [storedActiveByProgram, setActiveByProgram] = useState<string[]>([]);
+  const [loadedForUserId, setLoadedForUserId] = useState<string | null>(null);
+  const [savedForUserId, setSavedForUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
+  const [sendingForUserId, setSendingForUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const verifiedForUser = Boolean(userId && loadedForUserId === userId);
+  const dogs = verifiedForUser ? storedDogs : [];
+  const openRequests = verifiedForUser ? storedRequests : [];
+  const activeByProgram = verifiedForUser ? storedActiveByProgram : [];
+  const saved = Boolean(userId && savedForUserId === userId);
+  const sending = Boolean(userId && sendingForUserId === userId);
+  const activeSelectionRef = useRef('');
+  activeSelectionRef.current = [userId, dogId, program].join(':');
 
   const load = useCallback(async () => {
-    if (!user || isAdmin) return;
+    const runId = ++loadRunRef.current;
+    const isCurrentRun = () => loadRunRef.current === runId && activeUserIdRef.current === userId;
+    if (!userId || isAdmin) return;
+    setLoading(true);
     setError(null);
+    setLoadedForUserId(null);
+    setDogs([]);
+    setDogId(null);
+    setOpenRequests([]);
+    setActiveByProgram([]);
     try {
       const [dogResult, requestResult, enrollmentResult] = await Promise.allSettled([
-        getMyDogs(), getMyProgramInterestRequests(user.id), getMyProgramEnrollments(),
+        getMyDogs(), getMyProgramInterestRequests(userId), getMyProgramEnrollments(),
       ]);
-      if (dogResult.status === 'fulfilled') {
+      if (!isCurrentRun()) return;
+      if (dogResult.status === 'fulfilled'
+        && requestResult.status === 'fulfilled'
+        && enrollmentResult.status === 'fulfilled') {
         setDogs(dogResult.value);
         setDogId((current) => dogResult.value.some((dog) => dog.id === current)
           ? current : dogResult.value[0]?.id ?? null);
-      }
-      if (requestResult.status === 'fulfilled') setOpenRequests(requestResult.value);
-      if (enrollmentResult.status === 'fulfilled') {
+        setOpenRequests(requestResult.value);
         setActiveByProgram(enrollmentResult.value.filter((e) => e.enrollment.status === 'active')
           .map((e) => e.enrollment.dog_id + ':' + e.program.code));
-      }
-      if (dogResult.status === 'rejected' || requestResult.status === 'rejected' || enrollmentResult.status === 'rejected') {
+        setLoadedForUserId(userId);
+      } else {
         setError('No pudimos verificar el registro. La solicitud en la app está deshabilitada. Puedes contactar directamente a UCAPSA por WhatsApp.');
       }
+    } catch (cause) {
+      if (!isCurrentRun()) return;
+      devWarn('client-program-interest: could not verify request state.', cause);
+      setError('No pudimos verificar el registro. Inténtalo otra vez.');
     } finally {
-      setLoading(false);
+      if (isCurrentRun()) setLoading(false);
     }
-  }, [isAdmin, user]);
+  }, [isAdmin, userId]);
 
   useFocusEffect(useCallback(() => {
     setLoading(true);
+    setSavedForUserId(null);
     void load();
-    return undefined;
+    return () => { loadRunRef.current += 1; };
   }, [load]));
 
   if (!user) return <Redirect href="/auth/login" />;
@@ -90,20 +118,32 @@ export default function ProgramInterestScreen() {
   }
 
   async function submit() {
-    if (!user || !dogId || sending || current || alreadyEnrolled) return;
-    setSending(true);
+    if (!userId || !verifiedForUser || loading || error || !dogId || !selectedDog
+      || sending || current || alreadyEnrolled) return;
+    const requestedUserId = userId;
+    const requestedDogId = dogId;
+    const requestedProgram = program;
+    const requestedDogName = selectedDog.name;
+    const isCurrentUser = () => activeUserIdRef.current === requestedUserId;
+    const selectionKey = [requestedUserId, requestedDogId, requestedProgram].join(':');
+    setSendingForUserId(requestedUserId);
     try {
-      const request = await requestProgramInterest(user.id, dogId, program);
+      const request = await requestProgramInterest(requestedUserId, requestedDogId, requestedProgram);
+      if (!isCurrentUser()) return;
       setOpenRequests((rows) => [request, ...rows.filter((row) => row.id !== request.id)]);
-      setSaved(true);
-      Alert.alert('Interés registrado', `Recibimos tu interés en ${program === 'puppy' ? 'Puppy School' : 'Comandos'} para ${selectedDog?.name || 'tu perro'}. UCAPSA podrá contactarte para continuar.`, [
+      if (activeSelectionRef.current !== selectionKey) return;
+      setSavedForUserId(requestedUserId);
+      Alert.alert('Interés registrado', `Recibimos tu interés en ${requestedProgram === 'puppy' ? 'Puppy School' : 'Comandos'} para ${requestedDogName}. UCAPSA podrá contactarte para continuar.`, [
         { text: 'Listo', style: 'cancel' },
         { text: 'Escribir ahora', onPress: () => void contactWhatsapp(true) },
       ]);
-    } catch {
+    } catch (cause) {
+      if (!isCurrentUser()) return;
+      devWarn('client-program-interest: request failed.', cause);
       Alert.alert('No pudimos registrar tu interés', 'No tenemos confirmación de que se haya enviado. Revisa tu conexión e inténtalo de nuevo.');
     } finally {
-      setSending(false);
+      // Clear only this request's sending marker, even if the user switched away.
+      setSendingForUserId((current) => current === requestedUserId ? null : current);
     }
   }
 
@@ -121,7 +161,7 @@ export default function ProgramInterestScreen() {
       <Text style={{ color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '800', marginBottom: 10 }}>¿Qué entrenamiento te interesa?</Text>
       {(['puppy', 'comandos'] as const).map((option) => (
         <Pressable key={option} accessibilityRole="radio" accessibilityState={{ checked: program === option }}
-          onPress={() => { setProgram(option); setSaved(false); }} style={optionStyle(program === option)}>
+          onPress={() => { setProgram(option); setSavedForUserId(null); }} style={optionStyle(program === option)}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <MaterialIcons name={option === 'puppy' ? 'pets' : 'school'} size={27} color={ucapsaBrand.colors.redDark} />
             <View style={{ flex: 1 }}>
@@ -154,7 +194,7 @@ export default function ProgramInterestScreen() {
         </Pressable>
       ) : dogs.map((dog) => (
         <Pressable key={dog.id} accessibilityRole="button" accessibilityState={{ selected: dog.id === dogId }}
-          onPress={() => { setDogId(dog.id); setSaved(false); }} style={optionStyle(dog.id === dogId)}>
+          onPress={() => { setDogId(dog.id); setSavedForUserId(null); }} style={optionStyle(dog.id === dogId)}>
           <Text style={{ color: ucapsaBrand.colors.text, fontSize: 16, fontWeight: '800' }}>{dog.name}</Text>
         </Pressable>
       ))}
@@ -166,10 +206,10 @@ export default function ProgramInterestScreen() {
         </Text>
       ) : null}
       <Pressable
-        accessibilityRole="button" disabled={loading || Boolean(error) || !dogId || Boolean(current) || alreadyEnrolled || sending}
+        accessibilityRole="button" disabled={loading || !verifiedForUser || Boolean(error) || !dogId || Boolean(current) || alreadyEnrolled || sending}
         onPress={() => void submit()}
         style={{ minHeight: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 16, marginTop: 18,
-          backgroundColor: ucapsaBrand.colors.red, opacity: loading || Boolean(error) || !dogId || current || alreadyEnrolled || sending ? 0.5 : 1 }}
+          backgroundColor: ucapsaBrand.colors.red, opacity: loading || !verifiedForUser || Boolean(error) || !dogId || current || alreadyEnrolled || sending ? 0.5 : 1 }}
       >
         <Text style={{ color: ucapsaBrand.colors.surface, fontSize: 17, fontWeight: '900' }}>
           {sending ? 'Enviando interés…' : current ? 'Solicitud recibida' : alreadyEnrolled ? 'Ya estás inscrito' : 'Me interesa, quiero que me contacten'}
