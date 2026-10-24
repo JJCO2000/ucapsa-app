@@ -1,13 +1,15 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 
 import { KeyboardAwareModal } from '../../components/ui/KeyboardAwareModal';
 import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../components/domain/AdminCustomerContextHeader';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
+import { showStaffDialog } from '../../utils/staff-dialog';
+import { devWarn } from '../../lib/client-diagnostics';
 import {
   getAdminCustomerRecord,
   type AdminCustomerPayment,
@@ -130,7 +132,7 @@ export default function CustomerPaymentsScreen() {
     if (!record) return;
     const amount = Number(form.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
-      Alert.alert('Monto invalido', 'Escribe un monto mayor a cero.');
+      showStaffDialog('Monto invalido', 'Escribe un monto mayor a cero.');
       return;
     }
     try {
@@ -160,9 +162,10 @@ export default function CustomerPaymentsScreen() {
       }
       setModalOpen(false);
       await load();
-      Alert.alert(form.payment ? 'Pago corregido' : 'Pago registrado', 'El historial y el saldo se actualizaron.');
+      showStaffDialog(form.payment ? 'Pago corregido' : 'Pago registrado', 'El historial y el saldo se actualizaron.');
     } catch (cause) {
-      Alert.alert('No se pudo guardar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+      devWarn('admin-customer-payments: operation failed', cause);
+      showStaffDialog('No se pudo guardar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     } finally {
       setSaving(false);
     }
@@ -171,11 +174,11 @@ export default function CustomerPaymentsScreen() {
   function voidPayment(payment: AdminCustomerPayment) {
     const reason = voidReason.trim();
     if (reason.length < 5) {
-      Alert.alert('Falta motivo', 'Escribe un motivo de anulación de al menos 5 caracteres.');
+      showStaffDialog('Falta motivo', 'Escribe un motivo de anulación de al menos 5 caracteres.');
       return;
     }
 
-    Alert.alert('Anular pago', 'El pago dejará de contar para el saldo, pero permanecerá en el historial como evidencia.', [
+    showStaffDialog('Anular pago', 'El pago dejará de contar para el saldo, pero permanecerá en el historial como evidencia.', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Anular', style: 'destructive', onPress: async () => {
         try {
@@ -184,9 +187,10 @@ export default function CustomerPaymentsScreen() {
           setModalOpen(false);
           setVoidReason('');
           await load();
-          Alert.alert('Pago anulado', 'El saldo fue recalculado y el registro histórico se conservó.');
+          showStaffDialog('Pago anulado', 'El saldo fue recalculado y el registro histórico se conservó.');
         } catch (cause) {
-          Alert.alert('No se pudo anular', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+          devWarn('admin-customer-payments: operation failed', cause);
+          showStaffDialog('No se pudo anular', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
         } finally {
           setSaving(false);
         }
