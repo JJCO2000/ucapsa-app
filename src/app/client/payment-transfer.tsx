@@ -20,56 +20,82 @@ export default function PaymentTransferScreen() {
   const { obligationId: rawObligationId } = useLocalSearchParams<{ obligationId?: string | string[] }>();
   const obligationId = Array.isArray(rawObligationId) ? rawObligationId[0] ?? null : rawObligationId ?? null;
   const { user, role, isAdmin } = useSession();
-  const [obligation, setObligation] = useState<PaymentObligationWithBalance | null>(null);
-  const [settings, setSettings] = useState<PaymentSettings | null>(null);
+  const userId = user?.id ?? '';
+  const transferKey = !isAdmin && userId && obligationId ? [userId, obligationId].join(':') : '';
+  const activeTransferKeyRef = useRef(transferKey);
+  activeTransferKeyRef.current = transferKey;
+  const [storedObligation, setObligation] = useState<PaymentObligationWithBalance | null>(null);
+  const [storedSettings, setSettings] = useState<PaymentSettings | null>(null);
+  const [loadedForKey, setLoadedForKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [storedError, setError] = useState<string | null>(null);
   const loadRunRef = useRef(0);
+  // A route or session switch must never display a previously verified charge or bank account.
+  const obligation = transferKey && loadedForKey === transferKey ? storedObligation : null;
+  const settings = transferKey && loadedForKey === transferKey ? storedSettings : null;
+  const error = loadedForKey === transferKey ? storedError : null;
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
   const premium = format.key === 'member';
 
   const load = useCallback(async () => {
-    const runId = loadRunRef.current + 1;
-    loadRunRef.current = runId;
-    const isCurrentRun = () => loadRunRef.current === runId;
-    if (!user || isAdmin) return;
+    const runId = ++loadRunRef.current;
+    const isCurrentRun = () => loadRunRef.current === runId
+      && activeTransferKeyRef.current === transferKey;
+    if (!userId || isAdmin) return;
 
     setLoading(true);
     setError(null);
-    // Nunca se conserva una cuenta bancaria anterior durante una nueva verificación.
+    setLoadedForKey(null);
+    // Nunca conservar datos de una cuenta bancaria o de un cargo anterior.
     setSettings(null);
     setObligation(null);
 
-    const [overviewResult, settingsResult] = await Promise.allSettled([
-      withOperationTimeout(getMyPaymentOverview(), DEFAULT_READ_TIMEOUT_MS, 'payment-transfer-obligation'),
-      withOperationTimeout(getPaymentSettings(), DEFAULT_READ_TIMEOUT_MS, 'payment-transfer-settings'),
-    ]);
-    if (!isCurrentRun()) return;
+    if (!obligationId) {
+      setError('No se indicó el cargo que necesitas verificar. Regresa a Pagos.');
+      setLoadedForKey(transferKey);
+      setLoading(false);
+      return;
+    }
 
-    if (overviewResult.status !== 'fulfilled') {
-      setError('No pudimos verificar el cargo. Conéctate antes de transferir.');
-      setLoading(false);
-      return;
-    }
-    const found = obligationId ? overviewResult.value.obligations.find((item) => item.id === obligationId) ?? null : null;
-    if (!found) {
-      setError('Este cargo ya no está disponible como pendiente. Regresa a Pagos y actualiza.');
-      setLoading(false);
-      return;
-    }
-    setObligation(found);
+    try {
+      const [overviewResult, settingsResult] = await Promise.allSettled([
+        withOperationTimeout(getMyPaymentOverview(), DEFAULT_READ_TIMEOUT_MS, 'payment-transfer-obligation'),
+        withOperationTimeout(getPaymentSettings(), DEFAULT_READ_TIMEOUT_MS, 'payment-transfer-settings'),
+      ]);
+      if (!isCurrentRun()) return;
 
-    if (settingsResult.status !== 'fulfilled') {
-      setError('No pudimos verificar los datos bancarios. No transfieras hasta volver a conectarte.');
-      setLoading(false);
-      return;
+      if (overviewResult.status !== 'fulfilled') {
+        setError('No pudimos verificar el cargo. Conéctate antes de transferir.');
+        setLoadedForKey(transferKey);
+        return;
+      }
+      const found = overviewResult.value.obligations.find((item) => item.id === obligationId) ?? null;
+      if (!found) {
+        setError('Este cargo ya no está disponible como pendiente. Regresa a Pagos y actualiza.');
+        setLoadedForKey(transferKey);
+        return;
+      }
+      if (settingsResult.status !== 'fulfilled') {
+        setError('No pudimos verificar los datos bancarios. No transfieras hasta volver a conectarte.');
+        setLoadedForKey(transferKey);
+        return;
+      }
+      // Publish the verified charge and bank details together, for this identity only.
+      setObligation(found);
+      setSettings(settingsResult.value);
+      setLoadedForKey(transferKey);
+    } catch {
+      if (!isCurrentRun()) return;
+      setError('No pudimos verificar los datos de transferencia. Reintenta la consulta.');
+      setLoadedForKey(transferKey);
+    } finally {
+      if (isCurrentRun()) setLoading(false);
     }
-    setSettings(settingsResult.value);
-    setLoading(false);
-  }, [isAdmin, obligationId, user]);
+  }, [isAdmin, obligationId, transferKey, userId]);
 
   useFocusEffect(useCallback(() => {
+    setLoading(true);
     void load();
     return () => { loadRunRef.current += 1; };
   }, [load]));
@@ -77,7 +103,10 @@ export default function PaymentTransferScreen() {
   async function refresh() { setRefreshing(true); try { await load(); } finally { setRefreshing(false); } }
 
   async function copyClabe() {
-    const clabe = normalizeClabe(settings?.clabe);
+    if (!transferKey || activeTransferKeyRef.current !== transferKey
+        || loadedForKey !== transferKey || loading || error || !obligation || !settings
+        || !bankReady) return;
+    const clabe = normalizeClabe(settings.clabe);
     if (!isValidClabe(clabe)) {
       Alert.alert('CLABE no verificada', 'No copies ni transfieras hasta que UCAPSA publique una CLABE válida de 18 dígitos.');
       return;
@@ -94,7 +123,8 @@ export default function PaymentTransferScreen() {
   if (!user) return <Redirect href="/auth/login" />;
   if (isAdmin) return <Redirect href="/admin-payments" />;
 
-  const bankReady = Boolean(settings?.is_active && isValidClabe(settings.clabe) && settings.bank_name && settings.account_holder);
+  const bankReady = Boolean(!loading && !error && obligation && settings?.is_active
+    && isValidClabe(settings.clabe) && settings.bank_name && settings.account_holder);
   const paymentLink = settings?.clip_url && isValidPaymentLink(settings.clip_url) ? settings.clip_url : null;
 
   return (
@@ -108,7 +138,7 @@ export default function PaymentTransferScreen() {
 
       {!loading && error ? <View style={[styles.card, premium && styles.cardPremium]}><MaterialIcons name="lock-outline" size={23} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} /><Text style={[styles.cardTitle, premium && styles.textPremium]}>{error}</Text><Pressable onPress={() => void refresh()}><Text style={[styles.link, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Reintentar verificación</Text></Pressable></View> : null}
 
-      {!loading && obligation && bankReady ? (
+      {!loading && !error && obligation && bankReady ? (
         <>
           <View style={[styles.card, premium && styles.cardPremium]}>
             <Text style={[styles.label, premium && styles.mutedPremium]}>CARGO</Text>
@@ -132,11 +162,14 @@ export default function PaymentTransferScreen() {
             <MaterialIcons name="chat" size={20} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} />
             <Text style={[styles.secondaryText, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Enviar comprobante</Text>
           </Pressable>
-          {paymentLink ? <Pressable accessibilityRole="button" accessibilityLabel="Abrir enlace de pago" onPress={() => void Linking.openURL(paymentLink).catch(() => Alert.alert('No se pudo abrir', 'Revisa el enlace de pago con UCAPSA.'))}><Text style={[styles.linkCenter, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Abrir enlace de pago</Text></Pressable> : null}
+          {paymentLink ? <Pressable accessibilityRole="button" accessibilityLabel="Abrir enlace de pago" onPress={() => {
+            if (activeTransferKeyRef.current !== transferKey || loading || !bankReady) return;
+            void Linking.openURL(paymentLink).catch(() => Alert.alert('No se pudo abrir', 'Revisa el enlace de pago con UCAPSA.'));
+          }}><Text style={[styles.linkCenter, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Abrir enlace de pago</Text></Pressable> : null}
         </>
       ) : null}
 
-      {!loading && obligation && settings && !bankReady && !error ? (
+      {!loading && !error && obligation && settings && !bankReady ? (
         <View style={[styles.card, premium && styles.cardPremium]}><Text style={[styles.cardTitle, premium && styles.textPremium]}>Datos bancarios no válidos</Text><Text style={[styles.meta, premium && styles.mutedPremium]}>No transfieras hasta que UCAPSA publique una CLABE activa y válida de 18 dígitos.</Text></View>
       ) : null}
     </KeyboardAwareScreen>
