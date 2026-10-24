@@ -1,12 +1,12 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useMemo } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../components/domain/AdminCustomerContextHeader';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
-import { getAdminCustomerRecord, type AdminCustomerRecord } from '../../services/admin-customer.service';
+import { useAdminCustomerDetail } from '../../hooks/useAdminCustomerDetail';
 import { formatDate as formatMembershipDate, getMembershipStatusLabel } from '../../services/memberships.service';
 import { formatProgramScheduleDisplayLabel, getProgramLevelLabel, getProgramStatusLabel } from '../../services/programs.service';
 
@@ -35,28 +35,7 @@ export default function CustomerSectionScreen() {
   const userId = typeof params.userId === 'string' ? params.userId.trim() : '';
   const rawSection = typeof params.section === 'string' ? params.section : 'profile';
   const section: SectionKey = ['profile', 'membership', 'classes', 'attendance', 'payments'].includes(rawSection) ? rawSection as SectionKey : 'profile';
-  const [record, setRecord] = useState<AdminCustomerRecord | null>(null);
-  const [loading, setLoading] = useState(Boolean(userId));
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
-
-  const load = useCallback(async () => {
-    if (!userId) return;
-    try {
-      setError('');
-      setRecord(await getAdminCustomerRecord(userId));
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'No se pudo cargar el cliente.');
-      setRecord(null);
-    }
-  }, [userId]);
-
-  useFocusEffect(useCallback(() => {
-    if (!userId) return undefined;
-    setLoading(true);
-    void load().finally(() => setLoading(false));
-    return undefined;
-  }, [load, userId]));
+  const { record, loading, refreshing, error, refresh } = useAdminCustomerDetail(userId);
 
   const attendanceRows = useMemo(() => {
     if (!record) return [];
@@ -69,7 +48,7 @@ export default function CustomerSectionScreen() {
     if (!record) return { balance: 0, open: [] as Array<{ id: string; concept: string; dueDate: string; balance: number }> };
     const paid = new Map<string, number>();
     for (const payment of record.payments) {
-      if (!payment.obligation_id || payment.status !== 'paid') continue;
+      if (!payment.obligation_id || payment.status !== 'paid' || payment.voided_at) continue;
       paid.set(payment.obligation_id, (paid.get(payment.obligation_id) ?? 0) + Number(payment.amount ?? 0));
     }
     const open = record.obligations
@@ -80,11 +59,6 @@ export default function CustomerSectionScreen() {
     return { balance: open.reduce((sum, item) => sum + item.balance, 0), open };
   }, [record]);
 
-  async function refresh() {
-    setRefreshing(true);
-    try { await load(); } finally { setRefreshing(false); }
-  }
-
   if (!userId) return <KeyboardAwareScreen><View style={styles.center}><Text style={styles.title}>Cliente no disponible</Text><Pressable style={styles.primary} onPress={() => router.replace('/admin-clients' as never)}><Text style={styles.primaryText}>Ir a Clientes</Text></Pressable></View></KeyboardAwareScreen>;
 
   return (
@@ -92,9 +66,9 @@ export default function CustomerSectionScreen() {
       <AdminCustomerContextHeader customerName={adminCustomerDisplayName(record?.profile)} section={titles[section]} member={record?.membership?.status === 'active'} onBack={() => router.back()} />
 
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando...</Text></View> : null}
-      {error ? <View style={styles.error}><Text style={styles.errorTitle}>No se pudo cargar</Text><Text style={styles.muted}>{error}</Text></View> : null}
+      {error ? <View style={styles.error}><Text style={styles.errorTitle}>No se pudo cargar</Text><Text style={styles.muted}>{error}</Text><Pressable accessibilityRole="button" onPress={() => void refresh()}><Text style={styles.muted}>Reintentar</Text></Pressable></View> : null}
 
-      {record && section === 'profile' ? (
+      {record && !loading && !error && section === 'profile' ? (
         <>
           <View style={styles.card}>
             <Detail label="Nombre" value={record.profile.full_name || 'Sin nombre'} />
@@ -106,7 +80,7 @@ export default function CustomerSectionScreen() {
         </>
       ) : null}
 
-      {record && section === 'membership' ? (
+      {record && !loading && !error && section === 'membership' ? (
         <>
           <View style={styles.card}>
             {record.membership ? (
@@ -123,7 +97,7 @@ export default function CustomerSectionScreen() {
         </>
       ) : null}
 
-      {record && section === 'classes' ? (
+      {record && !loading && !error && section === 'classes' ? (
         <>
           {record.enrollments.length === 0 ? <Empty text="Sin inscripciones." /> : null}
           {record.enrollments.slice(0, 5).map((item) => (
@@ -141,7 +115,7 @@ export default function CustomerSectionScreen() {
         </>
       ) : null}
 
-      {record && section === 'attendance' ? (
+      {record && !loading && !error && section === 'attendance' ? (
         <>
           {attendanceRows.length === 0 ? <Empty text="Sin asistencias registradas." /> : null}
           <View style={styles.listCard}>
@@ -156,7 +130,7 @@ export default function CustomerSectionScreen() {
         </>
       ) : null}
 
-      {record && section === 'payments' ? (
+      {record && !loading && !error && section === 'payments' ? (
         <>
           <View style={styles.balanceCard}><Text style={styles.balanceLabel}>Saldo pendiente</Text><Text style={styles.balanceValue}>{money(paymentSummary.balance)}</Text></View>
           <Text style={styles.sectionTitle}>Cargos proximos</Text>
