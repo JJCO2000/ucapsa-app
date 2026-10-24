@@ -7,6 +7,7 @@ import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../comp
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { showStaffDialog } from '../../utils/staff-dialog';
+import { devWarn } from '../../lib/client-diagnostics';
 import { isProgramCompletionAchievementCode } from '../../constants/programCompletion';
 import {
   awardAchievementToUser,
@@ -61,6 +62,7 @@ export default function AdminCustomerAchievementsScreen() {
         )),
       );
     } catch (cause) {
+      devWarn('admin-customer-achievements: operation failed', cause);
       showStaffDialog(
         'No se pudieron cargar los logros',
         cause instanceof Error ? cause.message : 'Intenta de nuevo.',
@@ -109,6 +111,7 @@ export default function AdminCustomerAchievementsScreen() {
               await load();
               showStaffDialog('Logro actualizado', 'El logro formal quedó asociado al perro seleccionado.');
             } catch (cause) {
+              devWarn('admin-customer-achievements: operation failed', cause);
               showStaffDialog(
                 'No se pudo actualizar el logro',
                 cause instanceof Error ? cause.message : 'Intenta de nuevo.',
@@ -139,6 +142,7 @@ export default function AdminCustomerAchievementsScreen() {
               await load();
               showStaffDialog('Logro actualizado', 'El logro fue marcado como completado.');
             } catch (cause) {
+              devWarn('admin-customer-achievements: operation failed', cause);
               showStaffDialog(
                 'No se pudo actualizar el logro',
                 cause instanceof Error ? cause.message : 'Intenta de nuevo.',
