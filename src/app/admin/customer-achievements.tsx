@@ -1,11 +1,13 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../components/domain/AdminCustomerContextHeader';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
+import { showStaffDialog } from '../../utils/staff-dialog';
+import { devWarn } from '../../lib/client-diagnostics';
 import { isProgramCompletionAchievementCode } from '../../constants/programCompletion';
 import {
   awardAchievementToUser,
@@ -60,7 +62,8 @@ export default function AdminCustomerAchievementsScreen() {
         )),
       );
     } catch (cause) {
-      Alert.alert(
+      devWarn('admin-customer-achievements: operation failed', cause);
+      showStaffDialog(
         'No se pudieron cargar los logros',
         cause instanceof Error ? cause.message : 'Intenta de nuevo.',
       );
@@ -94,7 +97,7 @@ export default function AdminCustomerAchievementsScreen() {
     if (!isProgramCompletionAchievementCode(item.definition.code)) return;
     const achievementCode = item.definition.code;
 
-    Alert.alert(
+    showStaffDialog(
       'Otorgar logro de entrenamiento',
       `Se otorgará ${item.definition.title} a ${selectedDog.name}, perro de ${adminCustomerDisplayName(profile)}. El otorgamiento quedará como evidencia histórica y no se elimina desde la app.`,
       [
@@ -106,9 +109,10 @@ export default function AdminCustomerAchievementsScreen() {
               setSavingCode(achievementCode);
               await grantTrainingAchievementToDog(userId, selectedDog.id, achievementCode);
               await load();
-              Alert.alert('Logro actualizado', 'El logro formal quedó asociado al perro seleccionado.');
+              showStaffDialog('Logro actualizado', 'El logro formal quedó asociado al perro seleccionado.');
             } catch (cause) {
-              Alert.alert(
+              devWarn('admin-customer-achievements: operation failed', cause);
+              showStaffDialog(
                 'No se pudo actualizar el logro',
                 cause instanceof Error ? cause.message : 'Intenta de nuevo.',
               );
@@ -124,7 +128,7 @@ export default function AdminCustomerAchievementsScreen() {
   function grantGlobal(item: AchievementWithState) {
     if (item.unlocked || !profile) return;
 
-    Alert.alert(
+    showStaffDialog(
       'Marcar logro completado',
       `Se otorgará ${item.definition.title} a ${adminCustomerDisplayName(profile)}. El otorgamiento quedará en su historial.`,
       [
@@ -136,9 +140,10 @@ export default function AdminCustomerAchievementsScreen() {
               setSavingCode(item.definition.code);
               await awardAchievementToUser(userId, item.definition.code);
               await load();
-              Alert.alert('Logro actualizado', 'El logro fue marcado como completado.');
+              showStaffDialog('Logro actualizado', 'El logro fue marcado como completado.');
             } catch (cause) {
-              Alert.alert(
+              devWarn('admin-customer-achievements: operation failed', cause);
+              showStaffDialog(
                 'No se pudo actualizar el logro',
                 cause instanceof Error ? cause.message : 'Intenta de nuevo.',
               );
