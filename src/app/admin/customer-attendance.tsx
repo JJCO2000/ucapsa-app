@@ -196,18 +196,26 @@ export default function CustomerAttendanceScreen() {
 
   function removeAttendance(attendance: ProgramAttendance) {
     if (!selectedEnrollment || loading || saving || error || selectedEnrollment.enrollment.user_id !== userId) return;
+    if (!selectedEnrollment.attendances.some((item) => item.id === attendance.id)) return;
+    const boundRecordKey = recordKey;
+    const boundEnrollmentId = selectedEnrollment.enrollment.id;
     showStaffDialog('Eliminar asistencia', 'Se eliminara este registro real y el avance se recalculara.', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: async () => {
+        if (activeRecordKeyRef.current !== boundRecordKey) return;
+        const saveRunId = ++saveRunRef.current;
+        const isCurrentSave = () => saveRunRef.current === saveRunId && activeRecordKeyRef.current === boundRecordKey;
         try {
           setSaving(true);
-          await deleteProgramAttendance(attendance.id, selectedEnrollment.enrollment.id);
+          await deleteProgramAttendance(attendance.id, boundEnrollmentId);
+          if (!isCurrentSave()) return;
           await load();
         } catch (cause) {
+          if (!isCurrentSave()) return;
           devWarn('admin-customer-attendance: operation failed', cause);
           showStaffDialog('No se pudo eliminar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
         } finally {
-          setSaving(false);
+          if (isCurrentSave()) setSaving(false);
         }
       } },
     ]);
