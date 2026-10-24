@@ -9,6 +9,7 @@ import { AdminCustomerContextHeader, adminCustomerDisplayName } from '../../comp
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { showStaffDialog } from '../../utils/staff-dialog';
+import { devWarn } from '../../lib/client-diagnostics';
 import { getAdminCustomerRecord, type AdminCustomerRecord } from '../../services/admin-customer.service';
 import {
   correctProgramAttendance,
@@ -130,6 +131,7 @@ export default function CustomerAttendanceScreen() {
       await load();
       showStaffDialog(edit.attendance ? 'Asistencia corregida' : 'Asistencia registrada', 'El historial y el avance quedaron actualizados.');
     } catch (cause) {
+      devWarn('admin-customer-attendance: operation failed', cause);
       showStaffDialog('No se pudo guardar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     } finally {
       setSaving(false);
@@ -146,6 +148,7 @@ export default function CustomerAttendanceScreen() {
           await deleteProgramAttendance(attendance.id, selectedEnrollment.enrollment.id);
           await load();
         } catch (cause) {
+          devWarn('admin-customer-attendance: operation failed', cause);
           showStaffDialog('No se pudo eliminar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
         } finally {
           setSaving(false);
