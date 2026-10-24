@@ -11,6 +11,7 @@ import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
 import { useMemberAppearance } from '../../hooks/useMemberAppearance';
+import { devWarn } from '../../lib/client-diagnostics';
 import { getCachedMyMemberVisits, getMyMemberVisits } from '../../services/client-activity.service';
 import type { MemberVisitOfflineSummary } from '../../services/client-read-cache.service';
 
@@ -22,7 +23,12 @@ function formatVisitDate(value: string) {
 
 export default function MemberVisitsScreen() {
   const { user, role, isAdmin } = useSession();
-  const [visits, setVisits] = useState<MemberVisitOfflineSummary[]>([]);
+  const [storedVisits, setStoredVisits] = useState<MemberVisitOfflineSummary[]>([]);
+  const [loadedForUserId, setLoadedForUserId] = useState<string | null>(null);
+  const userId = user?.id ?? '';
+  const activeUserIdRef = useRef(userId);
+  activeUserIdRef.current = userId;
+  const visits = loadedForUserId === userId ? storedVisits : [];
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,41 +40,54 @@ export default function MemberVisitsScreen() {
   const premium = format.key === 'member';
 
   const load = useCallback(async () => {
-    const runId = loadRunRef.current + 1;
-    loadRunRef.current = runId;
-    const isCurrentRun = () => loadRunRef.current === runId;
-    if (!user || isAdmin) return;
+    const runId = ++loadRunRef.current;
+    const isCurrentRun = () => loadRunRef.current === runId
+      && activeUserIdRef.current === userId;
+    if (!userId || isAdmin) return;
 
     setError(null);
     setUsingSavedData(false);
+    setStoredVisits([]);
+    setLoadedForUserId(null);
+    setSavedAt(null);
+    setLoading(true);
 
-    const cached = await getCachedMyMemberVisits(user.id);
+    let cached: Awaited<ReturnType<typeof getCachedMyMemberVisits>> = null;
+    try {
+      cached = await getCachedMyMemberVisits(userId);
+    } catch (cause) {
+      devWarn('member-visits: could not read local cache.', cause);
+    }
     if (!isCurrentRun()) return;
     if (cached) {
-      setVisits(cached.data);
+      setStoredVisits(cached.data);
+      setLoadedForUserId(userId);
       setSavedAt(cached.saved_at);
       setLoading(false);
     }
 
     try {
-      const fresh = await getMyMemberVisits(user.id);
+      const fresh = await getMyMemberVisits(userId);
       if (!isCurrentRun()) return;
-      setVisits(fresh);
+      setStoredVisits(fresh);
+      setLoadedForUserId(userId);
       setUsingSavedData(false);
       setError(null);
     } catch {
       if (!isCurrentRun()) return;
       if (cached) {
-        setVisits(cached.data);
+        setStoredVisits(cached.data);
+        setLoadedForUserId(userId);
         setUsingSavedData(true);
       } else {
-        setVisits([]);
+        setStoredVisits([]);
+        setLoadedForUserId(null);
         setError('No pudimos cargar tus visitas de socio.');
       }
     } finally {
       if (isCurrentRun()) setLoading(false);
     }
-  }, [isAdmin, user]);
+  }, [isAdmin, userId]);
 
   useFocusEffect(useCallback(() => {
     void load();
@@ -103,7 +122,7 @@ export default function MemberVisitsScreen() {
         icon="badge"
       />
 
-      {usingSavedData ? (
+      {usingSavedData && loadedForUserId === userId ? (
         <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} label="Mostrando visitas guardadas" />
       ) : null}
 
@@ -118,8 +137,8 @@ export default function MemberVisitsScreen() {
         </View>
       </View>
 
-      {loading && visits.length === 0 ? <View style={styles.loading}><ActivityIndicator color={format.accent} /><Text style={[styles.muted, { color: format.muted }]}>Cargando visitas...</Text></View> : null}
-      {error && visits.length === 0 ? <View style={[styles.stateCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}><MaterialIcons name="error-outline" size={25} color={format.accentDark} /><Text style={[styles.stateTitle, { color: format.cardText }]}>{error}</Text></View> : null}
+      {(loading || loadedForUserId !== userId) && visits.length === 0 ? <View style={styles.loading}><ActivityIndicator color={format.accent} /><Text style={[styles.muted, { color: format.muted }]}>Cargando visitas...</Text></View> : null}
+      {error && loadedForUserId !== userId && visits.length === 0 ? <View style={[styles.stateCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}><MaterialIcons name="error-outline" size={25} color={format.accentDark} /><Text style={[styles.stateTitle, { color: format.cardText }]}>{error}</Text></View> : null}
 
       {!loading && !error && visits.length === 0 ? (
         <View style={[styles.stateCard, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
