@@ -17,36 +17,55 @@ export default function PaymentDetailScreen() {
   const { paymentId: rawPaymentId } = useLocalSearchParams<{ paymentId?: string | string[] }>();
   const paymentId = Array.isArray(rawPaymentId) ? rawPaymentId[0] ?? null : rawPaymentId ?? null;
   const { user, role, isAdmin } = useSession();
-  const [payment, setPayment] = useState<Payment | null>(null);
+  const userId = user?.id ?? '';
+  const detailKey = !isAdmin && userId && paymentId ? [userId, paymentId].join(':') : '';
+  const activeDetailKeyRef = useRef(detailKey);
+  activeDetailKeyRef.current = detailKey;
+  const [storedPayment, setPayment] = useState<Payment | null>(null);
+  const [loadedForKey, setLoadedForKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [storedError, setError] = useState<string | null>(null);
   const loadRunRef = useRef(0);
+  const payment = detailKey && loadedForKey === detailKey ? storedPayment : null;
+  const error = loadedForKey === detailKey ? storedError : null;
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
   const premium = format.key === 'member';
 
   const load = useCallback(async () => {
-    const runId = loadRunRef.current + 1;
-    loadRunRef.current = runId;
-    const isCurrentRun = () => loadRunRef.current === runId;
-    if (!user || isAdmin) return;
+    const runId = ++loadRunRef.current;
+    const isCurrentRun = () => loadRunRef.current === runId
+      && activeDetailKeyRef.current === detailKey;
+    if (!userId || isAdmin) return;
+    setLoading(true);
     setError(null);
+    setPayment(null);
+    setLoadedForKey(null);
+    if (!paymentId) {
+      setError('No encontramos este pago en tu historial actual.');
+      setLoadedForKey(detailKey);
+      setLoading(false);
+      return;
+    }
     try {
       const overview = await withOperationTimeout(getMyPaymentOverview(), DEFAULT_READ_TIMEOUT_MS, 'payment-detail');
       if (!isCurrentRun()) return;
-      const found = paymentId ? overview.payments.find((item) => item.id === paymentId) ?? null : null;
+      const found = overview.payments.find((entry) => entry.id === paymentId) ?? null;
       setPayment(found);
+      setLoadedForKey(detailKey);
       if (!found) setError('No encontramos este pago en tu historial actual.');
     } catch {
       if (!isCurrentRun()) return;
       setPayment(null);
+      setLoadedForKey(detailKey);
       setError('Conéctate para consultar el detalle de este pago.');
     } finally {
       if (isCurrentRun()) setLoading(false);
     }
-  }, [isAdmin, paymentId, user]);
+  }, [detailKey, isAdmin, paymentId, userId]);
 
   useFocusEffect(useCallback(() => {
+    setLoading(true);
     void load();
     return () => { loadRunRef.current += 1; };
   }, [load]));
@@ -65,7 +84,7 @@ export default function PaymentDetailScreen() {
       {loading ? <View style={styles.loading}><ActivityIndicator color={format.accent} /><Text style={[styles.meta, { color: format.muted }]}>Cargando pago...</Text></View> : null}
       {error && !payment ? <View style={[styles.card, premium && styles.cardPremium]}><Text style={[styles.cardTitle, premium && styles.textPremium]}>{error}</Text><Pressable onPress={() => void refresh()}><Text style={[styles.link, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Reintentar</Text></Pressable></View> : null}
 
-      {payment ? (
+      {!loading && !error && payment ? (
         <View style={[styles.card, premium && styles.cardPremium]}>
           <View style={styles.headerRow}>
             <View style={[styles.icon, { backgroundColor: premium ? ucapsaBrand.colors.premiumSurfaceAlt : format.accentSoft }]}><MaterialIcons name="check-circle" size={24} color={premium ? ucapsaBrand.colors.premiumAction : ucapsaBrand.colors.successDark} /></View>
