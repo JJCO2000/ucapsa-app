@@ -198,7 +198,7 @@ for (const rel of ['src/app/client/member-visits.tsx', 'src/app/client/activity-
     must(rel, /const fresh = scopedDogId[\s\S]*getMyDogActivityFacts\(user\.id, scopedDogId\)[\s\S]*getMyClientActivityFacts\(user\.id\)/,
       'Insignias dejaron de refrescar en el mismo alcance que la caché.');
   } else {
-    must(rel, /setUsingSavedData\(false\)[\s\S]*const cached = await getCached/, `${rel} dejó de hidratar caché en estado neutro.`);
+    must(rel, /setUsingSavedData\(false\)[\s\S]*(?:const cached =|cached =) await getCached/, `${rel} dejó de hidratar caché en estado neutro.`);
   }
   must(rel, /if \(cached\)[\s\S]*setLoading\(false\)/, `${rel} dejó de pintar la caché inmediatamente.`);
   must(rel, /catch[\s\S]*if \(cached\)[\s\S]*setUsingSavedData\(true\)/, `${rel} dejó de reservar el aviso offline para un fallo remoto real.`);
