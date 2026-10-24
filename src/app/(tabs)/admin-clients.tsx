@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AdminStatusPill } from '../../components/admin/AdminStatusPill';
@@ -10,21 +10,21 @@ import { useSession } from '../../hooks/useSession';
 import { getActiveDogNamesByUserIds } from '../../services/dogs.service';
 import { getAdminClientFollowupRows } from '../../services/admin-client-followups.service';
 import { getAdminClientProfiles } from '../../services/profiles.service';
+import { getAdminActiveMembershipUserIds } from '../../services/memberships-admin.service';
+import { directoryStatusLabel, matchesDirectoryFilter } from '../../services/admin-directory-classification.domain';
 import type { Profile } from '../../types/app.types';
 import { DEFAULT_READ_TIMEOUT_MS, friendlyReadError, withOperationTimeout } from '../../utils/async.utils';
 
 type ClientFilter = 'all' | 'members' | 'clients';
 type ClientIntent = 'default' | 'attendance' | 'payments';
 
-function labelForRole(role: Profile['role']) {
-  return role === 'member' ? 'Socio' : 'Cliente';
-}
-
 export default function AdminClientsTab() {
   const { isAdmin } = useSession();
   const params = useLocalSearchParams<{ intent?: string }>();
   const intent: ClientIntent = params.intent === 'attendance' ? 'attendance' : params.intent === 'payments' ? 'payments' : 'default';
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [activeMemberIds, setActiveMemberIds] = useState<ReadonlySet<string>>(new Set());
+  const loadRunRef = useRef(0);
   const [dogNamesByUser, setDogNamesByUser] = useState<Record<string, string[]>>({});
   const [followupDogNamesByUser, setFollowupDogNamesByUser] = useState<Record<string, string[]>>({});
   const [search, setSearch] = useState('');
@@ -36,47 +36,73 @@ export default function AdminClientsTab() {
 
   const load = useCallback(async () => {
     if (!isAdmin) return;
+    const runId = ++loadRunRef.current;
+    const isCurrentRun = () => loadRunRef.current === runId;
+    setLoading(true);
     setError(null);
-    const result = await withOperationTimeout((async () => {
-      const profileRows = await getAdminClientProfiles();
-      const [nextDogNames, followups] = await Promise.all([
-        getActiveDogNamesByUserIds(profileRows.map((item) => item.user_id)),
-        getAdminClientFollowupRows(),
-      ]);
-      const nextFollowupDogNames = followups.reduce<Record<string, string[]>>((acc, row) => {
-        acc[row.userId] = acc[row.userId] ?? [];
-        if (!acc[row.userId].includes(row.dogName)) acc[row.userId].push(row.dogName);
-        return acc;
-      }, {});
-      return { profileRows, nextDogNames, nextFollowupDogNames };
-    })(), DEFAULT_READ_TIMEOUT_MS, 'admin-clients-load');
-
-    setProfiles(result.profileRows);
-    setDogNamesByUser(result.nextDogNames);
-    setFollowupDogNamesByUser(result.nextFollowupDogNames);
-    setHasData(true);
+    try {
+      const result = await withOperationTimeout((async () => {
+        const [profileRows, memberIds, followups] = await Promise.all([
+          getAdminClientProfiles(),
+          getAdminActiveMembershipUserIds(),
+          getAdminClientFollowupRows(),
+        ]);
+        const nextDogNames = await getActiveDogNamesByUserIds(profileRows.map((item) => item.user_id));
+        const nextFollowupDogNames = followups.reduce<Record<string, string[]>>((acc, row) => {
+          acc[row.userId] = acc[row.userId] ?? [];
+          if (!acc[row.userId].includes(row.dogName)) acc[row.userId].push(row.dogName);
+          return acc;
+        }, {});
+        return { profileRows, memberIds, nextDogNames, nextFollowupDogNames };
+      })(), DEFAULT_READ_TIMEOUT_MS, 'admin-clients-load');
+      if (!isCurrentRun()) return;
+      setProfiles(result.profileRows);
+      setActiveMemberIds(new Set(result.memberIds));
+      setDogNamesByUser(result.nextDogNames);
+      setFollowupDogNamesByUser(result.nextFollowupDogNames);
+      setHasData(true);
+    } catch {
+      if (!isCurrentRun()) return;
+      // Never keep an obsolete directory or show guessed Socio membership.
+      setProfiles([]);
+      setActiveMemberIds(new Set());
+      setDogNamesByUser({});
+      setFollowupDogNamesByUser({});
+      setHasData(false);
+      setError(friendlyReadError('No se pudo cargar la lista de clientes.'));
+    } finally {
+      if (isCurrentRun()) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
   }, [isAdmin]);
 
   useFocusEffect(useCallback(() => {
-    if (!isAdmin) return undefined;
-    setLoading(true);
-    void load().catch(() => setError(friendlyReadError('No se pudo cargar la lista de clientes.'))).finally(() => setLoading(false));
-    return undefined;
+    loadRunRef.current += 1;
+    setProfiles([]);
+    setActiveMemberIds(new Set());
+    setDogNamesByUser({});
+    setFollowupDogNamesByUser({});
+    setHasData(false);
+    if (isAdmin) void load();
+    return () => { loadRunRef.current += 1; };
   }, [isAdmin, load]));
 
   const rows = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return profiles.filter((profile) => {
-      if (filter === 'members' && profile.role !== 'member') return false;
-      if (filter === 'clients' && profile.role !== 'client') return false;
+      if (!matchesDirectoryFilter(profile,
+        filter === 'all' ? 'clients_and_members' : filter, activeMemberIds)) return false;
       if (!needle) return true;
       return [profile.full_name, profile.email, profile.phone, ...(dogNamesByUser[profile.user_id] ?? [])].filter(Boolean).some((value) => String(value).toLowerCase().includes(needle));
     });
-  }, [dogNamesByUser, filter, profiles, search]);
+  }, [activeMemberIds, dogNamesByUser, filter, profiles, search]);
 
   async function refresh() {
+    if (!isAdmin) return;
     setRefreshing(true);
-    try { await load(); } catch { setError(friendlyReadError('No se pudo cargar la lista de clientes.')); } finally { setRefreshing(false); }
+    await load();
   }
 
   function openClient(profile: Profile) {
@@ -155,12 +181,13 @@ export default function AdminClientsTab() {
       {hasData ? <Text style={styles.count}>{rows.length} resultados</Text> : null}
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando clientes...</Text></View> : null}
       {error ? <View style={styles.errorBox}><Text style={styles.errorTitle}>No se pudo actualizar</Text><Text style={styles.muted}>{error}</Text><Pressable style={styles.retryButton} onPress={() => void refresh()}><Text style={styles.retryText}>Reintentar</Text></Pressable></View> : null}
-      {!loading && hasData && rows.length === 0 ? <View style={styles.empty}><MaterialIcons name="person-search" size={32} color={ucapsaBrand.colors.redDark} /><Text style={styles.emptyTitle}>Sin resultados</Text><Text style={styles.muted}>Prueba otro nombre o filtro.</Text></View> : null}
+      {!loading && !error && hasData && rows.length === 0 ? <View style={styles.empty}><MaterialIcons name="person-search" size={32} color={ucapsaBrand.colors.redDark} /><Text style={styles.emptyTitle}>Sin resultados</Text><Text style={styles.muted}>Prueba otro nombre o filtro.</Text></View> : null}
 
-      <View style={styles.list}>
+      {!loading && !error && hasData ? <View style={styles.list}>
         {rows.map((profile, index) => {
           const followupDogs = followupDogNamesByUser[profile.user_id] ?? [];
           const needsFollowup = followupDogs.length > 0;
+          const isSocio = activeMemberIds.has(profile.user_id);
           return (
             <Pressable
               key={profile.id}
@@ -177,9 +204,9 @@ export default function AdminClientsTab() {
                 {needsFollowup ? <Text style={styles.followupText}>Seguimiento: {followupDogs.join(', ')}</Text> : null}
                 <View style={styles.clientStatusRow}>
                   <AdminStatusPill
-                    label={labelForRole(profile.role)}
-                    tone={profile.role === 'member' ? 'purple' : 'info'}
-                    icon={profile.role === 'member' ? 'workspace-premium' : 'person'}
+                    label={directoryStatusLabel(profile, activeMemberIds)}
+                    tone={isSocio ? 'purple' : 'info'}
+                    icon={isSocio ? 'workspace-premium' : 'person'}
                   />
                   {needsFollowup ? <AdminStatusPill label="Requiere seguimiento" tone="danger" icon="priority-high" /> : null}
                 </View>
@@ -188,7 +215,7 @@ export default function AdminClientsTab() {
             </Pressable>
           );
         })}
-      </View>
+      </View> : null}
     </KeyboardAwareScreen>
   );
 }
