@@ -121,7 +121,7 @@ async function tests() {
   assert.equal(payment.open[0].balance,600);
   assert.equal(payment.open[1].balance,20);
 
-  assert.ok(section.includes("payment.voided_at ? 'ANULADO"), 'Voided payment history must be visibly labeled');
+  assert.ok(section.includes("payment.voided_at ? ' · Anulado' : ''") && section.includes('payment.voided_at && styles.voidedAmount'), 'Voided payment history must be visibly labeled and struck through');
 
   for(const [name,text] of [['customer',customer],['customer-section',section]]) {
     assert.ok(text.includes("useAdminCustomerDetail(userId)"),
