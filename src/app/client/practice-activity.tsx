@@ -11,6 +11,7 @@ import { OfflineDataNotice } from '../../components/ui/OfflineDataNotice';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
+import { devWarn } from '../../lib/client-diagnostics';
 import { clientReadKeys, readClientResource, sanitizeProgramRowsForCache, writeClientResource } from '../../services/client-read-cache.service';
 import { getCachedMyPracticeActivity, getMyPracticeActivity, saveMyPracticeSession, type PracticeActivitySnapshot } from '../../services/practice.service';
 import { DEFAULT_PRACTICE_TARGET_DAYS, getPracticeGoalProgress, getPracticeTargetDays, togglePracticeTargetDay, type PracticeTargetDay } from '../../services/practice-goal-preference.service';
@@ -49,39 +50,71 @@ function currentWeekDays(completedAtValues: string[], now = new Date()) {
 
 export default function PracticeActivityScreen() {
   const { user, role, isAdmin } = useSession();
-  const [activity, setActivity] = useState<PracticeActivitySnapshot | null>(null);
-  const [activeProgram, setActiveProgram] = useState<ProgramEnrollmentWithDetails | null>(null);
+  const [storedActivity, setActivity] = useState<PracticeActivitySnapshot | null>(null);
+  const [storedActiveProgram, setActiveProgram] = useState<ProgramEnrollmentWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [usingSavedData, setUsingSavedData] = useState(false);
-  const [savedAt, setSavedAt] = useState<string | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [storedError, setError] = useState<string | null>(null);
+  const [storedUsingSavedData, setUsingSavedData] = useState(false);
+  const [storedSavedAt, setSavedAt] = useState<string | null>(null);
+  const [storedModalOpen, setModalOpen] = useState(false);
   const [startedAt, setStartedAt] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<PracticeDifficulty | null>(null);
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
-  const [targetDays, setTargetDays] = useState<PracticeTargetDay[]>(DEFAULT_PRACTICE_TARGET_DAYS);
+  const [storedTargetDays, setTargetDays] = useState<PracticeTargetDay[]>(DEFAULT_PRACTICE_TARGET_DAYS);
   const [savingTarget, setSavingTarget] = useState(false);
   const loadRunRef = useRef(0);
+  const userId = user?.id ?? '';
+  const activeUserIdRef = useRef(userId);
+  activeUserIdRef.current = userId;
+  const [loadedForUserId, setLoadedForUserId] = useState<string | null>(null);
+  // Render-time isolation: never expose old practice, goals, or modal on a new session.
+  const currentUserReady = Boolean(userId && loadedForUserId === userId);
+  const activity = currentUserReady ? storedActivity : null;
+  const activeProgram = currentUserReady ? storedActiveProgram : null;
+  const error = currentUserReady ? storedError : null;
+  const usingSavedData = currentUserReady && storedUsingSavedData;
+  const savedAt = currentUserReady ? storedSavedAt : null;
+  const modalOpen = currentUserReady && storedModalOpen;
+  const targetDays = currentUserReady ? storedTargetDays : DEFAULT_PRACTICE_TARGET_DAYS;
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin, hasActivePrograms: Boolean(activeProgram) }), [activeProgram, isAdmin, role, user]);
   const premium = format.key === 'member';
 
   const load = useCallback(async () => {
-    const runId = loadRunRef.current + 1;
-    loadRunRef.current = runId;
-    const isCurrentRun = () => loadRunRef.current === runId;
-    if (!user || isAdmin) return;
+    const runId = ++loadRunRef.current;
+    const isCurrentRun = () => loadRunRef.current === runId
+      && activeUserIdRef.current === userId;
+    if (!userId || isAdmin) return;
 
+    setLoadedForUserId(userId);
+    setActivity(null);
+    setActiveProgram(null);
+    setTargetDays(DEFAULT_PRACTICE_TARGET_DAYS);
+    setModalOpen(false);
+    setLoading(true);
     setError(null);
     setUsingSavedData(false);
+    setSavedAt(null);
 
-    const [cachedActivity, cachedPrograms, targetResult] = await Promise.all([
-      getCachedMyPracticeActivity(user.id),
-      readClientResource<ProgramEnrollmentWithDetails[]>(user.id, clientReadKeys.programs),
-      getPracticeTargetDays(user.id),
+    // A corrupt local cache must not prevent a fresh official read.
+    const [cachedActivityResult, cachedProgramsResult, targetResult] = await Promise.allSettled([
+      getCachedMyPracticeActivity(userId),
+      readClientResource<ProgramEnrollmentWithDetails[]>(userId, clientReadKeys.programs),
+      getPracticeTargetDays(userId),
     ]);
     if (!isCurrentRun()) return;
+    if (cachedActivityResult.status === 'rejected') {
+      devWarn('practice-activity: could not read local practice cache.', cachedActivityResult.reason);
+    }
+    if (cachedProgramsResult.status === 'rejected') {
+      devWarn('practice-activity: could not read local program cache.', cachedProgramsResult.reason);
+    }
+    if (targetResult.status === 'rejected') {
+      devWarn('practice-activity: could not read saved goal days.', targetResult.reason);
+    }
+    const cachedActivity = cachedActivityResult.status === 'fulfilled' ? cachedActivityResult.value : null;
+    const cachedPrograms = cachedProgramsResult.status === 'fulfilled' ? cachedProgramsResult.value : null;
 
     if (cachedActivity) {
       setActivity(cachedActivity);
@@ -91,10 +124,10 @@ export default function PracticeActivityScreen() {
     if (cachedPrograms) {
       setActiveProgram(cachedPrograms.data.find((item) => item.enrollment.status === 'active') ?? null);
     }
-    setTargetDays(targetResult);
+    setTargetDays(targetResult.status === 'fulfilled' ? targetResult.value : DEFAULT_PRACTICE_TARGET_DAYS);
 
     const [practiceResult, programsResult] = await Promise.allSettled([
-      withOperationTimeout(getMyPracticeActivity(user.id), DEFAULT_READ_TIMEOUT_MS, 'practice-activity'),
+      withOperationTimeout(getMyPracticeActivity(userId), DEFAULT_READ_TIMEOUT_MS, 'practice-activity'),
       withOperationTimeout(getMyProgramEnrollments(), DEFAULT_READ_TIMEOUT_MS, 'practice-programs'),
     ]);
     if (!isCurrentRun()) return;
@@ -119,7 +152,11 @@ export default function PracticeActivityScreen() {
     if (programsResult.status === 'fulfilled') {
       const remotePrograms = programsResult.value;
       setActiveProgram(remotePrograms.find((item) => item.enrollment.status === 'active') ?? null);
-      await writeClientResource(user.id, clientReadKeys.programs, sanitizeProgramRowsForCache(remotePrograms));
+      try {
+        await writeClientResource(userId, clientReadKeys.programs, sanitizeProgramRowsForCache(remotePrograms));
+      } catch (cause) {
+        devWarn('practice-activity: could not cache verified program enrollments.', cause);
+      }
       if (!isCurrentRun()) return;
     } else if (cachedPrograms) {
       setActiveProgram(cachedPrograms.data.find((item) => item.enrollment.status === 'active') ?? null);
@@ -132,7 +169,7 @@ export default function PracticeActivityScreen() {
     setUsingSavedData(staleFallback);
     if (staleFallback) setSavedAt(staleSavedAt);
     setLoading(false);
-  }, [isAdmin, user]);
+  }, [isAdmin, userId]);
 
   useFocusEffect(useCallback(() => {
     void load();
@@ -145,10 +182,12 @@ export default function PracticeActivityScreen() {
   }
 
   async function toggleTarget(day: PracticeTargetDay) {
-    if (!user || savingTarget) return;
+    if (!user || savingTarget || !currentUserReady || loading || error) return;
     setSavingTarget(true);
     try {
-      const next = await togglePracticeTargetDay(user.id, targetDays, day);
+      const requestUserId = user.id;
+      const next = await togglePracticeTargetDay(requestUserId, targetDays, day);
+      if (activeUserIdRef.current !== requestUserId) return;
       setTargetDays(next);
     } finally {
       setSavingTarget(false);
@@ -156,7 +195,7 @@ export default function PracticeActivityScreen() {
   }
 
   function openPractice() {
-    if (!activeProgram) return;
+    if (!activeProgram || loading || error || !currentUserReady) return;
     setStartedAt(new Date().toISOString());
     setDifficulty(null);
     setNote('');
@@ -164,7 +203,7 @@ export default function PracticeActivityScreen() {
   }
 
   async function savePractice() {
-    if (!user || !activeProgram || !startedAt || !difficulty) return;
+    if (!user || !currentUserReady || loading || error || !activeProgram || !startedAt || !difficulty) return;
     try {
       setSaving(true);
       const result = await saveMyPracticeSession({
@@ -176,14 +215,17 @@ export default function PracticeActivityScreen() {
         difficulty,
         note,
       });
+      if (activeUserIdRef.current !== user.id) return;
       setModalOpen(false);
       await load();
+      if (activeUserIdRef.current !== user.id) return;
       Alert.alert(
         result.syncStatus === 'synced' ? 'Práctica guardada' : 'Práctica guardada en el dispositivo',
         result.syncStatus === 'synced' ? 'Tu racha y actividad ya se actualizaron.' : 'Se sincronizará cuando vuelva la conexión.',
       );
-    } catch {
-      Alert.alert('No pudimos guardar', 'La práctica no se registró. Intenta de nuevo.');
+    } catch (cause) {
+      devWarn('practice-activity: could not save practice.', cause);
+      if (activeUserIdRef.current === user.id) Alert.alert('No pudimos guardar', 'La práctica no se registró. Intenta de nuevo.');
     } finally {
       setSaving(false);
     }
