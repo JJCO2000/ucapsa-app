@@ -5,6 +5,7 @@ import ts from 'typescript';
 
 const helper=fs.readFileSync('supabase/functions/_shared/account-deletion-storage.ts','utf8');
 const edge=fs.readFileSync('supabase/functions/delete-account/index.ts','utf8');
+const preflight=fs.readFileSync('supabase/sql/ucapsa-account-deletion-restrict-preflight.sql','utf8');
 const exports={};
 vm.runInNewContext(ts.transpileModule(helper,{compilerOptions:{
   module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,
@@ -14,6 +15,19 @@ assert.equal(typeof removeOwnedDogPhotos,'function');
 assert.ok(edge.includes("import { removeOwnedDogPhotos } from '../_shared/account-deletion-storage.ts';"));
 assert.ok(edge.indexOf("await userClient.rpc(")<edge.indexOf("await removeOwnedDogPhotos("));
 assert.ok(edge.indexOf("await removeOwnedDogPhotos(")<edge.indexOf("admin.auth.admin.signOut("));
+
+assert.ok(edge.includes("admin.rpc(\n    'account_deletion_has_blocking_references'"));
+assert.ok(edge.indexOf("'account_deletion_has_blocking_references'") <
+  edge.indexOf("await removeOwnedDogPhotos("));
+assert.match(edge,/preflightError \\|\\| hasBlockingReferences !== false/);
+assert.ok(preflight.includes("returns boolean") && preflight.includes("security definer"));
+assert.ok(preflight.includes("set search_path = pg_catalog"));
+assert.ok(preflight.includes("request.jwt.claim.role") && preflight.includes("service_role"));
+assert.ok(preflight.includes("con.confdeltype in ('r', 'a')"));
+assert.ok(preflight.includes("pg_catalog.array_length(con.conkey, 1) = 1"));
+assert.ok(preflight.includes("grant execute on function public.account_deletion_has_blocking_references(uuid)"));
+assert.doesNotMatch(preflight,/\\b(delete|update|insert|truncate)\\s+(from|into|table|public\\.)\\b/i);
+
 assert.ok(edge.indexOf("await removeOwnedDogPhotos(")<edge.indexOf("admin.auth.admin.deleteUser("));
 assert.match(edge,/storage_cleanup_failed[\s\S]*}, 409\);/);
 assert.doesNotMatch(helper,/\.from\(['"]objects['"]\)|delete from storage\.objects/i);
