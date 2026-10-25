@@ -49,8 +49,11 @@ for (const token of ['auth.admin.deleteUser', 'auth.admin.signOut', 'request_my_
   if (!deleteFunction.includes(token)) throw new Error('Delete-account edge function missing: ' + token);
 }
 
-for (const token of ['status: 302', 'Location: TARGET_URL', 'AVISO_PRIVACIDAD_UCAPSA_APP.md']) {
-  if (!privacyFunction.includes(token)) throw new Error('Public privacy redirect missing: ' + token);
+for (const token of ['status: 302', 'Location: TARGET_URL', 'https://jjco2000.github.io/ucapsa-app/privacidad/']) {
+  if (!privacyFunction.includes(token)) throw new Error('Public privacy HTML redirect missing: ' + token);
+}
+if (privacyFunction.includes('github.com/JJCO2000/ucapsa-app/blob/')) {
+  throw new Error('App Store privacy URL must not redirect to editable source Markdown.');
 }
 
 for (const token of [
