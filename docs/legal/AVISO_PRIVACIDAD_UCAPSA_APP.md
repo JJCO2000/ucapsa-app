@@ -75,7 +75,7 @@ UCAPSA aplica controles de acceso, autenticación, reglas de seguridad en base d
 Los cambios al aviso se comunicarán mediante la versión publicada dentro de UCAPSA App y en https://jjco2000.github.io/ucapsa-app/privacidad/. Cuando el cambio sea material y resulte razonable, UCAPSA también podrá comunicarlo mediante un aviso dentro de la app o al correo asociado a la cuenta antes de que el nuevo tratamiento sea aplicable.
 
 16. Versión y vigencia
-Versión 1.4 App Stores. Entrada en vigor: 25 de octubre de 2026. Marco principal: Ley Federal de Protección de Datos Personales en Posesión de los Particulares, texto vigente con última reforma publicada en el DOF el 14 de noviembre de 2025.
+Versión 1.4 App Stores. Entrada en vigor: 2026-10-25. Marco principal: Ley Federal de Protección de Datos Personales en Posesión de los Particulares, texto vigente con última reforma publicada en el DOF el 14 de noviembre de 2025.
 
 17. Analítica interna de continuidad
 UCAPSA registra de forma vinculada a la cuenta la exposición a determinadas superficies de Competencia/Constancia, incluyendo el perro, temporada y fecha/hora de la interacción. Estos hechos pueden relacionarse internamente con actividad y pagos posteriores para medir continuidad y evaluar el valor de las funciones. Esta analítica no se utiliza para publicidad dirigida, venta de datos ni tracking entre aplicaciones o sitios de terceros.
