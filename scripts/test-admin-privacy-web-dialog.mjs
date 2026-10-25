@@ -15,7 +15,7 @@ function compileActualFunction(file, name, context) {
   }
   walk(ast);
   assert.ok(fn,'Missing function '+name+' in '+file);
-  const js=ts.transpileModule('exports.fn='+fn.getText(ast)+';',{
+  const js=ts.transpileModule('exports.fn='+fn.getText(ast).replace(/^export\\s+/,'')+';',{
     compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022},
   }).outputText;
   const exports={};
