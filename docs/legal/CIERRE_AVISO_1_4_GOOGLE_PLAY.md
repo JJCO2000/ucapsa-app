@@ -2,6 +2,8 @@
 
 **Corte de diagnóstico:** 25 de octubre de 2026. **Estado:** pendiente de revisión y publicación oficial. Esta guía **no** es un aviso vigente ni autoriza recopilar datos adicionales.
 
+**Matriz cruzada de requisitos oficiales y estado real:** [Android, iOS, web y Supabase](./MATRIZ_PRIVACIDAD_IOS_ANDROID_WEB_2026-10-25.md).
+
 ## 1. Las tres versiones que no deben confundirse
 
 | Superficie | Evidencia | Estado |
