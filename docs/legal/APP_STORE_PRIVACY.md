@@ -4,8 +4,8 @@ Este archivo documenta la declaración que debe mantenerse alineada con la versi
 
 ## URL
 
-- **Privacy Policy URL:** https://github.com/JJCO2000/ucapsa-app/blob/main/docs/legal/AVISO_PRIVACIDAD_UCAPSA_APP.md
-- **Privacy Choices URL:** https://github.com/JJCO2000/ucapsa-app/blob/main/docs/legal/ELIMINAR_CUENTA_UCAPSA_APP.md
+- **Privacy Policy URL:** https://jjco2000.github.io/ucapsa-app/privacidad/
+- **Privacy Choices URL:** https://jjco2000.github.io/ucapsa-app/eliminar-cuenta/
 
 ## ¿La app recopila datos?
 

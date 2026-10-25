@@ -6,13 +6,16 @@
 
 Este archivo documenta la declaración que debe capturarse en **Play Console → App content → Data safety**. Debe mantenerse alineada con el binario que se publique y con el Aviso de Privacidad.
 
+**Aviso público (HTML):** https://jjco2000.github.io/ucapsa-app/privacidad/  
+**Nota de control:** el texto publicado en Supabase y el documento web deben corresponder a la misma versión aprobada antes de completar Play Console. No declarar listo este formulario mientras continúe la divergencia 1.2/1.3.
+
 ## Respuestas generales
 
 - **¿La app recopila o comparte datos de usuario?** Sí.
 - **¿Los datos se cifran en tránsito?** Sí. La aplicación utiliza conexiones HTTPS/TLS con Supabase y Expo; los servicios de push de Expo se conectan cifrados a APNs/FCM.
 - **¿Los usuarios pueden solicitar eliminación de datos?** Sí.
 - **Ruta dentro de la app:** Ajustes → Eliminar cuenta.
-- **Recurso web externo:** https://github.com/JJCO2000/ucapsa-app/blob/main/docs/legal/ELIMINAR_CUENTA_UCAPSA_APP.md
+- **Recurso web externo:** https://jjco2000.github.io/ucapsa-app/eliminar-cuenta/
 - **¿Se venden datos?** No.
 - **¿Se comparten datos con terceros para publicidad o finalidades propias de esos terceros?** No con la implementación actual. Supabase, Expo, APNs y FCM actúan como proveedores/encargados necesarios para prestar el servicio.
 - **Publicidad/marketing:** No.

@@ -5,11 +5,15 @@
 
 ## Política y privacidad
 
+**Secuencia de aprobación y reconciliación:** [Aviso 1.4 → Google Play](./SECUENCIA_PUBLICACION_AVISO_1_4_Y_GOOGLE_PLAY.md). Este documento distingue preparación técnica de aprobación jurídica y publicación efectiva.
+
+
 **Estado de publicación legal por comprobar antes de enviar un AAB:** el aviso **publicado en Supabase** es `1.2-appstores-2026-09-27`, el **documento público** muestra `1.3 App Stores` y el borrador 1.4 incluye propuestas para preinscripciones y familiares sin cuenta. Estos estados no están alineados. La actualización del borrador **no** publica otro aviso ni sustituye la validación jurídica. Coordinar Superadmin (publicación en Supabase), página legal pública y declaraciones en Play Console antes del lanzamiento.
 
 **Comprobación adicional:** El usuario ya puede leer el aviso y solicitar eliminación desde Ajustes; la confirmación al cerrar sesión es una mejora de UX, no un aviso legal requerido por Google Play. Los permisos de cámara y notificaciones solo deben pedirse al iniciar una función que los necesite, con una explicación clara.
 
-- [x] Política de privacidad pública.
+- [x] Página HTML de privacidad integrada en el despliegue legal de GitHub Pages.
+- [ ] Verificar manualmente su URL HTML en navegador externo, sin sesión, inmediatamente antes de capturar la ficha de Google Play.
 - [x] Política de privacidad accesible dentro de la app.
 - [x] Identidad del responsable y correo de privacidad.
 - [x] Política de conservación/eliminación.
@@ -22,10 +26,10 @@
 - [x] Sin venta de datos ni publicidad/tracking con la implementación actual.
 
 **Privacy Policy URL**  
-https://github.com/JJCO2000/ucapsa-app/blob/main/docs/legal/AVISO_PRIVACIDAD_UCAPSA_APP.md
+https://jjco2000.github.io/ucapsa-app/privacidad/
 
 **Account deletion URL**  
-https://github.com/JJCO2000/ucapsa-app/blob/main/docs/legal/ELIMINAR_CUENTA_UCAPSA_APP.md
+https://jjco2000.github.io/ucapsa-app/eliminar-cuenta/
 
 ## App content de Play Console
 

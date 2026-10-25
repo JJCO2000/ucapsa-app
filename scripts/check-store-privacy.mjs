@@ -24,6 +24,35 @@ const pagesPrivacy = fs.readFileSync('docs/legal/privacidad.html', 'utf8');
 const pagesDelete = fs.readFileSync('docs/legal/eliminar-cuenta.html', 'utf8');
 const pagesCss = fs.readFileSync('docs/assets/legal.css', 'utf8');
 const pagesHost = 'https://jjco2000.github.io/ucapsa-app';
+
+// Google Play requires a public, non-editable privacy-policy web page,
+// not a GitHub source/editor view. Both app and store declarations share Pages.
+for (const [fileName, source] of [
+  ['src/constants/legal.ts', legal],
+  ['docs/legal/AVISO_PRIVACIDAD_UCAPSA_APP.md', notice],
+  ['docs/legal/APP_STORE_PRIVACY.md', apple],
+  ['docs/legal/GOOGLE_PLAY_DATA_SAFETY.md', google],
+  ['docs/legal/GOOGLE_PLAY_SUBMISSION.md', play],
+]) {
+  if (!source.includes(pagesHost + '/privacidad/')) {
+    throw new Error(fileName + ': URL of the rendered privacy policy was lost');
+  }
+  if (source.includes('https://github.com/JJCO2000/ucapsa-app/blob/main/docs/legal/AVISO_PRIVACIDAD_UCAPSA_APP.md')) {
+    throw new Error(fileName + ': GitHub markdown must not be used as the Play privacy URL');
+  }
+}
+for (const [fileName, source] of [
+  ['src/constants/legal.ts', legal],
+  ['docs/legal/AVISO_PRIVACIDAD_UCAPSA_APP.md', notice],
+  ['docs/legal/APP_STORE_PRIVACY.md', apple],
+  ['docs/legal/GOOGLE_PLAY_DATA_SAFETY.md', google],
+  ['docs/legal/GOOGLE_PLAY_SUBMISSION.md', play],
+]) {
+  if (!source.includes(pagesHost + '/eliminar-cuenta/')) {
+    throw new Error(fileName + ': rendered account deletion URL is missing');
+  }
+}
+
 if (!pagesConfig.includes('baseurl: "/ucapsa-app"') || !pagesConfig.includes('url: "https://jjco2000.github.io"')) {
   throw new Error('GitHub Pages perdido: host o baseurl');
 }
@@ -107,7 +136,7 @@ if (!continuity.includes('recordValueExposure')) {
 
 for (const token of [
   'Analítica interna de continuidad',
-  'ELIMINAR_CUENTA_UCAPSA_APP.md',
+  pagesHost + '/eliminar-cuenta/',
   'Versión 1.3 App Stores',
 ]) {
   if (!notice.includes(token)) throw new Error('Privacy notice v1.1 missing: ' + token);
