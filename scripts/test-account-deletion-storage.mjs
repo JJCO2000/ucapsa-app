@@ -24,6 +24,11 @@ assert.ok(preflight.includes("returns boolean") && preflight.includes("security 
 assert.ok(preflight.includes("set search_path = pg_catalog"));
 assert.ok(preflight.includes("request.jwt.claim.role") && preflight.includes("service_role"));
 assert.ok(preflight.includes("con.confdeltype in ('r', 'a')"));
+assert.ok(preflight.includes("from storage.objects o"),'Must query actual Storage ownership.');
+assert.ok(preflight.includes("o.owner_id is distinct from p_user_id::text"),'Cannot delete another owner\'s file by prefix.');
+assert.ok(preflight.includes("o.bucket_id <> 'dog-photos'"),'Must detect owned files outside known bucket.');
+assert.ok(preflight.includes("o.name not like p_user_id::text || '/%'"),'Must detect owned files outside prefix.');
+
 assert.ok(preflight.includes("pg_catalog.array_length(con.conkey, 1) = 1"));
 assert.ok(preflight.includes("grant execute on function public.account_deletion_has_blocking_references(uuid)"));
 assert.doesNotMatch(preflight,/\b(delete|update|insert|truncate)\s+(from|into|table|public\.)\b/i);
