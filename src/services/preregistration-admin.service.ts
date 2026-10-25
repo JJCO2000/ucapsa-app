@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { requireNoticeDeliveryMethod, type NoticeDeliveryMethod } from '../constants/privacy-notice-delivery';
 import { assertIntakePublishedNotice } from './preregistration-privacy-coverage.service';
 import { preregistrationDirectoryEnabled } from '../constants/preregistrationFeature';
 
@@ -133,17 +134,19 @@ export function preregistrationMemberLabel(record: AdminPreregistrationRecord): 
 export async function adminCompletePreregistrationContact(
   personId: string,
   contacts: { email?: string; phone?: string },
+  deliveryMethod: NoticeDeliveryMethod,
 ): Promise<void> {
   if (!preregistrationDirectoryEnabled) throw new Error('Preinscripciones no habilitadas.');
   await assertIntakePublishedNotice();
   const rpc = supabase.rpc.bind(supabase) as unknown as (
-    name: 'admin_complete_preregistration_contact',
-    args: { p_person_id: string; p_owner_email: string | null; p_owner_phone: string | null },
+    name: 'admin_complete_preregistration_contact_with_notice',
+    args: { p_person_id: string; p_owner_email: string | null; p_owner_phone: string | null; p_owner_method: NoticeDeliveryMethod },
   ) => PromiseLike<{ data: unknown; error: { message: string } | null }>;
   const { data, error } = await rpc('admin_complete_preregistration_contact', {
     p_person_id: personId,
     p_owner_email: contacts.email?.trim().toLowerCase() || null,
     p_owner_phone: contacts.phone?.trim() || null,
+    p_owner_method: requireNoticeDeliveryMethod(deliveryMethod, 'el titular'),
   });
   if (error) throw new Error(error.message);
   if (!data || typeof data !== 'object' || Array.isArray(data)
