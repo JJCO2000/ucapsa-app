@@ -3,7 +3,8 @@ import { assertIntakePublishedNotice } from './preregistration-privacy-coverage.
 import type { Database } from '../types/database.types';
 import { preregistrationEnabled } from '../constants/preregistrationFeature';
 import { normalizeContactPhone } from '../utils/phone-contact';
-import { normalizeFamilyMembers, type FamilyMemberInput } from './preregistration-family.service';
+import { prepareFamilyNoticeDeliveries, type FamilyMemberInput } from './preregistration-family.service';
+import { requireNoticeDeliveryMethod, type NoticeDeliveryMethod } from '../constants/privacy-notice-delivery';
 
 export type PreregisteredProgramInput = {
   ownerName: string;
@@ -19,6 +20,7 @@ export type PreregisteredProgramInput = {
   sourceNote: string;
   memberAuthorized?: boolean;
   familyMembers?: FamilyMemberInput[];
+  ownerNoticeDeliveryMethod: NoticeDeliveryMethod;
 };
 
 // RPC disponibles en el esquema oficial de Supabase.
@@ -67,49 +69,45 @@ export async function adminPreregisterDogWithProgram(input: PreregisteredProgram
     p_note: input.sourceNote.trim() || null,
     ...(input.memberAuthorized ? { p_member_authorized: true } : {}),
   };
-  const family = normalizeFamilyMembers(input.familyMembers ?? []);
-  let data: unknown;
-  if (family.length) {
-    const rpc = supabase.rpc.bind(supabase) as unknown as
-      (name: 'admin_preregister_dog_with_family', params: Record<string, unknown>)
-        => PromiseLike<RpcOutcome>;
-    const result = await rpc('admin_preregister_dog_with_family', {
-      ...args, p_member_authorized: Boolean(input.memberAuthorized), p_family_members: family,
-    });
-    if (result.error) throw new Error(result.error.message);
-    data = result.data;
-  } else {
-    const result = await callPreregistrationRpc(
-      input.memberAuthorized ? 'admin_preregister_dog_with_membership' : 'admin_preregister_dog_with_program', args);
-    data = result.data;
-  }
+  const family = prepareFamilyNoticeDeliveries(input.familyMembers ?? []);
+  const rpc = supabase.rpc.bind(supabase) as unknown as
+    (name: 'admin_preregister_dog_with_notice', params: Record<string, unknown>)
+      => PromiseLike<RpcOutcome>;
+  const { data, error } = await rpc('admin_preregister_dog_with_notice', {
+    p_values: args,
+    p_owner_method: requireNoticeDeliveryMethod(input.ownerNoticeDeliveryMethod, 'el titular'),
+    p_family_members: family,
+  });
+  if (error) throw new Error(error.message);
   if (typeof data !== 'string' || !data) {
-    throw new Error('No se pudo confirmar la preinscripción.');
+    throw new Error('No se pudo confirmar la preinscripción y el registro de entrega del aviso.');
   }
   return data;
 }
 
 /** Captura rápida de Entrenador: sin Socio, pagos, corrección de historial ni vinculación. */
 export type StaffPreregistrationInput = Pick<PreregisteredProgramInput,
-  'ownerName' | 'ownerEmail' | 'ownerPhone' | 'dogName' | 'programCode' | 'programLevel' | 'familyMembers'>;
+  'ownerName' | 'ownerEmail' | 'ownerPhone' | 'dogName' | 'programCode' | 'programLevel' | 'familyMembers' | 'ownerNoticeDeliveryMethod'>;
 
 export async function staffPreregisterDogWithProgram(input: StaffPreregistrationInput): Promise<string> {
   if (!preregistrationEnabled) throw new Error('La preinscripción todavía no está habilitada.');
   await assertIntakePublishedNotice();
   const rpc = supabase.rpc.bind(supabase) as unknown as (
-    name: 'staff_preregister_dog_with_program' | 'staff_preregister_dog_with_family',
+    name: 'staff_preregister_dog_with_notice',
     args: Record<string, unknown>,
   ) => PromiseLike<RpcOutcome>;
-  const family = normalizeFamilyMembers(input.familyMembers ?? []);
-  const { data, error } = await rpc(
-    family.length ? 'staff_preregister_dog_with_family' : 'staff_preregister_dog_with_program', {
-    p_owner_name: input.ownerName.trim(),
-    p_owner_email: input.ownerEmail.trim().toLowerCase(),
-    p_owner_phone: input.ownerPhone.trim() ? normalizeContactPhone(input.ownerPhone) : '',
-    p_dog_name: input.dogName.trim(),
-    p_program_code: input.programCode,
-    p_program_level: input.programLevel,
-    ...(family.length ? { p_family_members: family } : {}),
+  const family = prepareFamilyNoticeDeliveries(input.familyMembers ?? []);
+  const { data, error } = await rpc('staff_preregister_dog_with_notice', {
+    p_values: {
+      p_owner_name: input.ownerName.trim(),
+      p_owner_email: input.ownerEmail.trim().toLowerCase(),
+      p_owner_phone: input.ownerPhone.trim() ? normalizeContactPhone(input.ownerPhone) : '',
+      p_dog_name: input.dogName.trim(),
+      p_program_code: input.programCode,
+      p_program_level: input.programLevel,
+    },
+    p_owner_method: requireNoticeDeliveryMethod(input.ownerNoticeDeliveryMethod, 'el titular'),
+    p_family_members: family,
   });
   if (error) throw new Error(error.message);
   if (typeof data !== 'string' || !data) throw new Error('Supabase no confirmó la preinscripción.');

@@ -61,11 +61,10 @@ for (const token of ['claim_my_first_preregistered_dogs','claim_my_preregistered
   assert.ok(!migration.includes('create or replace function public.' + token),
     'Do not modify canonical account claims.');
 }
-assert.ok(service.includes('normalizeFamilyMembers(input.familyMembers ?? [])')
-  && service.includes("'admin_preregister_dog_with_family'")
-  && service.includes("'staff_preregister_dog_with_family'")
-  && service.includes("'staff_preregister_dog_with_program'"),
-  'Old and new role-specific preregistration paths must remain available.');
+assert.ok(service.includes('prepareFamilyNoticeDeliveries(input.familyMembers ?? [])')
+  && service.includes("'admin_preregister_dog_with_notice'")
+  && service.includes("'staff_preregister_dog_with_notice'"),
+  'Role-specific preregistration must call new atomic privacy wrappers.');
 assert.ok(editor.includes('Añadir integrante') && editor.includes('Guardar integrante')
   && editor.includes('onChange([...value,') && editor.includes('remove(index)')
   && editor.includes('Celular (correo o celular obligatorio)')
@@ -101,6 +100,9 @@ vm.runInNewContext(transpiled, {
   require: (path) => {
     if (path === '../utils/phone-contact') return { normalizeContactPhone: mockPhone };
     if (path === '../lib/supabase') return { supabase: {} };
+    if (path === '../constants/privacy-notice-delivery') return {
+      requireNoticeDeliveryMethod:(value,label)=>{if(!value)throw new Error(label);return value;},
+    };
     if (path === './preregistration-privacy-coverage.service') return {
       assertIntakePublishedNotice: async () => 'mock-reviewed-notice-id',
     };

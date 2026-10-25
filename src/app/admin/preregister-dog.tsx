@@ -6,6 +6,8 @@ import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, TextIn
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { PreregistrationFamilyEditor } from '../../components/domain/PreregistrationFamilyEditor';
 import { PreregistrationPrivacyNotice } from '../../components/domain/PreregistrationPrivacyNotice';
+import { NoticeDeliverySelector } from '../../components/domain/NoticeDeliverySelector';
+import type { NoticeDeliveryMethod } from '../../constants/privacy-notice-delivery';
 import type { FamilyMemberInput } from '../../services/preregistration-family.service';
 import { ucapsaBrand } from '../../constants/brand';
 import { preregistrationEnabled, preregistrationDirectoryEnabled } from '../../constants/preregistrationFeature';
@@ -26,6 +28,7 @@ export default function AdminPreregisterDogScreen() {
   const [ownerEmail, setOwnerEmail] = useState('');
   const [ownerPhone, setOwnerPhone] = useState('');
   const [familyMembers, setFamilyMembers] = useState<FamilyMemberInput[]>([]);
+  const [ownerNoticeMethod, setOwnerNoticeMethod] = useState<NoticeDeliveryMethod | null>(null);
   const [dogName, setDogName] = useState('');
   const [programCode, setProgramCode] = useState<'puppy'|'comandos'>('puppy');
   const [memberAuthorized, setMemberAuthorized] = useState(false);
@@ -123,6 +126,7 @@ export default function AdminPreregisterDogScreen() {
   function clearCardForm() {
     setOwnerName(''); setOwnerEmail(''); setOwnerPhone('');
     setFamilyMembers([]);
+    setOwnerNoticeMethod(null);
     setDogName(''); setProgramCode('puppy'); setLevel('principiante');
     setMemberAuthorized(false);
     setCardNumber(''); setCardStartedOn(''); setTotalAttendances('0');
@@ -211,13 +215,14 @@ export default function AdminPreregisterDogScreen() {
           existing.programCode === 'puppy' ? 'Puppy' : 'Comandos', existing.attendancesCount);
         if (!confirmed) return;
       }
+      if (!ownerNoticeMethod) throw new Error('Confirma cómo entregaste el aviso de privacidad al titular.');
       await adminPreregisterDogWithProgram({
         ownerName, ownerEmail: ownerEmail.trim().toLowerCase(), ownerPhone, dogName,
         programCode, programLevel: programCode === 'puppy' ? 'base' : level,
         physicalCardNumber: programCode === 'puppy' ? cardNumber : '',
         cardStartedOn: programCode === 'puppy' ? (cardStartedOn.trim() || null) : null,
         totalAttendances: count, knownAttendanceDates: dates, sourceNote,
-        memberAuthorized, familyMembers,
+        memberAuthorized, familyMembers, ownerNoticeDeliveryMethod: ownerNoticeMethod,
       });
       const savedMessage = memberAuthorized
         ? 'Preinscripción y autorización de Socio guardadas. La membresía se activará cuando se vincule la cuenta.'
@@ -367,6 +372,8 @@ export default function AdminPreregisterDogScreen() {
 
       <PreregistrationFamilyEditor value={familyMembers} onChange={setFamilyMembers} disabled={saving} />
       <PreregistrationPrivacyNotice />
+      <NoticeDeliverySelector value={ownerNoticeMethod} onChange={setOwnerNoticeMethod}
+        disabled={saving} label="Entrega del aviso al titular" />
 
       <Pressable style={[styles.saveButton, saving && styles.disabled]} disabled={saving}
         accessibilityRole="button" onPress={() => void save()}>

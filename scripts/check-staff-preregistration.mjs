@@ -22,7 +22,7 @@ assert.ok(!screen.includes('setMemberAuthorized')
   && !screen.includes('adminApprovePreregistrationOwnerLink')
   && !screen.includes('getAdminPreregistrationRecords'),
 'Trainer cannot approve membership, link owner, or view Admin-only directory');
-assert.ok(service.includes("'staff_preregister_dog_with_program'")
+assert.ok(service.includes("'staff_preregister_dog_with_notice'")
   && service.includes('normalizeContactPhone(input.ownerPhone)')
   && !service.includes('SUPABASE_SERVICE_ROLE_KEY'),
 'No privileged keys in staff service; server executes the RPC');

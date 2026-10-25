@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { requireNoticeDeliveryMethod, type NoticeDeliveryMethod } from '../constants/privacy-notice-delivery';
 import { assertIntakePublishedNotice } from './preregistration-privacy-coverage.service';
 import { normalizeContactPhone } from '../utils/phone-contact';
 
@@ -6,6 +7,7 @@ export type FamilyMemberInput = {
   fullName: string;
   email: string;
   phone: string;
+  noticeDeliveryMethod?: NoticeDeliveryMethod | null;
 };
 
 export type FamilyMemberSaved = FamilyMemberInput & { id: string };
@@ -32,6 +34,16 @@ export function normalizeFamilyMembers(members: FamilyMemberInput[]) {
     seen.add(key);
     return { full_name, email, phone };
   });
+}
+
+export function prepareFamilyNoticeDeliveries(members: FamilyMemberInput[]) {
+  const normalized = normalizeFamilyMembers(members);
+  return normalized.map((item, index) => ({
+    ...item,
+    notice_delivery_method: requireNoticeDeliveryMethod(
+      members[index].noticeDeliveryMethod, 'cada familiar (integrante ' + (index + 1) + ')',
+    ),
+  }));
 }
 
 type RpcResult = { data: unknown; error: { message: string } | null };
@@ -63,14 +75,14 @@ export async function getAdminPreregisteredFamily(intakeProgramId: string): Prom
 }
 
 export async function addAdminPreregisteredFamily(intakeProgramId: string, members: FamilyMemberInput[]): Promise<number> {
-  const normalized = normalizeFamilyMembers(members);
+  const normalized = prepareFamilyNoticeDeliveries(members);
   if (!normalized.length) throw new Error('Agrega al menos un integrante.');
   await assertIntakePublishedNotice();
   const rpc = supabase.rpc.bind(supabase) as unknown as
-    (name: 'admin_add_preregistered_family_members',
-      args: { p_intake_program_id: string; p_family_members: ReturnType<typeof normalizeFamilyMembers> })
+    (name: 'admin_add_preregistered_family_with_notice',
+      args: { p_intake_program_id: string; p_family_members: ReturnType<typeof prepareFamilyNoticeDeliveries> })
       => PromiseLike<RpcResult>;
-  const { data, error } = await rpc('admin_add_preregistered_family_members', {
+  const { data, error } = await rpc('admin_add_preregistered_family_with_notice', {
     p_intake_program_id: intakeProgramId,
     p_family_members: normalized,
   });

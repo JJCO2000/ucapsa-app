@@ -6,6 +6,8 @@ import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, TextIn
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { PreregistrationFamilyEditor } from '../../components/domain/PreregistrationFamilyEditor';
 import { PreregistrationPrivacyNotice } from '../../components/domain/PreregistrationPrivacyNotice';
+import { NoticeDeliverySelector } from '../../components/domain/NoticeDeliverySelector';
+import type { NoticeDeliveryMethod } from '../../constants/privacy-notice-delivery';
 import type { FamilyMemberInput } from '../../services/preregistration-family.service';
 import { ucapsaBrand } from '../../constants/brand';
 import { preregistrationEnabled } from '../../constants/preregistrationFeature';
@@ -23,6 +25,7 @@ export default function StaffPreregisterDogScreen() {
   const [ownerPhone, setOwnerPhone] = useState('');
   const [ownerEmail, setOwnerEmail] = useState('');
   const [familyMembers, setFamilyMembers] = useState<FamilyMemberInput[]>([]);
+  const [ownerNoticeMethod, setOwnerNoticeMethod] = useState<NoticeDeliveryMethod | null>(null);
   const [dogName, setDogName] = useState('');
   const [programCode, setProgramCode] = useState<Program>('puppy');
   const [level, setLevel] = useState<Level>('principiante');
@@ -32,6 +35,7 @@ export default function StaffPreregisterDogScreen() {
   function clear() {
     setOwnerName(''); setOwnerPhone(''); setOwnerEmail('');
     setFamilyMembers([]);
+    setOwnerNoticeMethod(null);
     setDogName(''); setProgramCode('puppy'); setLevel('principiante');
   }
 
@@ -61,9 +65,11 @@ export default function StaffPreregisterDogScreen() {
     }
     try {
       setSaving(true);
+      if (!ownerNoticeMethod) throw new Error('Confirma cómo entregaste el aviso de privacidad al titular.');
       await staffPreregisterDogWithProgram({
         ownerName, ownerEmail, ownerPhone, dogName, programCode,
         programLevel: programCode === 'puppy' ? 'base' : level, familyMembers,
+        ownerNoticeDeliveryMethod: ownerNoticeMethod,
       });
       const message = 'Preinscripción guardada.' + (familyMembers.length
         ? ' Familia: ' + familyMembers.length + ' integrante(s) añadido(s) sin acceso automático.' : '')
@@ -167,6 +173,8 @@ export default function StaffPreregisterDogScreen() {
 
       <PreregistrationFamilyEditor value={familyMembers} onChange={setFamilyMembers} disabled={saving} />
       <PreregistrationPrivacyNotice />
+      <NoticeDeliverySelector value={ownerNoticeMethod} onChange={setOwnerNoticeMethod}
+        disabled={saving} label="Entrega del aviso al titular" />
 
       <Pressable accessibilityRole="button" disabled={saving}
         style={[styles.saveButton, saving && styles.disabled]} onPress={() => void save()}>
