@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
   // Admin may move blocked -> in_review while the retention date is preserved.
   // The date itself must therefore remain an independent server-side barrier.
   const retentionDateMalformed = retentionUntil != null &&
-    (typeof retentionUntil !== 'string' || !/^\\d{4}-\\d{2}-\\d{2}$/.test(retentionUntil));
+    (typeof retentionUntil !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(retentionUntil));
   const retentionActive = typeof retentionUntil === 'string' &&
     retentionUntil > new Date().toISOString().slice(0, 10);
   if (requestRow.status === 'blocked' || retentionDateMalformed || retentionActive) {
