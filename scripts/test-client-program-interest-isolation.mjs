@@ -55,7 +55,7 @@ function harness(){
     getMyProgramEnrollments:()=>{const d=defer();calls.enrollments.push(d);return d.promise;},
     requestProgramInterest:(...args)=>{const d=defer();calls.writes.push({args,...d});return d.promise;},
     devWarn:(...args)=>calls.warnings.push(args),
-    Alert:{alert:(...args)=>calls.alerts.push(args)},
+    showPlatformDialog:(...args)=>calls.alerts.push(args),
     contactWhatsapp:()=>{},
   });
   return{state,calls,load:exports.load,submit:exports.submit,activeUserIdRef,loadRunRef,activeSelectionRef};
@@ -127,6 +127,22 @@ async function tests(){
     assert.equal(h.state.sendingFor,null);
     assert.equal(h.calls.alerts[0][0],'Interés registrado');
   }
+  {
+    const h=harness(),p=h.submit();
+    h.calls.writes[0].reject(new Error('offline'));await p;
+    assert.equal(h.state.savedFor,null,'Do not claim success without an accepted RPC');
+    assert.equal(h.state.sendingFor,null);
+    assert.equal(h.calls.alerts[0][0],'No pudimos registrar tu interés');
+  }
+  {
+    const h=harness(),p=h.submit();
+    h.activeUserIdRef.current='B';
+    h.calls.writes[0].reject(new Error('offline'));await p;
+    assert.equal(h.calls.alerts.length,0,'Do not expose another account error after switching');
+  }
+  assert.ok(source.includes("import { showPlatformDialog } from '../../utils/staff-dialog'"),
+    'The existing web/native dialog must handle enrollment-interest outcomes.');
+  assert.ok(!source.includes('Alert.alert('), 'Native-only alerts must not hide web feedback.');
   for (const token of [
     'const verifiedForUser = Boolean(userId && loadedForUserId === userId)',
     'const dogs = verifiedForUser ? storedDogs : []',
@@ -144,4 +160,4 @@ async function tests(){
   ]) assert.ok(source.includes(token),'Missing private-interest boundary: '+token);
 }
 await tests();
-console.log('UCAPSA client program interest: stale-account and out-of-order reads, fail-closed verification, write isolation, selection change and success PASS');
+console.log('UCAPSA client program interest: stale-account and out-of-order reads, fail-closed verification, write isolation, web/native success and failure feedback PASS');
