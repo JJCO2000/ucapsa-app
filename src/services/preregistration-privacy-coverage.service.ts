@@ -28,6 +28,9 @@ export function validateIntakeNoticeCoverage(notice: PrivacyNotice | null): stri
   // Require coverage in BOTH texts, rather than accepting a stray keyword in
   // a draft or in a retired version. No version number is hard-coded.
   for (const text of [notice.simplified_notice, notice.integral_notice]) {
+    if (typeof text !== 'string') {
+      throw new Error('El aviso vigente está incompleto para preinscripciones y familiares.');
+    }
     if (!/preinscripci[oó](?:n|nes)/i.test(text)
       || !/familiar(?:es)?/i.test(text)) {
       throw new Error('El aviso publicado aún no cubre preinscripciones y familiares. No guardes sus contactos hasta que Administración publique la actualización.');
