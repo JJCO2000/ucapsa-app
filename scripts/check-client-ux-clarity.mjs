@@ -471,3 +471,25 @@ if (!practiceDetailCopy.includes('Se enviará cuando tengas conexión.')
     || !practiceDetailCopy.includes('entry.syncMessage')) {
   throw new Error('La práctica offline debe explicar su entrega pendiente y conservar el motivo de rechazo.');
 }
+
+ 
+// Ranking debe hablar de la temporada y los exámenes sin describir el estado
+// interno del dispositivo o sugerir que todos los perros entran al ranking.
+const rankingUi = read('src/app/client/competition-ranking.tsx');
+for (const required of [
+  'No pudimos cargar tus puntos. Conéctate y actualiza.',
+  'Esta temporada no tiene exámenes obligatorios.',
+  'Mostrando Ranking guardado',
+  'No hay posiciones oficiales todavía. ',
+  'Faltan resultados de exámenes obligatorios.',
+]) {
+  if (!rankingUi.includes(required)) throw new Error('Ranking perdió texto claro: ' + required);
+}
+for (const outdated of [
+  'Puntaje no disponible en este dispositivo.',
+  'ningún examen bloquea el ranking.',
+  'El Ranking permanece visible:',
+  'Mostrando datos competitivos guardados',
+]) {
+  if (rankingUi.includes(outdated)) throw new Error('Ranking volvió a mostrar un mensaje técnico: ' + outdated);
+}
