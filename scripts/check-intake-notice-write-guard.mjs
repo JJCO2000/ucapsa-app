@@ -38,7 +38,7 @@ function check(source) {
   ]) {
     assert.ok(s.includes(needle),'Missing server-side contact guard: '+needle);
   }
-  const triggerDefinitions = source.match(/create trigger trg_capture_notice_(?:people|family)[\\s\\S]*?;/gi) ?? [];
+  const triggerDefinitions = source.match(/create trigger trg_capture_notice_(?:people|family)[\s\S]*?;/gi) ?? [];
   assert.equal(triggerDefinitions.length,2);
   for (const statement of triggerDefinitions) {
     assert.doesNotMatch(statement,/notice_delivery_reported_by/i,
