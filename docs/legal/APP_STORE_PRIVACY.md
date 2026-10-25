@@ -1,5 +1,8 @@
 # App Store Connect — App Privacy de UCAPSA
 
+**Aviso oficial en Supabase desde 25-10-2026:** `1.4-appstores-2026-10-25`; documento web canónico en `main` 1.4 (PR #561). App Privacy sigue siendo una **declaración técnica propuesta**, no una respuesta comprobada o aprobada en App Store Connect.
+
+
 Este archivo documenta la declaración que debe mantenerse alineada con la versión de la app que se publique.
 
 **Comparación oficial de Android, iOS y web:** [Matriz multiplataforma de privacidad](./MATRIZ_PRIVACIDAD_IOS_ANDROID_WEB_2026-10-25.md). Los tipos de datos de esta página son una propuesta técnica, no respuestas confirmadas en App Store Connect ni aprobación de Apple.
