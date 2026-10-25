@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { assertIntakePublishedNotice } from './preregistration-privacy-coverage.service';
 import { preregistrationDirectoryEnabled } from '../constants/preregistrationFeature';
 
 export type AdminPreregistrationRecord = {
@@ -134,6 +135,7 @@ export async function adminCompletePreregistrationContact(
   contacts: { email?: string; phone?: string },
 ): Promise<void> {
   if (!preregistrationDirectoryEnabled) throw new Error('Preinscripciones no habilitadas.');
+  await assertIntakePublishedNotice();
   const rpc = supabase.rpc.bind(supabase) as unknown as (
     name: 'admin_complete_preregistration_contact',
     args: { p_person_id: string; p_owner_email: string | null; p_owner_phone: string | null },
