@@ -1,9 +1,9 @@
 export const UCAPSA_TERMS_VERSION = '1.2';
 export const UCAPSA_LEGAL_EFFECTIVE_DATE = '2026-09-27';
 export const UCAPSA_PRIVACY_PUBLIC_URL =
-  'https://github.com/JJCO2000/ucapsa-app/blob/main/docs/legal/AVISO_PRIVACIDAD_UCAPSA_APP.md';
+  'https://jjco2000.github.io/ucapsa-app/privacidad/';
 export const UCAPSA_ACCOUNT_DELETION_PUBLIC_URL =
-  'https://github.com/JJCO2000/ucapsa-app/blob/main/docs/legal/ELIMINAR_CUENTA_UCAPSA_APP.md';
+  'https://jjco2000.github.io/ucapsa-app/eliminar-cuenta/';
 
 export type LegalSection = {
   title: string;
