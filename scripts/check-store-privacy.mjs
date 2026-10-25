@@ -1,3 +1,5 @@
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
 import fs from 'node:fs';
 
 const legal = fs.readFileSync('src/constants/legal.ts', 'utf8');
@@ -103,13 +105,27 @@ for (const token of [
   if (!deletionPage.includes(token)) throw new Error('External deletion page missing: ' + token);
 }
 
-for (const [name, text, target] of [
-  ['privacy redirect', privacyFunction, 'AVISO_PRIVACIDAD_UCAPSA_APP.md'],
-  ['deletion redirect', deletionFunction, 'ELIMINAR_CUENTA_UCAPSA_APP.md'],
+// Test the real deployed-function source in isolation, not only URL strings.
+// Legacy public endpoints must redirect to public HTML, never a GitHub source page.
+for (const [name, source, target] of [
+  ['privacy redirect', privacyFunction, pagesHost + '/privacidad/'],
+  ['deletion redirect', deletionFunction, pagesHost + '/eliminar-cuenta/'],
 ]) {
-  if (!text.includes('status: 302') || !text.includes('Location: TARGET_URL') || !text.includes(target)) {
-    throw new Error(name + ' must redirect to a browser-safe rendered document.');
+  assert.ok(!source.includes('github.com/JJCO2000/ucapsa-app/blob/'),
+    name + ' must not send users to a source-code viewer.');
+  let handler;
+  vm.runInNewContext(source,{Deno:{serve:fn=>{handler=fn;}},Response});
+  assert.equal(typeof handler,'function',name + ' must register a handler.');
+  for (const method of ['GET','HEAD']) {
+    const response=handler({method});
+    assert.equal(response.status,302,name + ' must issue HTTP 302.');
+    assert.equal(response.headers.get('location'),target,
+      name + ' must use the public HTML page.');
+    assert.equal(response.headers.get('cache-control'),'no-store');
+    if (method==='HEAD') assert.equal(response.body,null,'HEAD must have no body.');
   }
+  const denied=handler({method:'POST'});
+  assert.equal(denied.status,405,name + ' must refuse unsupported methods.');
 }
 
 if (!/\[functions\.account-deletion-request\][\s\S]*verify_jwt\s*=\s*false/.test(config)) {
