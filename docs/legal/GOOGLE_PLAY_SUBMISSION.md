@@ -22,10 +22,10 @@
 - [x] Sin venta de datos ni publicidad/tracking con la implementación actual.
 
 **Privacy Policy URL**  
-https://github.com/JJCO2000/ucapsa-app/blob/main/docs/legal/AVISO_PRIVACIDAD_UCAPSA_APP.md
+https://jjco2000.github.io/ucapsa-app/privacidad/
 
 **Account deletion URL**  
-https://github.com/JJCO2000/ucapsa-app/blob/main/docs/legal/ELIMINAR_CUENTA_UCAPSA_APP.md
+https://jjco2000.github.io/ucapsa-app/eliminar-cuenta/
 
 ## App content de Play Console
 
