@@ -143,7 +143,8 @@ async function test() {
     'activeUserIdRef.current === userId',
     'return () => { loadRunRef.current += 1; };',
     'if (activeUserIdRef.current !== userId) return;',
-    'if (!userId || isAdmin || !belongsToUser || saving || !membershipFresh',
+    "Alert.alert('Sesión requerida', 'Vuelve a iniciar sesión para enviar la solicitud.')",
+    'if (isAdmin || !belongsToUser || saving || !membershipFresh',
   ])assert.ok(source.includes(invariant),'Lost account isolation invariant: '+invariant);
 }
 await test();
