@@ -1,3 +1,4 @@
+import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import type { TableRow } from '../types/database.helpers';
 
@@ -55,15 +56,44 @@ export async function requestMyAccountDeletion(reason?: string): Promise<Account
   return data;
 }
 
-export async function deleteMyAccount(): Promise<void> {
+export type AccountDeletionReceipt = { auditRecorded: boolean };
+
+/**
+ * Only a positive response from the server confirms Auth deletion. A 409
+ * means the request is registered but the account still requires review.
+ */
+export async function deleteMyAccount(): Promise<AccountDeletionReceipt> {
   const { data, error } = await supabase.functions.invoke('delete-account', {
     body: {},
   });
 
-  if (error) throw error;
-  if (!data?.deleted) {
-    throw new Error(data?.error || 'No se pudo completar la eliminación de la cuenta.');
+  if (error) {
+    if (error instanceof FunctionsHttpError) {
+      // supabase-js uses a generic HTTP message for non-2xx responses.
+      // The Edge handler supplies a safe, actionable message for 409.
+      let responseBody: unknown;
+      try {
+        responseBody = await error.context.json();
+      } catch {
+        // An unparsable HTTP response cannot replace the transport diagnosis.
+        throw error;
+      }
+      if (responseBody && typeof responseBody === 'object'
+        && !Array.isArray(responseBody)
+        && typeof (responseBody as { error?: unknown }).error === 'string') {
+        throw new Error((responseBody as { error: string }).error);
+      }
+    }
+    throw error;
   }
+
+  if (!data?.deleted) {
+    throw new Error(typeof data?.error === 'string'
+      ? data.error : 'No se pudo completar la eliminación de la cuenta.');
+  }
+
+  // Old deployed versions only send { deleted: true }.
+  return { auditRecorded: data.auditRecorded !== false };
 }
 
 export async function getOpenAccountDeletionRequests(): Promise<AccountDeletionRequest[]> {

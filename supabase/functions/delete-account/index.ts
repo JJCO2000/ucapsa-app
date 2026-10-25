@@ -135,6 +135,7 @@ Deno.serve(async (req) => {
     })
     .eq('id', requestRow.id);
 
+  let auditRecorded = false;
   if (completionError) {
     edgeError('delete-account.ledger_completion_failed', completionError);
   } else {
@@ -152,8 +153,12 @@ Deno.serve(async (req) => {
     });
     if (eventError) {
       edgeError('delete-account.final_event_failed', eventError);
+    } else {
+      auditRecorded = true;
     }
   }
 
-  return jsonResponse({ deleted: true });
+  // Auth deletion cannot be rolled back if ledger storage fails. Report the
+  // real identity outcome separately from the audit evidence status.
+  return jsonResponse({ deleted: true, auditRecorded });
 });
