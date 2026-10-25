@@ -51,7 +51,7 @@ async function testPublishing() {
     await call();
     assert.equal(events.length,1);
     assert.ok(events[0].includes('confirm:Publicar aviso'));
-    assert.equal(flow.length,0,'Opening the confirmation must never publish automatically');
+    if (!approved) assert.equal(flow.length,0,'Denying the browser confirmation must never publish');
     assert.ok(source.includes("import { showPlatformDialog } from '../../utils/staff-dialog'"));
     assert.ok(!source.includes('Alert.alert('));
     // The real browser helper has already invoked the async onPress when approved.
