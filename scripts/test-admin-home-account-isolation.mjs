@@ -70,12 +70,15 @@ function fixture(userId = 'A', isAdmin = true) {
   });
   return {load: exports.load, state, requests, loadRunRef, activeUserIdRef};
 }
-function completeCore(h, index = 0, counts = [1,2,3,4,5], interestFailure = false) {
+function completeCore(h, index = 0, counts = [1,2,3,4,5], interestFailure = false, followupOwnerIds = []) {
   const [memberships, payments, decisions, followups, interests] = counts;
   h.requests.memberships[index].resolve(Array.from({length: memberships}, () => ({membership:{status:'pending'}})));
   h.requests.payments[index].resolve(Array.from({length:payments}, () => ({})));
   h.requests.decisions[index].resolve(Array.from({length:decisions}, () => ({})));
-  h.requests.followups[index].resolve(Array.from({length:followups}, () => ({})));
+  h.requests.followups[index].resolve(Array.from({length:followups}, (_, i) => ({
+    userId: followupOwnerIds[i] ?? 'client-' + i,
+    dogId: 'dog-' + i,
+  })));
   if (interestFailure) h.requests.interests[index].reject(new Error('optional RPC down'));
   else h.requests.interests[index].resolve(Array.from({length:interests}, () => ({})));
 }
@@ -109,6 +112,14 @@ async function check() {
     assert.equal(h.state.stats.programInterests,5);
     assert.equal(h.state.loading,false);
     assert.equal(h.state.tomorrowClasses[0].scheduleId,'real');
+  }
+  {
+    const h = fixture();const job = h.load();
+    completeCore(h,0,[1,0,0,3,0],false,['same-owner','same-owner','other-owner']);
+    await microtasks();
+    completeTomorrow(h);await job;
+    assert.equal(h.state.stats.clientFollowups,2,
+      'Two dogs from one customer are ONE client needing follow-up');
   }
   {
     const h = fixture();const job = h.load();
