@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { DogAvatar } from '../../components/domain/DogAvatar';
@@ -60,32 +60,71 @@ export default function ClientCompetitionRankingScreen() {
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin }), [isAdmin, role, user]);
   const premium = format.key === 'member';
 
-  const [rows, setRows] = useState<ClientCompetitionLeaderboardRow[]>([]);
-  const [myCompetition, setMyCompetition] = useState<ClientAccountCompetitionSnapshot | null>(null);
-  const [scoreUnavailable, setScoreUnavailable] = useState(false);
-  const [requiredExams, setRequiredExams] = useState<RequiredCompetitionExam[] | null>(null);
-  const [myDogs, setMyDogs] = useState<Array<{ id: string; name: string; avatarKey: string; avatarColor: string; photoUrl: string | null }>>([]);
-  const [localReady, setLocalReady] = useState(false);
-  const [usingSavedData, setUsingSavedData] = useState(false);
-  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [storedRows, setRows] = useState<ClientCompetitionLeaderboardRow[]>([]);
+  const [storedMyCompetition, setMyCompetition] = useState<ClientAccountCompetitionSnapshot | null>(null);
+  const [storedScoreUnavailable, setScoreUnavailable] = useState(false);
+  const [storedRequiredExams, setRequiredExams] = useState<RequiredCompetitionExam[] | null>(null);
+  const [storedMyDogs, setMyDogs] = useState<Array<{ id: string; name: string; avatarKey: string; avatarColor: string; photoUrl: string | null }>>([]);
+  const [storedLocalReady, setLocalReady] = useState(false);
+  const [storedUsingSavedData, setUsingSavedData] = useState(false);
+  const [storedSavedAt, setSavedAt] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [storedError, setError] = useState<string | null>(null);
+
+  const userId = user?.id ?? '';
+  const resultKey = userId && !isAdmin && seasonId ? JSON.stringify([userId, seasonId]) : '';
+  const activeResultKeyRef = useRef(resultKey);
+  activeResultKeyRef.current = resultKey;
+  const loadRunRef = useRef(0);
+  const [loadedForKey, setLoadedForKey] = useState<string | null>(null);
+  // Read-only presentation guard: photos, member standings and cached score
+  // are never painted for another account or another season.
+  const isCurrentResult = Boolean(resultKey && loadedForKey === resultKey);
+  const rows = isCurrentResult ? storedRows : [];
+  const myCompetition = isCurrentResult ? storedMyCompetition : null;
+  const scoreUnavailable = isCurrentResult && storedScoreUnavailable;
+  const requiredExams = isCurrentResult ? storedRequiredExams : null;
+  const myDogs = isCurrentResult ? storedMyDogs : [];
+  const localReady = !resultKey || (isCurrentResult && storedLocalReady);
+  const usingSavedData = isCurrentResult && storedUsingSavedData;
+  const savedAt = isCurrentResult ? storedSavedAt : null;
+  const error = isCurrentResult ? storedError : null;
+
 
   const load = useCallback(async () => {
-    if (!user || isAdmin || !seasonId) {
-      setLocalReady(true);
-      return;
-    }
-
+    const runId = ++loadRunRef.current;
+    if (!resultKey || !userId || isAdmin || !seasonId) return;
+    const isCurrentRun = () => loadRunRef.current === runId
+      && activeResultKeyRef.current === resultKey;
+    setLoadedForKey(resultKey);
+    setRows([]);
+    setMyCompetition(null);
+    setScoreUnavailable(false);
+    setRequiredExams(null);
+    setMyDogs([]);
+    setLocalReady(false);
     setError(null);
     setUsingSavedData(false);
-    setScoreUnavailable(false);
+    setSavedAt(null);
 
-    const [cachedRanking, cachedAccount, cachedRequired] = await Promise.all([
-      getCachedCompetitionLeaderboard(user.id, seasonId),
-      getCachedMyCompetitionAccount(user.id),
-      getCachedRequiredCompetitionExams(user.id, seasonId),
+    const [rankingCacheResult, accountCacheResult, requiredCacheResult] = await Promise.allSettled([
+      getCachedCompetitionLeaderboard(userId, seasonId),
+      getCachedMyCompetitionAccount(userId),
+      getCachedRequiredCompetitionExams(userId, seasonId),
     ]);
+    if (!isCurrentRun()) return;
+    if (rankingCacheResult.status === 'rejected') {
+      devWarn('competition-ranking: saved leaderboard read failed.', rankingCacheResult.reason);
+    }
+    if (accountCacheResult.status === 'rejected') {
+      devWarn('competition-ranking: saved account read failed.', accountCacheResult.reason);
+    }
+    if (requiredCacheResult.status === 'rejected') {
+      devWarn('competition-ranking: saved required exams read failed.', requiredCacheResult.reason);
+    }
+    const cachedRanking = rankingCacheResult.status === 'fulfilled' ? rankingCacheResult.value : null;
+    const cachedAccount = accountCacheResult.status === 'fulfilled' ? accountCacheResult.value : null;
+    const cachedRequired = requiredCacheResult.status === 'fulfilled' ? requiredCacheResult.value : null;
     setRequiredExams(cachedRequired?.data ?? null);
     if (cachedRanking) {
       setRows(cachedRanking.data);
@@ -104,19 +143,18 @@ export default function ClientCompetitionRankingScreen() {
     }
 
     const [rankingResult, dogsResult, accountResult, requiredResult] = await Promise.allSettled([
-      refreshCompetitionLeaderboard(user.id, seasonId),
+      refreshCompetitionLeaderboard(userId, seasonId),
       getMyDogs(),
-      refreshMyCompetitionAccount(user.id),
-      refreshRequiredCompetitionExams(user.id, seasonId),
+      refreshMyCompetitionAccount(userId),
+      refreshRequiredCompetitionExams(userId, seasonId),
     ]);
+    if (!isCurrentRun()) return;
     if (requiredResult.status === 'fulfilled') setRequiredExams(requiredResult.value.data);
-
     if (accountResult.status === 'fulfilled') {
       setMyCompetition(accountResult.value.data);
     } else if (!cachedAccount) {
       setScoreUnavailable(true);
     }
-
     if (dogsResult.status === 'fulfilled') {
       const photoUrls = await getPrivateDogPhotoUrls(
         Object.fromEntries(dogsResult.value.map((dog) => [dog.id, dog.photo_path])),
@@ -124,6 +162,7 @@ export default function ClientCompetitionRankingScreen() {
         devWarn('competition-ranking: could not resolve private dog photo URLs; falling back to preset avatars.', cause);
         return {} as Record<string, string | null>;
       });
+      if (!isCurrentRun()) return;
       setMyDogs(dogsResult.value.map((dog) => ({
         id: dog.id,
         name: dog.name,
@@ -132,7 +171,6 @@ export default function ClientCompetitionRankingScreen() {
         photoUrl: photoUrls[dog.id] ?? null,
       })));
     }
-
     if (rankingResult.status === 'fulfilled') {
       setRows(rankingResult.value.data);
       setSavedAt(rankingResult.value.saved_at);
@@ -140,7 +178,6 @@ export default function ClientCompetitionRankingScreen() {
       setLocalReady(true);
       return;
     }
-
     setLocalReady(true);
     if (cachedRanking) {
       setUsingSavedData(true);
@@ -149,11 +186,11 @@ export default function ClientCompetitionRankingScreen() {
       const cause = rankingResult.reason;
       setError(cause instanceof Error ? cause.message : 'No se pudo cargar el Ranking.');
     }
-  }, [isAdmin, seasonId, user]);
+  }, [isAdmin, resultKey, seasonId, userId]);
 
   useFocusEffect(useCallback(() => {
     void load();
-    return undefined;
+    return () => { loadRunRef.current += 1; };
   }, [load]));
 
   async function refresh() {
