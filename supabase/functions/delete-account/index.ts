@@ -70,6 +70,18 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: requestError?.message ?? 'No se pudo registrar la solicitud.' }, 500);
   }
 
+  // Detect existing RESTRICT / NO ACTION FKs before removing any private photo.
+  // If the reviewed preflight migration is not installed, fail closed.
+  const { data: hasBlockingReferences, error: preflightError } = await admin.rpc(
+    'account_deletion_has_blocking_references', { p_user_id: user.id },
+  );
+  if (preflightError || hasBlockingReferences !== false) {
+    if (preflightError) edgeWarn('delete-account.preflight_failed', preflightError);
+    return jsonResponse({
+      error: 'La solicitud quedó registrada. Hay relaciones que requieren revisión antes de eliminar esta cuenta.',
+    }, 409);
+  }
+
   // Auth deletion is blocked by owned Storage objects. Remove ONLY dog photos
   // beneath this verified user's private prefix, using the Storage API.
   // A partial failure leaves the account and the audit request in place.
