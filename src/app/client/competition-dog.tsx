@@ -59,7 +59,7 @@ export default function ClientDogCompetitionScreen() {
   const [storedSnapshot, setStoredSnapshot] = useState<ClientDogCompetitionSnapshot | null>(null);
   const [loadedForKey, setLoadedForKey] = useState<string | null>(null);
   const [readyForKey, setReadyForKey] = useState<string | null>(null);
-  const [selectedSeason, setSelectedSeason] = useState<{ key: string; id: string | null } | null>(null);
+  const [selectedSeasonChoice, setSelectedSeason] = useState<{ key: string; id: string | null } | null>(null);
   const [usingSavedData, setUsingSavedData] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -70,7 +70,7 @@ export default function ClientDogCompetitionScreen() {
   const snapshot = scopeKey && loadedForKey === scopeKey ? storedSnapshot : null;
   const localReady = readyForKey === scopeKey;
   const error = localReady ? storedError : null;
-  const selectedSeasonId = selectedSeason?.key === scopeKey ? selectedSeason.id : null;
+  const selectedSeasonId = selectedSeasonChoice?.key === scopeKey ? selectedSeasonChoice.id : null;
 
   const applySnapshot = useCallback((next: ClientDogCompetitionSnapshot) => {
     setStoredSnapshot(next);
