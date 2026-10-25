@@ -21,6 +21,27 @@ begin
     raise exception 'A verified user ID is required.' using errcode = '22023';
   end if;
 
+  -- Storage ownership must match the authenticated user, not merely a path.
+  -- Refuse deletion if this account owns files outside the supported bucket/prefix,
+  -- or if another identity owns objects within the target folder. This prevents
+  -- deleting photos belonging to someone else or leaving owned objects behind.
+  if exists (
+    select 1 from storage.objects o
+    where (
+      o.bucket_id = 'dog-photos'
+      and o.name like p_user_id::text || '/%'
+      and o.owner_id is distinct from p_user_id::text
+    ) or (
+      o.owner_id = p_user_id::text
+      and (
+        o.bucket_id <> 'dog-photos'
+        or o.name not like p_user_id::text || '/%'
+      )
+    )
+  ) then
+    return true;
+  end if;
+
   -- Inspect all single-column RESTRICT/NO ACTION FKs that point to auth.users.
   -- Auth's own child tables are managed by Supabase Auth; do not treat them as blockers.
   for v_fk in
