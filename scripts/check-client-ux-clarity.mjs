@@ -493,3 +493,33 @@ for (const outdated of [
 ]) {
   if (rankingUi.includes(outdated)) throw new Error('Ranking volvió a mostrar un mensaje técnico: ' + outdated);
 }
+
+ 
+// Una membresía guardada no es prueba de vigencia actual ni de ausencia de vencimiento.
+const membershipCopy = read('src/app/client/membership.tsx');
+for (const required of [
+  'Última membresía guardada',
+  'Mostrando membresía guardada',
+  'Inicio registrado:',
+  'cachedMembership.end_date',
+  'Vencimiento registrado:',
+  'Sin fecha de vencimiento registrada',
+  'Conéctate para comprobar si tu membresía sigue vigente y ver tu credencial QR.',
+  'Administración está revisando tu solicitud.',
+  'Sesión requerida',
+]) {
+  if (!membershipCopy.includes(required)) throw new Error('Membresía perdió mensaje claro o dato de vigencia: ' + required);
+}
+for (const outdated of [
+  'Membresia vigente',
+  'Sin vencimiento por fecha',
+  'un token vigente.',
+  'Sesion requerida',
+  'Administracion revisara tu membresia.',
+]) {
+  if (membershipCopy.includes(outdated)) throw new Error('Membresía volvió a afirmar datos sin comprobar: ' + outdated);
+}
+if (!membershipCopy.includes('active && membership && membershipFresh ? (')
+  || !membershipCopy.includes('active && cachedMembership ? (')) {
+  throw new Error('Membresía debe separar credencial confirmada de copia local.');
+}

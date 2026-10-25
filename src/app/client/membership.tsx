@@ -108,7 +108,7 @@ export default function ClientMembershipScreen() {
 
     const membershipMissing = membershipResult.status === 'rejected' && !membershipCache;
     if (membershipMissing) {
-      setError(friendlyReadError('No se pudo cargar tu membresia.'));
+      setError(friendlyReadError('No se pudo cargar tu membresía.'));
     } else if (membershipResult.status === 'rejected' && membershipCache) {
       // Solo una membresia en cache debe bloquear una escritura. Un fallo al hidratar
       // la pantalla de clases no invalida una elegibilidad remota ya confirmada.
@@ -129,7 +129,7 @@ export default function ClientMembershipScreen() {
   async function requestReview() {
     const userId = user?.id;
     if (!userId) {
-      Alert.alert('Sesion requerida', 'Vuelve a iniciar sesion para enviar la solicitud.');
+      Alert.alert('Sesión requerida', 'Vuelve a iniciar sesión para enviar la solicitud.');
       return;
     }
 
@@ -152,7 +152,7 @@ export default function ClientMembershipScreen() {
       void refreshProfile().catch((cause) => {
         devWarn('Could not refresh profile after membership request.', cause);
       });
-      Alert.alert('Solicitud enviada', 'Administracion revisara tu membresia.');
+      Alert.alert('Solicitud enviada', 'Administración revisará tu solicitud de membresía.');
     } catch (err) {
       Alert.alert('No se pudo enviar', err instanceof Error ? err.message : 'Intenta de nuevo.');
     } finally {
@@ -212,44 +212,44 @@ export default function ClientMembershipScreen() {
         backLabel="Volver a Perfil"
       />
 
-      {usingSavedData ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} /> : null}
+      {usingSavedData ? <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} label="Mostrando membresía guardada" /> : null}
       {error ? <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}><Text style={[styles.cardTitle, { color: format.cardText }]}>No se pudo actualizar</Text><Text style={[styles.muted, { color: format.muted }]}>{error}</Text><Pressable style={[styles.secondaryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={() => void refresh()}><Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>Reintentar</Text></Pressable></View> : null}
       {!loading && !membershipStatus && (!membershipFresh || !eligibilityFresh) && !error ? (
         <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
           {eligibilityChecking ? <ActivityIndicator color={format.accent} /> : <MaterialIcons name="info-outline" size={28} color={format.accent} />}
-          <Text style={[styles.cardTitle, { color: format.cardText }]}>{eligibilityChecking ? 'Verificando elegibilidad' : 'Falta verificar tu informacion'}</Text>
+          <Text style={[styles.cardTitle, { color: format.cardText }]}>{eligibilityChecking ? 'Revisando si puedes solicitarla' : 'No pudimos comprobar tu membresía'}</Text>
           <Text style={[styles.muted, { color: format.muted }]}>
             {eligibilityChecking
-              ? 'Estamos confirmando tus programas y tu membresia.'
-              : 'Conectate para confirmar tu membresia y si ya puedes solicitarla. Los datos guardados no se usan para negarte elegibilidad.'}
+              ? 'Estamos revisando tus programas y tu membresía.'
+              : 'Conéctate y actualiza para comprobar si puedes solicitarla.'}
           </Text>
           {!eligibilityChecking ? <Pressable style={[styles.secondaryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={() => void refresh()}><Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>Reintentar</Text></Pressable> : null}
         </View>
       ) : null}
 
-      {loading ? <View style={styles.loading}><ActivityIndicator color={format.accent} /><Text style={[styles.muted, { color: format.muted }]}>Cargando membresia...</Text></View> : null}
+      {loading ? <View style={styles.loading}><ActivityIndicator color={format.accent} /><Text style={[styles.muted, { color: format.muted }]}>Cargando membresía…</Text></View> : null}
 
       {!loading && !error && membershipFresh && eligibilityFresh && !membershipStatus && eligible === false ? (
         <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
           <MaterialIcons name="info-outline" size={28} color={format.accent} />
-          <Text style={[styles.cardTitle, { color: format.cardText }]}>Todavia no disponible</Text>
-          <Text style={[styles.muted, { color: format.muted }]}>Para solicitar membresia primero debes estar inscrito o haber completado Puppy o Comandos.</Text>
+          <Text style={[styles.cardTitle, { color: format.cardText }]}>Aún no puedes solicitarla</Text>
+          <Text style={[styles.muted, { color: format.muted }]}>Para solicitarla, primero debes estar inscrito o haber completado Puppy o Comandos.</Text>
           <Pressable style={[styles.secondaryButton, { borderColor: format.cardBorder, backgroundColor: format.secondaryButton }]} onPress={() => router.push('/classes' as never)}><Text style={[styles.secondaryButtonText, { color: format.secondaryButtonText }]}>Ver mis clases</Text></Pressable>
         </View>
       ) : null}
 
       {!loading && !error && membershipFresh && eligibilityFresh && !membershipStatus && eligible === true ? (
         <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
-          <Text style={[styles.cardTitle, { color: format.cardText }]}>Puedes solicitar membresia</Text>
-          <Text style={[styles.muted, { color: format.muted }]}>{eligibility?.source === 'program_completion_achievement' ? 'Tu historial UCAPSA confirma que completaste un programa elegible. Envia la solicitud para que administracion la revise.' : 'Cumples el requisito de acceso. Envia la solicitud para que administracion la revise.'}</Text>
-          <Pressable style={[styles.primaryButton, { backgroundColor: format.primaryButton }]} disabled={saving || usingSavedData} onPress={() => void requestReview()}><Text style={[styles.primaryButtonText, { color: format.primaryButtonText }]}>{saving ? 'Enviando...' : usingSavedData ? 'Conectate para solicitar' : 'Solicitar membresia'}</Text></Pressable>
+          <Text style={[styles.cardTitle, { color: format.cardText }]}>Puedes solicitar tu membresía</Text>
+          <Text style={[styles.muted, { color: format.muted }]}>{eligibility?.source === 'program_completion_achievement' ? 'Completaste un programa que te permite solicitarla. Envíala para que Administración la revise.' : 'Cumples el requisito para solicitarla. Administración revisará tu solicitud.'}</Text>
+          <Pressable style={[styles.primaryButton, { backgroundColor: format.primaryButton }]} disabled={saving || usingSavedData} onPress={() => void requestReview()}><Text style={[styles.primaryButtonText, { color: format.primaryButtonText }]}>{saving ? 'Enviando...' : usingSavedData ? 'Conéctate para solicitar' : 'Solicitar membresía'}</Text></Pressable>
         </View>
       ) : null}
 
       {pending ? (
         <View style={[styles.noticeCard, premium && styles.noticeCardPremium]}>
           <Text style={[styles.cardTitle, { color: format.text }]}>Solicitud pendiente</Text>
-          <Text style={[styles.muted, { color: format.muted }]}>Administracion esta revisando tu solicitud. La credencial aparecera aqui cuando sea aprobada.</Text>
+          <Text style={[styles.muted, { color: format.muted }]}>Administración está revisando tu solicitud. Cuando la apruebe, aquí aparecerá tu credencial.</Text>
         </View>
       ) : null}
 
@@ -258,12 +258,12 @@ export default function ClientMembershipScreen() {
           <Text style={[styles.cardTitle, { color: format.cardText }]}>Estado: {inactiveLabel}</Text>
           <Text style={[styles.muted, { color: format.muted }]}>
             {scheduled
-              ? `Tu membresia inicia el ${offlineDateLabel(membership?.start_date ?? cachedMembership?.start_date)}. El QR estara disponible cuando entre en vigencia.`
+              ? `Tu membresía comienza el ${offlineDateLabel(membership?.start_date ?? cachedMembership?.start_date)}. Tu credencial QR estará disponible desde esa fecha.`
               : effectiveMembershipStatus === 'expired'
-                ? 'La membresia conserva un estado historico vencido. Administracion debe revisarla antes de reactivarla.'
-                : 'Si necesitas revision, puedes solicitarla desde aqui.'}
+                ? 'La membresía registrada venció. Administración debe revisarla antes de reactivarla.'
+                : 'Si necesitas una revisión, puedes solicitarla aquí.'}
           </Text>
-          {eligible === true && membershipStatus !== 'active' ? <Pressable style={[styles.primaryButton, { backgroundColor: format.primaryButton }]} disabled={saving || usingSavedData} onPress={() => void requestReview()}><Text style={[styles.primaryButtonText, { color: format.primaryButtonText }]}>{saving ? 'Enviando...' : usingSavedData ? 'Conectate para solicitar' : 'Solicitar revision'}</Text></Pressable> : null}
+          {eligible === true && membershipStatus !== 'active' ? <Pressable style={[styles.primaryButton, { backgroundColor: format.primaryButton }]} disabled={saving || usingSavedData} onPress={() => void requestReview()}><Text style={[styles.primaryButtonText, { color: format.primaryButtonText }]}>{saving ? 'Enviando...' : usingSavedData ? 'Conéctate para solicitar' : 'Solicitar revisión'}</Text></Pressable> : null}
         </View>
       ) : null}
 
@@ -290,10 +290,15 @@ export default function ClientMembershipScreen() {
       ) : active && cachedMembership ? (
         <View style={[styles.card, { borderColor: format.cardBorder, backgroundColor: format.cardBackground }]}>
           <MaterialIcons name="verified" size={28} color={format.accent} />
-          <Text style={[styles.cardTitle, { color: format.cardText }]}>Membresia vigente</Text>
-          <Text style={[styles.muted, { color: format.muted }]}>Socio: {cachedMembership.member_number || 'Sin numero'}</Text>
-          <Text style={[styles.muted, { color: format.muted }]}>Inicio: {offlineDateLabel(cachedMembership.start_date)} · Sin vencimiento por fecha</Text>
-          <Text style={[styles.muted, { color: format.muted }]}>La credencial QR requiere conexion para mostrar un token vigente.</Text>
+          <Text style={[styles.cardTitle, { color: format.cardText }]}>Última membresía guardada</Text>
+          <Text style={[styles.muted, { color: format.muted }]}>Socio: {cachedMembership.member_number || 'Sin número'}</Text>
+          <Text style={[styles.muted, { color: format.muted }]}>
+            Inicio registrado: {offlineDateLabel(cachedMembership.start_date)}
+            {cachedMembership.end_date
+              ? ` · Vencimiento registrado: ${offlineDateLabel(cachedMembership.end_date)}`
+              : ' · Sin fecha de vencimiento registrada'}
+          </Text>
+          <Text style={[styles.muted, { color: format.muted }]}>Conéctate para comprobar si tu membresía sigue vigente y ver tu credencial QR.</Text>
         </View>
       ) : null}
     </KeyboardAwareScreen>
