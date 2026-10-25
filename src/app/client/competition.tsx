@@ -1,7 +1,7 @@
 
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { CompetitionPodium } from '../../components/domain/CompetitionPodium';
 
@@ -42,16 +42,38 @@ export default function ClientCompetitionScreen() {
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin, memberTheme }), [memberTheme, isAdmin, role, user]);
   const premium = format.key === 'member';
 
-  const [snapshot, setSnapshot] = useState<ClientAccountCompetitionSnapshot | null>(null);
-  const [rows, setRows] = useState<ClientCompetitionLeaderboardRow[]>([]);
-  const [selectedSeasonId, setSelectedSeasonId] = useState<string | null>(null);
-  const [localReady, setLocalReady] = useState(false);
-  const [rankingReady, setRankingReady] = useState(false);
-  const [usingSavedData, setUsingSavedData] = useState(false);
-  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const userId = user?.id ?? '';
+  const activeUserIdRef = useRef(userId);
+  activeUserIdRef.current = userId;
+  const accountRunRef = useRef(0);
+  const rankingRunRef = useRef(0);
+
+  const [storedSnapshot, setSnapshot] = useState<ClientAccountCompetitionSnapshot | null>(null);
+  const [loadedForUserId, setLoadedForUserId] = useState<string | null>(null);
+  const [storedRows, setRows] = useState<ClientCompetitionLeaderboardRow[]>([]);
+  const [loadedRankingForKey, setLoadedRankingForKey] = useState<string | null>(null);
+  const [storedSelectedSeasonId, setSelectedSeasonId] = useState<string | null>(null);
+  const [storedLocalReady, setLocalReady] = useState(false);
+  const [storedRankingReady, setRankingReady] = useState(false);
+  const [storedUsingSavedData, setUsingSavedData] = useState(false);
+  const [storedSavedAt, setSavedAt] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [storedError, setError] = useState<string | null>(null);
   const [screenFocused, setScreenFocused] = useState(false);
+
+  // Presentation boundary: never paint private data from another signed-in account.
+  const accountCurrent = Boolean(userId && !isAdmin && loadedForUserId === userId);
+  const snapshot = accountCurrent ? storedSnapshot : null;
+  const selectedSeasonId = accountCurrent ? storedSelectedSeasonId : null;
+  const rankingKey = userId && selectedSeasonId && !isAdmin
+    ? JSON.stringify([userId, selectedSeasonId]) : '';
+  const rankingCurrent = Boolean(rankingKey && loadedRankingForKey === rankingKey);
+  const rows = rankingCurrent ? storedRows : [];
+  const localReady = accountCurrent && storedLocalReady;
+  const rankingReady = rankingCurrent && storedRankingReady;
+  const usingSavedData = accountCurrent && storedUsingSavedData;
+  const savedAt = accountCurrent ? storedSavedAt : null;
+  const error = accountCurrent ? storedError : null;
 
   const applySnapshot = useCallback((next: ClientAccountCompetitionSnapshot) => {
     setSnapshot(next);
@@ -66,15 +88,26 @@ export default function ClientCompetitionScreen() {
   }, []);
 
   const loadAccount = useCallback(async () => {
-    if (!user || isAdmin) {
-      setLocalReady(true);
-      return;
-    }
+    const runId = ++accountRunRef.current;
+    const isCurrentRun = () => accountRunRef.current === runId
+      && activeUserIdRef.current === userId;
+    if (!userId || isAdmin) return;
 
+    setLoadedForUserId(userId);
+    setSnapshot(null);
+    setSelectedSeasonId(null);
+    setLocalReady(false);
     setError(null);
     setUsingSavedData(false);
+    setSavedAt(null);
 
-    const cached = await getCachedMyCompetitionAccount(user.id);
+    let cached: Awaited<ReturnType<typeof getCachedMyCompetitionAccount>> = null;
+    try {
+      cached = await getCachedMyCompetitionAccount(userId);
+    } catch (cause) {
+      devWarn('client-competition: account cache read failed.', cause);
+    }
+    if (!isCurrentRun()) return;
     if (cached) {
       applySnapshot(cached.data);
       setSavedAt(cached.saved_at);
@@ -82,60 +115,81 @@ export default function ClientCompetitionScreen() {
     }
 
     try {
-      const fresh = await refreshMyCompetitionAccount(user.id);
+      const fresh = await refreshMyCompetitionAccount(userId);
+      if (!isCurrentRun()) return;
       applySnapshot(fresh.data);
       setSavedAt(fresh.saved_at);
       setUsingSavedData(false);
-      setLocalReady(true);
     } catch (cause) {
-      setLocalReady(true);
+      if (!isCurrentRun()) return;
       if (cached) {
         setUsingSavedData(true);
         setSavedAt(cached.saved_at);
       } else {
+        setSnapshot(null);
         setError(cause instanceof Error ? cause.message : 'No se pudo cargar la competencia.');
       }
+    } finally {
+      if (isCurrentRun()) setLocalReady(true);
     }
-  }, [applySnapshot, isAdmin, user]);
+  }, [applySnapshot, isAdmin, userId]);
 
   const loadRanking = useCallback(async (seasonId: string) => {
-    if (!user || isAdmin || !seasonId) {
-      setRows([]);
-      setRankingReady(true);
-      return;
-    }
-
+    const runId = ++rankingRunRef.current;
+    const requestedKey = userId && seasonId && !isAdmin
+      ? JSON.stringify([userId, seasonId]) : '';
+    const isCurrentRun = () => rankingRunRef.current === runId
+      && activeUserIdRef.current === userId;
+    setRows([]);
+    setLoadedRankingForKey(requestedKey);
     setRankingReady(false);
-    const cached = await getCachedCompetitionLeaderboard(user.id, seasonId);
+    if (!requestedKey) return;
+
+    let cached: Awaited<ReturnType<typeof getCachedCompetitionLeaderboard>> = null;
+    try {
+      cached = await getCachedCompetitionLeaderboard(userId, seasonId);
+    } catch (cause) {
+      devWarn('client-competition: ranking cache read failed.', cause);
+    }
+    if (!isCurrentRun()) return;
     if (cached) {
       setRows(cached.data);
       setRankingReady(true);
     }
 
     try {
-      const fresh = await refreshCompetitionLeaderboard(user.id, seasonId);
+      const fresh = await refreshCompetitionLeaderboard(userId, seasonId);
+      if (!isCurrentRun()) return;
       setRows(fresh.data);
-      setRankingReady(true);
     } catch (cause) {
+      if (!isCurrentRun()) return;
       devWarn('Could not refresh competition leaderboard in account summary.', cause);
-      setRankingReady(true);
       if (!cached) setRows([]);
+    } finally {
+      if (isCurrentRun()) setRankingReady(true);
     }
-  }, [isAdmin, user]);
+  }, [isAdmin, userId]);
 
   useFocusEffect(useCallback(() => {
     setScreenFocused(true);
     void loadAccount();
-    return () => setScreenFocused(false);
+    return () => {
+      setScreenFocused(false);
+      accountRunRef.current += 1;
+      rankingRunRef.current += 1;
+    };
   }, [loadAccount]));
 
   useEffect(() => {
     if (!selectedSeasonId) {
+      rankingRunRef.current += 1;
       setRows([]);
-      setRankingReady(true);
+      setLoadedRankingForKey(null);
+      setRankingReady(false);
       return;
     }
     void loadRanking(selectedSeasonId);
+    return () => { rankingRunRef.current += 1; };
   }, [loadRanking, selectedSeasonId]);
 
   async function refresh() {
@@ -164,7 +218,7 @@ export default function ClientCompetitionScreen() {
   );
 
   useEffect(() => {
-    if (!user || isAdmin || !screenFocused || !localReady || error || !selectedSeasonId || !snapshot) return;
+    if (!userId || isAdmin || !screenFocused || !localReady || error || !selectedSeasonId || !snapshot) return;
     const visibleDogIds = snapshot.dogs
       .filter((dog) => dog.seasons.some((season) => season.season_id === selectedSeasonId))
       .map((dog) => dog.dog_id);
@@ -172,13 +226,14 @@ export default function ClientCompetitionScreen() {
 
     const timer = setTimeout(() => {
       for (const dogId of visibleDogIds) {
-        void recordValueExposure(user.id, dogId, selectedSeasonId, 'constancy_summary')
+        if (activeUserIdRef.current !== userId) return;
+        void recordValueExposure(userId, dogId, selectedSeasonId, 'constancy_summary')
           .catch((cause) => devWarn('Could not persist constancy summary value exposure.', cause));
       }
     }, 750);
 
     return () => clearTimeout(timer);
-  }, [error, isAdmin, localReady, screenFocused, selectedSeasonId, snapshot, user]);
+  }, [error, isAdmin, localReady, screenFocused, selectedSeasonId, snapshot, userId]);
 
   if (!user) return <Redirect href="/auth/login" />;
   if (isAdmin) return <Redirect href="/admin-home" />;
