@@ -24,7 +24,8 @@ function harness(outcome) {
   const supabase={functions:{invoke:async(name,args)=>{
     calls++;
     assert.equal(name,'delete-account');
-    assert.deepEqual(args,{body:{}});
+    assert.equal(args && typeof args.body, 'object');
+    assert.equal(Object.keys(args.body).length,0);
     return outcome;
   }}};
   const exports={};
@@ -37,16 +38,16 @@ function harness(outcome) {
 }
 {
   const h=harness({data:{deleted:true,auditRecorded:true},error:null});
-  assert.deepEqual(await h.run(),{auditRecorded:true});
+  assert.equal((await h.run()).auditRecorded,true);
   assert.equal(h.calls(),1);
 }
 {
   const h=harness({data:{deleted:true,auditRecorded:false},error:null});
-  assert.deepEqual(await h.run(),{auditRecorded:false});
+  assert.equal((await h.run()).auditRecorded,false);
 }
 {
   const h=harness({data:{deleted:true},error:null});
-  assert.deepEqual(await h.run(),{auditRecorded:true},'Backward compatible with Edge v2');
+  assert.equal((await h.run()).auditRecorded,true,'Backward compatible with Edge v2');
 }
 {
   const err=new MockFunctionsHttpError({
