@@ -86,12 +86,12 @@ requirePattern(
 );
 requirePattern(
   'src/app/client/activity-achievements.tsx',
-  /getCachedDogActivityFacts\(user\.id, scopedDogId\)/,
+  /getCachedDogActivityFacts\((?:user\.id|userId), scopedDogId\)/,
   'La pantalla de insignias no hidrata datos por perro.',
 );
 requirePattern(
   'src/app/client/activity-achievements.tsx',
-  /getMyDogActivityFacts\(user\.id, scopedDogId\)/,
+  /getMyDogActivityFacts\((?:user\.id|userId), scopedDogId\)/,
   'La pantalla de insignias mezcla la actividad de toda la cuenta.',
 );
 requirePattern(
