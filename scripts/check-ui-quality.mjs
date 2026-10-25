@@ -38,7 +38,7 @@ must('src/services/client-offline-sync.service.ts', /clientReadKeys\.announcemen
 must('src/components/ui/UcapsaDetailModal.tsx', /justifyContent:\s*'center'/, 'El modal de detalle dejó de estar centrado.');
 must('src/components/ui/UcapsaDetailModal.tsx', /maxWidth:\s*560/, 'El modal de detalle perdió su límite adaptable para tablet.');
 must('src/components/ui/UcapsaDetailModal.tsx', /width:\s*48[\s\S]*height:\s*48/, 'El botón de cierre del modal volvió a quedar debajo de 48dp.');
-must('src/components/ui/OfflineDataNotice.tsx', /width:\s*48[\s\S]*height:\s*48/, 'Reintentar sincronización volvió a quedar debajo de 48dp.');
+must('src/components/ui/OfflineDataNotice.tsx', /minHeight:\s*(?:4[89]|[5-9][0-9]|[1-9][0-9]{2,})\b/, 'Actualizar datos guardados requiere un objetivo táctil de al menos 48dp.');
 must('src/components/ui/Screen.tsx', /maxWidth:\s*820/, 'El contenedor principal perdió su límite adaptable en pantallas anchas.');
 must('src/components/ui/Screen.tsx', /useSafeAreaInsets/, 'Las pantallas comunes dejaron de consultar el área segura del sistema.');
 must('src/components/ui/Screen.tsx', /paddingBottom:\s*28\s*\+\s*bottomBreathingRoom/, 'El ScrollView general perdió el espacio inferior.');
