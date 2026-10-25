@@ -51,4 +51,17 @@ for (const token of [
   if (!screen.includes(token)) throw new Error('Follow-up detail screen missing: ' + token);
 }
 
+
+// The home decision badge is labeled "clientes" whereas the RPC returns dogs.
+// Exercise the exact expression used by the screen, rather than a test-only copy.
+const countExpression = home.match(/clientFollowups:\s*(new Set\(clientFollowups\.map\(\(row\) => row\.userId\)\)\.size)/)?.[1];
+if (!countExpression) throw new Error('Admin Home must count distinct customers, not dog rows.');
+const syntheticDogRows = [
+  { userId: 'client-a', dogId: 'dog-1' },
+  { userId: 'client-a', dogId: 'dog-2' },
+  { userId: 'client-b', dogId: 'dog-3' },
+];
+const actualCount = Function('clientFollowups', 'return ' + countExpression)(syntheticDogRows);
+if (actualCount !== 2) throw new Error('Follow-up badge inflated the count for multi-dog customers.');
+
 console.log('UCAPSA admin client follow-ups: PASS');
