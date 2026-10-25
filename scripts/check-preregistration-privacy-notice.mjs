@@ -36,6 +36,15 @@ for (const phrase of [
   'incluidas las de personas sin cuenta',
   'NO VIGENTE / NO PUBLICAR',
 ]) assert.ok(proposal.includes(phrase),'Legal proposal missing coverage for pre-account persons: '+phrase);
+const simplified=proposal.split('## Aviso simplificado')[1]?.split('## Aviso integral')[0] ?? '';
+for (const token of [
+  'Para limitar el uso o divulgación de sus datos',
+  'ejercer derechos ARCO',
+  'Los familiares preinscritos no reciben automáticamente cuenta',
+  'https://jjco2000.github.io/ucapsa-app/privacidad/',
+]) assert.ok(simplified.includes(token), 'Legal candidate 1.4 simplified lacks the required limitation/notice: '+token);
+assert.ok(!fs.existsSync('docs/legal/SECUENCIA_PUBLICACION_AVISO_1_4_Y_GOOGLE_PLAY.md'),
+  'Do not maintain two competing privacy release instructions.');
 assert.ok(plan.includes('1.2-appstores-2026-09-27')
   && plan.includes('1.3 App Stores')
   && plan.includes('1.4 App Stores — BORRADOR')
