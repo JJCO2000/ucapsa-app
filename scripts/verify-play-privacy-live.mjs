@@ -22,6 +22,53 @@ function publicVersion(html) {
   if (!heading) throw new Error('La página pública no muestra una versión comprobable del aviso.');
   return heading[1];
 }
+// Compare the actual legal bodies, not just a version label or a few keywords.
+// This intentionally fails closed if the public page changes shape or omits text.
+function normalizeLegalText(input) {
+  const entities={amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:' ',ldquo:'“',rdquo:'”',lsquo:'‘',rsquo:'’'};
+  return String(input)
+    .replace(/&(#x[0-9a-f]+|#[0-9]+|[a-z]+);/gi,(full,code)=>{
+      if (code.startsWith('#x')) return String.fromCodePoint(parseInt(code.slice(2),16));
+      if (code.startsWith('#')) return String.fromCodePoint(parseInt(code.slice(1),10));
+      return entities[code.toLowerCase()] ?? full;
+    })
+    .replace(/\[([^\]]+)\]\([^)]+\)/g,'$1')
+    .replace(/^\s*[-*]\s+/gm,'')
+    .replace(/\*\*|__/g,'')
+    .normalize('NFKC').replace(/\s+/g,' ').trim().toLowerCase();
+}
+function publishedPageText(html) {
+  const main=html.match(/<main\b[^>]*\bid\s*=\s*["']contenido["'][^>]*>([\s\S]*?)<\/main>/i)?.[1];
+  if (!main) throw new Error('El HTML público no contiene el cuerpo legal identificable.');
+  return normalizeLegalText(main
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ')
+    .replace(/<[^>]*>/g,' '));
+}
+function verifyPublishedContent(notice,html) {
+  const page=publishedPageText(html);
+  const simplified=normalizeLegalText(notice.simplified_notice);
+  if (simplified.length < 200 || !page.includes(simplified)) {
+    throw new Error('CONTENIDO DIVERGENTE: aviso simplificado de Supabase y HTML público.');
+  }
+  // All 18 integral section bodies must appear, complete and in order.
+  // Numbered headings are removed because Markdown renders them as HTML lists.
+  const sections=notice.integral_notice.split(/^\s*\d{1,2}\.\s+[^\n]+\n/gm).slice(1);
+  if (sections.length !== 18) {
+    throw new Error('El aviso integral publicado no contiene 18 apartados comprobables.');
+  }
+  let cursor=page.indexOf(simplified)+simplified.length;
+  for (let i=0;i<sections.length;i+=1) {
+    const body=normalizeLegalText(sections[i]);
+    if (body.length < 45) throw new Error('Apartado integral '+(i+1)+' incompleto.');
+    const at=page.indexOf(body,cursor);
+    if (at < 0) {
+      throw new Error('CONTENIDO DIVERGENTE: apartado integral '+(i+1)+' no coincide con HTML público.');
+    }
+    cursor=at+body.length;
+  }
+}
+
 function check(rows,html) {
   if (!Array.isArray(rows) || rows.length !== 1 ||
     rows[0]?.status !== 'published' || typeof rows[0]?.version !== 'string') {
@@ -52,16 +99,28 @@ function check(rows,html) {
   if (!/derechos ARCO|acceso, rectificaci[oó]n, cancelaci[oó]n/i.test(integral)) {
     throw new Error('No se detecta referencia a los derechos ARCO en el aviso integral.');
   }
+  verifyPublishedContent(notice,html);
   return serverVersion;
 }
 const example=(version)=>[{
   version:version+'-appstores-2026',status:'published',
-  simplified_notice:'Datos de preinscripciones y familiares; para limitar el uso escribir a privacidad.',
-  integral_notice:'Datos de preinscripción y familiares. Derechos ARCO.',
+  simplified_notice:('Datos de preinscripciones y familiares; para limitar el uso escribir a privacidad. '
+    +'La información personal se utiliza únicamente para la operación de clases, perros, cuentas y derechos ARCO. '
+    +'No se permite consultar datos de otras cuentas por aportar un teléfono. ').repeat(2),
+  integral_notice:'AVISO DE PRIVACIDAD INTEGRAL DE UCAPSA APP\n\n'
+    +Array.from({length:18},(_,i)=>(i+1)+'. Apartado '+(i+1)+'\n'
+      +'Tratamiento operativo de datos de preinscripción y familiares; derechos ARCO y '
+      +'protección de la información correspondiente al apartado '+(i+1)+'.'
+    ).join('\n\n'),
 }];
 function runSelfTest() {
-  const html=(version)=>'<html><body><h1>Aviso de privacidad</h1>'+
-    '<p><strong>Versión:</strong> '+version+' App Stores</p></body></html>';
+  const html=(version)=>{
+    const notice=example(version)[0];
+    return '<html><body><main id="contenido"><h1>Aviso de privacidad</h1>'
+      +'<p><strong>Versión:</strong> '+version+' App Stores</p><p>'
+      +notice.simplified_notice+'</p><p>'
+      +notice.integral_notice.replace(/\n/g,' ')+'</p></main></body></html>';
+  };
   assert.equal(check(example('1.4'),html('1.4')),'1.4');
   assert.throws(()=>check(example('1.2'),html('1.3')),/AVISO DIVERGENTE/);
   assert.throws(()=>check([],html('1.4')),/exactamente un aviso/);
@@ -74,7 +133,16 @@ function runSelfTest() {
   assert.throws(()=>check([{...example('1.4')[0],
     integral_notice:'Datos de cuenta. Derechos ARCO.',
     simplified_notice:'Para limitar uso de sus datos.'}],html('1.4')),/preinscripciones y familiares/);
-  console.log('PLAY PRIVACY PREFLIGHT SELF-TEST PASS: versiones, dos textos, alcance y divergencia protegidos.');
+  // Same version and legal keywords are not enough: the actual texts must agree.
+  assert.throws(()=>check(example('1.4'),html('1.4').replace(
+    'No se permite consultar datos de otras cuentas','Una política distinta permite otros accesos')),
+    /CONTENIDO DIVERGENTE: aviso simplificado/);
+  assert.throws(()=>check(example('1.4'),html('1.4').replace(
+    'información correspondiente al apartado 8','información alterada del apartado 8')),
+    /CONTENIDO DIVERGENTE: apartado integral 8/);
+  assert.throws(()=>check(example('1.4'),'<html><p>Versión: 1.4</p></html>'),
+    /cuerpo legal identificable/);
+  console.log('PLAY PRIVACY PREFLIGHT SELF-TEST PASS: versión, dos textos completos, 18 apartados en orden, divergencias y faltantes protegidos.');
 }
 async function fetchContent(url, options={}) {
   const response = await fetch(url,{...options,signal:AbortSignal.timeout(12000),
