@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -21,13 +21,26 @@ const mark = require('../../../assets/images/brand/ucapsa-mark.png');
 
 export default function AnnouncementsScreen() {
   const { user, role, isAdmin } = useSession();
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
+  const cacheScope = user?.id ?? 'public';
+  const activeScopeRef = useRef(cacheScope);
+  activeScopeRef.current = cacheScope;
+  const loadRunRef = useRef(0);
+  const [storedAnnouncements, setAnnouncements] = useState<Announcement[]>([]);
+  const [loadedForScope, setLoadedForScope] = useState<string | null>(null);
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState<{ scope: string; item: Announcement } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [localReady, setLocalReady] = useState(false);
-  const [usingSavedData, setUsingSavedData] = useState(false);
-  const [savedAt, setSavedAt] = useState<string | null>(null);
-  const [offlineEmpty, setOfflineEmpty] = useState(false);
+  const [readyForScope, setReadyForScope] = useState<string | null>(null);
+  const [storedUsingSavedData, setUsingSavedData] = useState(false);
+  const [storedSavedAt, setSavedAt] = useState<string | null>(null);
+  const [storedOfflineEmpty, setOfflineEmpty] = useState(false);
+  // Keep the current account's view isolated even before effects run.
+  const announcements = loadedForScope === cacheScope ? storedAnnouncements : [];
+  const activeSelectedAnnouncement = selectedAnnouncement?.scope === cacheScope
+    ? selectedAnnouncement.item : null;
+  const localReady = readyForScope === cacheScope;
+  const usingSavedData = loadedForScope === cacheScope && storedUsingSavedData;
+  const savedAt = loadedForScope === cacheScope ? storedSavedAt : null;
+  const offlineEmpty = localReady && storedOfflineEmpty;
   const { memberTheme } = useMemberAppearance();
   const format = useMemo(() => resolveUcapsaFormat({ user, role, isAdmin, memberTheme }), [memberTheme, user, role, isAdmin]);
   const isPremium = format.key === 'member';
@@ -40,37 +53,52 @@ export default function AnnouncementsScreen() {
     [announcements],
   );
 
-  const cacheScope = user?.id ?? 'public';
-
   const loadAnnouncements = useCallback(async () => {
+    const runId = ++loadRunRef.current;
+    const isCurrentRun = () => loadRunRef.current === runId
+      && activeScopeRef.current === cacheScope;
+    setAnnouncements([]);
+    setLoadedForScope(null);
+    setReadyForScope(null);
+    setSelectedAnnouncement(null);
+    setSavedAt(null);
     setUsingSavedData(false);
     setOfflineEmpty(false);
 
-    const [cached, homeCache] = await Promise.all([
+    const [cachedResult, homeCacheResult] = await Promise.allSettled([
       readClientResource<Announcement[]>(cacheScope, clientReadKeys.announcements),
       readHomeCache(cacheScope),
     ]);
-
+    if (!isCurrentRun()) return;
+    const cached = cachedResult.status === 'fulfilled' ? cachedResult.value : null;
+    const homeCache = homeCacheResult.status === 'fulfilled' ? homeCacheResult.value : null;
     const localAnnouncements = cached?.data ?? homeCache?.announcements?.data ?? null;
     const localSavedAt = cached?.saved_at ?? homeCache?.announcements?.saved_at ?? null;
 
     if (localAnnouncements) {
       setAnnouncements(localAnnouncements);
+      setLoadedForScope(cacheScope);
       setSavedAt(localSavedAt);
     }
-    setLocalReady(true);
+    setReadyForScope(cacheScope);
 
     try {
       const rows = await withOperationTimeout(getVisibleAnnouncements(), DEFAULT_READ_TIMEOUT_MS, 'announcements');
+      if (!isCurrentRun()) return;
       setAnnouncements(rows);
-      const stored = await writeClientResource(cacheScope, clientReadKeys.announcements, rows);
-      setSavedAt(stored.saved_at);
+      setLoadedForScope(cacheScope);
       setUsingSavedData(false);
       setOfflineEmpty(false);
+      const stored = await writeClientResource(cacheScope, clientReadKeys.announcements, rows);
+      if (!isCurrentRun()) return;
+      setSavedAt(stored.saved_at);
     } catch {
+      if (!isCurrentRun()) return;
       if (localAnnouncements) {
         setUsingSavedData(true);
       } else {
+        setAnnouncements([]);
+        setLoadedForScope(cacheScope);
         setOfflineEmpty(true);
       }
     }
@@ -79,7 +107,7 @@ export default function AnnouncementsScreen() {
   useFocusEffect(
     useCallback(() => {
       void loadAnnouncements();
-      return undefined;
+      return () => { loadRunRef.current += 1; };
     }, [loadAnnouncements]),
   );
 
@@ -206,7 +234,7 @@ export default function AnnouncementsScreen() {
                 <AnnouncementCard
                   compact={!isAdmin}
                   announcement={announcement}
-                  onPress={isAdmin ? () => router.push(`/admin/announcements?announcementId=${announcement.id}` as never) : () => setSelectedAnnouncement(announcement)}
+                  onPress={isAdmin ? () => router.push(`/admin/announcements?announcementId=${announcement.id}` as never) : () => setSelectedAnnouncement({ scope: cacheScope, item: announcement })}
                   onOpenEvent={announcement.event ? () => router.push('/calendar' as never) : undefined}
                 />
               </View>
@@ -226,7 +254,7 @@ export default function AnnouncementsScreen() {
                 <AnnouncementCard
                   compact={!isAdmin}
                   announcement={announcement}
-                  onPress={isAdmin ? () => router.push(`/admin/announcements?announcementId=${announcement.id}` as never) : () => setSelectedAnnouncement(announcement)}
+                  onPress={isAdmin ? () => router.push(`/admin/announcements?announcementId=${announcement.id}` as never) : () => setSelectedAnnouncement({ scope: cacheScope, item: announcement })}
                   onOpenEvent={announcement.event ? () => router.push('/calendar' as never) : undefined}
                 />
               </View>
@@ -236,11 +264,11 @@ export default function AnnouncementsScreen() {
       </ScrollView>
 
       <UcapsaDetailModal
-        visible={Boolean(selectedAnnouncement)}
+        visible={Boolean(activeSelectedAnnouncement)}
         type="announcement"
-        title={selectedAnnouncement?.title ?? ''}
-        body={selectedAnnouncement?.content}
-        dateLabel={selectedAnnouncement?.announcement_date ? new Date(selectedAnnouncement.announcement_date).toLocaleDateString('es-MX') : null}
+        title={activeSelectedAnnouncement?.title ?? ''}
+        body={activeSelectedAnnouncement?.content}
+        dateLabel={activeSelectedAnnouncement?.announcement_date ? new Date(activeSelectedAnnouncement.announcement_date).toLocaleDateString('es-MX') : null}
         onClose={() => setSelectedAnnouncement(null)}
       />
     </SafeAreaView>
