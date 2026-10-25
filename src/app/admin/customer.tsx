@@ -1,11 +1,13 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useMemo } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useAdminCustomerDetail } from '../../hooks/useAdminCustomerDetail';
+import { useAdminCustomerFollowups } from '../../hooks/useAdminCustomerFollowups';
+import { useSession } from '../../hooks/useSession';
 
 function money(value: number) {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 }).format(value);
@@ -23,7 +25,11 @@ function membershipLabel(status: string | null | undefined) {
 export default function AdminCustomerScreen() {
   const params = useLocalSearchParams<{ userId?: string }>();
   const userId = typeof params.userId === 'string' ? params.userId.trim() : '';
+  const { isAdmin } = useSession();
   const { record, loading, refreshing, error, refresh } = useAdminCustomerDetail(userId);
+  const { rows: followups, loading: followupLoading, error: followupError,
+    refresh: refreshFollowups } = useAdminCustomerFollowups(userId, isAdmin);
+  const refreshAll = () => { void Promise.all([refresh(), refreshFollowups()]); };
 
   const actualAttendances = useMemo(() => record?.enrollments.reduce((sum, item) => sum + item.enrollment.attendances_count, 0) ?? 0, [record]);
   const pendingBalance = useMemo(() => {
@@ -37,6 +43,8 @@ export default function AdminCustomerScreen() {
       .filter((item) => !item.cancelled_at)
       .reduce((sum, item) => sum + Math.max(0, Number(item.amount ?? 0) - (paid.get(item.id) ?? 0)), 0);
   }, [record]);
+
+  if (!isAdmin) return <Redirect href="/home" />;
 
   if (!userId) {
     return (
@@ -52,7 +60,7 @@ export default function AdminCustomerScreen() {
   }
 
   return (
-    <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={ucapsaBrand.colors.red} />}>
+    <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing || followupLoading} onRefresh={refreshAll} tintColor={ucapsaBrand.colors.red} />}>
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando cliente...</Text></View> : null}
       {error ? <View style={styles.error}><Text style={styles.errorTitle}>No se pudo cargar</Text><Text style={styles.muted}>{error}</Text><Pressable style={styles.primary} onPress={() => void refresh()}><Text style={styles.primaryText}>Reintentar</Text></Pressable></View> : null}
 
@@ -70,6 +78,31 @@ export default function AdminCustomerScreen() {
             <Metric label="Asistencias" value={String(actualAttendances)} />
             {record.membership ? <Metric label="Visitas socio" value={String(record.memberVisits.length)} /> : null}
             <Metric label="Saldo" value={money(pendingBalance)} small />
+            <View style={[styles.metric, styles.followupMetric]}>
+              <Text style={styles.followupTitle}>Seguimiento</Text>
+              {followupLoading ? (
+                <Text style={styles.followupMuted}>Verificando seguimiento…</Text>
+              ) : followupError ? (
+                <Text accessibilityRole="alert" style={styles.followupMuted}>{followupError} Desliza para reintentar.</Text>
+              ) : followups.length === 0 ? (
+                <Text style={styles.followupClear}>Sin seguimiento pendiente</Text>
+              ) : (
+                <>
+                  <Text style={styles.followupWarning}>Requiere seguimiento · {followups.length} perro{followups.length === 1 ? '' : 's'}</Text>
+                  {followups.map((row) => (
+                    <View key={row.dogId} style={styles.followupRow}>
+                      <Text style={styles.followupDog}>{row.dogName}</Text>
+                      {row.puppyNoContinuity ? (
+                        <Text style={styles.followupReason}>Puppy terminado hace {row.puppyDaysSinceCompletion} días; sin inscripción posterior.</Text>
+                      ) : null}
+                      {row.inactive30d ? (
+                        <Text style={styles.followupReason}>Última asistencia hace {row.inactivityDays} días (30 o más sin asistir).</Text>
+                      ) : null}
+                    </View>
+                  ))}
+                </>
+              )}
+            </View>
           </View>
 
           <Text style={styles.sectionTitle}>Informacion</Text>
@@ -147,6 +180,14 @@ const styles = StyleSheet.create({
   metricValue: { color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '900' },
   metricValueSmall: { fontSize: 15 },
   metricLabel: { color: ucapsaBrand.colors.muted, fontSize: 11, fontWeight: '800', marginTop: 3 },
+  followupMetric: { width: '100%', gap: 4 },
+  followupTitle: { color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '900' },
+  followupMuted: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 17, fontWeight: '700' },
+  followupClear: { color: ucapsaBrand.colors.greenDark, fontSize: 14, fontWeight: '800' },
+  followupWarning: { color: ucapsaBrand.colors.danger, fontSize: 14, fontWeight: '900' },
+  followupRow: { marginTop: 7, paddingTop: 7, borderTopWidth: 1, borderTopColor: ucapsaBrand.colors.border },
+  followupDog: { color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '900' },
+  followupReason: { color: ucapsaBrand.colors.danger, fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 2 },
   sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '900', marginBottom: 9 },
   card: { borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.premiumMuted },
