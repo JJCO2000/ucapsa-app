@@ -166,9 +166,9 @@ for (const rel of [
   must(rel, /setUsingSavedData\(true\)|source !== 'remote'/, `${rel} dejó de activar fallback sólo después del intento remoto.`);
   mustNot(rel, /activity && activity\.source !== 'remote' \?/, `${rel} volvió a usar el origen de la caché hidratada como aviso offline inmediato.`);
 }
-must('src/app/client/practice-activity.tsx', /readClientResource<ProgramEnrollmentWithDetails\[\]>\(user\.id, clientReadKeys\.programs\)/, 'Racha dejó de hidratar el programa activo desde caché.');
+must('src/app/client/practice-activity.tsx', /readClientResource<ProgramEnrollmentWithDetails\[\]>\((?:user\.id|userId), clientReadKeys\.programs\)/, 'Racha dejó de hidratar el programa activo desde caché.');
 must('src/app/client/practice-activity.tsx', /cachedPrograms\.data\.find\(\(item\) => item\.enrollment\.status === 'active'\)/, 'Racha ya no puede conservar el programa activo sin conexión.');
-must('src/app/client/practice-activity.tsx', /writeClientResource\(user\.id, clientReadKeys\.programs, sanitizeProgramRowsForCache\(remotePrograms\)\)/, 'Racha dejó de actualizar la caché de programas después de una lectura remota correcta.');
+must('src/app/client/practice-activity.tsx', /writeClientResource\((?:user\.id|userId), clientReadKeys\.programs, sanitizeProgramRowsForCache\(remotePrograms\)\)/, 'Racha dejó de actualizar la caché de programas después de una lectura remota correcta.');
 
 // 6.2: el resumen de pagos puede mostrar una CLABE compacta, pero sólo desde una
 // lectura viva. Los datos bancarios nunca entran a la caché y se borran antes de verificar.
