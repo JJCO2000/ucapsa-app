@@ -2,7 +2,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as Clipboard from 'expo-clipboard';
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -12,6 +12,7 @@ import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useReturnToProfile } from '../../hooks/useReturnToProfile';
 import { useSession } from '../../hooks/useSession';
 import { useMemberAppearance } from '../../hooks/useMemberAppearance';
+import { devWarn } from '../../lib/client-diagnostics';
 import {
   clientReadKeys,
   createPaymentOfflineSummary,
@@ -23,6 +24,7 @@ import { getMyPaymentOverview, getPaymentSettings, isValidClabe, normalizeClabe 
 import type { MyPaymentOverview, PaymentObligationWithBalance, PaymentSettings } from '../../types/app.types';
 import { DEFAULT_READ_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
 import { money, obligationStatusLabel, paymentDateLabel } from '../../utils/paymentPresentation';
+import { showPlatformDialog } from '../../utils/staff-dialog';
 
 const emptyOverview: MyPaymentOverview = {
   obligations: [],
@@ -141,21 +143,31 @@ export default function PaymentsTab() {
   async function copyClabe() {
     const clabe = normalizeClabe(bankSettings?.clabe);
     if (!bankSettings?.is_active || !bankSettings.account_holder?.trim() || !isValidClabe(clabe)) {
-      Alert.alert('CLABE no verificada', 'Conéctate para consultar la CLABE vigente antes de transferir.');
+      showPlatformDialog('CLABE no verificada', 'Conéctate para consultar la CLABE vigente antes de transferir.');
       return;
     }
-    await Clipboard.setStringAsync(clabe);
-    Alert.alert('CLABE copiada', 'Verifica el titular en tu aplicación bancaria antes de confirmar la transferencia.');
+    try {
+      await Clipboard.setStringAsync(clabe);
+      showPlatformDialog('CLABE copiada', 'Verifica el titular en tu aplicación bancaria antes de confirmar la transferencia.');
+    } catch (cause) {
+      devWarn('payments: could not copy bank CLABE.', cause);
+      showPlatformDialog('No se pudo copiar', 'Selecciona la CLABE para copiarla manualmente.');
+    }
   }
 
   async function copyAccountHolder() {
     const holder = bankSettings?.account_holder?.replace(/\s+/g, ' ').trim() ?? '';
     if (!bankSettings?.is_active || !holder) {
-      Alert.alert('Titular no disponible', 'Conéctate para consultar el titular vigente antes de transferir.');
+      showPlatformDialog('Titular no disponible', 'Conéctate para consultar el titular vigente antes de transferir.');
       return;
     }
-    await Clipboard.setStringAsync(holder);
-    Alert.alert('Titular copiado', 'Pega el nombre completo del titular en tu aplicación bancaria.');
+    try {
+      await Clipboard.setStringAsync(holder);
+      showPlatformDialog('Titular copiado', 'Pega el nombre completo del titular en tu aplicación bancaria.');
+    } catch (cause) {
+      devWarn('payments: could not copy bank account holder.', cause);
+      showPlatformDialog('No se pudo copiar', 'Selecciona el nombre del titular para copiarlo manualmente.');
+    }
   }
 
   if (!user) return <Redirect href="/auth/login" />;
