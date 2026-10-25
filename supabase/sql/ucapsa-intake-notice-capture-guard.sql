@@ -58,6 +58,11 @@ begin
         or new.phone_e164 is distinct from old.phone_e164;
     end if;
 
+    if v_is_contact_change
+      and new.notice_delivery_recorded_at is not distinct from old.notice_delivery_recorded_at then
+      raise exception 'Al cambiar el contacto se requiere una nueva constancia de entrega del aviso.'
+        using errcode='23514';
+    end if;
     if not v_is_contact_change then
       if new.capture_notice_id is distinct from old.capture_notice_id
         or new.notice_delivery_method is distinct from old.notice_delivery_method
@@ -99,6 +104,11 @@ begin
       using errcode='23514';
   end if;
 
+  -- Reject client-created timestamps, even if the client has a valid session.
+  if TG_OP = 'INSERT' and new.notice_delivery_recorded_at is not null then
+    raise exception 'La fecha de constancia debe generarla el servidor.'
+      using errcode='23514';
+  end if;
   -- Only the server records the current receipt of the staff attestation.
   new.notice_delivery_recorded_at := pg_catalog.clock_timestamp();
   return new;
