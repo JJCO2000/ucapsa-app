@@ -2,6 +2,8 @@
 
 Este archivo documenta la declaración que debe mantenerse alineada con la versión de la app que se publique.
 
+**Comparación oficial de Android, iOS y web:** [Matriz multiplataforma de privacidad](./MATRIZ_PRIVACIDAD_IOS_ANDROID_WEB_2026-10-25.md). Los tipos de datos de esta página son una propuesta técnica, no respuestas confirmadas en App Store Connect ni aprobación de Apple.
+
 ## URL
 
 - **Privacy Policy URL:** https://jjco2000.github.io/ucapsa-app/privacidad/
