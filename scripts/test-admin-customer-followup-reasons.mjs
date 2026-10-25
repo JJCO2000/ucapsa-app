@@ -56,7 +56,7 @@ async function run() {
     const h=harness();const loading=h.load();
     h.calls[0].resolve([row('B','privateB',true),row('A','visibleA',true),row('A','visibleB',false,true)]);
     await loading;
-    assert.deepEqual(h.state.rows.map(x=>x.dogId),['visibleA','visibleB']);
+    assert.deepEqual(Array.from(h.state.rows, x=>x.dogId),['visibleA','visibleB']);
     assert.equal(h.state.forUser,'A');
     assert.equal(h.state.loading,false);
     assert.equal(h.state.error,null);
@@ -65,7 +65,7 @@ async function run() {
     const h=harness();const pending=h.load();
     h.activeUserIdRef.current='B';h.loadRunRef.current++;
     h.calls[0].resolve([row('A','oldA',true)]);await pending;
-    assert.deepEqual(h.state.rows,[]);
+    assert.equal(h.state.rows.length,0);
     assert.equal(h.state.forUser,null);
   }
   {
@@ -77,14 +77,14 @@ async function run() {
   {
     const h=harness();const pending=h.load();
     h.calls[0].reject(new Error('offline'));await pending;
-    assert.deepEqual(h.state.rows,[]);
+    assert.equal(h.state.rows.length,0);
     assert.equal(h.state.forUser,'A');
     assert.match(h.state.error,/No se pudo verificar/);
     assert.equal(h.state.loading,false);
   }
   {
     const h=harness();const pending=h.load();h.calls[0].resolve([]);await pending;
-    assert.deepEqual(h.state.rows,[]);
+    assert.equal(h.state.rows.length,0);
     assert.equal(h.state.error,null,'Zero flags means confirmed clear, not failed read');
     assert.equal(h.state.forUser,'A');
   }
