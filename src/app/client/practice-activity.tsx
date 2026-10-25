@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { PracticeHistoryRow } from '../../components/domain/PracticeHistoryRow';
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
@@ -18,6 +18,7 @@ import { DEFAULT_PRACTICE_TARGET_DAYS, getPracticeGoalProgress, getPracticeTarge
 import { getMyProgramEnrollments, getProgramEnrollmentDogName } from '../../services/programs.service';
 import type { PracticeDifficulty, ProgramEnrollmentWithDetails } from '../../types/app.types';
 import { DEFAULT_READ_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
+import { showPlatformDialog } from '../../utils/staff-dialog';
 
 function localPracticeDateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -189,6 +190,12 @@ export default function PracticeActivityScreen() {
       const next = await togglePracticeTargetDay(requestUserId, targetDays, day);
       if (activeUserIdRef.current !== requestUserId) return;
       setTargetDays(next);
+    } catch (cause) {
+      devWarn('practice-activity: could not save target days.', cause);
+      if (activeUserIdRef.current === user.id) {
+        showPlatformDialog('No pudimos actualizar tus días',
+          'La meta no se guardó en este dispositivo. Intenta nuevamente.');
+      }
     } finally {
       setSavingTarget(false);
     }
@@ -219,13 +226,13 @@ export default function PracticeActivityScreen() {
       setModalOpen(false);
       await load();
       if (activeUserIdRef.current !== user.id) return;
-      Alert.alert(
+      showPlatformDialog(
         result.syncStatus === 'synced' ? 'Práctica guardada' : 'Práctica guardada en el dispositivo',
         result.syncStatus === 'synced' ? 'Tu racha y actividad ya se actualizaron.' : 'Se sincronizará cuando vuelva la conexión.',
       );
     } catch (cause) {
       devWarn('practice-activity: could not save practice.', cause);
-      if (activeUserIdRef.current === user.id) Alert.alert('No pudimos guardar', 'La práctica no se registró. Intenta de nuevo.');
+      if (activeUserIdRef.current === user.id) showPlatformDialog('No pudimos guardar', 'La práctica no se registró. Intenta de nuevo.');
     } finally {
       setSaving(false);
     }
