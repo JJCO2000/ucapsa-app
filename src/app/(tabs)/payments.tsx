@@ -12,6 +12,7 @@ import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useReturnToProfile } from '../../hooks/useReturnToProfile';
 import { useSession } from '../../hooks/useSession';
 import { useMemberAppearance } from '../../hooks/useMemberAppearance';
+import { devWarn } from '../../lib/client-diagnostics';
 import {
   clientReadKeys,
   createPaymentOfflineSummary,
@@ -148,7 +149,8 @@ export default function PaymentsTab() {
     try {
       await Clipboard.setStringAsync(clabe);
       showPlatformDialog('CLABE copiada', 'Verifica el titular en tu aplicación bancaria antes de confirmar la transferencia.');
-    } catch {
+    } catch (cause) {
+      devWarn('payments: could not copy bank CLABE.', cause);
       showPlatformDialog('No se pudo copiar', 'Selecciona la CLABE para copiarla manualmente.');
     }
   }
@@ -162,7 +164,8 @@ export default function PaymentsTab() {
     try {
       await Clipboard.setStringAsync(holder);
       showPlatformDialog('Titular copiado', 'Pega el nombre completo del titular en tu aplicación bancaria.');
-    } catch {
+    } catch (cause) {
+      devWarn('payments: could not copy bank account holder.', cause);
       showPlatformDialog('No se pudo copiar', 'Selecciona el nombre del titular para copiarlo manualmente.');
     }
   }
