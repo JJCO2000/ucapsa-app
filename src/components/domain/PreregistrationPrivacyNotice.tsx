@@ -21,7 +21,8 @@ export function PreregistrationPrivacyNotice() {
         persona antes de capturar su contacto. Si agregas familiares, informa también a
         cada persona involucrada mediante el procedimiento de Administración. Registrar
         un contacto no demuestra su consentimiento ni autoriza a compartir cuentas,
-        fotografías o progreso.
+        fotografías o progreso. Si el aviso vigente no describe estos datos,
+        solicita revisión de Administración antes de capturarlos.
       </Text>
       <Pressable accessibilityRole="button" accessibilityLabel="Consultar aviso de privacidad vigente"
         style={styles.link} onPress={() => router.push('/privacy' as never)}>
