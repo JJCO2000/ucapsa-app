@@ -28,7 +28,7 @@ function check(source) {
     'and n.published_at is not null',
     'and (n.effective_from is null or n.effective_from <= pg_catalog.now())',
     'new.notice_delivery_recorded_at := pg_catalog.clock_timestamp()',
-    'new.notice_delivery_recorded_at is not distinct from old.notice_delivery_recorded_at',
+    'new.notice_delivery_recorded_at is not null then',
     'if tg_op =',
     'and new.notice_delivery_recorded_at is not null',
     'create trigger trg_capture_notice_people',
@@ -44,6 +44,9 @@ function check(source) {
     assert.doesNotMatch(statement,/notice_delivery_reported_by/i,
       'Do not block Auth FK ON DELETE SET NULL for notice reporters.');
   }
+  assert.ok(s.includes('new.notice_delivery_recorded_at := pg_catalog.clock_timestamp()'));
+  assert.ok(!s.includes('new.notice_delivery_recorded_at is not distinct from old.notice_delivery_recorded_at'),
+    'An UPDATE must clear its receipt so that only the trigger generates the new timestamp.');
   assert.doesNotMatch(source,/insert\s+into\s+ucapsa_intake\.approved_capture_notices/i,
     'The draft must not auto-approve unpublished/unreviewed versions.');
   assert.doesNotMatch(source,/\b(grant\s+(insert|all)\s+on\s+ucapsa_intake\.approved_capture_notices)/i,
