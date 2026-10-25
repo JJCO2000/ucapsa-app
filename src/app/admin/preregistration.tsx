@@ -6,6 +6,8 @@ import { ActivityIndicator, Alert, Platform, Pressable, RefreshControl, StyleShe
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { PreregistrationFamilyEditor } from '../../components/domain/PreregistrationFamilyEditor';
 import { PreregistrationPrivacyNotice } from '../../components/domain/PreregistrationPrivacyNotice';
+import { NoticeDeliverySelector } from '../../components/domain/NoticeDeliverySelector';
+import type { NoticeDeliveryMethod } from '../../constants/privacy-notice-delivery';
 import { getAdminPreregisteredFamily, addAdminPreregisteredFamily,
   type FamilyMemberInput, type FamilyMemberSaved } from '../../services/preregistration-family.service';
 import { ucapsaBrand } from '../../constants/brand';
@@ -51,6 +53,7 @@ export default function AdminPreregistrationDetailScreen() {
   const [newEmail, setNewEmail] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [savingContact, setSavingContact] = useState(false);
+  const [contactNoticeMethod, setContactNoticeMethod] = useState<NoticeDeliveryMethod | null>(null);
   const [feedback, setFeedback] = useState<{ kind: 'success' | 'error'; title: string; message: string } | null>(null);
 
   function showFeedback(title: string, message: string, kind: 'success' | 'error' = 'error') {
@@ -127,14 +130,16 @@ export default function AdminPreregistrationDetailScreen() {
       }
     }
     try {
+      if (!contactNoticeMethod) throw new Error('Confirma cómo se entregó el aviso al titular.');
       setSavingContact(true);
-      await adminCompletePreregistrationContact(record.personId, { email, phone });
+      await adminCompletePreregistrationContact(record.personId, { email, phone }, contactNoticeMethod);
       if (activeRecordIdRef.current !== recordId) return;
       await load();
       if (activeRecordIdRef.current !== recordId) return;
       setEditingContact(false);
       setNewEmail('');
       setNewPhone('');
+      setContactNoticeMethod(null);
       showFeedback('Contacto completado', 'El expediente ya tiene el nuevo dato. La vinculación se evaluará al revisar la cuenta.', 'success');
     } catch (cause) {
       if (activeRecordIdRef.current !== recordId) return;
@@ -286,6 +291,9 @@ export default function AdminPreregistrationDetailScreen() {
                         placeholderTextColor={ucapsaBrand.colors.muted} />
                     </>
                   ) : null}
+                  <NoticeDeliverySelector value={contactNoticeMethod}
+                    onChange={setContactNoticeMethod} disabled={savingContact}
+                    label="Entrega del aviso al titular al completar su contacto" />
                   <Pressable accessibilityRole="button" style={styles.primary}
                     disabled={savingContact} onPress={() => { void saveMissingContact(); }}>
                     {savingContact ? <ActivityIndicator color={ucapsaBrand.colors.surface} /> :
@@ -293,7 +301,7 @@ export default function AdminPreregistrationDetailScreen() {
                   </Pressable>
                   <Pressable accessibilityRole="button" style={styles.cancel}
                     disabled={savingContact} onPress={() => {
-                      setEditingContact(false); setNewEmail(''); setNewPhone('');
+                      setEditingContact(false); setNewEmail(''); setNewPhone(''); setContactNoticeMethod(null);
                     }}>
                     <Text style={styles.secondaryText}>Cancelar</Text>
                   </Pressable>
