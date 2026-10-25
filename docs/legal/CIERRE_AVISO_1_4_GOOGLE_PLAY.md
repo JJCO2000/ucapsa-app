@@ -38,6 +38,26 @@
 5. Verificar en navegador sin iniciar sesión el texto HTML de la política en `https://jjco2000.github.io/ucapsa-app/privacidad/` y la eliminación en `https://jjco2000.github.io/ucapsa-app/eliminar-cuenta/`. El CI verifica la compilación del sitio; **eso no equivale** por sí solo a una prueba externa HTTP 200. Registrar capturas/URLs finales.
 6. Una vez alineado el aviso, comprobar `docs/legal/GOOGLE_PLAY_DATA_SAFETY.md`, App content en Play Console, declaración de acceso y eliminación de cuenta. No enviar hasta que coincidan con la AAB exacta.
 
+### Paquete verificable para el editor Superadmin (no publica ni modifica Supabase)
+
+Desde el código vigente, antes de aprobar 1.4:
+
+```bash
+npm run check:privacy-1-4-packet
+```
+
+Este control extrae **solo** el aviso simplificado y los **18 apartados** integrales del borrador y revisa los 13 campos legales obligatorios. No incluye el anexo interno, no introduce servicios de correo o SMS y no crea ni actualiza registros de Supabase.
+
+**Después** de que la persona responsable apruebe por escrito el texto completo y su fecha efectiva, preparar un JSON de revisión —con fecha real, sin inventarla—:
+
+```bash
+node scripts/prepare-privacy-notice-1-4.mjs --json --effective-date=AAAA-MM-DD > /tmp/ucapsa-aviso-1-4-para-superadmin.json
+```
+
+Sustituye `AAAA-MM-DD` por la fecha efectiva aprobada. El archivo contiene `fields_for_superadmin`, con nombres camelCase tal como los acepta `savePrivacyNoticeDraft`; es un **paquete para copiar y revisar**, no un endpoint ni una migración. En el editor de Superadmin captura los campos, **guarda en borrador**, compara cada valor en pantalla y **publica únicamente con aprobación**. No uses este JSON como si fuera evidencia de publicación.
+
+La fecha insertada en el apartado 16 y el identificador de versión deben cotejarse con la aprobación firmada. Verificar especialmente el aviso simplificado, el domicilio y contacto ARCO y el flujo presencial de datos de terceros.
+
 ### Correspondencia de campos en el editor Superadmin
 
 Para evitar divergencias, los campos de `public.privacy_notices` deben salir de la **misma versión aprobada del borrador**. No copiar el anexo de control interno al aviso integral.
