@@ -6,6 +6,8 @@
 
 Este archivo documenta la declaración que debe capturarse en **Play Console → App content → Data safety**. Debe mantenerse alineada con el binario que se publique y con el Aviso de Privacidad.
 
+**Comparación oficial de Android, iOS y web:** [Matriz multiplataforma de privacidad](./MATRIZ_PRIVACIDAD_IOS_ANDROID_WEB_2026-10-25.md). No equivale a un formulario Data Safety aprobado ni a una publicación legal.
+
 **Aviso público (HTML):** https://jjco2000.github.io/ucapsa-app/privacidad/  
 **Nota de control:** el texto publicado en Supabase y el documento web deben corresponder a la misma versión aprobada antes de completar Play Console. No declarar listo este formulario mientras continúe la divergencia 1.2/1.3.
 
