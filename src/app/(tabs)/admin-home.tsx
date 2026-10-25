@@ -209,7 +209,9 @@ export default function AdminHomeTab() {
         pendingRequests: memberships.filter((item) => item.membership.status === 'pending').length,
         paymentAttention: paymentAttentionRows.length,
         trainingDecisions: trainingDecisions.length,
-        clientFollowups: clientFollowups.length,
+        // One customer may have several dogs; this card counts PEOPLE.
+        // The detailed follow-up list retains one row per dog from the same RPC.
+        clientFollowups: new Set(clientFollowups.map((row) => row.userId)).size,
         programInterests: programInterests?.length ?? 0,
       });
 
