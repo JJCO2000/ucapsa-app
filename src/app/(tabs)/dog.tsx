@@ -82,39 +82,55 @@ export default function DogTab() {
   const fromProfile = (Array.isArray(from) ? from[0] : from) === 'profile';
   const backToProfile = useReturnToProfile(fromProfile);
   const { user, role, isAdmin } = useSession();
-  const [dogs, setDogs] = useState<BasicDog[]>([]);
-  const [rows, setRows] = useState<ProgramEnrollmentWithDetails[]>([]);
-  const [practiceSnapshot, setPracticeSnapshot] = useState<PracticeActivitySnapshot | null>(null);
-  const [dogAchievements, setDogAchievements] = useState<AchievementWithState[]>([]);
-  const [photoUrls, setPhotoUrls] = useState<Record<string, string | null>>({});
+  const [storedDogs, setDogs] = useState<BasicDog[]>([]);
+  const [loadedForUserId, setLoadedForUserId] = useState<string | null>(null);
+  const [storedRows, setRows] = useState<ProgramEnrollmentWithDetails[]>([]);
+  const [storedPracticeSnapshot, setPracticeSnapshot] = useState<PracticeActivitySnapshot | null>(null);
+  const [storedDogAchievements, setDogAchievements] = useState<AchievementWithState[]>([]);
+  const [storedPhotoUrls, setPhotoUrls] = useState<Record<string, string | null>>({});
   const [selectedDogId, setSelectedDogId] = useState<string | null>(null);
   const [editorMode, setEditorMode] = useState<EditorMode>(null);
   const [draftName, setDraftName] = useState('');
   const [saving, setSaving] = useState(false);
-  const [localReady, setLocalReady] = useState(false);
+  const [storedLocalReady, setLocalReady] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [usingSavedData, setUsingSavedData] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [programWarning, setProgramWarning] = useState(false);
   const [offlineEmpty, setOfflineEmpty] = useState(false);
   const cacheScopeRef = useRef<string | null>(null);
+  const activeUserIdRef = useRef(user?.id ?? null);
+  activeUserIdRef.current = user?.id ?? null;
+  // Rendering must never wait for useFocusEffect to clear another account's data.
+  const scopeReady = Boolean(user?.id) && !isAdmin && loadedForUserId === user?.id;
+  const dogs = scopeReady ? storedDogs : [];
+  const rows = scopeReady ? storedRows : [];
+  const practiceSnapshot = scopeReady ? storedPracticeSnapshot : null;
+  const dogAchievements = scopeReady ? storedDogAchievements : [];
+  const photoUrls = scopeReady ? storedPhotoUrls : {};
+  const localReady = scopeReady && storedLocalReady;
   const loadRunRef = useRef(0);
   const lastRequestedDogIdRef = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     const runId = loadRunRef.current + 1;
     loadRunRef.current = runId;
-    const isCurrentRun = () => loadRunRef.current === runId;
+    const isCurrentRun = () => loadRunRef.current === runId
+      && activeUserIdRef.current === (user?.id ?? null)
+      && cacheScopeRef.current === (user?.id ?? (isAdmin ? 'admin' : 'public'));
     const scope = user?.id ?? (isAdmin ? 'admin' : 'public');
 
     if (cacheScopeRef.current !== scope) {
       cacheScopeRef.current = scope;
       setDogs([]);
+      setLoadedForUserId(null);
       setRows([]);
       setPracticeSnapshot(null);
       setDogAchievements([]);
       setPhotoUrls({});
       setSelectedDogId(null);
+      setEditorMode(null);
+      setDraftName('');
       setLocalReady(false);
       setUsingSavedData(false);
       setSavedAt(null);
@@ -149,6 +165,7 @@ export default function DogTab() {
       if (current && nextDogs.some((dog) => dog.id === current)) return current;
       return nextDogs[0]?.id ?? null;
     });
+    setLoadedForUserId(user.id);
     setLocalReady(true);
 
     const [dogResult, programResult, practiceResult] = await Promise.allSettled([
@@ -324,6 +341,7 @@ export default function DogTab() {
 
 
   function openCreate() {
+    if (!scopeReady) return;
     setDraftName('');
     setEditorMode('create');
   }
@@ -338,7 +356,7 @@ export default function DogTab() {
 
   async function saveDog() {
     const userId = user?.id;
-    if (!userId) {
+    if (!userId || !scopeReady || activeUserIdRef.current !== userId) {
       Alert.alert('Sesión requerida', 'Vuelve a iniciar sesión para guardar cambios.');
       return;
     }
@@ -353,17 +371,20 @@ export default function DogTab() {
     try {
       // Crear un perro no usa timeout artificial: una petición tardía podría completar después y duplicarse al reintentar.
       const created = await createMyDog(name);
+      if (activeUserIdRef.current !== userId || cacheScopeRef.current !== userId) return;
       const nextDogs = [...dogs.filter((dog) => dog.id !== created.id), created];
 
       // La escritura ya fue confirmada. Actualiza primero la vista y la caché local;
       // si la lectura posterior falla, el usuario no debe ver desaparecer el cambio.
       setDogs(nextDogs);
       await writeClientResource(userId, clientReadKeys.dogs, nextDogs);
+      if (activeUserIdRef.current !== userId || cacheScopeRef.current !== userId) return;
       setEditorMode(null);
       setDraftName('');
       setSelectedDogId(created.id);
       void load();
     } catch (cause) {
+      if (activeUserIdRef.current !== userId || cacheScopeRef.current !== userId) return;
       Alert.alert('No se pudo guardar', friendlyWriteError(cause, 'Conéctate a internet y vuelve a intentar.'));
     } finally {
       setSaving(false);
