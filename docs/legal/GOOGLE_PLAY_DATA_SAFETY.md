@@ -6,6 +6,9 @@
 
 Este archivo documenta la declaración que debe capturarse en **Play Console → App content → Data safety**. Debe mantenerse alineada con el binario que se publique y con el Aviso de Privacidad.
 
+**Aviso público (HTML):** https://jjco2000.github.io/ucapsa-app/privacidad/  
+**Nota de control:** el texto publicado en Supabase y el documento web deben corresponder a la misma versión aprobada antes de completar Play Console. No declarar listo este formulario mientras continúe la divergencia 1.2/1.3.
+
 ## Respuestas generales
 
 - **¿La app recopila o comparte datos de usuario?** Sí.
