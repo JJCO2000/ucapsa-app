@@ -19,7 +19,7 @@ for (const file of scripts) {
     file+' must display notice at the place where contacts are captured');
 }
 for (const text of [
-  'Antes de registrar',
+  'Privacidad antes de registrar',
   'facilita el aviso',
   'cada persona involucrada',
   'no demuestra su consentimiento',
