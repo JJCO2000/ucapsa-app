@@ -2,7 +2,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ucapsaBrand } from '../../constants/brand';
 
-export type NoticeDeliveryMethod = 'presencial' | 'correo_entregado' | 'otro_documentado';
+import type { NoticeDeliveryMethod } from '../../constants/privacy-notice-delivery';
 
 const choices: { value: NoticeDeliveryMethod; title: string }[] = [
   { value: 'presencial', title: 'Entregué o mostré el aviso en persona' },
