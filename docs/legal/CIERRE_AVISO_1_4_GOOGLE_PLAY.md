@@ -10,7 +10,7 @@
 | GitHub Pages: `docs/legal/AVISO_PRIVACIDAD_UCAPSA_APP.md` | `1.3 App Stores` | Documento público del sitio; **no coincide** con Supabase |
 | `docs/legal/BORRADOR_AVISO_PRIVACIDAD_UCAPSA_APP_1_4_NO_VIGENTE.md` | `1.4 App Stores — BORRADOR` | Contiene las nuevas finalidades operativas; **no está publicado** |
 
-**Bloqueo de lanzamiento:** no enviar un AAB a Play Store mientras lo que acepta la cuenta en Supabase y lo que publica la URL pública describan versiones o finalidades diferentes.
+**Bloqueo de lanzamiento:** no enviar un AAB a Play Store mientras lo que acepta la cuenta en Supabase y lo que publica la URL pública describan versiones o finalidades diferentes. La mera coincidencia del número de versión tampoco constituye aprobación legal.
 
 ## 2. Alcance comprobado para el próximo aviso
 
@@ -56,9 +56,25 @@ Para evitar divergencias, los campos de `public.privacy_notices` deben salir de 
 | `simplified_notice` | Únicamente texto bajo `## Aviso simplificado` |
 | `integral_notice` | Únicamente apartados 1–18 bajo `## Aviso integral`, **sin anexo interno** |
 
-**Comprobación legal adicional:** el simplificado debe indicar opciones reales para limitar el uso o divulgación, además de responsable, datos, finalidades y acceso al integral, conforme a los artículos 15 y 16 de la LFPDPPP. La captura presencial debe facilitar el aviso en el momento correspondiente y los datos de familiares recibidos de terceros requieren revisar el artículo 17. Las finalidades que involucren información patrimonial/financiera deben ser evaluadas expresamente bajo los artículos 7 y 9; no presumir consentimiento por guardar un historial administrativo.
+**Comprobación legal adicional:** el simplificado debe indicar opciones reales para limitar el uso o divulgación, además de responsable, datos, finalidades y acceso al integral, conforme a los artículos 15 y 16 de la **LFPDPPP para particulares** (texto consolidado vigente). La captura presencial debe facilitar el aviso en el momento correspondiente y los datos de familiares recibidos de terceros requieren revisar el artículo 17. Las finalidades que involucren información patrimonial/financiera deben ser evaluadas expresamente bajo los artículos 7 y 9; no presumir consentimiento por guardar un historial administrativo.
 
 **Comprobación de Play:** el requisito de `targetSdkVersion 36` aplica a los nuevos envíos móviles desde 31-agosto-2026; revisar el AAB real, no solo `app.json`. Según el tipo y fecha de la cuenta personal Play, pueden exigirse 12 testers durante 14 días consecutivos antes de solicitar producción. Ver `GOOGLE_PLAY_SUBMISSION.md`. La firma, subir el AAB y su aprobación son tareas posteriores, no consecuencias de fusionar código.
+
+### Comprobación técnica de la versión REAL antes de Play Console
+
+Desde el repositorio actualizado y con Node.js 22:
+
+```bash
+npm ci
+npm run test:play-privacy-preflight
+npm run check:play-privacy-live
+```
+
+El último comando consulta **sin escribir** la única fila `published` de Supabase mediante su clave **pública** configurada en `EXPO_PUBLIC_SUPABASE_URL` y `EXPO_PUBLIC_SUPABASE_ANON_KEY`; también consulta en HTTP(S) la **página HTML pública real** indicada en `src/constants/legal.ts`. Nunca proporcionar `service_role` ni claves secretas. Si faltan variables, no hay respuesta, la URL no sirve HTML con una versión comprobable, las versiones divergen o los textos omiten menciones mínimas al alcance de preinscripciones/familiares, **falla y bloquea el envío**. El test de CI utiliza solo respuestas simuladas: no afirma que una URL externa esté disponible.
+
+**Resultado esperado con el estado actual:** **fallo** por `1.2` en Supabase frente a `1.3` en la página web; el borrador `1.4` permanece sin aprobar. Si falla por conexión o autenticación también es bloqueo, no evidencia de concordancia. Tras aprobación y publicación coordinada, repetir comprobación y conservar la salida, la versión exacta, la fecha, el commit y las capturas del navegador.
+
+La comprobación valida **correspondencia de versión y presencia de categorías mínimas**, NO la suficiencia jurídica del texto, consentimientos, ni que el AAB de Google Play implemente exactamente las finalidades descritas. La revisión humana y el AAB real siguen siendo controles independientes.
 
 ## 5. Reversión y evidencia
 
@@ -66,7 +82,8 @@ Si la publicación falla antes de entrar en vigor, **no** promocionar el nuevo a
 
 ## 6. Fuentes de contraste (oficiales)
 
-- LFPDPPP, nueva ley publicada DOF 20-03-2025: https://sidof.segob.gob.mx/notas/docFuente/5752569
+- LFPDPPP para particulares, texto vigente de la Cámara de Diputados, **última reforma DOF 14-11-2025** (artículos 7, 9, 15, 16 y 17): https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPDPPP.pdf
+- Expedición original DOF 20-03-2025 (histórico): https://sidof.segob.gob.mx/notas/docFuente/5752569
 - Google Play, User Data: https://support.google.com/googleplay/android-developer/answer/10144311
 - Google Play, Account deletion: https://support.google.com/googleplay/android-developer/answer/13327111
 - Google Play, App content and review: https://support.google.com/googleplay/android-developer/answer/9859455
