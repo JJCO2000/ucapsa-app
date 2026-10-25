@@ -38,6 +38,28 @@
 5. Verificar en navegador sin iniciar sesión el texto HTML de la política en `https://jjco2000.github.io/ucapsa-app/privacidad/` y la eliminación en `https://jjco2000.github.io/ucapsa-app/eliminar-cuenta/`. El CI verifica la compilación del sitio; **eso no equivale** por sí solo a una prueba externa HTTP 200. Registrar capturas/URLs finales.
 6. Una vez alineado el aviso, comprobar `docs/legal/GOOGLE_PLAY_DATA_SAFETY.md`, App content en Play Console, declaración de acceso y eliminación de cuenta. No enviar hasta que coincidan con la AAB exacta.
 
+### Correspondencia de campos en el editor Superadmin
+
+Para evitar divergencias, los campos de `public.privacy_notices` deben salir de la **misma versión aprobada del borrador**. No copiar el anexo de control interno al aviso integral.
+
+| Campo del editor | Apartado del borrador propuesto |
+| --- | --- |
+| `responsible_name`, `responsible_address`, `contact_email` | Cabecera y apartados 1, 11 |
+| `data_categories` | Apartado 3 |
+| `sensitive_data_categories` | Apartado 4 |
+| `purposes` | Apartado 5 |
+| `consent_required_purposes` | Apartado 6, sujeto a revisión jurídica |
+| `limitation_mechanisms` | Apartado 12 |
+| `arco_procedure` | Apartado 11 |
+| `change_notice_method` | Apartado 15 |
+| `transfer_clause` | Apartados 9 y 13 |
+| `simplified_notice` | Únicamente texto bajo `## Aviso simplificado` |
+| `integral_notice` | Únicamente apartados 1–18 bajo `## Aviso integral`, **sin anexo interno** |
+
+**Comprobación legal adicional:** el simplificado debe indicar opciones reales para limitar el uso o divulgación, además de responsable, datos, finalidades y acceso al integral, conforme a los artículos 15 y 16 de la LFPDPPP. La captura presencial debe facilitar el aviso en el momento correspondiente y los datos de familiares recibidos de terceros requieren revisar el artículo 17. Las finalidades que involucren información patrimonial/financiera deben ser evaluadas expresamente bajo los artículos 7 y 9; no presumir consentimiento por guardar un historial administrativo.
+
+**Comprobación de Play:** el requisito de `targetSdkVersion 36` aplica a los nuevos envíos móviles desde 31-agosto-2026; revisar el AAB real, no solo `app.json`. Según el tipo y fecha de la cuenta personal Play, pueden exigirse 12 testers durante 14 días consecutivos antes de solicitar producción. Ver `GOOGLE_PLAY_SUBMISSION.md`. La firma, subir el AAB y su aprobación son tareas posteriores, no consecuencias de fusionar código.
+
 ## 5. Reversión y evidencia
 
 Si la publicación falla antes de entrar en vigor, **no** promocionar el nuevo aviso como vigente, mantener cerrada cualquier finalidad nueva y restaurar coherencia entre sitio y Supabase por el procedimiento administrativo auditado. No borrar historiales de aceptación o fingir consentimiento previo. Archivar commit, versión de aviso, fecha de aprobación, consulta de versión publicada, URLs externas y resultado de pruebas con cuentas de revisión.

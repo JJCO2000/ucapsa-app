@@ -5,7 +5,7 @@
 
 ## Política y privacidad
 
-**Secuencia de aprobación y reconciliación:** [Aviso 1.4 → Google Play](./SECUENCIA_PUBLICACION_AVISO_1_4_Y_GOOGLE_PLAY.md). Este documento distingue preparación técnica de aprobación jurídica y publicación efectiva.
+**Secuencia de aprobación y reconciliación:** [Aviso 1.4 → Google Play](./CIERRE_AVISO_1_4_GOOGLE_PLAY.md). Este documento distingue preparación técnica de aprobación jurídica y publicación efectiva.
 
 
 **Estado de publicación legal por comprobar antes de enviar un AAB:** el aviso **publicado en Supabase** es `1.2-appstores-2026-09-27`, el **documento público** muestra `1.3 App Stores` y el borrador 1.4 incluye propuestas para preinscripciones y familiares sin cuenta. Estos estados no están alineados. La actualización del borrador **no** publica otro aviso ni sustituye la validación jurídica. Coordinar Superadmin (publicación en Supabase), página legal pública y declaraciones en Play Console antes del lanzamiento.
