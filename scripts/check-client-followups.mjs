@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import vm from 'node:vm';
 
 const sql = fs.readFileSync('supabase/sql/ucapsa-client-followups.sql', 'utf8');
 const service = fs.readFileSync('src/services/admin-client-followups.service.ts', 'utf8');
@@ -61,7 +62,7 @@ const syntheticDogRows = [
   { userId: 'client-a', dogId: 'dog-2' },
   { userId: 'client-b', dogId: 'dog-3' },
 ];
-const actualCount = Function('clientFollowups', 'return ' + countExpression)(syntheticDogRows);
+const actualCount = vm.runInNewContext(countExpression, { clientFollowups: syntheticDogRows, Set });
 if (actualCount !== 2) throw new Error('Follow-up badge inflated the count for multi-dog customers.');
 
 console.log('UCAPSA admin client follow-ups: PASS');
