@@ -58,9 +58,12 @@ begin
         or new.phone_e164 is distinct from old.phone_e164;
     end if;
 
+    -- Require the caller RPC to clear the previous receipt when a contact is
+    -- changed. The trigger, not the client, will generate the new timestamp.
+    -- Staff must explicitly attest again, even if the notice version is same.
     if v_is_contact_change
-      and new.notice_delivery_recorded_at is not distinct from old.notice_delivery_recorded_at then
-      raise exception 'Al cambiar el contacto se requiere una nueva constancia de entrega del aviso.'
+      and new.notice_delivery_recorded_at is not null then
+      raise exception 'Para modificar el contacto, renueva la constancia sin reutilizar la fecha anterior.'
         using errcode='23514';
     end if;
     if not v_is_contact_change then
