@@ -42,6 +42,7 @@ for (const token of [
 ]) assert.ok(screen.includes(token), 'Superadmin UI no longer guards completion: '+token);
 assert.equal(packageJson.scripts['check:account-deletion-verified-completion'],
   'node scripts/check-account-deletion-verified-completion.mjs');
-assert.ok(packageJson.scripts['verify:release'].includes('npm run check:account-deletion-verified-completion &&'),
-  'New completion guard must run in release verification.');
+assert.ok(packageJson.scripts.verify.includes('npm run check:account-deletion-verified-completion &&')
+  && packageJson.scripts['verify:release'].includes('npm run verify'),
+  'New completion guard must run via verify and verify:release.');
 console.log('UCAPSA deletion completion verification gate PASS (static source checks, no live Auth deletion)');
