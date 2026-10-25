@@ -82,7 +82,7 @@ export async function addAdminPreregisteredFamily(intakeProgramId: string, membe
     (name: 'admin_add_preregistered_family_with_notice',
       args: { p_intake_program_id: string; p_family_members: ReturnType<typeof prepareFamilyNoticeDeliveries> })
       => PromiseLike<RpcResult>;
-  const { data, error } = await rpc('admin_add_preregistered_family_members', {
+  const { data, error } = await rpc('admin_add_preregistered_family_with_notice', {
     p_intake_program_id: intakeProgramId,
     p_family_members: normalized,
   });
