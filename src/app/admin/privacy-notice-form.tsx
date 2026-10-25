@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
+import { privacyNotice14Candidate } from '../../constants/privacy-notice-1-4.generated';
 import { useSession } from '../../hooks/useSession';
 import { devWarn } from '../../lib/client-diagnostics';
 import { showPlatformDialog } from '../../utils/staff-dialog';
@@ -16,6 +17,14 @@ import {
 } from '../../services/privacy-notice.service';
 
 type DraftForm = Omit<PrivacyNoticeDraftInput, 'id' | 'effectiveFrom'>;
+
+const DRAFT_LEGAL_CAVEAT = 'Borrador de versión 1.4 App Stores. Pendiente de aprobación, publicación y fecha de entrada en vigor.';
+function validEffectiveDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(value + 'T00:00:00Z');
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
 
 type FieldKey = Exclude<keyof DraftForm, 'version'>;
 
@@ -80,6 +89,7 @@ export default function PrivacyNoticeFormScreen() {
   const id = typeof params.id === 'string' ? params.id : null;
 
   const [form, setForm] = useState<DraftForm>(() => emptyForm());
+  const [effectiveDate, setEffectiveDate] = useState('');
   const [status, setStatus] = useState<string>('draft');
   const [loading, setLoading] = useState(Boolean(id));
   const [saving, setSaving] = useState(false);
@@ -98,6 +108,7 @@ export default function PrivacyNoticeFormScreen() {
           return;
         }
         setForm(fromNotice(row));
+        setEffectiveDate(row.effective_from ? row.effective_from.slice(0, 10) : '');
         setStatus(row.status);
         setCurrentId(row.id);
       })
@@ -118,21 +129,42 @@ export default function PrivacyNoticeFormScreen() {
   const missing = useMemo(() => {
     const result: string[] = [];
     if (!form.version.trim()) result.push('Versión');
+    if (!validEffectiveDate(effectiveDate)) result.push('Fecha de vigencia');
     for (const spec of fieldSpecs) {
       if (!form[spec.key].trim()) result.push(spec.label);
     }
     return result;
-  }, [form]);
+  }, [form, effectiveDate]);
 
   if (!isSuperAdmin) return <Redirect href="/admin/tools-administration" />;
 
   const immutable = status === 'published' || status === 'retired';
+
+  function loadReviewedCandidate() {
+    if (currentId || !validEffectiveDate(effectiveDate)) {
+      showPlatformDialog('Fecha requerida', 'Primero escribe la fecha de vigencia real de la versión 1.4. No se puede inventar ni publicar sin revisión.');
+      return;
+    }
+    setForm({
+      ...privacyNotice14Candidate,
+      version: `1.4-appstores-${effectiveDate}`,
+      integralNotice: privacyNotice14Candidate.integralNotice.replace(
+        DRAFT_LEGAL_CAVEAT,
+        `Versión 1.4 App Stores. Entrada en vigor: ${effectiveDate}.`,
+      ),
+    });
+    showPlatformDialog('Propuesta cargada', 'Revisa íntegramente los textos y datos del responsable antes de guardar o publicar. No se ha enviado nada a Supabase.');
+  }
 
   function update(key: keyof DraftForm, value: string) {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
   async function save() {
+    if (!validEffectiveDate(effectiveDate)) {
+      showPlatformDialog('Fecha de vigencia inválida', 'Escribe una fecha real en formato AAAA-MM-DD.');
+      return null;
+    }
     if (!form.version.trim()) {
       showPlatformDialog('Falta versión', 'Asigna un identificador claro a esta versión.');
       return null;
@@ -143,7 +175,8 @@ export default function PrivacyNoticeFormScreen() {
       const saved = await savePrivacyNoticeDraft({
         id: currentId,
         ...form,
-        effectiveFrom: null,
+        // Operational timezone for UCAPSA in Mexico City, no daylight-saving time.
+        effectiveFrom: `${effectiveDate}T00:00:00-06:00`,
       });
       setCurrentId(saved.id);
       setStatus(saved.status);
@@ -164,12 +197,15 @@ export default function PrivacyNoticeFormScreen() {
       return;
     }
 
-    let targetId = currentId;
-    if (!targetId) {
-      const saved = await save();
-      targetId = saved?.id ?? null;
-      if (!targetId) return;
+    if (form.integralNotice.includes(DRAFT_LEGAL_CAVEAT)) {
+      showPlatformDialog('Texto aún provisional', 'Carga la propuesta completa con una fecha válida, revisa y elimina las referencias a borrador antes de publicarla.');
+      return;
     }
+    // Persist latest edits before approval; never publish a previously saved,
+    // outdated version while displaying unsaved text in the form.
+    const saved = await save();
+    const targetId = saved?.id ?? null;
+    if (!targetId) return;
 
     showPlatformDialog(
       'Publicar aviso',
@@ -227,6 +263,19 @@ export default function PrivacyNoticeFormScreen() {
                 : `${missing.length} campo(s) obligatorio(s) pendiente(s). No se podrá publicar.`}
             </Text>
           </View>
+
+          {!currentId ? (
+            <Pressable accessibilityRole="button" disabled={saving}
+              style={styles.secondary} onPress={loadReviewedCandidate}>
+              <Text style={styles.secondaryText}>Cargar propuesta 1.4 para revisión</Text>
+            </Pressable>
+          ) : null}
+
+          <Text style={styles.label}>Fecha de vigencia (AAAA-MM-DD)</Text>
+          <Text style={styles.hint}>Fecha autorizada por UCAPSA. Se guarda también en Supabase; no se publica hasta que lo confirmes.</Text>
+          <TextInput value={effectiveDate} onChangeText={setEffectiveDate}
+            placeholder="AAAA-MM-DD" editable={!immutable} autoCapitalize="none"
+            style={[styles.input, immutable && styles.readonly]} />
 
           <Text style={styles.label}>Versión</Text>
           <TextInput
