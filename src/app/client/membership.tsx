@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { MemberCredentialCard } from '../../components/domain/MemberCredentialCard';
@@ -33,23 +33,51 @@ export default function ClientMembershipScreen() {
   const fromProfile = (Array.isArray(from) ? from[0] : from) === 'profile';
   const backToProfile = useReturnToProfile(fromProfile);
   const { user, profile, role, isAdmin, refreshProfile } = useSession();
-  const [membership, setMembership] = useState<Membership | null>(null);
-  const [programs, setPrograms] = useState<ProgramEnrollmentWithDetails[]>([]);
-  const [cachedMembership, setCachedMembership] = useState<MembershipOfflineSummary | null>(null);
-  const [loading, setLoading] = useState(true);
+  const userId = user?.id ?? '';
+  const activeUserIdRef = useRef(userId);
+  activeUserIdRef.current = userId;
+  const loadRunRef = useRef(0);
+  const [loadedForUserId, setLoadedForUserId] = useState<string | null>(null);
+  const [storedMembership, setMembership] = useState<Membership | null>(null);
+  const [storedPrograms, setPrograms] = useState<ProgramEnrollmentWithDetails[]>([]);
+  const [storedCachedMembership, setCachedMembership] = useState<MembershipOfflineSummary | null>(null);
+  const [stateLoading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [usingSavedData, setUsingSavedData] = useState(false);
-  const [savedAt, setSavedAt] = useState<string | null>(null);
-  const [membershipDataAvailable, setMembershipDataAvailable] = useState(false);
-  const [membershipFresh, setMembershipFresh] = useState(false);
-  const [eligibility, setEligibility] = useState<MembershipEligibility | null>(null);
-  const [eligibilityFresh, setEligibilityFresh] = useState(false);
-  const [eligibilityChecking, setEligibilityChecking] = useState(true);
+  const [storedError, setError] = useState<string | null>(null);
+  const [storedUsingSavedData, setUsingSavedData] = useState(false);
+  const [storedSavedAt, setSavedAt] = useState<string | null>(null);
+  const [storedMembershipDataAvailable, setMembershipDataAvailable] = useState(false);
+  const [storedMembershipFresh, setMembershipFresh] = useState(false);
+  const [storedEligibility, setEligibility] = useState<MembershipEligibility | null>(null);
+  const [storedEligibilityFresh, setEligibilityFresh] = useState(false);
+  const [storedEligibilityChecking, setEligibilityChecking] = useState(true);
+
+  // The previous account's data must never be painted on the first render
+  // after switching sessions, even before focus effects have run.
+  const currentAccount = Boolean(userId && loadedForUserId === userId);
+  const membership = currentAccount ? storedMembership : null;
+  const programs = currentAccount ? storedPrograms : [];
+  const cachedMembership = currentAccount ? storedCachedMembership : null;
+  const membershipDataAvailable = currentAccount && storedMembershipDataAvailable;
+  const membershipFresh = currentAccount && storedMembershipFresh;
+  const eligibility = currentAccount ? storedEligibility : null;
+  const eligibilityFresh = currentAccount && storedEligibilityFresh;
+  const eligibilityChecking = currentAccount || !userId ? storedEligibilityChecking : true;
+  const loading = !currentAccount || stateLoading;
+  const error = currentAccount ? storedError : null;
+  const usingSavedData = currentAccount && storedUsingSavedData;
+  const savedAt = currentAccount ? storedSavedAt : null;
 
   const load = useCallback(async () => {
-    if (!user || isAdmin) return;
+    const runId = ++loadRunRef.current;
+    const isCurrentRun = () => loadRunRef.current === runId && activeUserIdRef.current === userId;
+    if (!userId || isAdmin) return;
+
+    setMembership(null);
+    setPrograms([]);
+    setCachedMembership(null);
+    setSavedAt(null);
     setError(null);
     setUsingSavedData(false);
     setMembershipDataAvailable(false);
@@ -57,11 +85,22 @@ export default function ClientMembershipScreen() {
     setEligibility(null);
     setEligibilityFresh(false);
     setEligibilityChecking(true);
+    setLoading(true);
+    setLoadedForUserId(userId);
 
-    const [membershipCache, programCache] = await Promise.all([
-      readClientResource<MembershipOfflineSummary>(user.id, clientReadKeys.membership),
-      readClientResource<ProgramEnrollmentWithDetails[]>(user.id, clientReadKeys.programs),
+    const [membershipCacheResult, programCacheResult] = await Promise.allSettled([
+      readClientResource<MembershipOfflineSummary>(userId, clientReadKeys.membership),
+      readClientResource<ProgramEnrollmentWithDetails[]>(userId, clientReadKeys.programs),
     ]);
+    if (!isCurrentRun()) return;
+    const membershipCache = membershipCacheResult.status === 'fulfilled' ? membershipCacheResult.value : null;
+    const programCache = programCacheResult.status === 'fulfilled' ? programCacheResult.value : null;
+    if (membershipCacheResult.status === 'rejected') {
+      devWarn('membership: offline membership read failed.', membershipCacheResult.reason);
+    }
+    if (programCacheResult.status === 'rejected') {
+      devWarn('membership: offline program read failed.', programCacheResult.reason);
+    }
 
     if (membershipCache) {
       setCachedMembership(membershipCache.data);
@@ -80,6 +119,7 @@ export default function ClientMembershipScreen() {
       withOperationTimeout(getMyProgramEnrollments(), DEFAULT_READ_TIMEOUT_MS, 'membership-programs'),
       withOperationTimeout(getMyMembershipEligibility(), DEFAULT_READ_TIMEOUT_MS, 'membership-eligibility'),
     ]);
+    if (!isCurrentRun()) return;
 
     if (membershipResult.status === 'fulfilled') {
       setMembership(membershipResult.value);
@@ -87,19 +127,29 @@ export default function ClientMembershipScreen() {
       setMembershipFresh(true);
       const summary = createMembershipOfflineSummary(membershipResult.value);
       setCachedMembership(summary);
-      const stored = await writeClientResource(user.id, clientReadKeys.membership, summary);
-      setSavedAt(stored.saved_at);
+      try {
+        const stored = await writeClientResource(userId, clientReadKeys.membership, summary);
+        if (!isCurrentRun()) return;
+        setSavedAt(stored.saved_at);
+      } catch (cause) {
+        devWarn('membership: could not save offline membership.', cause);
+      }
     } else {
-      // Nunca muestres un QR de membresia de una lectura anterior como si acabara
-      // de verificarse. El resumen local no contiene el token QR.
+      // An old QR token cannot be reused if the current server read fails.
       setMembership(null);
       setMembershipFresh(false);
     }
+    if (!isCurrentRun()) return;
 
     if (programResult.status === 'fulfilled') {
       setPrograms(programResult.value);
-      await writeClientResource(user.id, clientReadKeys.programs, sanitizeProgramRowsForCache(programResult.value));
+      try {
+        await writeClientResource(userId, clientReadKeys.programs, sanitizeProgramRowsForCache(programResult.value));
+      } catch (cause) {
+        devWarn('membership: could not save offline programs.', cause);
+      }
     }
+    if (!isCurrentRun()) return;
 
     if (eligibilityResult.status === 'fulfilled') {
       setEligibility(eligibilityResult.value);
@@ -110,26 +160,29 @@ export default function ClientMembershipScreen() {
     if (membershipMissing) {
       setError(friendlyReadError('No se pudo cargar tu membresía.'));
     } else if (membershipResult.status === 'rejected' && membershipCache) {
-      // Solo una membresia en cache debe bloquear una escritura. Un fallo al hidratar
-      // la pantalla de clases no invalida una elegibilidad remota ya confirmada.
       setUsingSavedData(true);
     }
 
     setEligibilityChecking(false);
     setLoading(false);
-  }, [isAdmin, user]);
+  }, [isAdmin, userId]);
 
-  useFocusEffect(useCallback(() => { void load(); return undefined; }, [load]));
+  useFocusEffect(useCallback(() => {
+    void load();
+    return () => { loadRunRef.current += 1; };
+  }, [load]));
 
   async function refresh() {
+    const requestedFor = userId;
     setRefreshing(true);
-    try { await load(); } finally { setRefreshing(false); }
+    try { await load(); }
+    finally { if (activeUserIdRef.current === requestedFor) setRefreshing(false); }
   }
 
   async function requestReview() {
     const userId = user?.id;
-    if (!userId) {
-      Alert.alert('Sesión requerida', 'Vuelve a iniciar sesión para enviar la solicitud.');
+    if (!userId || !currentAccount || saving || usingSavedData || !membershipFresh || !eligibilityFresh) {
+      if (!userId) Alert.alert('Sesión requerida', 'Vuelve a iniciar sesión para enviar la solicitud.');
       return;
     }
 
@@ -137,13 +190,21 @@ export default function ClientMembershipScreen() {
     try {
       // La solicitud puede insertar una fila; evita un timeout artificial que no cancelaria la escritura.
       const requested = await requestMembership();
+      if (activeUserIdRef.current !== userId) return;
+      loadRunRef.current += 1;
       setMembership(requested);
       setMembershipDataAvailable(true);
       setMembershipFresh(true);
       const summary = createMembershipOfflineSummary(requested);
       setCachedMembership(summary);
-      const stored = await writeClientResource(userId, clientReadKeys.membership, summary);
-      setSavedAt(stored.saved_at);
+      try {
+        const stored = await writeClientResource(userId, clientReadKeys.membership, summary);
+        if (activeUserIdRef.current !== userId) return;
+        setSavedAt(stored.saved_at);
+      } catch (cause) {
+        devWarn('membership: could not save requested membership offline.', cause);
+      }
+      if (activeUserIdRef.current !== userId) return;
       setUsingSavedData(false);
 
       // La solicitud ya esta confirmada. Estas lecturas son solo para completar
@@ -154,9 +215,11 @@ export default function ClientMembershipScreen() {
       });
       Alert.alert('Solicitud enviada', 'Administración revisará tu solicitud de membresía.');
     } catch (err) {
-      Alert.alert('No se pudo enviar', err instanceof Error ? err.message : 'Intenta de nuevo.');
+      if (activeUserIdRef.current === userId) {
+        Alert.alert('No se pudo enviar', err instanceof Error ? err.message : 'Intenta de nuevo.');
+      }
     } finally {
-      setSaving(false);
+      if (activeUserIdRef.current === userId) setSaving(false);
     }
   }
 
