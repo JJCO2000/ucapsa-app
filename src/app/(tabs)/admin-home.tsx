@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -137,6 +137,11 @@ const emptyStats: DashboardStats = {
 
 export default function AdminHomeTab() {
   const { user, profile, role, isAdmin } = useSession();
+  const userId = isAdmin ? user?.id ?? '' : '';
+  const activeUserIdRef = useRef(userId);
+  activeUserIdRef.current = userId;
+  const loadRunRef = useRef(0);
+  const [resolvedForUserId, setResolvedForUserId] = useState<string | null>(null);
   const [stats, setStats] = useState<DashboardStats>(emptyStats);
   const [tomorrowClasses, setTomorrowClasses] = useState<AdminClassRsvpSummary[]>([]);
   const [tomorrowOfficial, setTomorrowOfficial] = useState<{
@@ -149,7 +154,8 @@ export default function AdminHomeTab() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasData, setHasData] = useState(false);
+  // Keep the previous account's private indicators hidden even before focus effects run.
+  const hasData = Boolean(userId) && resolvedForUserId === userId;
 
   const displayName = useMemo(
     () => profile?.full_name?.trim() || user?.email || 'Administrador',
@@ -157,87 +163,109 @@ export default function AdminHomeTab() {
   );
   const roleLabel = role === 'super_admin' ? 'Superadmin' : 'Admin';
   const pendingTotal = stats.trainingDecisions + stats.pendingRequests + stats.paymentAttention + stats.clientFollowups + stats.programInterests;
-  const groupedTomorrowClasses = useMemo(() => groupTomorrowClasses(
+  const groupedTomorrowClasses = useMemo(() => hasData ? groupTomorrowClasses(
     tomorrowClasses,
     tomorrowOfficial?.schedules ?? [],
     tomorrowOfficial?.programs ?? [],
     tomorrowOfficial?.cancellations ?? [],
     tomorrowDateKey(),
-  ), [tomorrowClasses, tomorrowOfficial]);
+  ) : [], [hasData, tomorrowClasses, tomorrowOfficial]);
 
   const load = useCallback(async () => {
-    if (!isAdmin) return;
+    const runId = ++loadRunRef.current;
+    const isCurrentRun = () => loadRunRef.current === runId
+      && activeUserIdRef.current === userId;
+    if (!isAdmin || !userId) return;
 
+    setLoading(true);
     setError(null);
-    const [memberships, paymentAttentionRows, trainingDecisions, clientFollowups, programInterests] = await withOperationTimeout(
-      Promise.all([
-        getAdminMembershipRows(),
-        getAdminPaymentAttentionRows(),
-        getAdminTrainingDecisionRows(),
-        getAdminClientFollowupRows(),
-        getAdminProgramInterestRequests().catch((cause) => {
-          devWarn('admin-home: program interest requests unavailable before migration or offline.', cause);
-          return null;
-        }),
-      ]),
-      DEFAULT_READ_TIMEOUT_MS,
-      'admin-home-load',
-    );
-
-    // La condición de Socio y la deuda acreditada son fuentes distintas.
-    // Únicamente una obligación vigente con saldo real requiere revisión de pago.
-
-    setInterestRequestsUnavailable(programInterests === null);
-    setStats({
-      pendingRequests: memberships.filter((item) => item.membership.status === 'pending').length,
-      paymentAttention: paymentAttentionRows.length,
-      trainingDecisions: trainingDecisions.length,
-      clientFollowups: clientFollowups.length,
-      programInterests: programInterests?.length ?? 0,
-    });
+    setResolvedForUserId(null);
+    setStats(emptyStats);
+    setTomorrowClasses([]);
+    setTomorrowOfficial(null);
+    setTomorrowSummaryFailed(false);
+    setInterestRequestsUnavailable(false);
 
     try {
-      const tomorrow = tomorrowDateKey();
-      const [tomorrowSummary, schedules, programs, cancellations] = await withOperationTimeout(
+      const [memberships, paymentAttentionRows, trainingDecisions, clientFollowups, programInterests] = await withOperationTimeout(
         Promise.all([
-          getAdminClassRsvpSummary(tomorrow),
-          getProgramSchedules(tomorrow),
-          getPrograms(),
-          getProgramClassCancellations(),
+          getAdminMembershipRows(),
+          getAdminPaymentAttentionRows(),
+          getAdminTrainingDecisionRows(),
+          getAdminClientFollowupRows(),
+          getAdminProgramInterestRequests().catch((cause) => {
+            devWarn('admin-home: program interest requests unavailable before migration or offline.', cause);
+            return null;
+          }),
         ]),
         DEFAULT_READ_TIMEOUT_MS,
-        'admin-home-class-rsvp-and-schedules',
+        'admin-home-load',
       );
-      setTomorrowClasses(tomorrowSummary);
-      setTomorrowOfficial({ schedules, programs, cancellations });
-      setTomorrowSummaryFailed(false);
+      if (!isCurrentRun()) return;
+
+      // Memberships, accredited payment debts and follow-ups remain separate SSOTs.
+      setInterestRequestsUnavailable(programInterests === null);
+      setStats({
+        pendingRequests: memberships.filter((item) => item.membership.status === 'pending').length,
+        paymentAttention: paymentAttentionRows.length,
+        trainingDecisions: trainingDecisions.length,
+        clientFollowups: clientFollowups.length,
+        programInterests: programInterests?.length ?? 0,
+      });
+
+      try {
+        const tomorrow = tomorrowDateKey();
+        const [tomorrowSummary, schedules, programs, cancellations] = await withOperationTimeout(
+          Promise.all([
+            getAdminClassRsvpSummary(tomorrow),
+            getProgramSchedules(tomorrow),
+            getPrograms(),
+            getProgramClassCancellations(),
+          ]),
+          DEFAULT_READ_TIMEOUT_MS,
+          'admin-home-class-rsvp-and-schedules',
+        );
+        if (!isCurrentRun()) return;
+        setTomorrowClasses(tomorrowSummary);
+        setTomorrowOfficial({ schedules, programs, cancellations });
+        setTomorrowSummaryFailed(false);
+      } catch (cause) {
+        if (!isCurrentRun()) return;
+        devWarn('admin-home: could not load tomorrow class RSVP summary; showing unavailable state.', cause);
+        setTomorrowClasses([]);
+        setTomorrowOfficial(null);
+        setTomorrowSummaryFailed(true);
+      }
+
+      if (isCurrentRun()) setResolvedForUserId(userId);
     } catch (cause) {
-      devWarn('admin-home: could not load tomorrow class RSVP summary; showing unavailable state.', cause);
+      if (!isCurrentRun()) return;
+      devWarn('admin-home: could not verify administrative summary.', cause);
+      setStats(emptyStats);
       setTomorrowClasses([]);
       setTomorrowOfficial(null);
-      setTomorrowSummaryFailed(true);
+      setResolvedForUserId(null);
+      setError(friendlyReadError('No se pudo actualizar el resumen administrativo.'));
+    } finally {
+      if (isCurrentRun()) setLoading(false);
     }
-
-    setHasData(true);
-  }, [isAdmin]);
+  }, [isAdmin, userId]);
 
   useFocusEffect(useCallback(() => {
-    if (!isAdmin) return undefined;
-    setLoading(true);
-    void load()
-      .catch(() => setError(friendlyReadError('No se pudo actualizar el resumen administrativo.')))
-      .finally(() => setLoading(false));
-    return undefined;
-  }, [isAdmin, load]));
+    loadRunRef.current += 1;
+    activeUserIdRef.current = userId;
+    setResolvedForUserId(null);
+    setRefreshing(false);
+    if (isAdmin && userId) void load();
+    return () => { loadRunRef.current += 1; activeUserIdRef.current = ''; };
+  }, [isAdmin, userId, load]));
 
   async function refresh() {
     setRefreshing(true);
     try {
       await load();
-    } catch {
-      setError(friendlyReadError('No se pudo actualizar el resumen administrativo.'));
     } finally {
-      setRefreshing(false);
+      if (activeUserIdRef.current === userId) setRefreshing(false);
     }
   }
 
@@ -371,12 +399,12 @@ export default function AdminHomeTab() {
               );
             })}
           </View>
-        ) : tomorrowSummaryFailed ? (
+        ) : hasData && tomorrowSummaryFailed ? (
           <View style={styles.tomorrowEmpty}>
             <MaterialIcons name="cloud-off" size={20} color={ucapsaBrand.colors.muted} />
             <Text style={styles.tomorrowEmptyText}>No se pudo actualizar la asistencia esperada.</Text>
           </View>
-        ) : !loading ? (
+        ) : hasData && !loading && !error ? (
           <View style={styles.tomorrowEmpty}>
             <MaterialIcons name="event-busy" size={20} color={ucapsaBrand.colors.muted} />
             <Text style={styles.tomorrowEmptyText}>No hay clases programadas mañana.</Text>
