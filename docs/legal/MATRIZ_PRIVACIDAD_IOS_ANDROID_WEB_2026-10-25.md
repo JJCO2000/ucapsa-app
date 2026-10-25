@@ -1,5 +1,8 @@
 # UCAPSA — Matriz única de privacidad para Android, iOS y web
 
+**ESTADO POSTERIOR A ESTA MATRIZ (25-10-2026):** Supabase registra `1.4-appstores-2026-10-25` como **única versión `published`** (1.2 `retired`); el documento web canónico pasó a 1.4 en PR #561. Las filas comparativas originales de 1.2 / 1.3 / borrador 1.4 se conservan como **línea base histórica**, no como estado actual. Aún falta verificar acceso HTTP al sitio después del despliegue y no se asume aprobación externa de Apple/Google.
+
+
 **Fecha de comparación:** 25 de octubre de 2026. **Naturaleza:** verificación documental; no constituye aprobación jurídica, de Google Play ni de Apple. **No activa ningún tratamiento ni cambia la versión publicada.**
 
 ## 1. Fuente oficial y versiones reales

@@ -1,5 +1,8 @@
 # Google Play — Data Safety de UCAPSA App
 
+**Aviso oficial en Supabase desde 25-10-2026:** `1.4-appstores-2026-10-25`; documento web canónico en `main` 1.4 (PR #561). Las notas heredadas que describen una divergencia 1.2/1.3 son históricas. La declaración de Data Safety sigue requiriendo cotejo y envío del binario real en Play Console; no declarar aprobación por este archivo.
+
+
 **Revisión técnica:** 25 de octubre de 2026 (antes de captura final en Play Console)  
 **Aplicación:** UCAPSA  
 **Package:** `com.jjcc2000.ucapsaapp`
