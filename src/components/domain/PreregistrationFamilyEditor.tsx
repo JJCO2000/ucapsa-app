@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ucapsaBrand } from '../../constants/brand';
+import { NoticeDeliverySelector } from './NoticeDeliverySelector';
+import type { NoticeDeliveryMethod } from '../../constants/privacy-notice-delivery';
 import { normalizeFamilyMembers, type FamilyMemberInput } from '../../services/preregistration-family.service';
 
 type Props = {
@@ -23,8 +25,14 @@ export function PreregistrationFamilyEditor({ value, onChange, disabled = false 
     }
   }, [value.length]);
 
-  function update(index: number, key: keyof FamilyMemberInput, text: string) {
-    onChange(value.map((item, current) => current === index ? { ...item, [key]: text } : item));
+  function update(index: number, key: 'fullName' | 'email' | 'phone', text: string) {
+    onChange(value.map((item, current) => current === index
+      ? { ...item, [key]: text, noticeDeliveryMethod: null } : item));
+    setError('');
+  }
+
+  function updateDelivery(index: number, method: NoticeDeliveryMethod) {
+    onChange(value.map((item, current) => current === index ? { ...item, noticeDeliveryMethod: method } : item));
     setError('');
   }
 
@@ -37,7 +45,7 @@ export function PreregistrationFamilyEditor({ value, onChange, disabled = false 
         return;
       }
     }
-    onChange([...value, { fullName: '', email: '', phone: '' }]);
+    onChange([...value, { fullName: '', email: '', phone: '', noticeDeliveryMethod: null }]);
     setEditingIndex(value.length);
     setError('');
   }
@@ -45,6 +53,9 @@ export function PreregistrationFamilyEditor({ value, onChange, disabled = false 
   function complete(index: number) {
     try {
       normalizeFamilyMembers([value[index]]);
+      if (!value[index].noticeDeliveryMethod) {
+        throw new Error('Confirma cómo se entregó el aviso a este familiar.');
+      }
       setEditingIndex(null);
       setError('');
     } catch (cause) {
@@ -94,6 +105,9 @@ export function PreregistrationFamilyEditor({ value, onChange, disabled = false 
                 autoCapitalize="none" autoCorrect={false} editable={!disabled}
                 accessibilityLabel={'Correo del integrante ' + (index + 1)}
                 placeholder="correo@ejemplo.com" placeholderTextColor={ucapsaBrand.colors.muted} />
+              <NoticeDeliverySelector value={member.noticeDeliveryMethod}
+                onChange={(method) => updateDelivery(index, method)}
+                disabled={disabled} label={'Aviso entregado al integrante ' + (index + 1)} />
               <Pressable accessibilityRole="button" disabled={disabled}
                 style={styles.smallButton} onPress={() => complete(index)}>
                 <Text style={styles.smallButtonText}>Guardar integrante</Text>
@@ -105,7 +119,7 @@ export function PreregistrationFamilyEditor({ value, onChange, disabled = false 
               onPress={() => { setEditingIndex(index); setError(''); }}>
               <Text style={styles.detail}>
                 {[member.phone.trim(), member.email.trim()].filter(Boolean).join(' · ')
-                  || 'Sin contacto adicional'} · Editar
+                  || 'Sin contacto adicional'} · {member.noticeDeliveryMethod ? 'Aviso informado' : 'Aviso pendiente'} · Editar
               </Text>
             </Pressable>
           )}
