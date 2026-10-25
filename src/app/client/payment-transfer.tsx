@@ -2,7 +2,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as Clipboard from 'expo-clipboard';
 import { Redirect, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { UcapsaAmbientBackground } from '../../components/layout/UcapsaAmbientBackground';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -13,6 +13,7 @@ import { getMyPaymentOverview, getPaymentSettings, isValidClabe, isValidPaymentL
 import type { PaymentObligationWithBalance, PaymentSettings } from '../../types/app.types';
 import { DEFAULT_READ_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
 import { money, paymentDateLabel } from '../../utils/paymentPresentation';
+import { showPlatformDialog } from '../../utils/staff-dialog';
 
 const whatsappUrl = ucapsaBrand.socialLinks.find((item) => item.key === 'whatsapp')?.url ?? 'https://wa.me/525522410679';
 
@@ -108,16 +109,22 @@ export default function PaymentTransferScreen() {
         || !bankReady) return;
     const clabe = normalizeClabe(settings.clabe);
     if (!isValidClabe(clabe)) {
-      Alert.alert('CLABE no verificada', 'No copies ni transfieras hasta que UCAPSA publique una CLABE válida de 18 dígitos.');
+      showPlatformDialog('CLABE no verificada', 'No copies ni transfieras hasta que UCAPSA publique una CLABE válida de 18 dígitos.');
       return;
     }
-    await Clipboard.setStringAsync(clabe);
-    Alert.alert('CLABE copiada', 'Pégala en tu aplicación bancaria y verifica que el titular coincida antes de confirmar.');
+    try {
+      await Clipboard.setStringAsync(clabe);
+      if (activeTransferKeyRef.current !== transferKey) return;
+      showPlatformDialog('CLABE copiada', 'Pégala en tu aplicación bancaria y verifica que el titular coincida antes de confirmar.');
+    } catch {
+      if (activeTransferKeyRef.current !== transferKey) return;
+      showPlatformDialog('No se pudo copiar', 'Selecciona la CLABE para copiarla manualmente.');
+    }
   }
 
   async function openWhatsApp() {
     try { await Linking.openURL(whatsappUrl); }
-    catch { Alert.alert('No se pudo abrir WhatsApp', 'Usa el canal oficial de UCAPSA para enviar tu comprobante.'); }
+    catch { showPlatformDialog('No se pudo abrir WhatsApp', 'Usa el canal oficial de UCAPSA para enviar tu comprobante.'); }
   }
 
   if (!user) return <Redirect href="/auth/login" />;
@@ -164,7 +171,11 @@ export default function PaymentTransferScreen() {
           </Pressable>
           {paymentLink ? <Pressable accessibilityRole="button" accessibilityLabel="Abrir enlace de pago" onPress={() => {
             if (activeTransferKeyRef.current !== transferKey || loading || !bankReady) return;
-            void Linking.openURL(paymentLink).catch(() => Alert.alert('No se pudo abrir', 'Revisa el enlace de pago con UCAPSA.'));
+            void Linking.openURL(paymentLink).catch(() => {
+              if (activeTransferKeyRef.current === transferKey) {
+                showPlatformDialog('No se pudo abrir', 'Revisa el enlace de pago con UCAPSA.');
+              }
+            });
           }}><Text style={[styles.linkCenter, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Abrir enlace de pago</Text></Pressable> : null}
         </>
       ) : null}
