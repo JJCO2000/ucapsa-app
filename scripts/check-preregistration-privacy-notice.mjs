@@ -52,7 +52,17 @@ assert.ok(plan.includes('1.2-appstores-2026-09-27')
   && plan.includes('Reversión')
   && plan.includes('pendiente de revisión y publicación'),
   'Legal release plan must distinguish three states, release gate, and rollback');
-assert.ok(publishedDoc.includes('Versión 1.3 App Stores')
-  && !publishedDoc.includes('Versión 1.4 App Stores'),
-  'Adding disclosure must not silently publish an unapproved notice');
-console.log('UCAPSA privacy collection disclosure: Admin, Trainer, late family, one published-notice route, not-yet-published 1.4, release gate PASS');
+const legalSimplified = proposal.split('## Aviso simplificado')[1]?.split('## Aviso integral')[0]?.trim();
+const legalIntegral = proposal.split('## Aviso integral')[1]?.split('## ANEXO DE CONTROL INTERNO')[0]
+  ?.replace(/\\n---\\s*$/,'').trim();
+const publishedSimplified = publishedDoc.split('## Aviso simplificado')[1]?.split('## Aviso integral')[0]?.trim();
+const publishedIntegral = publishedDoc.split('## Aviso integral')[1]?.trim();
+assert.ok(publishedDoc.includes('**Versión:** 1.4 App Stores')
+  && publishedDoc.includes('**Vigencia:** 25 de octubre de 2026'),
+  'Web privacy notice must publish the approved release version 1.4');
+assert.equal(publishedSimplified,legalSimplified,'Web simplified notice must equal legal source');
+assert.equal(publishedIntegral,legalIntegral?.replace(
+  'Borrador de versión 1.4 App Stores. Pendiente de aprobación, publicación y fecha de entrada en vigor.',
+  'Versión 1.4 App Stores. Entrada en vigor: 2026-10-25.',
+),'Web integral notice must equal legal source, excluding internal annex');
+console.log('UCAPSA privacy collection disclosure: Admin, Trainer, late family, one published-notice route, web 1.4 content matched to the canonical legal candidate, release gate PASS');
