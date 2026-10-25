@@ -44,10 +44,16 @@ function createHarness(options={}) {
         }})}),
       };
       if(table==='account_deletion_requests')return {
-        update:()=>({eq:async()=>{events.push('complete-ledger');return {error:null};}}),
+        update:()=>({eq:async()=>{
+          events.push('complete-ledger');
+          return {error:options.ledgerError?{message:'db unavailable'}:null};
+        }}),
       };
       if(table==='account_deletion_request_events')return {
-        insert:async()=>{events.push('ledger-event');return {error:null};},
+        insert:async()=>{
+          events.push('ledger-event');
+          return {error:options.eventError?{message:'event unavailable'}:null};
+        },
       };
       throw new Error('Unexpected admin table: '+table);
     },
@@ -104,6 +110,7 @@ function createHarness(options={}) {
   const res=await h.run();
   assert.equal(res.status,200);
   assert.equal(res.body.deleted,true);
+  assert.equal(res.body.auditRecorded,true);
   assert.deepEqual(h.events,[
     'verify-identity','check-role','request-ledger','preflight',
     'storage-bucket','remove-owned-photos','sign-out','delete-auth',
@@ -131,6 +138,22 @@ for(const [scenario,opts] of [
   assert.ok(!h.events.includes('complete-ledger'));
 }
 {
+  const h=createHarness({ledgerError:true});
+  const res=await h.run();
+  assert.equal(res.status,200);
+  assert.equal(res.body.deleted,true,'Auth deletion is irreversible after success');
+  assert.equal(res.body.auditRecorded,false,'Ledger failure must be visible');
+  assert.ok(!h.events.includes('ledger-event'));
+}
+{
+  const h=createHarness({eventError:true});
+  const res=await h.run();
+  assert.equal(res.status,200);
+  assert.equal(res.body.deleted,true);
+  assert.equal(res.body.auditRecorded,false,'Missing final event must be visible');
+  assert.ok(h.events.includes('ledger-event'));
+}
+{
   const h=createHarness({role:'admin'});
   const res=await h.run();
   assert.equal(res.status,403);
@@ -143,4 +166,4 @@ for(const [scenario,opts] of [
   assert.equal(res.status,401);
   assert.deepEqual(h.events,['verify-identity']);
 }
-console.log('UCAPSA delete-account Edge runtime: success, FK block, preflight error, Storage error, Auth error, admin rejection, invalid JWT PASS');
+console.log('UCAPSA delete-account Edge runtime: success, FK block, preflight error, Storage error, Auth error, ledger failure, event failure, admin rejection, invalid JWT PASS');
