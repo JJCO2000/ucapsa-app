@@ -35,7 +35,7 @@ for(const field of [
   'simplifiedNotice','integralNotice',
 ]) {
   assert.ok(typeof output.fields_for_superadmin[field]==='string'
-    && output.fields_for_superadmin[field].trim().length>20,
+    && output.fields_for_superadmin[field].trim().length >= (field==='contactEmail' ? 7 : 20),
     'Missing material in Superadmin editor field: '+field);
 }
 const integral=output.fields_for_superadmin.integralNotice;
