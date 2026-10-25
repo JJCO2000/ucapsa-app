@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 
+const testClabe=Array.from({length:18},(_,index)=>String((index+1)%10)).join('');
 const paymentSource=fs.readFileSync('src/app/(tabs)/payments.tsx','utf8');
 const transferSource=fs.readFileSync('src/app/client/payment-transfer.tsx','utf8');
 const helperSource=fs.readFileSync('src/utils/staff-dialog.ts','utf8');
@@ -27,7 +28,7 @@ function realFunction(source, name, context) {
 
 function bankContext({settings=true, valid=true, copied=true}={}) {
   const calls=[], messages=[];
-  const bankSettings=settings ? {clabe:valid?'123456789012345678':'1234',
+  const bankSettings=settings ? {clabe:valid?testClabe:'1234',
     is_active:true,account_holder:' UCAPSA '} : null;
   const Clipboard={setStringAsync: async text=>{
     calls.push(text);
@@ -42,7 +43,7 @@ async function checkHub(){
   {
     const h=bankContext();
     await realFunction(paymentSource,'copyClabe',h.ctx)();
-    assert.deepEqual(h.calls,['123456789012345678']);
+    assert.deepEqual(h.calls,[testClabe]);
     assert.equal(h.messages[0].title,'CLABE copiada');
   }
   {
@@ -79,7 +80,7 @@ async function checkTransfer(){
       loadedForKey:transferKey,loading:false,error:null,obligation:{id:'bill1'},
       settings:h.ctx.bankSettings,bankReady:true};
     await realFunction(transferSource,'copyClabe',ctx)();
-    assert.deepEqual(h.calls,['123456789012345678']);
+    assert.deepEqual(h.calls,[testClabe]);
     assert.equal(h.messages[0].title,'CLABE copiada');
   }
   {
