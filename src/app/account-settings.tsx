@@ -262,13 +262,21 @@ export default function AccountSettingsScreen() {
           onPress: async () => {
             setDeletionLoading(true);
             try {
-              await withOperationTimeout(
+              const receipt = await withOperationTimeout(
                 deleteMyAccount(),
                 DEFAULT_WRITE_TIMEOUT_MS,
                 'account-delete',
               );
-              await signOut();
-              showPlatformDialog('Cuenta eliminada', 'Tu cuenta de UCAPSA App fue eliminada.');
+              // Auth may already be deleted even if local sign-out cannot reach
+              // the server. Do not tell someone their deletion failed in that case.
+              try {
+                await signOut();
+              } catch (signOutError) {
+                devWarn('account-settings: account deleted but local sign-out failed', signOutError);
+              }
+              showPlatformDialog('Cuenta eliminada', receipt.auditRecorded
+                ? 'Tu cuenta de UCAPSA App fue eliminada.'
+                : 'Tu cuenta fue eliminada, pero el registro administrativo requiere revisión. Puedes contactar a Administración desde la página pública de eliminación.');
               router.replace('/auth/login' as never);
             } catch (error) {
               await refreshDeletionRequest().catch((refreshError) => {
