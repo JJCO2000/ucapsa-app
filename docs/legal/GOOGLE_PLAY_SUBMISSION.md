@@ -21,6 +21,7 @@
 - [x] Recurso web externo para solicitar eliminación sin volver a la app.
 - [x] Data Safety documentado contra el código y proveedores.
 - [ ] Reconciliar versión 1.2 publicada en Supabase, documento público 1.3 y revisión 1.4 antes de actualizar el aviso vigente y Play Console.
+- [ ] Ejecutar `npm run check:play-privacy-live` con `EXPO_PUBLIC_SUPABASE_URL` y `EXPO_PUBLIC_SUPABASE_ANON_KEY` **públicas** de la app; conservar evidencia de versión única en Supabase y URL HTML. Este control no sustituye revisión legal ni comprobaciones del AAB. Si falla, NO enviar.
 - [ ] Confirmar que la obtención de contactos de familiares por Administración/Entrenador entrega el aviso adecuado al momento de recolección.
 - [x] Datos cifrados en tránsito.
 - [x] Sin venta de datos ni publicidad/tracking con la implementación actual.
