@@ -1,12 +1,13 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Linking, Pressable, Text, View } from 'react-native';
+import { Linking, Pressable, Text, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
 import { devWarn } from '../../lib/client-diagnostics';
+import { showPlatformDialog } from '../../utils/staff-dialog';
 import { getMyDogs, type BasicDog } from '../../services/dogs.service';
 import { getMyProgramEnrollments } from '../../services/programs.service';
 import {
@@ -112,8 +113,9 @@ export default function ProgramInterestScreen() {
     const join = baseWhatsapp.includes('?') ? '&' : '?';
     try {
       await Linking.openURL(baseWhatsapp + join + 'text=' + encodeURIComponent(message));
-    } catch {
-      Alert.alert('No pudimos abrir WhatsApp', 'Revisa que WhatsApp esté disponible. Si enviaste una solicitud en la app, puedes consultar su estado aquí.');
+    } catch (cause) {
+      devWarn('client-program-interest: WhatsApp link could not open.', cause);
+      showPlatformDialog('No pudimos abrir WhatsApp', 'Revisa que WhatsApp esté disponible. Si enviaste una solicitud en la app, puedes consultar su estado aquí.');
     }
   }
 
@@ -133,14 +135,14 @@ export default function ProgramInterestScreen() {
       setOpenRequests((rows) => [request, ...rows.filter((row) => row.id !== request.id)]);
       if (activeSelectionRef.current !== selectionKey) return;
       setSavedForUserId(requestedUserId);
-      Alert.alert('Interés registrado', `Recibimos tu interés en ${requestedProgram === 'puppy' ? 'Puppy School' : 'Comandos'} para ${requestedDogName}. UCAPSA podrá contactarte para continuar.`, [
+      showPlatformDialog('Interés registrado', `Recibimos tu interés en ${requestedProgram === 'puppy' ? 'Puppy School' : 'Comandos'} para ${requestedDogName}. UCAPSA podrá contactarte para continuar.`, [
         { text: 'Listo', style: 'cancel' },
         { text: 'Escribir ahora', onPress: () => void contactWhatsapp(true) },
       ]);
     } catch (cause) {
       if (!isCurrentUser()) return;
       devWarn('client-program-interest: request failed.', cause);
-      Alert.alert('No pudimos registrar tu interés', 'No tenemos confirmación de que se haya enviado. Revisa tu conexión e inténtalo de nuevo.');
+      showPlatformDialog('No pudimos registrar tu interés', 'No tenemos confirmación de que se haya enviado. Revisa tu conexión e inténtalo de nuevo.');
     } finally {
       // Clear only this request's sending marker, even if the user switched away.
       setSendingForUserId((current) => current === requestedUserId ? null : current);
