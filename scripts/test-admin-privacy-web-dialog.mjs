@@ -49,8 +49,8 @@ async function testPublishing() {
         router:{replace:path=>flow.push('route:'+path)},
       });
     await call();
-    assert.equal(events.length,1);
-    assert.ok(events[0].includes('confirm:Publicar aviso'));
+    assert.ok(events.some((event) => event.startsWith('confirm:Publicar aviso')));
+    if (!approved) assert.equal(events.length,1,'Cancel must not show success');
     if (!approved) assert.equal(flow.length,0,'Denying the browser confirmation must never publish');
     assert.ok(source.includes("import { showPlatformDialog } from '../../utils/staff-dialog'"));
     assert.ok(!source.includes('Alert.alert('));
