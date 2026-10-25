@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../constants/brand';
@@ -20,31 +20,41 @@ function Section({ title, value }: { title: string; value: string | null | undef
 export default function PrivacyNoticeScreen() {
   const [notice, setNotice] = useState<PrivacyNotice | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const loadRunRef = useRef(0);
 
-  useEffect(() => {
-    let active = true;
-    void getPublishedPrivacyNotice()
-      .then((row) => {
-        if (!active) return;
-        setNotice(row);
-        setError(null);
-      })
-      .catch((cause) => {
-        if (!active) return;
-        setError(cause instanceof Error ? cause.message : 'No se pudo cargar el aviso.');
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
+  const load = useCallback(async () => {
+    const runId = ++loadRunRef.current;
+    setLoading(true);
+    setError(null);
+    // Fail closed: never show an old legal notice during a new verification.
+    setNotice(null);
+    try {
+      const published = await getPublishedPrivacyNotice();
+      if (runId !== loadRunRef.current) return;
+      setNotice(published);
+    } catch (cause) {
+      if (runId !== loadRunRef.current) return;
+      setNotice(null);
+      setError(cause instanceof Error ? cause.message : 'No se pudo cargar el aviso.');
+    } finally {
+      if (runId === loadRunRef.current) setLoading(false);
+    }
   }, []);
 
+  useFocusEffect(useCallback(() => {
+    void load();
+    return () => { loadRunRef.current += 1; };
+  }, [load]));
+
+  async function refresh() {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  }
+
   return (
-    <KeyboardAwareScreen>
+    <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { void refresh(); }} tintColor={ucapsaBrand.colors.red} />}>
       <View style={styles.header}>
         <Pressable accessibilityRole="button" accessibilityLabel="Volver" style={styles.back} onPress={() => router.back()}>
           <MaterialIcons name="arrow-back" size={22} color={ucapsaBrand.colors.redDark} />
@@ -55,12 +65,21 @@ export default function PrivacyNoticeScreen() {
         </View>
       </View>
 
-      {loading ? <Text style={styles.muted}>Cargando aviso...</Text> : null}
+      {loading ? <View style={styles.loadingRow}>
+        <ActivityIndicator color={ucapsaBrand.colors.red} />
+        <Text style={styles.muted}>Consultando aviso publicado…</Text>
+      </View> : null}
 
       {!loading && error ? (
         <View style={styles.warning}>
           <MaterialIcons name="error-outline" size={21} color={ucapsaBrand.colors.danger} />
-          <Text style={styles.warningText}>No se pudo consultar el aviso publicado. {error}</Text>
+          <View style={styles.warningContent}>
+            <Text style={styles.warningText}>No se pudo consultar el aviso publicado. {error}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Reintentar aviso de privacidad"
+              style={styles.retry} onPress={() => { void refresh(); }}>
+              <Text style={styles.retryText}>Reintentar</Text>
+            </Pressable>
+          </View>
         </View>
       ) : null}
 
@@ -71,7 +90,7 @@ export default function PrivacyNoticeScreen() {
         </View>
       ) : null}
 
-      {notice ? (
+      {!loading && !error && notice ? (
         <>
           <View style={styles.summary}>
             <Text style={styles.version}>Versión {notice.version}</Text>
@@ -107,6 +126,11 @@ const styles = StyleSheet.create({
   kicker: { color: ucapsaBrand.colors.redDark, fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.7 },
   title: { color: ucapsaBrand.colors.text, fontSize: 28, fontWeight: '900' },
   muted: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 18, fontWeight: '700' },
+  loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10 },
+  warningContent: { flex: 1, gap: 10 },
+  retry: { alignSelf: 'flex-start', borderRadius: 10, paddingVertical: 9, paddingHorizontal: 13,
+    backgroundColor: ucapsaBrand.colors.redSoft },
+  retryText: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900' },
   warning: { flexDirection: 'row', gap: 9, borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surfaceAlt, padding: 13 },
   warningText: { flex: 1, color: ucapsaBrand.colors.text, fontSize: 12, lineHeight: 18, fontWeight: '700' },
   summary: { borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 16, marginBottom: 14 },
