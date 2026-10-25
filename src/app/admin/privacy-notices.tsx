@@ -1,11 +1,13 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
+import { devWarn } from '../../lib/client-diagnostics';
+import { showPlatformDialog } from '../../utils/staff-dialog';
 import {
   getPrivacyNoticeMissingFields,
   getPrivacyNoticesAdmin,
@@ -30,7 +32,8 @@ export default function PrivacyNoticesAdminScreen() {
     try {
       setRows(await getPrivacyNoticesAdmin());
     } catch (cause) {
-      Alert.alert('No se pudieron cargar avisos', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+      devWarn('privacy-admin: failed to list notice versions.', cause);
+      showPlatformDialog('No se pudieron cargar avisos', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
     } finally {
       setLoading(false);
     }
