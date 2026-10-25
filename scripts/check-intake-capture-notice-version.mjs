@@ -30,7 +30,7 @@ check(sql);
 for(const altered of [
   sql.replace("n.status = 'published'",'1=1'),
   sql.replace('new.capture_notice_id := v_notice_id','new.capture_notice_id := null'),
-  sql.replace('trg_intake_notice_version_family','trg_intake_notice_version_missing'),
+  sql.replaceAll('trg_intake_notice_version_family','trg_intake_notice_version_missing'),
 ]) assert.throws(()=>check(altered),/Missing version provenance guard/);
 assert.ok(pkg.scripts.verify.includes('npm run check:intake-capture-notice-version &&'));
 assert.equal(pkg.scripts['check:intake-capture-notice-version'],
