@@ -119,17 +119,13 @@ revoke all on function ucapsa_intake.enforce_contact_notice_capture() from publi
 
 drop trigger if exists trg_capture_notice_people on ucapsa_intake.people;
 create trigger trg_capture_notice_people
-before insert or update of owner_name, email_key, phone_e164, capture_notice_id,
-  notice_delivery_method, notice_delivery_attested, notice_delivery_reported_by,
-  notice_delivery_recorded_at
+before insert or update of owner_name, email_key, phone_e164
 on ucapsa_intake.people
 for each row execute function ucapsa_intake.enforce_contact_notice_capture();
 
 drop trigger if exists trg_capture_notice_family on ucapsa_intake.family_members;
 create trigger trg_capture_notice_family
-before insert or update of full_name, email_key, phone_e164, capture_notice_id,
-  notice_delivery_method, notice_delivery_attested, notice_delivery_reported_by,
-  notice_delivery_recorded_at
+before insert or update of full_name, email_key, phone_e164
 on ucapsa_intake.family_members
 for each row execute function ucapsa_intake.enforce_contact_notice_capture();
 
@@ -137,4 +133,8 @@ for each row execute function ucapsa_intake.enforce_contact_notice_capture();
 -- DROP TRIGGER trg_capture_notice_people ON ucapsa_intake.people;
 -- DROP TRIGGER trg_capture_notice_family ON ucapsa_intake.family_members;
 -- DROP FUNCTION ucapsa_intake.enforce_contact_notice_capture();
+-- UPDATE OF is limited to contact identity fields: PostgreSQL's foreign key
+-- ON DELETE SET NULL may change notice_delivery_reported_by during account
+-- deletion; that maintenance must not block Auth deletion. Ordinary clients
+-- have no direct UPDATE grants to these private intake tables.
 -- Historical attestation columns must be retained until data-retention review.
