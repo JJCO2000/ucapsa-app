@@ -15,7 +15,8 @@ function segment(text, start, end) {
 }
 
 const simplifiedNotice = segment(source, '## Aviso simplificado', '## Aviso integral');
-const integralSource = segment(source, '## Aviso integral', '## ANEXO DE CONTROL INTERNO');
+const integralSource = segment(source, '## Aviso integral', '## ANEXO DE CONTROL INTERNO')
+  .replace(/\n---\s*$/, '').trim();
 const sections = new Map();
 const expression = /^(\d{1,2})\. ([^\n]+)\n/gm;
 const matches = [...integralSource.matchAll(expression)];
