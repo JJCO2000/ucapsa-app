@@ -77,6 +77,10 @@ export default function CustomerSectionScreen() {
             <Detail label="Perros" value={record.dogs.length > 0 ? record.dogs.map((dog) => dog.name).join(', ') : record.enrollments.map((item) => item.dog?.name).filter(Boolean).filter((value, index, list) => list.indexOf(value) === index).join(', ') || 'Sin registrar'} last />
           </View>
           <Action label="Editar datos" icon="edit" onPress={() => router.push(`/admin/customer-profile-edit?userId=${encodeURIComponent(userId)}` as never)} />
+          {['client', 'member'].includes(record.profile.role) ? (
+            <Action label="Añadir perro" icon="pets" onPress={() =>
+              router.push(`/admin/customer-dog-add?userId=${encodeURIComponent(userId)}` as never)} />
+          ) : null}
         </>
       ) : null}
 

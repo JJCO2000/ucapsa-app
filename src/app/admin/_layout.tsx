@@ -22,6 +22,7 @@ export default function AdminLayout() {
       <Stack.Screen name="customer" options={{ title: 'Cliente' }} />
       <Stack.Screen name="customer-section" options={{ title: 'Cliente' }} />
       <Stack.Screen name="customer-profile-edit" options={{ title: 'Editar datos' }} />
+      <Stack.Screen name="customer-dog-add" options={{ title: 'Añadir perro' }} />
       <Stack.Screen name="customer-membership" options={{ title: 'Membresia' }} />
       <Stack.Screen name="customer-class" options={{ title: 'Clase' }} />
       <Stack.Screen name="customer-attendance" options={{ title: 'Asistencias' }} />
