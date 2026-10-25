@@ -83,6 +83,7 @@ export default function DogTab() {
   const backToProfile = useReturnToProfile(fromProfile);
   const { user, role, isAdmin } = useSession();
   const [storedDogs, setDogs] = useState<BasicDog[]>([]);
+  const [loadedForUserId, setLoadedForUserId] = useState<string | null>(null);
   const [storedRows, setRows] = useState<ProgramEnrollmentWithDetails[]>([]);
   const [storedPracticeSnapshot, setPracticeSnapshot] = useState<PracticeActivitySnapshot | null>(null);
   const [storedDogAchievements, setDogAchievements] = useState<AchievementWithState[]>([]);
@@ -101,7 +102,7 @@ export default function DogTab() {
   const activeUserIdRef = useRef(user?.id ?? null);
   activeUserIdRef.current = user?.id ?? null;
   // Rendering must never wait for useFocusEffect to clear another account's data.
-  const scopeReady = Boolean(user?.id) && !isAdmin && cacheScopeRef.current === user?.id;
+  const scopeReady = Boolean(user?.id) && !isAdmin && loadedForUserId === user?.id;
   const dogs = scopeReady ? storedDogs : [];
   const rows = scopeReady ? storedRows : [];
   const practiceSnapshot = scopeReady ? storedPracticeSnapshot : null;
@@ -122,6 +123,7 @@ export default function DogTab() {
     if (cacheScopeRef.current !== scope) {
       cacheScopeRef.current = scope;
       setDogs([]);
+      setLoadedForUserId(null);
       setRows([]);
       setPracticeSnapshot(null);
       setDogAchievements([]);
@@ -163,6 +165,7 @@ export default function DogTab() {
       if (current && nextDogs.some((dog) => dog.id === current)) return current;
       return nextDogs[0]?.id ?? null;
     });
+    setLoadedForUserId(user.id);
     setLocalReady(true);
 
     const [dogResult, programResult, practiceResult] = await Promise.allSettled([
