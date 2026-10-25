@@ -6,6 +6,8 @@ import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useAdminCustomerDetail } from '../../hooks/useAdminCustomerDetail';
+import { useAdminCustomerFollowups } from '../../hooks/useAdminCustomerFollowups';
+import type { AdminClientFollowupRow } from '../../services/admin-client-followups.service';
 
 function money(value: number) {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 }).format(value);
@@ -20,10 +22,28 @@ function membershipLabel(status: string | null | undefined) {
   return 'Sin membresia';
 }
 
+function followupReasons(rows: AdminClientFollowupRow[]): string[] {
+  return rows.flatMap((row) => [
+    ...(row.puppyNoContinuity
+      ? [`${row.dogName}: terminó Puppy hace ${row.puppyDaysSinceCompletion} días y no tiene inscripción posterior.`]
+      : []),
+    ...(row.inactive30d
+      ? [`${row.dogName}: ${row.inactivityDays} días sin asistencia registrada.`]
+      : []),
+  ]);
+}
+
 export default function AdminCustomerScreen() {
   const params = useLocalSearchParams<{ userId?: string }>();
   const userId = typeof params.userId === 'string' ? params.userId.trim() : '';
   const { record, loading, refreshing, error, refresh } = useAdminCustomerDetail(userId);
+  const { rows: followups, loading: followupsLoading, error: followupsError,
+    refresh: refreshFollowups } = useAdminCustomerFollowups(userId);
+  const reasons = useMemo(() => followupReasons(followups), [followups]);
+
+  async function refreshAll() {
+    await Promise.allSettled([refresh(), refreshFollowups()]);
+  }
 
   const actualAttendances = useMemo(() => record?.enrollments.reduce((sum, item) => sum + item.enrollment.attendances_count, 0) ?? 0, [record]);
   const pendingBalance = useMemo(() => {
@@ -52,7 +72,7 @@ export default function AdminCustomerScreen() {
   }
 
   return (
-    <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={ucapsaBrand.colors.red} />}>
+    <KeyboardAwareScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refreshAll()} tintColor={ucapsaBrand.colors.red} />}>
       {loading ? <View style={styles.loading}><ActivityIndicator color={ucapsaBrand.colors.red} /><Text style={styles.muted}>Cargando cliente...</Text></View> : null}
       {error ? <View style={styles.error}><Text style={styles.errorTitle}>No se pudo cargar</Text><Text style={styles.muted}>{error}</Text><Pressable style={styles.primary} onPress={() => void refresh()}><Text style={styles.primaryText}>Reintentar</Text></Pressable></View> : null}
 
@@ -70,6 +90,33 @@ export default function AdminCustomerScreen() {
             <Metric label="Asistencias" value={String(actualAttendances)} />
             {record.membership ? <Metric label="Visitas socio" value={String(record.memberVisits.length)} /> : null}
             <Metric label="Saldo" value={money(pendingBalance)} small />
+            <View style={[styles.metric, styles.followupMetric]}>
+              <Text style={[styles.metricValue, reasons.length > 0 && styles.followupAlert]}
+                accessibilityLiveRegion="polite">
+                {followupsLoading ? 'Verificando…'
+                  : followupsError ? 'No disponible'
+                  : reasons.length > 0 ? 'Requiere seguimiento' : 'Sin seguimiento'}
+              </Text>
+              <Text style={styles.metricLabel}>Seguimiento</Text>
+              {!followupsLoading && !followupsError && reasons.length > 0 ? (
+                <View style={styles.followupReasons}>
+                  {reasons.slice(0, 4).map((reason, index) => (
+                    <Text key={index} style={styles.followupReason}>{reason}</Text>
+                  ))}
+                  {reasons.length > 4 ? (
+                    <Pressable accessibilityRole="button"
+                      onPress={() => router.push('/admin/client-followups' as never)}>
+                      <Text style={styles.followupMore}>Ver otros {reasons.length - 4} motivos</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              ) : null}
+              {followupsError ? (
+                <Text style={styles.followupUnavailable}>
+                  No se pudieron confirmar las alertas. Desliza hacia abajo para actualizar.
+                </Text>
+              ) : null}
+            </View>
           </View>
 
           <Text style={styles.sectionTitle}>Informacion</Text>
@@ -144,6 +191,12 @@ const styles = StyleSheet.create({
   primaryText: { color: ucapsaBrand.colors.surface, fontSize: 13, fontWeight: '900' },
   metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
   metric: { width: '48%', borderRadius: 16, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 12 },
+  followupMetric: { width: '100%', gap: 5 },
+  followupAlert: { color: ucapsaBrand.colors.danger },
+  followupReasons: { gap: 6, paddingTop: 4 },
+  followupReason: { color: ucapsaBrand.colors.text, fontSize: 13, lineHeight: 19, fontWeight: '700' },
+  followupMore: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900', paddingVertical: 7 },
+  followupUnavailable: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 17 },
   metricValue: { color: ucapsaBrand.colors.text, fontSize: 18, fontWeight: '900' },
   metricValueSmall: { fontSize: 15 },
   metricLabel: { color: ucapsaBrand.colors.muted, fontSize: 11, fontWeight: '800', marginTop: 3 },
