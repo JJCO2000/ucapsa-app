@@ -193,9 +193,9 @@ must('src/services/client-activity.service.ts', /if \(!programCache \|\| !visitC
 for (const rel of ['src/app/client/member-visits.tsx', 'src/app/client/activity-achievements.tsx']) {
   if (rel.endsWith('/activity-achievements.tsx')) {
     must(rel,
-      /setUsingSavedData\(false\)[\s\S]*const cached = scopedDogId[\s\S]*getCachedDogActivityFacts\(user\.id, scopedDogId\)[\s\S]*getCachedMyClientActivityFacts\(user\.id\)/,
+      /setUsingSavedData\(false\)[\s\S]*cached = scopedDogId[\s\S]*getCachedDogActivityFacts\((?:user\.id|userId), scopedDogId\)[\s\S]*getCachedMyClientActivityFacts\((?:user\.id|userId)\)/,
       'Insignias dejaron de elegir caché canónica por perro o de cuenta según su alcance.');
-    must(rel, /const fresh = scopedDogId[\s\S]*getMyDogActivityFacts\(user\.id, scopedDogId\)[\s\S]*getMyClientActivityFacts\(user\.id\)/,
+    must(rel, /const fresh = scopedDogId[\s\S]*getMyDogActivityFacts\((?:user\.id|userId), scopedDogId\)[\s\S]*getMyClientActivityFacts\((?:user\.id|userId)\)/,
       'Insignias dejaron de refrescar en el mismo alcance que la caché.');
   } else {
     must(rel, /setUsingSavedData\(false\)[\s\S]*(?:const cached =|cached =) await getCached/, `${rel} dejó de hidratar caché en estado neutro.`);

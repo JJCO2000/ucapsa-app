@@ -14,6 +14,7 @@ import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useReturnToProfile } from '../../hooks/useReturnToProfile';
 import { useSession } from '../../hooks/useSession';
 import { useMemberAppearance } from '../../hooks/useMemberAppearance';
+import { devWarn } from '../../lib/client-diagnostics';
 import {
   getCachedMyClientActivityFacts,
   getCachedDogActivityFacts,
@@ -30,7 +31,14 @@ export default function ActivityAchievementsScreen() {
   const fromProfile = (Array.isArray(from) ? from[0] : from) === 'profile';
   const backToProfile = useReturnToProfile(fromProfile);
   const { user, role, isAdmin } = useSession();
-  const [facts, setFacts] = useState<ClientActivityFacts | null>(null);
+  const userId = user?.id ?? '';
+  const scopeKey = !isAdmin && userId ? [userId, scopedDogId || 'all'].join(':') : '';
+  const activeScopeRef = useRef(scopeKey);
+  activeScopeRef.current = scopeKey;
+  const [storedFacts, setFacts] = useState<ClientActivityFacts | null>(null);
+  const [loadedForKey, setLoadedForKey] = useState<string | null>(null);
+  // Guard during render: old account or dog facts are never displayed.
+  const facts = scopeKey && loadedForKey === scopeKey ? storedFacts : null;
   const [selectedMetric, setSelectedMetric] = useState<ActivityAchievementMetric | null>(
     activityAchievementDefinitions.find((item) => item.code === deepLinkedCode)?.metric ?? null,
   );
@@ -49,45 +57,56 @@ export default function ActivityAchievementsScreen() {
   }, [deepLinkedCode]);
 
   const load = useCallback(async () => {
-    const runId = loadRunRef.current + 1;
-    loadRunRef.current = runId;
-    const isCurrentRun = () => loadRunRef.current === runId;
-    if (!user || isAdmin) return;
+    const runId = ++loadRunRef.current;
+    const isCurrentRun = () => loadRunRef.current === runId
+      && activeScopeRef.current === scopeKey;
+    if (!scopeKey || !userId || isAdmin) return;
 
+    setLoading(true);
+    setFacts(null);
+    setLoadedForKey(null);
     setError(null);
     setUsingSavedData(false);
+    setSavedAt(null);
 
-    const cached = scopedDogId
-      ? await getCachedDogActivityFacts(user.id, scopedDogId)
-      : await getCachedMyClientActivityFacts(user.id);
+    let cached: Awaited<ReturnType<typeof getCachedMyClientActivityFacts>> = null;
+    try {
+      cached = scopedDogId
+        ? await getCachedDogActivityFacts(userId, scopedDogId)
+        : await getCachedMyClientActivityFacts(userId);
+    } catch (cause) {
+      devWarn('activity-achievements: could not read local facts cache.', cause);
+    }
     if (!isCurrentRun()) return;
     if (cached) {
       setFacts(cached.data);
+      setLoadedForKey(scopeKey);
       setSavedAt(cached.saved_at);
       setLoading(false);
     }
 
     try {
       const fresh = scopedDogId
-        ? await getMyDogActivityFacts(user.id, scopedDogId)
-        : await getMyClientActivityFacts(user.id);
+        ? await getMyDogActivityFacts(userId, scopedDogId)
+        : await getMyClientActivityFacts(userId);
       if (!isCurrentRun()) return;
       setFacts(fresh);
+      setLoadedForKey(scopeKey);
       setUsingSavedData(false);
       setError(null);
     } catch {
       if (!isCurrentRun()) return;
       if (cached) {
-        setFacts(cached.data);
         setUsingSavedData(true);
       } else {
         setFacts(null);
+        setLoadedForKey(null);
         setError('No pudimos calcular tus insignias de actividad.');
       }
     } finally {
       if (isCurrentRun()) setLoading(false);
     }
-  }, [isAdmin, scopedDogId, user]);
+  }, [isAdmin, scopeKey, scopedDogId, userId]);
 
   useFocusEffect(useCallback(() => {
     void load();
@@ -123,7 +142,7 @@ export default function ActivityAchievementsScreen() {
         </Pressable>
       ) : null}
 
-      {usingSavedData ? (
+      {usingSavedData && facts ? (
         <OfflineDataNotice savedAt={savedAt} onRetry={() => void refresh()} premium={premium} label="Mostrando insignias guardadas" />
       ) : null}
 
