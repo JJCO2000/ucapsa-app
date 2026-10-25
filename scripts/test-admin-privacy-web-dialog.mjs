@@ -97,6 +97,7 @@ async function testPublishing() {
       showPlatformDialog:(title,msg,buttons)=>dialogs.push({title,msg,buttons}),
       setSaving:()=>{},
       publishPrivacyNotice:async()=>{throw new Error('No autorizado');},
+      devWarn:()=>{},
       router:{replace:()=>{throw new Error('Must not navigate on failure');}},
     });
     await call();
