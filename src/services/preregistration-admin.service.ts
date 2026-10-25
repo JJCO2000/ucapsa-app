@@ -142,7 +142,7 @@ export async function adminCompletePreregistrationContact(
     name: 'admin_complete_preregistration_contact_with_notice',
     args: { p_person_id: string; p_owner_email: string | null; p_owner_phone: string | null; p_owner_method: NoticeDeliveryMethod },
   ) => PromiseLike<{ data: unknown; error: { message: string } | null }>;
-  const { data, error } = await rpc('admin_complete_preregistration_contact', {
+  const { data, error } = await rpc('admin_complete_preregistration_contact_with_notice', {
     p_person_id: personId,
     p_owner_email: contacts.email?.trim().toLowerCase() || null,
     p_owner_phone: contacts.phone?.trim() || null,
