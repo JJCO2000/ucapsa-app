@@ -113,7 +113,8 @@ export default function ProgramInterestScreen() {
     const join = baseWhatsapp.includes('?') ? '&' : '?';
     try {
       await Linking.openURL(baseWhatsapp + join + 'text=' + encodeURIComponent(message));
-    } catch {
+    } catch (cause) {
+      devWarn('client-program-interest: WhatsApp link could not open.', cause);
       showPlatformDialog('No pudimos abrir WhatsApp', 'Revisa que WhatsApp esté disponible. Si enviaste una solicitud en la app, puedes consultar su estado aquí.');
     }
   }
