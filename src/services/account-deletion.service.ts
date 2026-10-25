@@ -75,7 +75,8 @@ export async function deleteMyAccount(): Promise<AccountDeletionReceipt> {
       try {
         responseBody = await error.context.json();
       } catch {
-        // Preserve the transport error when the server returned non-JSON.
+        // An unparsable HTTP response cannot replace the transport diagnosis.
+        throw error;
       }
       if (responseBody && typeof responseBody === 'object'
         && !Array.isArray(responseBody)
