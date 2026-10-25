@@ -61,7 +61,8 @@ function createHarness(options={}) {
   const client={rpc:async(name)=>{
     assert.equal(name,'request_my_account_deletion');
     events.push('request-ledger');
-    return {data:{id:'request-1',status:'pending'},error:null};
+    return {data:{id:'request-1',status:options.requestStatus ?? 'pending',
+      retention_until:options.retentionUntil ?? null},error:null};
   }};
   const require=(name)=>{
     if(name.includes('@supabase/supabase-js'))return {
@@ -117,6 +118,35 @@ function createHarness(options={}) {
     'complete-ledger','ledger-event',
   ]);
 }
+{
+  const h=createHarness({requestStatus:'in_review',retentionUntil:'2999-01-01'});
+  const res=await h.run();
+  assert.equal(res.status,409,'Future retention date must survive a status change');
+  assert.deepEqual(h.events,[
+    'verify-identity','check-role','request-ledger',
+  ],'No operation may run while a future retention hold remains');
+}
+{
+  const h=createHarness({requestStatus:'in_review',retentionUntil:'not-a-date'});
+  const res=await h.run();
+  assert.equal(res.status,409,'Malformed retention date must fail closed');
+  assert.ok(!h.events.includes('delete-auth'));
+}
+{
+  const h=createHarness({requestStatus:'in_review',retentionUntil:'2000-01-01'});
+  const res=await h.run();
+  assert.equal(res.status,200,'An elapsed retention date does not permanently block review');
+  assert.equal(res.body.deleted,true);
+}
+{
+  const h=createHarness({requestStatus:'blocked'});
+  const res=await h.run();
+  assert.equal(res.status,409,'An existing retention block must stop automatic deletion');
+  assert.match(res.body.error,/conservación/);
+  assert.deepEqual(h.events,[
+    'verify-identity','check-role','request-ledger',
+  ],'No preflight, photos, sessions or Auth deletion after a retention hold');
+}
 for(const [scenario,opts] of [
   ['FK restriction',{blocked:true}],
   ['preflight unavailable',{preflightError:true}],
@@ -166,4 +196,4 @@ for(const [scenario,opts] of [
   assert.equal(res.status,401);
   assert.deepEqual(h.events,['verify-identity']);
 }
-console.log('UCAPSA delete-account Edge runtime: success, FK block, preflight error, Storage error, Auth error, ledger failure, event failure, admin rejection, invalid JWT PASS');
+console.log('UCAPSA delete-account Edge runtime: success, FK block, preflight error, Storage error, Auth error, ledger failure, event failure, retention hold, admin rejection, invalid JWT PASS');

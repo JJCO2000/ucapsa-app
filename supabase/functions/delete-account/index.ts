@@ -70,6 +70,22 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: requestError?.message ?? 'No se pudo registrar la solicitud.' }, 500);
   }
 
+  // A retention hold is an explicit administrative decision: retrying from the
+  // client must not silently bypass it. The Superadmin can reopen the review
+  // after assessing the legal retention requirement.
+  const retentionUntil = requestRow.retention_until;
+  // Admin may move blocked -> in_review while the retention date is preserved.
+  // The date itself must therefore remain an independent server-side barrier.
+  const retentionDateMalformed = retentionUntil != null &&
+    (typeof retentionUntil !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(retentionUntil));
+  const retentionActive = typeof retentionUntil === 'string' &&
+    retentionUntil > new Date().toISOString().slice(0, 10);
+  if (requestRow.status === 'blocked' || retentionDateMalformed || retentionActive) {
+    return jsonResponse({
+      error: 'La solicitud conserva un bloqueo de datos. Administración debe revisar el periodo de conservación antes de eliminar la cuenta.',
+    }, 409);
+  }
+
   // Detect existing RESTRICT / NO ACTION FKs before removing any private photo.
   // If the reviewed preflight migration is not installed, fail closed.
   const { data: hasBlockingReferences, error: preflightError } = await admin.rpc(
