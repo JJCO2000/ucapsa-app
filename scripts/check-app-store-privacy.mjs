@@ -60,7 +60,7 @@ for (const token of [
   'Universidad de Crianza y Adiestramiento S.A. de C.V.',
   'Administración de UCAPSA',
   'ucapsa84@gmail.com',
-  'Versión 1.3 App Stores',
+  'Versión 1.4 App Stores',
 ]) {
   if (!privacyDoc.includes(token)) throw new Error('Rendered privacy document missing: ' + token);
 }
