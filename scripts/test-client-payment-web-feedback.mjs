@@ -35,7 +35,7 @@ function bankContext({settings=true, valid=true, copied=true}={}) {
     if(!copied)throw new Error('clipboard permission');
   }};
   const showPlatformDialog=(title,message)=>messages.push({title,message});
-  return {ctx:{bankSettings,Clipboard,showPlatformDialog,
+  return {ctx:{bankSettings,Clipboard,showPlatformDialog,devWarn:()=>{},
     normalizeClabe:x=>x??'',isValidClabe:x=>/^\d{18}$/.test(x)},
     calls,messages};
 }
