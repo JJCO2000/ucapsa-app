@@ -26,7 +26,9 @@ function realFunction(source, name, context) {
   return output.exports.call;
 }
 
-function bankContext({settings=true, valid=true, copied=true}={}) {
+function bankContext({settings=true, valid=true, copied=true, scopeReady=true}={}) {
+  const sessionScope='user-A';
+  const activeScopeRef={current:sessionScope};
   const calls=[], messages=[];
   const bankSettings=settings ? {clabe:valid?testClabe:'1234',
     is_active:true,account_holder:' UCAPSA '} : null;
@@ -36,10 +38,31 @@ function bankContext({settings=true, valid=true, copied=true}={}) {
   }};
   const showPlatformDialog=(title,message)=>messages.push({title,message});
   return {ctx:{bankSettings,Clipboard,showPlatformDialog,devWarn:()=>{},
+    scopeReady,sessionScope,activeScopeRef,
     normalizeClabe:x=>x??'',isValidClabe:x=>/^\d{18}$/.test(x)},
-    calls,messages};
+    calls,messages,activeScopeRef};
 }
 async function checkHub(){
+  {
+    const h=bankContext({scopeReady:false});
+    await realFunction(paymentSource,'copyClabe',h.ctx)();
+    assert.equal(h.calls.length,0,'A bank account from an unverified session scope cannot be copied');
+  }
+  {
+    const h=bankContext();
+    h.activeScopeRef.current='user-B';
+    await realFunction(paymentSource,'copyAccountHolder',h.ctx)();
+    assert.equal(h.calls.length,0,'Do not copy holder from a previous account');
+  }
+  {
+    const h=bankContext();
+    let release;
+    h.ctx.Clipboard.setStringAsync=()=>new Promise(resolve=>{release=resolve;});
+    const pending=realFunction(paymentSource,'copyClabe',h.ctx)();
+    h.activeScopeRef.current='user-B';
+    release();await pending;
+    assert.equal(h.messages.length,0,'Do not report a successful copy after switching accounts');
+  }
   {
     const h=bankContext();
     await realFunction(paymentSource,'copyClabe',h.ctx)();
