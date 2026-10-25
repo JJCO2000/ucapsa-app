@@ -45,3 +45,56 @@ jobs:
             exit 1
           fi
           echo "UCAPSA legal Pages: HTML build PASS"
+      - name: Check deployed legal URLs from an external runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Compilation alone cannot prove that the store-facing URLs are online.
+          base='https://jjco2000.github.io/ucapsa-app'
+          for slug in privacidad eliminar-cuenta; do
+            target="$base/$slug/"
+            headers="$(mktemp)"
+            body="$(mktemp)"
+            code="$(curl --fail --silent --show-error --location --retry 2 --retry-delay 2 --max-time 15 \
+              --dump-header "$headers" --output "$body" --write-out '%{http_code}' "$target")"
+            test "$code" = 200 || { echo "ERROR: $slug HTTP $code"; exit 1; }
+            grep -Eqi '^content-type:[[:space:]]*text/html' "$headers" || {
+              echo "ERROR: $slug did not return HTML"; exit 1;
+            }
+            if [ "$slug" = privacidad ]; then
+              grep -qi 'Aviso de Privacidad' "$body"
+              grep -qi 'Universidad de Crianza y Adiestramiento' "$body"
+            else
+              grep -qi 'Eliminar cuenta y datos' "$body"
+              grep -qi 'ucapsa84@gmail.com' "$body"
+            fi
+            echo "UCAPSA public $slug: HTTP 200, HTML and required text PASS"
+            rm -f "$headers" "$body"
+          done
+      - name: Check deployed legal redirect endpoints (GET HEAD POST)
+        shell: bash
+        run: |
+          set -euo pipefail
+          api='https://hrfecmviyiluubymsoeq.supabase.co/functions/v1'
+          base='https://jjco2000.github.io/ucapsa-app'
+          for entry in 'privacy-policy:privacidad' 'account-deletion-request:eliminar-cuenta'; do
+            IFS=':' read -r fn slug <<< "$entry"
+            expected="$base/$slug/"
+            url="$api/$fn"
+            for method in GET HEAD; do
+              headers="$(mktemp)"
+              status="$(curl --silent --show-error --retry 2 --retry-delay 2 --max-time 20 \
+                --request "$method" --dump-header "$headers" --output /dev/null \
+                --write-out '%{http_code}' "$url")"
+              test "$status" = 302 || { echo "ERROR: $fn $method HTTP $status (expected 302)"; exit 1; }
+              actual="$(grep -i '^location:' "$headers" | sed -E 's/^[^:]+:[[:space:]]*//' | tr -d '\r' | tail -1)"
+              test "$actual" = "$expected" || {
+                echo "ERROR: $fn $method redirects to $actual (expected $expected)"; exit 1;
+              }
+              rm -f "$headers"
+            done
+            status="$(curl --silent --show-error --retry 2 --retry-delay 2 --max-time 20 \
+              --request POST --output /dev/null --write-out '%{http_code}' "$url")"
+            test "$status" = 405 || { echo "ERROR: $fn POST HTTP $status (expected 405)"; exit 1; }
+            echo "UCAPSA deployed $fn: GET/HEAD 302 to HTML, POST 405 PASS"
+          done
