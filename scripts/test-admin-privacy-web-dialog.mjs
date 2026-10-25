@@ -42,7 +42,9 @@ async function testPublishing() {
       'publish',{
         missing:[],
         currentId:'legal-draft-id',
-        save:async()=>{throw new Error('No redundant save with stored draft id');},
+        form:{integralNotice:'Aviso revisado y aprobado'},
+        DRAFT_LEGAL_CAVEAT:'Borrador de versión',
+        save:async()=>{flow.push('draft-saved');return{id:'legal-draft-id'};},
         showPlatformDialog:helper,
         setSaving:value=>flow.push('saving:'+value),
         publishPrivacyNotice:async id=>{flow.push('publish:'+id);return{id};},
@@ -51,7 +53,7 @@ async function testPublishing() {
     await call();
     assert.ok(events.some((event) => event.startsWith('confirm:Publicar aviso')));
     if (!approved) assert.equal(events.length,1,'Cancel must not show success');
-    if (!approved) assert.equal(flow.length,0,'Denying the browser confirmation must never publish');
+    if (!approved) assert.deepEqual(flow,['draft-saved'],'Denying publication may save a draft but must not publish');
     assert.ok(source.includes("import { showPlatformDialog } from '../../utils/staff-dialog'"));
     assert.ok(!source.includes('Alert.alert('));
     // The real browser helper has already invoked the async onPress when approved.
@@ -61,7 +63,20 @@ async function testPublishing() {
       assert.ok(flow.includes('publish:legal-draft-id'));
       assert.ok(flow.includes('route:/admin/privacy-notices'));
       assert.equal(flow.at(-1),'saving:false');
-    } else assert.deepEqual(flow,[]);
+    } else assert.deepEqual(flow,['draft-saved']);
+  }
+  {
+    const dialogs=[],events=[];
+    const {call}=compileActualFunction('src/app/admin/privacy-notice-form.tsx','publish',{
+      missing:[],currentId:'draft',
+      form:{integralNotice:'Borrador de versión 1.4, pendiente de aprobación'},
+      DRAFT_LEGAL_CAVEAT:'Borrador de versión',
+      save:async()=>{events.push('saved');return{id:'draft'};},
+      showPlatformDialog:(title,message)=>dialogs.push({title,message}),
+    });
+    await call();
+    assert.equal(dialogs[0].title,'Texto aún provisional');
+    assert.deepEqual(events,[],'Unreviewed draft must not even enter publish flow');
   }
   {
     const dialogs=[];
@@ -77,6 +92,7 @@ async function testPublishing() {
     const dialogs=[],events=[];
     const {call}=compileActualFunction('src/app/admin/privacy-notice-form.tsx','publish',{
       missing:[],currentId:null,
+      form:{integralNotice:'Aviso revisado'},DRAFT_LEGAL_CAVEAT:'Borrador',
       save:async()=>({id:'created-draft'}),
       showPlatformDialog:(title,message,buttons)=>dialogs.push({title,message,buttons}),
       setSaving:v=>events.push('saving:'+v),
@@ -94,6 +110,8 @@ async function testPublishing() {
     const dialogs=[];
     const {call}=compileActualFunction('src/app/admin/privacy-notice-form.tsx','publish',{
       missing:[],currentId:'draft',
+      form:{integralNotice:'Aviso revisado'},DRAFT_LEGAL_CAVEAT:'Borrador',
+      save:async()=>({id:'draft'}),
       showPlatformDialog:(title,msg,buttons)=>dialogs.push({title,msg,buttons}),
       setSaving:()=>{},
       publishPrivacyNotice:async()=>{throw new Error('No autorizado');},
