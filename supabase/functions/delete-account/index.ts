@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.108.2';
 import { edgeError, edgeWarn } from '../_shared/diagnostics.ts';
+import { removeOwnedDogPhotos } from '../_shared/account-deletion-storage.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -67,6 +68,18 @@ Deno.serve(async (req) => {
 
   if (requestError || !requestRow?.id) {
     return jsonResponse({ error: requestError?.message ?? 'No se pudo registrar la solicitud.' }, 500);
+  }
+
+  // Auth deletion is blocked by owned Storage objects. Remove ONLY dog photos
+  // beneath this verified user's private prefix, using the Storage API.
+  // A partial failure leaves the account and the audit request in place.
+  try {
+    await removeOwnedDogPhotos(admin.storage.from('dog-photos'), user.id);
+  } catch (cause) {
+    edgeWarn('delete-account.storage_cleanup_failed', cause);
+    return jsonResponse({
+      error: 'No se pudieron eliminar todas las fotografías privadas. Tu solicitud quedó registrada para atención.',
+    }, 409);
   }
 
   // Revoca refresh tokens/sesiones antes de eliminar la identidad. El JWT de acceso
