@@ -306,12 +306,18 @@ export default function AdminClassSchedulesScreen() {
 
         <View style={styles.switchRow}>
           <View style={{ flex: 1 }}><Text style={styles.label}>Horario activo</Text><Text style={styles.modalHint}>Desactivalo si ya no debe generar clases futuras.</Text></View>
-          <Switch value={isActive} onValueChange={setIsActive} />
+          <Switch
+            value={isActive}
+            onValueChange={setIsActive}
+            trackColor={{ false: ucapsaBrand.colors.borderNeutral, true: ucapsaBrand.colors.redSoftStrong }}
+            thumbColor={isActive ? ucapsaBrand.colors.redDark : ucapsaBrand.colors.mutedNeutral}
+            ios_backgroundColor={ucapsaBrand.colors.borderNeutral}
+          />
         </View>
 
         <Pressable style={styles.sectionToggle} onPress={() => setAdvancedOpen((value) => !value)}>
           <Text style={styles.sectionToggleText}>Opciones avanzadas</Text>
-          <MaterialIcons name={advancedOpen ? 'expand-less' : 'expand-more'} size={21} color={ucapsaBrand.colors.surface} />
+          <MaterialIcons name={advancedOpen ? 'expand-less' : 'expand-more'} size={21} color={ucapsaBrand.colors.redDark} />
         </Pressable>
         {advancedOpen ? (
           <View style={styles.advancedBox}>
@@ -332,7 +338,7 @@ export default function AdminClassSchedulesScreen() {
 
         <Pressable style={styles.sectionToggle} onPress={() => setHistoryOpen((value) => !value)}>
           <Text style={styles.sectionToggleText}>Historial de horario</Text>
-          <MaterialIcons name={historyOpen ? 'expand-less' : 'expand-more'} size={21} color={ucapsaBrand.colors.surface} />
+          <MaterialIcons name={historyOpen ? 'expand-less' : 'expand-more'} size={21} color={ucapsaBrand.colors.redDark} />
         </Pressable>
         {historyOpen ? (
           <View style={styles.historyBox}>
@@ -385,7 +391,7 @@ const styles = StyleSheet.create({
   emptyTitle: { color: ucapsaBrand.colors.text, fontSize: 17, fontWeight: '900' },
   modalKicker: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
   modalTitle: { color: ucapsaBrand.colors.text, fontSize: 23, fontWeight: '900', marginBottom: 3 },
-  modalHint: { color: ucapsaBrand.colors.dangerBorder, fontSize: 11, lineHeight: 17, fontWeight: '700' },
+  modalHint: { color: ucapsaBrand.colors.muted, fontSize: 11, lineHeight: 17, fontWeight: '700' },
   label: { color: ucapsaBrand.colors.text, fontSize: 12, fontWeight: '900', marginTop: 10, marginBottom: 5 },
   dateButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 14, backgroundColor: ucapsaBrand.colors.surface, padding: 12 },
   dateButtonText: { color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '900' },
@@ -400,19 +406,19 @@ const styles = StyleSheet.create({
   input: { borderRadius: 14, backgroundColor: ucapsaBrand.colors.surface, paddingHorizontal: 12, paddingVertical: 11, color: ucapsaBrand.colors.text, fontWeight: '800' },
   segmentRow: { flexDirection: 'row', gap: 7 },
   segment: { flex: 1, alignItems: 'center', borderRadius: 13, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, backgroundColor: ucapsaBrand.colors.surface, padding: 10 },
-  segmentActive: { backgroundColor: ucapsaBrand.colors.redSoft, borderColor: ucapsaBrand.colors.red },
+  segmentActive: { backgroundColor: ucapsaBrand.colors.redDark, borderColor: ucapsaBrand.colors.redDark },
   segmentText: { color: ucapsaBrand.colors.text, fontSize: 11, fontWeight: '900' },
-  segmentTextActive: { color: ucapsaBrand.colors.redDark },
+  segmentTextActive: { color: ucapsaBrand.colors.surface },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 },
   sectionToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, marginTop: 4 },
-  sectionToggleText: { color: ucapsaBrand.colors.surface, fontSize: 13, fontWeight: '900' },
+  sectionToggleText: { color: ucapsaBrand.colors.text, fontSize: 13, fontWeight: '900' },
   advancedBox: { gap: 5, borderRadius: 16, backgroundColor: ucapsaBrand.colors.surface, padding: 12 },
   labelDark: { color: ucapsaBrand.colors.text, fontSize: 11, fontWeight: '900', marginTop: 4 },
   inputLight: { borderRadius: 12, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.background, paddingHorizontal: 11, paddingVertical: 9, color: ucapsaBrand.colors.text },
   textArea: { minHeight: 70, textAlignVertical: 'top' },
   previewBox: { borderRadius: 15, backgroundColor: ucapsaBrand.colors.premiumSurfaceAlt, padding: 12, gap: 3, marginTop: 8 },
-  previewTitle: { color: ucapsaBrand.colors.surface, fontSize: 12, fontWeight: '900' },
-  previewText: { color: ucapsaBrand.colors.dangerBorder, fontSize: 11, lineHeight: 17, fontWeight: '700' },
+  previewTitle: { color: ucapsaBrand.colors.premiumText, fontSize: 12, fontWeight: '900' },
+  previewText: { color: ucapsaBrand.colors.premiumMuted, fontSize: 11, lineHeight: 17, fontWeight: '700' },
   historyBox: { borderRadius: 15, backgroundColor: ucapsaBrand.colors.surface, overflow: 'hidden' },
   historyRow: { padding: 10, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.premiumMuted },
   historyTitle: { color: ucapsaBrand.colors.text, fontSize: 11, fontWeight: '900' },
@@ -420,6 +426,6 @@ const styles = StyleSheet.create({
   primaryButton: { alignItems: 'center', borderRadius: 14, backgroundColor: ucapsaBrand.colors.red, paddingVertical: 13, marginTop: 10 },
   primaryButtonText: { color: ucapsaBrand.colors.surface, fontSize: 13, fontWeight: '900' },
   secondaryButton: { alignItems: 'center', borderRadius: 14, borderWidth: 1, borderColor: ucapsaBrand.colors.redBorder, paddingVertical: 12, marginTop: 7 },
-  secondaryButtonText: { color: ucapsaBrand.colors.surface, fontSize: 13, fontWeight: '900' },
+  secondaryButtonText: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '900' },
   disabled: { opacity: 0.5 },
 });
