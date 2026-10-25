@@ -1,11 +1,12 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
+import { showPlatformDialog } from '../../utils/staff-dialog';
 import {
   getPrivacyNoticeAdminById,
   publishPrivacyNotice,
@@ -91,7 +92,7 @@ export default function PrivacyNoticeFormScreen() {
       .then((row) => {
         if (!active) return;
         if (!row) {
-          Alert.alert('Aviso no encontrado', 'La versión ya no existe.');
+          showPlatformDialog('Aviso no encontrado', 'La versión ya no existe.');
           router.replace('/admin/privacy-notices' as never);
           return;
         }
@@ -100,7 +101,7 @@ export default function PrivacyNoticeFormScreen() {
         setCurrentId(row.id);
       })
       .catch((cause) => {
-        if (active) Alert.alert('No se pudo cargar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+        if (active) showPlatformDialog('No se pudo cargar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -130,7 +131,7 @@ export default function PrivacyNoticeFormScreen() {
 
   async function save() {
     if (!form.version.trim()) {
-      Alert.alert('Falta versión', 'Asigna un identificador claro a esta versión.');
+      showPlatformDialog('Falta versión', 'Asigna un identificador claro a esta versión.');
       return null;
     }
 
@@ -143,10 +144,10 @@ export default function PrivacyNoticeFormScreen() {
       });
       setCurrentId(saved.id);
       setStatus(saved.status);
-      Alert.alert('Borrador guardado', 'Los cambios quedaron guardados sin publicar.');
+      showPlatformDialog('Borrador guardado', 'Los cambios quedaron guardados sin publicar.');
       return saved;
     } catch (cause) {
-      Alert.alert('No se pudo guardar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+      showPlatformDialog('No se pudo guardar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
       return null;
     } finally {
       setSaving(false);
@@ -155,7 +156,7 @@ export default function PrivacyNoticeFormScreen() {
 
   async function publish() {
     if (missing.length > 0) {
-      Alert.alert('Aviso incompleto', `Faltan ${missing.length} campo(s) obligatorio(s). Completa y revisa antes de publicar.`);
+      showPlatformDialog('Aviso incompleto', `Faltan ${missing.length} campo(s) obligatorio(s). Completa y revisa antes de publicar.`);
       return;
     }
 
@@ -166,7 +167,7 @@ export default function PrivacyNoticeFormScreen() {
       if (!targetId) return;
     }
 
-    Alert.alert(
+    showPlatformDialog(
       'Publicar aviso',
       'La versión publicada quedará inmutable. Confirma sólo si el contenido jurídico fue revisado y aprobado.',
       [
@@ -177,10 +178,10 @@ export default function PrivacyNoticeFormScreen() {
             try {
               setSaving(true);
               await publishPrivacyNotice(targetId as string);
-              Alert.alert('Aviso publicado', 'La versión ya es la fuente pública canónica.');
+              showPlatformDialog('Aviso publicado', 'La versión ya es la fuente pública canónica.');
               router.replace('/admin/privacy-notices' as never);
             } catch (cause) {
-              Alert.alert('No se pudo publicar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+              showPlatformDialog('No se pudo publicar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
             } finally {
               setSaving(false);
             }
