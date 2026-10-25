@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Redirect, router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
@@ -30,40 +30,47 @@ function dateLabel(value: string | null) {
 
 export default function AdminClientFollowupsScreen() {
   const { isAdmin } = useSession();
+  const loadRunRef = useRef(0);
   const [rows, setRows] = useState<AdminClientFollowupRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    const runId = ++loadRunRef.current;
+    const isCurrentRun = () => runId === loadRunRef.current;
     if (!isAdmin) return;
+    setLoading(true);
     setError(null);
-    const nextRows = await withOperationTimeout(
-      getAdminClientFollowupRows(),
-      DEFAULT_READ_TIMEOUT_MS,
-      'admin-client-followups-load',
-    );
-    setRows(nextRows);
+    setRows([]);
+    try {
+      const nextRows = await withOperationTimeout(
+        getAdminClientFollowupRows(),
+        DEFAULT_READ_TIMEOUT_MS,
+        'admin-client-followups-load',
+      );
+      if (!isCurrentRun()) return;
+      setRows(nextRows);
+    } catch {
+      if (!isCurrentRun()) return;
+      setRows([]);
+      setError(friendlyReadError('No se pudo actualizar el seguimiento de clientes.'));
+    } finally {
+      if (isCurrentRun()) setLoading(false);
+    }
   }, [isAdmin]);
 
   useFocusEffect(useCallback(() => {
     if (!isAdmin) return undefined;
-    setLoading(true);
-    void load()
-      .catch(() => setError(friendlyReadError('No se pudo actualizar el seguimiento de clientes.')))
-      .finally(() => setLoading(false));
-    return undefined;
+    void load();
+    return () => { loadRunRef.current += 1; setRows([]); };
   }, [isAdmin, load]));
 
   async function refresh() {
+    if (!isAdmin) return;
     setRefreshing(true);
-    try {
-      await load();
-    } catch {
-      setError(friendlyReadError('No se pudo actualizar el seguimiento de clientes.'));
-    } finally {
-      setRefreshing(false);
-    }
+    try { await load(); }
+    finally { setRefreshing(false); }
   }
 
   if (!isAdmin) return <Redirect href="/home" />;
@@ -117,7 +124,7 @@ export default function AdminClientFollowupsScreen() {
       ) : null}
 
       <View style={styles.list}>
-        {rows.map((row) => (
+        {!loading && !error && rows.map((row) => (
           <Pressable
             key={row.dogId}
             style={({ pressed }) => [styles.followupCard, pressed && styles.pressed]}
