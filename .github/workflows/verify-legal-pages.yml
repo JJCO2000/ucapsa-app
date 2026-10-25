@@ -71,3 +71,30 @@ jobs:
             echo "UCAPSA public $slug: HTTP 200, HTML and required text PASS"
             rm -f "$headers" "$body"
           done
+      - name: Check deployed legal redirect endpoints (GET HEAD POST)
+        shell: bash
+        run: |
+          set -euo pipefail
+          api='https://hrfecmviyiluubymsoeq.supabase.co/functions/v1'
+          base='https://jjco2000.github.io/ucapsa-app'
+          for entry in 'privacy-policy:privacidad' 'account-deletion-request:eliminar-cuenta'; do
+            IFS=':' read -r fn slug <<< "$entry"
+            expected="$base/$slug/"
+            url="$api/$fn"
+            for method in GET HEAD; do
+              headers="$(mktemp)"
+              status="$(curl --silent --show-error --retry 2 --retry-delay 2 --max-time 20 \
+                --request "$method" --dump-header "$headers" --output /dev/null \
+                --write-out '%{http_code}' "$url")"
+              test "$status" = 302 || { echo "ERROR: $fn $method HTTP $status (expected 302)"; exit 1; }
+              actual="$(sed -n -E 's/^[Ll]ocation:[[:space:]]*(.*)\r?$/\1/p' "$headers" | tail -1)"
+              test "$actual" = "$expected" || {
+                echo "ERROR: $fn $method redirects to $actual (expected $expected)"; exit 1;
+              }
+              rm -f "$headers"
+            done
+            status="$(curl --silent --show-error --retry 2 --retry-delay 2 --max-time 20 \
+              --request POST --output /dev/null --write-out '%{http_code}' "$url")"
+            test "$status" = 405 || { echo "ERROR: $fn POST HTTP $status (expected 405)"; exit 1; }
+            echo "UCAPSA deployed $fn: GET/HEAD 302 to HTML, POST 405 PASS"
+          done
