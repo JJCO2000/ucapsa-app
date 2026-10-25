@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { assertIntakePublishedNotice } from './preregistration-privacy-coverage.service';
 import type { Database } from '../types/database.types';
 import { preregistrationEnabled } from '../constants/preregistrationFeature';
 import { normalizeContactPhone } from '../utils/phone-contact';
@@ -51,6 +52,7 @@ export async function callPreregistrationRpc(
 }
 
 export async function adminPreregisterDogWithProgram(input: PreregisteredProgramInput): Promise<string> {
+  await assertIntakePublishedNotice();
   const args = {
     p_owner_name: input.ownerName.trim(),
     p_owner_email: input.ownerEmail.trim().toLowerCase(),
@@ -93,6 +95,7 @@ export type StaffPreregistrationInput = Pick<PreregisteredProgramInput,
 
 export async function staffPreregisterDogWithProgram(input: StaffPreregistrationInput): Promise<string> {
   if (!preregistrationEnabled) throw new Error('La preinscripción todavía no está habilitada.');
+  await assertIntakePublishedNotice();
   const rpc = supabase.rpc.bind(supabase) as unknown as (
     name: 'staff_preregister_dog_with_program' | 'staff_preregister_dog_with_family',
     args: Record<string, unknown>,
