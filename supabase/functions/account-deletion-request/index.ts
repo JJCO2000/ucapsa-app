@@ -1,4 +1,4 @@
-const TARGET_URL = 'https://github.com/JJCO2000/ucapsa-app/blob/main/docs/legal/ELIMINAR_CUENTA_UCAPSA_APP.md';
+const TARGET_URL = 'https://jjco2000.github.io/ucapsa-app/eliminar-cuenta/';
 
 Deno.serve((req) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') {

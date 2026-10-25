@@ -1,4 +1,4 @@
-const TARGET_URL = 'https://github.com/JJCO2000/ucapsa-app/blob/main/docs/legal/AVISO_PRIVACIDAD_UCAPSA_APP.md';
+const TARGET_URL = 'https://jjco2000.github.io/ucapsa-app/privacidad/';
 
 Deno.serve((req) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
