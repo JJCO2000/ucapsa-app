@@ -177,7 +177,11 @@ export default function ClientMembershipScreen() {
   }
 
   async function requestReview() {
-    if (!userId || isAdmin || !belongsToUser || saving || !membershipFresh
+    if (!userId) {
+      Alert.alert('Sesión requerida', 'Vuelve a iniciar sesión para enviar la solicitud.');
+      return;
+    }
+    if (isAdmin || !belongsToUser || saving || !membershipFresh
         || !eligibilityFresh || eligibility?.eligible !== true || usingSavedData) {
       Alert.alert('Solicitud no disponible', 'Actualiza tu membresía y tus programas antes de solicitarla.');
       return;
