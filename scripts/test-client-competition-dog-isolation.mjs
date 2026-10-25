@@ -24,6 +24,7 @@ const js=ts.transpileModule(
   'exports.makeLoad = () => ('+callbacks.load+');\n'
   +'exports.makeApply = () => ('+callbacks.applySnapshot+');',{
     compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022},
+    fileName:'client-competition-callbacks.ts',
 }).outputText;
 function deferred(){let resolve,reject;const promise=new Promise((ok,no)=>{resolve=ok;reject=no;});return{promise,resolve,reject};}
 function fixture(dogName, season='current') {
@@ -55,11 +56,11 @@ function harness({userId='A',dogId='dogA',isAdmin=false}={}){
     refreshMyDogCompetition:()=>{
       const d=deferred();remote.push(d);return d.promise;
     },
+    applySnapshot:(...args)=>applySnapshot(...args),
   };
   vm.runInNewContext(js,ctx);
   const applySnapshot=exports.makeApply();
-  vm.runInNewContext('exports.makeLoad2 = () => ('+callbacks.load+');', {...ctx,applySnapshot});
-  return{load:exports.makeLoad2(),state,cache,remote,warnings,
+  return{load:exports.makeLoad(),state,cache,remote,warnings,
     loadRunRef,activeScopeKeyRef,scopeKey,applySnapshot};
 }
 async function microtasks(){for(let i=0;i<6;i++)await Promise.resolve();}
