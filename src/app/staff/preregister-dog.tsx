@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, TextIn
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { PreregistrationFamilyEditor } from '../../components/domain/PreregistrationFamilyEditor';
+import { PreregistrationPrivacyNotice } from '../../components/domain/PreregistrationPrivacyNotice';
 import type { FamilyMemberInput } from '../../services/preregistration-family.service';
 import { ucapsaBrand } from '../../constants/brand';
 import { preregistrationEnabled } from '../../constants/preregistrationFeature';
@@ -165,6 +166,7 @@ export default function StaffPreregisterDogScreen() {
       </View>
 
       <PreregistrationFamilyEditor value={familyMembers} onChange={setFamilyMembers} disabled={saving} />
+      <PreregistrationPrivacyNotice />
 
       <Pressable accessibilityRole="button" disabled={saving}
         style={[styles.saveButton, saving && styles.disabled]} onPress={() => void save()}>
