@@ -8,6 +8,7 @@ const customer=fs.readFileSync('src/app/admin/customer.tsx','utf8');
 const dir=fs.readFileSync('src/app/(tabs)/admin-clients.tsx','utf8');
 const service=fs.readFileSync('src/services/admin-client-followups.service.ts','utf8');
 const clientCheck=fs.readFileSync('scripts/check-client-followups.mjs','utf8');
+const fullList=fs.readFileSync('src/app/admin/client-followups.tsx','utf8');
 
 function compiledCallback(code, name, filename) {
   const parsed=ts.createSourceFile(filename,code,ts.ScriptTarget.ES2022,true,
@@ -28,6 +29,7 @@ function compiledCallback(code, name, filename) {
   }).outputText;
 }
 const loadCode=compiledCallback(hook,'load','useAdminCustomerFollowups.ts');
+const fullListLoadCode=compiledCallback(fullList,'load','client-followups.tsx');
 function deferred(){
   let resolve,reject;
   const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});
@@ -46,6 +48,12 @@ function harness(id='A') {
     setError:v=>state.error=v,
     getAdminClientFollowupRows:()=>{
       const d=deferred();requests.push(d);return d.promise;
+    },
+    DEFAULT_READ_TIMEOUT_MS:6000,
+    withOperationTimeout:(promise,ms,label)=>{
+      assert.equal(ms,6000);
+      assert.equal(label,'admin-customer-followups');
+      return promise;
     },
   });
   return {load:exports.load,requests,state,activeUserIdRef,loadRunRef};
@@ -131,5 +139,80 @@ async function check() {
     clientCheck.includes('Seguimiento:'),
     'Directory, summary and Admin must continue using one Supabase RPC');
 }
+
+function fullListHarness(isAdmin=true) {
+  const state={rows:['previous'],loading:true,error:null};
+  const requests=[];
+  const loadRunRef={current:0};
+  const exports={};
+  vm.runInNewContext(fullListLoadCode,{
+    exports,isAdmin,loadRunRef,
+    setRows:v=>state.rows=v,
+    setLoading:v=>state.loading=v,
+    setError:v=>state.error=v,
+    getAdminClientFollowupRows:()=>{
+      const d=deferred();requests.push(d);return d.promise;
+    },
+    DEFAULT_READ_TIMEOUT_MS:6000,
+    withOperationTimeout:(promise,ms,label)=>{
+      assert.equal(ms,6000);
+      assert.equal(label,'admin-client-followups-load');
+      return promise;
+    },
+    friendlyReadError:message=>message+' Revisa tu conexión e intenta de nuevo.',
+  });
+  return {load:exports.load,requests,state,loadRunRef};
+}
+
+async function checkFullList() {
+  {
+    const h=fullListHarness();
+    const first=h.load(),second=h.load();
+    assert.equal(h.state.rows.length,0,'The list must not show old rows during refresh');
+    h.requests[1].resolve([row('A','New')]);await second;
+    h.requests[0].resolve([row('B','Stale')]);await first;
+    assert.equal(h.state.rows[0].dogName,'New','Late prior result must not overwrite latest list');
+    assert.equal(h.state.loading,false);
+  }
+  {
+    const h=fullListHarness();
+    const first=h.load(),second=h.load();
+    h.requests[1].resolve([row('A','Verified')]);await second;
+    h.requests[0].reject(new Error('late failure'));await first;
+    assert.equal(h.state.rows[0].dogName,'Verified');
+    assert.equal(h.state.error,null,'Old errors must not invalidate successful newer results');
+  }
+  {
+    const h=fullListHarness();
+    const current=h.load();
+    h.requests[0].reject(new Error('timeout'));await current;
+    assert.equal(h.state.rows.length,0,'Failed refresh must clear old alerts');
+    assert.match(h.state.error,/No se pudo actualizar/);
+    assert.equal(h.state.loading,false);
+  }
+  {
+    const h=fullListHarness();
+    const old=h.load();
+    h.loadRunRef.current++;
+    h.requests[0].resolve([row('A','Closed screen')]);await old;
+    assert.equal(h.state.rows.length,0,'Blurred screen must not commit private rows');
+  }
+  {
+    const h=fullListHarness(false);
+    await h.load();
+    assert.equal(h.requests.length,0,'Non-Admin may not read followups from the client');
+  }
+  for(const token of [
+    'const loadRunRef = useRef(0)',
+    'const runId = ++loadRunRef.current',
+    'if (!isCurrentRun()) return;',
+    'setRows([])',
+    "return () => { loadRunRef.current += 1; setRows([]); }",
+    '!loading && !error && rows.map',
+  ]) assert.ok(fullList.includes(token),'Missing full-list follow-up protection: '+token);
+}
+
 await check();
-console.log('UCAPSA Admin customer follow-up summary PASS: exact user, stale fetch, concurrent loads, fail-closed, shared RPC and two verified reasons.');
+await checkFullList();
+assert.ok(hook.includes("withOperationTimeout(") && hook.includes("DEFAULT_READ_TIMEOUT_MS") && hook.includes("'admin-customer-followups'"),'Detail followup must have bounded read latency');
+console.log('UCAPSA Admin customer follow-up summary and list PASS: exact user, stale fetch, timeout error, concurrent loads, focus cleanup and shared RPC.');
