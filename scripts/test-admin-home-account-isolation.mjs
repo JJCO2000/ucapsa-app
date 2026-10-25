@@ -94,7 +94,7 @@ async function check() {
     completeCore(h, 0);await old;
     assert.equal(h.state.resolvedForUserId, null, 'Prior account data cannot be committed');
     assert.equal(h.requests.rsvp.length, 0, 'Prior account cannot start a second batch of queries');
-    assert.deepEqual(h.state.tomorrowClasses, [], 'Private old agenda cleared at start');
+    assert.equal(h.state.tomorrowClasses.length, 0, 'Private old agenda cleared at start');
   }
   {
     const h = fixture();
