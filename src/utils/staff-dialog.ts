@@ -7,7 +7,7 @@ import { Alert, Platform, type AlertButton } from 'react-native';
  *
  * Never execute a destructive action without an affirmative user decision.
  */
-export function showStaffDialog(title: string, message: string, buttons?: AlertButton[]) {
+export function showPlatformDialog(title: string, message: string, buttons?: AlertButton[]) {
   if (Platform.OS === 'web') {
     if (!buttons?.length) {
       window.alert(title + '\n\n' + message);
@@ -21,3 +21,6 @@ export function showStaffDialog(title: string, message: string, buttons?: AlertB
   }
   Alert.alert(title, message, buttons);
 }
+
+// Backward-compatible alias: Admin/Trainer screens retain the canonical dialog.
+export const showStaffDialog = showPlatformDialog;
