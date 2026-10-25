@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, Platform, Pressable, RefreshControl, StyleShe
 
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { PreregistrationFamilyEditor } from '../../components/domain/PreregistrationFamilyEditor';
+import { PreregistrationPrivacyNotice } from '../../components/domain/PreregistrationPrivacyNotice';
 import { getAdminPreregisteredFamily, addAdminPreregisteredFamily,
   type FamilyMemberInput, type FamilyMemberSaved } from '../../services/preregistration-family.service';
 import { ucapsaBrand } from '../../constants/brand';
@@ -244,6 +245,7 @@ export default function AdminPreregistrationDetailScreen() {
           {(record.status === 'pending' || record.status === 'linked') ? (
             <>
               <PreregistrationFamilyEditor value={newFamily} onChange={setNewFamily} disabled={savingFamily} />
+              <PreregistrationPrivacyNotice />
               {newFamily.length > 0 ? (
                 <Pressable accessibilityRole="button" style={styles.primary} disabled={savingFamily}
                   onPress={() => { void saveFamily(); }}>
