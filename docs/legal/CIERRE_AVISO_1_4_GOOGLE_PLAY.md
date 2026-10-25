@@ -1,5 +1,8 @@
 # UCAPSA — Cierre controlado del aviso 1.4 para Google Play
 
+**ACTUALIZACIÓN VERIFICADA DEL 25-10-2026:** El aviso `1.4-appstores-2026-10-25` **ya es la única versión `published` en Supabase**; `1.2` quedó `retired`. El documento HTML canónico 1.4 se fusionó mediante PR #561 en `main` (la disponibilidad HTTP pública no se ha comprobado aquí). Las tablas de versiones más abajo son un **diagnóstico histórico anterior a esta actualización**, no el estado vigente. Los formularios enviados a Play Console y App Store Connect requieren validación aparte. La publicación del aviso tampoco acredita consentimiento de familiares o pruebas de eliminación de cuentas.
+
+
 **Corte de diagnóstico:** 25 de octubre de 2026. **Estado:** pendiente de revisión y publicación oficial. Esta guía **no** es un aviso vigente ni autoriza recopilar datos adicionales.
 
 **Matriz cruzada de requisitos oficiales y estado real:** [Android, iOS, web y Supabase](./MATRIZ_PRIVACIDAD_IOS_ANDROID_WEB_2026-10-25.md).
