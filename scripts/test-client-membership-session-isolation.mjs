@@ -97,6 +97,9 @@ async function run(){
     resolveRemote(h,0,null,[],{eligible:false});await flush();
     assert.equal(h.writes.length,1);
     h.writes[0].resolve({saved_at:'recent'});
+    await flush();
+    assert.equal(h.writes.length,2);
+    h.writes[1].resolve({saved_at:'recent-programs'});
     await second;
     resolveCache(h,0,{data:{status:'active'},saved_at:'old'},null);
     await first;
@@ -113,7 +116,10 @@ async function run(){
     await flush();
     h.rpc[0].reject(new Error('offline'));
     h.rpc[1].resolve([]);
-    h.rpc[2].reject(new Error('offline'));await load;
+    h.rpc[2].reject(new Error('offline'));
+    await flush();
+    h.writes[0].resolve({saved_at:'offline-programs'});
+    await load;
     assert.equal(h.state.membership,null,'No verified membership QR should survive a failed read');
     assert.equal(h.state.cachedMembership.status,'active');
     assert.equal(h.state.membershipFresh,false);
@@ -127,7 +133,10 @@ async function run(){
     await flush();assert.equal(h.rpc.length,3);
     resolveRemote(h,0,null,[],{eligible:false});await flush();
     assert.equal(h.writes.length,1);
-    h.writes[0].resolve({saved_at:'today'});await load;
+    h.writes[0].resolve({saved_at:'today'});
+    await flush();
+    h.writes[1].resolve({saved_at:'today-programs'});
+    await load;
     assert.equal(h.state.error,null);
     assert.equal(h.warns.length,1);
   }
