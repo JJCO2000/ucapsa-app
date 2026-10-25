@@ -41,11 +41,11 @@ for (const token of [
   if (!service.includes(token)) failures.push('Servicio Continuidad perdió contrato: ' + token);
 }
 
-if (!/recordValueExposure\(user\.id, dogId, selectedSeasonId, 'constancy_summary'\)/.test(summary)) {
+if (!/recordValueExposure\((?:user\.id|userId), dogId, selectedSeasonId, 'constancy_summary'\)/.test(summary)) {
   failures.push('Resumen Cliente account-level no registra exposición durable al Nivel de Constancia por perro.');
 }
-if (!/setTimeout\([\s\S]{0,260}750/.test(summary) || !/screenFocused/.test(summary)) {
-  failures.push('Resumen Cliente debe exigir foco estable durante 750 ms antes de registrar exposición.');
+if (!/setTimeout\([\s\S]{0,650}\}, 750\);/.test(summary) || !/screenFocused/.test(summary)) {
+  failures.push('Resumen Cliente debe exigir foco estable durante exactamente 750 ms antes de registrar exposición.');
 }
 if (!/recordValueExposure\((?:user\.id|userId), detail\.dog_id, season\.season_id, 'constancy_detail'\)/.test(detail)
   || !detail.includes('detail.dog_id !== dogId') || !detail.includes('season?.season_id !== seasonId')) {
