@@ -45,3 +45,29 @@ jobs:
             exit 1
           fi
           echo "UCAPSA legal Pages: HTML build PASS"
+      - name: Check deployed legal URLs from an external runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Compilation alone cannot prove that the store-facing URLs are online.
+          base='https://jjco2000.github.io/ucapsa-app'
+          for slug in privacidad eliminar-cuenta; do
+            target="$base/$slug/"
+            headers="$(mktemp)"
+            body="$(mktemp)"
+            code="$(curl --fail --silent --show-error --location --retry 2 --retry-delay 2 --max-time 15 \
+              --dump-header "$headers" --output "$body" --write-out '%{http_code}' "$target")"
+            test "$code" = 200 || { echo "ERROR: $slug HTTP $code"; exit 1; }
+            grep -Eqi '^content-type:[[:space:]]*text/html' "$headers" || {
+              echo "ERROR: $slug did not return HTML"; exit 1;
+            }
+            if [ "$slug" = privacidad ]; then
+              grep -qi 'Aviso de Privacidad' "$body"
+              grep -qi 'Universidad de Crianza y Adiestramiento' "$body"
+            else
+              grep -qi 'Eliminar cuenta y datos' "$body"
+              grep -qi 'ucapsa84@gmail.com' "$body"
+            fi
+            echo "UCAPSA public $slug: HTTP 200, HTML and required text PASS"
+            rm -f "$headers" "$body"
+          done
