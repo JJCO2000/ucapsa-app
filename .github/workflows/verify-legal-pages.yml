@@ -87,7 +87,7 @@ jobs:
                 --request "$method" --dump-header "$headers" --output /dev/null \
                 --write-out '%{http_code}' "$url")"
               test "$status" = 302 || { echo "ERROR: $fn $method HTTP $status (expected 302)"; exit 1; }
-              actual="$(sed -n -E 's/^[Ll]ocation:[[:space:]]*(.*)\r?$/\1/p' "$headers" | tail -1)"
+              actual="$(grep -i '^location:' "$headers" | sed -E 's/^[^:]+:[[:space:]]*//' | tr -d '\r' | tail -1)"
               test "$actual" = "$expected" || {
                 echo "ERROR: $fn $method redirects to $actual (expected $expected)"; exit 1;
               }
