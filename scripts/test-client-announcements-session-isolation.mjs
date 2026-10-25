@@ -63,7 +63,7 @@ async function check(){
     settleCache(h,0,[{id:'private-A'}]);await a;
     assert.equal(h.calls.remote.length,0);
     assert.equal(h.state.loadedForScope,null);
-    assert.deepEqual(h.state.storedAnnouncements,[]);
+    assert.equal(h.state.storedAnnouncements.length,0);
   }
   // A late first refresh cannot replace the second refresh's data.
   {
@@ -113,7 +113,7 @@ async function check(){
     h.calls.remote[0].reject(new Error('offline'));await p;
     assert.equal(h.state.offlineEmpty,true);
     assert.equal(h.state.loadedForScope,'A');
-    assert.deepEqual(h.state.storedAnnouncements,[]);
+    assert.equal(h.state.storedAnnouncements.length,0);
   }
   for(const token of [
     'const announcements = loadedForScope === cacheScope ? storedAnnouncements : [];',
