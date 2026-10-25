@@ -471,3 +471,6 @@ if (!practiceDetailCopy.includes('Se enviará cuando tengas conexión.')
     || !practiceDetailCopy.includes('entry.syncMessage')) {
   throw new Error('La práctica offline debe explicar su entrega pendiente y conservar el motivo de rechazo.');
 }
+
+// Ejecuta el componente real: la etiqueta guardada debe ser visible y reintentar debe ser accionable.
+await import('./test-client-saved-data-notice-ui.mjs');
