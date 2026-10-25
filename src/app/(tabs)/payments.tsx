@@ -41,26 +41,44 @@ export default function PaymentsTab() {
   const fromProfile = (Array.isArray(from) ? from[0] : from) === 'profile';
   const backToProfile = useReturnToProfile(fromProfile);
   const { user, role, isAdmin } = useSession();
-  const [overview, setOverview] = useState<MyPaymentOverview>(emptyOverview);
-  const [bankSettings, setBankSettings] = useState<PaymentSettings | null>(null);
-  const [bankUnavailable, setBankUnavailable] = useState(false);
-  const [localReady, setLocalReady] = useState(false);
+  const sessionScope = user?.id ?? (isAdmin ? 'admin' : 'public');
+  const activeScopeRef = useRef(sessionScope);
+  activeScopeRef.current = sessionScope;
+  const [storedOverview, setOverview] = useState<MyPaymentOverview>(emptyOverview);
+  const [storedBankSettings, setBankSettings] = useState<PaymentSettings | null>(null);
+  const [storedBankUnavailable, setBankUnavailable] = useState(false);
+  const [storedLocalReady, setLocalReady] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [usingSavedData, setUsingSavedData] = useState(false);
-  const [savedAt, setSavedAt] = useState<string | null>(null);
-  const [detailsAvailable, setDetailsAvailable] = useState(false);
-  const [overviewAvailable, setOverviewAvailable] = useState(false);
+  const [storedUsingSavedData, setUsingSavedData] = useState(false);
+  const [storedSavedAt, setSavedAt] = useState<string | null>(null);
+  const [storedDetailsAvailable, setDetailsAvailable] = useState(false);
+  const [storedOverviewAvailable, setOverviewAvailable] = useState(false);
+  const [loadedForScope, setLoadedForScope] = useState<string | null>(null);
   const cacheScopeRef = useRef<string | null>(null);
   const loadRunRef = useRef(0);
+
+  // Do not render a previous account's balance, history or verified bank details,
+  // even for the single render before the focus effect resets local state.
+  const scopeReady = Boolean(user && !isAdmin && loadedForScope === sessionScope);
+  const overview = scopeReady ? storedOverview : emptyOverview;
+  const bankSettings = scopeReady ? storedBankSettings : null;
+  const bankUnavailable = scopeReady && storedBankUnavailable;
+  const localReady = scopeReady && storedLocalReady;
+  const usingSavedData = scopeReady && storedUsingSavedData;
+  const savedAt = scopeReady ? storedSavedAt : null;
+  const detailsAvailable = scopeReady && storedDetailsAvailable;
+  const overviewAvailable = scopeReady && storedOverviewAvailable;
 
   const load = useCallback(async () => {
     const runId = loadRunRef.current + 1;
     loadRunRef.current = runId;
-    const isCurrentRun = () => loadRunRef.current === runId;
-    const scope = user?.id ?? (isAdmin ? 'admin' : 'public');
+    const scope = sessionScope;
+    const isCurrentRun = () => loadRunRef.current === runId
+      && activeScopeRef.current === scope;
 
     if (cacheScopeRef.current !== scope) {
       cacheScopeRef.current = scope;
+      setLoadedForScope(null);
       setOverview(emptyOverview);
       setBankSettings(null);
       setBankUnavailable(false);
@@ -81,6 +99,7 @@ export default function PaymentsTab() {
 
     const cached = await readClientResource<PaymentOfflineSummary>(user.id, clientReadKeys.paymentSummary);
     if (!isCurrentRun()) return;
+    setLoadedForScope(scope);
 
     if (cached) {
       setOverview({ ...emptyOverview, ...cached.data });
@@ -124,7 +143,7 @@ export default function PaymentsTab() {
       setBankSettings(null);
       setBankUnavailable(true);
     }
-  }, [isAdmin, user]);
+  }, [isAdmin, sessionScope, user]);
 
   useFocusEffect(useCallback(() => {
     void load();
@@ -141,6 +160,7 @@ export default function PaymentsTab() {
   }
 
   async function copyClabe() {
+    if (!scopeReady || activeScopeRef.current !== sessionScope) return;
     const clabe = normalizeClabe(bankSettings?.clabe);
     if (!bankSettings?.is_active || !bankSettings.account_holder?.trim() || !isValidClabe(clabe)) {
       showPlatformDialog('CLABE no verificada', 'Conéctate para consultar la CLABE vigente antes de transferir.');
@@ -148,6 +168,7 @@ export default function PaymentsTab() {
     }
     try {
       await Clipboard.setStringAsync(clabe);
+      if (activeScopeRef.current !== sessionScope) return;
       showPlatformDialog('CLABE copiada', 'Verifica el titular en tu aplicación bancaria antes de confirmar la transferencia.');
     } catch (cause) {
       devWarn('payments: could not copy bank CLABE.', cause);
@@ -156,6 +177,7 @@ export default function PaymentsTab() {
   }
 
   async function copyAccountHolder() {
+    if (!scopeReady || activeScopeRef.current !== sessionScope) return;
     const holder = bankSettings?.account_holder?.replace(/\s+/g, ' ').trim() ?? '';
     if (!bankSettings?.is_active || !holder) {
       showPlatformDialog('Titular no disponible', 'Conéctate para consultar el titular vigente antes de transferir.');
@@ -163,6 +185,7 @@ export default function PaymentsTab() {
     }
     try {
       await Clipboard.setStringAsync(holder);
+      if (activeScopeRef.current !== sessionScope) return;
       showPlatformDialog('Titular copiado', 'Pega el nombre completo del titular en tu aplicación bancaria.');
     } catch (cause) {
       devWarn('payments: could not copy bank account holder.', cause);
