@@ -175,10 +175,10 @@ export default function ClientCompetitionRankingScreen() {
     || myCompetition?.seasons?.find((season) => season.season_id === seasonId)?.season_name
     || myRows.find(({ season }) => season)?.season?.season_name || 'Temporada UCAPSA';
   function missingExamExplanation(dogId: string, season: (typeof myRows)[number]['season']) {
-    if (!season) return 'Puntaje no disponible en este dispositivo.';
+    if (!season) return 'No pudimos cargar tus puntos. Conéctate y actualiza.';
     const requiredCount = Number(season.required_exams_count ?? 0);
     const missingCount = Number(season.missing_required_exams_count ?? 0);
-    if (requiredCount === 0) return 'Sin exámenes obligatorios publicados: ningún examen bloquea el ranking.';
+    if (requiredCount === 0) return 'Esta temporada no tiene exámenes obligatorios.';
     if (missingCount === 0) return 'Exámenes completos. Actualiza para conocer tu posición.';
     const completedIds = new Set(
       myCompetition?.dogs.find((dog) => dog.dog_id === dogId)
@@ -212,7 +212,7 @@ export default function ClientCompetitionRankingScreen() {
           savedAt={savedAt}
           onRetry={() => void refresh()}
           premium={premium}
-          label="Mostrando datos competitivos guardados"
+          label="Mostrando Ranking guardado"
         />
       ) : null}
 
@@ -243,7 +243,7 @@ export default function ClientCompetitionRankingScreen() {
           <>
             <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
               <Text style={[styles.cardTitle, { color: format.cardText }]}>Ranking oficial pendiente</Text>
-              <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{'No hay posiciones oficiales todavía. El Ranking permanece visible: ' + (requiredExams === null ? 'verifica tus datos al reconectar.' : requiredExams.length > 0 ? 'faltan resultados de exámenes obligatorios.' : 'aún no hay participantes clasificados.')}</Text>
+              <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>{'No hay posiciones oficiales todavía. ' + (requiredExams === null ? 'Conéctate y actualiza para revisar los resultados.' : requiredExams.length > 0 ? 'Faltan resultados de exámenes obligatorios.' : 'Aún no hay perros clasificados.')}</Text>
             </View>
             <Text style={[styles.sectionTitle, { color: format.cardText }]}>Podio</Text>
             <View style={styles.podiumRow}>
@@ -276,7 +276,7 @@ export default function ClientCompetitionRankingScreen() {
                       <Text style={[styles.muted, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>
                         {season
                           ? Number(season.required_exams_count ?? 0) === 0
-                            ? 'Sin exámenes obligatorios publicados; ninguno bloquea el ranking.'
+                            ? 'Esta temporada no tiene exámenes obligatorios.'
                             : missingExamExplanation(dog.id, season)
                           : 'Actualiza para consultar el puntaje de esta temporada.'}
                       </Text>
