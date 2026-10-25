@@ -35,10 +35,10 @@ begin
     and n.published_at is not null
     and n.effective_from is not null
     and n.effective_from <= pg_catalog.clock_timestamp()
-    and pg_catalog.position('preinscripci' in pg_catalog.lower(n.simplified_notice)) > 0
-    and pg_catalog.position('familia' in pg_catalog.lower(n.simplified_notice)) > 0
-    and pg_catalog.position('preinscripci' in pg_catalog.lower(n.integral_notice)) > 0
-    and pg_catalog.position('familia' in pg_catalog.lower(n.integral_notice)) > 0
+    and pg_catalog.strpos(pg_catalog.lower(n.simplified_notice), 'preinscripci') > 0
+    and pg_catalog.strpos(pg_catalog.lower(n.simplified_notice), 'familia') > 0
+    and pg_catalog.strpos(pg_catalog.lower(n.integral_notice), 'preinscripci') > 0
+    and pg_catalog.strpos(pg_catalog.lower(n.integral_notice), 'familia') > 0
   limit 1;
 
   if v_notice_id is null then
