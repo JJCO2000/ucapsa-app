@@ -5,6 +5,7 @@ import {
   getAdminClientFollowupRows,
   type AdminClientFollowupRow,
 } from '../services/admin-client-followups.service';
+import { DEFAULT_READ_TIMEOUT_MS, withOperationTimeout } from '../utils/async.utils';
 
 /**
  * Seguimiento del cliente desde la misma RPC que utiliza el directorio Admin.
@@ -36,7 +37,9 @@ export function useAdminCustomerFollowups(userId: string) {
     setStoredRows([]);
     setResolvedForUserId(null);
     try {
-      const allRows = await getAdminClientFollowupRows();
+      const allRows = await withOperationTimeout(
+        getAdminClientFollowupRows(), DEFAULT_READ_TIMEOUT_MS, 'admin-customer-followups',
+      );
       if (!isCurrentRun()) return;
       setStoredRows(allRows.filter((row) => row.userId === userId));
       setResolvedForUserId(userId);
