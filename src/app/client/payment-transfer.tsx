@@ -132,11 +132,11 @@ export default function PaymentTransferScreen() {
       <UcapsaAmbientBackground format={format} variant="payments" />
       <Text style={[styles.eyebrow, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>ACCIÓN DE PAGO</Text>
       <Text style={[styles.title, { color: format.text }]}>Transferir</Text>
-      <Text style={[styles.subtitle, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Los datos bancarios se verifican en vivo cada vez que abres esta pantalla.</Text>
+      <Text style={[styles.subtitle, { color: premium ? ucapsaBrand.colors.premiumMuted : format.muted }]}>Revisa los datos bancarios antes de hacer tu transferencia.</Text>
 
-      {loading ? <View style={styles.loading}><ActivityIndicator color={format.accent} /><Text style={[styles.subtitle, { color: format.muted }]}>Verificando cargo y cuenta bancaria...</Text></View> : null}
+      {loading ? <View style={styles.loading}><ActivityIndicator color={format.accent} /><Text style={[styles.subtitle, { color: format.muted }]}>Preparando los datos para tu pago...</Text></View> : null}
 
-      {!loading && error ? <View style={[styles.card, premium && styles.cardPremium]}><MaterialIcons name="lock-outline" size={23} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} /><Text style={[styles.cardTitle, premium && styles.textPremium]}>{error}</Text><Pressable onPress={() => void refresh()}><Text style={[styles.link, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Reintentar verificación</Text></Pressable></View> : null}
+      {!loading && error ? <View style={[styles.card, premium && styles.cardPremium]}><MaterialIcons name="lock-outline" size={23} color={premium ? ucapsaBrand.colors.premiumAction : format.accentDark} /><Text style={[styles.cardTitle, premium && styles.textPremium]}>{error}</Text><Pressable onPress={() => void refresh()}><Text style={[styles.link, { color: premium ? ucapsaBrand.colors.premiumAction : format.accentDark }]}>Volver a intentar</Text></Pressable></View> : null}
 
       {!loading && !error && obligation && bankReady ? (
         <>
@@ -170,7 +170,7 @@ export default function PaymentTransferScreen() {
       ) : null}
 
       {!loading && !error && obligation && settings && !bankReady ? (
-        <View style={[styles.card, premium && styles.cardPremium]}><Text style={[styles.cardTitle, premium && styles.textPremium]}>Datos bancarios no válidos</Text><Text style={[styles.meta, premium && styles.mutedPremium]}>No transfieras hasta que UCAPSA publique una CLABE activa y válida de 18 dígitos.</Text></View>
+        <View style={[styles.card, premium && styles.cardPremium]}><Text style={[styles.cardTitle, premium && styles.textPremium]}>No se puede transferir por ahora</Text><Text style={[styles.meta, premium && styles.mutedPremium]}>No transfieras todavía. Solicita a UCAPSA los datos bancarios correctos.</Text></View>
       ) : null}
     </KeyboardAwareScreen>
   );

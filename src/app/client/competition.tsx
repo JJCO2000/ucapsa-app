@@ -268,11 +268,11 @@ export default function ClientCompetitionScreen() {
 
             {!selectedSeason ? (
               <View style={[styles.card, { backgroundColor: format.cardBackground, borderColor: format.cardBorder }]}>
-                <Text style={[styles.cardTitle, { color: format.cardText }]}>{usingSavedData ? 'Temporadas sin sincronizar' : 'No hay temporadas publicadas'}</Text>
+                <Text style={[styles.cardTitle, { color: format.cardText }]}>{usingSavedData ? 'No pudimos actualizar las temporadas' : 'No hay temporadas publicadas'}</Text>
                 <Text style={[styles.muted, { color: format.muted }]}>
                   {usingSavedData
-                    ? 'Los datos guardados no confirman el estado actual de las temporadas. Conéctate y actualiza.'
-                    : 'No hay ninguna temporada disponible para consultar. Actualiza si Administración acaba de activarla.'}
+                    ? 'Conéctate y actualiza para ver las temporadas vigentes.'
+                    : 'Aún no hay temporadas disponibles. Intenta actualizar más tarde.'}
                 </Text>
               </View>
             ) : (

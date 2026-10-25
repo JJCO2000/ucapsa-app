@@ -414,3 +414,60 @@ if (!read('src/components/domain/CompetitionPodium.tsx').includes('myDogIds?.has
 if (read('src/app/account-settings.tsx').includes('Correo de contacto para preinscripción')) {
   throw new Error('Datos de contacto: no mostrar procesos internos.');
 }
+
+
+ // Texto visible: evitar explicar detalles de implementación o repetir resultados.
+const officialExamUi = read('src/app/client/competition-exam-result.tsx');
+const paymentTransferUi = read('src/app/client/payment-transfer.tsx');
+for (const [area, source, rejected] of [
+  ['Examen', officialExamUi, [
+    'esta pantalla no recalcula otro total',
+    'caché', 'backend', 'RPC', 'token de acceso',
+  ]],
+  ['Transferencia', paymentTransferUi, [
+    'se verifican en vivo cada vez que abres',
+    'Reintentar verificación',
+    'caché', 'backend', 'RPC', 'token de acceso',
+  ]],
+]) {
+  for (const message of rejected) {
+    // Technical identifiers may still exist in source code; only reject the
+    // exact previously visible wording or a literal JSX text label.
+    if (source.toLowerCase().includes(message.toLowerCase())) {
+      throw new Error(area + ': lenguaje técnico o redundante detectado: ' + message);
+    }
+  }
+}
+for (const token of [
+  'PUNTAJE OFICIAL',
+  'detail.official.total_points_awarded',
+  'detail.official.max_points',
+  'Ejercicio por ejercicio',
+]) {
+  if (!officialExamUi.includes(token)) throw new Error('Examen perdió el dato oficial: ' + token);
+}
+for (const token of [
+  'Revisa los datos bancarios antes de hacer tu transferencia.',
+  'No transfieras todavía. Solicita a UCAPSA los datos bancarios correctos.',
+  'isValidClabe(settings.clabe)',
+  'loadedForKey === transferKey',
+]) {
+  if (!paymentTransferUi.includes(token)) throw new Error('Transferencia perdió aviso de seguridad o verificación: ' + token);
+}
+
+const competitionOverviewCopy = read('src/app/client/competition.tsx');
+const competitionDogCopy = read('src/app/client/competition-dog.tsx');
+const practiceDetailCopy = read('src/app/client/practice-detail.tsx');
+for (const [source, rejected, required] of [
+  [competitionOverviewCopy, 'Temporadas sin sincronizar', 'No pudimos actualizar las temporadas'],
+  [competitionDogCopy, 'No pudimos verificar el detalle competitivo', 'No pudimos cargar la competencia'],
+  [practiceDetailCopy, 'No pudo sincronizarse automáticamente.', 'No se pudo enviar esta práctica.'],
+]) {
+  if (source.includes(rejected) || !source.includes(required)) {
+    throw new Error('Cliente: mensaje técnico o poco claro volvió a mostrarse: ' + rejected);
+  }
+}
+if (!practiceDetailCopy.includes('Se enviará cuando tengas conexión.')
+    || !practiceDetailCopy.includes('entry.syncMessage')) {
+  throw new Error('La práctica offline debe explicar su entrega pendiente y conservar el motivo de rechazo.');
+}
