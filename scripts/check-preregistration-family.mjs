@@ -101,6 +101,9 @@ vm.runInNewContext(transpiled, {
   require: (path) => {
     if (path === '../utils/phone-contact') return { normalizeContactPhone: mockPhone };
     if (path === '../lib/supabase') return { supabase: {} };
+    if (path === './preregistration-privacy-coverage.service') return {
+      assertIntakePublishedNotice: async () => 'mock-reviewed-notice-id',
+    };
     throw new Error('Unrecognized import ' + path);
   },
   Set,
