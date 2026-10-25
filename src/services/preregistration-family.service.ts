@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { assertIntakePublishedNotice } from './preregistration-privacy-coverage.service';
 import { normalizeContactPhone } from '../utils/phone-contact';
 
 export type FamilyMemberInput = {
@@ -64,6 +65,7 @@ export async function getAdminPreregisteredFamily(intakeProgramId: string): Prom
 export async function addAdminPreregisteredFamily(intakeProgramId: string, members: FamilyMemberInput[]): Promise<number> {
   const normalized = normalizeFamilyMembers(members);
   if (!normalized.length) throw new Error('Agrega al menos un integrante.');
+  await assertIntakePublishedNotice();
   const rpc = supabase.rpc.bind(supabase) as unknown as
     (name: 'admin_add_preregistered_family_members',
       args: { p_intake_program_id: string; p_family_members: ReturnType<typeof normalizeFamilyMembers> })
