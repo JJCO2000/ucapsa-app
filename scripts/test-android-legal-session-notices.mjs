@@ -27,9 +27,10 @@ for(const token of [
   'NO VIGENTE / NO PUBLICAR',
   'Para integrantes familiares preinscritos',
   'sin crearles una cuenta, membresía, historial o acceso',
-  'un dato de contacto no autoriza por sí solo acceso entre cuentas',
   'La vinculación entre cuentas y la consulta de progreso ajeno **no están habilitadas**',
 ])assert.ok(notice.includes(token),'Draft privacy notice is missing: '+token);
+assert.match(notice,/un dato de contacto no autoriza por sí solo acceso entre cuentas/i,
+  'Draft must explicitly reject authorization from family contact alone.');
 assert.ok(safety.includes('Preinscripciones y familiares sin cuenta'));
 assert.ok(play.includes('Reconciliar versión 1.2 publicada en Supabase'));
 assert.ok(publicNotice.includes('Versión 1.3 App Stores') && !publicNotice.includes('Versión 1.4 App Stores'),
