@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { useSession } from '../../hooks/useSession';
+import { devWarn } from '../../lib/client-diagnostics';
 import { showPlatformDialog } from '../../utils/staff-dialog';
 import {
   getPrivacyNoticeAdminById,
@@ -101,7 +102,9 @@ export default function PrivacyNoticeFormScreen() {
         setCurrentId(row.id);
       })
       .catch((cause) => {
-        if (active) showPlatformDialog('No se pudo cargar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
+        if (!active) return;
+        devWarn('privacy-admin: failed to load draft.', cause);
+        showPlatformDialog('No se pudo cargar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -147,6 +150,7 @@ export default function PrivacyNoticeFormScreen() {
       showPlatformDialog('Borrador guardado', 'Los cambios quedaron guardados sin publicar.');
       return saved;
     } catch (cause) {
+      devWarn('privacy-admin: failed to save draft.', cause);
       showPlatformDialog('No se pudo guardar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
       return null;
     } finally {
@@ -181,6 +185,7 @@ export default function PrivacyNoticeFormScreen() {
               showPlatformDialog('Aviso publicado', 'La versión ya es la fuente pública canónica.');
               router.replace('/admin/privacy-notices' as never);
             } catch (cause) {
+              devWarn('privacy-admin: failed to publish notice.', cause);
               showPlatformDialog('No se pudo publicar', cause instanceof Error ? cause.message : 'Intenta de nuevo.');
             } finally {
               setSaving(false);
