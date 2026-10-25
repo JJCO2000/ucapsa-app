@@ -1,9 +1,13 @@
 # Google Play — Checklist de publicación UCAPSA
 
-**Revisión:** 22 de septiembre de 2026  
+**Revisión técnica:** 25 de octubre de 2026  
 **Package:** `com.jjcc2000.ucapsaapp`
 
 ## Política y privacidad
+
+**Estado de publicación legal por comprobar antes de enviar un AAB:** el aviso **publicado en Supabase** es `1.2-appstores-2026-09-27`, el **documento público** muestra `1.3 App Stores` y el borrador 1.4 incluye propuestas para preinscripciones y familiares sin cuenta. Estos estados no están alineados. La actualización del borrador **no** publica otro aviso ni sustituye la validación jurídica. Coordinar Superadmin (publicación en Supabase), página legal pública y declaraciones en Play Console antes del lanzamiento.
+
+**Comprobación adicional:** El usuario ya puede leer el aviso y solicitar eliminación desde Ajustes; la confirmación al cerrar sesión es una mejora de UX, no un aviso legal requerido por Google Play. Los permisos de cámara y notificaciones solo deben pedirse al iniciar una función que los necesite, con una explicación clara.
 
 - [x] Política de privacidad pública.
 - [x] Política de privacidad accesible dentro de la app.
@@ -12,6 +16,8 @@
 - [x] Eliminación de cuenta dentro de la app.
 - [x] Recurso web externo para solicitar eliminación sin volver a la app.
 - [x] Data Safety documentado contra el código y proveedores.
+- [ ] Reconciliar versión 1.2 publicada en Supabase, documento público 1.3 y revisión 1.4 antes de actualizar el aviso vigente y Play Console.
+- [ ] Confirmar que la obtención de contactos de familiares por Administración/Entrenador entrega el aviso adecuado al momento de recolección.
 - [x] Datos cifrados en tránsito.
 - [x] Sin venta de datos ni publicidad/tracking con la implementación actual.
 

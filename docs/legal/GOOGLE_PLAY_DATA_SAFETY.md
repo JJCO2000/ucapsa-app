@@ -1,6 +1,6 @@
 # Google Play — Data Safety de UCAPSA App
 
-**Revisión:** 22 de septiembre de 2026  
+**Revisión técnica:** 25 de octubre de 2026 (antes de captura final en Play Console)  
 **Aplicación:** UCAPSA  
 **Package:** `com.jjcc2000.ucapsaapp`
 
@@ -21,9 +21,9 @@ Este archivo documenta la declaración que debe capturarse en **Play Console →
 
 | Categoría Google Play | Tipo | Recopilado | Compartido | Obligatorio/opcional | Finalidades |
 | --- | --- | --- | --- | --- | --- |
-| Información personal | Nombre | Sí | No | Obligatorio al crear cuenta | Funcionalidad de la app; Gestión de cuentas |
-| Información personal | Dirección de correo electrónico | Sí | No | Obligatorio | Funcionalidad de la app; Gestión de cuentas; Comunicaciones del desarrollador cuando corresponda |
-| Información personal | Número de teléfono | Sí | No | Opcional | Funcionalidad de la app; Gestión de cuentas |
+| Información personal | Nombre | Sí | No | Obligatorio para cuenta; también capturado en preinscripciones presenciales del titular y familiares | Funcionalidad de la app; Gestión de cuentas y expedientes de entrenamiento |
+| Información personal | Dirección de correo electrónico | Sí | No | Obligatorio al registrarse con correo; opcional en el expediente provisional si se proporciona celular | Funcionalidad de la app; Gestión de cuentas, contacto operativo y preinscripción |
+| Información personal | Número de teléfono | Sí | No | Opcional en la cuenta; puede ser el único contacto en una preinscripción sin correo | Funcionalidad de la app; Gestión de cuentas y contacto operativo |
 | Información personal | IDs de usuario | Sí | No | Obligatorio | Funcionalidad de la app; Gestión de cuentas; Prevención de fraudes, seguridad y cumplimiento |
 | IDs de dispositivo o de otro tipo | IDs de dispositivo o de otro tipo | Sí | No | Opcional: se registran al activar notificaciones | Funcionalidad de la app; Comunicaciones del desarrollador |
 | Información financiera | Historial de compras | Sí | No | Según exista una obligación/pago | Funcionalidad de la app; Analíticas internas |
@@ -50,6 +50,8 @@ Este archivo documenta la declaración que debe capturarse en **Play Console →
 - Datos para publicidad o marketing.
 
 ## Notas de precisión
+
+0. **Preinscripciones y familiares sin cuenta.** Administración/Entrenador pueden guardar el nombre y al menos un contacto del titular y de familiares que constan en el expediente. La captura de estos datos por personal mediante la app también cuenta como recopilación de datos personales y debe estar cubierta por el aviso facilitado a la persona titular. La familia provisional no obtiene acceso a cuentas, progreso o fotos de terceros. Antes de cerrar la declaración, verificar las categorías y condiciones de acceso con el AAB exacto; no confundir correo de acceso con correo opcional del expediente.
 
 1. **Historial de compras no significa datos de tarjeta.** UCAPSA conserva registros administrativos de pagos/membresías, pero la app no procesa el instrumento de pago.
 2. **Interacciones con la aplicación sí se recopilan.** `ucapsa_value_exposures` registra exposición a superficies de Constancia/Competencia y permite análisis interno de continuidad. No se utiliza para anuncios ni tracking entre apps.

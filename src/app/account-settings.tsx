@@ -15,6 +15,7 @@ import { phoneVerificationEnabled } from '../constants/phoneVerification';
 import { preregistrationEnabled } from '../constants/preregistrationFeature';
 import { useSession } from '../hooks/useSession';
 import { devWarn } from '../lib/client-diagnostics';
+import { showPlatformDialog } from '../utils/staff-dialog';
 import { deleteMyAccount, getAccountDeletionStatusLabel, getMyAccountDeletionRequest, isAccountDeletionOpen, type AccountDeletionRequest } from '../services/account-deletion.service';
 import { requestMyEmailChange, updateMyProfile } from '../services/profiles.service';
 import { resendEmailConfirmation } from '../services/auth.service';
@@ -52,6 +53,7 @@ export default function AccountSettingsScreen() {
   const [phone, setPhone] = useState('');
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const [editing, setEditing] = useState(false);
   const [showLinkingHelp, setShowLinkingHelp] = useState(false);
   const [checkingPreregistration, setCheckingPreregistration] = useState(false);
@@ -249,7 +251,7 @@ export default function AccountSettingsScreen() {
 
   function handleDeleteRequest() {
     if (deletionLocked || deletionLoading) return;
-    Alert.alert(
+    showPlatformDialog(
       'Eliminar mi cuenta',
       'Se eliminarán tu cuenta y los datos asociados de UCAPSA App que no debamos conservar por obligación legal. Esta acción no se puede deshacer.',
       [
@@ -266,13 +268,13 @@ export default function AccountSettingsScreen() {
                 'account-delete',
               );
               await signOut();
-              Alert.alert('Cuenta eliminada', 'Tu cuenta de UCAPSA App fue eliminada.');
+              showPlatformDialog('Cuenta eliminada', 'Tu cuenta de UCAPSA App fue eliminada.');
               router.replace('/auth/login' as never);
             } catch (error) {
               await refreshDeletionRequest().catch((refreshError) => {
                 devWarn('account-settings: failed to refresh deletion request after delete error', refreshError);
               });
-              Alert.alert(
+              showPlatformDialog(
                 'No se pudo completar',
                 friendlyWriteError(
                   error,
@@ -288,9 +290,32 @@ export default function AccountSettingsScreen() {
     );
   }
 
-  async function handleSignOut() {
-    await signOut();
-    router.replace('/auth/login' as never);
+  async function confirmSignOut() {
+    if (signingOut) return;
+    showPlatformDialog(
+      'Cerrar sesión',
+      '¿Quieres salir de UCAPSA en este dispositivo? Puedes volver a iniciar sesión después.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Cerrar sesión',
+          onPress: async () => {
+            if (signingOut) return;
+            setSigningOut(true);
+            try {
+              await signOut();
+              router.replace('/auth/login' as never);
+            } catch (cause) {
+              devWarn('account-settings: could not sign out.', cause);
+              showPlatformDialog('No se pudo cerrar sesión',
+                'Tu sesión sigue activa. Revisa la conexión e inténtalo otra vez.');
+            } finally {
+              setSigningOut(false);
+            }
+          },
+        },
+      ],
+    );
   }
 
   function openSection(next: SettingsSection) {
@@ -407,9 +432,12 @@ export default function AccountSettingsScreen() {
               onPress={() => openSection('delete')}
             />
           ) : null}
-          <Pressable style={[styles.signOutButton, premium && styles.signOutButtonPremium]} onPress={handleSignOut}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Cerrar sesión"
+            accessibilityState={{ disabled: signingOut }} disabled={signingOut}
+            style={[styles.signOutButton, premium && styles.signOutButtonPremium, signingOut && styles.disabled]}
+            onPress={() => void confirmSignOut()}>
             <MaterialIcons name="logout" size={20} color={premium ? format.accentDark : ucapsaBrand.colors.redDark} />
-            <Text style={[styles.signOutText, premium && styles.signOutTextPremium]}>Cerrar sesión</Text>
+            <Text style={[styles.signOutText, premium && styles.signOutTextPremium]}>{signingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}</Text>
           </Pressable>
         </View>
       ) : null}
