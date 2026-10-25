@@ -173,7 +173,7 @@ export default function AccountDeletionRequestsScreen() {
 
       <View style={styles.info}>
         <MaterialIcons name="policy" size={20} color={ucapsaBrand.colors.redDark} />
-        <Text style={styles.infoText}>Cuenta y membresía son procesos distintos. Si existe obligación de conservación, registra el periodo de bloqueo antes de cerrar la solicitud.</Text>
+        <Text style={styles.infoText}>Cuenta y membresía son procesos distintos. El fin del bloqueo no elimina por sí mismo una cuenta: Superadmin sólo puede cerrar la solicitud después de comprobar la baja de Auth y documentar la supresión.</Text>
       </View>
 
       {loading ? <Text style={styles.muted}>Cargando solicitudes...</Text> : null}
@@ -187,7 +187,12 @@ export default function AccountDeletionRequestsScreen() {
 
       {rows.map((row) => {
         const busy = savingId === row.id;
-        const canComplete = row.status === 'blocked' && (!row.retention_until || row.retention_until <= todayKey());
+        // A request is not complete merely because the retention date elapsed.
+        // The FK nulls user_id only after Auth really removed the user.
+        const canComplete = row.status === 'blocked'
+          && row.user_id === null
+          && Boolean(row.retention_until)
+          && row.retention_until! <= todayKey();
         return (
           <View key={row.id} style={styles.card}>
             <View style={styles.cardTop}>
