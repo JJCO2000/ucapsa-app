@@ -9,6 +9,7 @@ import { KeyboardAwareScreen } from '../../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../../constants/brand';
 import { resolveUcapsaFormat } from '../../constants/ucapsaFormats';
 import { useSession } from '../../hooks/useSession';
+import { devWarn } from '../../lib/client-diagnostics';
 import { getMyPaymentOverview, getPaymentSettings, isValidClabe, isValidPaymentLink, normalizeClabe } from '../../services/payments.service';
 import type { PaymentObligationWithBalance, PaymentSettings } from '../../types/app.types';
 import { DEFAULT_READ_TIMEOUT_MS, withOperationTimeout } from '../../utils/async.utils';
@@ -116,7 +117,8 @@ export default function PaymentTransferScreen() {
       await Clipboard.setStringAsync(clabe);
       if (activeTransferKeyRef.current !== transferKey) return;
       showPlatformDialog('CLABE copiada', 'Pégala en tu aplicación bancaria y verifica que el titular coincida antes de confirmar.');
-    } catch {
+    } catch (cause) {
+      devWarn('payment-transfer: could not copy bank CLABE.', cause);
       if (activeTransferKeyRef.current !== transferKey) return;
       showPlatformDialog('No se pudo copiar', 'Selecciona la CLABE para copiarla manualmente.');
     }
@@ -124,7 +126,10 @@ export default function PaymentTransferScreen() {
 
   async function openWhatsApp() {
     try { await Linking.openURL(whatsappUrl); }
-    catch { showPlatformDialog('No se pudo abrir WhatsApp', 'Usa el canal oficial de UCAPSA para enviar tu comprobante.'); }
+    catch (cause) {
+      devWarn('payment-transfer: could not open WhatsApp.', cause);
+      showPlatformDialog('No se pudo abrir WhatsApp', 'Usa el canal oficial de UCAPSA para enviar tu comprobante.');
+    }
   }
 
   if (!user) return <Redirect href="/auth/login" />;
@@ -171,7 +176,8 @@ export default function PaymentTransferScreen() {
           </Pressable>
           {paymentLink ? <Pressable accessibilityRole="button" accessibilityLabel="Abrir enlace de pago" onPress={() => {
             if (activeTransferKeyRef.current !== transferKey || loading || !bankReady) return;
-            void Linking.openURL(paymentLink).catch(() => {
+            void Linking.openURL(paymentLink).catch((cause) => {
+              devWarn('payment-transfer: could not open verified payment link.', cause);
               if (activeTransferKeyRef.current === transferKey) {
                 showPlatformDialog('No se pudo abrir', 'Revisa el enlace de pago con UCAPSA.');
               }
