@@ -54,7 +54,7 @@ assert.ok(plan.includes('1.2-appstores-2026-09-27')
   'Legal release plan must distinguish three states, release gate, and rollback');
 const legalSimplified = proposal.split('## Aviso simplificado')[1]?.split('## Aviso integral')[0]?.trim();
 const legalIntegral = proposal.split('## Aviso integral')[1]?.split('## ANEXO DE CONTROL INTERNO')[0]
-  ?.replace(/\\n---\\s*$/,'').trim();
+  ?.replace(/\n---\s*$/,'').trim();
 const publishedSimplified = publishedDoc.split('## Aviso simplificado')[1]?.split('## Aviso integral')[0]?.trim();
 const publishedIntegral = publishedDoc.split('## Aviso integral')[1]?.trim();
 assert.ok(publishedDoc.includes('**Versión:** 1.4 App Stores')
