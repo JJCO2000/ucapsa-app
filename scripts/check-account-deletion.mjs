@@ -101,4 +101,19 @@ if (!pkg.includes('"check:account-deletion"')) {
   throw new Error('npm verify does not include the account deletion workflow guard.');
 }
 
+
+// Play and Apple require an in-app deletion entry for accounts that users can
+// create. Trainers can initiate their own deletion in the existing Edge handler;
+// they must not be hidden behind the broader 'isStaff' flag.
+for (const token of [
+  "!isAdmin ? (\n            <SettingsButton format={format}\n              icon=\"delete-outline\"",
+  "if (value === 'delete' && !isAdmin) return value;",
+  "{section === 'delete' && !isAdmin ? (",
+]) {
+  if (!settings.includes(token)) throw new Error('Trainers must reach account deletion: ' + token);
+}
+if (settings.includes("if (value === 'delete' && !isAdmin && !isTrainer)")) {
+  throw new Error('Trainer deletion route accidentally blocked.');
+}
+
 console.log('UCAPSA account deletion workflow + UI SSOT: PASS');
