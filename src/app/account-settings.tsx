@@ -429,7 +429,7 @@ export default function AccountSettingsScreen() {
             premium={premium}
             onPress={() => router.push('/terms' as never)}
           />
-          {!isStaff ? (
+          {!isAdmin ? (
             <SettingsButton format={format}
               icon="delete-outline"
               title="Eliminar cuenta"
@@ -663,7 +663,7 @@ export default function AccountSettingsScreen() {
 function normalizeSection(value: string | undefined, isAdmin: boolean, isTrainer: boolean, isMember: boolean): SettingsSection | null {
   if (value === 'profile' || value === 'notifications') return value;
   if (value === 'appearance' && isMember && !isAdmin && !isTrainer) return value;
-  if (value === 'delete' && !isAdmin && !isTrainer) return value;
+  if (value === 'delete' && !isAdmin) return value;
   return null;
 }
 

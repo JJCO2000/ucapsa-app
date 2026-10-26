@@ -15,7 +15,7 @@ Si todavía puedes iniciar sesión:
 3. Selecciona **Eliminar cuenta**.
 4. Revisa la explicación y confirma la eliminación.
 
-Para cuentas de clientes y socios, la app intenta completar la eliminación directamente y muestra el resultado.
+Para cuentas de clientes, socios y entrenadores, la app intenta completar la eliminación directamente y muestra el resultado. Las cuentas administrativas privilegiadas tienen un procedimiento interno independiente.
 
 ## Si ya no puedes acceder a la app
 
