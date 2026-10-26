@@ -113,17 +113,17 @@ export default function AccountSettingsScreen() {
   }, [profile, user?.email]);
 
   const refreshDeletionRequest = useCallback(async () => {
-    if (!user || isStaff) {
+    if (!user || isAdmin) {
       setDeletionRequest(null);
       return;
     }
     const request = await getMyAccountDeletionRequest();
     setDeletionRequest(request);
-  }, [isStaff, user]);
+  }, [isAdmin, user]);
 
   useEffect(() => {
     let active = true;
-    if (!user || isStaff) {
+    if (!user || isAdmin) {
       setDeletionRequest(null);
       setDeletionLoading(false);
       return undefined;
@@ -145,7 +145,7 @@ export default function AccountSettingsScreen() {
     return () => {
       active = false;
     };
-  }, [isStaff, user]);
+  }, [isAdmin, user]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
