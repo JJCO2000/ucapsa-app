@@ -116,4 +116,14 @@ if (settings.includes("if (value === 'delete' && !isAdmin && !isTrainer)")) {
   throw new Error('Trainer deletion route accidentally blocked.');
 }
 
+// Trainers are staff for teaching tools but not administrative accounts.
+// Do not inadvertently suppress their read-only deletion request state.
+const deletionStateSection=settings.split('  const refreshDeletionRequest = useCallback(async () => {')[1]
+  ?.split('  const handleRefresh = useCallback(')[0] ?? '';
+if ((deletionStateSection.match(/if \(!user \|\| isAdmin\)/g) ?? []).length !== 2
+  || (deletionStateSection.match(/\[isAdmin, user\]/g) ?? []).length !== 2
+  || deletionStateSection.includes('if (!user || isStaff)')) {
+  throw new Error('Trainer should load deletion request state; Admin remains restricted.');
+}
+
 console.log('UCAPSA account deletion workflow + UI SSOT: PASS');
