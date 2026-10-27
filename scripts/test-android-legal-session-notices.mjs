@@ -33,10 +33,10 @@ assert.match(notice,/un dato de contacto no autoriza por sí solo acceso entre c
   'Draft must explicitly reject authorization from family contact alone.');
 assert.ok(safety.includes('Preinscripciones y familiares sin cuenta'));
 assert.ok(play.includes('Reconciliar versión 1.2 publicada en Supabase'));
-assert.ok(publicNotice.includes('**Versión:** 1.4 App Stores')
-  && publicNotice.includes('**Vigencia:** 25 de octubre de 2026')
+assert.ok(publicNotice.includes('**Versión:** 1.5 App Stores')
+  && publicNotice.includes('**Vigencia:** 27 de octubre de 2026')
   && publicNotice.includes('preinscripciones del titular y de familiares'),
-  'The public v1.4 notice must contain its release date and family coverage.');
+  'The public v1.5 notice must contain its release date and family coverage.');
 
 const parsed=ts.createSourceFile('settings.tsx',settings,ts.ScriptTarget.ES2022,true,ts.ScriptKind.TSX);
 assert.equal(parsed.parseDiagnostics.length,0,'Account settings TSX parse errors');
@@ -92,4 +92,4 @@ function makeHarness({busy=false,rejectSignout=false}={}) {
     'Failed signOut must not navigate as if it succeeded');
   assert.equal(h.events.at(-1),'busy:false');
 }
-console.log('UCAPSA Android/web legal/session notices: privacy 1.4 web and review draft separated, signout cancel/error/success, deletion web confirmation and release gap PASS');
+console.log('UCAPSA Android/web legal/session notices: privacy 1.5 web and historical review draft separated, signout cancel/error/success, deletion web confirmation and release gap PASS');
