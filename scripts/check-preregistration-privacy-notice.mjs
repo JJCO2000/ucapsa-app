@@ -6,6 +6,7 @@ const proposal = fs.readFileSync('docs/legal/BORRADOR_AVISO_PRIVACIDAD_UCAPSA_AP
 const plan = fs.readFileSync('docs/legal/CIERRE_AVISO_1_4_GOOGLE_PLAY.md','utf8');
 const official = fs.readFileSync('src/app/privacy.tsx','utf8');
 const publishedDoc = fs.readFileSync('docs/legal/AVISO_PRIVACIDAD_UCAPSA_APP.md','utf8');
+const historical14 = fs.readFileSync('docs/legal/HISTORICO_AVISO_PRIVACIDAD_UCAPSA_APP_1_4.md','utf8');
 const scripts = [
   'src/app/admin/preregister-dog.tsx',
   'src/app/staff/preregister-dog.tsx',
@@ -55,14 +56,23 @@ assert.ok(plan.includes('1.2-appstores-2026-09-27')
 const legalSimplified = proposal.split('## Aviso simplificado')[1]?.split('## Aviso integral')[0]?.trim();
 const legalIntegral = proposal.split('## Aviso integral')[1]?.split('## ANEXO DE CONTROL INTERNO')[0]
   ?.replace(/\n---\s*$/,'').trim();
-const publishedSimplified = publishedDoc.split('## Aviso simplificado')[1]?.split('## Aviso integral')[0]?.trim();
-const publishedIntegral = publishedDoc.split('## Aviso integral')[1]?.trim();
-assert.ok(publishedDoc.includes('**Versión:** 1.4 App Stores')
-  && publishedDoc.includes('**Vigencia:** 25 de octubre de 2026'),
-  'Web privacy notice must publish the approved release version 1.4');
-assert.equal(publishedSimplified,legalSimplified,'Web simplified notice must equal legal source');
-assert.equal(publishedIntegral,legalIntegral?.replace(
+const historicalSimplified = historical14.split('## Aviso simplificado')[1]?.split('## Aviso integral')[0]?.trim();
+const historicalIntegral = historical14.split('## Aviso integral')[1]?.trim();
+assert.equal(historicalSimplified,legalSimplified,'Historical 1.4 simplified notice must remain intact');
+assert.equal(historicalIntegral,legalIntegral?.replace(
   'Borrador de versión 1.4 App Stores. Pendiente de aprobación, publicación y fecha de entrada en vigor.',
   'Versión 1.4 App Stores. Entrada en vigor: 2026-10-25.',
-),'Web integral notice must equal legal source, excluding internal annex');
-console.log('UCAPSA privacy collection disclosure: Admin, Trainer, late family, one published-notice route, web 1.4 content matched to the canonical legal candidate, release gate PASS');
+),'Historical 1.4 legal source must remain intact');
+assert.ok(publishedDoc.includes('**Versión:** 1.5 App Stores')
+  && publishedDoc.includes('**Vigencia:** 27 de octubre de 2026'),
+  'Published document must identify release version 1.5');
+for(const excerpt of [
+  'constancias de entrega declaradas individualmente',
+  'registró y la fecha del servidor',
+  'Clientes, socios y entrenadores pueden iniciar la eliminación',
+  'no sustituye el consentimiento de un tercero',
+  'una medida de conservación activa',
+  '1.5 App Stores. Entrada en vigor: 2026-10-27',
+]) assert.ok(publishedDoc.includes(excerpt),'Published 1.5 missing actual disclosure: '+excerpt);
+
+console.log('UCAPSA privacy collection disclosure: Admin, Trainer, late family, one published-notice route, web 1.5 disclosures verified, historical 1.4 preserved, release gate PASS');

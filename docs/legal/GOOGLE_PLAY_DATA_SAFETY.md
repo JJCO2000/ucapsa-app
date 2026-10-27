@@ -1,18 +1,18 @@
 # Google Play — Data Safety de UCAPSA App
 
-**Aviso oficial en Supabase desde 25-10-2026:** `1.4-appstores-2026-10-25`; documento web canónico en `main` 1.4 (PR #561). Las notas heredadas que describen una divergencia 1.2/1.3 son históricas. La declaración de Data Safety sigue requiriendo cotejo y envío del binario real en Play Console; no declarar aprobación por este archivo.
+**Aviso vigente desde el 27-10-2026:** `1.5-appstores-2026-10-27`, publicado para la app y el documento web canónico. Se conserva la 1.4 como antecedente histórico. La declaración de Data Safety sigue requiriendo cotejo y envío del binario real en Play Console; no declarar aprobación por este archivo.
 
 
 **Revisión técnica:** 25 de octubre de 2026 (antes de captura final en Play Console)  
 **Aplicación:** UCAPSA  
 **Package:** `com.jjcc2000.ucapsaapp`
 
-Este archivo documenta la declaración que debe capturarse en **Play Console → App content → Data safety**. Debe mantenerse alineada con el binario que se publique y con el Aviso de Privacidad.
+Este archivo documenta la declaración que debe capturarse en **Play Console → App content → Data safety**. La constancia operativa de entrega del aviso guarda personal que declaró el método de entrega, fecha y versión; no equivale a consentimiento del familiar ni añade acceso entre cuentas. Debe mantenerse alineada con el binario que se publique y con el Aviso de Privacidad.
 
 **Comparación oficial de Android, iOS y web:** [Matriz multiplataforma de privacidad](./MATRIZ_PRIVACIDAD_IOS_ANDROID_WEB_2026-10-25.md). No equivale a un formulario Data Safety aprobado ni a una publicación legal.
 
 **Aviso público (HTML):** https://jjco2000.github.io/ucapsa-app/privacidad/  
-**Nota de control:** el texto publicado en Supabase y el documento web deben corresponder a la misma versión aprobada antes de completar Play Console. No declarar listo este formulario mientras continúe la divergencia 1.2/1.3.
+**Nota de control:** verificar igualdad exacta entre Supabase y el HTML público antes de completar Play Console. La versión actual describe también las declaraciones de entrega de aviso registradas por personal y la eliminación desde Ajustes para clientes, socios y entrenadores. Este documento no acredita respuestas enviadas en Play Console.
 
 ## Respuestas generales
 
