@@ -4,7 +4,7 @@
 **Área responsable:** Administración de UCAPSA  
 **Correo:** [ucapsa84@gmail.com](mailto:ucapsa84@gmail.com?subject=Solicitud%20de%20eliminaci%C3%B3n%20de%20cuenta%20UCAPSA%20App)
 
-UCAPSA permite solicitar la eliminación de una cuenta y de los datos asociados que no exista obligación legal de conservar.
+UCAPSA permite solicitar la eliminación de una cuenta y la supresión de los datos asociados que no deban conservarse legalmente. El proceso distingue entre una **cuenta eliminada** y una **solicitud pendiente de revisión**.
 
 ## Opción más rápida: desde UCAPSA App
 
@@ -15,7 +15,7 @@ Si todavía puedes iniciar sesión:
 3. Selecciona **Eliminar cuenta**.
 4. Revisa la explicación y confirma la eliminación.
 
-Para cuentas de clientes, socios y entrenadores, la app intenta completar la eliminación directamente y muestra el resultado. Las cuentas administrativas privilegiadas tienen un procedimiento interno independiente.
+Para cuentas de **clientes, socios y entrenadores**, la aplicación registra la solicitud e intenta completar la eliminación de la cuenta y de las fotografías privadas asociadas que no deban conservarse. Si se completa, muestra la confirmación. Si existen referencias pendientes, una obligación de conservación o un bloqueo administrativo, muestra el motivo y conserva la solicitud para revisión en lugar de afirmar que se eliminó la cuenta. Las cuentas de **Administración y Superadministración** requieren un procedimiento interno independiente.
 
 ## Si ya no puedes acceder a la app
 
@@ -27,15 +27,19 @@ Si el enlace no abre tu aplicación de correo, escribe a **ucapsa84@gmail.com** 
 
 `Solicitud de eliminación de cuenta UCAPSA App`
 
-Indica el correo asociado a la cuenta. **No envíes contraseñas, datos bancarios ni documentos que no te solicitemos.**
+Indica el correo o celular asociado a la cuenta, si lo tienes. Administración podrá solicitar la información estrictamente necesaria para comprobar que eres la persona titular. **No envíes contraseñas, códigos de acceso, datos bancarios ni documentos que no te solicitemos.**
 
-## Qué ocurre con tus datos
+## Qué ocurre con tu cuenta y tus datos
 
-- Se elimina la cuenta y los datos asociados de UCAPSA App que UCAPSA no deba conservar por obligación legal.
-- Si algún dato debe conservarse legalmente, se bloquea y no se utiliza para finalidades incompatibles hasta que proceda su supresión.
+- **Cuando la eliminación se completa**, UCAPSA elimina la cuenta de autenticación y los archivos privados asociados cuya supresión proceda, incluidas las fotografías del perro guardadas por esa cuenta. Los demás datos vinculados se suprimen conforme a las reglas del servicio y las obligaciones aplicables.
+- **Si existe un impedimento**, la solicitud queda pendiente, en revisión o bloqueada, según corresponda. El aviso de la aplicación no debe interpretarse como confirmación de que una cuenta ya fue eliminada.
+- **Si existe obligación legal de conservación**, se bloquea el uso incompatible de los datos sujetos a ella hasta que proceda su eliminación. El fin de un periodo de conservación no significa por sí solo que la cuenta ya se haya eliminado.
+- **El registro administrativo de la solicitud** puede conservar evidencia mínima de recepción, revisión y resultado, conforme al aviso de privacidad.
 - La eliminación de la cuenta no sustituye obligaciones fiscales o contables que, en su caso, existan fuera del registro administrativo auxiliar de la app.
-- UCAPSA puede verificar la identidad antes de ejecutar una solicitud recibida por correo para evitar eliminar una cuenta por petición de una persona no autorizada.
+- UCAPSA puede verificar la identidad antes de ejecutar una solicitud recibida por correo para impedir que alguien elimine la cuenta de otra persona.
+
+**¿Sólo estás preinscrito y todavía no tienes cuenta?** Para solicitar acceso, rectificación o eliminación de los datos de una preinscripción o de un familiar, escribe al mismo correo de privacidad. No necesitas crear una cuenta para hacerlo.
 
 Consulta también la **[Política y Aviso de Privacidad de UCAPSA App](./AVISO_PRIVACIDAD_UCAPSA_APP.md)**.
 
-**Última revisión:** 22 de septiembre de 2026.
+**Última revisión:** 27 de octubre de 2026.
