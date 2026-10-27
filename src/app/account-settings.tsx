@@ -368,7 +368,7 @@ export default function AccountSettingsScreen() {
         ? 'Elige una paleta para tu experiencia de socio.'
         : section === 'notifications'
         ? 'Elige qué recordatorios quieres recibir.'
-        : 'Elimina tu cuenta y los datos asociados de forma directa.'
+        : 'Consulta el estado de eliminación o solicita borrar tu cuenta y datos.'
     : 'Elige qué quieres gestionar.';
 
   return (
@@ -433,7 +433,7 @@ export default function AccountSettingsScreen() {
             <SettingsButton format={format}
               icon="delete-outline"
               title="Eliminar cuenta"
-              subtitle={deletionLoading ? 'Procesando...' : deletionRequest ? deletionStatusLabel : 'Elimina tu cuenta y los datos asociados.'}
+              subtitle={deletionLoading ? 'Consultando solicitud...' : deletionRequest ? deletionStatusLabel : 'Solicita eliminar tu cuenta y los datos asociados.'}
               badge={deletionRequest ? deletionStatusLabel : undefined}
               premium={premium}
               danger
@@ -581,15 +581,25 @@ export default function AccountSettingsScreen() {
           <Text style={[styles.muted, premium && styles.premiumText]}>
             {deletionRequest
               ? deletionRequest.status === 'blocked'
-                ? `Existe una obligación de conservación y los datos están bloqueados${deletionRequest.retention_until ? ` hasta ${deletionRequest.retention_until}` : ''}. No se usarán para otras finalidades y se suprimirán cuando termine el bloqueo.`
+                ? `Tu solicitud está bloqueada por conservación de datos${deletionRequest.retention_until ? ` hasta ${deletionRequest.retention_until}` : ''}. Tu cuenta aún no se ha eliminado. Administración revisará cuándo procede la supresión; reintentar no elimina el bloqueo.`
                 : deletionRequest.status === 'rejected'
-                  ? deletionRequest.resolution_note || 'La solicitud anterior no procedió. Puedes iniciar una nueva eliminación.'
+                  ? deletionRequest.resolution_note || 'La solicitud anterior no procedió. Puedes solicitar una nueva revisión.'
                   : deletionRequest.status === 'completed'
-                    ? 'La eliminación fue completada.'
-                    : 'La eliminación aún no se completó. Puedes reintentar; no necesitas llamar ni enviar un correo.'
-              : 'Al confirmar, UCAPSA intentará eliminar de inmediato tu cuenta y los datos asociados de la app que no exista obligación legal de conservar.'}
+                    ? 'La solicitud figura como completada en el registro administrativo.'
+                    : deletionRequest.status === 'in_review'
+                      ? 'Tu solicitud está en revisión. La cuenta no está eliminada; puedes reintentar si no existe un bloqueo de conservación.'
+                      : 'Solicitud recibida. La cuenta aún no está eliminada; puedes reintentar desde esta pantalla.'
+              : 'Al confirmar, UCAPSA intentará eliminar tu cuenta de acceso, sus fotografías privadas vinculadas y los datos asociados que no deban conservarse. Si hay un impedimento, registrará la solicitud para revisión.'}
           </Text>
-          <Pressable disabled={deletionLocked || deletionLoading} style={[styles.dangerButton, premium && styles.premiumDangerButton, (deletionLocked || deletionLoading) && styles.disabled]} onPress={handleDeleteRequest}>
+          {deletionRequest && deletionRequest.status !== 'completed' ? (
+            <Text style={[styles.externalDeleteHint, premium && styles.premiumText]}>
+              Registrar una solicitud no significa que la cuenta ya esté eliminada.
+            </Text>
+          ) : null}
+          <Pressable accessibilityRole="button" accessibilityLabel={deletionOpen ? 'Reintentar eliminación de cuenta' : 'Eliminar mi cuenta'}
+            accessibilityState={{ disabled: deletionLocked || deletionLoading }}
+            disabled={deletionLocked || deletionLoading}
+            style={[styles.dangerButton, premium && styles.premiumDangerButton, (deletionLocked || deletionLoading) && styles.disabled]} onPress={handleDeleteRequest}>
             <Text style={[styles.dangerButtonText, premium && styles.premiumDangerButtonText]}>
               {deletionLocked
                 ? deletionStatusLabel
@@ -614,8 +624,13 @@ export default function AccountSettingsScreen() {
             <Text style={[styles.externalDeleteText, premium && styles.premiumSmallButtonText]}>Solicitar desde la web</Text>
           </Pressable>
           <Text style={[styles.externalDeleteHint, premium && styles.premiumText]}>
-            Úsalo si no puedes acceder a la app. El recurso público permite iniciar la solicitud por correo.
+            La página pública permite solicitar la eliminación por correo, incluso sin acceso a la app. No confirma por sí sola que la cuenta fue eliminada.
           </Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Consultar aviso de privacidad vigente"
+            style={styles.externalDeleteButton} onPress={() => router.push('/privacy' as never)}>
+            <MaterialIcons name="policy" size={18} color={premium ? format.accentDark : ucapsaBrand.colors.redDark} />
+            <Text style={[styles.externalDeleteText, premium && styles.premiumSmallButtonText]}>Consultar aviso de privacidad vigente</Text>
+          </Pressable>
         </View>
       ) : null}
 
