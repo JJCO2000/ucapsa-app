@@ -50,7 +50,7 @@ for(const token of [
   'T00:00:00-06:00',
   'const saved = await save();',
   'await publishPrivacyNotice(targetId as string)',
-  'Cargar propuesta 1.4 para revisión',
+  'Consultar plantilla histórica 1.4',
   'Fecha de vigencia (AAAA-MM-DD)',
 ]){
   assert.ok(form.includes(token),'Superadmin editor guard missing '+token);
