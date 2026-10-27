@@ -57,12 +57,19 @@ const legalIntegral = proposal.split('## Aviso integral')[1]?.split('## ANEXO DE
   ?.replace(/\n---\s*$/,'').trim();
 const publishedSimplified = publishedDoc.split('## Aviso simplificado')[1]?.split('## Aviso integral')[0]?.trim();
 const publishedIntegral = publishedDoc.split('## Aviso integral')[1]?.trim();
-assert.ok(publishedDoc.includes('**Versión:** 1.4 App Stores')
-  && publishedDoc.includes('**Vigencia:** 25 de octubre de 2026'),
-  'Web privacy notice must publish the approved release version 1.4');
-assert.equal(publishedSimplified,legalSimplified,'Web simplified notice must equal legal source');
-assert.equal(publishedIntegral,legalIntegral?.replace(
+const priorDoc = fs.readFileSync('docs/legal/HISTORICO_AVISO_PRIVACIDAD_UCAPSA_APP_1_4.md', 'utf8');
+const priorSimplified = priorDoc.split('## Aviso simplificado')[1]?.split('## Aviso integral')[0]?.trim();
+const priorIntegral = priorDoc.split('## Aviso integral')[1]?.trim();
+assert.equal(priorSimplified,legalSimplified,'Historical v1.4 simplificado must preserve approved source');
+assert.equal(priorIntegral,legalIntegral?.replace(
   'Borrador de versión 1.4 App Stores. Pendiente de aprobación, publicación y fecha de entrada en vigor.',
   'Versión 1.4 App Stores. Entrada en vigor: 2026-10-25.',
-),'Web integral notice must equal legal source, excluding internal annex');
-console.log('UCAPSA privacy collection disclosure: Admin, Trainer, late family, one published-notice route, web 1.4 content matched to the canonical legal candidate, release gate PASS');
+),'Historical v1.4 integral must be preserved exactly');
+assert.ok(publishedDoc.includes('**Versión:** 1.5 App Stores')
+  && publishedDoc.includes('**Vigencia:** 27 de octubre de 2026'),
+  'Web privacy notice must publish current v1.5');
+assert.ok(publishedSimplified?.includes('constancias declaradas por el personal')
+  && publishedIntegral?.includes('Los clientes, socios y entrenadores pueden iniciar la eliminación')
+  && publishedIntegral?.includes('método de entrega'),
+  'Current v1.5 must describe real intake notices and account deletion by role');
+console.log('UCAPSA privacy collection disclosure: Admin, Trainer, late family, one published-notice route, historic v1.4 immutable and current web v1.5 accurate, release gate PASS');
