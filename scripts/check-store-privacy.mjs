@@ -153,7 +153,7 @@ if (!continuity.includes('recordValueExposure')) {
 for (const token of [
   'Analítica interna de continuidad',
   pagesHost + '/eliminar-cuenta/',
-  'Versión 1.4 App Stores',
+  'Versión 1.5 App Stores',
 ]) {
   if (!notice.includes(token)) throw new Error('Published privacy notice missing: ' + token);
 }
