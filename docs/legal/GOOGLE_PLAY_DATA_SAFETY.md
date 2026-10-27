@@ -1,6 +1,6 @@
 # Google Play — Data Safety de UCAPSA App
 
-**Aviso oficial en Supabase desde 25-10-2026:** `1.4-appstores-2026-10-25`; documento web canónico en `main` 1.4 (PR #561). Las notas heredadas que describen una divergencia 1.2/1.3 son históricas. La declaración de Data Safety sigue requiriendo cotejo y envío del binario real en Play Console; no declarar aprobación por este archivo.
+**Aviso vigente actualizado el 27-10-2026:** `1.5-appstores-2026-10-27`, con registro del método de entrega del aviso a personas preinscritas y posibilidad de eliminación desde Ajustes para entrenadores. El aviso 1.4 se conserva como histórico. La declaración de Data Safety sigue requiriendo cotejo con el binario real y los formularios de Play Console.
 
 
 **Revisión técnica:** 25 de octubre de 2026 (antes de captura final en Play Console)  
@@ -12,7 +12,7 @@ Este archivo documenta la declaración que debe capturarse en **Play Console →
 **Comparación oficial de Android, iOS y web:** [Matriz multiplataforma de privacidad](./MATRIZ_PRIVACIDAD_IOS_ANDROID_WEB_2026-10-25.md). No equivale a un formulario Data Safety aprobado ni a una publicación legal.
 
 **Aviso público (HTML):** https://jjco2000.github.io/ucapsa-app/privacidad/  
-**Nota de control:** el texto publicado en Supabase y el documento web deben corresponder a la misma versión aprobada antes de completar Play Console. No declarar listo este formulario mientras continúe la divergencia 1.2/1.3.
+**Nota de control:** el texto publicado en Supabase y el documento web deben corresponder a la misma versión vigente antes de completar Play Console. No declarar aprobada en Play Console una declaración que aún no se haya verificado allí.
 
 ## Respuestas generales
 
