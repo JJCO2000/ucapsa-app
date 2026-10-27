@@ -142,7 +142,7 @@ export default function PrivacyNoticeFormScreen() {
 
   function loadReviewedCandidate() {
     if (currentId || !validEffectiveDate(effectiveDate)) {
-      showPlatformDialog('Fecha requerida', 'Primero escribe la fecha de vigencia real de la versión 1.4. No se puede inventar ni publicar sin revisión.');
+      showPlatformDialog('Fecha requerida', 'Primero escribe la fecha de vigencia real. La plantilla 1.4 es histórica y no sustituye al aviso vigente.');
       return;
     }
     setForm({
@@ -153,7 +153,7 @@ export default function PrivacyNoticeFormScreen() {
         `Versión 1.4 App Stores. Entrada en vigor: ${effectiveDate}.`,
       ),
     });
-    showPlatformDialog('Propuesta cargada', 'Revisa íntegramente los textos y datos del responsable antes de guardar o publicar. No se ha enviado nada a Supabase.');
+    showPlatformDialog('Plantilla histórica 1.4', 'Este texto es de una versión anterior al aviso vigente. Revísalo y actualízalo íntegramente antes de preparar cualquier versión nueva. No se ha enviado nada a Supabase.');
   }
 
   function update(key: keyof DraftForm, value: string) {
@@ -267,7 +267,7 @@ export default function PrivacyNoticeFormScreen() {
           {!currentId ? (
             <Pressable accessibilityRole="button" disabled={saving}
               style={styles.secondary} onPress={loadReviewedCandidate}>
-              <Text style={styles.secondaryText}>Cargar propuesta 1.4 para revisión</Text>
+              <Text style={styles.secondaryText}>Consultar plantilla histórica 1.4</Text>
             </Pressable>
           ) : null}
 

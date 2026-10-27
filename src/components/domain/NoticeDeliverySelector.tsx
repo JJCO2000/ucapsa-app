@@ -23,7 +23,7 @@ export function NoticeDeliverySelector({
     <View style={styles.container}>
       <Text style={styles.heading}>{label} *</Text>
       <Text style={styles.hint}>
-        Marca sólo cómo se entregó realmente el aviso 1.4 a esta persona.
+        Marca sólo cómo se entregó realmente el aviso de privacidad vigente a esta persona.
         No confirma su consentimiento ni verifica su identidad.
       </Text>
       {choices.map(({ value: option, title }) => (
