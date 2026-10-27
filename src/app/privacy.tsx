@@ -1,26 +1,18 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '../components/ui/KeyboardAwareScreen';
 import { ucapsaBrand } from '../constants/brand';
+import { UCAPSA_ACCOUNT_DELETION_PUBLIC_URL } from '../constants/legal';
 import { getPublishedPrivacyNotice, type PrivacyNotice } from '../services/privacy-notice.service';
-
-function Section({ title, value }: { title: string; value: string | null | undefined }) {
-  if (!value?.trim()) return null;
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <Text style={styles.body}>{value.trim()}</Text>
-    </View>
-  );
-}
 
 export default function PrivacyNoticeScreen() {
   const [notice, setNotice] = useState<PrivacyNotice | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showIntegral, setShowIntegral] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const loadRunRef = useRef(0);
 
@@ -94,26 +86,43 @@ export default function PrivacyNoticeScreen() {
         <>
           <View style={styles.summary}>
             <Text style={styles.version}>Versión {notice.version}</Text>
-            {notice.effective_from ? <Text style={styles.muted}>Vigente desde {new Date(notice.effective_from).toLocaleDateString('es-MX')}</Text> : null}
+            {notice.effective_from ? (
+              <Text style={styles.muted}>Vigente desde {new Date(notice.effective_from).toLocaleDateString('es-MX', { timeZone: 'America/Mexico_City' })}</Text>
+            ) : null}
+            <Text style={styles.sectionTitle}>Aviso simplificado</Text>
             <Text style={styles.summaryText}>{notice.simplified_notice}</Text>
           </View>
 
-          <Section title="Responsable" value={notice.responsible_name} />
-          <Section title="Domicilio del responsable" value={notice.responsible_address} />
-          <Section title="Contacto de privacidad" value={notice.contact_email} />
-          <Section title="Datos personales tratados" value={notice.data_categories} />
-          <Section title="Datos personales sensibles" value={notice.sensitive_data_categories} />
-          <Section title="Finalidades" value={notice.purposes} />
-          <Section title="Finalidades que requieren consentimiento" value={notice.consent_required_purposes} />
-          <Section title="Limitación de uso o divulgación" value={notice.limitation_mechanisms} />
-          <Section title="Derechos ARCO" value={notice.arco_procedure} />
-          <Section title="Transferencias" value={notice.transfer_clause} />
-          <Section title="Cambios al aviso" value={notice.change_notice_method} />
-
-          <View style={styles.integral}>
-            <Text style={styles.sectionTitle}>Aviso integral</Text>
-            <Text style={styles.body}>{notice.integral_notice}</Text>
+          <View style={styles.contactCard}>
+            <Text style={styles.sectionTitle}>Responsable y contacto</Text>
+            <Text style={styles.body}>{notice.responsible_name}</Text>
+            <Text style={styles.body}>{notice.contact_email}</Text>
+            <Text style={styles.muted}>El aviso completo incluye domicilio, finalidades, derechos ARCO, transferencias y conservación de datos.</Text>
           </View>
+
+          <Pressable accessibilityRole="button"
+            accessibilityLabel={showIntegral ? 'Ocultar aviso integral' : 'Leer aviso integral'}
+            accessibilityState={{ expanded: showIntegral }}
+            style={styles.expandButton} onPress={() => setShowIntegral((current) => !current)}>
+            <Text style={styles.expandText}>{showIntegral ? 'Ocultar aviso integral' : 'Leer aviso integral completo'}</Text>
+            <MaterialIcons name={showIntegral ? 'expand-less' : 'expand-more'} size={22} color={ucapsaBrand.colors.redDark} />
+          </Pressable>
+          {showIntegral ? (
+            <View style={styles.integral}>
+              <Text style={styles.sectionTitle}>Aviso integral vigente</Text>
+              <Text style={styles.body}>{notice.integral_notice}</Text>
+            </View>
+          ) : null}
+
+          <Pressable accessibilityRole="link" accessibilityLabel="Consultar cómo eliminar mi cuenta"
+            style={styles.deleteLink} onPress={() => {
+              void Linking.openURL(UCAPSA_ACCOUNT_DELETION_PUBLIC_URL).catch(() => {
+                Alert.alert('No se pudo abrir', 'Puedes solicitar la eliminación de tu cuenta escribiendo a ucapsa84@gmail.com.');
+              });
+            }}>
+            <Text style={styles.deleteLinkText}>Cómo eliminar mi cuenta y mis datos</Text>
+            <MaterialIcons name="open-in-new" size={18} color={ucapsaBrand.colors.redDark} />
+          </Pressable>
         </>
       ) : null}
     </KeyboardAwareScreen>
@@ -136,7 +145,11 @@ const styles = StyleSheet.create({
   summary: { borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 16, marginBottom: 14 },
   version: { color: ucapsaBrand.colors.redDark, fontSize: 12, fontWeight: '900', marginBottom: 4 },
   summaryText: { color: ucapsaBrand.colors.text, fontSize: 14, lineHeight: 21, fontWeight: '700', marginTop: 10 },
-  section: { borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.border, paddingVertical: 14 },
+  contactCard: { gap: 5, borderBottomWidth: 1, borderBottomColor: ucapsaBrand.colors.border, paddingVertical: 14, marginBottom: 12 },
+  expandButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 15, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 15 },
+  expandText: { color: ucapsaBrand.colors.redDark, fontSize: 14, fontWeight: '900' },
+  deleteLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 15, padding: 14, marginTop: 10, marginBottom: 15 },
+  deleteLinkText: { color: ucapsaBrand.colors.redDark, fontSize: 13, fontWeight: '800' },
   sectionTitle: { color: ucapsaBrand.colors.text, fontSize: 15, fontWeight: '900', marginBottom: 5 },
   body: { color: ucapsaBrand.colors.muted, fontSize: 12, lineHeight: 19, fontWeight: '700' },
   integral: { borderRadius: 20, borderWidth: 1, borderColor: ucapsaBrand.colors.border, backgroundColor: ucapsaBrand.colors.surface, padding: 16, marginTop: 16, marginBottom: 20 },
