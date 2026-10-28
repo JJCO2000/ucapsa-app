@@ -7,13 +7,14 @@ const allowedAdvisories = new Set([
   'GHSA-VFJ7-8CJW-P6XM', // braces <=3.0.3; no patched release as of 2026-10-05; constrained to Metro glob tooling
   'GHSA-86W9-CPQP-85RV', // node-forge 1.4.0 follow-up; no published patched npm version; constrained to Expo code-signing certificates
   'GHSA-MRHX-C7XC-M3W5', // zod validation DoS; reviewed ONLY for pinned Expo CLI transitive path; no untrusted runtime parser
+  'GHSA-GCQX-W48M-W2H4', // deepmerge prototype poisoning; unpatched as of 2026-10-28, only @expo/config build-time dependency
 ]);
 
 const baselineMaximums = {
   critical: 0,
   high: 21,
   moderate: 0,
-  low: 0,
+  low: 5, // 5 transitive instances of the same reviewed unpatched deepmerge advisory
   total: 21,
 };
 
@@ -51,6 +52,14 @@ function directDependentsOf(packageName) {
 }
 
 const reviewedNoFixBoundaries = {
+  deepmerge: {
+    // GHSA-GCQX-W48M-W2H4, updated 2026-10-27; no published patch yet.
+    // Only @expo/config (build-time Expo tooling) may depend on deepmerge.
+    // This is time-limited; fail closed if version/dependent set changes.
+    version: '4.3.1',
+    reviewBy: '2026-11-05',
+    allowedDependents: ['node_modules/@expo/config'],
+  },
   braces: {
     version: '3.0.3',
     reviewBy: '2026-11-15',
