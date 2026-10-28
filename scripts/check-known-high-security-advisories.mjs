@@ -12,7 +12,7 @@ const known = new Map([
 ]);
 // A reviewed LOW deepmerge advisory now flows via @expo/config into @expo/cli.
 // This is only an indirect chain: direct high advisories still fail closed.
-const inherited = new Set(['@expo/cli','@expo/config','@expo/code-signing-certificates','expo','expo-updates']);
+const inherited = new Set(['@expo/cli','@expo/config','deepmerge','@expo/code-signing-certificates','expo','expo-updates']);
 const knownKeys = new Set([...known.keys(),...inherited]);
 const MAX_KNOWN_HIGH_FINDINGS = 7;
 
@@ -46,7 +46,7 @@ function review(report) {
     } else if (direct.length !== 0) {
       throw new Error('New direct advisory in previously indirect dependency: '+name);
     } else if (!(finding.via ?? []).every(v => typeof v === 'string' && knownKeys.has(v))) {
-      throw new Error('Previously indirect risk has an unexpected dependency chain: '+name);
+      throw new Error('Previously indirect risk has an unexpected dependency chain: '+name+' via '+JSON.stringify(finding.via));
     }
   }
   return { high: totals.high, critical: totals.critical };
@@ -65,7 +65,7 @@ function runSelfTest() {
       ]},
       'zod':{severity:'high',via:[{url:'https://github.com/advisories/GHSA-mrhx-c7xc-m3w5'}]},
       '@expo/code-signing-certificates':{severity:'high',via:['node-forge']},
-      '@expo/cli':{severity:'high',via:['node-forge','@expo/code-signing-certificates','@expo/config']},
+      '@expo/cli':{severity:'high',via:['node-forge','@expo/code-signing-certificates','@expo/config','deepmerge']},
       'expo':{severity:'high',via:['@expo/cli']},
       'expo-updates':{severity:'high',via:['@expo/code-signing-certificates']},
     },
