@@ -15,7 +15,7 @@ const known = new Map([
 // Only recognize transitive Expo build configuration nodes; direct high
 // advisories on any of these still cause an immediate failure.
 const inherited = new Set([
-  '@expo/cli', '@expo/config', '@expo/metro-config', '@expo/prebuild-config',
+  '@expo/cli', '@expo/config', '@expo/metro-config', '@expo/prebuild-config', '@expo/local-build-cache-provider',
   '@expo/code-signing-certificates', 'expo', 'expo-updates',
 ]);
 const knownKeys = new Set([...known.keys(),...inherited]);
@@ -71,7 +71,7 @@ function runSelfTest() {
       'zod':{severity:'high',via:[{url:'https://github.com/advisories/GHSA-mrhx-c7xc-m3w5'}]},
       '@expo/code-signing-certificates':{severity:'high',via:['node-forge']},
       '@expo/cli':{severity:'high',via:['@expo/config','@expo/metro-config','@expo/prebuild-config','zod']},
-      'expo':{severity:'high',via:['@expo/cli']},
+      'expo':{severity:'high',via:['@expo/cli','@expo/config','@expo/local-build-cache-provider','@expo/metro-config']},
       'expo-updates':{severity:'high',via:['@expo/code-signing-certificates']},
     },
   };
