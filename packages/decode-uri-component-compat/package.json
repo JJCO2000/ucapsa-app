@@ -6,6 +6,6 @@
   "license": "MIT",
   "main": "index.cjs",
   "dependencies": {
-    "upstream-decoder": "npm:decode-uri-component@0.5.0"
+    "upstream-decoder": "npm:decode-uri-component@0.5.1"
   }
 }
