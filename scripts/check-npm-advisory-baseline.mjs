@@ -5,7 +5,6 @@ const allowedAdvisories = new Set([
   'GHSA-W3RX-R6R6-PGPR', // image-size: ICNS parser DoS; no published patched release yet
   'GHSA-5P2G-FCMC-QVQQ', // image-size: JXL/HEIF parser DoS; no published patched release yet
   'GHSA-VFJ7-8CJW-P6XM', // braces <=3.0.3; no patched release as of 2026-10-05; constrained to Metro glob tooling
-  'GHSA-86W9-CPQP-85RV', // node-forge 1.4.0 follow-up; no published patched npm version; constrained to Expo code-signing certificates
   'GHSA-MRHX-C7XC-M3W5', // zod validation DoS; reviewed ONLY for pinned Expo CLI transitive path; no untrusted runtime parser
   'GHSA-GCQX-W48M-W2H4', // deepmerge prototype poisoning; unpatched as of 2026-10-28, only @expo/config build-time dependency
 ]);
@@ -65,14 +64,6 @@ const reviewedNoFixBoundaries = {
     reviewBy: '2026-11-15',
     allowedDependents: ['node_modules/micromatch'],
   },
-  'node-forge': {
-    version: '1.4.0',
-    reviewBy: '2026-11-15',
-    allowedDependents: [
-      'node_modules/@expo/code-signing-certificates',
-      'node_modules/expo/node_modules/@expo/cli',
-    ],
-  },
   'image-size': {
     version: '1.2.1',
     reviewBy: '2026-11-15',
@@ -80,7 +71,9 @@ const reviewedNoFixBoundaries = {
   },
   zod: {
     version: '3.25.76',
-    reviewBy: '2026-11-01',
+    // Zod 3 has no patched release for GHSA-MRHX-C7XC-M3W5; forcing v4 would change Expo CLI schema APIs.
+    // Strictly scoped to Expo CLI build tooling. Reassess with upstream Expo fixes before this date.
+    reviewBy: '2026-11-08',
     allowedDependents: ['node_modules/expo/node_modules/@expo/cli'],
   },
 };
