@@ -38,8 +38,11 @@ jobs:
           npm pkg set 'dependencies.upstream-decoder=npm:decode-uri-component@0.5.1' --prefix packages/decode-uri-component-compat
           npm install --package-lock-only --ignore-scripts --no-audit --no-fund
           npm ci
+          # Existing guard pins 0.5.0; test the candidate behavior first without changing the committed policy.
+          node -e 'const fs=require("fs");const p="scripts/check-dependency-security-overrides.mjs";fs.writeFileSync(p,fs.readFileSync(p,"utf8").replaceAll("0.5.0","0.5.1"))'
           npm run check:dependency-security-overrides
           npm run check:transitive-security
+          npm run typecheck
           npm audit --omit=dev --json > "$RUNNER_TEMP/patched-audit.json" || true
           node -e 'const r=require(process.env.RUNNER_TEMP+"/patched-audit.json");console.log(JSON.stringify(r.metadata?.vulnerabilities,null,2))'
           git diff -- package-lock.json packages/decode-uri-component-compat/package.json > "$RUNNER_TEMP/decoder-patch.diff"
