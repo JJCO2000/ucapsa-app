@@ -40,6 +40,7 @@ jobs:
           npm ci
           # Existing guard pins 0.5.0; test the candidate behavior first without changing the committed policy.
           node -e 'const fs=require("fs");const p="scripts/check-dependency-security-overrides.mjs";fs.writeFileSync(p,fs.readFileSync(p,"utf8").replaceAll("0.5.0","0.5.1"))'
+          node -e 'const l=require("./package-lock.json");console.log("Decoder lock entries:",Object.entries(l.packages).filter(([k])=>k.includes("upstream-decoder")||k.includes("decode-uri-component")).map(([k,v])=>[k,v.version,v.dependencies]))'
           npm run check:dependency-security-overrides
           npm run check:transitive-security
           npm run typecheck
