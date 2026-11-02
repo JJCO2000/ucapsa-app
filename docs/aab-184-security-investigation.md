@@ -21,3 +21,25 @@ No application code, security gates, package versions, or lockfile are changed b
 - `packages/decode-uri-component-compat/package.json` already wraps `decode-uri-component@0.5.0` through the `upstream-decoder` npm alias. Investigate whether the audit finding is for another transitive copy before changing this wrapper.
 - Dependabot PR #565 proposes Expo SDK 58 across 31 packages, a broad major SDK upgrade, not a suitable minimal fix for the SDK 57 AAB incident.
 - GitHub Actions run #184 has zero uploaded artifacts. Do not label it a successful AAB build.
+
+## Public advisory research (2026-11-01)
+
+Published fixes now exist for previously unreviewed advisories:
+
+| Package | Patched version | Advisory / evidence |
+| --- | --- | --- |
+| `decode-uri-component` | `0.5.1` | https://github.com/advisories/GHSA-qr28-fpjm-wq7f |
+| `node-forge` | `1.4.1` | https://github.com/advisories/GHSA-4487-j8r4-4g2f |
+| `glob` | `14.0.2` | https://github.com/advisories/GHSA-3g3m-2fjr-6pw4 |
+| `minimatch` | `11.0.1` | https://github.com/advisories/GHSA-g3hv-75wg-m249 |
+
+Expo SDK 58 upstream issue https://github.com/expo/expo/issues/52735 documents Expo tooling dependency pins on `glob@^13` and `minimatch@^10`. This is evidence of a build-tooling dependency constraint, not proof that an override is compatible with UCAPSA SDK 57. The issue specifically warns that a global minimatch 11 override may break eslint plugins using `minimatch.makeRe`.
+
+### Narrow patch candidate (not applied)
+
+- Change the internal compatibility wrapper `packages/decode-uri-component-compat/package.json` from `upstream-decoder: npm:decode-uri-component@0.5.0` to `npm:decode-uri-component@0.5.1`, then regenerate and verify lockfile. Check that the audit reports no other vulnerable nested decoder copy.
+- Evaluate `node-forge@1.4.1` only after confirming its exact dependency tree and Expo code-signing compatibility.
+- Investigate which SDK 57 Expo packages pin `glob` and `minimatch`; avoid global overrides that could break ESLint or CLI APIs. Test any scoped replacement before acceptance.
+- Reproduce the full audit after each narrow fix. There are 14 previously unreviewed advisory IDs; these four package families do not establish that all findings are resolved.
+
+No dependency changes have been made or tested. The current environment cannot clone the repository directly, so this research does not establish a passing build.
