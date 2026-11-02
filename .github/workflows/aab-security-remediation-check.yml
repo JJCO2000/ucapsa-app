@@ -30,6 +30,12 @@ jobs:
         id: decoder
         run: |
           if node -e 'const p=require("./packages/decode-uri-component-compat/package.json");process.exit(p.dependencies["upstream-decoder"]==="npm:decode-uri-component@0.5.1"?0:1)'; then echo 'needs_patch=false' >> "$GITHUB_OUTPUT"; else echo 'needs_patch=true' >> "$GITHUB_OUTPUT"; fi
+      - name: Verify committed decoder patch
+        if: steps.decoder.outputs.needs_patch == 'false'
+        run: |
+          npm run check:dependency-security-overrides
+          npm run check:transitive-security
+          npm run typecheck
       - name: Capture baseline audit
         shell: bash
         run: |
