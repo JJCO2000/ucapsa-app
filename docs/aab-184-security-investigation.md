@@ -13,3 +13,11 @@ GitHub Actions run https://github.com/JJCO2000/ucapsa-app/actions/runs/413324499
 5. Note the existing time-limited `zod` exception review deadline of 2026-11-01; revisit it rather than extending without evidence.
 
 No application code, security gates, package versions, or lockfile are changed by this investigation note. No production build was triggered.
+
+## Additional verified workflow and dependency facts
+
+- `.github/workflows/build-production-aab.yml` checks out canonical `main`, runs `npm ci`, then `npm run verify:release`, and only afterwards starts `eas build`. Thus changes in this PR branch cannot fix a production build until safely reviewed and merged.
+- The workflow has an explicit `Critical vulnerability gate` after Expo Doctor, but the earlier npm advisory baseline blocks first. Do not bypass either gate.
+- `packages/decode-uri-component-compat/package.json` already wraps `decode-uri-component@0.5.0` through the `upstream-decoder` npm alias. Investigate whether the audit finding is for another transitive copy before changing this wrapper.
+- Dependabot PR #565 proposes Expo SDK 58 across 31 packages, a broad major SDK upgrade, not a suitable minimal fix for the SDK 57 AAB incident.
+- GitHub Actions run #184 has zero uploaded artifacts. Do not label it a successful AAB build.
