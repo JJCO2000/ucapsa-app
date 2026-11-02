@@ -1,0 +1,56 @@
+name: AAB security remediation diagnostic
+
+on:
+  push:
+    branches:
+      - fix/aab-184-security-audit-investigation
+    paths:
+      - .github/workflows/aab-security-remediation-check.yml
+      - packages/decode-uri-component-compat/package.json
+      - package.json
+      - package-lock.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  investigate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Baseline install
+        run: npm ci
+      - name: Capture baseline audit
+        shell: bash
+        run: |
+          npm audit --omit=dev --json > "$RUNNER_TEMP/baseline-audit.json" || true
+          node -e 'const r=require(process.env.RUNNER_TEMP+"/baseline-audit.json");console.log(JSON.stringify(r.metadata?.vulnerabilities,null,2))'
+      - name: Test narrowly scoped patched dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm pkg set 'dependencies.upstream-decoder=npm:decode-uri-component@0.5.1' --prefix packages/decode-uri-component-compat
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          npm ci
+          npm run check:dependency-security-overrides
+          npm run check:transitive-security
+          npm audit --omit=dev --json > "$RUNNER_TEMP/patched-audit.json" || true
+          node -e 'const r=require(process.env.RUNNER_TEMP+"/patched-audit.json");console.log(JSON.stringify(r.metadata?.vulnerabilities,null,2))'
+          git diff -- package-lock.json packages/decode-uri-component-compat/package.json > "$RUNNER_TEMP/decoder-patch.diff"
+          test -s "$RUNNER_TEMP/decoder-patch.diff"
+      - name: Upload diagnostics and candidate patch
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: aab-184-security-diagnostics
+          path: |
+            ${{ runner.temp }}/baseline-audit.json
+            ${{ runner.temp }}/patched-audit.json
+            ${{ runner.temp }}/decoder-patch.diff
+          if-no-files-found: warn
