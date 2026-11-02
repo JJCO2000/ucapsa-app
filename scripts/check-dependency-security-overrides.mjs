@@ -11,8 +11,8 @@ if (pkg.overrides?.['decode-uri-component'] !== '$decode-uri-component') {
 if (pkg.overrides?.xcode?.uuid !== '11.1.1') {
   throw new Error('xcode must stay pinned to patched uuid 11.1.1.');
 }
-if (lock.packages?.['node_modules/upstream-decoder']?.version !== '0.5.0') {
-  throw new Error('Patched URI decoder 0.5.0 is not locked.');
+if (lock.packages?.['packages/decode-uri-component-compat/node_modules/upstream-decoder']?.version !== '0.5.1') {
+  throw new Error('Patched URI decoder 0.5.1 is not locked.');
 }
 if (lock.packages?.['node_modules/uuid']?.version !== '11.1.1') {
   throw new Error('Patched uuid 11.1.1 is not locked.');

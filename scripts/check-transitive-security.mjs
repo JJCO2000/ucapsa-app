@@ -6,6 +6,9 @@ const floors = {
   'baseline-browser-mapping': '2.11.0',
   'browserslist': '4.28.7',
   'js-yaml': '4.3.2',
+  'node-forge': '1.4.2',
+  glob: '14.0.2',
+  minimatch: '11.0.1',
 };
 
 function parts(version) {
@@ -36,4 +39,15 @@ for (const [name, minimum] of Object.entries(floors)) {
   console.log(`${name}: ${installed} (>= ${minimum})`);
 }
 
+const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+for (const name of ['node-forge', 'glob', 'minimatch']) {
+  const floor = floors[name];
+  const matches = Object.entries(lock.packages ?? {}).filter(([path]) => path.endsWith('/' + name));
+  if (matches.length === 0) throw new Error('No locked package found for security floor: ' + name);
+  for (const [path, metadata] of matches) {
+    if (!gte(metadata.version ?? '0.0.0', floor)) {
+      throw new Error('Vulnerable locked transitive dependency: ' + path + '@' + metadata.version + ', requires >= ' + floor);
+    }
+  }
+}
 console.log('UCAPSA compatible transitive security floors: PASS');
