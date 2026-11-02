@@ -1,0 +1,54 @@
+name: AAB dependency compatibility experiment
+on:
+  push:
+    branches: [fix/aab-184-security-audit-investigation]
+    paths: [.github/workflows/aab-dependency-experiment.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Baseline install
+        run: npm ci
+      - name: Try scoped security fixes (without modifying committed source)
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          p.overrides['node-forge'] = '1.4.2';
+          const expoGlobParents = ['@expo/cli','@expo/config','@expo/config-plugins','@expo/fingerprint','@expo/metro-config','expo-updates'];
+          for (const name of expoGlobParents) {
+            p.overrides[name] = { ...(p.overrides[name] || {}), glob: '14.0.2' };
+          }
+          p.overrides['@expo/fingerprint'].minimatch = '11.0.1';
+          fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');
+          NODE
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          npm ci
+          node -e 'const l=require("./package-lock.json"); for(const n of ["glob","minimatch","node-forge","zod","image-size"])console.log("LOCKED",n,Object.entries(l.packages).filter(([k])=>k.endsWith("/"+n)).map(([k,v])=>k+"@"+v.version))'
+          npm audit --omit=dev --json > "$RUNNER_TEMP/audit.json" || true
+          node -e 'const x=require(process.env.RUNNER_TEMP+"/audit.json");console.log("AUDIT",JSON.stringify(x.metadata.vulnerabilities));console.log("VULNERABLE",Object.keys(x.vulnerabilities))'
+          npm run verify
+          npm run check:release
+          npm run check:transitive-security
+          node scripts/check-expo-validated-deps.mjs
+          git diff -- package.json package-lock.json > "$RUNNER_TEMP/remediation.diff"
+      - name: Upload candidate patch and audit
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: scoped-remediation-candidate
+          path: |
+            ${{ runner.temp }}/audit.json
+            ${{ runner.temp }}/remediation.diff
+          if-no-files-found: warn
