@@ -40,7 +40,7 @@ jobs:
         shell: bash
         run: |
           npm audit --omit=dev --json > "$RUNNER_TEMP/baseline-audit.json" || true
-          node -e 'const r=require(process.env.RUNNER_TEMP+"/baseline-audit.json");console.log(JSON.stringify(r.metadata?.vulnerabilities,null,2));console.log("Advisories",Object.fromEntries(Object.entries(r.vulnerabilities||{}).map(([k,v])=>[k,{severity:v.severity,via:v.via.map(x=>typeof x==="string"?x:{url:x.url,range:x.range}),fixAvailable:v.fixAvailable}]))))'
+          node -e 'const r=require(process.env.RUNNER_TEMP+"/baseline-audit.json");console.log(JSON.stringify(r.metadata?.vulnerabilities,null,2));console.log("Advisories",Object.fromEntries(Object.entries(r.vulnerabilities||{}).map(([k,v])=>[k,{severity:v.severity,via:v.via.map(x=>typeof x==="string"?x:{url:x.url,range:x.range}),fixAvailable:v.fixAvailable}])))'
       - name: Test narrowly scoped patched dependencies
         if: steps.decoder.outputs.needs_patch == 'true'
         shell: bash
