@@ -5,7 +5,7 @@ on:
     paths: [.github/workflows/aab-dependency-experiment.yml]
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   experiment:
     runs-on: ubuntu-latest
@@ -38,11 +38,22 @@ jobs:
           node -e 'const l=require("./package-lock.json"); for(const n of ["glob","minimatch","node-forge","zod","image-size"])console.log("LOCKED",n,Object.entries(l.packages).filter(([k])=>k.endsWith("/"+n)).map(([k,v])=>k+"@"+v.version))'
           npm audit --omit=dev --json > "$RUNNER_TEMP/audit.json" || true
           node -e 'const x=require(process.env.RUNNER_TEMP+"/audit.json");console.log("AUDIT",JSON.stringify(x.metadata.vulnerabilities));console.log("VULNERABLE",Object.keys(x.vulnerabilities))'
-          npm run verify
-          npm run check:release
-          npm run check:transitive-security
+          npm run verify:release
           node scripts/check-expo-validated-deps.mjs
+          EXPO_DOCTOR_SKIP_DEPENDENCY_VERSION_CHECK=1 npx --yes expo-doctor@1.20.4
+          npm run audit:critical
           git diff -- package.json package-lock.json > "$RUNNER_TEMP/remediation.diff"
+      - name: Commit verified remediation to investigation branch
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package.json package-lock.json
+          git diff --cached --check
+          git commit -m 'fix: patch Expo build-time forge, glob and minimatch dependency graph'
+          git push origin HEAD:fix/aab-184-security-audit-investigation
       - name: Upload candidate patch and audit
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
